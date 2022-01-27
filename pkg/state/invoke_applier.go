@@ -326,21 +326,18 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
-	var keySizeValidationVersion byte = 1
-	if info.blockV5Activated { // if RideV4 is activated
-		keySizeValidationVersion = 2
-	}
+	isUTF16KeyLen := !info.blockV5Activated // if RideV4 isn't activated
 	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
 	if info.blockV5Activated {
 		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:     info.disableSelfTransfers,
-		KeySizeValidationVersion: keySizeValidationVersion,
-		MaxDataEntriesSize:       maxDataEntriesSize,
+		DisableSelfTransfers: info.disableSelfTransfers,
+		IsUTF16KeyLen:        isUTF16KeyLen,
+		MaxDataEntriesSize:   maxDataEntriesSize,
 	}
 
-	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
+	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion)); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).

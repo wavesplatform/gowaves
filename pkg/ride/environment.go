@@ -1,8 +1,6 @@
 package ride
 
 import (
-	"unicode/utf16"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -600,25 +598,32 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	return nil
 }
 
-func (ws *WrappedState) validateDataEntryAction(res *proto.DataEntryScriptAction, restrictions proto.ActionsValidationRestrictions) error {
+func (ws *WrappedState) validateDataEntryAction(
+	res *proto.DataEntryScriptAction,
+	restrictions proto.ActionsValidationRestrictions,
+	isRideV6Activated bool,
+) error {
 	ws.dataEntriesCount++
 	if ws.dataEntriesCount > proto.MaxDataEntryScriptActions {
-		return errors.Errorf("number of data entries produced by script is more than allowed %d", proto.MaxDataEntryScriptActions)
+		return errors.Errorf(
+			"number of data entries (%d) produced by script is more than allowed %d",
+			ws.dataEntriesCount,
+			proto.MaxDataEntryScriptActions,
+		)
 	}
-	switch restrictions.KeySizeValidationVersion {
-	case 1:
-		if len(utf16.Encode([]rune(res.Entry.GetKey()))) > proto.MaxKeySize {
-			return errs.NewTooBigArray("key is too large")
-		}
-	default:
-		if len([]byte(res.Entry.GetKey())) > proto.MaxPBKeySize {
-			return errs.NewTooBigArray("key is too large")
-		}
+	if err := res.Entry.Valid(restrictions.IsUTF16KeyLen); err != nil {
+		return err
 	}
-
-	ws.dataEntriesSize += res.Entry.BinarySize()
+	if isRideV6Activated {
+		ws.dataEntriesSize += res.Entry.PayloadSize()
+	} else {
+		ws.dataEntriesSize += res.Entry.BinarySize()
+	}
 	if ws.dataEntriesSize > restrictions.MaxDataEntriesSize {
-		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
+		return errors.Errorf("total size of data entries (%d) produced by script is more than %d bytes",
+			ws.dataEntriesSize,
+			restrictions.MaxDataEntriesSize,
+		)
 	}
 	return nil
 }
@@ -825,22 +830,19 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 		return nil, err
 	}
 
-	disableSelfTransfers := libVersion >= 4 // it's OK, this flag depends on library version, not feature
-	var keySizeValidationVersion byte = 1
-	if env.blockV5Activated() { // if RideV4 is activated
-		keySizeValidationVersion = 2
-	}
+	disableSelfTransfers := libVersion >= 4  // it's OK, this flag depends on library version, not feature
+	isUTF16KeyLen := !env.blockV5Activated() // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:     disableSelfTransfers,
-		KeySizeValidationVersion: keySizeValidationVersion,
-		MaxDataEntriesSize:       env.maxDataEntriesSize(),
+		DisableSelfTransfers: disableSelfTransfers,
+		IsUTF16KeyLen:        isUTF16KeyLen,
+		MaxDataEntriesSize:   env.maxDataEntriesSize(),
 	}
 
 	for _, action := range actions {
 		switch res := action.(type) {
 
 		case *proto.DataEntryScriptAction:
-			err := ws.validateDataEntryAction(res, restrictions)
+			err := ws.validateDataEntryAction(res, restrictions, env.rideV6Activated())
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
 			}
@@ -1149,6 +1151,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 			ws.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
 
 		default:
+			return nil, errors.Errorf("unknown script action type %T", res)
 		}
 	}
 

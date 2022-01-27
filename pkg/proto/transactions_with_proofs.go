@@ -11,46 +11,45 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 const (
-	issueWithProofsFixedBodyLen          = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
-	issueWithProofsMinBodyLen            = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
-	issueWithProofsMinLen                = 1 + issueWithProofsMinBodyLen + proofsMinLen
-	transferWithProofsFixedBodyLen       = 1 + 1 + transferLen
-	transferWithProofsMinLen             = 1 + transferWithProofsFixedBodyLen + proofsMinLen
-	reissueWithProofsBodyLen             = 3 + reissueLen
-	reissueWithProofsMinLen              = 1 + reissueWithProofsBodyLen + proofsMinLen
-	burnWithProofsBodyLen                = 1 + 1 + 1 + burnLen
-	burnWithProofsLen                    = 1 + burnWithProofsBodyLen + proofsMinLen
-	exchangeWithProofsFixedBodyLen       = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
-	exchangeWithProofsMinLen             = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
-	leaseWithProofsBodyLen               = 1 + 1 + 1 + leaseLen
-	leaseWithProofsMinLen                = leaseWithProofsBodyLen + proofsMinLen
-	leaseCancelWithProofsBodyLen         = 1 + 1 + 1 + leaseCancelLen
-	leaseCancelWithProofsMinLen          = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
-	createAliasWithProofsFixedBodyLen    = 1 + 1 + createAliasLen
-	createAliasWithProofsMinLen          = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
-	massTransferEntryLen                 = 8
-	massTransferWithProofsFixedLen       = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
-	massTransferWithProofsMinLen         = massTransferWithProofsFixedLen + proofsMinLen
-	dataWithProofsFixedBodyLen           = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
-	dataWithProofsMinLen                 = dataWithProofsFixedBodyLen + proofsMinLen
-	setScriptWithProofsFixedBodyLen      = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
-	setScriptWithProofsMinLen            = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	sponsorshipWithProofsBodyLen         = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
-	sponsorshipWithProofsMinLen          = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
-	setAssetScriptWithProofsFixedBodyLen = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
-	setAssetScriptWithProofsMinLen       = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	invokeScriptWithProofsFixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
-	invokeScriptWithProofsMinLen         = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
-	maxTransfers                         = 100
-	maxEntries                           = 100
-	maxDataWithProofsBytes               = 150 * 1024
-	maxArguments                         = 22
-	maxFunctionNameBytes                 = 255
-	maxInvokeScriptWithProofsBytes       = 5 * 1024
+	issueWithProofsFixedBodyLen              = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
+	issueWithProofsMinBodyLen                = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueWithProofsMinLen                    = 1 + issueWithProofsMinBodyLen + proofsMinLen
+	transferWithProofsFixedBodyLen           = 1 + 1 + transferLen
+	transferWithProofsMinLen                 = 1 + transferWithProofsFixedBodyLen + proofsMinLen
+	reissueWithProofsBodyLen                 = 3 + reissueLen
+	reissueWithProofsMinLen                  = 1 + reissueWithProofsBodyLen + proofsMinLen
+	burnWithProofsBodyLen                    = 1 + 1 + 1 + burnLen
+	burnWithProofsLen                        = 1 + burnWithProofsBodyLen + proofsMinLen
+	exchangeWithProofsFixedBodyLen           = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeWithProofsMinLen                 = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
+	leaseWithProofsBodyLen                   = 1 + 1 + 1 + leaseLen
+	leaseWithProofsMinLen                    = leaseWithProofsBodyLen + proofsMinLen
+	leaseCancelWithProofsBodyLen             = 1 + 1 + 1 + leaseCancelLen
+	leaseCancelWithProofsMinLen              = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
+	createAliasWithProofsFixedBodyLen        = 1 + 1 + createAliasLen
+	createAliasWithProofsMinLen              = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
+	massTransferEntryLen                     = 8
+	massTransferWithProofsFixedLen           = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
+	massTransferWithProofsMinLen             = massTransferWithProofsFixedLen + proofsMinLen
+	dataWithProofsFixedBodyLen               = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
+	dataWithProofsMinLen                     = dataWithProofsFixedBodyLen + proofsMinLen
+	setScriptWithProofsFixedBodyLen          = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
+	setScriptWithProofsMinLen                = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	sponsorshipWithProofsBodyLen             = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	sponsorshipWithProofsMinLen              = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
+	setAssetScriptWithProofsFixedBodyLen     = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
+	setAssetScriptWithProofsMinLen           = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	invokeScriptWithProofsFixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
+	invokeScriptWithProofsMinLen             = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
+	maxTransfers                             = 100
+	maxEntries                               = 100
+	maxDataWithProofsTxBytes             int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
+	maxArguments                             = 22
+	maxFunctionNameBytes                     = 255
+	maxInvokeScriptWithProofsBytes           = 5 * 1024
 
 	topRideVersion = 5
 )
@@ -3076,9 +3075,7 @@ type DataWithProofs struct {
 func (tx DataWithProofs) BinarySize() int {
 	size := 3 + tx.Proofs.BinarySize() + crypto.PublicKeySize + 16
 	size += 2
-	for _, entry := range tx.Entries {
-		size += entry.BinarySize()
-	}
+	size += tx.Entries.BinarySize()
 	return size
 }
 
@@ -3150,20 +3147,17 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if len(tx.Entries) > maxEntries {
 		return tx, errs.NewTooBigArray(fmt.Sprintf("number of DataWithProofs entries is bigger than %d", maxEntries))
 	}
-	keys := make(map[string]struct{})
+	isPBTx := IsProtobufTx(tx)
+	keys := make(map[string]struct{}, len(tx.Entries))
 	for _, e := range tx.Entries {
-		if !IsProtobufTx(tx) && e.GetValueType() == DataDelete {
+		if !isPBTx && e.GetValueType() == DataDelete {
 			return tx, errors.New("delete supported only for protobuf transaction")
 		}
-		err := e.Valid(tx.Version)
-		if err != nil {
-			return tx, errs.Extend(err, "at least one of the DataWithProofs entry is not valid")
+		key := e.GetKey()
+		if _, ok := keys[key]; ok {
+			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", key))
 		}
-		_, ok := keys[e.GetKey()]
-		if ok {
-			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", e.GetKey()))
-		}
-		keys[e.GetKey()] = struct{}{}
+		keys[key] = struct{}{}
 	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
@@ -3174,8 +3168,7 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-	//TODO: validate size of transaction by version:
-	// 1 -> binary size should be less than 150 * 1024; 2 -> proto payload size should be less than 165890 bytes
+	// see tx size and entries validation in transactionChecker
 	return tx, nil
 }
 
@@ -3194,18 +3187,10 @@ func (tx *DataWithProofs) AppendEntry(entry DataEntry) error {
 	return nil
 }
 
-func (tx *DataWithProofs) entriesLen() int {
-	r := 0
-	for _, e := range tx.Entries {
-		r += e.BinarySize()
-	}
-	return r
-}
-
 func (tx *DataWithProofs) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	n := len(tx.Entries)
-	el := tx.entriesLen()
+	el := tx.Entries.BinarySize()
 	buf := make([]byte, dataWithProofsFixedBodyLen+el)
 	buf[p] = byte(tx.Type)
 	p++
@@ -3349,8 +3334,8 @@ func (tx *DataWithProofs) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads the transaction from the bytes.
 func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
-	if len(data) > maxDataWithProofsBytes {
-		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	if len(data) > maxDataWithProofsTxBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
 	}
 	if l := len(data); l < dataWithProofsMinLen {
 		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less then %d, received %d", dataWithProofsMinLen, l)
@@ -3362,7 +3347,7 @@ func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction from bytes")
 	}
-	bl := dataWithProofsFixedBodyLen + tx.entriesLen()
+	bl := dataWithProofsFixedBodyLen + tx.Entries.BinarySize()
 	data = data[1+bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -3381,8 +3366,8 @@ func (tx *DataWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 }
 
 func (tx *DataWithProofs) UnmarshalFromProtobuf(data []byte) error {
-	if len(data) > maxDataWithProofsBytes {
-		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	if len(data) > maxDataWithProofsTxBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
 	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
@@ -3401,8 +3386,8 @@ func (tx *DataWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error)
 }
 
 func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
-	if len(data) > maxDataWithProofsBytes {
-		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	if len(data) > maxDataWithProofsTxBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
 	}
 	t, err := SignedTxFromProtobuf(data)
 	if err != nil {
@@ -3431,13 +3416,21 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	return res, nil
 }
 
-func (tx *DataWithProofs) ProtoPayload(scheme Scheme) ([]byte, error) {
+func (tx *DataWithProofs) ProtoPayload(scheme Scheme) (*g.DataTransactionData, error) {
 	proto, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
-	data := proto.GetDataTransaction()
-	return protobuf.MarshalOptions{Deterministic: true}.Marshal(data)
+	return proto.GetDataTransaction(), nil
+}
+
+func (tx *DataWithProofs) ProtoPayloadSize(scheme Scheme) (int, error) {
+	payload, err := tx.ProtoPayload(scheme)
+	if err != nil {
+		return 0, err
+	}
+	// use this method to calculate PB binary size of payload
+	return payload.SizeVT(), nil
 }
 
 func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {

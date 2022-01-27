@@ -1146,6 +1146,38 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 	return smartAssets, nil
 }
 
+func (tc *transactionChecker) checkDataWithProofsSize(tx *proto.DataWithProofs, scheme proto.Scheme, isRideV6Activated bool) error {
+	switch {
+	case isRideV6Activated:
+		if pl := tx.Entries.PayloadSize(); pl > proto.MaxDataWithProofsV6PayloadBytes {
+			return errors.Errorf("data entries payload size limit exceeded, limit=%d, actual size=%d",
+				proto.MaxDataWithProofsV6PayloadBytes, pl,
+			)
+		}
+	case proto.IsProtobufTx(tx):
+		pbSize, err := tx.ProtoPayloadSize(scheme)
+		if err != nil {
+			return err
+		}
+		if pbSize > proto.MaxDataWithProofsProtoBytes {
+			return errors.Errorf("data tx protobuf size limit exceeded, limit=%d, actual size=%d",
+				proto.MaxDataWithProofsProtoBytes, pbSize,
+			)
+		}
+	default:
+		txBytes, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if l := len(txBytes); l > proto.MaxDataWithProofsBytes {
+			return errors.Errorf("data tx binary size limit exceeded, limit=%d, actual size=%d",
+				proto.MaxDataWithProofsBytes, l,
+			)
+		}
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
@@ -1164,6 +1196,17 @@ func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction,
 	}
 	if !activated {
 		return nil, errors.New("Data transaction has not been activated yet")
+	}
+	isRideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	utf16KeyLen := tx.Version == 1 && !isRideV6Activated
+	if err := tx.Entries.Valid(utf16KeyLen); err != nil {
+		return nil, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")
+	}
+	if err := tc.checkDataWithProofsSize(tx, tc.settings.AddressSchemeCharacter, isRideV6Activated); err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
