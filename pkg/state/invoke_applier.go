@@ -728,13 +728,12 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}()
 
 	var (
-		paymentsLength     int
-		scriptAddr         *proto.WavesAddress
-		txID               crypto.Digest
-		sender             proto.Address
-		tree               *ride.Tree
-		scriptPK           crypto.PublicKey
-		isInvokeExpression bool
+		paymentsLength int
+		scriptAddr     *proto.WavesAddress
+		txID           crypto.Digest
+		sender         proto.Address
+		tree           *ride.Tree
+		scriptPK       crypto.PublicKey
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -769,7 +768,6 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
-		isInvokeExpression = true
 		txID = *transaction.ID
 		scriptPK = transaction.SenderPK
 
@@ -822,7 +820,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == *scriptAddr && !isInvokeExpression {
+		if sender == *scriptAddr {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}
