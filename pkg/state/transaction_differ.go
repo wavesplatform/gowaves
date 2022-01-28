@@ -599,8 +599,8 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 		return td.createDiffEthereumTransferWaves(ethTx, info)
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		return td.createDiffEthereumErc20(ethTx, info)
-	case *proto.EthereumInvokeScriptTxKind:
-		return td.createDiffEthereumInvokeScript(ethTx, info)
+	case *proto.EthereumInvokeScriptTxKind, *proto.EthereumInvokeExpressionTxKind:
+		return td.createDiffEthereumInvoke(ethTx, info)
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")
 
@@ -1463,26 +1463,34 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
+func (td *transactionDiffer) createDiffEthereumInvoke(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
 
 	updateMinIntermediateBalance := false
-
-	txInvokeScriptKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
-	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
-	}
-
-	decodedData := txInvokeScriptKind.DecodedData()
-
-	noPayments := len(decodedData.Payments) == 0
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
-		updateMinIntermediateBalance = true
-	}
+	var (
+		decodedData   *ethabi.DecodedCallData
+		noPayments    = true
+		scriptAddress *proto.WavesAddress
+	)
 	diff := newTxDiff()
 	// Append sender diff.
 	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrapf(err, "failed to get sender address from ethereum invoke tx")
+	}
+	switch kind := tx.TxKind.(type) {
+	case *proto.EthereumInvokeScriptTxKind:
+		decodedData = kind.DecodedData()
+		noPayments = len(decodedData.Payments) == 0
+		scriptAddress, err = tx.WavesAddressTo(td.settings.AddressSchemeCharacter)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
+	case *proto.EthereumInvokeExpressionTxKind:
+		scriptAddress = &senderAddress
+	}
+
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
+		updateMinIntermediateBalance = true
 	}
 
 	senderAddrID := senderAddress.ID()
@@ -1492,28 +1500,27 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	scriptAddr, err := tx.WavesAddressTo(td.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txBalanceChanges{}, err
-	}
-	scriptAddrID := scriptAddr.ID()
+	scriptAddrID := scriptAddress.ID()
 
-	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddress, *scriptAddress}
 	changes := newTxBalanceChanges(addresses, diff)
 
-	for _, payment := range decodedData.Payments {
-		assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
-		senderPaymentKey := byteKey(senderAddrID, *assetID)
-		senderBalanceDiff := -payment.Amount
-		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
-		}
-		receiverKey := byteKey(scriptAddrID, *assetID)
-		receiverBalanceDiff := payment.Amount
-		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
+	if decodedData != nil {
+		for _, payment := range decodedData.Payments {
+			assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
+			senderPaymentKey := byteKey(senderAddrID, *assetID)
+			senderBalanceDiff := -payment.Amount
+			if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+				return txBalanceChanges{}, err
+			}
+			receiverKey := byteKey(scriptAddrID, *assetID)
+			receiverBalanceDiff := payment.Amount
+			if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+				return txBalanceChanges{}, err
+			}
 		}
 	}
+
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1574,7 +1581,7 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	return changes, nil
 }
 
-func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+func (td *transactionDiffer) createFeeDiffEthereumInvokeWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
@@ -1589,14 +1596,22 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
+
+	var scriptAddress proto.WavesAddress
+	switch tx.TxKind.(type) {
+	case *proto.EthereumInvokeScriptTxKind:
+		scriptAddress, err = tx.To().ToWavesAddress(td.settings.AddressSchemeCharacter)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
+	case *proto.EthereumInvokeExpressionTxKind:
+		scriptAddress = senderAddress
+	}
+
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
 	senderFeeBalanceDiff := -int64(tx.GetFee())
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
-		return txBalanceChanges{}, err
-	}
-	scriptAddress, err := tx.To().ToWavesAddress(td.settings.AddressSchemeCharacter)
-	if err != nil {
 		return txBalanceChanges{}, err
 	}
 

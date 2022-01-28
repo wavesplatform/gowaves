@@ -212,9 +212,9 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
-		// TODO handle ethereum invoke expression tx
+		// ethereum InvokeScript and InvokeExpression
 	case proto.EthereumMetamaskTransaction:
-		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeWithProofs(tx, differInfo)
 		if err != nil {
 			return err
 		}
@@ -654,14 +654,12 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	case *proto.InvokeExpressionTransactionWithProofs:
 		ID = *t.ID
 	case *proto.EthereumTransaction:
-		// TODO: handle ethereum invoke expression tx
 		switch t.TxKind.(type) {
-		case *proto.EthereumInvokeScriptTxKind:
+		case *proto.EthereumInvokeScriptTxKind, *proto.EthereumInvokeExpressionTxKind:
 			ID = *t.ID
 		default:
 			return nil, errors.Errorf("unexpected ethereum tx kind (%T)", tx)
 		}
-		ID = *t.ID
 	default:
 		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}

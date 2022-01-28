@@ -125,7 +125,7 @@ func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *p
 			return txBalanceChanges{}, err
 		}
 	case proto.EthereumMetamaskTransaction:
-		txChanges, err = d.handler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		txChanges, err = d.handler.td.createFeeDiffEthereumInvokeWithProofs(tx, differInfo)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}

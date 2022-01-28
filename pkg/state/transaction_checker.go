@@ -486,6 +486,10 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 	case *proto.EthereumInvokeExpressionTxKind:
 		minFee := proto.EthereumInvokeMinFee
 
+		if l := len(kind.Expression); l > proto.MaxContractScriptSize {
+			return nil, errors.Errorf("size of the expression %d is exceeded limit %d", l, proto.MaxContractScriptSize)
+		}
+
 		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 			return nil, errs.Extend(err, "invalid timestamp")
 		}
