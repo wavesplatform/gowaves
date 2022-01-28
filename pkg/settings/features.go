@@ -44,5 +44,5 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
 	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
-	RideV6:                          {false, "Ride V6, MetaMask support, Invoke Expression"},
+	RideV6:                          {true, "Ride V6, MetaMask support, Invoke Expression"},
 }

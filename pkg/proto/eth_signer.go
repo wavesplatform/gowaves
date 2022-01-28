@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -57,6 +58,15 @@ func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 		return EthereumPublicKey{}, errors.Wrapf(err,
 			"failed to decode marshaled EthereumPublicKey into bytes from hex string %q", s,
 		)
+	}
+	return NewEthereumPublicKeyFromBytes(b)
+}
+
+// NewEthereumAddressFromBase58String creates an EthereumPublicKey from its string representation.
+func NewEthereumPublicKeyFromBase58String(s string) (EthereumPublicKey, error) {
+	b, err := base58.Decode(s)
+	if err != nil {
+		return EthereumPublicKey{}, errors.Wrap(err, "invalid Base58 string")
 	}
 	return NewEthereumPublicKeyFromBytes(b)
 }

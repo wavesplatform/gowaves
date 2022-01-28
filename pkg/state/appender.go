@@ -5,6 +5,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -206,7 +207,21 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
+	case proto.InvokeExpressionTransaction:
+		feeChanges, err = a.txHandler.td.createFeeDiffInvokeExpressionWithProofs(tx, differInfo)
+		if err != nil {
+			return err
+		}
+		// TODO handle ethereum invoke expression tx
+	case proto.EthereumMetamaskTransaction:
+		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	}
+
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor, !info.initialisation)
 }
 
@@ -454,7 +469,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	var applicationRes *applicationResult
 	needToValidateBalanceDiff := false
 	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
+	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.ExchangeTransaction:
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
@@ -479,7 +494,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
 				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
 			// In UTX balances are always validated.
@@ -494,7 +509,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			if err != nil {
 				return errors.Errorf(
 					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
 		}
@@ -631,27 +646,27 @@ type applicationResult struct {
 }
 
 func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
-	invokeTx, ok := tx.(*proto.InvokeScriptWithProofs)
-	if !ok {
-		return nil, errors.New("failed to convert transaction to type InvokeScriptWithProofs")
+	var ID crypto.Digest
+	switch t := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		ID = *t.ID
+	case *proto.InvokeExpressionTransactionWithProofs:
+		ID = *t.ID
+	case *proto.EthereumTransaction:
+		// TODO: handle ethereum invoke expression tx
+		switch t.TxKind.(type) {
+		case *proto.EthereumInvokeScriptTxKind:
+			ID = *t.ID
+		default:
+			return nil, errors.Errorf("unexpected ethereum tx kind (%T)", tx)
+		}
+		ID = *t.ID
+	default:
+		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}
-	res, err := a.ia.applyInvokeScript(invokeTx, info)
+	res, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
-		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
-		return nil, err
-	}
-	return res, nil
-}
-
-func (a *txAppender) handleEthereumInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
-	ethTx, ok := tx.(*proto.EthereumTransaction)
-	if !ok {
-		return nil, errors.New("failed to convert transaction to type EthereumTransaction")
-	}
-
-	res, err := a.ia.applyInvokeScript(ethTx, info)
-	if err != nil {
-		zap.S().Debugf("failed to apply Ethereum invoke transaction %s to state: %v", ethTx.ID.String(), err)
+		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ID.String(), err)
 		return nil, err
 	}
 	return res, nil
@@ -769,12 +784,10 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 		}
 	}
 	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction:
+	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.EthereumMetamaskTransaction:
 		return a.handleInvoke(tx, info)
 	case proto.ExchangeTransaction:
 		return a.handleExchange(tx, info)
-	case proto.EthereumMetamaskTransaction:
-		return a.handleEthereumInvoke(tx, info)
 	}
 	return nil, errors.New("transaction is not fallible")
 }

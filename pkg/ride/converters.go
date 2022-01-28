@@ -64,6 +64,8 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
 		return ethereumTransactionToObject(scheme, transaction)
+	case *proto.InvokeExpressionTransactionWithProofs:
+		return invokeExpressionWithProofsToObject(scheme, transaction)
 	default:
 		return nil, EvaluationFailure.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -884,6 +886,35 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
+// TODO think of reusing "InvokeScripTToObject" function. Also should we fill "payments" and "function name" fields"?
+func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideObject, error) {
+	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
+	body, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("InvokeExpressionTransaction")
+	r["version"] = rideInt(tx.Version)
+	r["id"] = rideBytes(tx.ID.Bytes())
+	r["sender"] = rideAddress(sender)
+	r["senderPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(sender))
+	r["payment"] = rideUnit{}
+	r["payments"] = make(rideList, 0)
+	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
+	r["function"] = rideString("default")
+	r["args"] = rideList{}
+	r["fee"] = rideInt(tx.Fee)
+	r["timestamp"] = rideInt(tx.Timestamp)
+	r["bodyBytes"] = rideBytes(body)
+	r["proofs"] = proofs(tx.Proofs)
+	return r, nil
+}
+
 func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
 	var arg proto.Argument
 	switch m := decodedArg.(type) {
@@ -1142,40 +1173,63 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (rideObject, error) {
-	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+func invocationToObject(rideVersion int, scheme byte, tx proto.Transaction) (rideObject, error) {
+	var (
+		senderPK crypto.PublicKey
+		ID       crypto.Digest
+		FeeAsset proto.OptionalAsset
+		Fee      uint64
+	)
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("Invocation")
+
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		senderPK = transaction.SenderPK
+		ID = *transaction.ID
+		FeeAsset = transaction.FeeAsset
+		Fee = transaction.Fee
+		switch rideVersion {
+		case 1, 2, 3:
+			r["payment"] = rideUnit{}
+			if len(transaction.Payments) > 0 {
+				r["payment"] = attachedPaymentToObject(transaction.Payments[0])
+			}
+		default:
+			payments := make(rideList, len(transaction.Payments))
+			for i, p := range transaction.Payments {
+				payments[i] = attachedPaymentToObject(p)
+			}
+			r["payments"] = payments
+		}
+	case *proto.InvokeExpressionTransactionWithProofs:
+		senderPK = transaction.SenderPK
+		ID = *transaction.ID
+		FeeAsset = transaction.FeeAsset
+		Fee = transaction.Fee
+		r["payments"] = nil
+	default:
+		return nil, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
+	}
+	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
 		return nil, err
 	}
-	r := make(rideObject)
-	r[instanceFieldName] = rideString("Invocation")
-	r["transactionId"] = rideBytes(tx.ID.Bytes())
+	r["transactionId"] = rideBytes(ID.Bytes())
 	r["caller"] = rideAddress(sender)
-	callerPK := rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	r["callerPublicKey"] = callerPK
-	if v >= 5 {
+	if rideVersion >= 5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
-	switch v {
-	case 4, 5:
-		payments := make(rideList, len(tx.Payments))
-		for i, p := range tx.Payments {
-			payments[i] = attachedPaymentToObject(p)
-		}
-		r["payments"] = payments
-	default:
-		r["payment"] = rideUnit{}
-		if len(tx.Payments) > 0 {
-			r["payment"] = attachedPaymentToObject(tx.Payments[0])
-		}
-	}
-	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
-	r["fee"] = rideInt(tx.Fee)
+
+	r["feeAssetId"] = optionalAsset(FeeAsset)
+	r["fee"] = rideInt(Fee)
 	return r, nil
 }
 
-func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(rideVersion int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1190,24 +1244,25 @@ func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTr
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	r["callerPublicKey"] = callerPK
-	if v >= 5 {
+	if rideVersion >= 5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
 
-	switch v {
-	case 4, 5:
+	switch rideVersion {
+	case 1, 2, 3:
+		r["payment"] = rideUnit{}
+		if len(scriptPayments) > 0 {
+			r["payment"] = attachedPaymentToObject(scriptPayments[0])
+		}
+	default:
 		payments := make(rideList, len(scriptPayments))
 		for i, p := range scriptPayments {
 			payments[i] = attachedPaymentToObject(p)
 		}
 		r["payments"] = payments
-	default:
-		r["payment"] = rideUnit{}
-		if len(scriptPayments) > 0 {
-			r["payment"] = attachedPaymentToObject(scriptPayments[0])
-		}
 	}
+
 	wavesAsset := proto.NewOptionalAssetWaves()
 	r["feeAssetId"] = optionalAsset(wavesAsset)
 	r["fee"] = rideInt(int64(tx.GetFee()))

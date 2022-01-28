@@ -450,6 +450,32 @@ func TestOverlapping(t *testing.T) {
 	assert.True(t, r.Result())
 }
 
+func TestInvokeExpression(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE CALL #-}
+
+		let lease = Lease(Address(base58'3FMdfKQ3yrkrGawp4QYkf8phE6ZMup7hfR2'), 10)
+		[lease, BooleanEntry("key", true]
+	*/
+	s := "BgEEBWxlYXNlCQDECAIJAQdBZGRyZXNzAQEaAUP2ZeK0oJWLGYVbOVovHApDYXsAHYcycskACgkAzAgCBQVsZWFzZQkAzAgCCQEMQm9vbGVhbkVudHJ5AgIDa2V5BgUDbmlss7c8Wg=="
+	src, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	env, _ := testInvokeEnv(true)
+	res, err := CallVerifier(env, tree)
+	require.NoError(t, err)
+	require.NotNil(t, res.ScriptActions())
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	assert.True(t, r.Result())
+}
+
 func TestUserFunctionsInExpression(t *testing.T) {
 	/*
 	   {-# STDLIB_VERSION 3 #-}

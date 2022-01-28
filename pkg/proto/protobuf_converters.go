@@ -1039,6 +1039,18 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
+	case *g.Transaction_InvokeExpression:
+		feeAsset, feeAmount := c.convertAmount(tx.Fee)
+		rtx = &InvokeExpressionTransactionWithProofs{
+			Type:       InvokeExpressionTransaction,
+			Version:    v,
+			ChainID:    scheme,
+			SenderPK:   c.publicKey(tx.SenderPublicKey),
+			FeeAsset:   feeAsset,
+			Fee:        feeAmount,
+			Timestamp:  ts,
+			Expression: d.InvokeExpression.Expression,
+		}
 
 	case *g.Transaction_InvokeScript:
 		rcp, err := c.Recipient(scheme, d.InvokeScript.DApp)
@@ -1216,6 +1228,9 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 			t.Proofs = proofs
 			return t, nil
 		case *InvokeScriptWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *InvokeExpressionTransactionWithProofs:
 			t.Proofs = proofs
 			return t, nil
 		case *UpdateAssetInfoWithProofs:

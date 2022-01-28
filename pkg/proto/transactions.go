@@ -37,8 +37,9 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	_                                                      // 18 - reserved
-	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
+	InvokeExpressionTransaction                            // 18 - InvokeExpressionTransaction
+	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which is received from metamask
+
 )
 
 // TxFailureReason indicates Transactions failure reasons.
@@ -91,6 +92,11 @@ const (
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
 	MinFeeInvokeScript  = 500_000
+
+	MaxContractScriptSize = 32 * KiB
+	MaxVerifierScriptSize = 8 * KiB
+	KiB                   = 1024
+	MiB                   = 1024 * KiB
 )
 
 var (
@@ -125,23 +131,24 @@ var (
 	}
 
 	ProtobufTransactionsVersions = map[TransactionType]byte{
-		GenesisTransaction:         2,
-		PaymentTransaction:         2,
-		TransferTransaction:        3,
-		IssueTransaction:           3,
-		ReissueTransaction:         3,
-		BurnTransaction:            3,
-		ExchangeTransaction:        3,
-		LeaseTransaction:           3,
-		LeaseCancelTransaction:     3,
-		CreateAliasTransaction:     3,
-		MassTransferTransaction:    2,
-		DataTransaction:            2,
-		SetScriptTransaction:       2,
-		SponsorshipTransaction:     2,
-		SetAssetScriptTransaction:  2,
-		InvokeScriptTransaction:    2,
-		UpdateAssetInfoTransaction: 1,
+		GenesisTransaction:          2,
+		PaymentTransaction:          2,
+		TransferTransaction:         3,
+		IssueTransaction:            3,
+		ReissueTransaction:          3,
+		BurnTransaction:             3,
+		ExchangeTransaction:         3,
+		LeaseTransaction:            3,
+		LeaseCancelTransaction:      3,
+		CreateAliasTransaction:      3,
+		MassTransferTransaction:     2,
+		DataTransaction:             2,
+		SetScriptTransaction:        2,
+		SponsorshipTransaction:      2,
+		SetAssetScriptTransaction:   2,
+		InvokeScriptTransaction:     2,
+		InvokeExpressionTransaction: 1,
+		UpdateAssetInfoTransaction:  1,
 		// EthereumMetamaskTransaction should not be added because it doesn't exist as protobuf transaction
 	}
 )

@@ -344,6 +344,16 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	return nil
 }
 
+func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
+		return errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
+	}
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return errors.Wrap(err, "failed to commit invoke changes")
+	}
+	return nil
+}
+
 func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo) error {
 	ethTx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
