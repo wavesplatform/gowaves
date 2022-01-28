@@ -15,7 +15,7 @@ const (
 	prefix         = byte(1)
 
 	size         = 10000
-	testMemLimit = 10 * MiB
+	testMemLimit = 10 * proto.MiB
 )
 
 var (

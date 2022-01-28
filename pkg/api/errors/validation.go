@@ -158,3 +158,13 @@ var (
 		},
 	}
 )
+
+func NewCustomValidationError(message string) *CustomValidationError {
+	return &CustomValidationError{
+		genericError: genericError{
+			ID:       CustomValidationErrorErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  message,
+		},
+	}
+}

@@ -3,10 +3,9 @@ package state
 import (
 	"fmt"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -213,6 +212,14 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
+		// TODO handle ethereum invoke expression tx
+	case proto.EthereumMetamaskTransaction:
+		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor, !info.initialisation)
@@ -647,7 +654,16 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	case *proto.InvokeExpressionTransactionWithProofs:
 		ID = *t.ID
 	case *proto.EthereumTransaction:
+		// TODO: handle ethereum invoke expression tx
+		switch t.TxKind.(type) {
+		case *proto.EthereumInvokeScriptTxKind:
+			ID = *t.ID
+		default:
+			return nil, errors.Errorf("unexpected ethereum tx kind (%T)", tx)
+		}
 		ID = *t.ID
+	default:
+		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}
 	res, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {

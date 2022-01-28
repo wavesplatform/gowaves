@@ -326,21 +326,18 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
-	var keySizeValidationVersion byte = 1
-	if info.libVersion >= 4 {
-		keySizeValidationVersion = 2
-	}
+	isUTF16KeyLen := !info.blockV5Activated // if RideV4 isn't activated
 	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
 	if info.blockV5Activated {
 		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:     info.disableSelfTransfers,
-		KeySizeValidationVersion: keySizeValidationVersion,
-		MaxDataEntriesSize:       maxDataEntriesSize,
+		DisableSelfTransfers: info.disableSelfTransfers,
+		IsUTF16KeyLen:        isUTF16KeyLen,
+		MaxDataEntriesSize:   maxDataEntriesSize,
 	}
 
-	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
+	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion)); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).
@@ -728,15 +725,13 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}()
 
 	var (
-		paymentsLength     int
-		scriptAddr         *proto.WavesAddress
-		txID               crypto.Digest
-		sender             proto.Address // TODO change to WavesAddress
-		tree               *ride.Tree
-		scriptPK           crypto.PublicKey
-		isInvokeExpression bool
+		paymentsLength int
+		scriptAddr     *proto.WavesAddress
+		txID           crypto.Digest
+		sender         proto.Address
+		tree           *ride.Tree
+		scriptPK       crypto.PublicKey
 	)
-	// TODO refactor this unreadable switch case in the next PR. Create entities for InvokeTx and InvokeExpressionTx
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
 		var err error
@@ -766,11 +761,10 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 		sender = addr
 		scriptAddr = &addr
-		tree, err = ride.Parse([]byte(transaction.Expression))
+		tree, err = ride.Parse(transaction.Expression)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
-		isInvokeExpression = true
 		txID = *transaction.ID
 		scriptPK = transaction.SenderPK
 
@@ -808,7 +802,6 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 			}
-			isInvokeExpression = true
 			txID = *transaction.ID
 			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 			if err != nil {
@@ -817,7 +810,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 
 	default:
-		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
+		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
 
 	// If BlockV5 feature is not activated, we never accept failed transactions.
@@ -843,7 +836,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == *scriptAddr && !isInvokeExpression {
+		if sender == *scriptAddr {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}

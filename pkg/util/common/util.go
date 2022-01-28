@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -133,6 +134,16 @@ func ParseDuration(str string) (uint64, error) {
 
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes()
+}
+
+func ToBase64JSON(b []byte) []byte {
+	s := base64.StdEncoding.EncodeToString(b)
 	var sb bytes.Buffer
 	sb.Grow(2 + len(s))
 	sb.WriteRune('"')

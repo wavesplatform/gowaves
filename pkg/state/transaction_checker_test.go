@@ -910,9 +910,34 @@ func TestCheckDataWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
 
 	// Check invalid timestamp failure.
+	prevTimestamp := tx.Timestamp
 	tx.Timestamp = 0
 	_, err = to.tc.checkDataWithProofs(tx, info)
 	assert.Error(t, err, "checkDataWithProofs did not fail with invalid timestamp")
+	assert.EqualError(t, err, "invalid timestamp: Transaction timestamp 0 is more than 7200000ms in the past: early transaction creation time")
+	tx.Timestamp = prevTimestamp
+
+	// Check data entries
+	tx.Entries = append(tx.Entries, &proto.BooleanDataEntry{})
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.Error(t, err, "checkDataWithProofs did not fail with invalid data entry")
+	assert.EqualError(t, err, "at least one of the DataWithProofs entry is not valid: invalid entry 1: empty entry key")
+	tx.Entries = tx.Entries[:len(tx.Entries)-1]
+
+	// Check data tx size binary before rideV6 activation
+	bigEntry := &proto.BinaryDataEntry{Key: "NOTE: see key duplication validation in transactions_test.go", Value: make([]byte, 32*1024-1)}
+	bigEntries := proto.DataEntries{bigEntry, bigEntry, bigEntry, bigEntry, bigEntry}
+	tx.Entries = append(tx.Entries, bigEntries...)
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.Error(t, err, "checkDataWithProofs did not fail with tx size limit exceeding")
+	assert.EqualError(t, err, "data tx binary size limit exceeded, limit=153600, actual size=164299")
+	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
+
+	to.stor.activateFeature(t, int16(settings.RideV6))
+	tx.Entries = append(tx.Entries, bigEntries...)
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
+	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
 }
 
 func TestCheckSponsorshipWithProofs(t *testing.T) {

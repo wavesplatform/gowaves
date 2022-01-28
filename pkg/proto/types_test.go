@@ -1002,6 +1002,43 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestDataEntries_Valid(t *testing.T) {
+	ieFail := &IntegerDataEntry{Key: "", Value: 1234567890}
+	beFail := &BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
+	seFail := &StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
+	tests := []struct {
+		entries     DataEntries
+		utf16KeyLen bool
+		err         string
+		valid       bool
+	}{
+		{[]DataEntry{ieFail}, true, "invalid entry 0: empty entry key", false},
+		{[]DataEntry{seFail}, true, "invalid entry 0: value is too large", false},
+		{[]DataEntry{beFail, ieFail}, true, "invalid entry 0: key is too large", false},
+		{[]DataEntry{beFail, ieFail}, false, "invalid entry 1: empty entry key", false},
+		{[]DataEntry{}, false, "", true},
+		{
+			[]DataEntry{
+				&StringDataEntry{Key: "1", Value: "1"},
+				&IntegerDataEntry{Key: "2", Value: 2},
+				&BooleanDataEntry{Key: "3", Value: true},
+			},
+			false,
+			"",
+			true,
+		},
+	}
+	for i, tc := range tests {
+		err := tc.entries.Valid(tc.utf16KeyLen)
+		if tc.valid {
+			assert.NoError(t, err, "#%d", i)
+		} else {
+			assert.Error(t, err, "#%d", i)
+			assert.EqualError(t, err, tc.err, "#%d", i)
+		}
+	}
+}
+
 func TestAttachment_UnmarshalJSON(t *testing.T) {
 	a := Attachment{}
 	err := a.UnmarshalJSON([]byte("null"))
