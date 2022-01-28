@@ -450,7 +450,7 @@ type ActionsValidationRestrictions struct {
 	Scheme                   byte
 }
 
-func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int) error {
+func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int, validatePayments bool) error {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -500,7 +500,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				}
 			}
 		case *AttachedPaymentScriptAction:
-			if ta.Amount < 0 {
+			if validatePayments && ta.Amount < 0 {
 				return errors.New("negative transfer amount")
 			}
 			if restrictions.DisableSelfTransfers {

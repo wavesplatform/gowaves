@@ -80,10 +80,10 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 
 func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (*payment, error) {
 	if action.Recipient.Address == nil {
-		return nil, errors.New("transfer has unresolved aliases")
+		return nil, errors.New("payment has unresolved aliases")
 	}
 	if action.Amount < 0 {
-		return nil, errors.New("negative transfer amount")
+		return nil, errors.New("negative payment amount")
 	}
 	return &payment{
 		sender:   senderAddress,
@@ -339,8 +339,8 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		KeySizeValidationVersion: keySizeValidationVersion,
 		MaxDataEntriesSize:       maxDataEntriesSize,
 	}
-
-	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
+	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
+	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion), validatePayments); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).
@@ -461,7 +461,11 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
 			if err != nil {
-				return proto.DAppError, info.failedChanges, err
+				if !validatePayments && txID == id1 {
+					txDiff = diff1
+				} else {
+					return proto.DAppError, info.failedChanges, err
+				}
 			}
 			// diff must be saved to storage, because further asset scripts must take
 			// recent balance changes into account.
