@@ -291,7 +291,7 @@ func TestActionsValidation(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		err := ValidateActions(test.actions, test.restrictions, test.isRideV6Activated, 5)
+		err := ValidateActions(test.actions, test.restrictions, test.isRideV6Activated, 5, true)
 		if test.valid {
 			require.NoError(t, err, "#%d", i)
 		} else {
@@ -346,5 +346,34 @@ func TestAssetIDGeneration(t *testing.T) {
 		txID := crypto.MustDigestFromBase58(test.txID)
 		assetID := GenerateIssueScriptActionID(test.name, test.description, test.decimals, test.quantity, test.reissuable, test.nonce, txID)
 		assert.Equal(t, test.assetID, assetID.String())
+	}
+}
+
+func TestNegativePaymentsValidation(t *testing.T) {
+	pk1, err := crypto.NewPublicKeyFromBase58("FPqvNYPoqbkwvsyoNSiYU4xeU2tFCRe6AjsHGRNT2VWn")
+	require.NoError(t, err)
+	a2, err := NewAddressFromString("3PMj3yGPBEa1Sx9X4TSBFeJCMMaE3wvKR4N")
+	require.NoError(t, err)
+	rcp := NewRecipientFromAddress(a2)
+
+	restrictions := ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}
+	for i, test := range []struct {
+		actions          []ScriptAction
+		validatePayments bool
+		error            bool
+	}{
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, true, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, true, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, true, true},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, false, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, false, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, false, false},
+	} {
+		err := ValidateActions(test.actions, restrictions, false, 5, test.validatePayments)
+		if !test.error {
+			require.NoError(t, err, fmt.Sprintf("#%d", i))
+		} else {
+			require.Error(t, err, fmt.Sprintf("#%d", i))
+		}
 	}
 }
