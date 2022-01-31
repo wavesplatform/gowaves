@@ -1,6 +1,7 @@
 package ethabi
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -68,14 +69,14 @@ func newMethodsMapFromRideDAppMeta(dApp meta.DApp, parsePayments bool) (MethodsM
 	return db, nil
 }
 
-func (db MethodsMap) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := db.methods[id]; ok {
+func (mm MethodsMap) MethodBySelector(id Selector) (Method, error) {
+	if method, ok := mm.methods[id]; ok {
 		return method, nil
 	}
 	return Method{}, fmt.Errorf("signature %q not found", id.String())
 }
 
-func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
+func (mm MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 	// If the data is empty, we have a plain value transfer, nothing more to do
 	if len(data) == 0 {
 		return nil, errors.New("transaction doesn't contain data")
@@ -89,16 +90,30 @@ func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 	}
 	var selector Selector
 	copy(selector[:], data[:SelectorSize])
-	method, err := db.MethodBySelector(selector)
+	method, err := mm.MethodBySelector(selector)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
 	}
 
-	info, err := parseArgDataToRideTypes(&method, data[SelectorSize:], db.parsePayments)
+	info, err := parseArgDataToRideTypes(&method, data[SelectorSize:], mm.parsePayments)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
 	}
 	return info, nil
+}
+
+func (mm MethodsMap) MarshalJSON() ([]byte, error) {
+	abiResult := make([]abi, 0, len(mm.methods))
+
+	for _, method := range mm.methods {
+		methodABI, err := makeJSONABIForMethod(method)
+		if err != nil {
+			return nil, err
+		}
+		abiResult = append(abiResult, methodABI)
+	}
+
+	return json.Marshal(abiResult)
 }
 
 type DecodedArg struct {

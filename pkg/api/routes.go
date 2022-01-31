@@ -1,11 +1,12 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
@@ -125,6 +126,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
+		})
+		r.Route("/eth", func(r chi.Router) {
+			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
 		})
 
 		// enable or disable history sync

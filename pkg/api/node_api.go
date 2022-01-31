@@ -9,10 +9,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pkg/errors"
-
 	"github.com/go-chi/chi"
-	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -129,13 +127,13 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func findFirstInvalidRuneInBase58String(str string) *rune {
+func findFirstInvalidRuneInBase58String(str string) (rune, bool) {
 	for _, r := range str {
-		if _, err := base58.Decode(string(r)); err != nil {
-			return &r
+		if _, ok := base58Alphabet[r]; !ok {
+			return r, true
 		}
 	}
-	return nil
+	return 0, false
 }
 
 func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
@@ -143,8 +141,8 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := proto.NewBlockIDFromBase58(s)
 	if err != nil {
-		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
-			return blockIDAtInvalidCharErr(*invalidRune, s)
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
 		return blockIDAtInvalidLenErr(s)
 	}
@@ -458,12 +456,44 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {
+	return apiErrs.NewCustomValidationError(
+		fmt.Sprintf(
+			"requirement failed: Wrong char %q in Base58 string '%s'",
+			invalidChar,
+			id,
+		),
+	)
+}
+
+func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "address")
+	addr, err := proto.NewAddressFromString(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return wavesAddressInvalidCharErr(invalidRune, s)
+		}
+		return apiErrs.InvalidAddress
+	}
+	methods, err := a.app.EthereumDAppMethods(addr)
+	if err != nil {
+		if errors.Is(err, notFound) {
+			return nil // emtpy output if script is not found (according to the scala node)
+		}
+		return errors.Wrapf(err, "failed to get EthereumDAppMethods by address=%q", addr.String())
+	}
+	if err := trySendJson(w, methods); err != nil {
+		return errors.Wrap(err, "EthereumDAppABI")
+	}
+	return nil
+}
+
 // tryParseJson receives reader and out params. out MUST be a pointer
 func tryParseJson(r io.Reader, out interface{}) error {
 	// TODO(nickeskov): check empty reader
 	err := json.NewDecoder(r).Decode(out)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to unmarshal %T as JSON into %T", r, out)
+		return errors.Wrapf(err, "failed to unmarshal %T as JSON into %T", r, out)
 	}
 	return nil
 }
@@ -471,7 +501,7 @@ func tryParseJson(r io.Reader, out interface{}) error {
 func trySendJson(w io.Writer, v interface{}) error {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to marshal %T to JSON and write it to %T", v, w)
+		return errors.Wrapf(err, "failed to marshal %T to JSON and write it to %T", v, w)
 	}
 	return nil
 }

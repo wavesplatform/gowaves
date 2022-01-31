@@ -1117,6 +1117,9 @@ var envDappFromDapp = &mockRideEnvironment{
 	timestampFunc: func() uint64 {
 		return 1564703444249
 	},
+	blockV5ActivatedFunc: func() bool {
+		return true
+	},
 	rideV6ActivatedFunc: noRideV6,
 	validateInternalPaymentsFunc: func() bool {
 		return true
@@ -7080,6 +7083,9 @@ func TestOriginCaller(t *testing.T) {
 		validateInternalPaymentsFunc: func() bool {
 			return true
 		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7247,6 +7253,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
 		},
 		rideV6ActivatedFunc: noRideV6,
 		setNewDAppAddressFunc: func(address proto.WavesAddress) {
@@ -7426,6 +7435,9 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		invocationFunc: func() rideObject {
 			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
@@ -7660,6 +7672,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
 		rideV6ActivatedFunc: noRideV6,
 		validateInternalPaymentsFunc: func() bool {
 			return true
@@ -7858,6 +7873,9 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
 		rideV6ActivatedFunc: func() bool {
 			return true
 		},
@@ -7997,6 +8015,9 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
 		},
 		rideV6ActivatedFunc: noRideV6,
 		transactionFunc: func() rideObject {
@@ -8199,6 +8220,9 @@ func TestReissueInInvoke(t *testing.T) {
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
 		},
 		rideV6ActivatedFunc: noRideV6,
 	}

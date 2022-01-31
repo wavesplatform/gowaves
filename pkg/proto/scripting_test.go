@@ -196,45 +196,106 @@ func TestActionsValidation(t *testing.T) {
 	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
 	require.NoError(t, err)
 	rcp0 := NewRecipientFromAddress(addr0)
-	for i, test := range []struct {
-		actions      []ScriptAction
-		restrictions ActionsValidationRestrictions
-		valid        bool
+	tests := []struct {
+		actions           []ScriptAction
+		restrictions      ActionsValidationRestrictions
+		isRideV6Activated bool
+		valid             bool
 	}{
-		{actions: []ScriptAction{
-			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-			&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
-			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
-			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
-		}, restrictions: ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: true},
-		{actions: []ScriptAction{
-			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			&TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
-			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-		}, restrictions: ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: false},
-		{actions: []ScriptAction{
-			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-			&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
-			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
-			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
-		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0, MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: false},
-		{actions: []ScriptAction{
-			&LeaseScriptAction{Recipient: rcp0, Amount: 100},
-		}, restrictions: ActionsValidationRestrictions{ScriptAddress: addr0}, valid: false},
-		{actions: []ScriptAction{
-			&LeaseScriptAction{Recipient: rcp0, Amount: 0},
-			&LeaseScriptAction{Recipient: rcp0, Amount: -100},
-		}, restrictions: ActionsValidationRestrictions{}, valid: false},
-	} {
-		err := ValidateActions(test.actions, test.restrictions, 5)
+		{
+			actions: []ScriptAction{
+				&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+				&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+				&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+				&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+				&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+				&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+			},
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
+			isRideV6Activated: false,
+			valid:             true,
+		},
+		{
+			actions: []ScriptAction{
+				&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+				&TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
+				&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			},
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
+			isRideV6Activated: false,
+			valid:             false,
+		},
+		{
+			actions: []ScriptAction{
+				&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+				&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+				&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+				&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+				&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+				&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+			},
+			restrictions: ActionsValidationRestrictions{
+				DisableSelfTransfers: true,
+				ScriptAddress:        addr0,
+				MaxDataEntriesSize:   MaxDataEntriesScriptActionsSizeInBytesV1,
+			},
+			isRideV6Activated: false,
+			valid:             false,
+		},
+		{
+			actions: []ScriptAction{
+				&LeaseScriptAction{Recipient: rcp0, Amount: 100},
+			},
+			restrictions:      ActionsValidationRestrictions{ScriptAddress: addr0},
+			isRideV6Activated: false,
+			valid:             false,
+		},
+		{
+			actions: []ScriptAction{
+				&LeaseScriptAction{Recipient: rcp0, Amount: 0},
+				&LeaseScriptAction{Recipient: rcp0, Amount: -100},
+			},
+			restrictions:      ActionsValidationRestrictions{},
+			isRideV6Activated: false,
+			valid:             false,
+		},
+		{
+			actions: []ScriptAction{
+				&DataEntryScriptAction{
+					Entry: &BinaryDataEntry{"this first key contains 32 bytes", []byte("this first value contains 34 bytes")},
+				},
+				&DataEntryScriptAction{
+					Entry: &BinaryDataEntry{"this second key contains 33 bytes", []byte("this second value contains 35 bytes")},
+				},
+			},
+			restrictions: ActionsValidationRestrictions{
+				MaxDataEntriesSize: 32 + 34 + 33 + 35,
+			},
+			isRideV6Activated: true,
+			valid:             true,
+		},
+		{
+			actions: []ScriptAction{
+				&DataEntryScriptAction{
+					Entry: &BinaryDataEntry{"this first key contains 32 bytes", []byte("this first value contains 34 bytes")},
+				},
+				&DataEntryScriptAction{
+					Entry: &BinaryDataEntry{"this second key contains 33 bytes", []byte("this second value contains 35 bytes")},
+				},
+			},
+			restrictions: ActionsValidationRestrictions{
+				MaxDataEntriesSize: 32 + 34 + 33 + 35 - 1,
+			},
+			isRideV6Activated: true,
+			valid:             false,
+		},
+	}
+	for i, test := range tests {
+		err := ValidateActions(test.actions, test.restrictions, test.isRideV6Activated, 5)
 		if test.valid {
-			require.NoError(t, err, fmt.Sprintf("#%d", i))
+			require.NoError(t, err, "#%d", i)
 		} else {
-			require.Error(t, err, fmt.Sprintf("#%d", i))
+			require.Error(t, err, "#%d", i)
 		}
 	}
 }

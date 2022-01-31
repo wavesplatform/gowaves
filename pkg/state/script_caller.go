@@ -217,6 +217,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 	if err != nil {
 		return nil, err
 	}
+	env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 	var (
 		functionName      string
@@ -226,6 +229,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		sender            proto.WavesAddress
 		r                 ride.Result
 	)
+
 	switch invokeType := invokeUnion.(type) {
 	case *proto.InvokeScriptTxUnion:
 		switch subTx := invokeType.SubTx.(type) {
@@ -239,6 +243,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			if err != nil {
 				return nil, err
 			}
+
 			functionName = subTx.FunctionCall.Name
 			functionArguments = subTx.FunctionCall.Arguments
 			defaultFunction = subTx.FunctionCall.Default
@@ -273,16 +278,14 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, errors.New("wrong sub transaction of invoke script transaction")
 		}
 
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
 		}
+
 		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
@@ -313,12 +316,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, errors.New("wrong sub transaction of invoke expression transaction")
 		}
 
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -331,7 +331,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, err
 		}
 	default:
-		return nil, errors.New("failed to invoke function: unexpected type of transaction")
+		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", tx)
 	}
 
 	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {

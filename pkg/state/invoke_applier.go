@@ -326,21 +326,18 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
-	var keySizeValidationVersion byte = 1
-	if info.libVersion >= 4 {
-		keySizeValidationVersion = 2
-	}
+	isUTF16KeyLen := !info.blockV5Activated // if RideV4 isn't activated
 	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
 	if info.blockV5Activated {
 		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:     info.disableSelfTransfers,
-		KeySizeValidationVersion: keySizeValidationVersion,
-		MaxDataEntriesSize:       maxDataEntriesSize,
+		DisableSelfTransfers: info.disableSelfTransfers,
+		IsUTF16KeyLen:        isUTF16KeyLen,
+		MaxDataEntriesSize:   maxDataEntriesSize,
 	}
 
-	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
+	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion)); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).
@@ -728,13 +725,12 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 	}()
 
 	var (
-		paymentsLength     int
-		scriptAddr         *proto.WavesAddress
-		txID               crypto.Digest
-		sender             proto.WavesAddress
-		tree               *ride.Tree
-		scriptPK           crypto.PublicKey
-		isInvokeExpression bool
+		paymentsLength int
+		scriptAddr     *proto.WavesAddress
+		txID           crypto.Digest
+		sender         proto.WavesAddress
+		tree           *ride.Tree
+		scriptPK       crypto.PublicKey
 	)
 	switch invokeType := invokeUnion.(type) {
 	case *proto.InvokeScriptTxUnion:
@@ -759,6 +755,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 			sender = subTx.From
 		default:
 			return nil, errors.New("wrong sub transaction of invoke script transaction")
+
 		}
 
 		var err error
@@ -773,17 +770,17 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 	case *proto.InvokeExpressionTxUnion:
 		switch subTx := invokeType.SubTx.(type) {
 		case *proto.InvokeExpressionTransactionWithProofs:
+
 			var err error
 			sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, subTx.SenderPK)
 			if err != nil {
 				return nil, errors.Wrap(err, "recipientToAddress() failed")
 			}
 			scriptAddr = &sender
-			tree, err = ride.Parse([]byte(subTx.Expression))
+			tree, err = ride.Parse(subTx.Expression)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 			}
-			isInvokeExpression = true
 			txID = *subTx.ID
 			scriptPK = subTx.SenderPK
 		case *proto.EthereumInvokeExpressionTxKind:
@@ -795,7 +792,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 			}
-			isInvokeExpression = true
+
 			txID = *subTx.TxID
 			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 			if err != nil {
@@ -805,7 +802,8 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 			return nil, errors.New("wrong sub transaction of invoke expression transaction")
 		}
 	default:
-		return nil, errors.New("the transaction of InvokeUnion is not script or expression invocation")
+
+		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
 	// If BlockV5 feature is not activated, we never accept failed transactions.
 	info.acceptFailed = info.blockV5Activated && info.acceptFailed
@@ -830,7 +828,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == *scriptAddr && !isInvokeExpression {
+		if sender == *scriptAddr {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}

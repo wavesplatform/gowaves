@@ -1049,7 +1049,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			FeeAsset:   feeAsset,
 			Fee:        feeAmount,
 			Timestamp:  ts,
-			Expression: string(d.InvokeExpression.Expression),
+			Expression: d.InvokeExpression.Expression,
 		}
 
 	case *g.Transaction_InvokeScript:

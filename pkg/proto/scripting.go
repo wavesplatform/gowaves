@@ -2,11 +2,9 @@ package proto
 
 import (
 	"encoding/binary"
-	"unicode/utf16"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -443,17 +441,19 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 }
 
 type ActionsValidationRestrictions struct {
-	DisableSelfTransfers     bool
-	ScriptAddress            WavesAddress
-	KeySizeValidationVersion byte
-	MaxDataEntriesSize       int
-	Scheme                   byte
+	DisableSelfTransfers bool
+	ScriptAddress        WavesAddress
+	IsUTF16KeyLen        bool
+	MaxDataEntriesSize   int
+	Scheme               byte
 }
 
-func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int) error {
-	dataEntriesCount := 0
-	dataEntriesSize := 0
-	otherActionsCount := 0
+func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, libVersion int) error {
+	var (
+		dataEntriesCount  = 0
+		dataEntriesSize   = 0
+		otherActionsCount = 0
+	)
 	for _, a := range actions {
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
@@ -461,17 +461,14 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if dataEntriesCount > MaxDataEntryScriptActions {
 				return errors.Errorf("number of data entries produced by script is more than allowed %d", MaxDataEntryScriptActions)
 			}
-			switch restrictions.KeySizeValidationVersion {
-			case 1:
-				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > MaxKeySize {
-					return errs.NewTooBigArray("key is too large")
-				}
-			default:
-				if len([]byte(ta.Entry.GetKey())) > MaxPBKeySize {
-					return errs.NewTooBigArray("key is too large")
-				}
+			if err := ta.Entry.Valid(restrictions.IsUTF16KeyLen); err != nil {
+				return err
 			}
-			dataEntriesSize += ta.Entry.BinarySize()
+			if isRideV6Activated {
+				dataEntriesSize += ta.Entry.PayloadSize()
+			} else {
+				dataEntriesSize += ta.Entry.BinarySize()
+			}
 			if dataEntriesSize > restrictions.MaxDataEntriesSize {
 				return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 			}

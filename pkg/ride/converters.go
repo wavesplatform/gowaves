@@ -1188,7 +1188,7 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, error) {
+func invocationToObject(rideVersion int, scheme byte, tx proto.Transaction) (rideObject, error) {
 	var (
 		senderPK crypto.PublicKey
 		ID       crypto.Digest
@@ -1204,18 +1204,19 @@ func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, e
 		ID = *transaction.ID
 		FeeAsset = transaction.FeeAsset
 		Fee = transaction.Fee
-		switch v {
-		case 4, 5:
+
+		switch rideVersion {
+		case 1, 2, 3:
+			r["payment"] = rideUnit{}
+			if len(transaction.Payments) > 0 {
+				r["payment"] = attachedPaymentToObject(transaction.Payments[0])
+			}
+		default:
 			payments := make(rideList, len(transaction.Payments))
 			for i, p := range transaction.Payments {
 				payments[i] = attachedPaymentToObject(p)
 			}
 			r["payments"] = payments
-		default:
-			r["payment"] = rideUnit{}
-			if len(transaction.Payments) > 0 {
-				r["payment"] = attachedPaymentToObject(transaction.Payments[0])
-			}
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
 		senderPK = transaction.SenderPK
@@ -1223,6 +1224,8 @@ func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, e
 		FeeAsset = transaction.FeeAsset
 		Fee = transaction.Fee
 		r["payments"] = nil
+	default:
+		return nil, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
 	}
 	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
@@ -1232,7 +1235,7 @@ func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, e
 	r["caller"] = rideAddress(sender)
 	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	r["callerPublicKey"] = callerPK
-	if v >= 5 {
+	if rideVersion >= 5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
@@ -1242,7 +1245,7 @@ func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, e
 	return r, nil
 }
 
-func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(rideVersion int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1257,23 +1260,25 @@ func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTr
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	r["callerPublicKey"] = callerPK
-	if v >= 5 {
+	if rideVersion >= 5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
-	switch v {
-	case 4, 5:
+
+	switch rideVersion {
+	case 1, 2, 3:
+		r["payment"] = rideUnit{}
+		if len(scriptPayments) > 0 {
+			r["payment"] = attachedPaymentToObject(scriptPayments[0])
+		}
+	default:
 		payments := make(rideList, len(scriptPayments))
 		for i, p := range scriptPayments {
 			payments[i] = attachedPaymentToObject(p)
 		}
 		r["payments"] = payments
-	default:
-		r["payment"] = rideUnit{}
-		if len(scriptPayments) > 0 {
-			r["payment"] = attachedPaymentToObject(scriptPayments[0])
-		}
 	}
+
 	wavesAsset := proto.NewOptionalAssetWaves()
 	r["feeAssetId"] = optionalAsset(wavesAsset)
 	r["fee"] = rideInt(int64(tx.GetFee()))

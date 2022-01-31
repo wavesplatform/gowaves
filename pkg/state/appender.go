@@ -211,6 +211,14 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
+		// ethereum InvokeScript and InvokeExpression
+	case proto.EthereumMetamaskTransaction:
+		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeWithProofs(tx, differInfo)
+		if err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor, !info.initialisation)
@@ -654,7 +662,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 			return nil, errors.New("wrong ethereum tx type in handleInvoke")
 		}
 	default:
-		return nil, errors.New("wrong tx type in handleInvoke")
+		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}
 
 	res, err := a.ia.applyInvokeScript(tx, invokeUnion, info)
