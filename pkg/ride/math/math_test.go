@@ -34,7 +34,7 @@ func TestFraction(t *testing.T) {
 	}
 }
 
-func TestPow(t *testing.T) {
+func TestPowV1(t *testing.T) {
 	for i, tc := range []struct {
 		base              int64
 		basePrecision     int
@@ -65,6 +65,63 @@ func TestPow(t *testing.T) {
 		{2, 0, 63, 0, 0, decimal.ToZero, true, 0},
 		{10, 0, -8, 0, 8, decimal.ToNearestAway, false, 1},
 		{10, 0, -9, 0, 8, decimal.ToNearestAway, false, 0},
+		{10, 6, 6, 0, 0, decimal.AwayFromZero, false, 1},
+		{9, 0, 999999, 0, 0, decimal.ToNegativeInf, true, 0},
+		{987654321, 8, 98765432101234, 8, 8, decimal.ToZero, true, 0},
+		{98765432, 8, 145998765432, 8, 8, decimal.ToNearestAway, false, 1},
+		{198765432, 8, 6298765432, 8, 0, decimal.ToZero, false, 6191427136334512235},
+		{math.MaxInt64, 0, math.MaxInt64, 8, 8, decimal.ToZero, true, 0},
+		{math.MaxInt64, 0, math.MaxInt64, 0, 0, decimal.ToZero, true, 0},
+		{-math.MaxInt64, 0, math.MaxInt64, 0, 0, decimal.ToZero, true, 0},
+		{math.MaxInt64, 0, -math.MaxInt64, 0, 8, decimal.ToZero, true, 0},
+		{1, 8, -math.MaxInt64, 0, 8, decimal.ToZero, true, 0},
+		{98765432, 8, -math.MaxInt64, 8, 8, decimal.ToZero, true, 0},
+		{98765432, 8, -math.MaxInt64, 0, 8, decimal.ToZero, true, 0},
+		{math.MaxInt64, 0, 5, 1, 8, decimal.ToZero, false, 303700049997604969},
+		{math.MaxInt64, 8, 5, 1, 8, decimal.ToZero, false, 30370004999760},
+	} {
+		r, err := PowV1(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
+		if tc.error {
+			assert.Error(t, err, i)
+			continue
+		}
+		assert.NoError(t, err, i)
+		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestPowV2(t *testing.T) {
+	for i, tc := range []struct {
+		base              int64
+		basePrecision     int
+		exponent          int64
+		exponentPrecision int
+		resultPrecision   int
+		mode              decimal.RoundingMode
+		error             bool
+		expected          int64
+	}{
+		{12, 1, 3456, 3, 2, decimal.ToZero, false, 187},
+		{12, 1, 3456, 3, 2, decimal.AwayFromZero, false, 188},
+		{0, 1, 3456, 3, 2, decimal.AwayFromZero, false, 0},
+		{20, 1, -1, 0, 4, decimal.ToZero, false, 5000},
+		{-20, 1, -1, 0, 4, decimal.ToZero, false, -5000},
+		{0, 1, -1, 0, 4, decimal.ToZero, true, 0},
+		{0, 9, -1, 0, 2, decimal.ToZero, true, 0},
+		{0, 1, -1, 9, 2, decimal.ToZero, true, 0},
+		{0, 1, -1, 0, 9, decimal.ToZero, true, 0},
+		{0, -1, -1, 0, 4, decimal.ToZero, true, 0},
+		{0, 1, -1, -1, 4, decimal.ToZero, true, 0},
+		{0, 1, -1, 0, -4, decimal.ToZero, true, 0},
+		{0, 0, 0, 0, 0, decimal.ToNearestAway, false, 1},
+		{0, 8, 0, 8, 8, decimal.ToNearestAway, false, 100000000},
+		{2, 0, 2, 0, 9, decimal.ToZero, true, 0},
+		{2, -2, 2, 0, 5, decimal.ToZero, true, 0},
+		{2, 0, 62, 0, 0, decimal.ToZero, false, 4611686018427387904},
+		{2, 0, 63, 0, 0, decimal.ToZero, true, 0},
+		{10, 0, -8, 0, 8, decimal.ToNearestAway, false, 1},
+		{10, 0, -9, 0, 8, decimal.ToNearestAway, false, 0},
+		{10, 6, 6, 0, 0, decimal.AwayFromZero, false, 0},
 		{98765432, 8, math.MaxInt64, 8, 8, decimal.ToZero, false, 0},
 		{987654, 8, 987654321, 0, 0, decimal.ToZero, false, 0},
 		{9, 0, 999999, 0, 0, decimal.ToNegativeInf, true, 0},
@@ -290,12 +347,13 @@ func TestPowInvariant(t *testing.T) {
 	}
 }
 
+func fromString(t *testing.T, s string) *big.Int {
+	v, ok := new(big.Int).SetString(s, 10)
+	require.True(t, ok)
+	return v
+}
+
 func TestPowBigInt(t *testing.T) {
-	fromString := func(t *testing.T, s string) *big.Int {
-		v, ok := big.NewInt(0).SetString(s, 10)
-		require.True(t, ok)
-		return v
-	}
 	d18 := fromString(t, "987654321012345678")
 	d19 := fromString(t, "1987654321012345678")
 	e1 := fromString(t, "3259987654320123456789")
@@ -306,7 +364,7 @@ func TestPowBigInt(t *testing.T) {
 			v = v.Mul(v, big.NewInt(math.MaxInt64))
 		}
 		v = v.Div(v, big.NewInt(4))
-		m := MaxBigInt
+		m := new(big.Int).Set(MaxBigInt)
 		r := m.Div(m, v)
 		return r
 	}
@@ -334,6 +392,53 @@ func TestPowBigInt(t *testing.T) {
 		{d19, 18, e2, 18, 0, decimal.ToZero, false, r},
 	} {
 		r, err := PowBigInt(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
+		if tc.error {
+			assert.Error(t, err, i)
+			continue
+		}
+		assert.NoError(t, err, i)
+		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestSqrt(t *testing.T) {
+	for i, tc := range []struct {
+		number          int64
+		numberPrecision int
+		resultPrecision int
+		mode            decimal.RoundingMode
+		error           bool
+		expected        int64
+	}{
+		{math.MaxInt64, 0, 8, decimal.ToZero, false, 303700049997604969},
+		{math.MaxInt64, 8, 8, decimal.ToZero, false, 30370004999760},
+	} {
+		r, err := Sqrt(tc.number, tc.numberPrecision, tc.resultPrecision, tc.mode)
+		if tc.error {
+			assert.Error(t, err, i)
+			continue
+		}
+		assert.NoError(t, err, i)
+		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestSqrtBigInt(t *testing.T) {
+	r1 := fromString(t, "81877371507464127617551201542979628307507432471243237061821853600756754782485292915524036944801")
+	r2 := fromString(t, "81877371507464127617551201542979628307507432471243237061821853600756754782485292915524")
+
+	for i, tc := range []struct {
+		number          *big.Int
+		numberPrecision int
+		resultPrecision int
+		mode            decimal.RoundingMode
+		error           bool
+		expected        *big.Int
+	}{
+		{MaxBigInt, 0, 18, decimal.ToZero, false, r1},
+		{MaxBigInt, 18, 18, decimal.ToZero, false, r2},
+	} {
+		r, err := SqrtBigInt(tc.number, tc.numberPrecision, tc.resultPrecision, tc.mode)
 		if tc.error {
 			assert.Error(t, err, i)
 			continue

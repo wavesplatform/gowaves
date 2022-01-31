@@ -62,7 +62,10 @@ func HaltTransition(info BaseInfo) (FSM, Async, error) {
 	zap.S().Debugf("started HaltTransition ")
 	info.peers.Close()
 	zap.S().Debugf("started HaltTransition peers closed")
-	info.storage.Close()
+	err := info.storage.Close()
+	if err != nil {
+		return nil, nil, err
+	}
 	zap.S().Debugf("storage closed")
 	return HaltFSM{}, nil, nil
 }

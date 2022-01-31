@@ -22,15 +22,15 @@ type SimpleScript struct {
 func (s *SimpleScript) Run(env environment) (Result, error) {
 	fs, err := selectFunctions(s.LibVersion)
 	if err != nil {
-		return nil, errors.Wrap(err, "simple script execution failed")
+		return nil, RuntimeError.Wrap(err, "simple script execution failed")
 	}
 	gcs, err := selectConstants(s.LibVersion)
 	if err != nil {
-		return nil, errors.Wrap(err, "simple script execution failed")
+		return nil, RuntimeError.Wrap(err, "simple script execution failed")
 	}
 	np, err := selectFunctionNameProvider(s.LibVersion)
 	if err != nil {
-		return nil, errors.Wrap(err, "simple script execution failed")
+		return nil, RuntimeError.Wrap(err, "simple script execution failed")
 	}
 	m := vm{
 		env:          env,

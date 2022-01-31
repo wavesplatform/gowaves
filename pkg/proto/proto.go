@@ -365,7 +365,7 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	ip := net.ParseIP(host)
-	p, err := strconv.ParseUint(port, 10, 64)
+	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return TCPAddr{}
 	}
@@ -737,7 +737,7 @@ func NewPeerInfoFromString(addr string) (PeerInfo, error) {
 	}
 
 	ip := net.ParseIP(parts[0])
-	port, err := strconv.ParseUint(parts[1], 10, 64)
+	port, err := strconv.ParseUint(parts[1], 10, 16)
 	if err != nil {
 		return PeerInfo{}, errors.Errorf("invalid port %s", parts[1])
 	}

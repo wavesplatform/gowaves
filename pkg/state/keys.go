@@ -23,7 +23,10 @@ const (
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 	invokeResultKeySize     = 1 + crypto.DigestSize
+)
 
+// Primary prefixes for storage keys
+const (
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
 	assetBalanceKeyPrefix

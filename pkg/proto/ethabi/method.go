@@ -17,12 +17,12 @@ type Method struct {
 
 func NewMethodFromRideFunctionMeta(rideF meta.Function, addPayments bool) (Method, error) {
 	args := make(Arguments, 0, len(rideF.Arguments))
-	for _, rideT := range rideF.Arguments {
-		// nickeskov: empty because we don't have any info in metadata about argument name
+	for i, rideT := range rideF.Arguments {
+		// name is empty because we don't have any info in metadata about argument name
 		t, err := NewArgumentFromRideTypeMeta("", rideT)
 		if err != nil {
 			return Method{}, errors.Wrapf(err,
-				"failed to build ABI method with name %q from ride function metadata", rideF.Name,
+				"failed to build ABI method %q (argument %d) from ride function metadata", rideF.Name, i,
 			)
 		}
 		args = append(args, t)

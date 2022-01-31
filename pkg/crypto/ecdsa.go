@@ -16,11 +16,23 @@ var (
 )
 
 func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
-	s := [65]byte{}
-	if signature[64] < 27 {
-		signature[64] += 27
+	const (
+		signatureLen = 65
+		legacyV27    = 27
+		legacyV28    = legacyV27 + 1
+	)
+	if len(signature) != signatureLen {
+		return nil, errors.Errorf("signature must be %d bytes long", signatureLen)
 	}
-	s[0] = signature[64]
+	s := [signatureLen]byte{}
+	v := signature[signatureLen-1]
+	if v < legacyV27 {
+		v += legacyV27
+	}
+	if v != legacyV27 && v != legacyV28 {
+		return nil, errors.Errorf("invalid signature (v=%d is not %d or %d)", v, legacyV27, legacyV28)
+	}
+	s[0] = v
 	copy(s[1:], signature)
 	pub, _, err := btcec.RecoverCompact(curve, s[:], digest)
 	if err != nil {

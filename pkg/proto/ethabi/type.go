@@ -1,9 +1,13 @@
 package ethabi
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
+
+var UnsupportedType = errors.New("unsupported type")
 
 type ArgType byte
 
@@ -21,6 +25,31 @@ const (
 	AddressType    // we use this type only for erc20 transfers
 	FixedBytesType // we use this type only for payment asset
 )
+
+func (t ArgType) String() string {
+	switch t {
+	case IntType:
+		return "IntType"
+	case UintType:
+		return "UintType"
+	case BytesType:
+		return "BytesType"
+	case BoolType:
+		return "BoolType"
+	case StringType:
+		return "StringType"
+	case SliceType:
+		return "SliceType"
+	case TupleType:
+		return "TupleType"
+	case AddressType:
+		return "AddressType"
+	case FixedBytesType:
+		return "FixedBytesType"
+	default:
+		return fmt.Sprintf("unknown ArgType (%d)", t)
+	}
+}
 
 // Type is the reflection of the supported argument type.
 type Type struct {
@@ -107,40 +136,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 		}
 		abiT = Type{Elem: &inner, T: SliceType}
 	case meta.UnionType:
-		indexElemStrKindMarshaler := intTextBuilder{
-			size:     8,
-			unsigned: true,
-		}
-		indexElemStringKind, err := indexElemStrKindMarshaler.MarshalText()
-		if err != nil {
-			return Type{}, errors.Wrap(err, "failed to marshal index elem stringKind")
-		}
-		tupleFields := append(make(Arguments, 0, len(t)+1),
-			Argument{
-				Name: "union_index",
-				Type: Type{
-					Size:       indexElemStrKindMarshaler.size,
-					T:          UintType,
-					stringKind: string(indexElemStringKind),
-				},
-			},
-		)
-		for _, fieldT := range t {
-			field, err := AbiTypeFromRideTypeMeta(fieldT)
-			if err != nil {
-				return Type{}, errors.Wrapf(err,
-					"failed to create abi type for ride meta union type, field type %T", fieldT,
-				)
-			}
-			tupleFields = append(tupleFields, Argument{
-				Name: "",
-				Type: field,
-			})
-		}
-		abiT = Type{
-			T:           TupleType,
-			TupleFields: tupleFields,
-		}
+		return Type{}, errors.Wrap(UnsupportedType, "UnionType")
 	default:
 		return Type{}, errors.Errorf("unsupported ride metadata type, type %T", t)
 	}

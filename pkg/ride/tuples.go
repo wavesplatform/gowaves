@@ -9,12 +9,17 @@ import (
 	"strings"
 )
 
+type rideTuple interface {
+	get(name string) (rideType, error)
+	size() int
+}
+
 type tuple2 struct {
 	el1 rideType
 	el2 rideType
 }
 
-func newTuple2(_ environment, args ...rideType) (rideType, error) {
+func newTuple2(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 2 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -57,13 +62,17 @@ func (a tuple2) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2)
 }
 
+func (a tuple2) size() int {
+	return 2
+}
+
 type tuple3 struct {
 	el1 rideType
 	el2 rideType
 	el3 rideType
 }
 
-func newTuple3(_ environment, args ...rideType) (rideType, error) {
+func newTuple3(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 3 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -109,6 +118,10 @@ func (a tuple3) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3)
 }
 
+func (a tuple3) size() int {
+	return 3
+}
+
 type tuple4 struct {
 	el1 rideType
 	el2 rideType
@@ -116,7 +129,7 @@ type tuple4 struct {
 	el4 rideType
 }
 
-func newTuple4(_ environment, args ...rideType) (rideType, error) {
+func newTuple4(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 4 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -165,6 +178,10 @@ func (a tuple4) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4)
 }
 
+func (a tuple4) size() int {
+	return 4
+}
+
 type tuple5 struct {
 	el1 rideType
 	el2 rideType
@@ -173,7 +190,7 @@ type tuple5 struct {
 	el5 rideType
 }
 
-func newTuple5(_ environment, args ...rideType) (rideType, error) {
+func newTuple5(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 5 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -225,6 +242,10 @@ func (a tuple5) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5)
 }
 
+func (a tuple5) size() int {
+	return 5
+}
+
 type tuple6 struct {
 	el1 rideType
 	el2 rideType
@@ -234,7 +255,7 @@ type tuple6 struct {
 	el6 rideType
 }
 
-func newTuple6(_ environment, args ...rideType) (rideType, error) {
+func newTuple6(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 6 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -289,6 +310,10 @@ func (a tuple6) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6)
 }
 
+func (a tuple6) size() int {
+	return 6
+}
+
 type tuple7 struct {
 	el1 rideType
 	el2 rideType
@@ -299,7 +324,7 @@ type tuple7 struct {
 	el7 rideType
 }
 
-func newTuple7(_ environment, args ...rideType) (rideType, error) {
+func newTuple7(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 7 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -357,6 +382,10 @@ func (a tuple7) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7)
 }
 
+func (a tuple7) size() int {
+	return 7
+}
+
 type tuple8 struct {
 	el1 rideType
 	el2 rideType
@@ -368,7 +397,7 @@ type tuple8 struct {
 	el8 rideType
 }
 
-func newTuple8(_ environment, args ...rideType) (rideType, error) {
+func newTuple8(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 8 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -429,6 +458,10 @@ func (a tuple8) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8)
 }
 
+func (a tuple8) size() int {
+	return 8
+}
+
 type tuple9 struct {
 	el1 rideType
 	el2 rideType
@@ -441,7 +474,7 @@ type tuple9 struct {
 	el9 rideType
 }
 
-func newTuple9(_ environment, args ...rideType) (rideType, error) {
+func newTuple9(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 9 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -505,6 +538,10 @@ func (a tuple9) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9)
 }
 
+func (a tuple9) size() int {
+	return 9
+}
+
 type tuple10 struct {
 	el1  rideType
 	el2  rideType
@@ -518,7 +555,7 @@ type tuple10 struct {
 	el10 rideType
 }
 
-func newTuple10(_ environment, args ...rideType) (rideType, error) {
+func newTuple10(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 10 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -585,6 +622,10 @@ func (a tuple10) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10)
 }
 
+func (a tuple10) size() int {
+	return 10
+}
+
 type tuple11 struct {
 	el1  rideType
 	el2  rideType
@@ -599,7 +640,7 @@ type tuple11 struct {
 	el11 rideType
 }
 
-func newTuple11(_ environment, args ...rideType) (rideType, error) {
+func newTuple11(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 11 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -669,6 +710,10 @@ func (a tuple11) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11)
 }
 
+func (a tuple11) size() int {
+	return 11
+}
+
 type tuple12 struct {
 	el1  rideType
 	el2  rideType
@@ -684,7 +729,7 @@ type tuple12 struct {
 	el12 rideType
 }
 
-func newTuple12(_ environment, args ...rideType) (rideType, error) {
+func newTuple12(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 12 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -757,6 +802,10 @@ func (a tuple12) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12)
 }
 
+func (a tuple12) size() int {
+	return 12
+}
+
 type tuple13 struct {
 	el1  rideType
 	el2  rideType
@@ -773,7 +822,7 @@ type tuple13 struct {
 	el13 rideType
 }
 
-func newTuple13(_ environment, args ...rideType) (rideType, error) {
+func newTuple13(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 13 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -849,6 +898,10 @@ func (a tuple13) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13)
 }
 
+func (a tuple13) size() int {
+	return 13
+}
+
 type tuple14 struct {
 	el1  rideType
 	el2  rideType
@@ -866,7 +919,7 @@ type tuple14 struct {
 	el14 rideType
 }
 
-func newTuple14(_ environment, args ...rideType) (rideType, error) {
+func newTuple14(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 14 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -945,6 +998,10 @@ func (a tuple14) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14)
 }
 
+func (a tuple14) size() int {
+	return 14
+}
+
 type tuple15 struct {
 	el1  rideType
 	el2  rideType
@@ -963,7 +1020,7 @@ type tuple15 struct {
 	el15 rideType
 }
 
-func newTuple15(_ environment, args ...rideType) (rideType, error) {
+func newTuple15(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 15 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1045,6 +1102,10 @@ func (a tuple15) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15)
 }
 
+func (a tuple15) size() int {
+	return 15
+}
+
 type tuple16 struct {
 	el1  rideType
 	el2  rideType
@@ -1064,7 +1125,7 @@ type tuple16 struct {
 	el16 rideType
 }
 
-func newTuple16(_ environment, args ...rideType) (rideType, error) {
+func newTuple16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 16 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1149,6 +1210,10 @@ func (a tuple16) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16)
 }
 
+func (a tuple16) size() int {
+	return 16
+}
+
 type tuple17 struct {
 	el1  rideType
 	el2  rideType
@@ -1169,7 +1234,7 @@ type tuple17 struct {
 	el17 rideType
 }
 
-func newTuple17(_ environment, args ...rideType) (rideType, error) {
+func newTuple17(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 17 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1257,6 +1322,10 @@ func (a tuple17) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17)
 }
 
+func (a tuple17) size() int {
+	return 17
+}
+
 type tuple18 struct {
 	el1  rideType
 	el2  rideType
@@ -1278,7 +1347,7 @@ type tuple18 struct {
 	el18 rideType
 }
 
-func newTuple18(_ environment, args ...rideType) (rideType, error) {
+func newTuple18(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 18 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1369,6 +1438,10 @@ func (a tuple18) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18)
 }
 
+func (a tuple18) size() int {
+	return 18
+}
+
 type tuple19 struct {
 	el1  rideType
 	el2  rideType
@@ -1391,7 +1464,7 @@ type tuple19 struct {
 	el19 rideType
 }
 
-func newTuple19(_ environment, args ...rideType) (rideType, error) {
+func newTuple19(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 19 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1485,6 +1558,10 @@ func (a tuple19) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19)
 }
 
+func (a tuple19) size() int {
+	return 19
+}
+
 type tuple20 struct {
 	el1  rideType
 	el2  rideType
@@ -1508,7 +1585,7 @@ type tuple20 struct {
 	el20 rideType
 }
 
-func newTuple20(_ environment, args ...rideType) (rideType, error) {
+func newTuple20(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 20 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1605,6 +1682,10 @@ func (a tuple20) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20)
 }
 
+func (a tuple20) size() int {
+	return 20
+}
+
 type tuple21 struct {
 	el1  rideType
 	el2  rideType
@@ -1629,7 +1710,7 @@ type tuple21 struct {
 	el21 rideType
 }
 
-func newTuple21(_ environment, args ...rideType) (rideType, error) {
+func newTuple21(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 21 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1729,6 +1810,10 @@ func (a tuple21) eq(other rideType) bool {
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21)
 }
 
+func (a tuple21) size() int {
+	return 21
+}
+
 type tuple22 struct {
 	el1  rideType
 	el2  rideType
@@ -1754,7 +1839,7 @@ type tuple22 struct {
 	el22 rideType
 }
 
-func newTuple22(_ environment, args ...rideType) (rideType, error) {
+func newTuple22(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if len(args) != 22 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1855,4 +1940,8 @@ func (a tuple22) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21) && a.el22.eq(o.el22)
+}
+
+func (a tuple22) size() int {
+	return 22
 }

@@ -363,7 +363,7 @@ func recipientToAddress(recipient proto.Recipient, aliases *aliases, filter bool
 	return addr, nil
 }
 
-func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
+func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
 	sponsorshipActivated, err := td.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
 		return err
@@ -456,7 +456,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	}
 	addrs := []proto.WavesAddress{senderAddr, *recipientAddr}
 	changes := newTxBalanceChanges(addrs, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil
@@ -506,7 +506,10 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	}
 	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
 	changes := newTxBalanceChanges(addrs, diff)
-	// sponsorship might be handled here
+
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -571,7 +574,9 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
-	// sponsorship might be handled here
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -594,6 +599,8 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 		return td.createDiffEthereumTransferWaves(ethTx, info)
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		return td.createDiffEthereumErc20(ethTx, info)
+	case *proto.EthereumInvokeScriptTxKind:
+		return td.createDiffEthereumInvokeScript(ethTx, info)
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")
 
@@ -815,8 +822,10 @@ func convertPrice(price int64, amountDecimals, priceDecimals int) (uint64, error
 
 func orderPrice(exchangeVersion byte, order proto.Order, amountDecimals, priceDecimals int) (uint64, error) {
 	price := order.GetPrice()
-	if exchangeVersion >= 3 && order.GetVersion() < 4 {
-		return convertPrice(int64(price), amountDecimals, priceDecimals)
+	if exchangeVersion >= 3 {
+		if order.GetVersion() < 4 || order.GetPriceMode() == proto.OrderPriceModeAssetDecimals {
+			return convertPrice(int64(price), amountDecimals, priceDecimals)
+		}
 	}
 	return price, nil
 }
@@ -1404,7 +1413,7 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 
 	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	// Append payment diffs.
@@ -1419,6 +1428,120 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
+	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeExpessionWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderAddrID := senderAddr.ID()
+
+	senderFeeKey := byteKey(senderAddrID, tx.FeeAsset)
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddr, err := recipientToAddress(proto.NewRecipientFromAddress(senderAddr), td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txBalanceChanges{}, err
+	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
+
+	updateMinIntermediateBalance := false
+
+	txInvokeScriptKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
+	}
+
+	decodedData := txInvokeScriptKind.DecodedData()
+
+	noPayments := len(decodedData.Payments) == 0
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
+		updateMinIntermediateBalance = true
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to get sender address from ethereum invoke tx")
+	}
+
+	senderAddrID := senderAddress.ID()
+	assetFee := proto.NewOptionalAssetWaves()
+	senderFeeKey := byteKey(senderAddrID, assetFee)
+	senderFeeBalanceDiff := -int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddr, err := tx.WavesAddressTo(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddrID := scriptAddr.ID()
+
+	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+
+	for _, payment := range decodedData.Payments {
+		assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
+		senderPaymentKey := byteKey(senderAddrID, *assetID)
+		senderBalanceDiff := -payment.Amount
+		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txBalanceChanges{}, err
+		}
+		receiverKey := byteKey(scriptAddrID, *assetID)
+		receiverBalanceDiff := payment.Amount
+		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txBalanceChanges{}, err
+		}
+	}
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
+	return changes, nil
+}
+
+// TODO make one function for 3 tx types
+func (td *transactionDiffer) createFeeDiffInvokeExpressionWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := byteKey(senderAddr.ID(), tx.FeeAsset)
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	addresses := []proto.WavesAddress{senderAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
 	}
 	return changes, nil
 }
@@ -1445,7 +1568,7 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil
@@ -1480,7 +1603,9 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	addresses := []proto.WavesAddress{senderAddress, scriptAddress}
 	changes := newTxBalanceChanges(addresses, diff)
 
-	// sponsorship might be handled here
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -1502,7 +1627,7 @@ func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil

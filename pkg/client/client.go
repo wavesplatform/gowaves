@@ -13,7 +13,8 @@ import (
 	"time"
 )
 
-const ApiKeyHeader = "X-API-Key"
+// ApiKeyHeader is an HTTP header name for API Key
+const ApiKeyHeader = "X-API-Key" // #nosec: it's a header name
 
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)

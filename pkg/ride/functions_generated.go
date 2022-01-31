@@ -11,7 +11,7 @@ import (
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 )
 
-func bls12Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_1(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
@@ -37,7 +37,7 @@ func bls12Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_2(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
@@ -63,7 +63,7 @@ func bls12Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
@@ -89,7 +89,7 @@ func bls12Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
@@ -115,7 +115,7 @@ func bls12Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_5(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
@@ -141,7 +141,7 @@ func bls12Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_6(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
@@ -167,7 +167,7 @@ func bls12Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_7(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
@@ -193,7 +193,7 @@ func bls12Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_8(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
@@ -219,7 +219,7 @@ func bls12Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_9(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
@@ -245,7 +245,7 @@ func bls12Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_10(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_10(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
@@ -271,7 +271,7 @@ func bls12Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_11(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_11(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
@@ -297,7 +297,7 @@ func bls12Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_12(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_12(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
@@ -323,7 +323,7 @@ func bls12Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_13(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_13(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
@@ -349,7 +349,7 @@ func bls12Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_14(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_14(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
@@ -375,7 +375,7 @@ func bls12Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_15(env environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_15(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
@@ -401,7 +401,7 @@ func bls12Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_1(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
@@ -427,7 +427,7 @@ func bn256Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_2(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
@@ -453,7 +453,7 @@ func bn256Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
@@ -479,7 +479,7 @@ func bn256Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
@@ -505,7 +505,7 @@ func bn256Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_5(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
@@ -531,7 +531,7 @@ func bn256Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_6(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
@@ -557,7 +557,7 @@ func bn256Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_7(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
@@ -583,7 +583,7 @@ func bn256Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_8(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
@@ -609,7 +609,7 @@ func bn256Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_9(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
@@ -635,7 +635,7 @@ func bn256Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_10(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_10(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
@@ -661,7 +661,7 @@ func bn256Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_11(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_11(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
@@ -687,7 +687,7 @@ func bn256Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_12(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_12(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
@@ -713,7 +713,7 @@ func bn256Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_13(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_13(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
@@ -739,7 +739,7 @@ func bn256Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_14(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_14(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
@@ -765,7 +765,7 @@ func bn256Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_15(env environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_15(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}
@@ -791,7 +791,7 @@ func bn256Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_8(env environment, args ...rideType) (rideType, error) {
+func sigVerify_8(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_8")
 	}
@@ -822,7 +822,7 @@ func sigVerify_8(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_16(env environment, args ...rideType) (rideType, error) {
+func sigVerify_16(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_16")
 	}
@@ -853,7 +853,7 @@ func sigVerify_16(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_32(env environment, args ...rideType) (rideType, error) {
+func sigVerify_32(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_32")
 	}
@@ -884,7 +884,7 @@ func sigVerify_32(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_64(env environment, args ...rideType) (rideType, error) {
+func sigVerify_64(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_64")
 	}
@@ -915,7 +915,7 @@ func sigVerify_64(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_128(env environment, args ...rideType) (rideType, error) {
+func sigVerify_128(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_128")
 	}
@@ -946,7 +946,7 @@ func sigVerify_128(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_16(_ environment, args ...rideType) (rideType, error) {
+func rsaVerify_16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_16")
 	}
@@ -990,7 +990,7 @@ func rsaVerify_16(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_32(_ environment, args ...rideType) (rideType, error) {
+func rsaVerify_32(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_32")
 	}
@@ -1034,7 +1034,7 @@ func rsaVerify_32(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_64(_ environment, args ...rideType) (rideType, error) {
+func rsaVerify_64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_64")
 	}
@@ -1078,7 +1078,7 @@ func rsaVerify_64(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_128(_ environment, args ...rideType) (rideType, error) {
+func rsaVerify_128(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_128")
 	}
@@ -1122,7 +1122,7 @@ func rsaVerify_128(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func keccak256_16(env environment, args ...rideType) (rideType, error) {
+func keccak256_16(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_16")
@@ -1137,7 +1137,7 @@ func keccak256_16(env environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_32(env environment, args ...rideType) (rideType, error) {
+func keccak256_32(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_32")
@@ -1152,7 +1152,7 @@ func keccak256_32(env environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_64(env environment, args ...rideType) (rideType, error) {
+func keccak256_64(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_64")
@@ -1167,7 +1167,7 @@ func keccak256_64(env environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_128(env environment, args ...rideType) (rideType, error) {
+func keccak256_128(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_128")
@@ -1182,7 +1182,7 @@ func keccak256_128(env environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_16(_ environment, args ...rideType) (rideType, error) {
+func blake2b256_16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_16")
@@ -1197,7 +1197,7 @@ func blake2b256_16(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_32(_ environment, args ...rideType) (rideType, error) {
+func blake2b256_32(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_32")
@@ -1212,7 +1212,7 @@ func blake2b256_32(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_64(_ environment, args ...rideType) (rideType, error) {
+func blake2b256_64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_64")
@@ -1227,7 +1227,7 @@ func blake2b256_64(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_128(_ environment, args ...rideType) (rideType, error) {
+func blake2b256_128(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_128")
@@ -1242,7 +1242,7 @@ func blake2b256_128(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func sha256_16(_ environment, args ...rideType) (rideType, error) {
+func sha256_16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_16")
@@ -1258,7 +1258,7 @@ func sha256_16(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_32(_ environment, args ...rideType) (rideType, error) {
+func sha256_32(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_32")
@@ -1274,7 +1274,7 @@ func sha256_32(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_64(_ environment, args ...rideType) (rideType, error) {
+func sha256_64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_64")
@@ -1290,7 +1290,7 @@ func sha256_64(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_128(_ environment, args ...rideType) (rideType, error) {
+func sha256_128(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_128")
@@ -1304,4 +1304,178 @@ func sha256_128(_ environment, args ...rideType) (rideType, error) {
 	}
 	d := h.Sum(nil)
 	return rideBytes(d), nil
+}
+
+func fold_20(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_20")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 20 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 20", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func fold_50(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_50")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 50 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 50", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func fold_100(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_100")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 100 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 100", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func fold_200(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_200")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 200 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 200", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func fold_500(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_500")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 500 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 500", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+func fold_1000(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if ev == nil {
+		return nil, errors.New("empty evaluator")
+	}
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_1000")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if ll := len(l); ll > 1000 {
+		return nil, errors.Errorf("list of size %d was passed to function fold limited by size 1000", ll)
+	}
+	fn, ok := args[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	r := args[1]
+	for _, item := range l {
+		var err error
+		r, err = ev.evaluateUserFunction(string(fn), []rideType{r, item})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
 }

@@ -1,9 +1,11 @@
 package proto
 
 import (
+	"math/big"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/pkg/errors"
-	"math/big"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 var (
@@ -62,6 +64,10 @@ func (es *EthereumSignature) Bytes() []byte {
 	return es.sig[:]
 }
 
+func (es *EthereumSignature) String() string {
+	return EncodeToHexString(es.Bytes())
+}
+
 // AsVRS return ethereum signature as V, R, S signature values.
 // Note that V can be 27/28 for legacy reasons, but real V value is 0/1.
 func (es *EthereumSignature) AsVRS() (v, r, s *big.Int) {
@@ -97,4 +103,14 @@ func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	return es.UnmarshalBinary(sigBytes)
+}
+
+func (es *EthereumSignature) RecoverEthereumPublicKey(digest []byte) (*EthereumPublicKey, error) {
+	pk, err := crypto.ECDSARecoverPublicKey(digest, es.Bytes())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to recover public from signature %s with digest %q",
+			es.String(), EncodeToHexString(digest),
+		)
+	}
+	return (*EthereumPublicKey)(pk), nil
 }

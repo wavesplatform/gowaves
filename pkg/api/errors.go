@@ -3,11 +3,17 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"go.uber.org/zap"
-	"net/http"
+)
+
+// internal node api errors
+var (
+	notFound = errors.New("not found")
 )
 
 type BadRequestError struct {

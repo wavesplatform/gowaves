@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime/debug"
 
 	"github.com/pkg/errors"
@@ -37,6 +37,7 @@ type txMeta struct {
 func (m *txMeta) bytes() []byte {
 	buf := make([]byte, txMetaSize)
 	binary.BigEndian.PutUint64(buf, m.offset)
+	buf[8] = 0
 	if m.failed {
 		buf[8] = 1
 	}
@@ -158,7 +159,7 @@ func newAddressTransactions(
 		recordSize:   txMetaSize,
 		prefix:       transactionIdsPrefix,
 	}
-	filePath := path.Join(params.dir, "address_transactions")
+	filePath := filepath.Join(filepath.Clean(params.dir), "address_transactions")
 	addrTransactionsFile, _, err := openOrCreateForAppending(filePath)
 	if err != nil {
 		return nil, err

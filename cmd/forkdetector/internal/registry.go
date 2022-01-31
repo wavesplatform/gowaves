@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"math"
 	"net"
 	"sort"
 	"sync"
@@ -315,8 +316,10 @@ func (r *Registry) AppendAddresses(addresses []net.TCPAddr) int {
 	defer r.mu.Unlock()
 
 	count := 0
-	for _, addr := range addresses {
-		ip, port, err := splitAddr(&addr)
+	for i := range addresses {
+		addr := &addresses[i] // prevent implicit memory aliasing in for loop
+
+		ip, port, err := splitAddr(addr)
 		if err != nil {
 			zap.S().Warnf("Error adding address: %v", err)
 			continue
@@ -446,6 +449,9 @@ func splitAddr(addr net.Addr) (net.IP, uint16, error) {
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return net.IP{}, 0, errors.Errorf("not a TCP address '%s'", addr.String())
+	}
+	if tcpAddr.Port < 0 || tcpAddr.Port > math.MaxUint16 {
+		return net.IP{}, 0, errors.Errorf("invalid port '%d'", tcpAddr.Port)
 	}
 	return tcpAddr.IP.To16(), uint16(tcpAddr.Port), nil
 }

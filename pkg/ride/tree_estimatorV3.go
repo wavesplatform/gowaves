@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type fd struct {
@@ -24,8 +25,11 @@ func (f *fsV3) spawn() *fsV3 {
 	}
 }
 
-func (f *fsV3) set(key string, cost int, usages []string) {
+// set adds new function descriptor to context, returns true if new function overwrite old one.
+func (f *fsV3) set(key string, cost int, usages []string) bool {
+	_, ok := f.functions[key]
 	f.functions[key] = fd{cost, usages}
+	return ok
 }
 
 func (f *fsV3) get(key string) (int, []string, bool) {
@@ -63,8 +67,22 @@ func (s *estimationScopeV3) restore(fs *fsV3) {
 	s.functions = fs
 }
 
-func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
-	s.functions.set(id, cost, usages)
+func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) bool {
+	return s.functions.set(id, cost, usages)
+}
+
+func (s *estimationScopeV3) resetFunctions() {
+	s.functions = newFsV3()
+}
+
+func (s *estimationScopeV3) nativeFunction(ut, id string, enableInvocation bool) (int, []string, error) {
+	if c, ok := s.builtin[id]; ok {
+		if (id == "1020" || id == "1021") && !enableInvocation {
+			return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
+		}
+		return c, nil, nil
+	}
+	return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
 }
 
 func (s *estimationScopeV3) function(function function, enableInvocation bool) (int, []string, error) {
@@ -75,21 +93,9 @@ func (s *estimationScopeV3) function(function function, enableInvocation bool) (
 		if found {
 			return cost, usages, nil
 		}
-		if c, ok := s.builtin[id]; ok {
-			if (id == "1020" || id == "1021") && !enableInvocation {
-				return 0, nil, errors.Errorf("user function '%s' not found", id)
-			}
-			return c, nil, nil
-		}
-		return 0, nil, errors.Errorf("user function '%s' not found", id)
+		return s.nativeFunction("user", id, enableInvocation)
 	case nativeFunction:
-		if c, ok := s.builtin[id]; ok {
-			if (id == "1020" || id == "1021") && !enableInvocation {
-				return 0, nil, errors.Errorf("function '%s' not found", id)
-			}
-			return c, nil, nil
-		}
-		return 0, nil, errors.Errorf("native function '%s' not found", id)
+		return s.nativeFunction("native", id, enableInvocation)
 	default:
 		return 0, nil, errors.Errorf("unknown type of function '%s'", id)
 	}
@@ -244,9 +250,25 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 		}
 		if le > re {
 			e.scope.restore(ls)
-			return ce + le + 1, nil
+			sum, err := common.AddInt(ce, le)
+			if err != nil {
+				return 0, err
+			}
+			res, err := common.AddInt(sum, 1)
+			if err != nil {
+				return 0, err
+			}
+			return res, nil
 		}
-		return ce + re + 1, nil
+		sum, err := common.AddInt(ce, re)
+		if err != nil {
+			return 0, err
+		}
+		res, err := common.AddInt(sum, 1)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	case *AssignmentNode:
 		id := n.Name
@@ -263,7 +285,10 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, errors.Wrap(err, "failed to estimate let expression")
 			}
 			e.scope.restore(tmp)
-			c = c + le
+			c, err = common.AddInt(c, le)
+			if err != nil {
+				return 0, err
+			}
 		}
 		if overlapped {
 			e.scope.use(id)
@@ -310,16 +335,27 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
 			}
 			e.scope.restore(tmp)
-			ac += c
+			ac, err = common.AddInt(ac, c)
+			if err != nil {
+				return 0, err
+			}
 		}
-		return fc + ac, nil
+		res, err := common.AddInt(fc, ac)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	case *PropertyNode:
 		c, err := e.walk(n.Object, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
 		}
-		return c + 1, nil
+		res, err := common.AddInt(c, 1)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	default:
 		return 0, errors.Errorf("unsupported type of node '%T'", node)

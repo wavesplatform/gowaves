@@ -146,7 +146,7 @@ func (id BlockID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *BlockID) UnmarshalJSON(value []byte) error {
-	b, err := common.FromBase58JSONUnsized(value, "BlockID")
+	b, err := common.FromBase58JSONUnchecked(value, "BlockID")
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,7 @@ func (q *requestQueue) init() {
 	q.picked = -1
 	q.blocks = make([]proto.BlockID, 0)
 	q.connections = make(map[proto.BlockID][]*Conn)
-	q.rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+	q.rnd = rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec: random generator isn't used for any sensitive data
 }
 
 func (q *requestQueue) String() string {

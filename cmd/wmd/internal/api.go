@@ -2,9 +2,12 @@ package internal
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"sort"
 	"strconv"
@@ -15,10 +18,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/rakyll/statik/fs"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
-	_ "github.com/wavesplatform/gowaves/cmd/wmd/internal/swagger"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/xenolf/lego/log"
@@ -33,6 +34,11 @@ const (
 	timeFramePlaceholder   = "TimeFrame"
 	fromPlaceholder        = "From"
 	toPlaceholder          = "To"
+)
+
+var (
+	//go:embed swagger
+	res embed.FS
 )
 
 // Logger is a middleware that logs the start and end of each request, along
@@ -74,7 +80,7 @@ type DataFeedAPI struct {
 
 func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *state.Storage, address string, symbols *data.Symbols) *DataFeedAPI {
 	a := DataFeedAPI{interrupt: interrupt, done: make(chan struct{}), Storage: storage, Symbols: symbols}
-	fileSystem, err := fs.New()
+	swaggerFS, err := fs.Sub(res, "swagger")
 	if err != nil {
 		log.Fatalf("Failed to initialise Swagger: %v", err)
 	}
@@ -84,8 +90,8 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Use(middleware.RealIP)
 	r.Use(Logger(logger))
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.DefaultCompress)
-	r.Mount("/", a.swagger(fileSystem))
+	r.Use(middleware.Compress(flate.DefaultCompression))
+	r.Mount("/", a.swagger(swaggerFS))
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r}
 	go func() {
@@ -113,9 +119,9 @@ func (a *DataFeedAPI) Done() <-chan struct{} {
 	return a.done
 }
 
-func (a *DataFeedAPI) swagger(fs http.FileSystem) chi.Router {
+func (a *DataFeedAPI) swagger(fs fs.FS) chi.Router {
 	r := chi.NewRouter()
-	h := http.FileServer(fs)
+	h := http.FileServer(http.FS(fs))
 	r.Mount("/", h)
 	return r
 }

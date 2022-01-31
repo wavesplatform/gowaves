@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestGetBalances(t *testing.T) {
@@ -141,7 +141,7 @@ func TestResolveAlias(t *testing.T) {
 	correctAddr, err := st.AddrByAlias(*alias)
 	require.NoError(t, err)
 	correctAddrBody := correctAddr.Body()
-	addr, err := cl.ResolveAlias(ctx, &wrappers.StringValue{Value: aliasStr})
+	addr, err := cl.ResolveAlias(ctx, &wrapperspb.StringValue{Value: aliasStr})
 	require.NoError(t, err)
 	assert.True(t, bytes.Equal(correctAddrBody, addr.Value))
 }

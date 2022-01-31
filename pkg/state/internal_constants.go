@@ -1,8 +1,13 @@
 package state
 
-const (
-	// Prefixes for batched storage (batched_storage.go).
-	transactionIdsPrefix byte = iota
+import "github.com/wavesplatform/gowaves/pkg/proto"
 
-	maxTransactionIdsBatchSize = 1 * KiB
+// Prefixes for batched storage (batched_storage.go).
+const (
+	maxTransactionIdsBatchSize = 1 * proto.KiB
+)
+
+// Secondary keys prefixes for batched storage
+const (
+	transactionIdsPrefix byte = iota
 )

@@ -3,6 +3,7 @@ package common
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,6 +78,14 @@ func TestReplaceInvalidUtf8Chars(t *testing.T) {
 	s := string([]byte{0xE0, 0x80, 0x80})
 	s2 := ReplaceInvalidUtf8Chars(s)
 	require.Equal(t, "���", s2)
+}
+
+func TestUnixMillisUtils(t *testing.T) {
+	ts := time.Now().Truncate(time.Millisecond)
+	tsMillis := ts.UnixNano() / 1_000_000
+
+	require.Equal(t, tsMillis, UnixMillisFromTime(ts))
+	require.Equal(t, ts.String(), UnixMillisToTime(tsMillis).String())
 }
 
 func TestBase58JSONUtils(t *testing.T) {

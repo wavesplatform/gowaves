@@ -1,4 +1,3 @@
-// Useful routines used in several other packages.
 package common
 
 import (
@@ -19,7 +18,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Safe sum for int64.
+// AddInt64 makes safe sum for int64.
 func AddInt64(a, b int64) (int64, error) {
 	c := a + b
 	if (c > a) == (b > 0) {
@@ -28,7 +27,16 @@ func AddInt64(a, b int64) (int64, error) {
 	return 0, errors.New("64-bit signed integer overflow")
 }
 
-// Safe sum for uint64.
+// AddInt makes safe sum for int.
+func AddInt(a, b int) (int, error) {
+	c := a + b
+	if (c > a) == (b > 0) {
+		return c, nil
+	}
+	return 0, errors.New("signed integer overflow")
+}
+
+// AddUint64 makes safe sum for uint64.
 func AddUint64(a, b uint64) (uint64, error) {
 	c := a + b
 	if (c > a) == (b > 0) {
@@ -46,7 +54,7 @@ func CleanTemporaryDirs(dirs []string) error {
 	return nil
 }
 
-// duplicate (copy) bytes
+// Dup duplicate (copy) bytes.
 func Dup(b []byte) []byte {
 	out := make([]byte, len(b))
 	copy(out, b)
@@ -88,9 +96,7 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	return logger, logger.Sugar()
 }
 
-type seconds = uint64
-
-func ParseDuration(str string) (seconds, error) {
+func ParseDuration(str string) (uint64, error) {
 	if str == "" {
 		return 0, errors.New("empty string")
 	}
@@ -126,22 +132,6 @@ func ParseDuration(str string) (seconds, error) {
 	return total, nil
 }
 
-func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
-	s := string(value)
-	if s == "null" {
-		return nil, nil
-	}
-	s, err := strconv.Unquote(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal %s from JSON", name)
-	}
-	v, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode %s from Base64 string", name)
-	}
-	return v, nil
-}
-
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
 	var sb bytes.Buffer
@@ -152,7 +142,17 @@ func ToBase58JSON(b []byte) []byte {
 	return sb.Bytes()
 }
 
-func FromBase58JSONUnsized(value []byte, name string) ([]byte, error) {
+func ToBase64JSON(b []byte) []byte {
+	s := base64.StdEncoding.EncodeToString(b)
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes()
+}
+
+func FromBase58JSONUnchecked(value []byte, name string) ([]byte, error) {
 	s := string(value)
 	if s == "null" {
 		return nil, nil
@@ -169,7 +169,7 @@ func FromBase58JSONUnsized(value []byte, name string) ([]byte, error) {
 }
 
 func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
-	v, err := FromBase58JSONUnsized(value, name)
+	v, err := FromBase58JSONUnchecked(value, name)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func ToHexJSON(b []byte) []byte {
 	return []byte(fmt.Sprintf("\"0x%x\"", b))
 }
 
-func FromHexJSONUnsized(value []byte, name string) ([]byte, error) {
+func FromHexJSONUnchecked(value []byte, name string) ([]byte, error) {
 	s := string(value)
 	if s == "null" {
 		return nil, nil
@@ -200,7 +200,7 @@ func FromHexJSONUnsized(value []byte, name string) ([]byte, error) {
 }
 
 func FromHexJSON(value []byte, size int, name string) ([]byte, error) {
-	v, err := FromHexJSONUnsized(value, name)
+	v, err := FromHexJSONUnchecked(value, name)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ type tm interface {
 	Now() time.Time
 }
 
-// no way when expected can be higher than current, but if somehow its happened...
+// EnsureTimeout ensures that no way when expected can be higher than current, but if somehow its happened...
 func EnsureTimeout(tm tm, expected uint64) {
 	for {
 		current := uint64(tm.Now().UnixNano() / 1000000)
@@ -226,14 +226,17 @@ func EnsureTimeout(tm tm, expected uint64) {
 	}
 }
 
-func TimestampMillisToTime(ts uint64) time.Time {
-	ts64 := int64(ts)
-	s := ts64 / 1000
-	ns := ts64 % 1000 * 1000000
-	return time.Unix(s, ns)
+func UnixMillisToTime(ts int64) time.Time {
+	sec := ts / 1_000
+	ns := (ts % 1_000) * 1_000_000
+	return time.Unix(sec, ns)
 }
 
-// Replaces invalid utf8 characters with '?'.
+func UnixMillisFromTime(t time.Time) int64 {
+	return t.UnixNano() / 1_000_000
+}
+
+// ReplaceInvalidUtf8Chars replaces invalid utf8 characters with '?' to reproduce JVM behaviour.
 func ReplaceInvalidUtf8Chars(s string) string {
 	var b strings.Builder
 

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -13,6 +14,7 @@ import (
 var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 const (
+	EthereumPublicKeyLength = 64
 	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
 	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point
@@ -23,7 +25,12 @@ const (
 // EthereumPrivateKey is an Ethereum ecdsa.PrivateKey.
 type EthereumPrivateKey btcec.PrivateKey
 
-// EthereumPublicKey is an Ethereum ecdsa.PublicKey
+// EthereumPublicKey returns *EthereumPublicKey from corresponding EthereumPrivateKey.
+func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
+	return (*EthereumPublicKey)(&esk.PublicKey)
+}
+
+// EthereumPublicKey is an Ethereum ecdsa.PublicKey.
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in base58 encoding.
@@ -51,6 +58,15 @@ func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 		return EthereumPublicKey{}, errors.Wrapf(err,
 			"failed to decode marshaled EthereumPublicKey into bytes from hex string %q", s,
 		)
+	}
+	return NewEthereumPublicKeyFromBytes(b)
+}
+
+// NewEthereumAddressFromBase58String creates an EthereumPublicKey from its string representation.
+func NewEthereumPublicKeyFromBase58String(s string) (EthereumPublicKey, error) {
+	b, err := base58.Decode(s)
+	if err != nil {
+		return EthereumPublicKey{}, errors.Wrap(err, "invalid Base58 string")
 	}
 	return NewEthereumPublicKeyFromBytes(b)
 }
@@ -386,8 +402,7 @@ func (s eip155Signer) Hash(tx *EthereumTransaction) EthereumHash {
 	return Keccak256EthereumHash(rlpData)
 }
 
-// HomesteadTransaction implements TransactionInterface using the
-// homestead rules.
+// HomesteadSigner implements EthereumSigner using the homestead rules.
 type HomesteadSigner struct{ FrontierSigner }
 
 func (hs HomesteadSigner) ChainID() *big.Int {

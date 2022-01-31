@@ -35,7 +35,7 @@ func ParseVoteFeatures(s string) (Features, error) {
 }
 
 func parseFeature(s string) (settings.Feature, error) {
-	u, err := strconv.ParseUint(s, 10, 64)
+	u, err := strconv.ParseInt(s, 10, 16)
 	if err != nil {
 		return 0, err
 	}

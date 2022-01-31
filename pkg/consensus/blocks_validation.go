@@ -136,7 +136,9 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
 	cv.startHeight = startHeight
 	cv.headers = headers
-	for i, header := range headers {
+	for i := range headers {
+		header := &headers[i] // prevent implicit memory aliasing in for loop
+
 		height := startHeight + uint64(i)
 		parent, err := cv.headerByHeight(height)
 		if err != nil {
@@ -149,16 +151,16 @@ func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight ui
 				return errors.Wrap(err, "failed to retrieve block's great grandparent")
 			}
 		}
-		if err := cv.validateGeneratorSignatureAndBlockDelay(height, &header); err != nil {
+		if err := cv.validateGeneratorSignatureAndBlockDelay(height, header); err != nil {
 			return errors.Wrap(err, "block generator signature validation failed")
 		}
-		if err := cv.validateBlockTimestamp(&header); err != nil {
+		if err := cv.validateBlockTimestamp(header); err != nil {
 			return errors.Wrap(err, "block timestamp validation failed")
 		}
-		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
+		if err := cv.validateBaseTarget(height, header, parent, greatGrandParent); err != nil {
 			return errors.Wrapf(err, "base target validation failed at %d", height)
 		}
-		if err := cv.validateBlockVersion(&header, height); err != nil {
+		if err := cv.validateBlockVersion(header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
 		}
 	}

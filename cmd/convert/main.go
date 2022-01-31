@@ -2,24 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"flag"
 	"os"
 
-	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-var Cli struct {
-	Json struct {
-		File string `kong:"short='f',help='From file.',required"`
-	} `kong:"cmd,help='Convert from json to binary'"`
-	Bytes struct {
-		SchemeByte string `kong:"short='s',help='Network scheme.',required"`
-		File       string `kong:"short='f',help='From file.',required"`
-	} `kong:"cmd,help='Convert from binary to json'"`
-}
+var (
+	command    = flag.String("command", "", "Command which will be executed. Values: 'json' - convert from json to binary, 'bytes' - convert from binary to json.")
+	file       = flag.String("file", "", "From file.")
+	schemeByte = flag.String("scheme-byte", "", "Network scheme.")
+)
 
 func init() {
 	logger, _ := zap.NewDevelopment()
@@ -27,80 +21,85 @@ func init() {
 }
 
 func main() {
-	ctx := kong.Parse(&Cli)
-	switch ctx.Command() {
+	if *file == "" {
+		zap.S().Fatal("please, provide file argument")
+	}
+	switch *command {
 	case "json":
-		serveJson()
+		if err := serveJson(*file); err != nil {
+			zap.S().Fatalf("failed to serveJSON: %v", err)
+		}
 	case "bytes":
-		serveBinary(Cli.Bytes.SchemeByte[0])
+		if *schemeByte == "" {
+			zap.S().Fatal("please, provide scheme-byte argument")
+		}
+		if len(*schemeByte) != 1 {
+			zap.S().Fatal("invalid scheme-byte argument %q", *schemeByte)
+		}
+		if err := serveBinary(*file, []byte(*schemeByte)[0]); err != nil {
+			zap.S().Fatalf("failed to serveBinary: %v", err)
+		}
+	case "":
+		zap.S().Fatal("please, provide command argument")
 	default:
-		zap.S().Error(ctx.Command())
-		return
+		zap.S().Fatalf("invalid command %q", *command)
+
 	}
 }
 
-func serveJson() {
-	b, err := inputBytes(Cli.Json.File)
+func serveJson(pathToJSON string) error {
+	b, err := inputBytes(pathToJSON)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	tt := proto.TransactionTypeVersion{}
 	err = json.Unmarshal(b, &tt)
 	if err != nil {
-		zap.S().Error(err)
-		return
+		return err
 	}
 
 	realType, err := proto.GuessTransactionType(&tt)
 	if err != nil {
-		zap.S().Error(err)
-		return
+		return err
 	}
 
 	err = json.Unmarshal(b, realType)
 	if err != nil {
-		fmt.Println(err)
-		zap.S().Error(err)
-		return
+		return err
 	}
 
 	bts, err := realType.MarshalBinary()
 	if err != nil {
-		zap.S().Error(err)
-		return
+		return err
 	}
-	_, _ = os.Stdout.Write(bts)
+	_, err = os.Stdout.Write(bts)
+	return err
 }
 
-func serveBinary(scheme proto.Scheme) {
-	b, err := inputBytes(Cli.Bytes.File)
+func serveBinary(pathToBinary string, scheme proto.Scheme) error {
+	b, err := inputBytes(pathToBinary)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	trans, err := proto.BytesToTransaction(b, scheme)
 	if err != nil {
-		zap.S().Error(err)
-		return
+		return err
 	}
 
 	js, err := json.Marshal(trans)
 	if err != nil {
-		fmt.Println(err)
-		zap.S().Error(err)
-		return
+		return err
 	}
-	_, _ = os.Stdout.Write(js)
+	_, err = os.Stdout.Write(js)
+	return err
 }
 
 func inputBytes(path string) ([]byte, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	return ioutil.ReadAll(f)
+	return data, nil
 }

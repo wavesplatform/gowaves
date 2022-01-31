@@ -374,7 +374,8 @@ func (a *assets) assetInfo(assetID proto.AssetID, filter bool) (*assetInfo, erro
 // commitUncertain() moves all uncertain changes to historyStorage.
 func (a *assets) commitUncertain(blockID proto.BlockID) error {
 	for assetID, info := range a.uncertainAssetInfo {
-		if err := a.storeAssetInfo(assetID, &info, blockID); err != nil {
+		infoCpy := info // prevent implicit memory aliasing in for loop
+		if err := a.storeAssetInfo(assetID, &infoCpy, blockID); err != nil {
 			return err
 		}
 	}

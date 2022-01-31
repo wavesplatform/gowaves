@@ -1135,7 +1135,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
 
 	sellOrder := proto.NewUnsignedEthereumOrderV4(
-		proto.EthereumPublicKey(sk.PublicKey),
+		(*proto.EthereumPublicKey)(&sk.PublicKey),
 		matcherPk,
 		a.aa,
 		a.pa,
@@ -1146,6 +1146,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 		proto.Timestamp(1544715621),
 		10000,
 		a.matcherFeeAssetID,
+		proto.OrderPriceModeDefault,
 	)
 	sellOrder.Proofs = proto.NewProofs()
 

@@ -44,8 +44,8 @@ type TickerInfo struct {
 
 func NewTickerInfo(symbol string, amountAsset, priceAsset AssetInfo, amountAssetIssuerBalance, priceAssetIssuerBalance uint64, candle Candle) TickerInfo {
 	as := int64(math.Pow10(int(amountAsset.Decimals)))
-	x := big.NewInt(0).SetUint64(candle.Average)
-	y := big.NewInt(0).SetUint64(candle.Volume)
+	x := new(big.Int).SetUint64(candle.Average)
+	y := new(big.Int).SetUint64(candle.Volume)
 	z := big.NewInt(as)
 	xy := x.Mul(x, y)
 	pv := xy.Div(xy, z).Uint64()

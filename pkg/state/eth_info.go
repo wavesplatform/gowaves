@@ -23,7 +23,7 @@ func newEthInfo(stor *blockchainEntitiesStorage, settings *settings.BlockchainSe
 }
 
 func GuessEthereumTransactionKind(data []byte) (int64, error) {
-	if data == nil {
+	if len(data) == 0 {
 		return EthereumTransferWavesKind, nil
 	}
 
@@ -36,7 +36,7 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 		return 0, errors.Wrap(err, "failed to guess ethereum transaction kind")
 	}
 
-	if ethabi.IsERC20TransferSelector(selector) && err == nil {
+	if ethabi.IsERC20TransferSelector(selector) {
 		return EthereumTransferAssetsKind, nil
 	}
 

@@ -1,8 +1,8 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type esConstant struct {
@@ -29,7 +29,6 @@ type evaluationScope struct {
 	user      []esFunction
 	cl        int
 	costs     map[string]int
-	free      map[string]struct{}
 }
 
 func (s *evaluationScope) declare(n Node) error {
@@ -41,7 +40,7 @@ func (s *evaluationScope) declare(n Node) error {
 		s.pushExpression(d.Name, d.Expression)
 		return nil
 	default:
-		return errors.Errorf("not a declaration '%T'", n)
+		return EvaluationFailure.Errorf("not a declaration '%T'", n)
 	}
 }
 
@@ -107,7 +106,7 @@ func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
 func (s *evaluationScope) popUserFunction() error {
 	l := len(s.user)
 	if l == 0 {
-		return errors.New("empty user functions scope")
+		return EvaluationFailure.New("empty user functions scope")
 	}
 	s.user = s.user[:l-1]
 	return nil
@@ -140,7 +139,7 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 	for _, n := range constants {
 		id, ok := constantChecker(n)
 		if !ok {
-			return evaluationScope{}, errors.Errorf("unknown constant '%s'", n)
+			return evaluationScope{}, EvaluationFailure.Errorf("unknown constant '%s'", n)
 		}
 		cs[n] = esConstant{c: constantProvider(int(id))}
 	}
@@ -160,11 +159,15 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 	for _, fn := range functions {
 		id, ok := functionChecker(fn)
 		if !ok {
-			return evaluationScope{}, errors.Errorf("unknown function '%s'", fn)
+			return evaluationScope{}, EvaluationFailure.Errorf("unknown function '%s'", fn)
 		}
 		fs[fn] = functionProvider(int(id))
 	}
-	costs, free, err := selectEvaluationCostsProvider(v)
+	ev := 1
+	if env.rideV6Activated() {
+		ev = 2
+	}
+	costs, err := selectEvaluationCostsProvider(v, ev)
 	if err != nil {
 		return evaluationScope{}, err
 	}
@@ -174,7 +177,6 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 		cs:        [][]esValue{make([]esValue, 0)},
 		env:       env,
 		costs:     costs,
-		free:      free,
 	}, nil
 }
 
@@ -190,8 +192,10 @@ func selectConstantNames(v int) ([]string, error) {
 		return ConstantsV4, nil
 	case 5:
 		return ConstantsV5, nil
+	case 6:
+		return ConstantsV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version %d", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
 	}
 }
 
@@ -220,105 +224,229 @@ func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 		return keys(CatalogueV4, false), nil
 	case 5:
 		return keys(CatalogueV5, enableInvocation), nil
+	case 6:
+		return keys(CatalogueV6, enableInvocation), nil
 	default:
-		return nil, errors.Errorf("unsupported library version %d", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
 	}
 }
 
+type complexityCalculator interface {
+	overflow() bool
+	complexity() int
+	addNativeFunctionComplexity(int)
+	addAdditionalUserFunctionComplexity()
+	addConditionalComplexity()
+	addReferenceComplexity()
+	addPropertyComplexity()
+}
+
+type complexityCalculatorV1 struct {
+	o bool
+	c int
+}
+
+func (cc *complexityCalculatorV1) overflow() bool {
+	return cc.o
+}
+
+func (cc *complexityCalculatorV1) complexity() int {
+	return cc.c
+}
+
+func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
+	nc, err := common.AddInt(cc.c, fc)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity() {}
+
+func (cc *complexityCalculatorV1) addOne() {
+	nc, err := common.AddInt(cc.c, 1)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV1) addConditionalComplexity() {
+	cc.addOne()
+}
+
+func (cc *complexityCalculatorV1) addReferenceComplexity() {
+	cc.addOne()
+}
+
+func (cc *complexityCalculatorV1) addPropertyComplexity() {
+	cc.addOne()
+}
+
+type complexityCalculatorV2 struct {
+	o bool
+	c int
+}
+
+func (cc *complexityCalculatorV2) overflow() bool {
+	return cc.o
+}
+
+func (cc *complexityCalculatorV2) complexity() int {
+	return cc.c
+}
+
+func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
+	nc, err := common.AddInt(cc.c, fc)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity() {
+	nc, err := common.AddInt(cc.c, 1)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV2) addConditionalComplexity() {}
+
+func (cc *complexityCalculatorV2) addReferenceComplexity() {}
+
+func (cc *complexityCalculatorV2) addPropertyComplexity() {}
+
 type treeEvaluator struct {
-	dapp       bool
-	complexity int
-	f          Node
-	s          evaluationScope
-	env        environment
+	dapp bool
+	cc   complexityCalculator
+	f    Node
+	s    evaluationScope
+	env  environment
+}
+
+func (e *treeEvaluator) complexity() int {
+	return e.cc.complexity()
 }
 
 func (e *treeEvaluator) evaluate() (Result, error) {
 	r, err := e.walk(e.f)
 	if err != nil {
-		return nil, err
+		return nil, err // Evaluation failed somehow, then result just an error
 	}
 
 	switch res := r.(type) {
-	case rideThrow:
-		if e.dapp {
-			return DAppResult{res: false, msg: string(res), complexity: e.complexity}, nil
-		}
-		return ScriptResult{res: false, msg: string(res), complexity: e.complexity}, nil
 	case rideBoolean:
-		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
+		return ScriptResult{res: bool(res), complexity: e.complexity()}, nil
 	case rideObject:
-		a, err := objectToActions(e.env, res)
+		a, err := objectToActions(e, e.env, res)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert evaluation result")
+			return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{res: true, actions: a, msg: "", complexity: e.complexity}, nil
+		return DAppResult{actions: a, complexity: e.complexity()}, nil
 	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
-			a, err := convertToAction(e.env, item)
+			a, err := convertToAction(e, e.env, item)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to convert evaluation result")
+				return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 			}
 			actions = append(actions, a)
 		}
-		return DAppResult{res: true, actions: actions, complexity: e.complexity}, nil
+		return DAppResult{actions: actions, complexity: e.complexity()}, nil
 	case tuple2:
 		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
-				a, err := convertToAction(e.env, item)
+				a, err := convertToAction(e, e.env, item)
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to convert evaluation result")
+					return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 				}
 				actions = append(actions, a)
 			}
 		default:
-			return nil, errors.Errorf("unexpected result type '%T'", r)
+			return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 		}
-		return DAppResult{res: true, actions: actions, msg: "", param: res.el2, complexity: e.complexity}, nil
+		return DAppResult{actions: actions, param: res.el2, complexity: e.complexity()}, nil
 	default:
-		return nil, errors.Errorf("unexpected result type '%T'", r)
+		return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 	}
 }
 
-func isThrow(r rideType) bool {
-	return r.instanceOf() == "Throw"
+func (e *treeEvaluator) materializeArguments(arguments []Node) ([]rideType, error) {
+	args := make([]rideType, len(arguments))
+	for i, arg := range arguments {
+		a, err := e.walk(arg)
+		if err != nil {
+			return nil, EvaluationErrorPush(err, "failed to materialize argument %d", i+1)
+		}
+		args[i] = a
+	}
+	return args, nil
 }
 
 func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (rideType, error) {
 	f, ok := e.s.system[name]
 	if !ok {
-		return nil, errors.Errorf("failed to find system function '%s'", name)
+		return nil, EvaluationFailure.Errorf("failed to find system function '%s'", name)
 	}
 	cost, ok := e.s.costs[name]
 	if !ok {
-		return nil, errors.Errorf("failed to get cost of system function '%s'", name)
+		return nil, EvaluationFailure.Errorf("failed to get cost of system function '%s'", name)
 	}
-	if _, ok := e.s.free[name]; ok { //
-		cost = 0
-	}
-	args := make([]rideType, len(arguments))
-	for i, arg := range arguments {
-		a, err := e.walk(arg) // materialize argument
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, name)
-		}
-		if isThrow(a) {
-			return a, nil
-		}
-		args[i] = a
-	}
-	r, err := f(e.env, args...)
+	defer func() {
+		e.cc.addNativeFunctionComplexity(cost)
+	}()
+	args, err := e.materializeArguments(arguments)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call system function '%s'", name)
+		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
-	e.complexity += cost
+	r, err := f(e, e.env, args...)
+	if err != nil {
+		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
+	}
+	return r, nil
+}
+
+func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (rideType, error) {
+	initialComplexity := e.cc.complexity()
+	defer func() {
+		if initialComplexity == e.cc.complexity() {
+			e.cc.addAdditionalUserFunctionComplexity()
+		}
+	}()
+	uf, cl, found := e.s.userFunction(name)
+	if !found {
+		return nil, RuntimeError.Errorf("user function '%s' not found", name)
+	}
+	if len(args) != len(uf.Arguments) {
+		return nil, RuntimeError.Errorf("mismatched arguments number of user function '%s'", name)
+	}
+	avs := make([]esValue, len(args))
+	for i, arg := range args {
+		an := uf.Arguments[i]
+		avs[i] = esValue{id: an, value: arg}
+	}
+	e.s.cs = append(e.s.cs, avs)
+	var tmp int
+	tmp, e.s.cl = e.s.cl, cl
+
+	r, err := e.walk(uf.Body)
+	if err != nil {
+		return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
+	}
+	e.s.cs = e.s.cs[:len(e.s.cs)-1]
+	e.s.cl = tmp
 	return r, nil
 }
 
 func (e *treeEvaluator) walk(node Node) (rideType, error) {
+	if e.cc.overflow() {
+		return nil, RuntimeError.New("evaluation complexity overflow")
+	}
 	switch n := node.(type) {
 	case *LongNode:
 		return rideInt(n.Value), nil
@@ -333,18 +461,17 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return rideString(n.Value), nil
 
 	case *ConditionalNode:
+		defer func() {
+			e.cc.addConditionalComplexity()
+		}()
 		ce, err := e.walk(n.Condition)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to estimate the condition of if")
-		}
-		if isThrow(ce) {
-			return ce, nil
+			return nil, EvaluationErrorPush(err, "failed to estimate the condition of if")
 		}
 		cr, ok := ce.(rideBoolean)
 		if !ok {
-			return nil, errors.Errorf("not a boolean")
+			return nil, RuntimeError.New("conditional is not a boolean")
 		}
-		e.complexity++
 		if cr {
 			return e.walk(n.TrueExpression)
 		} else {
@@ -356,39 +483,34 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of variable '%s'", id)
-		}
-		if isThrow(r) {
-			return r, nil
+			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of variable '%s'", id)
 		}
 		e.s.popValue()
 		return r, nil
 
 	case *ReferenceNode:
+		defer func() {
+			e.cc.addReferenceComplexity()
+		}()
 		id := n.Name
 		v, ok, f, p := e.s.value(id)
 		if !ok {
 			if v, ok := e.s.constant(id); ok {
 				return v, nil
 			}
-			return nil, errors.Errorf("value '%s' not found", id)
+			return nil, RuntimeError.Errorf("value '%s' not found", id)
 		}
 		if v.value == nil {
 			if v.expression == nil {
-				return nil, errors.Errorf("scope value '%s' is empty", id)
+				return nil, RuntimeError.Errorf("scope value '%s' is empty", id)
 			}
 			r, err := e.walk(v.expression)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to evaluate expression of scope value '%s'", id)
-			}
-			if isThrow(r) {
-				return r, nil
+				return nil, EvaluationErrorPush(err, "failed to evaluate expression of scope value '%s'", id)
 			}
 			e.s.updateValue(f, p, id, r)
-			e.complexity++
 			return r, nil
 		}
-		e.complexity++
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
@@ -396,189 +518,128 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of function '%s'", id)
-		}
-		if isThrow(r) {
-			return r, nil
+			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of function '%s'", id)
 		}
 		err = e.s.popUserFunction()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate declaration of function '%s'", id)
+			return nil, EvaluationErrorPush(err, "failed to evaluate declaration of function '%s'", id)
 		}
 		return r, nil
 
 	case *FunctionCallNode:
 		name := n.Function.Name()
-
 		switch n.Function.(type) {
 		case nativeFunction:
 			return e.evaluateNativeFunction(name, n.Arguments)
-
 		case userFunction:
-			uf, cl, found := e.s.userFunction(name)
+			_, _, found := e.s.userFunction(name)
 			if !found {
 				return e.evaluateNativeFunction(name, n.Arguments)
 			}
-
-			if len(n.Arguments) != len(uf.Arguments) {
-				return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
-			}
-
-			args := make([]esValue, len(n.Arguments))
-			for i, arg := range n.Arguments {
-				an := uf.Arguments[i]
-				av, err := e.walk(arg) // materialize argument
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
-				}
-				if isThrow(av) {
-					return av, nil
-				}
-				args[i] = esValue{id: an, value: av}
-			}
-			e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-			for i, arg := range args {
-				e.s.cs[len(e.s.cs)-1][i] = arg
-			}
-			var tmp int
-			tmp, e.s.cl = e.s.cl, cl
-
-			r, err := e.walk(uf.Body)
+			args, err := e.materializeArguments(n.Arguments)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+				return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
 			}
-			e.s.cs = e.s.cs[:len(e.s.cs)-1]
-			e.s.cl = tmp
-			return r, nil
+			return e.evaluateUserFunction(name, args)
 		default:
-			return nil, errors.Errorf("unknown function type: %s", n.Function.Type())
+			return nil, RuntimeError.Errorf("unknown function type: %s", n.Function.Type())
 		}
 
 	case *PropertyNode:
+		defer func() {
+			e.cc.addPropertyComplexity()
+		}()
 		name := n.Name
 		obj, err := e.walk(n.Object)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
-		}
-		e.complexity++
-		if isThrow(obj) {
-			return obj, nil
+			return nil, EvaluationErrorPush(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
 		v, err := obj.get(name)
 
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get property '%s'", name)
+			return nil, EvaluationErrorPush(err, "failed to get property '%s'", name)
 		}
 		return v, nil
 
 	default:
-		return nil, errors.Errorf("unsupported type of node '%T'", node)
+		return nil, EvaluationFailure.Errorf("unsupported type of node '%T'", node)
 	}
 }
 
 func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, false) // Invocation is disabled for expression calls
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create scope")
+		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
+	}
+	var cc complexityCalculator = &complexityCalculatorV1{}
+	if env.rideV6Activated() {
+		cc = &complexityCalculatorV2{}
 	}
 	if tree.IsDApp() {
 		if tree.HasVerifier() {
 			verifier, ok := tree.Verifier.(*FunctionDeclarationNode)
 			if !ok {
-				return nil, errors.New("invalid verifier declaration")
+				return nil, EvaluationFailure.New("invalid verifier declaration")
 			}
 			for _, declaration := range tree.Declarations {
 				err = s.declare(declaration)
 				if err != nil {
-					return nil, errors.Wrap(err, "invalid declaration")
+					return nil, EvaluationFailure.Wrap(err, "invalid declaration")
 				}
 			}
 			s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
 				dapp: tree.IsDApp(),
+				cc:   cc,
 				f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
 				s:    s,
 				env:  env,
 			}, nil
 		}
-		return nil, errors.Wrap(err, "no verifier declaration")
+		return nil, EvaluationFailure.New("no verifier declaration")
 	}
 	return &treeEvaluator{
 		dapp: tree.IsDApp(),
-		f:    tree.Verifier, // In simple scripts verifier is an expression itself
+		cc:   cc,
+		f:    tree.Verifier, // In simple script verifier is an expression itself
 		s:    s,
 		env:  env,
 	}, nil
 }
 
-func treeFunctionEvaluatorForInvokeDAppFromDApp(env environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
+func treeFunctionEvaluator(env environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create scope")
+		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
 	}
 	for _, declaration := range tree.Declarations {
 		err = s.declare(declaration)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid declaration")
+			return nil, EvaluationFailure.Wrap(err, "invalid declaration")
 		}
 	}
 	if !tree.IsDApp() {
-		return nil, errors.Errorf("unable to call function '%s' on simple script", name)
+		return nil, EvaluationFailure.Errorf("unable to call function '%s' on simple script", name)
+	}
+	var cc complexityCalculator = &complexityCalculatorV1{}
+	if env.rideV6Activated() {
+		cc = &complexityCalculatorV2{}
 	}
 	for i := 0; i < len(tree.Functions); i++ {
 		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
 		if !ok {
-			return nil, errors.New("invalid callable declaration")
+			return nil, EvaluationFailure.New("invalid callable declaration")
 		}
 		if function.Name == name {
 			s.constants[function.invocationParameter] = esConstant{c: newInvocation}
 			if l := len(args); l != len(function.Arguments) {
-				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+				return nil, EvaluationFailure.Errorf("invalid arguments count %d for function '%s'", l, name)
 			}
-			// without conversion
 			for i, arg := range args {
 				s.pushValue(function.Arguments[i], arg)
 			}
-			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+			return &treeEvaluator{dapp: true, cc: cc, f: function.Body, s: s, env: env}, nil
 		}
 	}
-	return nil, errors.Errorf("function '%s' not found", name)
-}
-
-func treeFunctionEvaluator(env environment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create scope")
-	}
-	for _, declaration := range tree.Declarations {
-		err = s.declare(declaration)
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid declaration")
-		}
-	}
-	if !tree.IsDApp() {
-		return nil, errors.Errorf("unable to call function '%s' on simple script", name)
-	}
-	for i := 0; i < len(tree.Functions); i++ {
-		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
-		if !ok {
-			return nil, errors.New("invalid callable declaration")
-		}
-		if function.Name == name {
-			s.constants[function.invocationParameter] = esConstant{c: newInvocation}
-			if l := len(args); l != len(function.Arguments) {
-				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
-			}
-
-			for i, arg := range args {
-				a, err := convertArgument(arg)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-				}
-				s.pushValue(function.Arguments[i], a)
-			}
-			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
-		}
-	}
-	return nil, errors.Errorf("function '%s' not found", name)
+	return nil, EvaluationFailure.Errorf("function '%s' not found", name)
 }

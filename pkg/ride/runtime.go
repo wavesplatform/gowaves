@@ -17,28 +17,6 @@ type rideType interface {
 	get(prop string) (rideType, error)
 }
 
-type rideThrow string
-
-func (a rideThrow) instanceOf() string {
-	return "Throw"
-}
-
-func (a rideThrow) eq(other rideType) bool {
-	if o, ok := other.(rideThrow); ok {
-		return a == o
-	}
-	return false
-}
-
-func (a rideThrow) get(prop string) (rideType, error) {
-	switch prop {
-	case "message":
-		return rideString(a), nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
-	}
-}
-
 type rideBoolean bool
 
 func (b rideBoolean) instanceOf() string {
@@ -364,7 +342,7 @@ func (a rideList) get(prop string) (rideType, error) {
 }
 
 type (
-	rideFunction    func(env environment, args ...rideType) (rideType, error)
+	rideFunction    func(ev *treeEvaluator, env environment, args ...rideType) (rideType, error)
 	rideConstructor func(environment) rideType
 )
 
@@ -385,6 +363,7 @@ type environment interface {
 	setInvocation(inv rideObject)
 	libVersion() int
 	validateInternalPayments() bool
+	blockV5Activated() bool
 	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int

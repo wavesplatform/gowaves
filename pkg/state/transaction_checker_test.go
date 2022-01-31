@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -908,9 +910,34 @@ func TestCheckDataWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
 
 	// Check invalid timestamp failure.
+	prevTimestamp := tx.Timestamp
 	tx.Timestamp = 0
 	_, err = to.tc.checkDataWithProofs(tx, info)
 	assert.Error(t, err, "checkDataWithProofs did not fail with invalid timestamp")
+	assert.EqualError(t, err, "invalid timestamp: Transaction timestamp 0 is more than 7200000ms in the past: early transaction creation time")
+	tx.Timestamp = prevTimestamp
+
+	// Check data entries
+	tx.Entries = append(tx.Entries, &proto.BooleanDataEntry{})
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.Error(t, err, "checkDataWithProofs did not fail with invalid data entry")
+	assert.EqualError(t, err, "at least one of the DataWithProofs entry is not valid: invalid entry 1: empty entry key")
+	tx.Entries = tx.Entries[:len(tx.Entries)-1]
+
+	// Check data tx size binary before rideV6 activation
+	bigEntry := &proto.BinaryDataEntry{Key: "NOTE: see key duplication validation in transactions_test.go", Value: make([]byte, 32*1024-1)}
+	bigEntries := proto.DataEntries{bigEntry, bigEntry, bigEntry, bigEntry, bigEntry}
+	tx.Entries = append(tx.Entries, bigEntries...)
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.Error(t, err, "checkDataWithProofs did not fail with tx size limit exceeding")
+	assert.EqualError(t, err, "data tx binary size limit exceeded, limit=153600, actual size=164299")
+	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
+
+	to.stor.activateFeature(t, int16(settings.RideV6))
+	tx.Entries = append(tx.Entries, bigEntries...)
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
+	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
 }
 
 func TestCheckSponsorshipWithProofs(t *testing.T) {
@@ -1031,6 +1058,436 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Timestamp = 0
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with invalid timestamp")
+}
+
+func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
+	tests := []struct {
+		estimationStub            ride.TreeEstimation
+		libVersions               []int
+		isDapp                    bool
+		reducedVerifierComplexity bool
+		valid                     bool
+	}{
+		// libVersion 1, 2
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12 - 1,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12 + 1,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 3, 4
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 5
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 6
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 3, 4, 5, 6 - reduced script complexity
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     false,
+		},
+		// not DApp
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// unknown lib version
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{100500},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+	}
+	for i, tc := range tests {
+		for _, libVersion := range tc.libVersions {
+			var checker transactionChecker
+
+			err := checker.checkScriptComplexity(libVersion, tc.estimationStub, tc.isDapp, tc.reducedVerifierComplexity)
+			if tc.valid {
+				assert.NoError(t, err, "test case %d, libVersion %d", i, libVersion)
+			} else {
+				assert.Error(t, err, "test case %d, libVersion %d", i, libVersion)
+			}
+		}
+	}
+}
+
+func TestCheckSetScriptWithProofsCheckDAppCallables(t *testing.T) {
+	tests := []struct {
+		comment         string
+		source          string
+		rideV6Activated bool
+		valid           bool
+	}{
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: Int) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEBAAAAAQEAAAAEdGVzdAAAAAIAAAABYQAAAAFiBQAAAANuaWwAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABzg4fU",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: List[Int]) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgERAAAAAQEAAAAEdGVzdAAAAAIAAAABYQAAAAFiBQAAAANuaWwAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABqAgBk",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 5 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String], b: Int|String) = []`,
+			source:          "AAIFAAAAAAAAAAgIAhIECgIZCQAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAcJFxY=",
+			rideV6Activated: false,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 5 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String], b: Int|String) = []`,
+			source:          "AAIFAAAAAAAAAAgIAhIECgIZCQAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAcJFxY=",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Verifier(tx)
+				func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5UI0jkA==",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: Int, b: ByteVector, c: String, d: Boolean, e: List[Int]) = []`,
+			source:          "AAIGAAAAAAAAAAsIAhIHCgUBAggEEQAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAQAAAAFpAQAAAAFmAAAABQAAAAFhAAAAAWIAAAABYwAAAAFkAAAAAWUFAAAAA25pbAAAAAAhm5rh",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: Int|String) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEJAAAAAAAAAAEAAAABaQEAAAABZgAAAAEAAAABYQUAAAADbmlsAAAAAK91tTo=",
+			rideV6Activated: true,
+			valid:           false,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEZAAAAAAAAAAEAAAABaQEAAAABZgAAAAEAAAABYQUAAAADbmlsAAAAAJ5dF/0=",
+			rideV6Activated: true,
+			valid:           false,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: Int|String, b: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAASMZSY=",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAAAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABbsAMQ",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: Int|String) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAQAAAAFpAQAAAAFmAAAAAQAAAAFhBQAAAANuaWwAAAAAYJr92g==",
+			rideV6Activated: true,
+			valid:           true,
+		},
+	}
+	for i, tc := range tests {
+		var checker transactionChecker
+
+		script, err := base64.StdEncoding.DecodeString(tc.source)
+		require.NoError(t, err)
+		tree, err := ride.Parse(script)
+		require.NoError(t, err)
+
+		err = checker.checkDAppCallables(tree, tc.rideV6Activated)
+		if tc.valid {
+			assert.NoError(t, err, "test case %d: %s", i, tc.comment)
+		} else {
+			assert.Error(t, err, "test case %d: %s", i, tc.comment)
+		}
+	}
 }
 
 func TestCheckSetAssetScriptWithProofs(t *testing.T) {
