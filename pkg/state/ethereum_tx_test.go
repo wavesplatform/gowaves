@@ -262,7 +262,7 @@ func TestEthereumInvoke(t *testing.T) {
 	}
 	txAppender := defaultTxAppender(t, storage, state, assetsUncertain, proto.MainNetScheme)
 	recipient, err := recipientEth.ToWavesAddress(0)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
 	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData, &crypto.Digest{}, sender, recipient)
@@ -397,7 +397,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	decodedData := defaultDecodedData("call", nil, nil)
 
 	recipient, err := recipientEth.ToWavesAddress(0)
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData, &crypto.Digest{}, sender, recipient)
 	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
 

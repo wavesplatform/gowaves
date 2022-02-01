@@ -886,7 +886,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-// TODO think of reusing "InvokeScripTToObject" function.
+// TODO think of reusing "InvokeScripTToObject" function.TestEthereumInvokeWithoutPaymentsAndArguments
 func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideObject, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
