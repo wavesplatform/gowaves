@@ -342,7 +342,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, invParams.functionName, invParams.defaultFunction, info); appendErr != nil {
 				return nil, appendErr
 			}
-			return nil, errors.Wrap(err, "failed to invoke script")
+			return nil, err // TODO here is forbidden to make a custom error
 		}
 	case *proto.InvokeExpressionTxUnion:
 		r, err = a.invokeExpressionFunction(invokeType, env, tx, invParams)
@@ -350,7 +350,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, invParams.functionName, invParams.defaultFunction, info); appendErr != nil {
 				return nil, appendErr
 			}
-			return nil, errors.Wrap(err, "failed to invoke expression")
+			return nil, err // TODO here is forbidden to make a custom error
 		}
 	default:
 		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", tx)
