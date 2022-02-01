@@ -659,7 +659,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 		case *proto.EthereumInvokeExpressionTxKind:
 			invokeUnion = proto.NewInvokeExpressionTxUnion(kind, *t.ID)
 		default:
-			return nil, errors.New("wrong ethereum tx type in handleInvoke")
+			return nil, errors.Errorf("failed to handle invoke: wrong type of ethereum transactiion (%T)", tx)
 		}
 	default:
 		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)

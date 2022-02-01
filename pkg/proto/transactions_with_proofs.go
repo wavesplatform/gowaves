@@ -4758,7 +4758,7 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 	}, nil
 }
 
-func (tx *InvokeScriptWithProofs) EmptyInvokeScriptTxMethod() {
+func (tx *InvokeScriptWithProofs) markerInvokeScriptTx() {
 }
 
 type UpdateAssetInfoWithProofs struct {
@@ -5140,6 +5140,6 @@ func (tx *InvokeExpressionTransactionWithProofs) ToProtobufSigned(scheme Scheme)
 	}, nil
 }
 
-func (tx *InvokeExpressionTransactionWithProofs) EmptyInvokeExpressionTxMethod() {
+func (tx *InvokeExpressionTransactionWithProofs) markerInvokeExpressionTx() {
 
 }

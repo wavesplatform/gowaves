@@ -146,7 +146,7 @@ func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
 }
 
-func (tx *EthereumInvokeScriptTxKind) EmptyInvokeScriptTxMethod() {
+func (tx *EthereumInvokeScriptTxKind) markerInvokeScriptTx() {
 
 }
 
@@ -168,7 +168,7 @@ func (tx *EthereumInvokeExpressionTxKind) String() string {
 	return "EthereumInvokeExpressionTxKind"
 }
 
-func (tx *EthereumInvokeExpressionTxKind) EmptyInvokeExpressionTxMethod() {
+func (tx *EthereumInvokeExpressionTxKind) markerInvokeExpressionTx() {
 
 }
 

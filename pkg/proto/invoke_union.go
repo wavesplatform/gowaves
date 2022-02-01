@@ -7,11 +7,11 @@ type InvokeTxUnion interface {
 }
 
 type InvokeScriptSubTransaction interface {
-	EmptyInvokeScriptTxMethod()
+	markerInvokeScriptTx()
 }
 
 type InvokeExpressionSubTransaction interface {
-	EmptyInvokeExpressionTxMethod()
+	markerInvokeExpressionTx()
 }
 
 type InvokeScriptTxUnion struct {

@@ -982,14 +982,16 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 	r["bodyBytes"] = rideBytes(nil)
 	r["proofs"] = proofs(proto.NewProofs())
 
-	// TODO add ethereum invoke expression tx
+	r["version"] = rideInt(tx.GetVersion())
+	r["id"] = rideBytes(tx.ID.Bytes())
+	r["sender"] = rideAddress(sender)
+	r["senderPublicKey"] = rideBytes(callerPK)
+	r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+	r["timestamp"] = rideInt(tx.GetTimestamp())
+	r["fee"] = rideInt(tx.GetFee())
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
-		r["version"] = rideInt(tx.GetVersion())
-		r["id"] = rideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(callerPK)
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
@@ -1000,18 +1002,10 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		}
 		amount := res.Int64()
 		r["amount"] = rideInt(amount)
-		r["fee"] = rideInt(tx.GetFee())
-		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
-		r["timestamp"] = rideInt(tx.GetTimestamp())
 
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
-		r["version"] = rideInt(tx.GetVersion())
-		r["id"] = rideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(callerPK)
-
 		recipientAddr, err := proto.EthereumAddress(kind.Arguments.Recipient).ToWavesAddress(scheme)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
@@ -1019,17 +1013,10 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
 		r["assetId"] = optionalAsset(kind.Asset)
 		r["amount"] = rideInt(kind.Arguments.Amount)
-		r["fee"] = rideInt(tx.GetFee())
-		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
-		r["timestamp"] = rideInt(tx.GetTimestamp())
 
 	case *proto.EthereumInvokeScriptTxKind:
 		r[instanceFieldName] = rideString("InvokeScriptTransaction")
-		r["version"] = rideInt(tx.GetVersion())
-		r["id"] = rideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
 		var scriptPayments []proto.ScriptPayment
@@ -1060,7 +1047,6 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			r["payment"] = rideUnit{}
 			r["payments"] = make(rideList, 0)
 		}
-		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["function"] = rideString(tx.TxKind.DecodedData().Name)
 		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
 		if err != nil {
@@ -1075,23 +1061,14 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			args[i] = a
 		}
 		r["args"] = args
-		r["fee"] = rideInt(tx.GetFee())
-		r["timestamp"] = rideInt(tx.GetTimestamp())
 	case *proto.EthereumInvokeExpressionTxKind:
 		r := make(rideObject)
 		r[instanceFieldName] = rideString("InvokeExpressionTransaction")
-		r["version"] = rideInt(tx.GetVersion())
-		r["id"] = rideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(sender))
 		r["payment"] = rideUnit{}
 		r["payments"] = make(rideList, 0)
-		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["function"] = rideString("default")
 		r["args"] = rideList{}
-		r["fee"] = rideInt(tx.GetFee())
-		r["timestamp"] = rideInt(tx.GetTimestamp())
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}

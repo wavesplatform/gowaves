@@ -799,7 +799,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion pro
 				return nil, err
 			}
 		default:
-			return nil, errors.New("wrong sub transaction of invoke expression transaction")
+			return nil, errors.Errorf("wrong sub transaction of invoke expression transaction: unexpected type of transaction (%T)", tx)
 		}
 	default:
 
