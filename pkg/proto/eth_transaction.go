@@ -134,8 +134,8 @@ type EthereumInvokeScriptTxKind struct {
 	To          WavesAddress
 }
 
-func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
-	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
+func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData, txID *crypto.Digest, from WavesAddress, to WavesAddress) *EthereumInvokeScriptTxKind {
+	return &EthereumInvokeScriptTxKind{decodedData: decodedData, TxID: txID, From: from, To: to}
 }
 
 func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
@@ -156,8 +156,8 @@ type EthereumInvokeExpressionTxKind struct {
 	From       WavesAddress
 }
 
-func NewEthereumInvokeExpressionTxKind(expression string) *EthereumInvokeExpressionTxKind {
-	return &EthereumInvokeExpressionTxKind{Expression: expression}
+func NewEthereumInvokeExpressionTxKind(expression string, txID *crypto.Digest, from WavesAddress) *EthereumInvokeExpressionTxKind {
+	return &EthereumInvokeExpressionTxKind{Expression: expression, TxID: txID, From: from}
 }
 
 func (tx *EthereumInvokeExpressionTxKind) DecodedData() *ethabi.DecodedCallData {
