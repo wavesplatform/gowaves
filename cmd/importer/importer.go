@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
+	"github.com/wavesplatform/gowaves/pkg/versioning"
 	"go.uber.org/zap"
 )
 
@@ -42,6 +43,9 @@ var (
 func main() {
 	flag.Parse()
 
+	common.SetupLogger(*logLevel)
+	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
+
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
 		zap.S().Fatalf("Initialization error: %v", err)
@@ -50,8 +54,6 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Initialization error: %v", err)
 	}
-
-	common.SetupLogger(*logLevel)
 
 	if *blockchainPath == "" {
 		zap.S().Fatalf("You must specify blockchain-path option.")
