@@ -82,7 +82,7 @@ func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto
 	if action.Recipient.Address == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
-	if action.Amount < 0 {
+	if action.Amount <= 0 {
 		return nil, errors.New("negative transfer amount")
 	}
 	return &payment{
@@ -753,6 +753,12 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+		// check payments before script execution
+		for _, payment := range transaction.Payments {
+			if payment.Amount <= 0 {
+				return nil, errors.New("failed to invoke script: a payment is equal or less than zero")
+			}
+		}
 
 	case *proto.InvokeExpressionTransactionWithProofs:
 		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
@@ -789,7 +795,12 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
-
+		// check payments before script execution
+		for _, payment := range decodedData.Payments {
+			if payment.Amount <= 0 {
+				return nil, errors.New("failed to invoke script: a payment is equal or less than zero")
+			}
+		}
 	default:
 		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
