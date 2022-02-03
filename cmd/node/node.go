@@ -42,11 +42,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
+	"github.com/wavesplatform/gowaves/pkg/versioning"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
+var protocolVersion = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
 const (
 	maxTransactionTimeForwardOffset = 300 // seconds
@@ -141,6 +142,8 @@ func debugCommandLineParameters() {
 func main() {
 	flag.Parse()
 	common.SetupLogger(*logLevel)
+
+	zap.S().Infof("Gowaves Node version: %s", versioning.Version)
 
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
@@ -318,7 +321,7 @@ func main() {
 		cancel()
 		return
 	}
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), protocolVersion)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -341,7 +344,7 @@ func main() {
 		peerSpawnerImpl,
 		peerStorage,
 		int(*limitAllConnections/2),
-		version,
+		protocolVersion,
 		conf.WavesNetwork,
 		!*disableOutgoingConnections,
 		*newConnectionsLimit,

@@ -100,15 +100,15 @@ build-retransmitter-windows:
 release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin build-retransmitter-windows
 
 build-node-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node ./cmd/node
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-arm:
-	@GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node ./cmd/node
+	@GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-i386:
-	@GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node ./cmd/node
+	@GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node ./cmd/node
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
 release-node: ver build-node-linux build-node-linux-arm build-node-linux-i386 build-node-darwin build-node-windows
 
@@ -119,11 +119,11 @@ dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-pa
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-64bit.tar.gz ./node*
 
 build-custom-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/custom ./cmd/custom
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/custom -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/custom
 build-custom-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/custom ./cmd/custom
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/custom -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/custom
 build-custom-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/custom.exe ./cmd/custom
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/custom.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/custom
 
 build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
@@ -132,11 +132,11 @@ build-docker:
 	date "+%Y-%m-%d %H:%M:%S"
 
 build-importer-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer ./cmd/importer
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer ./cmd/importer
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe ./cmd/importer
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
@@ -155,20 +155,20 @@ build-wallet-windows:
 
 release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
 
-build-rollback-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback ./cmd/rollback
-build-rollback-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback ./cmd/rollback
-build-rollback-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe ./cmd/rollback
-
-release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
-
 dist-wallet: release-wallet
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/wallet_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/wallet*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_Linux-64bit.tar.gz ./wallet*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-64bit.tar.gz ./wallet*
+
+build-rollback-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+build-rollback-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+build-rollback-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+
+release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
 
 dist: clean dist-chaincmp dist-wmd dist-importer dist-node dist-wallet
 
