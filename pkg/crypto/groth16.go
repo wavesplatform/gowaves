@@ -14,21 +14,24 @@ type Bn256 struct{}
 
 type Dummy struct{}
 
+const (
+	sizeUint64      = 8
+	lenOneFrElement = 4
+	frReprSize      = sizeUint64 * lenOneFrElement
+)
+
 func ReadInputs(inputs []byte) ([]*big.Int, error) {
 	var result []*big.Int
-	const sizeUint64 = 8
-	const lenOneFrElement = 4
 
-	if len(inputs)%32 != 0 {
+	if len(inputs)%frReprSize != 0 {
 		return nil, errors.New("inputs should be % 32 = 0")
 	}
 
-	lenFrElements := len(inputs) / 32
-	frReprSize := sizeUint64 * lenOneFrElement
-
-	var currentOffset int
-	var oldOffSet int
-
+	var (
+		currentOffset int
+		oldOffSet     int
+		lenFrElements = len(inputs) / frReprSize
+	)
 	// Appending every 32 bytes [0..32], [32..64], ...
 	for i := 0; i < lenFrElements; i++ {
 		currentOffset += frReprSize
@@ -40,6 +43,22 @@ func ReadInputs(inputs []byte) ([]*big.Int, error) {
 	}
 
 	return result, nil
+}
+
+func SerializeInputs(inputs []*big.Int) []byte {
+	if len(inputs) == 0 {
+		return nil
+	}
+
+	out := make([]byte, frReprSize*len(inputs))
+
+	outInput := out[:0]
+	for _, input := range inputs {
+		outInput = outInput[:frReprSize]
+		input.FillBytes(outInput)
+		outInput = outInput[frReprSize:]
+	}
+	return out
 }
 
 func (Bls12381) Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {

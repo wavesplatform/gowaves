@@ -82,6 +82,22 @@ func (g *G1) FromCompressed(compressed []byte) (*PointG1, error) {
 	return p, nil
 }
 
+// ToCompressed given a G1 point returns bytes in compressed form of the point.
+func (g *G1) ToCompressed(p *PointG1) []byte {
+	out := make([]byte, 32)
+	g.Affine(p)
+	if g.IsZero(p) {
+		out[0] |= 1 << 6
+		out[0] |= 1 << 7
+	} else {
+		copy(out[:], toBytes(&p[0]))
+		if !p[1].signBE() {
+			out[0] |= 1 << 7
+		}
+	}
+	return out
+}
+
 // NewG1 constructs a new G1 instance.
 func NewG1() *G1 {
 	t := newTempG1()
