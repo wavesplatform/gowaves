@@ -2,8 +2,9 @@ package bn256
 
 import (
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254" //nolint
 	"io"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254" //nolint
 )
 
 type VerificationKey struct {
@@ -85,4 +86,20 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 		Ic:      ic,
 	}, nil
 
+}
+
+func (v *VerificationKey) ToCompressed() []byte {
+	var (
+		g1  = bn254.NewG1()
+		g2  = bn254.NewG2()
+		out = make([]byte, 0, 32+3*64+32*len(v.Ic))
+	)
+	out = append(out, g1.ToCompressed(v.AlphaG1)...)
+	out = append(out, g2.ToCompressed(v.BetaG2)...)
+	out = append(out, g2.ToCompressed(v.GammaG2)...)
+	out = append(out, g2.ToCompressed(v.DeltaG2)...)
+	for _, p := range v.Ic {
+		out = append(out, g1.ToCompressed(p)...)
+	}
+	return out
 }

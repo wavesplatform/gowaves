@@ -127,6 +127,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
 		})
+		r.Route("/node", func(r chi.Router) {
+			r.Get("/version", wrapper(a.version))
+		})
 		r.Route("/eth", func(r chi.Router) {
 			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
 		})

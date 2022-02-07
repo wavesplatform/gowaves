@@ -488,6 +488,14 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
+func (a *NodeApi) version(w http.ResponseWriter, _ *http.Request) error {
+	rs := a.app.version()
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "Version")
+	}
+	return nil
+}
+
 // tryParseJson receives reader and out params. out MUST be a pointer
 func tryParseJson(r io.Reader, out interface{}) error {
 	// TODO(nickeskov): check empty reader

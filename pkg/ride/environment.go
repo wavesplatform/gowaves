@@ -511,7 +511,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if res.Amount < 0 {
+	if env.validateInternalPayments() && res.Amount < 0 {
 		return errors.New("negative transfer amount")
 	}
 	if restrictions.DisableSelfTransfers {
