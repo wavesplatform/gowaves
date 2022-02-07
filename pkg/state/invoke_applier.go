@@ -718,7 +718,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 // If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
 // If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
-func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
+func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, invokeUnion proto.InvokeTxUnion, info *fallibleValidationParams) (*applicationResult, error) {
 	// In defer we should clean all the temp changes invoke does to state.
 	defer func() {
 		ia.invokeDiffStor.invokeDiffsStor.reset()
@@ -728,23 +728,37 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		paymentsLength int
 		scriptAddr     *proto.WavesAddress
 		txID           crypto.Digest
-		sender         proto.Address
+		sender         proto.WavesAddress
 		tree           *ride.Tree
 		scriptPK       crypto.PublicKey
 	)
-	switch transaction := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
+	switch invokeType := invokeUnion.(type) {
+	case *proto.InvokeScriptTxUnion:
+		switch subTx := invokeType.SubTx.(type) {
+		case *proto.InvokeScriptWithProofs:
+			var err error
+			scriptAddr, err = recipientToAddress(subTx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+			if err != nil {
+				return nil, errors.Wrap(err, "recipientToAddress() failed")
+			}
+			paymentsLength = len(subTx.Payments)
+			txID = *subTx.ID
+			sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, subTx.SenderPK)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to apply script invocation")
+			}
+		case *proto.EthereumInvokeScriptTxKind:
+			scriptAddr = &subTx.To
+			decodedData := subTx.DecodedData()
+			paymentsLength = len(decodedData.Payments)
+			txID = *subTx.TxID
+			sender = subTx.From
+		default:
+			return nil, errors.New("wrong sub transaction of invoke script transaction")
+
+		}
+
 		var err error
-		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases, !info.initialisation)
-		if err != nil {
-			return nil, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		paymentsLength = len(transaction.Payments)
-		txID = *transaction.ID
-		sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
 		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
@@ -753,66 +767,44 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+	case *proto.InvokeExpressionTxUnion:
+		switch subTx := invokeType.SubTx.(type) {
+		case *proto.InvokeExpressionTransactionWithProofs:
 
-	case *proto.InvokeExpressionTransactionWithProofs:
-		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		sender = addr
-		scriptAddr = &addr
-		tree, err = ride.Parse(transaction.Expression)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
-		}
-		txID = *transaction.ID
-		scriptPK = transaction.SenderPK
-
-	case *proto.EthereumTransaction:
-		switch kind := transaction.TxKind.(type) {
-		case *proto.EthereumInvokeScriptTxKind:
 			var err error
-			scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+			sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, subTx.SenderPK)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "recipientToAddress() failed")
 			}
-			decodedData := transaction.TxKind.DecodedData()
-			paymentsLength = len(decodedData.Payments)
-			txID = *transaction.ID
-			sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to apply script invocation")
-			}
-			tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-			}
-			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-			}
-		case *proto.EthereumInvokeExpressionTxKind:
-			address, err := transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
-			if err != nil {
-				return nil, err
-			}
-			sender = address
-			scriptAddr = &address
-			tree, err = ride.Parse([]byte(kind.Expression))
+			scriptAddr = &sender
+			tree, err = ride.Parse(subTx.Expression)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 			}
-			txID = *transaction.ID
+			txID = *subTx.ID
+			scriptPK = subTx.SenderPK
+		case *proto.EthereumInvokeExpressionTxKind:
+			var err error
+			sender = subTx.From
+			scriptAddr = &sender
+			tree, err = ride.Parse([]byte(subTx.Expression))
+
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
+			}
+
+			txID = *subTx.TxID
 			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 			if err != nil {
 				return nil, err
 			}
+		default:
+			return nil, errors.Errorf("wrong sub transaction of invoke expression transaction: unexpected type of transaction (%T)", tx)
 		}
-
 	default:
+
 		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
-
 	// If BlockV5 feature is not activated, we never accept failed transactions.
 	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
@@ -849,7 +841,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
+	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, invokeUnion)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// In the following cases the transaction is rejected:

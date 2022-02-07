@@ -96,11 +96,22 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}
-
-		return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
+		from, err := ethTx.WavesAddressFrom(e.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		to, err := ethTx.WavesAddressTo(e.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		return proto.NewEthereumInvokeScriptTxKind(*decodedData, ethTx.ID, from, *to), nil
 	case EthereumInvokeExpressionKind:
 		expression := ethTx.Data()
-		return proto.NewEthereumInvokeExpressionTxKind(string(expression)), nil
+		from, err := ethTx.WavesAddressFrom(e.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		return proto.NewEthereumInvokeExpressionTxKind(string(expression), ethTx.ID, from), nil
 	default:
 		return nil, errors.New("unexpected ethereum tx kind")
 	}
