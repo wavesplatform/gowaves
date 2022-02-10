@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"go.uber.org/goleak"
 )
 
 const (
@@ -293,8 +294,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
 	testGlobal.scriptAst = scriptAst
-
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
