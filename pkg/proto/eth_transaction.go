@@ -129,10 +129,13 @@ func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 
 type EthereumInvokeScriptTxKind struct {
 	decodedData ethabi.DecodedCallData
+	TxID        *crypto.Digest
+	From        WavesAddress
+	To          WavesAddress
 }
 
-func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
-	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
+func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData, txID *crypto.Digest, from WavesAddress, to WavesAddress) *EthereumInvokeScriptTxKind {
+	return &EthereumInvokeScriptTxKind{decodedData: decodedData, TxID: txID, From: from, To: to}
 }
 
 func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
@@ -141,6 +144,32 @@ func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
 
 func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
+}
+
+func (tx *EthereumInvokeScriptTxKind) markerInvokeScriptTx() {
+
+}
+
+type EthereumInvokeExpressionTxKind struct {
+	Expression string
+	TxID       *crypto.Digest
+	From       WavesAddress
+}
+
+func NewEthereumInvokeExpressionTxKind(expression string, txID *crypto.Digest, from WavesAddress) *EthereumInvokeExpressionTxKind {
+	return &EthereumInvokeExpressionTxKind{Expression: expression, TxID: txID, From: from}
+}
+
+func (tx *EthereumInvokeExpressionTxKind) DecodedData() *ethabi.DecodedCallData {
+	return nil
+}
+
+func (tx *EthereumInvokeExpressionTxKind) String() string {
+	return "EthereumInvokeExpressionTxKind"
+}
+
+func (tx *EthereumInvokeExpressionTxKind) markerInvokeExpressionTx() {
+
 }
 
 type EthereumTransaction struct {

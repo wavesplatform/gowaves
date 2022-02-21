@@ -143,10 +143,6 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		value = new(big.Int)
 		data  []byte
 	)
-	if req.To == nil {
-		zap.S().Debug("Eth_EstimateGas: trying estimate gas for set dApp transaction")
-		return "", errors.New("gas estimation for set dApp transaction is not permitted")
-	}
 	if req.Value != nil {
 		var _, ok = value.SetString(strings.TrimPrefix(*req.Value, "0x"), 16)
 		if !ok {
@@ -163,7 +159,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		}
 	}
 
-	txKind, err := state.GuessEthereumTransactionKind(data)
+	txKind, err := state.GuessEthereumTransactionKind(data, req.To)
 	if err != nil {
 		return "", errors.Errorf("failed to guess ethereum tx kind, %v", err)
 	}

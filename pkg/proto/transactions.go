@@ -39,7 +39,6 @@ const (
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
 	InvokeExpressionTransaction                            // 18 - InvokeExpressionTransaction
 	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which is received from metamask
-
 )
 
 // TxFailureReason indicates Transactions failure reasons.

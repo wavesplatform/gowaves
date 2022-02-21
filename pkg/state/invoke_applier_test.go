@@ -108,8 +108,8 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 		to.state.stor.dropUncertain()
 		to.state.appender.ia.sc.resetComplexity()
 	}()
-
-	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
+	invokeUnion := proto.NewInvokeScriptTxUnion(tx, *tx.ID)
+	res, err := to.state.appender.ia.applyInvokeScript(tx, invokeUnion, info)
 	require.NoError(t, err)
 	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
 	assert.NoError(t, err)
@@ -175,7 +175,8 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
-		_, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
+		invokeUnion := proto.NewInvokeScriptTxUnion(tx, *tx.ID)
+		_, err := to.state.appender.ia.applyInvokeScript(tx, invokeUnion, id.info)
 		assert.Error(t, err)
 		return
 	}

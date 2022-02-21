@@ -4758,6 +4758,9 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 	}, nil
 }
 
+func (tx *InvokeScriptWithProofs) markerInvokeScriptTx() {
+}
+
 type UpdateAssetInfoWithProofs struct {
 	Type        TransactionType  `json:"type"`
 	Version     byte             `json:"version,omitempty"`
@@ -5135,4 +5138,8 @@ func (tx *InvokeExpressionTransactionWithProofs) ToProtobufSigned(scheme Scheme)
 		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *InvokeExpressionTransactionWithProofs) markerInvokeExpressionTx() {
+
 }

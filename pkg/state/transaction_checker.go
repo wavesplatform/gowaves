@@ -483,7 +483,20 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 
 		return smartAssets, nil
+	case *proto.EthereumInvokeExpressionTxKind:
+		minFee := proto.EthereumInvokeMinFee
 
+		if l := len(kind.Expression); l > proto.MaxContractScriptSize {
+			return nil, errors.Errorf("size of the expression %d is exceeded limit %d", l, proto.MaxContractScriptSize)
+		}
+
+		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
+			return nil, errs.Extend(err, "invalid timestamp")
+		}
+		if tx.GetFee() < minFee {
+			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
+		}
+		return nil, nil
 	default:
 		return nil, errors.New("failed to check ethereum transaction, wrong kind of tx")
 	}

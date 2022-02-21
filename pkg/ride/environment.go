@@ -1365,8 +1365,12 @@ func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
-	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx proto.Transaction, v int, payments []proto.ScriptPayment) error {
+	ethTx, ok := tx.(*proto.EthereumTransaction)
+	if !ok {
+		return errors.New("failed to transform interface to ethereum transaction")
+	}
+	obj, err := ethereumInvocationToObject(v, e.sch, ethTx, payments)
 	if err != nil {
 		return err
 	}
