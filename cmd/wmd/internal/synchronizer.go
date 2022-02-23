@@ -25,21 +25,19 @@ type Synchronizer struct {
 	storage   *state.Storage
 	scheme    byte
 	matchers  []crypto.PublicKey
-	ticker    *time.Ticker
+	interval  time.Duration
 	lag       int
 	symbols   *data.Symbols
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval time.Duration, lag int, symbols *data.Symbols) (*Synchronizer, error) {
 	conn, err := grpc.Dial(node, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
-	d := time.Duration(interval) * time.Second
-	t := time.NewTicker(d)
-	zap.S().Infof("Synchronization interval set to %v", d)
+	zap.S().Infof("Synchronization interval set to %v", interval)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matchers: matchers, ticker: t, lag: lag, symbols: symbols}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matchers: matchers, interval: interval, lag: lag, symbols: symbols}
 	go s.run()
 	return &s, nil
 }
@@ -49,14 +47,17 @@ func (s *Synchronizer) Done() <-chan struct{} {
 }
 
 func (s *Synchronizer) run() {
-	defer close(s.done)
+	ticker := time.NewTicker(s.interval)
+	defer func() {
+		ticker.Stop()
+		close(s.done)
+	}()
 	for {
 		select {
 		case <-s.interrupt:
-			s.ticker.Stop()
 			zap.S().Info("Shutting down synchronizer...")
 			return
-		case <-s.ticker.C:
+		case <-ticker.C:
 			s.synchronize()
 		}
 	}

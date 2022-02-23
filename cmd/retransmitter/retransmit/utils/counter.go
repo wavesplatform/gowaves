@@ -33,7 +33,7 @@ func NewCounter() *Counter {
 		resendTransactionCount: make(map[string]Count),
 		interrupt:              make(chan struct{}),
 	}
-	go c.clearBackground(c.interrupt, time.NewTicker(1*time.Hour))
+	go c.clearBackground(c.interrupt, 1*time.Hour)
 	return c
 }
 
@@ -71,7 +71,9 @@ func (a *Counter) Get() []Response {
 	return out
 }
 
-func (a *Counter) clearBackground(interrupt chan struct{}, ticker *time.Ticker) {
+func (a *Counter) clearBackground(interrupt chan struct{}, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
