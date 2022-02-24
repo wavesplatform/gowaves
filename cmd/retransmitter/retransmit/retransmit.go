@@ -31,9 +31,9 @@ func NewRetransmitter(behaviour *BehaviourImpl, parent peer.Parent) *Retransmitt
 // this function starts main process of transaction transmitting
 func (a *Retransmitter) Run(ctx context.Context) {
 
-	go a.serveSendAllMyKnownPeers(ctx, time.NewTicker(5*time.Minute))
-	go a.askPeersAboutKnownPeers(ctx, time.NewTicker(1*time.Minute))
-	go a.periodicallySpawnPeers(ctx, time.NewTicker(1*time.Minute))
+	go a.serveSendAllMyKnownPeers(ctx, 5*time.Minute)
+	go a.askPeersAboutKnownPeers(ctx, 1*time.Minute)
+	go a.periodicallySpawnPeers(ctx, 1*time.Minute)
 
 	// handle messages simultaneously
 	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
@@ -70,7 +70,9 @@ func (a *Retransmitter) Address(ctx context.Context, addr string) {
 }
 
 // send known peers list
-func (a *Retransmitter) serveSendAllMyKnownPeers(ctx context.Context, ticker *time.Ticker) {
+func (a *Retransmitter) serveSendAllMyKnownPeers(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -82,7 +84,9 @@ func (a *Retransmitter) serveSendAllMyKnownPeers(ctx context.Context, ticker *ti
 }
 
 // ask peers about knows addresses
-func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, ticker *time.Ticker) {
+func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -122,7 +126,9 @@ func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	}
 }
 
-func (a *Retransmitter) periodicallySpawnPeers(ctx context.Context, ticker *time.Ticker) {
+func (a *Retransmitter) periodicallySpawnPeers(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

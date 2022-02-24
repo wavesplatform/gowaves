@@ -18,7 +18,7 @@ func TestKnownPeers(t *testing.T) {
 	s, err := utils.NewFileBasedStorage(fs, "/known_peers.json")
 	require.NoError(t, err)
 
-	knownPeers, err := utils.NewKnownPeersInterval(s, time.NewTicker(1*time.Second))
+	knownPeers, err := utils.NewKnownPeersInterval(s, 1*time.Second)
 	require.NoError(t, err)
 	defer knownPeers.Stop()
 	knownPeers.Add(proto.NewTCPAddr(net.IPv4(10, 10, 10, 10), 90), proto.Version{})

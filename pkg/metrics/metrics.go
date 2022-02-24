@@ -433,7 +433,7 @@ type reporter struct {
 	c         influx.Client
 	id        int
 	batchConf influx.BatchPointsConfig
-	ticker    *time.Ticker
+	interval  time.Duration
 	points    []*influx.Point
 	in        chan *influx.Point
 }
@@ -460,7 +460,7 @@ func Start(ctx context.Context, id int, url string) error {
 			c:         c,
 			id:        id,
 			batchConf: influx.BatchPointsConfig{Database: db},
-			ticker:    time.NewTicker(reportInterval),
+			interval:  reportInterval,
 			in:        make(chan *influx.Point, bufferSize),
 		}
 		go rep.run(ctx)
@@ -469,6 +469,8 @@ func Start(ctx context.Context, id int, url string) error {
 }
 
 func (r *reporter) run(ctx context.Context) {
+	ticker := time.NewTicker(r.interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -478,7 +480,7 @@ func (r *reporter) run(ctx context.Context) {
 				zap.S().Warn("Failed to close connection to InfluxDB: %v", err)
 			}
 			return
-		case <-r.ticker.C:
+		case <-ticker.C:
 			err := r.report()
 			if err != nil {
 				zap.S().Warnf("Failed to report metrics: %v", err)

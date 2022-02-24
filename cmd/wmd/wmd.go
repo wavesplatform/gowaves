@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
@@ -222,7 +223,7 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node, *interval, *lag, symbols)
+	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node, time.Duration(*interval)*time.Second, *lag, symbols)
 	if err != nil {
 		zap.S().Errorf("Failed to start synchronization: %v", err)
 		return err

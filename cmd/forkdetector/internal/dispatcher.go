@@ -21,7 +21,6 @@ type dispatcher struct {
 	bind      string
 	Opts      *Options
 	server    *Server
-	stopped   chan struct{}
 	registry  *Registry
 	schedule  schedule
 }
@@ -41,7 +40,6 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 		bind:      bind,
 		Opts:      opts,
 		server:    s,
-		stopped:   make(chan struct{}),
 		registry:  registry,
 		schedule:  schedule{interval: askPeersDelay},
 	}
@@ -50,8 +48,6 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 
 func (d *dispatcher) Start() <-chan struct{} {
 	zap.S().Debug("Starting dispatcher...")
-	reconnectTicker := time.NewTicker(reconnectionInterval)
-	askPeersTicker := time.NewTicker(askPeersInterval)
 	go func() {
 		err := d.server.ListenAndServe(d.bind)
 		if err != nil {
@@ -59,7 +55,17 @@ func (d *dispatcher) Start() <-chan struct{} {
 			return
 		}
 	}()
+	stopped := make(chan struct{})
 	go func() {
+		var (
+			reconnectTicker = time.NewTicker(reconnectionInterval)
+			askPeersTicker  = time.NewTicker(askPeersInterval)
+		)
+		defer func() {
+			reconnectTicker.Stop()
+			askPeersTicker.Stop()
+			close(stopped)
+		}()
 		for {
 			select {
 			case <-d.interrupt:
@@ -72,7 +78,6 @@ func (d *dispatcher) Start() <-chan struct{} {
 					c.Stop(StopImmediately)
 				}
 				zap.S().Debug("Server shutdown complete")
-				close(d.stopped)
 				return
 			case <-reconnectTicker.C:
 				addresses, err := d.registry.TakeAvailableAddresses()
@@ -90,7 +95,7 @@ func (d *dispatcher) Start() <-chan struct{} {
 			}
 		}
 	}()
-	return d.stopped
+	return stopped
 }
 
 func (d *dispatcher) dial(addr net.Addr) {

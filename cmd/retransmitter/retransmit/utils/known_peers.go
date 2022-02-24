@@ -20,7 +20,7 @@ type KnownPeers struct {
 }
 
 func NewKnownPeers(storage Storage) (*KnownPeers, error) {
-	return NewKnownPeersInterval(storage, time.NewTicker(defaultInterval))
+	return NewKnownPeersInterval(storage, defaultInterval)
 }
 
 type JsonKnowPeerRow struct {
@@ -28,7 +28,7 @@ type JsonKnowPeerRow struct {
 	Version proto.Version
 }
 
-func NewKnownPeersInterval(storage Storage, saveInterval *time.Ticker) (*KnownPeers, error) {
+func NewKnownPeersInterval(storage Storage, saveInterval time.Duration) (*KnownPeers, error) {
 	bts, err := storage.Read()
 	if err != nil {
 		return nil, err
@@ -54,7 +54,9 @@ func NewKnownPeersInterval(storage Storage, saveInterval *time.Ticker) (*KnownPe
 	return a, nil
 }
 
-func (a *KnownPeers) periodicallySave(ctx context.Context, ticker *time.Ticker) {
+func (a *KnownPeers) periodicallySave(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
