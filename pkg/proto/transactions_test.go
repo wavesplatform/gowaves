@@ -162,7 +162,7 @@ func TestGenesisValidations(t *testing.T) {
 	}{
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid WavesAddress checksum"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", MaxLongValue + 100, "amount is too big"},
 	}
 	for _, tc := range tests {
 		addr, err := addressFromString(tc.address)

@@ -56,6 +56,12 @@ func CallFunction(env environment, tree *Tree, name string, args proto.Arguments
 	// Add actions and complexity from wrapped state
 	// Append actions of the original call to the end of actions collected in wrapped state
 	dAppResult.complexity += wrappedStateComplexity(env.state())
+	if dAppResult.complexity > MaxChainInvokeComplexity {
+		return nil, EvaluationErrorAddComplexity(
+			RuntimeError.Errorf("evaluation complexity %d exceeds %d limit", dAppResult.complexity, MaxChainInvokeComplexity),
+			MaxChainInvokeComplexity,
+		)
+	}
 	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)
 	return dAppResult, nil
 }
