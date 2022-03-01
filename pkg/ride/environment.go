@@ -80,6 +80,17 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 }
 
 func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
+	b, err := ws.newestWavesBalance(account)
+	if err != nil {
+		return 0, err
+	}
+	if b < 0 {
+		return 0, errors.Errorf("negative waves balance %d for account '%s'", b, account.String())
+	}
+	return uint64(b), nil
+}
+
+func (ws *WrappedState) newestWavesBalance(account proto.Recipient) (int64, error) {
 	balance, err := ws.diff.state.NewestWavesBalance(account)
 	if err != nil {
 		return 0, err
@@ -90,13 +101,24 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 	}
 	if balanceDiff != nil {
 		resBalance := int64(balance) + balanceDiff.regular
-		return uint64(resBalance), nil
+		return resBalance, nil
 
 	}
-	return balance, nil
+	return int64(balance), nil
 }
 
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+	b, err := ws.newestAssetBalance(account, assetID)
+	if err != nil {
+		return 0, err
+	}
+	if b < 0 {
+		return 0, errors.Errorf("negative asset '%s' balance %d for account '%s'", assetID.String(), b, account.String())
+	}
+	return uint64(b), nil
+}
+
+func (ws *WrappedState) newestAssetBalance(account proto.Recipient, assetID crypto.Digest) (int64, error) {
 	balance, err := ws.diff.state.NewestAssetBalance(account, assetID)
 	if err != nil {
 		return 0, err
@@ -110,10 +132,10 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		if err != nil {
 			return 0, err
 		}
-		return uint64(resBalance), nil
+		return resBalance, nil
 
 	}
-	return balance, nil
+	return int64(balance), nil
 }
 
 // diff.regular - diff.leaseOut + available
@@ -818,7 +840,8 @@ func (ws *WrappedState) validateBalances() error {
 			return err
 		}
 		if res < 0 {
-			return errors.Errorf("the balance of address %s is %d which is negative", address.String(), int64(balance)+balanceDiff.regular)
+			return errors.Errorf("the balance of address %s for asset %s is %d which is negative (%d + %d = %d)",
+				address.String(), key.asset.String(), res, int64(balance), balanceDiff.regular, res)
 		}
 	}
 	return nil
@@ -1204,21 +1227,21 @@ func NewEnvironmentWithWrappedState(
 	st := newWrappedState(env)
 	for _, payment := range payments {
 		var (
-			senderBalance uint64
-			err           error
-			callerRcp     = proto.NewRecipientFromAddress(sender)
+			//senderBalance uint64
+			err       error
+			callerRcp = proto.NewRecipientFromAddress(sender)
 		)
-		if payment.Asset.Present {
-			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
-		} else {
-			senderBalance, err = st.NewestWavesBalance(callerRcp)
-		}
-		if err != nil {
-			return nil, err
-		}
-		if senderBalance < payment.Amount {
-			return nil, errors.New("not enough money for tx attached payments")
-		}
+		//if payment.Asset.Present {
+		//	senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
+		//} else {
+		//	senderBalance, err = st.NewestWavesBalance(callerRcp)
+		//}
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if senderBalance < payment.Amount {
+		//	return nil, errors.New("not enough money for tx attached payments")
+		//}
 
 		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
 		if err != nil {
