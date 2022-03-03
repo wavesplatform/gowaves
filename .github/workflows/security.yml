@@ -16,7 +16,7 @@ jobs:
       GO111MODULE: on
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run Gosec Security Scanner
         uses: securego/gosec@v2.10.0
         with:
@@ -26,17 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Go
-        uses: actions/setup-go@v2.2.0
+        uses: actions/setup-go@v3
         with:
           go-version: 1.16
       - name: Run go list
-        run: |
-          if [ -n "$(go mod graph | grep 'github.com/prometheus/common@v0.4.1 github.com/gogo/protobuf@v1.1.1')" ]; then \
-            go list -m all | grep -v "github.com/gogo/protobuf v1.1.1" > go.list; \
-          else \
-            go list -m all > go.list; \
-          fi;
+        run: go list -m all > go.list
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@v1.0.2
