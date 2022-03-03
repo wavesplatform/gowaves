@@ -2,6 +2,9 @@ module github.com/wavesplatform/gowaves
 
 go 1.16
 
+// exclude vulnerable dependency: github.com/prometheus/client_golang -> github.com/prometheus/common@v0.4.1 -> vulnerable
+exclude github.com/gogo/protobuf v1.1.1
+
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
