@@ -1,4 +1,4 @@
-FROM golang:1.17.7 as parent
+FROM golang:1.17.8 as parent
 
 WORKDIR /app
 
