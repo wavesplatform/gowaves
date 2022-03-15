@@ -7,11 +7,10 @@ exclude github.com/gogo/protobuf v1.1.1
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
-	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/beevik/ntp v0.3.0
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/cespare/xxhash/v2 v2.1.2
-	github.com/coocood/freecache v1.2.0
+	github.com/coocood/freecache v1.2.1
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/go-chi/chi v4.1.2+incompatible
@@ -29,7 +28,6 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.8.2
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
