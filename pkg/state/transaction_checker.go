@@ -1103,12 +1103,19 @@ func (tc *transactionChecker) checkCreateAliasWithProofs(transaction proto.Trans
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
-	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
+	smartAccountsIsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
-	if !activated {
+	if !smartAccountsIsActivated {
 		return nil, errors.New("SmartAccounts feature has not been activated yet")
+	}
+	rideV6IsActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if tx.Proofs.MultiSigned() && !rideV6IsActivated {
+		return nil, errors.New("multisig in create alias tx is disabled before feature 17 (RideV6) activation")
 	}
 	if err := tc.checkCreateAlias(&tx.CreateAlias, info); err != nil {
 		return nil, err
