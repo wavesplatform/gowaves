@@ -37,11 +37,11 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 }
 
 type stateInfoProvider interface {
-	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
 	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
+	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
 }
 
 type Validator struct {
@@ -53,16 +53,12 @@ type Validator struct {
 	ntpTime types.Time
 }
 
-func NewValidator(state stateInfoProvider, tm types.Time) (*Validator, error) {
-	s, err := state.BlockchainSettings()
-	if err != nil {
-		return nil, errors.Errorf("failed to get blockchain settings: %v\n", err)
-	}
+func NewValidator(state stateInfoProvider, settings *settings.BlockchainSettings, tm types.Time) *Validator {
 	return &Validator{
 		state:    state,
-		settings: s,
+		settings: settings,
 		ntpTime:  tm,
-	}, nil
+	}
 }
 
 func (cv *Validator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
@@ -75,6 +71,10 @@ func (cv *Validator) fairPosActivated(height uint64) (bool, error) {
 
 func (cv *Validator) blockV5Activated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height)
+}
+
+func (cv *Validator) rideV6Activated(height uint64) (bool, error) {
+	return cv.state.NewestIsActiveAtHeight(int16(settings.RideV6), height)
 }
 
 func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
@@ -163,6 +163,9 @@ func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight ui
 		if err := cv.validateBlockVersion(header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
 		}
+		if err := cv.validateMinerAccount(header, height); err != nil {
+			return errors.Wrap(err, "miner account validation failed")
+		}
 	}
 	return nil
 }
@@ -236,6 +239,25 @@ func (cv *Validator) validateBlockVersion(block *proto.BlockHeader, blockchainHe
 	}
 	if block.Version < validVersion {
 		return errs.NewBlockValidationError(fmt.Sprintf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight))
+	}
+	return nil
+}
+
+func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockchainHeight uint64) error {
+	rideV6Activated, err := cv.rideV6Activated(blockchainHeight)
+	if err != nil {
+		return errors.Wrap(err, "failed to validate miner address")
+	}
+	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "faield to get miner address from pub key %q", block.GenPublicKey.String())
+	}
+	blockMinerHasScript, err := cv.state.NewestAccountHasScript(minerAddr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to determine miner account has script for addr %q", minerAddr)
+	}
+	if !rideV6Activated && blockMinerHasScript {
+		return errors.New("mining with scripted account isn't allowed before feature 17 (RideV6) activation")
 	}
 	return nil
 }
