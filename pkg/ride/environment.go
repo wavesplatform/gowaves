@@ -475,18 +475,18 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	localEnv.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
-	case 4, 5:
-		assetInfo, err := ws.NewestFullAssetInfo(asset.ID)
-		if err != nil {
-			return false, err
-		}
-		localEnv.SetThisFromFullAssetInfo(assetInfo)
-	default:
+	case 1, 2, 3:
 		assetInfo, err := ws.NewestAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
 		}
 		localEnv.SetThisFromAssetInfo(assetInfo)
+	default:
+		assetInfo, err := ws.NewestFullAssetInfo(asset.ID)
+		if err != nil {
+			return false, err
+		}
+		localEnv.SetThisFromFullAssetInfo(assetInfo)
 	}
 
 	localEnv.ChooseTakeString(true)

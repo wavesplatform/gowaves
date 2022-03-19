@@ -146,18 +146,18 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	switch tree.LibVersion {
-	case 4, 5:
-		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
-		if err != nil {
-			return nil, err
-		}
-		env.SetThisFromFullAssetInfo(assetInfo)
-	default:
+	case 1, 2, 3:
 		assetInfo, err := a.state.NewestAssetInfo(assetID)
 		if err != nil {
 			return nil, err
 		}
 		env.SetThisFromAssetInfo(assetInfo)
+	default:
+		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
+		if err != nil {
+			return nil, err
+		}
+		env.SetThisFromFullAssetInfo(assetInfo)
 	}
 	env.SetLastBlock(params.blockInfo)
 	r, err := ride.CallVerifier(env, tree)
