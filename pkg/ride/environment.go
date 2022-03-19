@@ -9,6 +9,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
+var (
+	errDeletedEntry = errors.New("entry has been deleted")
+)
+
 type WrappedState struct {
 	diff             diffState
 	cle              rideAddress
@@ -206,7 +210,7 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 		return nil, err
 	}
 	if ws.isNewestDataEntryDeleted(key, *address) {
-		return nil, nil
+		return nil, errDeletedEntry
 	}
 
 	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, *address); intDataEntry != nil {
@@ -222,7 +226,7 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 		return nil, err
 	}
 	if ws.isNewestDataEntryDeleted(key, *address) {
-		return nil, nil
+		return nil, errDeletedEntry
 	}
 
 	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, *address); boolDataEntry != nil {
@@ -237,7 +241,7 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 		return nil, err
 	}
 	if ws.isNewestDataEntryDeleted(key, *address) {
-		return nil, nil
+		return nil, errDeletedEntry
 	}
 
 	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, *address); stringDataEntry != nil {
@@ -252,7 +256,7 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 		return nil, err
 	}
 	if ws.isNewestDataEntryDeleted(key, *address) {
-		return nil, nil
+		return nil, errDeletedEntry
 	}
 
 	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, *address); binaryDataEntry != nil {
