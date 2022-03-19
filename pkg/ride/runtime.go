@@ -367,4 +367,5 @@ type environment interface {
 	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
+	isProtobufTx() bool
 }

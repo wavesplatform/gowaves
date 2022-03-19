@@ -2129,7 +2129,7 @@ type DataEntry interface {
 
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
-	Valid(utf16KeyLen bool) error
+	Valid(forbidEmptyKey, utf16KeyLen bool) error
 	BinarySize() int
 	PayloadSize() int
 
@@ -2196,8 +2196,8 @@ func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e IntegerDataEntry) Valid(utf16KeyLen bool) error {
-	if len(e.Key) == 0 {
+func (e IntegerDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
+	if forbidEmptyKey && len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
 	if utf16KeyLen {
@@ -2327,8 +2327,8 @@ func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BooleanDataEntry) Valid(utf16KeyLen bool) error {
-	if len(e.Key) == 0 {
+func (e BooleanDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
+	if forbidEmptyKey && len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
 	if utf16KeyLen {
@@ -2462,8 +2462,8 @@ func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BinaryDataEntry) Valid(utf16KeyLen bool) error {
-	if len(e.Key) == 0 {
+func (e BinaryDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
+	if forbidEmptyKey && len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
 	if utf16KeyLen {
@@ -2600,8 +2600,8 @@ func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e StringDataEntry) Valid(utf16KeyLen bool) error {
-	if len(e.Key) == 0 {
+func (e StringDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
+	if forbidEmptyKey && len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
 	if utf16KeyLen {
@@ -2737,8 +2737,8 @@ func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e DeleteDataEntry) Valid(utf16KeyLen bool) error {
-	if len(e.Key) == 0 {
+func (e DeleteDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
+	if forbidEmptyKey && len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
 	if utf16KeyLen {
@@ -2894,9 +2894,9 @@ func (e DataEntries) BinarySize() int {
 }
 
 // Valid calls DataEntry.Valid for each entry.
-func (e DataEntries) Valid(utf16KeyLen bool) error {
+func (e DataEntries) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	for i := range e {
-		if err := e[i].Valid(utf16KeyLen); err != nil {
+		if err := e[i].Valid(forbidEmptyKey, utf16KeyLen); err != nil {
 			return errors.Wrapf(err, "invalid entry %d", i)
 		}
 	}

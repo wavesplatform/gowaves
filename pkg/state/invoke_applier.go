@@ -332,9 +332,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers: info.disableSelfTransfers,
-		IsUTF16KeyLen:        isUTF16KeyLen,
-		MaxDataEntriesSize:   maxDataEntriesSize,
+		DisableSelfTransfers:  info.disableSelfTransfers,
+		IsUTF16KeyLen:         isUTF16KeyLen,
+		IsProtobufTransaction: proto.IsProtobufTx(tx),
+		MaxDataEntriesSize:    maxDataEntriesSize,
 	}
 	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
 	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion), validatePayments); err != nil {

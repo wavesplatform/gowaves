@@ -615,7 +615,7 @@ func (ws *WrappedState) validateDataEntryAction(
 			proto.MaxDataEntryScriptActions,
 		)
 	}
-	if err := res.Entry.Valid(restrictions.IsUTF16KeyLen); err != nil {
+	if err := res.Entry.Valid(restrictions.IsProtobufTransaction, restrictions.IsUTF16KeyLen); err != nil {
 		return err
 	}
 	if isRideV6Activated {
@@ -837,9 +837,10 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 	disableSelfTransfers := libVersion >= 4  // it's OK, this flag depends on library version, not feature
 	isUTF16KeyLen := !env.blockV5Activated() // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers: disableSelfTransfers,
-		IsUTF16KeyLen:        isUTF16KeyLen,
-		MaxDataEntriesSize:   env.maxDataEntriesSize(),
+		DisableSelfTransfers:  disableSelfTransfers,
+		IsUTF16KeyLen:         isUTF16KeyLen,
+		IsProtobufTransaction: env.isProtobufTx(),
+		MaxDataEntriesSize:    env.maxDataEntriesSize(),
 	}
 
 	for _, action := range actions {
@@ -1178,6 +1179,7 @@ type EvaluationEnvironment struct {
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
 	isRiveV6Activated     bool
+	isProtobufTransaction bool
 	mds                   int
 }
 
@@ -1202,6 +1204,7 @@ func NewEnvironmentWithWrappedState(
 	sender proto.WavesAddress,
 	isBlockV5Activated bool,
 	isRideV6Activated bool,
+	isProtobufTransaction bool,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
@@ -1259,6 +1262,7 @@ func NewEnvironmentWithWrappedState(
 		mds:                   env.mds,
 		isBlockV5Activated:    isBlockV5Activated,
 		isRiveV6Activated:     isRideV6Activated,
+		isProtobufTransaction: isProtobufTransaction,
 	}, nil
 }
 
@@ -1450,4 +1454,8 @@ func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 
 func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
+}
+
+func (e *EvaluationEnvironment) isProtobufTx() bool {
+	return e.isProtobufTransaction
 }
