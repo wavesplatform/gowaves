@@ -37,14 +37,14 @@ var _ environment = &mockRideEnvironment{}
 // 			invocationFunc: func() rideObject {
 // 				panic("mock out the invocation method")
 // 			},
+// 			isProtobufTxFunc: func() bool {
+// 				panic("mock out the isProtobufTx method")
+// 			},
 // 			libVersionFunc: func() int {
 // 				panic("mock out the libVersion method")
 // 			},
 // 			maxDataEntriesSizeFunc: func() int {
 // 				panic("mock out the maxDataEntriesSize method")
-// 			},
-// 			protobufTransactionFunc: func() bool {
-// 				panic("mock out the protobufTransaction method")
 // 			},
 // 			rideV6ActivatedFunc: func() bool {
 // 				panic("mock out the rideV6Activated method")
@@ -104,14 +104,14 @@ type mockRideEnvironment struct {
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
 
+	// isProtobufTxFunc mocks the isProtobufTx method.
+	isProtobufTxFunc func() bool
+
 	// libVersionFunc mocks the libVersion method.
 	libVersionFunc func() int
 
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
-
-	// protobufTransactionFunc mocks the protobufTransaction method.
-	protobufTransactionFunc func() bool
 
 	// rideV6ActivatedFunc mocks the rideV6Activated method.
 	rideV6ActivatedFunc func() bool
@@ -168,14 +168,14 @@ type mockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
+		// isProtobufTx holds details about calls to the isProtobufTx method.
+		isProtobufTx []struct {
+		}
 		// libVersion holds details about calls to the libVersion method.
 		libVersion []struct {
 		}
 		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
 		maxDataEntriesSize []struct {
-		}
-		// protobufTransaction holds details about calls to the protobufTransaction method.
-		protobufTransaction []struct {
 		}
 		// rideV6Activated holds details about calls to the rideV6Activated method.
 		rideV6Activated []struct {
@@ -225,9 +225,9 @@ type mockRideEnvironment struct {
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
+	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
-	lockprotobufTransaction              sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
@@ -402,6 +402,32 @@ func (mock *mockRideEnvironment) invocationCalls() []struct {
 	return calls
 }
 
+// isProtobufTx calls isProtobufTxFunc.
+func (mock *mockRideEnvironment) isProtobufTx() bool {
+	if mock.isProtobufTxFunc == nil {
+		panic("mockRideEnvironment.isProtobufTxFunc: method is nil but environment.isProtobufTx was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockisProtobufTx.Lock()
+	mock.calls.isProtobufTx = append(mock.calls.isProtobufTx, callInfo)
+	mock.lockisProtobufTx.Unlock()
+	return mock.isProtobufTxFunc()
+}
+
+// isProtobufTxCalls gets all the calls that were made to isProtobufTx.
+// Check the length with:
+//     len(mockedenvironment.isProtobufTxCalls())
+func (mock *mockRideEnvironment) isProtobufTxCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockisProtobufTx.RLock()
+	calls = mock.calls.isProtobufTx
+	mock.lockisProtobufTx.RUnlock()
+	return calls
+}
+
 // libVersion calls libVersionFunc.
 func (mock *mockRideEnvironment) libVersion() int {
 	if mock.libVersionFunc == nil {
@@ -451,32 +477,6 @@ func (mock *mockRideEnvironment) maxDataEntriesSizeCalls() []struct {
 	mock.lockmaxDataEntriesSize.RLock()
 	calls = mock.calls.maxDataEntriesSize
 	mock.lockmaxDataEntriesSize.RUnlock()
-	return calls
-}
-
-// protobufTransaction calls protobufTransactionFunc.
-func (mock *mockRideEnvironment) protobufTransaction() bool {
-	if mock.protobufTransactionFunc == nil {
-		panic("mockRideEnvironment.protobufTransactionFunc: method is nil but environment.protobufTransaction was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockprotobufTransaction.Lock()
-	mock.calls.protobufTransaction = append(mock.calls.protobufTransaction, callInfo)
-	mock.lockprotobufTransaction.Unlock()
-	return mock.protobufTransactionFunc()
-}
-
-// protobufTransactionCalls gets all the calls that were made to protobufTransaction.
-// Check the length with:
-//     len(mockedenvironment.protobufTransactionCalls())
-func (mock *mockRideEnvironment) protobufTransactionCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockprotobufTransaction.RLock()
-	calls = mock.calls.protobufTransaction
-	mock.lockprotobufTransaction.RUnlock()
 	return calls
 }
 

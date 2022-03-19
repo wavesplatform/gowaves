@@ -839,7 +839,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:  disableSelfTransfers,
 		IsUTF16KeyLen:         isUTF16KeyLen,
-		IsProtobufTransaction: env.protobufTransaction(),
+		IsProtobufTransaction: env.isProtobufTx(),
 		MaxDataEntriesSize:    env.maxDataEntriesSize(),
 	}
 
@@ -1456,6 +1456,6 @@ func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
 }
 
-func (e *EvaluationEnvironment) protobufTransaction() bool {
+func (e *EvaluationEnvironment) isProtobufTx() bool {
 	return e.isProtobufTransaction
 }

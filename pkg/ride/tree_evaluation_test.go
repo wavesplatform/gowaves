@@ -1133,7 +1133,7 @@ var envDappFromDapp = &mockRideEnvironment{
 	maxDataEntriesSizeFunc: func() int {
 		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	},
-	protobufTransactionFunc: isProtobufTx,
+	isProtobufTxFunc: isProtobufTx,
 }
 
 func tearDownDappFromDapp() {
@@ -7090,7 +7090,7 @@ func TestOriginCaller(t *testing.T) {
 		blockV5ActivatedFunc: func() bool {
 			return true
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -7273,7 +7273,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -7456,7 +7456,7 @@ func TestAliasesInInvokes(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -7692,7 +7692,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -7887,7 +7887,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		rideV6ActivatedFunc: func() bool {
 			return true
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8047,7 +8047,7 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		protobufTransactionFunc: isProtobufTx,
+		isProtobufTxFunc: isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8234,8 +8234,8 @@ func TestReissueInInvoke(t *testing.T) {
 		blockV5ActivatedFunc: func() bool {
 			return true
 		},
-		rideV6ActivatedFunc:     noRideV6,
-		protobufTransactionFunc: isProtobufTx,
+		rideV6ActivatedFunc: noRideV6,
+		isProtobufTxFunc:    isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8429,8 +8429,8 @@ func TestNegativePayments(t *testing.T) {
 		blockV5ActivatedFunc: func() bool {
 			return true
 		},
-		rideV6ActivatedFunc:     noRideV6,
-		protobufTransactionFunc: isProtobufTx,
+		rideV6ActivatedFunc: noRideV6,
+		isProtobufTxFunc:    isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
