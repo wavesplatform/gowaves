@@ -295,7 +295,7 @@ func (c *Conn) sendBuf(buf []byte) (int, error) {
 			if netErr, ok := err.(net.Error); ok {
 				if netErr.Timeout() {
 					zap.S().Debugf("[%s] Send time out", c.RawConn.RemoteAddr())
-				} else if netErr.Temporary() {
+				} else {
 					delay = c.sleepForDelay(delay, err)
 					continue
 				}
@@ -444,7 +444,7 @@ func (s *Server) Serve(l net.Listener) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+			if _, ok := err.(net.Error); ok {
 				if delay == 0 {
 					delay = 5 * time.Millisecond
 				} else {
@@ -619,7 +619,7 @@ func (r *safeReader) read(buf []byte) uint64 {
 		if netErr, ok := err.(net.Error); ok {
 			if netErr.Timeout() {
 				zap.S().Debugf("[%s] Receive time out", r.conn.RawConn.RemoteAddr())
-			} else if netErr.Temporary() {
+			} else {
 				if r.delay == 0 {
 					r.delay = 5 * time.Millisecond
 				} else {
@@ -628,7 +628,7 @@ func (r *safeReader) read(buf []byte) uint64 {
 				if r.delay > maxTemporaryErrorDelay {
 					r.delay = maxTemporaryErrorDelay
 				}
-				zap.S().Warnf("[%s] Temporary network error (retrying in %s): %v", r.conn.RawConn.RemoteAddr(), r.delay, netErr)
+				zap.S().Warnf("[%s] Network error (retrying in %s): %v", r.conn.RawConn.RemoteAddr(), r.delay, netErr)
 				time.Sleep(r.delay)
 				r.skip = true
 				return 0
