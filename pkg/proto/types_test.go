@@ -1007,16 +1007,19 @@ func TestDataEntries_Valid(t *testing.T) {
 	beFail := &BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
 	seFail := &StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
 	tests := []struct {
-		entries     DataEntries
-		utf16KeyLen bool
-		err         string
-		valid       bool
+		entries        DataEntries
+		utf16KeyLen    bool
+		forbidEmptyKey bool
+		err            string
+		valid          bool
 	}{
-		{[]DataEntry{ieFail}, true, "invalid entry 0: empty entry key", false},
-		{[]DataEntry{seFail}, true, "invalid entry 0: value is too large", false},
-		{[]DataEntry{beFail, ieFail}, true, "invalid entry 0: key is too large", false},
-		{[]DataEntry{beFail, ieFail}, false, "invalid entry 1: empty entry key", false},
-		{[]DataEntry{}, false, "", true},
+		{[]DataEntry{ieFail}, true, true, "invalid entry 0: empty entry key", false},
+		{[]DataEntry{seFail}, true, true, "invalid entry 0: value is too large", false},
+		{[]DataEntry{seFail}, true, false, "invalid entry 0: value is too large", false},
+		{[]DataEntry{beFail, ieFail}, true, true, "invalid entry 0: key is too large", false},
+		{[]DataEntry{beFail, ieFail}, false, true, "invalid entry 1: empty entry key", false},
+		{[]DataEntry{}, false, true, "", true},
+		{[]DataEntry{ieFail}, true, false, "", true},
 		{
 			[]DataEntry{
 				&StringDataEntry{Key: "1", Value: "1"},
@@ -1024,12 +1027,13 @@ func TestDataEntries_Valid(t *testing.T) {
 				&BooleanDataEntry{Key: "3", Value: true},
 			},
 			false,
+			true,
 			"",
 			true,
 		},
 	}
 	for i, tc := range tests {
-		err := tc.entries.Valid(tc.utf16KeyLen)
+		err := tc.entries.Valid(tc.forbidEmptyKey, tc.utf16KeyLen)
 		if tc.valid {
 			assert.NoError(t, err, "#%d", i)
 		} else {

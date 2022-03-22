@@ -441,11 +441,12 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 }
 
 type ActionsValidationRestrictions struct {
-	DisableSelfTransfers bool
-	ScriptAddress        WavesAddress
-	IsUTF16KeyLen        bool
-	MaxDataEntriesSize   int
-	Scheme               byte
+	DisableSelfTransfers  bool
+	ScriptAddress         WavesAddress
+	IsUTF16KeyLen         bool
+	IsProtobufTransaction bool
+	MaxDataEntriesSize    int
+	Scheme                byte
 }
 
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, libVersion int, validatePayments bool) error {
@@ -461,7 +462,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if dataEntriesCount > MaxDataEntryScriptActions {
 				return errors.Errorf("number of data entries produced by script is more than allowed %d", MaxDataEntryScriptActions)
 			}
-			if err := ta.Entry.Valid(restrictions.IsUTF16KeyLen); err != nil {
+			if err := ta.Entry.Valid(restrictions.IsProtobufTransaction, restrictions.IsUTF16KeyLen); err != nil {
 				return err
 			}
 			if isRideV6Activated {

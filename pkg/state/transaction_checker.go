@@ -1202,7 +1202,7 @@ func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction,
 		return nil, err
 	}
 	utf16KeyLen := tx.Version == 1 && !isRideV6Activated
-	if err := tx.Entries.Valid(utf16KeyLen); err != nil {
+	if err := tx.Entries.Valid(true, utf16KeyLen); err != nil {
 		return nil, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")
 	}
 	if err := tc.checkDataWithProofsSize(tx, tc.settings.AddressSchemeCharacter, isRideV6Activated); err != nil {
