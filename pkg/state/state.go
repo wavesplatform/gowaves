@@ -444,11 +444,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
-	cv, err := consensus.NewValidator(state, params.Time)
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	state.cv = cv
+	state.cv = consensus.NewValidator(state, settings, params.Time)
 	// Handle genesis block.
 	if err := state.handleGenesisBlock(settings.Genesis); err != nil {
 		return nil, wrapErr(Other, err)
@@ -699,6 +695,12 @@ func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.Pub
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	return s.stor.scriptsStorage.newestScriptPKByAddr(addr, true)
+}
+
+func (s *stateManager) NewestAccountHasScript(addr proto.WavesAddress) (bool, error) {
+	// TODO: This function is used only from stateInfoProvider interface for consensus.Validator,
+	//  so for now we set filter to true.
+	return s.stor.scriptsStorage.newestAccountHasScript(addr, true)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -1519,6 +1521,7 @@ func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
+	// TODO(nickeskov): Should filter be true?
 	return s.stor.hitSources.newestHitSource(height, false)
 }
 

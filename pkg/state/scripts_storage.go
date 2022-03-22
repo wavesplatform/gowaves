@@ -344,7 +344,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filt
 		return script.HasVerifier(), nil
 	}
 	script, err := ss.newestScriptAstByKey(keyBytes, filter)
-	if err != nil {
+	if err != nil { // TODO: check error type
 		return false, nil
 	}
 	return script.HasVerifier(), nil
@@ -352,7 +352,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filt
 
 func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
 	script, err := ss.scriptByAddr(addr, filter)
-	if err != nil {
+	if err != nil { // TODO: check error type
 		return false, nil
 	}
 	return script.HasVerifier(), nil
