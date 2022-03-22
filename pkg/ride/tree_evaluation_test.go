@@ -8513,5 +8513,188 @@ func TestNegativePayments(t *testing.T) {
 
 	flag = true
 	_, err = CallFunction(env, tree, "call", arguments)
-	require.Errorf(t, err, "invoke: failed to apply attached payments: failed to pass validation of attached payments: negative transfer amount")
+	require.Error(t, err)
+	assert.Equal(t, "invoke: failed to apply attached payments: failed to pass validation of attached payments: negative transfer amount", err.Error())
+}
+
+func TestComplexityOverflow(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = {
+	  strict a = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict b = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict c = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict d = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict e = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict f = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict g = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  []
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWEFAAAAAWEEAAAAAWIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWIFAAAAAWIEAAAAAWMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWMFAAAAAWMEAAAAAWQJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWQFAAAAAWQEAAAAAWUJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWUFAAAAAWUEAAAAAWYJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWYFAAAAAWYEAAAAAWcJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWcFAAAAAWcFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAETSeDA=="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let msg = base16'135212a9cf00d0a05220be7323bfa4a5ba7fc5465514007702121a9c92e46bd473062f00841af83cb7bc4b2cd58dc4d5b151244cc8293e795796835ed36822c6e09893ec991b38ada4b21a06e691afa887db4e9d7b1d2afc65ba8d2f5e6926ff53d2d44d55fa095f3fad62545c714f0f3f59e4bfe91af8'
+	let sig = base16'd971ec27c5bfc384804c8d8d6a2de9edc3d957b25e488e954a71ef4c4a87f5fb09cfdf6bd26cffc49d03048e8edb0c918061be158d737c2e11cc7210263efb85'
+	let bad = base16'44164f23a95ed2662c5b1487e8fd688be9032efa23dd2ef29b018d33f65d0043df75f3ac1d44b4bda50e8b07e0b49e2898bec80adbf7604e72ef6565bd2f8189'
+	let pk = base16'ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f'
+
+	@Callable(i)
+	func call() = {
+	  strict a = sigVerify(msg, sig, pk)
+	  strict b = sigVerify(msg, bad, pk)
+	  strict c = sigVerify(msg, sig, pk)
+	  strict d = sigVerify(msg, bad, pk)
+	  strict e = sigVerify(msg, sig, pk)
+	  strict f = sigVerify(msg, bad, pk)
+	  strict g = sigVerify(msg, sig, pk)
+	  strict h = sigVerify(msg, bad, pk)
+	  strict ii = sigVerify(msg, sig, pk)
+	  strict j = sigVerify(msg, bad, pk)
+	  strict k = sigVerify(msg, sig, pk)
+	  strict l = sigVerify(msg, bad, pk)
+	  strict m = sigVerify(msg, sig, pk)
+	  strict n = sigVerify(msg, bad, pk)
+	  strict p = sigVerify(msg, sig, pk)
+	  strict q = sigVerify(msg, bad, pk)
+	  strict r = sigVerify(msg, sig, pk)
+	  strict s = sigVerify(msg, bad, pk)
+	  strict t = sigVerify(msg, sig, pk)
+	  ([], true)
+	}
+	*/
+	code2 := "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"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: noRideV6,
+		isProtobufTxFunc:    isProtobufTx,
+		libVersionFunc:      func() int { return 5 },
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch {
+			case account.Address.Equal(dApp1):
+				return 0, nil
+			case account.Address.Equal(dApp2):
+				return 100000000, nil
+			default:
+				return 0, errors.Errorf("unxepected account '%s'", account.String())
+			}
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	_, err = CallFunction(env, tree, "call", arguments)
+	require.Error(t, err)
+	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit", err.Error())
 }

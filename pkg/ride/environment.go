@@ -93,9 +93,14 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.regular
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return 0, err
+		}
+		if resBalance < 0 {
+			return 0, errors.Errorf("balance value %d is not valid", resBalance)
+		}
 		return uint64(resBalance), nil
-
 	}
 	return balance, nil
 }
@@ -113,6 +118,9 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
 		if err != nil {
 			return 0, err
+		}
+		if resBalance < 0 {
+			return 0, errors.Errorf("balance value %d is not valid", resBalance)
 		}
 		return uint64(resBalance), nil
 
@@ -822,7 +830,8 @@ func (ws *WrappedState) validateBalances() error {
 			return err
 		}
 		if res < 0 {
-			return errors.Errorf("the balance of address %s is %d which is negative", address.String(), int64(balance)+balanceDiff.regular)
+			return errors.Errorf("the balance of address %s of asset %s is %d which is negative",
+				address.String(), key.asset.String(), res)
 		}
 	}
 	return nil
@@ -1226,7 +1235,6 @@ func NewEnvironmentWithWrappedState(
 		if senderBalance < payment.Amount {
 			return nil, errors.New("not enough money for tx attached payments")
 		}
-
 		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
