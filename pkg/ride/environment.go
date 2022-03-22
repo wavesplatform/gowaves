@@ -93,8 +93,11 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.regular
-		if !isPositiveJVMLong(resBalance) {
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return 0, err
+		}
+		if resBalance < 0 {
 			return 0, errors.Errorf("balance value %d is not valid", resBalance)
 		}
 		return uint64(resBalance), nil
@@ -116,7 +119,7 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		if err != nil {
 			return 0, err
 		}
-		if !isPositiveJVMLong(resBalance) {
+		if resBalance < 0 {
 			return 0, errors.Errorf("balance value %d is not valid", resBalance)
 		}
 		return uint64(resBalance), nil
@@ -1167,10 +1170,6 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 	}
 
 	return actions, nil
-}
-
-func isPositiveJVMLong(x int64) bool {
-	return x >= 0 && uint64(x) <= proto.MaxLongValue
 }
 
 type EvaluationEnvironment struct {

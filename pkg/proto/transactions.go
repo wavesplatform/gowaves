@@ -58,7 +58,7 @@ const (
 	MaxAssetNameLen          = 16
 	MinAssetNameLen          = 4
 	MaxDecimals              = 8
-	MaxLongValue             = ^uint64(0) >> 1
+	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + WavesAddressSize + 8
 	paymentBodyLen = 1 + 8 + crypto.PublicKeySize + WavesAddressSize + 8 + 8
@@ -1763,5 +1763,5 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 }
 
 func validJVMLong(x uint64) bool {
-	return x <= MaxLongValue
+	return x <= maxLongValue
 }
