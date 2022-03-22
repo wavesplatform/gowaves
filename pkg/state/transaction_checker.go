@@ -1163,11 +1163,7 @@ func (tc *transactionChecker) checkDataWithProofsSize(tx *proto.DataWithProofs, 
 			)
 		}
 	case proto.IsProtobufTx(tx):
-		pbSize, err := tx.ProtoPayloadSize(scheme)
-		if err != nil {
-			return err
-		}
-		if pbSize > proto.MaxDataWithProofsProtoBytes {
+		if pbSize := tx.ProtoPayloadSize(); pbSize > proto.MaxDataWithProofsProtoBytes {
 			return errors.Errorf("data tx protobuf size limit exceeded, limit=%d, actual size=%d",
 				proto.MaxDataWithProofsProtoBytes, pbSize,
 			)
