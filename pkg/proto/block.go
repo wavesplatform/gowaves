@@ -422,25 +422,6 @@ type Block struct {
 	Transactions Transactions `json:"transactions,omitempty"`
 }
 
-func (b *Block) MarshalJSON() ([]byte, error) {
-	// create new type to prevent recursion
-	type blockAlias Block
-
-	var toMarshal *blockAlias
-	if b.Transactions.Count() == 0 && b.Transactions != nil {
-		cpy := blockAlias(*b)
-		cpy.Transactions = nil
-		toMarshal = &cpy
-	} else {
-		toMarshal = (*blockAlias)(b)
-	}
-	bts, err := json.Marshal(toMarshal)
-	if err != nil {
-		return nil, err
-	}
-	return bts, nil
-}
-
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
