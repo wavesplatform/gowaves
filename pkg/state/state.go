@@ -698,8 +698,8 @@ func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.Pub
 }
 
 func (s *stateManager) NewestAccountHasScript(addr proto.WavesAddress) (bool, error) {
-	// This function is used only from stateInfoProvider interface for consensus.Validator,
-	// so for now we set filter to true.
+	// TODO: This function is used only from stateInfoProvider interface for consensus.Validator,
+	//  so for now we set filter to true.
 	return s.stor.scriptsStorage.newestAccountHasScript(addr, true)
 }
 
