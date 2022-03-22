@@ -2087,8 +2087,8 @@ func (p *ProofsV1) Valid() error {
 	return nil
 }
 
-func (p *ProofsV1) MultiSigned() bool {
-	return len(p.Proofs) > 1
+func (p *ProofsV1) Len() int {
+	return len(p.Proofs)
 }
 
 // DataValueType is an alias for byte that encodes the value type.

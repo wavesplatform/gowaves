@@ -1114,8 +1114,9 @@ func (tc *transactionChecker) checkCreateAliasWithProofs(transaction proto.Trans
 	if err != nil {
 		return nil, err
 	}
-	if tx.Proofs.MultiSigned() && !rideV6IsActivated {
-		return nil, errors.New("multisig in create alias tx is disabled before feature 17 (RideV6) activation")
+	// scala node can't accept more than 1 proof before RideV6 activation
+	if tx.Proofs.Len() > 1 && !rideV6IsActivated {
+		return nil, errors.New("create alias tx with more than one proof is disabled before feature 17 (RideV6) activation")
 	}
 	if err := tc.checkCreateAlias(&tx.CreateAlias, info); err != nil {
 		return nil, err
