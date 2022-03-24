@@ -79,7 +79,7 @@ func functionsV2() map[string]string {
 	m["AssetPair"] = "assetPair"
 	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
-	m["Transfer"] = "transferTransaction"
+	m["Transfer"] = "transferObject"
 	return m
 }
 

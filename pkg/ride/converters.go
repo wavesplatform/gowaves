@@ -672,6 +672,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 	transfers := make(rideList, count)
 	for i, transfer := range tx.Transfers {
 		m := make(rideObject)
+		m[instanceFieldName] = rideString("Transfer")
 		m["recipient"] = rideRecipient(transfer.Recipient)
 		m["amount"] = rideInt(transfer.Amount)
 		transfers[i] = m

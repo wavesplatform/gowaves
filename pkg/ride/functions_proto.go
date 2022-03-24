@@ -1376,20 +1376,20 @@ func dataTransaction(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return obj, nil
 }
 
-func transferTransaction(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func transferObject(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
-		return nil, errors.Wrap(err, "transferTransaction")
+		return nil, errors.Wrap(err, "transferObject")
 	}
 	obj := make(rideObject)
-	obj[instanceFieldName] = rideString("TransferTransaction")
+	obj[instanceFieldName] = rideString("Transfer")
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, errors.Errorf("transferTransaction: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("transferObject: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	obj["recipient"] = rideRecipient(recipient)
 	amount, ok := args[1].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("transferTransaction: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("transferObject: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	obj["amount"] = amount
 	return obj, nil
