@@ -14,42 +14,43 @@ import (
 )
 
 const (
-	issueWithProofsFixedBodyLen              = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
-	issueWithProofsMinBodyLen                = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
-	issueWithProofsMinLen                    = 1 + issueWithProofsMinBodyLen + proofsMinLen
-	transferWithProofsFixedBodyLen           = 1 + 1 + transferLen
-	transferWithProofsMinLen                 = 1 + transferWithProofsFixedBodyLen + proofsMinLen
-	reissueWithProofsBodyLen                 = 3 + reissueLen
-	reissueWithProofsMinLen                  = 1 + reissueWithProofsBodyLen + proofsMinLen
-	burnWithProofsBodyLen                    = 1 + 1 + 1 + burnLen
-	burnWithProofsLen                        = 1 + burnWithProofsBodyLen + proofsMinLen
-	exchangeWithProofsFixedBodyLen           = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
-	exchangeWithProofsMinLen                 = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
-	leaseWithProofsBodyLen                   = 1 + 1 + 1 + leaseLen
-	leaseWithProofsMinLen                    = leaseWithProofsBodyLen + proofsMinLen
-	leaseCancelWithProofsBodyLen             = 1 + 1 + 1 + leaseCancelLen
-	leaseCancelWithProofsMinLen              = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
-	createAliasWithProofsFixedBodyLen        = 1 + 1 + createAliasLen
-	createAliasWithProofsMinLen              = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
-	massTransferEntryLen                     = 8
-	massTransferWithProofsFixedLen           = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
-	massTransferWithProofsMinLen             = massTransferWithProofsFixedLen + proofsMinLen
-	dataWithProofsFixedBodyLen               = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
-	dataWithProofsMinLen                     = dataWithProofsFixedBodyLen + proofsMinLen
-	setScriptWithProofsFixedBodyLen          = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
-	setScriptWithProofsMinLen                = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	sponsorshipWithProofsBodyLen             = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
-	sponsorshipWithProofsMinLen              = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
-	setAssetScriptWithProofsFixedBodyLen     = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
-	setAssetScriptWithProofsMinLen           = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	invokeScriptWithProofsFixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
-	invokeScriptWithProofsMinLen             = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
-	maxTransfers                             = 100
-	maxEntries                               = 100
-	maxDataWithProofsTxBytes             int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
-	maxArguments                             = 22
-	maxFunctionNameBytes                     = 255
-	maxInvokeScriptWithProofsBytes           = 5 * 1024
+	issueWithProofsFixedBodyLen                          = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
+	issueWithProofsMinBodyLen                            = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueWithProofsMinLen                                = 1 + issueWithProofsMinBodyLen + proofsMinLen
+	transferWithProofsFixedBodyLen                       = 1 + 1 + transferLen
+	transferWithProofsMinLen                             = 1 + transferWithProofsFixedBodyLen + proofsMinLen
+	reissueWithProofsBodyLen                             = 3 + reissueLen
+	reissueWithProofsMinLen                              = 1 + reissueWithProofsBodyLen + proofsMinLen
+	burnWithProofsBodyLen                                = 1 + 1 + 1 + burnLen
+	burnWithProofsLen                                    = 1 + burnWithProofsBodyLen + proofsMinLen
+	exchangeWithProofsFixedBodyLen                       = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeWithProofsMinLen                             = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
+	leaseWithProofsBodyLen                               = 1 + 1 + 1 + leaseLen
+	leaseWithProofsMinLen                                = leaseWithProofsBodyLen + proofsMinLen
+	leaseCancelWithProofsBodyLen                         = 1 + 1 + 1 + leaseCancelLen
+	leaseCancelWithProofsMinLen                          = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
+	createAliasWithProofsFixedBodyLen                    = 1 + 1 + createAliasLen
+	createAliasWithProofsMinLen                          = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
+	massTransferEntryLen                                 = 8
+	massTransferWithProofsFixedLen                       = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
+	massTransferWithProofsMinLen                         = massTransferWithProofsFixedLen + proofsMinLen
+	dataWithProofsFixedBodyLen                           = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
+	dataWithProofsMinLen                                 = dataWithProofsFixedBodyLen + proofsMinLen
+	setScriptWithProofsFixedBodyLen                      = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
+	setScriptWithProofsMinLen                            = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	sponsorshipWithProofsBodyLen                         = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	sponsorshipWithProofsMinLen                          = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
+	setAssetScriptWithProofsFixedBodyLen                 = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
+	setAssetScriptWithProofsMinLen                       = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	invokeScriptWithProofsFixedBodyLen                   = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
+	invokeScriptWithProofsMinLen                         = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
+	maxTransfers                                         = 100
+	maxEntries                                           = 100
+	maxDataWithProofsTxBytes                         int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
+	maxArguments                                         = 22
+	maxFunctionNameBytes                                 = 255
+	maxInvokeScriptWithProofsBinaryTransactionsBytes     = 5 * 1024
+	maxInvokeScriptWithProofsProtobufPayloadBytes        = 5 * 1024
 
 	topRideVersion = 5
 )
@@ -3401,14 +3402,16 @@ func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 	return nil
 }
 
-func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+func (tx *DataWithProofs) protobufDataTransactionData() *g.DataTransactionData {
 	entries := make([]*g.DataTransactionData_DataEntry, len(tx.Entries))
 	for i, entry := range tx.Entries {
 		entries[i] = entry.ToProtobuf()
 	}
-	txData := &g.Transaction_DataTransaction{DataTransaction: &g.DataTransactionData{
-		Data: entries,
-	}}
+	return &g.DataTransactionData{Data: entries}
+}
+
+func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_DataTransaction{DataTransaction: tx.protobufDataTransactionData()}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
@@ -3416,21 +3419,13 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	return res, nil
 }
 
-func (tx *DataWithProofs) ProtoPayload(scheme Scheme) (*g.DataTransactionData, error) {
-	proto, err := tx.ToProtobuf(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return proto.GetDataTransaction(), nil
+func (tx *DataWithProofs) ProtoPayload() *g.DataTransactionData {
+	return tx.protobufDataTransactionData()
 }
 
-func (tx *DataWithProofs) ProtoPayloadSize(scheme Scheme) (int, error) {
-	payload, err := tx.ProtoPayload(scheme)
-	if err != nil {
-		return 0, err
-	}
+func (tx *DataWithProofs) ProtoPayloadSize() int {
 	// use this method to calculate PB binary size of payload
-	return payload.SizeVT(), nil
+	return tx.ProtoPayload().SizeVT()
 }
 
 func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
@@ -4651,7 +4646,7 @@ func (tx *InvokeScriptWithProofs) Serialize(s *serializer.Serializer) error {
 
 //UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
 func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
+	if len(data) > maxInvokeScriptWithProofsBinaryTransactionsBytes {
 		return errors.New("invoke script transaction is too big")
 	}
 	if l := len(data); l < invokeScriptWithProofsMinLen {
@@ -4684,9 +4679,6 @@ func (tx *InvokeScriptWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, erro
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
-		return errors.New("invoke script transaction is too big")
-	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4694,6 +4686,13 @@ func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
 	invokeScriptTx, ok := t.(*InvokeScriptWithProofs)
 	if !ok {
 		return errors.New("failed to convert result to InvokeScripV1")
+	}
+	protoPayloadSize, err := invokeScriptTx.protoPayloadSize()
+	if err != nil {
+		return err
+	}
+	if protoPayloadSize > maxInvokeScriptWithProofsProtobufPayloadBytes {
+		return errors.New("invoke script transaction is too big")
 	}
 	*tx = *invokeScriptTx
 	return nil
@@ -4704,9 +4703,6 @@ func (tx *InvokeScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
-		return errors.New("invoke script transaction is too big")
-	}
 	t, err := SignedTxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4715,11 +4711,18 @@ func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error
 	if !ok {
 		return errors.New("failed to convert result to InvokeScriptWithProofs")
 	}
+	protoPayloadSize, err := invokeScriptTx.protoPayloadSize()
+	if err != nil {
+		return err
+	}
+	if protoPayloadSize > maxInvokeScriptWithProofsProtobufPayloadBytes {
+		return errors.New("invoke script transaction is too big")
+	}
 	*tx = *invokeScriptTx
 	return nil
 }
 
-func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+func (tx *InvokeScriptWithProofs) protobufInvokeScriptTransactionData() (*g.InvokeScriptTransactionData, error) {
 	fcBytes, err := tx.FunctionCall.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -4732,11 +4735,20 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 	if err != nil {
 		return nil, err
 	}
-	txData := &g.Transaction_InvokeScript{InvokeScript: &g.InvokeScriptTransactionData{
+	txData := &g.InvokeScriptTransactionData{
 		DApp:         rcpProto,
 		FunctionCall: fcBytes,
 		Payments:     payments,
-	}}
+	}
+	return txData, nil
+}
+
+func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	invokeTxData, err := tx.protobufInvokeScriptTransactionData()
+	if err != nil {
+		return nil, err
+	}
+	txData := &g.Transaction_InvokeScript{InvokeScript: invokeTxData}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
@@ -4756,6 +4768,15 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *InvokeScriptWithProofs) protoPayloadSize() (int, error) {
+	invokeTxData, err := tx.protobufInvokeScriptTransactionData()
+	if err != nil {
+		return 0, err
+	}
+	// use this method to calculate PB binary size of payload
+	return invokeTxData.SizeVT(), err
 }
 
 type UpdateAssetInfoWithProofs struct {

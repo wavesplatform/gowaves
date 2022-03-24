@@ -114,11 +114,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		case isRideV6Activated:
 			dtxBytesForFee = dtx.Entries.PayloadSize()
 		case proto.IsProtobufTx(tx):
-			payloadSize, err := dtx.ProtoPayloadSize(scheme)
-			if err != nil {
-				return 0, err
-			}
-			dtxBytesForFee = payloadSize
+			dtxBytesForFee = dtx.ProtoPayloadSize()
 		case smartAccountsActive:
 			dtxBytes, err := proto.MarshalTxBody(scheme, dtx)
 			if err != nil {
