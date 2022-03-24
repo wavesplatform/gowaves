@@ -1218,7 +1218,7 @@ func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	if o.Proofs == nil {
 		o.Proofs = NewProofs()
 	}
-	err = o.Proofs.Sign(0, secretKey, b)
+	err = o.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV2")
 	}
@@ -1236,7 +1236,7 @@ func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
 	}
-	return o.Proofs.Verify(0, o.SenderPK, b)
+	return o.Proofs.Verify(o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1472,7 +1472,7 @@ func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	if o.Proofs == nil {
 		o.Proofs = NewProofs()
 	}
-	err = o.Proofs.Sign(0, secretKey, b)
+	err = o.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV3")
 	}
@@ -1490,7 +1490,7 @@ func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
 	}
-	return o.Proofs.Verify(0, o.SenderPK, b)
+	return o.Proofs.Verify(o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1676,7 +1676,7 @@ func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	if o.Proofs == nil {
 		o.Proofs = NewProofs()
 	}
-	err = o.Proofs.Sign(0, secretKey, b)
+	err = o.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV4")
 	}
@@ -1694,7 +1694,7 @@ func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV4")
 	}
-	return o.Proofs.Verify(0, o.SenderPK, b)
+	return o.Proofs.Verify(o.SenderPK, b)
 }
 
 func (o *OrderV4) Valid() (bool, error) {
@@ -2023,42 +2023,33 @@ func (p *ProofsV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//Sign creates a signature and stores it as a proof at given position.
-func (p *ProofsV1) Sign(pos int, key crypto.SecretKey, data []byte) error {
-	if pos < 0 || pos > proofsMaxCount {
-		return errors.Errorf("failed to create proof at position %d, allowed positions from 0 to %d", pos, proofsMaxCount-1)
-	}
-	if len(p.Proofs)-1 < pos {
+//Sign creates a signature and stores it as a proof at first position.
+func (p *ProofsV1) Sign(key crypto.SecretKey, data []byte) error {
+	if len(p.Proofs) == 0 {
 		s, err := crypto.Sign(key, data)
 		if err != nil {
 			return errors.Errorf("crypto.Sign(): %v", err)
 		}
-		p.Proofs = append(p.Proofs[:pos], append([]B58Bytes{s[:]}, p.Proofs[pos:]...)...)
+		p.Proofs = []B58Bytes{s[:]}
 	} else {
-		pr := p.Proofs[pos]
-		if len(pr) > 0 {
-			return errors.Errorf("unable to overwrite non-empty proof at position %d", pos)
+		if len(p.Proofs[0]) != 0 {
+			return errors.New("unable to overwrite non-empty proof at position 0")
 		}
 		s, err := crypto.Sign(key, data)
 		if err != nil {
 			return errors.Errorf("crypto.Sign(): %v", err)
 		}
-		copy(pr[:], s[:])
+		p.Proofs[0] = s[:]
 	}
 	return nil
 }
 
-//Verify checks that the proof at given position is a valid signature.
-func (p *ProofsV1) Verify(pos int, key crypto.PublicKey, data []byte) (bool, error) {
-	if len(p.Proofs) <= pos {
-		return false, errors.Errorf("no proof at position %d", pos)
+//Verify checks that the proof at first position is a valid signature.
+func (p *ProofsV1) Verify(key crypto.PublicKey, data []byte) (bool, error) {
+	sig, err := p.ExtractSignature()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to extract signature from proofs")
 	}
-	var sig crypto.Signature
-	sb := p.Proofs[pos]
-	if l := len(sb); l != crypto.SignatureSize {
-		return false, errors.Errorf("unexpected signature size %d, expected %d", l, crypto.SignatureSize)
-	}
-	copy(sig[:], sb)
 	return crypto.Verify(key, sig, data), nil
 }
 
@@ -2073,8 +2064,8 @@ func (p *ProofsV1) BinarySize() int {
 }
 
 func (p *ProofsV1) Valid() error {
-	if p.Version != proofsVersion {
-		return errors.Errorf("invalid proofs version %d", p.Version)
+	if v := p.Version; v != proofsVersion {
+		return errors.Errorf("invalid proofs version %d", v)
 	}
 	if c := len(p.Proofs); c > proofsMaxCount {
 		return errors.Errorf("invalid proofs count %d", c)
@@ -2085,6 +2076,19 @@ func (p *ProofsV1) Valid() error {
 		}
 	}
 	return nil
+}
+
+// IsSimpleSigned performs basics checks of signature correctness.
+func (p *ProofsV1) IsSimpleSigned() bool {
+	return len(p.Proofs) == 1 && len(p.Proofs[0]) == crypto.SignatureSize
+}
+
+// ExtractSignature tries to extract a signature from ProofsV1.Proofs slice.
+func (p *ProofsV1) ExtractSignature() (crypto.Signature, error) {
+	if !p.IsSimpleSigned() {
+		return crypto.Signature{}, errors.Errorf("proofs are not a signature")
+	}
+	return crypto.NewSignatureFromBytes(p.Proofs[0])
 }
 
 func (p *ProofsV1) Len() int {
