@@ -10,6 +10,18 @@ type Score struct {
 	Score string `json:"score"`
 }
 
+type Block struct {
+	*proto.Block
+	Height proto.Height `json:"height"`
+}
+
+func newAPIBlock(block *proto.Block, height proto.Height) *Block {
+	return &Block{
+		Block:  block,
+		Height: height,
+	}
+}
+
 func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
 	score, err := a.state.ScoreAtHeight(at)
 	if err != nil {
@@ -18,27 +30,25 @@ func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
 	return Score{Score: score.String()}, nil
 }
 
-func (a *App) BlocksLast() (*proto.Block, error) {
+func (a *App) BlocksLast() (*Block, error) {
 	h, err := a.state.Height()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get state height")
 	}
-
 	block, err := a.state.BlockByHeight(h)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %d block from state", h)
 	}
-	block.Height = h
-	return block, nil
+	return newAPIBlock(block, h), nil
 }
 
-func (a *App) BlocksFirst() (*proto.Block, error) {
-	block, err := a.state.BlockByHeight(1)
+func (a *App) BlocksFirst() (*Block, error) {
+	const genesisHeight = 1
+	block, err := a.state.BlockByHeight(genesisHeight)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get first block from state")
 	}
-	block.Height = 1
-	return block, nil
+	return newAPIBlock(block, genesisHeight), nil
 }
 
 type Generators []Generator
