@@ -5069,11 +5069,10 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 
 		// Test protobuf payload size
-		payload, err := tx.ProtoPayload(MainNetScheme)
-		assert.NoError(t, err)
+		payload := tx.ProtoPayload()
 		marshaledPayload, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(payload)
 		assert.NoError(t, err)
-		marshaledPayloadSize, err := tx.ProtoPayloadSize(MainNetScheme)
+		marshaledPayloadSize := tx.ProtoPayloadSize()
 		assert.NoError(t, err)
 		assert.Equal(t, len(marshaledPayload), marshaledPayloadSize)
 	}
