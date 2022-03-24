@@ -79,6 +79,7 @@ func functionsV2() map[string]string {
 	m["AssetPair"] = "assetPair"
 	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
+	m["Transfer"] = "transferObject"
 	return m
 }
 
@@ -152,6 +153,7 @@ func catalogueV2() map[string]int {
 	m["AssetPair"] = 2
 	m["DataEntry"] = 2
 	m["DataTransaction"] = 9
+	m["Transfer"] = 2
 	return m
 }
 
@@ -180,6 +182,7 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	m["AssetPair"] = 0
 	m["DataEntry"] = 0
 	m["DataTransaction"] = 0
+	m["Transfer"] = 0
 	return m
 }
 
@@ -190,6 +193,7 @@ func evaluationCatalogueV2EvaluatorV2() map[string]int {
 	m["AssetPair"] = 1
 	m["DataEntry"] = 1
 	m["DataTransaction"] = 1
+	m["Transfer"] = 1
 	return m
 }
 
@@ -357,6 +361,7 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m["AssetPair"] = 0
 	m["DataEntry"] = 0
 	m["DataTransaction"] = 0
+	m["Transfer"] = 0
 	m["WriteSet"] = 0
 	m["TransferSet"] = 0
 	m["ScriptTransfer"] = 0
@@ -390,6 +395,7 @@ func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m["AssetPair"] = 1
 	m["DataEntry"] = 1
 	m["DataTransaction"] = 1
+	m["Transfer"] = 1
 	m["WriteSet"] = 1
 	m["TransferSet"] = 1
 	m["ScriptTransfer"] = 1
@@ -630,6 +636,7 @@ func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m["Alias"] = 0
 	m["AssetPair"] = 0
 	m["DataTransaction"] = 0
+	m["Transfer"] = 0
 	m["ScriptTransfer"] = 0
 	m["IntegerEntry"] = 0
 	m["BooleanEntry"] = 0
@@ -668,6 +675,7 @@ func evaluationCatalogueV4EvaluatorV2() map[string]int {
 	m["Alias"] = 1
 	m["AssetPair"] = 1
 	m["DataTransaction"] = 1
+	m["Transfer"] = 1
 	m["ScriptTransfer"] = 1
 	m["IntegerEntry"] = 1
 	m["BooleanEntry"] = 1
@@ -819,6 +827,7 @@ func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m["Alias"] = 0
 	m["AssetPair"] = 0
 	m["DataTransaction"] = 0
+	m["Transfer"] = 0
 	m["ScriptTransfer"] = 0
 	m["IntegerEntry"] = 0
 	m["BooleanEntry"] = 0
@@ -856,6 +865,7 @@ func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m["Alias"] = 1
 	m["AssetPair"] = 1
 	m["DataTransaction"] = 1
+	m["Transfer"] = 1
 	m["ScriptTransfer"] = 1
 	m["IntegerEntry"] = 1
 	m["BooleanEntry"] = 1
@@ -941,6 +951,7 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m["Alias"] = 0
 	m["AssetPair"] = 0
 	m["DataTransaction"] = 0
+	m["Transfer"] = 0
 	m["ScriptTransfer"] = 0
 	m["IntegerEntry"] = 0
 	m["BooleanEntry"] = 0
@@ -978,6 +989,7 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["Alias"] = 1
 	m["AssetPair"] = 1
 	m["DataTransaction"] = 1
+	m["Transfer"] = 1
 	m["ScriptTransfer"] = 1
 	m["IntegerEntry"] = 1
 	m["BooleanEntry"] = 1

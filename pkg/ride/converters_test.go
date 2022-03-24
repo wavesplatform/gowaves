@@ -725,6 +725,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 
 	m := make(rideObject)
+	m["$instance"] = rideString("Transfer")
 	m["recipient"] = rideRecipient(a.tx.Transfers[0].Recipient)
 	m["amount"] = rideInt(int64(a.tx.Transfers[0].Amount))
 	a.Equal(rideList{m}, rs["transfers"])
