@@ -353,9 +353,12 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+
+	// Specifies state normalization flag
+	filter bool
 }
 
-func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager(dataDir string, filter bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -436,6 +439,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		filter:                    filter,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -458,6 +462,10 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
+}
+
+func (s *stateManager) Filter() bool {
+	return s.filter
 }
 
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
