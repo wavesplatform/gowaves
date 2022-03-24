@@ -1103,12 +1103,20 @@ func (tc *transactionChecker) checkCreateAliasWithProofs(transaction proto.Trans
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
-	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
+	smartAccountsIsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
-	if !activated {
+	if !smartAccountsIsActivated {
 		return nil, errors.New("SmartAccounts feature has not been activated yet")
+	}
+	rideV6IsActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	// scala node can't accept more than 1 proof before RideV6 activation
+	if tx.Proofs.Len() > 1 && !rideV6IsActivated {
+		return nil, errors.New("create alias tx with more than one proof is disabled before feature 17 (RideV6) activation")
 	}
 	if err := tc.checkCreateAlias(&tx.CreateAlias, info); err != nil {
 		return nil, err

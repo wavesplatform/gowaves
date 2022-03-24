@@ -2087,6 +2087,10 @@ func (p *ProofsV1) Valid() error {
 	return nil
 }
 
+func (p *ProofsV1) Len() int {
+	return len(p.Proofs)
+}
+
 // DataValueType is an alias for byte that encodes the value type.
 type DataValueType byte
 
