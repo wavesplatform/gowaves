@@ -2091,6 +2091,10 @@ func (p *ProofsV1) ExtractSignature() (crypto.Signature, error) {
 	return crypto.NewSignatureFromBytes(p.Proofs[0])
 }
 
+func (p *ProofsV1) Len() int {
+	return len(p.Proofs)
+}
+
 // DataValueType is an alias for byte that encodes the value type.
 type DataValueType byte
 
