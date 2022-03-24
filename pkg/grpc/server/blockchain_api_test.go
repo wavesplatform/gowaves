@@ -19,7 +19,7 @@ func TestGetBaseTarget(t *testing.T) {
 	assert.NoError(t, err)
 	params := defaultStateParams()
 	params.StoreExtendedApiData = true
-	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
+	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)
@@ -59,7 +59,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
+	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)

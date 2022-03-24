@@ -88,7 +88,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	st, err := NewState(dataDir, stateParams(), settings.MainNetSettings)
+	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}

@@ -100,7 +100,7 @@ func run() error {
 	params.StoreExtendedApiData = extendedAPI
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
-	st, err := state.NewState(statePath, params, ss)
+	st, err := state.NewState(statePath, false, params, ss)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
 		return err

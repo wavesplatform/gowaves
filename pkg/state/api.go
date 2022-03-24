@@ -193,9 +193,8 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	// TODO(nickeskov): pass actual value
-	s, err := newStateManager(dataDir, true, params, settings)
+func NewState(dataDir string, filter bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
+	s, err := newStateManager(dataDir, filter, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}
