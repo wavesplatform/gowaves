@@ -100,7 +100,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideObject {
 	r["height"] = rideInt(info.Height)
 	r["baseTarget"] = rideInt(info.BaseTarget)
 	r["generationSignature"] = rideBytes(common.Dup(info.GenerationSignature.Bytes()))
-	r["generator"] = rideBytes(common.Dup(info.Generator.Bytes()))
+	r["generator"] = rideAddress(info.Generator)
 	r["generatorPublicKey"] = rideBytes(common.Dup(info.GeneratorPublicKey.Bytes()))
 	r["vrf"] = rideUnit{}
 	if len(info.VRF) > 0 {
