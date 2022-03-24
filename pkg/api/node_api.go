@@ -47,33 +47,25 @@ func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) 
 }
 
 func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
-	block, err := a.app.BlocksLast()
+	apiBlock, err := a.app.BlocksLast()
 	if err != nil {
 		return errors.Wrap(err, "BlocksLast: failed to get last block")
 	}
-
-	bts, err := proto.BlockEncodeJson(block)
+	err = json.NewEncoder(w).Encode(apiBlock)
 	if err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to marshal block to JSON")
-	}
-	if _, err = w.Write(bts); err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to write block json to ResponseWriter")
+		return errors.Wrap(err, "BlocksLast: failed to marshal block to JSON and write to ResponseWriter")
 	}
 	return nil
 }
 
 func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
-	block, err := a.state.BlockByHeight(1)
+	apiBlock, err := a.app.BlocksFirst()
 	if err != nil {
-		return errors.Wrap(err, "BlocksFirst")
+		return errors.Wrap(err, "BlocksFirst: failed to get first block")
 	}
-	block.Height = 1
-	bts, err := proto.BlockEncodeJson(block)
+	err = json.NewEncoder(w).Encode(apiBlock)
 	if err != nil {
-		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON")
-	}
-	if _, err = w.Write(bts); err != nil {
-		return errors.Wrap(err, "BlocksFirst: failed to write block json to ResponseWriter")
+		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON and write to ResponseWriter")
 	}
 	return nil
 }
@@ -119,8 +111,8 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	block.Height = height
-	err = json.NewEncoder(w).Encode(block)
+	apiBlock := newAPIBlock(block, height)
+	err = json.NewEncoder(w).Encode(apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -153,8 +145,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err,
-			"BlockIDAt: expected NotFound in state error, but received other error for blockID=%s",
-			s,
+			"BlockIDAt: expected NotFound in state error, but received other error for blockID=%s", s,
 		)
 	}
 
@@ -164,11 +155,10 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
-	block.Height = height
-	err = json.NewEncoder(w).Encode(block)
+	apiBlock := newAPIBlock(block, height)
+	err = json.NewEncoder(w).Encode(apiBlock)
 	if err != nil {
-		return errors.Wrap(err,
-			"BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
 	}
 	return nil
 }

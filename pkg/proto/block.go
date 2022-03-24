@@ -174,8 +174,7 @@ type BlockHeader struct {
 	BlockSignature         crypto.Signature `json:"signature"`
 	TransactionsRoot       B58Bytes         `json:"transactionsRoot,omitempty"`
 
-	ID     BlockID `json:"id"`
-	Height uint64  `json:"height"`
+	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
 }
 
 func featuresToBinary(features []int16) ([]byte, error) {
@@ -765,18 +764,6 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 		return nil, errors.Wrap(err, "failed to generate block ID")
 	}
 	return b, nil
-}
-
-func BlockEncodeJson(b *Block) ([]byte, error) {
-	other := *b
-	if b.Transactions.Count() == 0 {
-		other.Transactions = nil
-	}
-	bts, err := json.Marshal(other)
-	if err != nil {
-		return nil, err
-	}
-	return bts, nil
 }
 
 //BlockGetSignature get signature from block without deserialization

@@ -14,42 +14,43 @@ import (
 )
 
 const (
-	issueWithProofsFixedBodyLen              = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
-	issueWithProofsMinBodyLen                = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
-	issueWithProofsMinLen                    = 1 + issueWithProofsMinBodyLen + proofsMinLen
-	transferWithProofsFixedBodyLen           = 1 + 1 + transferLen
-	transferWithProofsMinLen                 = 1 + transferWithProofsFixedBodyLen + proofsMinLen
-	reissueWithProofsBodyLen                 = 3 + reissueLen
-	reissueWithProofsMinLen                  = 1 + reissueWithProofsBodyLen + proofsMinLen
-	burnWithProofsBodyLen                    = 1 + 1 + 1 + burnLen
-	burnWithProofsLen                        = 1 + burnWithProofsBodyLen + proofsMinLen
-	exchangeWithProofsFixedBodyLen           = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
-	exchangeWithProofsMinLen                 = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
-	leaseWithProofsBodyLen                   = 1 + 1 + 1 + leaseLen
-	leaseWithProofsMinLen                    = leaseWithProofsBodyLen + proofsMinLen
-	leaseCancelWithProofsBodyLen             = 1 + 1 + 1 + leaseCancelLen
-	leaseCancelWithProofsMinLen              = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
-	createAliasWithProofsFixedBodyLen        = 1 + 1 + createAliasLen
-	createAliasWithProofsMinLen              = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
-	massTransferEntryLen                     = 8
-	massTransferWithProofsFixedLen           = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
-	massTransferWithProofsMinLen             = massTransferWithProofsFixedLen + proofsMinLen
-	dataWithProofsFixedBodyLen               = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
-	dataWithProofsMinLen                     = dataWithProofsFixedBodyLen + proofsMinLen
-	setScriptWithProofsFixedBodyLen          = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
-	setScriptWithProofsMinLen                = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	sponsorshipWithProofsBodyLen             = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
-	sponsorshipWithProofsMinLen              = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
-	setAssetScriptWithProofsFixedBodyLen     = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
-	setAssetScriptWithProofsMinLen           = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
-	invokeScriptWithProofsFixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
-	invokeScriptWithProofsMinLen             = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
-	maxTransfers                             = 100
-	maxEntries                               = 100
-	maxDataWithProofsTxBytes             int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
-	maxArguments                             = 22
-	maxFunctionNameBytes                     = 255
-	maxInvokeScriptWithProofsBytes           = 5 * 1024
+	issueWithProofsFixedBodyLen                          = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
+	issueWithProofsMinBodyLen                            = issueWithProofsFixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueWithProofsMinLen                                = 1 + issueWithProofsMinBodyLen + proofsMinLen
+	transferWithProofsFixedBodyLen                       = 1 + 1 + transferLen
+	transferWithProofsMinLen                             = 1 + transferWithProofsFixedBodyLen + proofsMinLen
+	reissueWithProofsBodyLen                             = 3 + reissueLen
+	reissueWithProofsMinLen                              = 1 + reissueWithProofsBodyLen + proofsMinLen
+	burnWithProofsBodyLen                                = 1 + 1 + 1 + burnLen
+	burnWithProofsLen                                    = 1 + burnWithProofsBodyLen + proofsMinLen
+	exchangeWithProofsFixedBodyLen                       = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeWithProofsMinLen                             = exchangeWithProofsFixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
+	leaseWithProofsBodyLen                               = 1 + 1 + 1 + leaseLen
+	leaseWithProofsMinLen                                = leaseWithProofsBodyLen + proofsMinLen
+	leaseCancelWithProofsBodyLen                         = 1 + 1 + 1 + leaseCancelLen
+	leaseCancelWithProofsMinLen                          = 1 + leaseCancelWithProofsBodyLen + proofsMinLen
+	createAliasWithProofsFixedBodyLen                    = 1 + 1 + createAliasLen
+	createAliasWithProofsMinLen                          = 1 + createAliasWithProofsFixedBodyLen + proofsMinLen
+	massTransferEntryLen                                 = 8
+	massTransferWithProofsFixedLen                       = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
+	massTransferWithProofsMinLen                         = massTransferWithProofsFixedLen + proofsMinLen
+	dataWithProofsFixedBodyLen                           = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
+	dataWithProofsMinLen                                 = dataWithProofsFixedBodyLen + proofsMinLen
+	setScriptWithProofsFixedBodyLen                      = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
+	setScriptWithProofsMinLen                            = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	sponsorshipWithProofsBodyLen                         = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	sponsorshipWithProofsMinLen                          = 1 + 1 + 1 + sponsorshipWithProofsBodyLen + proofsMinLen
+	setAssetScriptWithProofsFixedBodyLen                 = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
+	setAssetScriptWithProofsMinLen                       = 1 + setScriptWithProofsFixedBodyLen + proofsMinLen
+	invokeScriptWithProofsFixedBodyLen                   = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
+	invokeScriptWithProofsMinLen                         = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
+	maxTransfers                                         = 100
+	maxEntries                                           = 100
+	maxDataWithProofsTxBytes                         int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
+	maxArguments                                         = 22
+	maxFunctionNameBytes                                 = 255
+	maxInvokeScriptWithProofsBinaryTransactionsBytes     = 5 * 1024
+	maxInvokeScriptWithProofsProtobufPayloadBytes        = 5 * 1024
 
 	topRideVersion = 5
 )
@@ -329,7 +330,7 @@ func (tx *IssueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueWithProofs transaction")
 	}
@@ -347,7 +348,7 @@ func (tx *IssueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary converts transaction to its binary representation.
@@ -605,7 +606,7 @@ func (tx *TransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferWithProofs transaction")
 	}
@@ -623,7 +624,7 @@ func (tx *TransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes TransferWithProofs transaction to its bytes representation.
@@ -904,7 +905,7 @@ func (tx *ReissueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) err
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueWithProofs transaction")
 	}
@@ -922,7 +923,7 @@ func (tx *ReissueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes ReissueWithProofs transaction to its bytes representation.
@@ -1152,7 +1153,7 @@ func (tx *BurnWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnWithProofs transaction")
 	}
@@ -1170,7 +1171,7 @@ func (tx *BurnWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes BurnWithProofs transaction to its bytes representation.
@@ -1704,7 +1705,7 @@ func (tx *ExchangeWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeWithProofs transaction")
 	}
@@ -1722,7 +1723,7 @@ func (tx *ExchangeWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2033,7 +2034,7 @@ func (tx *LeaseWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseWithProofs transaction")
 	}
@@ -2051,7 +2052,7 @@ func (tx *LeaseWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2279,7 +2280,7 @@ func (tx *LeaseCancelWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelWithProofs transaction")
 	}
@@ -2297,7 +2298,7 @@ func (tx *LeaseCancelWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2527,7 +2528,7 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
 	}
@@ -2543,7 +2544,7 @@ func (tx *CreateAliasWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2893,7 +2894,7 @@ func (tx *MassTransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign MassTransferWithProofs transaction")
 	}
@@ -2911,7 +2912,7 @@ func (tx *MassTransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of MassTransferWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -3289,7 +3290,7 @@ func (tx *DataWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign DataWithProofs transaction")
 	}
@@ -3307,7 +3308,7 @@ func (tx *DataWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of DataWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to bytes.
@@ -3401,14 +3402,16 @@ func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 	return nil
 }
 
-func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+func (tx *DataWithProofs) protobufDataTransactionData() *g.DataTransactionData {
 	entries := make([]*g.DataTransactionData_DataEntry, len(tx.Entries))
 	for i, entry := range tx.Entries {
 		entries[i] = entry.ToProtobuf()
 	}
-	txData := &g.Transaction_DataTransaction{DataTransaction: &g.DataTransactionData{
-		Data: entries,
-	}}
+	return &g.DataTransactionData{Data: entries}
+}
+
+func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_DataTransaction{DataTransaction: tx.protobufDataTransactionData()}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
@@ -3416,21 +3419,13 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	return res, nil
 }
 
-func (tx *DataWithProofs) ProtoPayload(scheme Scheme) (*g.DataTransactionData, error) {
-	proto, err := tx.ToProtobuf(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return proto.GetDataTransaction(), nil
+func (tx *DataWithProofs) ProtoPayload() *g.DataTransactionData {
+	return tx.protobufDataTransactionData()
 }
 
-func (tx *DataWithProofs) ProtoPayloadSize(scheme Scheme) (int, error) {
-	payload, err := tx.ProtoPayload(scheme)
-	if err != nil {
-		return 0, err
-	}
+func (tx *DataWithProofs) ProtoPayloadSize() int {
 	// use this method to calculate PB binary size of payload
-	return payload.SizeVT(), nil
+	return tx.ProtoPayload().SizeVT()
 }
 
 func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
@@ -3608,7 +3603,7 @@ func (tx *SetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) e
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetScriptWithProofs transaction")
 	}
@@ -3626,7 +3621,7 @@ func (tx *SetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SetScriptWithProofs transaction to its bytes representation.
@@ -3884,7 +3879,7 @@ func (tx *SponsorshipWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SponsorshipWithProofs transaction")
 	}
@@ -3902,7 +3897,7 @@ func (tx *SponsorshipWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SponsorshipWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SponsorshipWithProofs transaction to its bytes representation.
@@ -4197,7 +4192,7 @@ func (tx *SetAssetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretK
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetAssetScriptWithProofs transaction")
 	}
@@ -4215,7 +4210,7 @@ func (tx *SetAssetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.Publi
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SetAssetScriptWithProofs transaction to its bytes representation.
@@ -4592,7 +4587,7 @@ func (tx *InvokeScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeScriptWithProofs transaction")
 	}
@@ -4610,7 +4605,7 @@ func (tx *InvokeScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes InvokeScriptWithProofs transaction to its bytes representation.
@@ -4651,7 +4646,7 @@ func (tx *InvokeScriptWithProofs) Serialize(s *serializer.Serializer) error {
 
 //UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
 func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
+	if len(data) > maxInvokeScriptWithProofsBinaryTransactionsBytes {
 		return errors.New("invoke script transaction is too big")
 	}
 	if l := len(data); l < invokeScriptWithProofsMinLen {
@@ -4684,9 +4679,6 @@ func (tx *InvokeScriptWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, erro
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
-		return errors.New("invoke script transaction is too big")
-	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4694,6 +4686,13 @@ func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
 	invokeScriptTx, ok := t.(*InvokeScriptWithProofs)
 	if !ok {
 		return errors.New("failed to convert result to InvokeScripV1")
+	}
+	protoPayloadSize, err := invokeScriptTx.protoPayloadSize()
+	if err != nil {
+		return err
+	}
+	if protoPayloadSize > maxInvokeScriptWithProofsProtobufPayloadBytes {
+		return errors.New("invoke script transaction is too big")
 	}
 	*tx = *invokeScriptTx
 	return nil
@@ -4704,9 +4703,6 @@ func (tx *InvokeScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
-	if len(data) > maxInvokeScriptWithProofsBytes {
-		return errors.New("invoke script transaction is too big")
-	}
 	t, err := SignedTxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4715,11 +4711,18 @@ func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error
 	if !ok {
 		return errors.New("failed to convert result to InvokeScriptWithProofs")
 	}
+	protoPayloadSize, err := invokeScriptTx.protoPayloadSize()
+	if err != nil {
+		return err
+	}
+	if protoPayloadSize > maxInvokeScriptWithProofsProtobufPayloadBytes {
+		return errors.New("invoke script transaction is too big")
+	}
 	*tx = *invokeScriptTx
 	return nil
 }
 
-func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+func (tx *InvokeScriptWithProofs) protobufInvokeScriptTransactionData() (*g.InvokeScriptTransactionData, error) {
 	fcBytes, err := tx.FunctionCall.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -4732,11 +4735,20 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 	if err != nil {
 		return nil, err
 	}
-	txData := &g.Transaction_InvokeScript{InvokeScript: &g.InvokeScriptTransactionData{
+	txData := &g.InvokeScriptTransactionData{
 		DApp:         rcpProto,
 		FunctionCall: fcBytes,
 		Payments:     payments,
-	}}
+	}
+	return txData, nil
+}
+
+func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	invokeTxData, err := tx.protobufInvokeScriptTransactionData()
+	if err != nil {
+		return nil, err
+	}
+	txData := &g.Transaction_InvokeScript{InvokeScript: invokeTxData}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
@@ -4756,6 +4768,15 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *InvokeScriptWithProofs) protoPayloadSize() (int, error) {
+	invokeTxData, err := tx.protobufInvokeScriptTransactionData()
+	if err != nil {
+		return 0, err
+	}
+	// use this method to calculate PB binary size of payload
+	return invokeTxData.SizeVT(), err
 }
 
 type UpdateAssetInfoWithProofs struct {
@@ -4849,7 +4870,7 @@ func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.Secret
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
 	}
@@ -4866,7 +4887,7 @@ func (tx *UpdateAssetInfoWithProofs) Verify(scheme Scheme, publicKey crypto.Publ
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of UpdateAssetInfoWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 func NewUnsignedUpdateAssetInfoWithProofs(v, chainID byte, assetID crypto.Digest, senderPK crypto.PublicKey, name, description string, timestamp uint64, feeAsset OptionalAsset, fee uint64) *UpdateAssetInfoWithProofs {
@@ -4977,7 +4998,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 func (tx InvokeExpressionTransactionWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -5048,7 +5069,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Sign(scheme Scheme, sk crypto.S
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, sk, b)
+	err = tx.Proofs.Sign(sk, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeExpression transaction")
 	}
