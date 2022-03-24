@@ -109,7 +109,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideObject {
 	return r
 }
 
-func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (rideObject, error) {
+func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideObject, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
@@ -117,7 +117,7 @@ func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (ri
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("BlockInfo")
 	r["timestamp"] = rideInt(header.Timestamp)
-	r["height"] = rideInt(header.Height)
+	r["height"] = rideInt(height)
 	r["baseTarget"] = rideInt(header.BaseTarget)
 	r["generationSignature"] = rideBytes(common.Dup(header.GenSignature.Bytes()))
 	r["generator"] = rideAddress(address)

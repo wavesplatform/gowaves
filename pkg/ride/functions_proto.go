@@ -749,7 +749,7 @@ func blockInfoByHeight(_ *treeEvaluator, env environment, args ...rideType) (rid
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	obj, err := blockHeaderToObject(env.scheme(), header, vrf)
+	obj, err := blockHeaderToObject(env.scheme(), height, header, vrf)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
