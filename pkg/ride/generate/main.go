@@ -79,6 +79,7 @@ func functionsV2() map[string]string {
 	m["AssetPair"] = "assetPair"
 	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
+	m["Transfer"] = "transfer"
 	return m
 }
 
@@ -152,6 +153,7 @@ func catalogueV2() map[string]int {
 	m["AssetPair"] = 2
 	m["DataEntry"] = 2
 	m["DataTransaction"] = 9
+	m["Transfer"] = 2
 	return m
 }
 
@@ -361,6 +363,7 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m["TransferSet"] = 0
 	m["ScriptTransfer"] = 0
 	m["ScriptResult"] = 0
+	// TODO add evaluation for Transfer constructor
 	return m
 }
 
@@ -394,6 +397,7 @@ func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m["TransferSet"] = 1
 	m["ScriptTransfer"] = 1
 	m["ScriptResult"] = 1
+	// TODO add evaluation for Transfer constructor
 	return m
 }
 
