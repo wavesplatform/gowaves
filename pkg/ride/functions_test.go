@@ -10,7 +10,7 @@ import (
 func TestNames(t *testing.T) {
 	assert.Equal(t, "!", functionNameV2(0))
 	assert.Equal(t, "!=", functionNameV3(1))
-	assert.Equal(t, "wavesBalance", functionNameV2(67))
+	assert.Equal(t, "wavesBalance", functionNameV2(68))
 	assert.Equal(t, "DeleteEntry", functionNameV4(182))
 }
 
@@ -22,7 +22,7 @@ func TestCheckFunction(t *testing.T) {
 		{"!", 0},
 		{"!=", 1},
 		{"420", 39},
-		{"wavesBalance", 67},
+		{"wavesBalance", 68},
 	} {
 		id, ok := checkFunctionV2(test.name)
 		assert.True(t, ok)
