@@ -106,7 +106,12 @@ func (b rideBytes) eq(other rideType) bool {
 }
 
 func (b rideBytes) get(prop string) (rideType, error) {
-	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
+	switch prop {
+	case "bytes":
+		return b[:], nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
+	}
 }
 
 type rideObject map[string]rideType
