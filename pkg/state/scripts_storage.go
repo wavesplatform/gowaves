@@ -203,9 +203,9 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.T
 func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
 	script, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
-		return nil, err
+		return nil, err // Possible errors are `keyvalue.ErrNotFoundHere` and untyped "empty history"
 	}
-	return ss.scriptAstFromRecordBytes(script)
+	return ss.scriptAstFromRecordBytes(script) // Possible errors `proto.ErrNotFound` and parsing errors.
 }
 
 func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
@@ -344,7 +344,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filt
 		return script.HasVerifier(), nil
 	}
 	script, err := ss.newestScriptAstByKey(keyBytes, filter)
-	if err != nil { // TODO: check error type
+	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
 	return script.HasVerifier(), nil
@@ -352,7 +352,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filt
 
 func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
 	script, err := ss.scriptByAddr(addr, filter)
-	if err != nil { // TODO: check error type
+	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
 	return script.HasVerifier(), nil

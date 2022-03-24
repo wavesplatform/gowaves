@@ -329,7 +329,7 @@ func (tx *IssueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueWithProofs transaction")
 	}
@@ -347,7 +347,7 @@ func (tx *IssueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary converts transaction to its binary representation.
@@ -605,7 +605,7 @@ func (tx *TransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferWithProofs transaction")
 	}
@@ -623,7 +623,7 @@ func (tx *TransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes TransferWithProofs transaction to its bytes representation.
@@ -904,7 +904,7 @@ func (tx *ReissueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) err
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueWithProofs transaction")
 	}
@@ -922,7 +922,7 @@ func (tx *ReissueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes ReissueWithProofs transaction to its bytes representation.
@@ -1152,7 +1152,7 @@ func (tx *BurnWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnWithProofs transaction")
 	}
@@ -1170,7 +1170,7 @@ func (tx *BurnWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes BurnWithProofs transaction to its bytes representation.
@@ -1704,7 +1704,7 @@ func (tx *ExchangeWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeWithProofs transaction")
 	}
@@ -1722,7 +1722,7 @@ func (tx *ExchangeWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2033,7 +2033,7 @@ func (tx *LeaseWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseWithProofs transaction")
 	}
@@ -2051,7 +2051,7 @@ func (tx *LeaseWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2279,7 +2279,7 @@ func (tx *LeaseCancelWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelWithProofs transaction")
 	}
@@ -2297,7 +2297,7 @@ func (tx *LeaseCancelWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2527,7 +2527,7 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
 	}
@@ -2543,7 +2543,7 @@ func (tx *CreateAliasWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -2893,7 +2893,7 @@ func (tx *MassTransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign MassTransferWithProofs transaction")
 	}
@@ -2911,7 +2911,7 @@ func (tx *MassTransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of MassTransferWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to its binary representation.
@@ -3289,7 +3289,7 @@ func (tx *DataWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign DataWithProofs transaction")
 	}
@@ -3307,7 +3307,7 @@ func (tx *DataWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of DataWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary saves the transaction to bytes.
@@ -3608,7 +3608,7 @@ func (tx *SetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) e
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetScriptWithProofs transaction")
 	}
@@ -3626,7 +3626,7 @@ func (tx *SetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SetScriptWithProofs transaction to its bytes representation.
@@ -3884,7 +3884,7 @@ func (tx *SponsorshipWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SponsorshipWithProofs transaction")
 	}
@@ -3902,7 +3902,7 @@ func (tx *SponsorshipWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SponsorshipWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SponsorshipWithProofs transaction to its bytes representation.
@@ -4197,7 +4197,7 @@ func (tx *SetAssetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretK
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetAssetScriptWithProofs transaction")
 	}
@@ -4215,7 +4215,7 @@ func (tx *SetAssetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.Publi
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes SetAssetScriptWithProofs transaction to its bytes representation.
@@ -4592,7 +4592,7 @@ func (tx *InvokeScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeScriptWithProofs transaction")
 	}
@@ -4610,7 +4610,7 @@ func (tx *InvokeScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 //MarshalBinary writes InvokeScriptWithProofs transaction to its bytes representation.
@@ -4849,7 +4849,7 @@ func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.Secret
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, secretKey, b)
+	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
 	}
@@ -4866,7 +4866,7 @@ func (tx *UpdateAssetInfoWithProofs) Verify(scheme Scheme, publicKey crypto.Publ
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of UpdateAssetInfoWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 func NewUnsignedUpdateAssetInfoWithProofs(v, chainID byte, assetID crypto.Digest, senderPK crypto.PublicKey, name, description string, timestamp uint64, feeAsset OptionalAsset, fee uint64) *UpdateAssetInfoWithProofs {
@@ -4977,7 +4977,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
 	}
-	return tx.Proofs.Verify(0, publicKey, b)
+	return tx.Proofs.Verify(publicKey, b)
 }
 
 func (tx InvokeExpressionTransactionWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -5048,7 +5048,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Sign(scheme Scheme, sk crypto.S
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
-	err = tx.Proofs.Sign(0, sk, b)
+	err = tx.Proofs.Sign(sk, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeExpression transaction")
 	}
