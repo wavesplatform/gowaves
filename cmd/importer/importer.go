@@ -129,7 +129,7 @@ func main() {
 		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height, true); err != nil {
+	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height); err != nil {
 		height, err1 := st.Height()
 		if err1 != nil {
 			zap.S().Fatalf("Failed to get current height: %v", err1)

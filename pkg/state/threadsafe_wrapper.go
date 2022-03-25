@@ -15,6 +15,12 @@ type ThreadSafeReadWrapper struct {
 	s  StateInfo
 }
 
+func (a *ThreadSafeReadWrapper) Filter() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.Filter()
+}
+
 func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

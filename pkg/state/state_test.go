@@ -100,7 +100,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	txs := last.Transactions
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
@@ -179,7 +179,7 @@ func TestStateRollback(t *testing.T) {
 			t.Fatalf("Height(): %v\n", err)
 		}
 		if tc.nextHeight > height {
-			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
+			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}
 		} else {
@@ -231,11 +231,11 @@ func TestStateIntegrated(t *testing.T) {
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight, false); err == nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight); err == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1, false); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath); err != nil {
@@ -315,7 +315,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	assert.Equal(t, true, approved)
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Check activation and approval heights.
 	activationHeight, err := manager.ActivationHeight(featureID)
@@ -343,7 +343,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Now validate tx with ID which is already in the state.
 	tx := existingGenesisTx(t)
@@ -372,7 +372,7 @@ func TestTransactionByID(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	// Retrieve existing MainNet genesis tx by its ID.
@@ -427,7 +427,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	assert.Equal(t, genesis, manager.TopBlock())
 
 	height := proto.Height(100)
-	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	correct, err := manager.BlockByHeight(height)
@@ -481,7 +481,7 @@ func TestStateHashAtHeight(t *testing.T) {
 	assert.NoError(t, err, "failed to create dir for test data")
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
-	manager, err := newStateManager(dataDir, true, params, settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, false, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -493,7 +493,7 @@ func TestStateHashAtHeight(t *testing.T) {
 
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	err = importer.ApplyFromFile(manager, blocksPath, 9499, 1, true)
+	err = importer.ApplyFromFile(manager, blocksPath, 9499, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	stateHash, err := manager.StateHashAtHeight(9500)
 	assert.NoError(t, err, "StateHashAtHeight failed")

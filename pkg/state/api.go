@@ -32,6 +32,8 @@ type TransactionIterator interface {
 // This should be used for APIs and other modules where stable, fully verified state is needed.
 // Methods of this interface are thread-safe.
 type StateInfo interface {
+	// Filter is getter for state data normalization flag
+	Filter() bool
 	// Block getters.
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)

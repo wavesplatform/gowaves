@@ -327,6 +327,20 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
 }
 
+// Filter mocks base method.
+func (m *MockStateInfo) Filter() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockStateInfoMockRecorder) Filter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockStateInfo)(nil).Filter))
+}
+
 // FullAssetInfo mocks base method.
 func (m *MockStateInfo) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
@@ -1500,6 +1514,20 @@ func (m *MockState) EstimatorVersion() (int, error) {
 func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
+}
+
+// Filter mocks base method.
+func (m *MockState) Filter() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockStateMockRecorder) Filter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockState)(nil).Filter))
 }
 
 // FullAssetInfo mocks base method.
