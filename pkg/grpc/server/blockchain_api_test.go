@@ -47,7 +47,7 @@ func TestGetBaseTarget(t *testing.T) {
 	newTarget := 171657201
 	blocks, err := state.ReadMainnetBlocksToHeight(proto.Height(3))
 	assert.NoError(t, err)
-	err = st.AddOldDeserializedBlocks(blocks)
+	_, err = st.AddDeserializedBlocks(blocks)
 	assert.NoError(t, err)
 	// Check new base target.
 	res, err = cl.GetBaseTarget(ctx, &emptypb.Empty{})

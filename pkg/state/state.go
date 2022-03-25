@@ -1061,7 +1061,7 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	return rs, nil
 }
 
-func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
+func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
 	initialization := !s.filter
 	if _, err := s.addBlocks(initialization); err != nil {
@@ -1073,7 +1073,7 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	return nil
 }
 
-func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (s *stateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
 	initialization := !s.filter
 	lastBlock, err := s.addBlocks(initialization)
@@ -1084,30 +1084,6 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.B
 		return nil, err
 	}
 	return lastBlock, nil
-}
-
-func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
-	s.newBlocks.setNewBinary(blockBytes)
-	initialization := !s.filter
-	if _, err := s.addBlocks(initialization); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
-		}
-		return err
-	}
-	return nil
-}
-
-func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	s.newBlocks.setNew(blocks)
-	initialization := !s.filter
-	if _, err := s.addBlocks(initialization); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
-		}
-		return err
-	}
-	return nil
 }
 
 func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {

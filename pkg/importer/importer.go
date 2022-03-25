@@ -26,9 +26,7 @@ const (
 )
 
 type State interface {
-	Filter() bool
-	AddNewBlocks(blocks [][]byte) error
-	AddOldBlocks(blocks [][]byte) error
+	AddBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
@@ -89,9 +87,6 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 			zap.S().Fatalf("Failed to close blockchain file: %v", err)
 		}
 	}()
-	// If the state was rolled back at least once before, `optimize` MUST BE false.
-	// But we have to support rollbacks in importer.
-	optimize := !st.Filter()
 	sb := make([]byte, 4)
 	var blocks [MaxBlocksBatchSize][]byte
 	blocksIndex := 0
@@ -125,14 +120,8 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 			continue
 		}
 		start := time.Now()
-		if optimize {
-			if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
-				return err
-			}
-		} else {
-			if err := st.AddNewBlocks(blocks[:blocksIndex]); err != nil {
-				return err
-			}
+		if err := st.AddBlocks(blocks[:blocksIndex]); err != nil {
+			return err
 		}
 		elapsed := time.Since(start)
 		speed := float64(totalSize) / float64(elapsed)
