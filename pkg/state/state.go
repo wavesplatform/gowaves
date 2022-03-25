@@ -1344,6 +1344,9 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, curHeight); err != nil {
+			return nil, err
+		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
@@ -1385,10 +1388,6 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
 			s.checkProtobufActivation(params.blockchainHeight + 2)
-		}
-		heightAfterBlockApplying := curHeight + 1
-		if err := s.cv.ValidateHeaderAfterBlockApplying(&block.BlockHeader, heightAfterBlockApplying); err != nil {
-			return nil, err
 		}
 		headers[pos] = block.BlockHeader
 		pos++

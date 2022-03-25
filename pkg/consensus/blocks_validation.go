@@ -133,8 +133,8 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 	return hs, nil
 }
 
-func (cv *Validator) ValidateHeaderAfterBlockApplying(header *proto.BlockHeader, newestHeight proto.Height) error {
-	if err := cv.validateMinerAccount(header, newestHeight); err != nil {
+func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
+	if err := cv.validateMinerAccount(newestHeader, height); err != nil {
 		return errors.Wrap(err, "miner account validation failed")
 	}
 	return nil
