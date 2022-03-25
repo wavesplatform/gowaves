@@ -1386,6 +1386,10 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 			// we have to check that protobuf will be activated on next block
 			s.checkProtobufActivation(params.blockchainHeight + 2)
 		}
+		heightAfterBlockApplying := curHeight + 1
+		if err := s.cv.ValidateHeaderAfterBlockApplying(&block.BlockHeader, heightAfterBlockApplying); err != nil {
+			return nil, err
+		}
 		headers[pos] = block.BlockHeader
 		pos++
 		ids = append(ids, block.BlockID())
@@ -1403,7 +1407,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
-	if err := s.cv.ValidateHeaders(headers[:pos], height); err != nil {
+	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
 	// Check the result of signatures verification.

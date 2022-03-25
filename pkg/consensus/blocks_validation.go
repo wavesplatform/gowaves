@@ -37,6 +37,7 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 }
 
 type stateInfoProvider interface {
+	NewestHeight() (uint64, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
 	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
@@ -133,7 +134,23 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 	return hs, nil
 }
 
-func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
+func (cv *Validator) ValidateHeaderAfterBlockApplying(header *proto.BlockHeader, newestHeight proto.Height) error {
+	newestHeightFromState, err := cv.state.NewestHeight()
+	if err != nil {
+		return err
+	}
+	if newestHeight != newestHeightFromState {
+		return errors.Errorf("invalid blockchain height has been passed: passedHeight=%d, stateHeight=%d",
+			newestHeight, newestHeightFromState,
+		)
+	}
+	if err := cv.validateMinerAccount(header, newestHeight); err != nil {
+		return errors.Wrap(err, "miner account validation failed")
+	}
+	return nil
+}
+
+func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeight proto.Height) error {
 	cv.startHeight = startHeight
 	cv.headers = headers
 	for i := range headers {
@@ -162,9 +179,6 @@ func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight ui
 		}
 		if err := cv.validateBlockVersion(header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
-		}
-		if err := cv.validateMinerAccount(header, height); err != nil {
-			return errors.Wrap(err, "miner account validation failed")
 		}
 	}
 	return nil
