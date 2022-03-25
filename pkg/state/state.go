@@ -1344,6 +1344,9 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, curHeight); err != nil {
+			return nil, err
+		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
@@ -1403,7 +1406,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
-	if err := s.cv.ValidateHeaders(headers[:pos], height); err != nil {
+	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
 	// Check the result of signatures verification.

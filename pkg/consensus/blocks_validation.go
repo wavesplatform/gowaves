@@ -133,7 +133,14 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 	return hs, nil
 }
 
-func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
+func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
+	if err := cv.validateMinerAccount(newestHeader, height); err != nil {
+		return errors.Wrap(err, "miner account validation failed")
+	}
+	return nil
+}
+
+func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeight proto.Height) error {
 	cv.startHeight = startHeight
 	cv.headers = headers
 	for i := range headers {
@@ -162,9 +169,6 @@ func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight ui
 		}
 		if err := cv.validateBlockVersion(header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
-		}
-		if err := cv.validateMinerAccount(header, height); err != nil {
-			return errors.Wrap(err, "miner account validation failed")
 		}
 	}
 	return nil
