@@ -1,12 +1,14 @@
 package ride
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const maxMessageLength = 32 * 1024
@@ -295,6 +297,8 @@ func looseStringList(list []rideType) ([]string, int, error) {
 			str = string(ti)
 		case rideInt:
 			str = strconv.FormatInt(int64(ti), 10)
+		case rideAddress:
+			str = fmt.Sprintf("Address(\n\tbytes = base58'%s'\n)", proto.WavesAddress(ti).String())
 		default:
 			return nil, 0, errors.Errorf("unexpected list item type '%s'", item.instanceOf())
 		}
