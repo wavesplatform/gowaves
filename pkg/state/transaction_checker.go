@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	maxEstimatorVersion = 3
+	maxEstimatorVersion = 4
 )
 
 type checkerInfo struct {
@@ -27,9 +27,13 @@ type checkerInfo struct {
 	blockID          proto.BlockID
 	blockVersion     proto.BlockVersion
 	height           uint64
+	rideV6Activated  bool
 }
 
 func (i *checkerInfo) estimatorVersion() int {
+	if i.rideV6Activated {
+		return 4
+	}
 	switch i.blockVersion {
 	case proto.ProtobufBlockVersion:
 		return 3
