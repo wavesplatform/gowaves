@@ -53,13 +53,19 @@ func CallFunction(env environment, tree *Tree, name string, args proto.Arguments
 	if tree.LibVersion < 5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
+	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(libraryVersion(tree.LibVersion))
+	if err != nil {
+		return nil, EvaluationFailure.Errorf("failed to get max chain invoke complexity: %v", err)
+	}
 	// Add actions and complexity from wrapped state
 	// Append actions of the original call to the end of actions collected in wrapped state
 	dAppResult.complexity += wrappedStateComplexity(env.state())
-	if dAppResult.complexity > MaxChainInvokeComplexity {
+	if dAppResult.complexity > maxChainInvokeComplexity {
 		return nil, EvaluationErrorAddComplexity(
-			RuntimeError.Errorf("evaluation complexity %d exceeds %d limit", dAppResult.complexity, MaxChainInvokeComplexity),
-			MaxChainInvokeComplexity,
+			RuntimeError.Errorf("evaluation complexity %d exceeds %d limit for library version %d",
+				dAppResult.complexity, maxChainInvokeComplexity, tree.LibVersion,
+			),
+			maxChainInvokeComplexity,
 		)
 	}
 	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)

@@ -8696,5 +8696,5 @@ func TestComplexityOverflow(t *testing.T) {
 	assert.NotNil(t, tree)
 	_, err = CallFunction(env, tree, "call", arguments)
 	require.Error(t, err)
-	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit", err.Error())
+	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit for library version 5", err.Error())
 }
