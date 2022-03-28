@@ -26,8 +26,7 @@ const (
 )
 
 type State interface {
-	AddNewBlocks(blocks [][]byte) error
-	AddOldBlocks(blocks [][]byte) error
+	AddBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
@@ -77,8 +76,7 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-// If the state was rolled back at least once before, `optimize` MUST BE false.
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, optimize bool) error {
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
 	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v", err)
@@ -89,7 +87,6 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 			zap.S().Fatalf("Failed to close blockchain file: %v", err)
 		}
 	}()
-
 	sb := make([]byte, 4)
 	var blocks [MaxBlocksBatchSize][]byte
 	blocksIndex := 0
@@ -123,14 +120,8 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 			continue
 		}
 		start := time.Now()
-		if optimize {
-			if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
-				return err
-			}
-		} else {
-			if err := st.AddNewBlocks(blocks[:blocksIndex]); err != nil {
-				return err
-			}
+		if err := st.AddBlocks(blocks[:blocksIndex]); err != nil {
+			return err
 		}
 		elapsed := time.Since(start)
 		speed := float64(totalSize) / float64(elapsed)

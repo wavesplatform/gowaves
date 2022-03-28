@@ -36,7 +36,7 @@ func applyBlocks(t *testing.T, blocks []proto.Block, st State) error {
 		if blocksIndex != blocksBatchSize && height != blocksNumber {
 			continue
 		}
-		if err := st.AddOldBlocks(blocksBatch[:blocksIndex]); err != nil {
+		if err := st.AddBlocks(blocksBatch[:blocksIndex]); err != nil {
 			return err
 		}
 		blocksIndex = 0
@@ -88,7 +88,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	st, err := NewState(dataDir, stateParams(), settings.MainNetSettings)
+	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}

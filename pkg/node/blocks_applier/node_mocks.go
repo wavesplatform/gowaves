@@ -114,14 +114,6 @@ func (a *MockStateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(&sync.RWMutex{})
 }
 
-func (a *MockStateManager) AddNewBlocks(_ [][]byte) error {
-	panic("implement me")
-}
-
-func (a *MockStateManager) AddOldBlocks(_ [][]byte) error {
-	panic("implement me")
-}
-
 func (a *MockStateManager) RollbackToHeight(height uint64) error {
 	if height > proto.Height(len(a.state)) {
 		return notFound()
@@ -289,7 +281,7 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 	a.blockIDToHeight[block.BlockID()] = proto.Height(len(a.state))
 	return block, nil
 }
-func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (a *MockStateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	var out *proto.Block
 	var err error
 	for _, b := range blocks {
@@ -298,10 +290,6 @@ func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*pro
 		}
 	}
 	return out, nil
-}
-
-func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
-	panic("implement me")
 }
 
 func (a *MockStateManager) BlockBytes(_ proto.BlockID) ([]byte, error) {

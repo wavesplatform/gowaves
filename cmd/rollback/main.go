@@ -44,7 +44,7 @@ func main() {
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedApi
-	s, err := state.NewState(*statePath, params, cfg)
+	s, err := state.NewState(*statePath, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		return

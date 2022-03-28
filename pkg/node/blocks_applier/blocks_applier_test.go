@@ -98,9 +98,9 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	// rollback to first(genesis) block
 	stateMock.EXPECT().RollbackToHeight(proto.Height(1)).Return(nil)
 	// adding new blocks, and have error on applying
-	stateMock.EXPECT().AddNewDeserializedBlocks([]*proto.Block{block2}).Return(nil, errors.New("error message"))
+	stateMock.EXPECT().AddDeserializedBlocks([]*proto.Block{block2}).Return(nil, errors.New("error message"))
 	// return blocks
-	stateMock.EXPECT().AddNewDeserializedBlocks([]*proto.Block{block1}).Return(nil, nil)
+	stateMock.EXPECT().AddDeserializedBlocks([]*proto.Block{block1}).Return(nil, nil)
 
 	ba := innerBlocksApplier{}
 	_, err := ba.apply(stateMock, []*proto.Block{block2})

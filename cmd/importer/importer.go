@@ -108,7 +108,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
-	st, err := state.NewState(dataDir, params, ss)
+	st, err := state.NewState(dataDir, false, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}
@@ -129,7 +129,7 @@ func main() {
 		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height, true); err != nil {
+	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height); err != nil {
 		height, err1 := st.Height()
 		if err1 != nil {
 			zap.S().Fatalf("Failed to get current height: %v", err1)

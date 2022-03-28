@@ -353,9 +353,12 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+
+	// Specifies state normalization flag
+	filter bool
 }
 
-func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager(dataDir string, filter bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -436,6 +439,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		filter:                    filter,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -460,12 +464,14 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
+func (s *stateManager) Filter() bool {
+	return s.filter
+}
+
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address != nil {
 		key := accountScriptKey{recipient.Address.ID()}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
@@ -477,7 +483,7 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 			return nil, errors.Wrapf(err, "failed to get address by alias")
 		}
 		key := accountScriptKey{address.ID()}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
@@ -487,10 +493,8 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 }
 
 func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	assetID := proto.AssetIDFromDigest(asset)
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, s.filter)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -519,6 +523,7 @@ func (s *stateManager) addGenesisBlock() error {
 	defer cancel()
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	// initialization should be always true because we're adding first block
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
 		return err
 	}
@@ -526,6 +531,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 	close(chans.tasksChan)
+	// initialization should be always true because we're adding first block
 	if err := s.appender.applyAllDiffs(true); err != nil {
 		return err
 	}
@@ -539,6 +545,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if verifyError != nil {
 		return wrapErr(ValidationError, verifyError)
 	}
+	// initialization should be always true because we're adding first block
 	if err := s.flush(true); err != nil {
 		return wrapErr(ModificationError, err)
 	}
@@ -557,6 +564,7 @@ func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto
 			return err
 		}
 	}
+	// should be always true because it's preactivation
 	if err := s.flush(true); err != nil {
 		return err
 	}
@@ -676,9 +684,7 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 }
 
 func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error) {
-	// This function is used only from RIDE for now do not pass filter as an optimization
-	// TODO: Pass real filter value then supported in environment
-	leaseFromStore, err := s.stor.leases.newestLeasingInfo(id, true)
+	leaseFromStore, err := s.stor.leases.newestLeasingInfo(id, s.filter)
 	if err != nil {
 		return nil, err
 	}
@@ -692,15 +698,11 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 }
 
 func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	return s.stor.scriptsStorage.newestScriptPKByAddr(addr, true)
+	return s.stor.scriptsStorage.newestScriptPKByAddr(addr, s.filter)
 }
 
 func (s *stateManager) NewestAccountHasScript(addr proto.WavesAddress) (bool, error) {
-	// TODO: This function is used only from stateInfoProvider interface for consensus.Validator,
-	//  so for now we set filter to true.
-	return s.stor.scriptsStorage.newestAccountHasScript(addr, true)
+	return s.stor.scriptsStorage.newestAccountHasScript(addr, s.filter)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -744,7 +746,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 
 func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.AssetID) (uint64, error) {
 	// Retrieve old balance from historyStorage.
-	balance, err := s.stor.balances.newestAssetBalance(addr, asset, true)
+	balance, err := s.stor.balances.newestAssetBalance(addr, asset, s.filter)
 	if err != nil {
 		return 0, err
 	}
@@ -767,7 +769,7 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 
 func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balanceProfile, error) {
 	// Retrieve the latest balance from historyStorage.
-	profile, err := s.stor.balances.newestWavesBalance(addr, true)
+	profile, err := s.stor.balances.newestWavesBalance(addr, s.filter)
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +813,7 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	if err != nil {
 		return nil, errs.Extend(err, "failed convert recipient to address")
 	}
-	profile, err := s.stor.balances.wavesBalance(addr.ID(), true)
+	profile, err := s.stor.balances.wavesBalance(addr.ID(), s.filter)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get waves balance")
 	}
@@ -891,7 +893,7 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	profile, err := s.stor.balances.wavesBalance(addr.ID(), true)
+	profile, err := s.stor.balances.wavesBalance(addr.ID(), s.filter)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -903,7 +905,7 @@ func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.Asset
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	balance, err := s.stor.balances.assetBalance(addr.ID(), assetID, true)
+	balance, err := s.stor.balances.assetBalance(addr.ID(), assetID, s.filter)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1035,7 +1037,8 @@ func (s *stateManager) flush(initialisation bool) error {
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
-	rs, err := s.addBlocks(false)
+	initialization := !s.filter
+	rs, err := s.addBlocks(initialization)
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1047,7 +1050,8 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 
 func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew([]*proto.Block{block})
-	rs, err := s.addBlocks(false)
+	initialization := !s.filter
+	rs, err := s.addBlocks(initialization)
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1057,9 +1061,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	return rs, nil
 }
 
-func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
+func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
-	if _, err := s.addBlocks(false); err != nil {
+	initialization := !s.filter
+	if _, err := s.addBlocks(initialization); err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
@@ -1068,9 +1073,10 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	return nil
 }
 
-func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (s *stateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
-	lastBlock, err := s.addBlocks(false)
+	initialization := !s.filter
+	lastBlock, err := s.addBlocks(initialization)
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1078,28 +1084,6 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.B
 		return nil, err
 	}
 	return lastBlock, nil
-}
-
-func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
-	s.newBlocks.setNewBinary(blockBytes)
-	if _, err := s.addBlocks(true); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
-		}
-		return err
-	}
-	return nil
-}
-
-func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	s.newBlocks.setNew(blocks)
-	if _, err := s.addBlocks(true); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
-		}
-		return err
-	}
-	return nil
 }
 
 func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {
@@ -1498,7 +1482,7 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("ScoreAtHeight: %d height out of valid range [1, %d]", height, maxHeight))
 	}
-	score, err := s.stor.scores.score(height, true)
+	score, err := s.stor.scores.score(height, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1513,7 +1497,8 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	return s.stor.hitSources.hitSource(height, true)
+	// TODO: Should filter be always false? (we write only one hit source per block)
+	return s.stor.hitSources.hitSource(height, s.filter)
 }
 
 func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
@@ -1524,8 +1509,8 @@ func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	// TODO(nickeskov): Should filter be true?
-	return s.stor.hitSources.newestHitSource(height, false)
+	// TODO: Should filter be always false? (we write only one hit source per block)
+	return s.stor.hitSources.newestHitSource(height, s.filter)
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {
@@ -1533,7 +1518,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	score, err := s.stor.scores.score(height, true)
+	score, err := s.stor.scores.score(height, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1541,17 +1526,15 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address == nil {
-		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias, true)
+		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias, s.filter)
 	}
 	return recipient.Address, nil
 }
 
 func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	if recipient.Address == nil {
-		return s.stor.aliases.addrByAlias(recipient.Alias.Alias, true)
+		return s.stor.aliases.addrByAlias(recipient.Alias.Alias, s.filter)
 	}
 	return recipient.Address, nil
 }
@@ -1601,9 +1584,7 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, true)
+	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, s.filter)
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
@@ -1611,7 +1592,7 @@ func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress,
 }
 
 func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
-	addr, err := s.stor.aliases.addrByAlias(alias.Alias, true)
+	addr, err := s.stor.aliases.addrByAlias(alias.Alias, s.filter)
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
@@ -1718,7 +1699,7 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1730,7 +1711,7 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entries, err := s.stor.accountsDataStor.retrieveEntries(addr, true)
+	entries, err := s.stor.accountsDataStor.retrieveEntries(addr, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1738,13 +1719,11 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 }
 
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	entryExist, err := s.stor.accountsDataStor.entryExists(addr, true)
+	entryExist, err := s.stor.accountsDataStor.entryExists(addr, s.filter)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1756,7 +1735,7 @@ func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1768,9 +1747,7 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1782,7 +1759,7 @@ func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1794,9 +1771,7 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1808,7 +1783,7 @@ func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1820,9 +1795,7 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1834,7 +1807,7 @@ func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1846,9 +1819,7 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1860,7 +1831,7 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1923,10 +1894,8 @@ func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (Transact
 }
 
 func (s *stateManager) NewestAssetIsSponsored(asset crypto.Digest) (bool, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	assetID := proto.AssetIDFromDigest(asset)
-	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, s.filter)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1934,7 +1903,7 @@ func (s *stateManager) NewestAssetIsSponsored(asset crypto.Digest) (bool, error)
 }
 
 func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
-	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, s.filter)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1942,10 +1911,8 @@ func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 }
 
 func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
 	assetID := proto.AssetIDFromDigest(asset)
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	info, err := s.stor.assets.newestAssetInfo(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1956,11 +1923,11 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -1984,9 +1951,7 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		return nil, wrapErr(RetrievalError, err)
 	}
 	assetID := proto.AssetIDFromDigest(asset)
-	// This function is used only from SmartState interface, so for now we set filter to true.
-	// TODO: Pass actual filter value after support in RIDE environment
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	info, err := s.stor.assets.newestAssetInfo(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1996,12 +1961,12 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		Description:      info.description,
 		IssueTransaction: nil, // Always return nil in this function because this field is not used later on
 	}
-	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isSponsored {
-		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID, true)
+		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID, s.filter)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2012,7 +1977,7 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2030,8 +1995,7 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.
 func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
-	// TODO: Pass actual filter value after support in RIDE environment
-	info, err := s.stor.assets.assetInfo(assetID, true)
+	info, err := s.stor.assets.assetInfo(assetID, s.filter)
 	if err != nil {
 		if errors.Is(err, errs.UnknownAsset{}) {
 			return nil, err
@@ -2045,11 +2009,11 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2070,8 +2034,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	// TODO: Pass actual filter value after support in RIDE environment
-	info, err := s.stor.assets.assetInfo(assetID, true)
+	info, err := s.stor.assets.assetInfo(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2083,12 +2046,12 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		IssueTransaction: tx,
 	}
 
-	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isSponsored {
-		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID, true)
+		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID, s.filter)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2099,7 +2062,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2138,7 +2101,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*addr, true)
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*addr, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2147,7 +2110,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, ev, true)
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, ev, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2164,12 +2127,12 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 }
 
 func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, true)
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, true)
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2186,12 +2149,12 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 }
 
 func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
+	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2208,7 +2171,7 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 }
 
 func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
-	isActive, err := s.stor.leases.isActive(leaseID, true)
+	isActive, err := s.stor.leases.isActive(leaseID, s.filter)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -2223,7 +2186,7 @@ func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptRe
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
 	}
-	res, err := s.stor.invokeResults.invokeResult(s.settings.AddressSchemeCharacter, invokeID, true)
+	res, err := s.stor.invokeResults.invokeResult(s.settings.AddressSchemeCharacter, invokeID, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2267,7 +2230,7 @@ func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
-	sh, err := s.stor.stateHashes.stateHash(height, true)
+	sh, err := s.stor.stateHashes.stateHash(height, s.filter)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2286,7 +2249,7 @@ func (s *stateManager) StartProvidingExtendedApi() error {
 }
 
 func (s *stateManager) PersistAddressTransactions() error {
-	return s.atx.persist(true)
+	return s.atx.persist(s.filter)
 }
 
 func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {

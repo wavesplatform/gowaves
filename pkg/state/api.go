@@ -32,6 +32,8 @@ type TransactionIterator interface {
 // This should be used for APIs and other modules where stable, fully verified state is needed.
 // Methods of this interface are thread-safe.
 type StateInfo interface {
+	// Filter is a getter for state data normalization flag
+	Filter() bool
 	// Block getters.
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)
@@ -132,21 +134,14 @@ type StateInfo interface {
 // Methods of this interface are not thread-safe.
 type StateModifier interface {
 	// AddBlock adds single block to state.
-	// It's not recommended to use this function when you are able to accumulate big blocks batch,
+	// It's not recommended using this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
 	AddBlock(block []byte) (*proto.Block, error)
 	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
-	// AddNewBlocks adds batch of new blocks to state.
-	// Use it when blocks are logically new.
-	AddNewBlocks(blocks [][]byte) error
-	// AddNewDeserializedBlocks marshals blocks to binary and calls AddNewBlocks().
-	AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
-	// AddOldBlocks adds batch of old blocks to state.
-	// Use it when importing historical blockchain.
-	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
-	AddOldBlocks(blocks [][]byte) error
-	// AddOldDeserializedBlocks marshals blocks to binary and calls AddOldBlocks().
-	AddOldDeserializedBlocks(blocks []*proto.Block) error
+	// AddBlocks adds batch of new blocks to state.
+	AddBlocks(blocks [][]byte) error
+	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
+	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error
@@ -193,8 +188,8 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, params, settings)
+func NewState(dataDir string, filter bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
+	s, err := newStateManager(dataDir, filter, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

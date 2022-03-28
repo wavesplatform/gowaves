@@ -86,7 +86,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, params, sets)
+	st, err := state.NewState(dataDir, true, params, sets)
 	assert.NoError(t, err)
 	return st, func() {
 		err = st.Close()

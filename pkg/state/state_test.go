@@ -46,7 +46,7 @@ func TestGenesisConfig(t *testing.T) {
 	}
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
-	manager, err := newStateManager(dataDir, stateParams, ss)
+	manager, err := newStateManager(dataDir, true, stateParams, ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -84,7 +84,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -100,7 +100,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	txs := last.Transactions
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
@@ -145,7 +145,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -179,7 +179,7 @@ func TestStateRollback(t *testing.T) {
 			t.Fatalf("Height(): %v\n", err)
 		}
 		if tc.nextHeight > height {
-			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
+			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}
 		} else {
@@ -208,7 +208,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -231,11 +231,11 @@ func TestStateIntegrated(t *testing.T) {
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight, false); err == nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight); err == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1, false); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath); err != nil {
@@ -296,7 +296,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	featureID := int16(1)
 	sets := settings.MainNetSettings
 	sets.PreactivatedFeatures = []int16{featureID}
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), sets)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), sets)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -315,7 +315,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	assert.Equal(t, true, approved)
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Check activation and approval heights.
 	activationHeight, err := manager.ActivationHeight(featureID)
@@ -331,7 +331,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -343,7 +343,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Now validate tx with ID which is already in the state.
 	tx := existingGenesisTx(t)
@@ -360,7 +360,7 @@ func TestTransactionByID(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -372,7 +372,7 @@ func TestTransactionByID(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	// Retrieve existing MainNet genesis tx by its ID.
@@ -394,7 +394,7 @@ func TestStateManager_Mutex(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -412,7 +412,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -427,7 +427,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	assert.Equal(t, genesis, manager.TopBlock())
 
 	height := proto.Height(100)
-	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1, false)
+	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	correct, err := manager.BlockByHeight(height)
@@ -446,7 +446,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
 
-	manager, err = newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
 }
@@ -456,7 +456,7 @@ func TestGenesisStateHash(t *testing.T) {
 	assert.NoError(t, err, "failed to create dir for test data")
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
-	manager, err := newStateManager(dataDir, params, settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -481,7 +481,7 @@ func TestStateHashAtHeight(t *testing.T) {
 	assert.NoError(t, err, "failed to create dir for test data")
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
-	manager, err := newStateManager(dataDir, params, settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, false, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -493,7 +493,7 @@ func TestStateHashAtHeight(t *testing.T) {
 
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	err = importer.ApplyFromFile(manager, blocksPath, 9499, 1, true)
+	err = importer.ApplyFromFile(manager, blocksPath, 9499, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	stateHash, err := manager.StateHashAtHeight(9500)
 	assert.NoError(t, err, "StateHashAtHeight failed")

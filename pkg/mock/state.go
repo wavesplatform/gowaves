@@ -327,6 +327,20 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
 }
 
+// Filter mocks base method.
+func (m *MockStateInfo) Filter() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockStateInfoMockRecorder) Filter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockStateInfo)(nil).Filter))
+}
+
 // FullAssetInfo mocks base method.
 func (m *MockStateInfo) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
@@ -935,6 +949,20 @@ func (mr *MockStateModifierMockRecorder) AddBlock(block interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlock", reflect.TypeOf((*MockStateModifier)(nil).AddBlock), block)
 }
 
+// AddBlocks mocks base method.
+func (m *MockStateModifier) AddBlocks(blocks [][]byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocks", blocks)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocks indicates an expected call of AddBlocks.
+func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
+}
+
 // AddDeserializedBlock mocks base method.
 func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
@@ -950,61 +978,19 @@ func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlock), block)
 }
 
-// AddNewBlocks mocks base method.
-func (m *MockStateModifier) AddNewBlocks(blocks [][]byte) error {
+// AddDeserializedBlocks mocks base method.
+func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddNewBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddNewBlocks indicates an expected call of AddNewBlocks.
-func (mr *MockStateModifierMockRecorder) AddNewBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddNewBlocks), blocks)
-}
-
-// AddNewDeserializedBlocks mocks base method.
-func (m *MockStateModifier) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddNewDeserializedBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// AddNewDeserializedBlocks indicates an expected call of AddNewDeserializedBlocks.
-func (mr *MockStateModifierMockRecorder) AddNewDeserializedBlocks(blocks interface{}) *gomock.Call {
+// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddNewDeserializedBlocks), blocks)
-}
-
-// AddOldBlocks mocks base method.
-func (m *MockStateModifier) AddOldBlocks(blocks [][]byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddOldBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddOldBlocks indicates an expected call of AddOldBlocks.
-func (mr *MockStateModifierMockRecorder) AddOldBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOldBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddOldBlocks), blocks)
-}
-
-// AddOldDeserializedBlocks mocks base method.
-func (m *MockStateModifier) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddOldDeserializedBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddOldDeserializedBlocks indicates an expected call of AddOldDeserializedBlocks.
-func (mr *MockStateModifierMockRecorder) AddOldDeserializedBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOldDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddOldDeserializedBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
 }
 
 // Close mocks base method.
@@ -1221,6 +1207,20 @@ func (mr *MockStateMockRecorder) AddBlock(block interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlock", reflect.TypeOf((*MockState)(nil).AddBlock), block)
 }
 
+// AddBlocks mocks base method.
+func (m *MockState) AddBlocks(blocks [][]byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocks", blocks)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocks indicates an expected call of AddBlocks.
+func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
+}
+
 // AddDeserializedBlock mocks base method.
 func (m *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
@@ -1236,61 +1236,19 @@ func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockState)(nil).AddDeserializedBlock), block)
 }
 
-// AddNewBlocks mocks base method.
-func (m *MockState) AddNewBlocks(blocks [][]byte) error {
+// AddDeserializedBlocks mocks base method.
+func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddNewBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddNewBlocks indicates an expected call of AddNewBlocks.
-func (mr *MockStateMockRecorder) AddNewBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewBlocks", reflect.TypeOf((*MockState)(nil).AddNewBlocks), blocks)
-}
-
-// AddNewDeserializedBlocks mocks base method.
-func (m *MockState) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddNewDeserializedBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// AddNewDeserializedBlocks indicates an expected call of AddNewDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddNewDeserializedBlocks(blocks interface{}) *gomock.Call {
+// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
+func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddNewDeserializedBlocks), blocks)
-}
-
-// AddOldBlocks mocks base method.
-func (m *MockState) AddOldBlocks(blocks [][]byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddOldBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddOldBlocks indicates an expected call of AddOldBlocks.
-func (mr *MockStateMockRecorder) AddOldBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOldBlocks", reflect.TypeOf((*MockState)(nil).AddOldBlocks), blocks)
-}
-
-// AddOldDeserializedBlocks mocks base method.
-func (m *MockState) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddOldDeserializedBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddOldDeserializedBlocks indicates an expected call of AddOldDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddOldDeserializedBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOldDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddOldDeserializedBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
 }
 
 // AddrByAlias mocks base method.
@@ -1500,6 +1458,20 @@ func (m *MockState) EstimatorVersion() (int, error) {
 func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
+}
+
+// Filter mocks base method.
+func (m *MockState) Filter() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Filter")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Filter indicates an expected call of Filter.
+func (mr *MockStateMockRecorder) Filter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockState)(nil).Filter))
 }
 
 // FullAssetInfo mocks base method.

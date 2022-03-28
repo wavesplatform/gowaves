@@ -15,6 +15,12 @@ type ThreadSafeReadWrapper struct {
 	s  StateInfo
 }
 
+func (a *ThreadSafeReadWrapper) Filter() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.Filter()
+}
+
 func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -364,28 +370,16 @@ func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(block *proto.Block) (*prot
 	return a.s.AddDeserializedBlock(block)
 }
 
-func (a *ThreadSafeWriteWrapper) AddNewBlocks(blocks [][]byte) error {
+func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddNewBlocks(blocks)
+	return a.s.AddBlocks(blocks)
 }
 
-func (a *ThreadSafeWriteWrapper) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddNewDeserializedBlocks(blocks)
-}
-
-func (a *ThreadSafeWriteWrapper) AddOldBlocks(blocks [][]byte) error {
-	a.lock()
-	defer a.unlock()
-	return a.s.AddOldBlocks(blocks)
-}
-
-func (a *ThreadSafeWriteWrapper) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	a.lock()
-	defer a.unlock()
-	return a.s.AddOldDeserializedBlocks(blocks)
+	return a.s.AddDeserializedBlocks(blocks)
 }
 
 func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {
