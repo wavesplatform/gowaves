@@ -365,8 +365,7 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 	if err != nil {
 		return err
 	}
-	checkSimultaneously := !params.validatingUtx
-	if !checkSimultaneously {
+	if checkSequentially := params.validatingUtx; checkSequentially {
 		// In UTX it is not very useful to check signatures in separate goroutines,
 		// because they have to be checked in each validateNextTx() anyway.
 		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter)
@@ -389,7 +388,7 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 }
 
 type appendTxParams struct {
-	chans            *verifierChans
+	chans            *verifierChans // can be nil if validatingUtx == true
 	checkerInfo      *checkerInfo
 	blockInfo        *proto.BlockInfo
 	block            *proto.BlockHeader
@@ -397,7 +396,7 @@ type appendTxParams struct {
 	blockV5Activated bool
 	rideV5Activated  bool
 	rideV6Activated  bool
-	validatingUtx    bool
+	validatingUtx    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	initialisation   bool
 }
 
@@ -556,18 +555,23 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.totalScriptsRuns = 0
 	}()
 
-	blockID := params.block.BlockID()
-	hasParent := params.parent != nil
+	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return err
+	}
 	checkerInfo := &checkerInfo{
 		initialisation:   params.initialisation,
 		currentTimestamp: params.block.Timestamp,
-		blockID:          blockID,
+		blockID:          params.block.BlockID(),
 		blockVersion:     params.block.Version,
 		height:           params.height,
+		rideV6Activated:  rideV6Activated,
 	}
+	hasParent := params.parent != nil
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
+
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
@@ -588,10 +592,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return err
-	}
-	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
 		return err
 	}
@@ -804,6 +804,10 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed get currentBlockInfo")
 	}
+	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'RideV6' is activated")
+	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
 		initialisation:   false,
@@ -812,17 +816,26 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		blockID:          block.BlockID(),
 		blockVersion:     version,
 		height:           blockInfo.Height,
+		rideV6Activated:  rideV6Activated,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return errs.Extend(err, "failed check is activated")
+		return errs.Extend(err, "failed to check 'BlockV5' is activated")
 	}
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'RideV5' is activated")
+	}
+
 	appendTxArgs := &appendTxParams{
+		chans:            nil, // nil because validatingUtx == true
 		checkerInfo:      checkerInfo,
 		blockInfo:        blockInfo,
 		block:            block,
 		acceptFailed:     acceptFailed,
 		blockV5Activated: blockV5Activated,
+		rideV5Activated:  rideV5Activated,
+		rideV6Activated:  rideV6Activated,
 		validatingUtx:    true,
 		initialisation:   false,
 	}
