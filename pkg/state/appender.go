@@ -365,7 +365,7 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 	if err != nil {
 		return err
 	}
-	if checkSimultaneously := params.validatingUtx; checkSimultaneously {
+	if checkSequentially := params.validatingUtx; checkSequentially {
 		// In UTX it is not very useful to check signatures in separate goroutines,
 		// because they have to be checked in each validateNextTx() anyway.
 		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter)
