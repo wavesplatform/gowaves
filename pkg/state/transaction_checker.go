@@ -109,7 +109,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation r
 		| DApp Callable V1, V2                   | 2000                          | 2000                         |
 		| DApp Callable V3, V4                   | 4000                          | 4000                         |
 		| DApp Callable V5                       | 10000                         | 10000                        |
-		| DApp Callable V6                       | 26000                         | 26000                        |
+		| DApp Callable V6                       | 52000                         | 52000                        |
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
