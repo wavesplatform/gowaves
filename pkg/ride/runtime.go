@@ -192,6 +192,8 @@ func (a rideAddressLike) eq(other rideType) bool {
 		return bytes.Equal(a[:], o[:])
 	case rideRecipient:
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
+	case rideAddressLike:
+		return bytes.Equal(a[:], o[:])
 	default:
 		return false
 	}
