@@ -866,10 +866,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
-
-			if err := ws.diff.putDataEntry(res.Entry, addr); err != nil {
-				return nil, err
-			}
+			ws.diff.putDataEntry(res.Entry, addr)
 
 		case *proto.AttachedPaymentScriptAction:
 			var senderAddress proto.WavesAddress
