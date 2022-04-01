@@ -1440,7 +1440,7 @@ func scriptTransfer(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	}
 	var recipient rideType
 	switch tr := args[0].(type) {
-	case rideRecipient, rideAlias, rideAddress:
+	case rideRecipient, rideAlias, rideAddress, rideAddressLike:
 		recipient = tr
 	default:
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[0].instanceOf())
