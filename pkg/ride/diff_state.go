@@ -17,32 +17,6 @@ func (d *dataEntryKey) String() string {
 	return fmt.Sprintf("%s|%s", d.key, d.address.String())
 }
 
-type (
-	integerDataEntryKey dataEntryKey
-	booleanDataEntryKey dataEntryKey
-	stringDataEntryKey  dataEntryKey
-	binaryDataEntryKey  dataEntryKey
-	deleteDataEntryKey  dataEntryKey
-)
-
-type diffDataEntries struct {
-	diffInteger map[integerDataEntryKey]proto.IntegerDataEntry // map[key + address.String()]
-	diffBool    map[booleanDataEntryKey]proto.BooleanDataEntry
-	diffString  map[stringDataEntryKey]proto.StringDataEntry
-	diffBinary  map[binaryDataEntryKey]proto.BinaryDataEntry
-	diffDelete  map[deleteDataEntryKey]proto.DeleteDataEntry
-}
-
-func newDiffDataEntries() diffDataEntries {
-	return diffDataEntries{
-		diffInteger: map[integerDataEntryKey]proto.IntegerDataEntry{},
-		diffBool:    map[booleanDataEntryKey]proto.BooleanDataEntry{},
-		diffString:  map[stringDataEntryKey]proto.StringDataEntry{},
-		diffBinary:  map[binaryDataEntryKey]proto.BinaryDataEntry{},
-		diffDelete:  map[deleteDataEntryKey]proto.DeleteDataEntry{},
-	}
-}
-
 type lease struct {
 	Recipient    proto.Recipient
 	leasedAmount int64
@@ -87,7 +61,7 @@ func (b *balanceDiffKey) String() string {
 
 type diffState struct {
 	state         types.SmartState
-	dataEntries   diffDataEntries
+	data          map[dataEntryKey]proto.DataEntry
 	balances      map[balanceDiffKey]diffBalance
 	sponsorships  map[crypto.Digest]diffSponsorship
 	newAssetsInfo map[crypto.Digest]diffNewAssetInfo
@@ -98,7 +72,7 @@ type diffState struct {
 func newDiffState(state types.SmartState) diffState {
 	return diffState{
 		state:         state,
-		dataEntries:   newDiffDataEntries(),
+		data:          map[dataEntryKey]proto.DataEntry{},
 		balances:      map[balanceDiffKey]diffBalance{},
 		sponsorships:  map[crypto.Digest]diffSponsorship{},
 		newAssetsInfo: map[crypto.Digest]diffNewAssetInfo{},
@@ -266,62 +240,58 @@ func (diffSt *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, 
 }
 
 func (diffSt *diffState) findIntFromDataEntryByKey(key string, address proto.WavesAddress) *proto.IntegerDataEntry {
-	intKey := integerDataEntryKey{key, address}
-	if integerEntry, ok := diffSt.dataEntries.diffInteger[intKey]; ok {
-		return &integerEntry
+	k := dataEntryKey{key, address}
+	if e, ok := diffSt.data[k]; ok {
+		if te, ok := e.(*proto.IntegerDataEntry); ok {
+			return te
+		}
 	}
 	return nil
 }
 
 func (diffSt *diffState) findBoolFromDataEntryByKey(key string, address proto.WavesAddress) *proto.BooleanDataEntry {
-	boolKey := booleanDataEntryKey{key, address}
-	if boolEntry, ok := diffSt.dataEntries.diffBool[boolKey]; ok {
-		return &boolEntry
+	k := dataEntryKey{key, address}
+	if e, ok := diffSt.data[k]; ok {
+		if te, ok := e.(*proto.BooleanDataEntry); ok {
+			return te
+		}
 	}
 	return nil
 }
 
 func (diffSt *diffState) findStringFromDataEntryByKey(key string, address proto.WavesAddress) *proto.StringDataEntry {
-	stringKey := stringDataEntryKey{key, address}
-	if stringEntry, ok := diffSt.dataEntries.diffString[stringKey]; ok {
-		return &stringEntry
+	k := dataEntryKey{key, address}
+	if e, ok := diffSt.data[k]; ok {
+		if te, ok := e.(*proto.StringDataEntry); ok {
+			return te
+		}
 	}
 	return nil
 }
 
 func (diffSt *diffState) findBinaryFromDataEntryByKey(key string, address proto.WavesAddress) *proto.BinaryDataEntry {
-	binaryKey := binaryDataEntryKey{key, address}
-	if binaryEntry, ok := diffSt.dataEntries.diffBinary[binaryKey]; ok {
-		return &binaryEntry
+	k := dataEntryKey{key, address}
+	if e, ok := diffSt.data[k]; ok {
+		if te, ok := e.(*proto.BinaryDataEntry); ok {
+			return te
+		}
 	}
 	return nil
 }
 
 func (diffSt *diffState) findDeleteFromDataEntryByKey(key string, address proto.WavesAddress) *proto.DeleteDataEntry {
-	deleteKey := deleteDataEntryKey{key, address}
-	if deleteEntry, ok := diffSt.dataEntries.diffDelete[deleteKey]; ok {
-		return &deleteEntry
+	k := dataEntryKey{key, address}
+	if e, ok := diffSt.data[k]; ok {
+		if te, ok := e.(*proto.DeleteDataEntry); ok {
+			return te
+		}
 	}
 	return nil
 }
 
-func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.WavesAddress) error {
-	d := diffSt.dataEntries
-	switch entry := entry.(type) {
-	case *proto.IntegerDataEntry:
-		d.diffInteger[integerDataEntryKey{entry.Key, address}] = *entry
-	case *proto.StringDataEntry:
-		d.diffString[stringDataEntryKey{entry.Key, address}] = *entry
-	case *proto.BooleanDataEntry:
-		d.diffBool[booleanDataEntryKey{entry.Key, address}] = *entry
-	case *proto.BinaryDataEntry:
-		d.diffBinary[binaryDataEntryKey{entry.Key, address}] = *entry
-	case *proto.DeleteDataEntry:
-		d.diffDelete[deleteDataEntryKey{entry.Key, address}] = *entry
-	default:
-		return EvaluationFailure.Errorf("unknown DataEntry type (%T)=%v", entry, entry)
-	}
-	return nil
+func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.WavesAddress) {
+	k := dataEntryKey{entry.GetKey(), address}
+	diffSt.data[k] = entry
 }
 
 func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, balanceDiffKey, error) {
