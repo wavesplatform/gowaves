@@ -34,7 +34,8 @@ type stateForHashes struct {
 
 func newStateForHashes() *stateForHashes {
 	return &stateForHashes{
-		pos: make(map[string]int),
+		pos:  make(map[string]int),
+		data: make(stateComponents, 0),
 	}
 }
 
@@ -49,7 +50,7 @@ func (s *stateForHashes) set(key string, c stateComponent) {
 }
 
 func (s *stateForHashes) reset() {
-	s.data = nil
+	s.data = make(stateComponents, 0)
 	s.pos = make(map[string]int)
 }
 
