@@ -1438,20 +1438,20 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetFromIssue}] = balanceCallableAsset
 
-	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	boolEntry := proto.BooleanDataEntry{Key: "bool", Value: true}
-	expectedDiffResult.dataEntries.diffBool[booleanDataEntryKey{boolEntry.Key, addressCallable}] = boolEntry
+	boolEntry := &proto.BooleanDataEntry{Key: "bool", Value: true}
+	expectedDiffResult.data[dataEntryKey{boolEntry.Key, addressCallable}] = boolEntry
 
-	stringEntry := proto.StringDataEntry{Key: "str", Value: ""}
-	expectedDiffResult.dataEntries.diffString[stringDataEntryKey{stringEntry.Key, addressCallable}] = stringEntry
+	stringEntry := &proto.StringDataEntry{Key: "str", Value: ""}
+	expectedDiffResult.data[dataEntryKey{stringEntry.Key, addressCallable}] = stringEntry
 
-	binaryEntry := proto.BinaryDataEntry{Key: "bin", Value: []byte("")}
-	expectedDiffResult.dataEntries.diffBinary[binaryDataEntryKey{binaryEntry.Key, addressCallable}] = binaryEntry
+	binaryEntry := &proto.BinaryDataEntry{Key: "bin", Value: []byte("")}
+	expectedDiffResult.data[dataEntryKey{binaryEntry.Key, addressCallable}] = binaryEntry
 
-	deleteEntry := proto.DeleteDataEntry{Key: "str"}
-	expectedDiffResult.dataEntries.diffDelete[deleteDataEntryKey{deleteEntry.Key, addressCallable}] = deleteEntry
+	deleteEntry := &proto.DeleteDataEntry{Key: "str"}
+	expectedDiffResult.data[dataEntryKey{deleteEntry.Key, addressCallable}] = deleteEntry
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
 	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
@@ -1461,7 +1461,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
 	assert.Equal(t, expectedDiffResult.leases, wrappedSt.diff.leases)
@@ -1583,10 +1583,10 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addr}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addr}] = intEntry
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
 	tearDownDappFromDapp()
 }
@@ -1758,13 +1758,13 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	balanceMain := diffBalance{asset: assetExp, regular: 9986, effectiveHistory: []int64{10000, 9986}}
 	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
 	balanceCallable := diffBalance{asset: assetExp, regular: 14, effectiveHistory: []int64{0, 14}}
-	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -1951,13 +1951,13 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	balanceMain := diffBalance{asset: assetExp, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
 	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
 	balanceCallable := diffBalance{asset: assetExp, regular: 29, effectiveHistory: []int64{0, 14, 29}}
-	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -2282,13 +2282,13 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	balanceMain := diffBalance{asset: assetExp, regular: 9987, effectiveHistory: []int64{10000, 9987}}
 	balanceSender := diffBalance{asset: assetExp, regular: 0}
 	balanceCallable := diffBalance{asset: assetExp, regular: 13, effectiveHistory: []int64{0, 13}}
-	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{"bar", addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.data[dataEntryKey{"bar", addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -2398,7 +2398,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
 	tearDownDappFromDapp()
 }
@@ -2595,7 +2595,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
 	tearDownDappFromDapp()
 }
@@ -2743,15 +2743,15 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
 	balanceMain := diffBalance{asset: assetExp, regular: 10000}
 	balanceSender := diffBalance{asset: assetExp, regular: 0}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -2907,10 +2907,10 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
-	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -3256,15 +3256,15 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	balanceMain := diffBalance{asset: assetExp, regular: 9984}
 	balanceSender := diffBalance{asset: assetExp, regular: 0}
 	balanceCallable := diffBalance{asset: assetExp, regular: 16}
-	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
-	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry1.Key, addr}] = intEntry1
-	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry2.Key, addressCallable}] = intEntry2
+	intEntry1 := &proto.IntegerDataEntry{Key: "key", Value: 0}
+	intEntry2 := &proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.data[dataEntryKey{intEntry1.Key, addr}] = intEntry1
+	expectedDiffResult.data[dataEntryKey{intEntry2.Key, addressCallable}] = intEntry2
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
@@ -8697,4 +8697,144 @@ func TestComplexityOverflow(t *testing.T) {
 	_, err = CallFunction(env, tree, "call", arguments)
 	require.Error(t, err)
 	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit for library version 5", err.Error())
+}
+
+func TestDateEntryPutAfterRemoval(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func put() = ([StringEntry("key", "OK")], unit)
+
+		@Callable(i)
+		func remove() = ([DeleteEntry("key")], unit)
+
+		@Callable(i)
+		func call() = {
+		  strict r1 = invoke(this, "put", nil, nil)
+		  strict r2 = invoke(this, "remove", nil, nil)
+		  strict r3 = invoke(this, "put", nil, nil)
+		  (nil, getStringValue(this, "key"))
+		}
+	*/
+	code1 := "AAIFAAAAAAAAAAgIAhIAEgASAAAAAAAAAAADAAAAAWkBAAAAA3B1dAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAANrZXkCAAAAAk9LBQAAAANuaWwFAAAABHVuaXQAAAABaQEAAAAGcmVtb3ZlAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAECAAAAA2tleQUAAAADbmlsBQAAAAR1bml0AAAAAWkBAAAABGNhbGwAAAAABAAAAAJyMQkAA/wAAAAEBQAAAAR0aGlzAgAAAANwdXQFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAJyMQUAAAACcjEEAAAAAnIyCQAD/AAAAAQFAAAABHRoaXMCAAAABnJlbW92ZQUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIyBQAAAAJyMgQAAAACcjMJAAP8AAAABAUAAAAEdGhpcwIAAAADcHV0BQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjMFAAAAAnIzCQAFFAAAAAIFAAAAA25pbAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAAEdGhpcwIAAAADa2V5CQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOJiOqw="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: noRideV6,
+		isProtobufTxFunc:    isProtobufTx,
+		libVersionFunc:      func() int { return 5 },
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch {
+			case account.Address.Equal(dApp1):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unxepected account '%s'", account.String())
+			}
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	ur, ok := res.userResult().(rideString)
+	assert.True(t, ok)
+	assert.Equal(t, "OK", string(ur))
+	assert.Equal(t, 3, len(res.ScriptActions()))
 }
