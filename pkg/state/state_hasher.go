@@ -141,5 +141,5 @@ func (s *stateHasher) stop() error {
 
 func (s *stateHasher) reset() {
 	s.hashes = make(map[proto.BlockID]crypto.Digest)
-	s.storage = newStateForHashes()
+	s.storage.reset()
 }
