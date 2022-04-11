@@ -216,6 +216,9 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	if env.validateInternalPayments() && !env.rideV6Activated() {
 		err = ws.validateBalances()
 		if err != nil {
+			if ws.invCount() > 1 {
+				return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
+			}
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 		}
 	}
