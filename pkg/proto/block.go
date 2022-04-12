@@ -751,10 +751,12 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 		},
 		Transactions: transactions,
 	}
-	if version <= RewardBlockVersion {
+	switch {
+	case version < NgBlockVersion:
+		b.TransactionBlockLength = uint32(transactions.BinarySize() + 1)
+	case version <= RewardBlockVersion:
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
-	}
-	if version >= ProtobufBlockVersion {
+	case version >= ProtobufBlockVersion:
 		err := b.SetTransactionsRoot(scheme)
 		if err != nil {
 			return nil, err

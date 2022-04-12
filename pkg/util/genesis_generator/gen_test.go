@@ -12,9 +12,12 @@ import (
 func TestGenerate(t *testing.T) {
 	a, err := proto.MustKeyPair([]byte("test")).Addr('W')
 	require.NoError(t, err)
-	rs, err := Generate('W', []GenesisTransactionInfo{{Address: a, Amount: 9000000000000000, Timestamp: 1558516864282}}, 153722867, 1558516864282)
+	block, err := GenerateGenesisBlock('W', []GenesisTransactionInfo{{Address: a, Amount: 9000000000000000, Timestamp: 1558516864282}}, 153722867, 1558516864282)
 	require.NoError(t, err)
-	require.Equal(t, 1, rs.TransactionCount)
+	require.Equal(t, 1, block.TransactionCount)
+	ok, err := block.VerifySignature('W')
+	require.NoError(t, err)
+	assert.True(t, ok)
 }
 
 func TestGenerateMainNet(t *testing.T) {
@@ -26,12 +29,18 @@ func TestGenerateMainNet(t *testing.T) {
 		{Address: proto.MustAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3"), Amount: 100000000, Timestamp: 1465742577614},
 		{Address: proto.MustAddressFromString("3PBWXDFUc86N2EQxKJmW8eFco65xTyMZx6J"), Amount: 100000000, Timestamp: 1465742577614},
 	}
-	block, err := Generate('W', txs, 153722867, 1460678400000)
+	sig := crypto.MustSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
+	block, err := RecreateGenesisBlock('W', txs, 153722867, 1460678400000, sig)
 	require.NoError(t, err)
+	bb, err := block.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, 500, len(bb))
 	assert.Equal(t, 6, block.TransactionCount)
-	assert.Equal(t, 283, block.TransactionBlockLength)
-	assert.ElementsMatch(t, block.BlockID().Bytes(), block.BlockSignature.Bytes())
-	assert.Equal(t, crypto.MustSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"), block.BlockSignature)
+	assert.Equal(t, 283, int(block.TransactionBlockLength))
+	assert.ElementsMatch(t, sig.Bytes(), block.BlockSignature.Bytes())
+	ok, err := block.VerifySignature('W')
+	require.NoError(t, err)
+	assert.True(t, ok)
 
 	txID1, err := block.Transactions[0].GetID('W')
 	require.NoError(t, err)
@@ -75,8 +84,11 @@ func TestGenerateDevNet(t *testing.T) {
 		{Address: proto.MustAddressFromString("3FWMHWBXf5qzDenTFhUhT2tuqaoGnYHr6PM"), Amount: 50000000000000, Timestamp: 1597073607702},
 		{Address: proto.MustAddressFromString("3FQntwq5KiXxEb8k2xLM6VGcZbBoTEroCsB"), Amount: 70000000000000, Timestamp: 1597073607702},
 	}
-	block, err := Generate('D', txs, 5000, 1597073607702)
+	sig := crypto.MustSignatureFromBase58("5rDxRRzc9CM21j8XuAE1qp39svEr1BeLLF38HnchZd579ATdAPHqWxkt42AtoAV52GkVLU6F3TC2CWp2nzRKHpj8")
+	block, err := RecreateGenesisBlock('D', txs, 5000, 1597073607702, sig)
 	require.NoError(t, err)
 	assert.Equal(t, 8, block.TransactionCount)
-	assert.Equal(t, crypto.MustSignatureFromBase58("5rDxRRzc9CM21j8XuAE1qp39svEr1BeLLF38HnchZd579ATdAPHqWxkt42AtoAV52GkVLU6F3TC2CWp2nzRKHpj8"), block.BlockSignature)
+	ok, err := block.VerifySignature('D')
+	require.NoError(t, err)
+	assert.True(t, ok)
 }

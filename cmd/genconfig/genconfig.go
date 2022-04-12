@@ -24,6 +24,7 @@ type cli struct {
 	schemeByte string
 	seeds      []string
 	timeShift  time.Duration
+	bt         uint64
 }
 
 func (c *cli) parse() error {
@@ -33,6 +34,7 @@ func (c *cli) parse() error {
 	c.schemeByte = *schemeByte
 	c.seeds = strings.Split(*seedsString, ",")
 	c.timeShift = *timeShift
+	c.bt = *baseTarget
 	return nil
 }
 
@@ -40,6 +42,7 @@ var (
 	schemeByte  = flag.String("scheme-byte", "", "Scheme byte")
 	seedsString = flag.String("seeds", "", "Seeds. Example: test1:100_000_000_000_000,test2:100_000")
 	timeShift   = flag.Duration("time-shift", 0, "Time shift. Format: +1h, -2h3s.")
+	baseTarget  = flag.Uint64("base-target", 0, "Base Target")
 )
 
 func init() {
@@ -54,26 +57,30 @@ func main() {
 	}
 
 	now := time.Now()
-	t := proto.NewTimestampFromTime(now)
+	ts := proto.NewTimestampFromTime(now)
 	if cliArgs.timeShift != 0 {
-		t = proto.NewTimestampFromTime(now.Add(cliArgs.timeShift))
+		ts = proto.NewTimestampFromTime(now.Add(cliArgs.timeShift))
 	}
-
-	inf := make([]interface{}, 0, 2*len(cliArgs.seeds))
+	scheme := cliArgs.schemeByte[0]
+	inf := make([]genesis_generator.GenesisTransactionInfo, 0, len(cliArgs.seeds))
 	for i, v := range cliArgs.seeds {
-		splitted := strings.Split(v, ":")
-		if len(splitted) != 2 {
+		split := strings.Split(v, ":")
+		if len(split) != 2 {
 			zap.S().Fatal("format should be test1:100000000")
 		}
-		kp := proto.MustKeyPair([]byte(splitted[0]))
-		num, err := strconv.ParseUint(strings.Replace(splitted[1], "_", "", -1), 10, 64)
+		kp := proto.MustKeyPair([]byte(split[0]))
+		addr, err := proto.NewAddressFromPublicKey(scheme, kp.Public)
+		if err != nil {
+			zap.S().Fatalf("Failed to parse seed (%d): %v", i, err)
+		}
+		num, err := strconv.ParseUint(strings.Replace(split[1], "_", "", -1), 10, 64)
 		if err != nil {
 			zap.S().Fatalf("failed to parse seed (%d): %v", i, err)
 		}
-		inf = append(inf, kp, num)
+		inf = append(inf, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: num, Timestamp: ts})
 	}
 
-	genesis, err := genesis_generator.Generate(t, cliArgs.schemeByte[0], inf...)
+	genesis, err := genesis_generator.GenerateGenesisBlock(scheme, inf, cliArgs.bt, ts)
 	if err != nil {
 		zap.S().Fatal(err)
 	}

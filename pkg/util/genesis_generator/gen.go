@@ -11,37 +11,52 @@ type GenesisTransactionInfo struct {
 	Timestamp uint64
 }
 
-func newGenesisBlock(scheme proto.Scheme, transactions proto.Transactions, baseTarget, timestamp proto.Timestamp) (*proto.Block, error) {
-	id := proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"))
-	block, err := proto.CreateBlock(
-		transactions,
-		timestamp,
-		id,
-		crypto.PublicKey{},
-		proto.NxtConsensus{
-			BaseTarget:   baseTarget,
-			GenSignature: crypto.MustBytesFromBase58("11111111111111111111111111111111"),
-		},
-		proto.GenesisBlockVersion,
-		nil,
-		0,
-		scheme,
-	)
+var (
+	genesisBlockParent  = proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"))
+	genesisKeyPair      = proto.MustKeyPair([]byte{})
+	genesisGenSignature = crypto.MustBytesFromBase58("11111111111111111111111111111111")
+)
 
+// GenerateGenesisBlock creates a new genesis block with a new signature. The signature will be different each time.
+// This function should be used to create genesis block for integration tests and alike.
+func GenerateGenesisBlock(scheme proto.Scheme, transactions []GenesisTransactionInfo, baseTarget uint64, timestamp proto.Timestamp) (*proto.Block, error) {
+	txs, err := makeTransactions(scheme, transactions)
 	if err != nil {
 		return nil, err
 	}
+	return newGenesisBlock(scheme, txs, baseTarget, timestamp)
+}
 
-	kp := proto.MustKeyPair([]byte{})
-	err = block.Sign(scheme, kp.Secret)
+// RecreateGenesisBlock builds the GenesisBlock and sets it signature to the given signature.
+// Use this function to reproduce existing genesis blocks for known networks.
+func RecreateGenesisBlock(scheme proto.Scheme, transactions []GenesisTransactionInfo, baseTarget uint64, timestamp proto.Timestamp, signature crypto.Signature) (*proto.Block, error) {
+	txs, err := makeTransactions(scheme, transactions)
 	if err != nil {
 		return nil, err
 	}
-
+	block, err := newGenesisBlock(scheme, txs, baseTarget, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	block.BlockSignature = signature
 	return block, nil
 }
 
-func Generate(scheme byte, transactions []GenesisTransactionInfo, baseTarget, timestamp proto.Timestamp) (*proto.Block, error) {
+func newGenesisBlock(scheme proto.Scheme, transactions proto.Transactions, baseTarget, timestamp proto.Timestamp) (*proto.Block, error) {
+	consensus := proto.NxtConsensus{BaseTarget: baseTarget, GenSignature: genesisGenSignature}
+	block, err := proto.CreateBlock(transactions, timestamp, genesisBlockParent, genesisKeyPair.Public, consensus,
+		proto.GenesisBlockVersion, nil, 0, scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = block.Sign(scheme, genesisKeyPair.Secret)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func makeTransactions(scheme proto.Scheme, transactions []GenesisTransactionInfo) (proto.Transactions, error) {
 	txs := make(proto.Transactions, len(transactions))
 	for i := range transactions {
 		tx := proto.NewUnsignedGenesis(transactions[i].Address, transactions[i].Amount, transactions[i].Timestamp)
@@ -51,5 +66,5 @@ func Generate(scheme byte, transactions []GenesisTransactionInfo, baseTarget, ti
 		}
 		txs[i] = tx
 	}
-	return newGenesisBlock(scheme, txs, baseTarget, timestamp)
+	return txs, nil
 }
