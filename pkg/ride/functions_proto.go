@@ -150,7 +150,7 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
 	if err != nil {
-		return nil, errors.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	payments, ok := args[3].(rideList)
@@ -216,7 +216,10 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	if env.validateInternalPayments() && !env.rideV6Activated() {
 		err = ws.validateBalances()
 		if err != nil {
-			return nil, err
+			if ws.invCount() > 1 {
+				return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
+			}
+			return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 		}
 	}
 

@@ -8838,3 +8838,164 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 	assert.Equal(t, "OK", string(ur))
 	assert.Equal(t, 3, len(res.ScriptActions()))
 }
+
+func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	_, _, test := makeAddressAndPK(t, "TEST")
+
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		{-# CONTENT_TYPE DAPP #-}
+
+
+		@Callable(i)
+		func call(n: Int) = if (n == 0) then
+		  [ScriptTransfer(Alias("test"), 1000000000, unit)]
+		else {
+		  let f = fraction(fraction(n, 1, 1), 1, 1)
+		  let g = invoke(this, "call", [(f - 1)], nil)
+		  if (g == g) then nil else throw("Strict value is not equal to itself.")
+		}
+	*/
+	code1 := "AAIFAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAABbgMJAAAAAAAAAgUAAAABbgAAAAAAAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAFQWxpYXMAAAABAgAAAAR0ZXN0AAAAAAA7msoABQAAAAR1bml0BQAAAANuaWwEAAAAAWYJAABrAAAAAwkAAGsAAAADBQAAAAFuAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABBAAAAAFnCQAD/AAAAAQFAAAABHRoaXMCAAAABGNhbGwJAARMAAAAAgkAAGUAAAACBQAAAAFmAAAAAAAAAAABBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAABZwUAAAABZwUAAAADbmlsCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgAAAABAf0wS"
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments10 := proto.Arguments{&proto.IntegerArgument{Value: 10}}
+	call10 := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments10,
+	}
+	//arguments1 := proto.Arguments{&proto.IntegerArgument{Value: 1}}
+	//call1 := proto.FunctionCall{
+	//	Default:   false,
+	//	Name:      "call",
+	//	Arguments: arguments1,
+	//}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call10,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: noRideV6,
+		isProtobufTxFunc:    isProtobufTx,
+		libVersionFunc:      func() int { return 5 },
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case sender.String():
+				return &sender, nil
+			case dApp1.String():
+				return &dApp1, nil
+			case test.String(), "alias:T:test":
+				return &test, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch {
+			case account.Address.Equal(dApp1):
+				return 0, nil
+			case account.Address.Equal(sender):
+				return 1000000000, nil
+			case account.Address.Equal(test):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unxepected account '%s'", account.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.Alias {
+			case "test":
+				return test, nil
+			default:
+				return proto.WavesAddress{}, errors.New("unxepected test alias")
+			}
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	_, err = CallFunction(env, tree, "call", arguments10)
+	require.Error(t, err)
+	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
+
+	arguments1 := proto.Arguments{&proto.IntegerArgument{Value: 1}}
+	_, err = CallFunction(env, tree, "call", arguments1)
+	require.Error(t, err)
+	assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(err))
+}
