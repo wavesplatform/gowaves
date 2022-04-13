@@ -505,17 +505,17 @@ func NewScriptActionsCountValidator() ActionsCountValidator {
 	}
 }
 
-func (a *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
+func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
 	switch groupType := action.GroupType(); groupType {
 	case DataScriptActionGroupType:
-		a.dataScriptActionsCounter++
-		return a.validateDataEntryGroup()
+		v.dataScriptActionsCounter++
+		return v.validateDataEntryGroup()
 	case AssetScriptActionGroupType:
-		a.assetScriptActionsCounter++
-		return a.validateAssetActionsGroup(libVersion)
+		v.assetScriptActionsCounter++
+		return v.validateAssetActionsGroup(libVersion)
 	case BalanceScriptActionGroupType:
-		a.balanceScriptActionsCounter++
-		return a.validateBalanceActionsGroup(libVersion)
+		v.balanceScriptActionsCounter++
+		return v.validateBalanceActionsGroup(libVersion)
 	case AttachedPaymentScriptActionGroupType:
 		return nil
 	default:
@@ -523,33 +523,33 @@ func (a *ActionsCountValidator) CountAction(action ScriptAction, libVersion int)
 	}
 }
 
-func (a *ActionsCountValidator) validateDataEntryGroup() error {
-	if a.dataScriptActionsCounter > MaxDataEntryScriptActions {
+func (v *ActionsCountValidator) validateDataEntryGroup() error {
+	if v.dataScriptActionsCounter > MaxDataEntryScriptActions {
 		return errors.Errorf("number of data entries (%d) produced by script is more than allowed %d",
-			a.dataScriptActionsCounter, MaxDataEntryScriptActions,
+			v.dataScriptActionsCounter, MaxDataEntryScriptActions,
 		)
 	}
 	return nil
 }
 
-func (a *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error {
+func (v *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error {
 	switch {
 	case libVersion < 5:
-		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
+		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
 	case libVersion == 5:
-		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
+		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
 	case libVersion > 5:
-		if a.assetScriptActionsCounter > MaxAssetScriptActionsIssueV3 {
+		if v.assetScriptActionsCounter > MaxAssetScriptActionsIssueV3 {
 			return errors.Errorf("number of issue group actions (%d) produced by script is more than allowed %d",
-				a.assetScriptActionsCounter, MaxAssetScriptActionsIssueV3,
+				v.assetScriptActionsCounter, MaxAssetScriptActionsIssueV3,
 			)
 		}
 	default:
@@ -558,24 +558,24 @@ func (a *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error 
 	return nil
 }
 
-func (a *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) error {
+func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) error {
 	switch {
 	case libVersion < 5:
-		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
+		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
 	case libVersion == 5:
-		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
+		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
 	case libVersion > 5:
-		if a.balanceScriptActionsCounter > MaxBalanceScriptActionsV3 {
+		if v.balanceScriptActionsCounter > MaxBalanceScriptActionsV3 {
 			return errors.Errorf("number of transfer group actions (%d) produced by script is more than allowed %d",
-				a.balanceScriptActionsCounter, MaxBalanceScriptActionsV3,
+				v.balanceScriptActionsCounter, MaxBalanceScriptActionsV3,
 			)
 		}
 	default:

@@ -182,7 +182,10 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(attachedPaymentActions, env)
+
+	localActionsCountValidators := proto.NewScriptActionsCountValidator()
+
+	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidators)
 	if err != nil {
 		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
 	}
@@ -208,7 +211,7 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
-	err = ws.smartAppendActions(res.ScriptActions(), env)
+	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidators)
 	if err != nil {
 		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
 	}

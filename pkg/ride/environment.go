@@ -14,23 +14,25 @@ var (
 )
 
 type WrappedState struct {
-	diff                  diffState
-	cle                   rideAddress
-	scheme                proto.Scheme
-	act                   []proto.ScriptAction
-	blocklist             []proto.WavesAddress
-	invocationCount       int
-	totalComplexity       int
-	dataEntriesSize       int
-	actionsCountValidator proto.ActionsCountValidator
+	diff                      diffState
+	cle                       rideAddress
+	scheme                    proto.Scheme
+	act                       []proto.ScriptAction
+	blocklist                 []proto.WavesAddress
+	invocationCount           int
+	totalComplexity           int
+	dataEntriesSize           int
+	rootScriptLibVersion      int
+	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion int) *WrappedState {
 	return &WrappedState{
-		diff:                  newDiffState(env.st),
-		cle:                   env.th.(rideAddress),
-		scheme:                env.sch,
-		actionsCountValidator: proto.NewScriptActionsCountValidator(),
+		diff:                      newDiffState(env.st),
+		cle:                       env.th.(rideAddress),
+		scheme:                    env.sch,
+		rootScriptLibVersion:      rootScriptLibVersion,
+		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
 }
 
@@ -42,8 +44,12 @@ func (ws *WrappedState) callee() proto.WavesAddress {
 	return proto.WavesAddress(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env environment) error {
-	modifiedActions, err := ws.ApplyToState(actions, env)
+func (ws *WrappedState) smartAppendActions(
+	actions []proto.ScriptAction,
+	env environment,
+	localActionsCountValidator *proto.ActionsCountValidator,
+) error {
+	modifiedActions, err := ws.ApplyToState(actions, env, localActionsCountValidator)
 	if err != nil {
 		return err
 	}
@@ -735,6 +741,10 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invocationCount++
 }
 
+func (ws *WrappedState) countActionTotal(action proto.ScriptAction) error {
+	return ws.rootActionsCountValidator.CountAction(action, ws.rootScriptLibVersion)
+}
+
 func (ws *WrappedState) validateBalances() error {
 	for key, balanceDiff := range ws.diff.balances {
 		address := proto.NewRecipientFromAddress(key.address)
@@ -762,23 +772,29 @@ func (ws *WrappedState) validateBalances() error {
 	return nil
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environment) ([]proto.ScriptAction, error) {
-	libVersion, err := ws.getLibVersion()
+func (ws *WrappedState) ApplyToState(
+	actions []proto.ScriptAction,
+	env environment,
+	localActionsCountValidator *proto.ActionsCountValidator,
+) ([]proto.ScriptAction, error) {
+	currentLibVersion, err := ws.getLibVersion()
 	if err != nil {
 		return nil, err
 	}
-	disableSelfTransfers := libVersion >= 4  // it's OK, this flag depends on library version, not feature
-	isUTF16KeyLen := !env.blockV5Activated() // if RideV4 isn't activated
+	disableSelfTransfers := currentLibVersion >= 4 // it's OK, this flag depends on library version, not feature
+	isUTF16KeyLen := !env.blockV5Activated()       // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:  disableSelfTransfers,
 		IsUTF16KeyLen:         isUTF16KeyLen,
 		IsProtobufTransaction: env.isProtobufTx(),
 		MaxDataEntriesSize:    env.maxDataEntriesSize(),
 	}
-
 	for _, action := range actions {
-		if err := ws.actionsCountValidator.CountAction(action, libVersion); err != nil {
-			return nil, errors.Wrap(err, "failed to validate actions count")
+		if err := localActionsCountValidator.CountAction(action, currentLibVersion); err != nil {
+			return nil, errors.Wrap(err, "failed to validate local actions count")
+		}
+		if err := ws.countActionTotal(action); err != nil {
+			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 		switch res := action.(type) {
 
@@ -1133,10 +1149,11 @@ func NewEnvironmentWithWrappedState(
 	isBlockV5Activated bool,
 	isRideV6Activated bool,
 	isProtobufTransaction bool,
+	rootScriptLibVersion int,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
-	st := newWrappedState(env)
+	st := newWrappedState(env, rootScriptLibVersion)
 	for _, payment := range payments {
 		var (
 			senderBalance uint64
