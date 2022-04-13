@@ -8,8 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 type contentType byte
@@ -99,6 +97,7 @@ type parser struct {
 	readShort   func(*bytes.Reader) (int16, error)
 	readInt     func(*bytes.Reader) (int32, error)
 	readLong    func(*bytes.Reader) (int64, error)
+	readMeta    func(p *parser) (meta.DApp, error)
 }
 
 func (p *parser) parse() (*Tree, error) {
@@ -117,7 +116,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 		contentType: p.header.content,
 		LibVersion:  int(p.header.library),
 	}
-	m, err := p.readMeta()
+	m, err := p.readMeta(p)
 	if err != nil {
 		return nil, err
 	}
@@ -413,31 +412,6 @@ func (p *parser) readDeclaration() (Node, error) {
 		return NewFunctionDeclarationNode(name, arguments, body, nil), nil
 	default:
 		return nil, errors.Errorf("unsupported declaration type %d", dt)
-	}
-}
-
-func (p *parser) readMeta() (meta.DApp, error) {
-	v, err := p.readInt(p.r)
-	if err != nil {
-		return meta.DApp{}, err
-	}
-	b, err := p.readBytes()
-	if err != nil {
-		return meta.DApp{}, err
-	}
-	switch v {
-	case 0:
-		pbMeta := new(g.DAppMeta)
-		if err := protobuf.Unmarshal(b, pbMeta); err != nil {
-			return meta.DApp{}, err
-		}
-		m, err := meta.Convert(pbMeta)
-		if err != nil {
-			return meta.DApp{}, err
-		}
-		return m, nil
-	default:
-		return meta.DApp{}, errors.Errorf("unsupported script meta version %d", v)
 	}
 }
 
