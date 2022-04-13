@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func SerializeTreeV1(tree *Tree) ([]byte, error) {
@@ -19,6 +18,7 @@ func SerializeTreeV1(tree *Tree) ([]byte, error) {
 	s.writeUint16 = writeUint16V1
 	s.writeUint32 = writeUint32V1
 	s.writeInt64 = writeInt64V1
+	s.writeMeta = writeMetaV1
 	return s.serialize(tree)
 }
 
@@ -31,6 +31,7 @@ func SerializeTreeV2(tree *Tree) ([]byte, error) {
 	s.writeUint16 = writeUint16V2
 	s.writeUint32 = writeUint32V2
 	s.writeInt64 = writeInt64V2
+	s.writeMeta = writeMetaV2
 	return s.serialize(tree)
 }
 
@@ -41,6 +42,7 @@ type serializer struct {
 	writeUint16     func(*bytes.Buffer, uint16) error
 	writeUint32     func(*bytes.Buffer, uint32) error
 	writeInt64      func(*bytes.Buffer, int64) error
+	writeMeta       func(*serializer, meta.DApp) error
 }
 
 func (s *serializer) serialize(tree *Tree) ([]byte, error) {
@@ -63,24 +65,6 @@ func (s *serializer) serialize(tree *Tree) ([]byte, error) {
 		return nil, err
 	}
 	return s.buf.Bytes(), nil
-}
-
-func (s *serializer) writeMeta(m meta.DApp) error {
-	if err := s.writeUint32(s.buf, 0); err != nil { // Meta version is always 0
-		return err
-	}
-	pbMeta, err := meta.Build(m)
-	if err != nil {
-		return err
-	}
-	mb, err := protobuf.Marshal(pbMeta)
-	if err != nil {
-		return err
-	}
-	if err := s.writeBytes(mb); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *serializer) writeDeclarations(declarations []Node) error {

@@ -3,6 +3,9 @@ package ride
 import (
 	"bytes"
 	"encoding/binary"
+
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func serializeDAppV1(s *serializer, tree *Tree) error {
@@ -15,7 +18,7 @@ func serializeDAppV1(s *serializer, tree *Tree) error {
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {
 		return err
 	}
-	if err := s.writeMeta(tree.Meta); err != nil {
+	if err := s.writeMeta(s, tree.Meta); err != nil {
 		return err
 	}
 	if err := s.writeDeclarations(tree.Declarations); err != nil {
@@ -59,4 +62,22 @@ func writeInt64V1(buf *bytes.Buffer, v int64) error {
 	binary.BigEndian.PutUint64(b[:], uint64(v))
 	_, err := buf.Write(b[:])
 	return err
+}
+
+func writeMetaV1(s *serializer, m meta.DApp) error {
+	if err := s.writeUint32(s.buf, 0); err != nil { // Meta version is always 0
+		return err
+	}
+	pbMeta, err := meta.Build(m)
+	if err != nil {
+		return err
+	}
+	mb, err := protobuf.Marshal(pbMeta)
+	if err != nil {
+		return err
+	}
+	if err := s.writeBytes(mb); err != nil {
+		return err
+	}
+	return nil
 }

@@ -6,6 +6,9 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func newParserV2(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
@@ -17,6 +20,7 @@ func newParserV2(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
 	p.readShort = readShortV2
 	p.readInt = readIntV2
 	p.readLong = readLongV2
+	p.readMeta = readMetaV2
 	return p
 }
 
@@ -50,4 +54,20 @@ func readLongV2(r *bytes.Reader) (int64, error) {
 		return 0, err
 	}
 	return int64(v), nil
+}
+
+func readMetaV2(p *parser) (meta.DApp, error) {
+	b, err := p.readBytes()
+	if err != nil {
+		return meta.DApp{}, err
+	}
+	pbMeta := new(g.DAppMeta)
+	if err := protobuf.Unmarshal(b, pbMeta); err != nil {
+		return meta.DApp{}, err
+	}
+	m, err := meta.Convert(pbMeta)
+	if err != nil {
+		return meta.DApp{}, err
+	}
+	return m, nil
 }
