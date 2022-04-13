@@ -57,8 +57,8 @@ const (
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
 	MaxScriptActionsV1                       = 10
 	MaxScriptActionsV2                       = 30
-	MaxScriptActionsTransferV3               = 100
-	MaxScriptActionsIssueV3                  = 30
+	MaxBalanceScriptActionsV3                = 100
+	MaxAssetScriptActionsIssueV3             = 30
 )
 
 type Timestamp = uint64

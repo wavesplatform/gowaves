@@ -11,10 +11,10 @@ import (
 type ScriptActionGroupType byte
 
 const (
-	DataEntryScriptActionGroupType = iota + 1
+	DataScriptActionGroupType = iota + 1
 	AttachedPaymentScriptActionGroupType
-	IssueScriptActionGroupType
-	TransferScriptActionGroupType
+	AssetScriptActionGroupType
+	BalanceScriptActionGroupType
 )
 
 // ScriptAction common interface of script invocation actions.
@@ -30,13 +30,13 @@ type DataEntryScriptAction struct {
 	Entry  DataEntry
 }
 
-func (a DataEntryScriptAction) scriptAction() {}
+func (a *DataEntryScriptAction) scriptAction() {}
 
 func (a *DataEntryScriptAction) GroupType() ScriptActionGroupType {
-	return DataEntryScriptActionGroupType
+	return DataScriptActionGroupType
 }
 
-func (a DataEntryScriptAction) SenderPK() *crypto.PublicKey {
+func (a *DataEntryScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -72,7 +72,7 @@ type TransferScriptAction struct {
 func (a *TransferScriptAction) scriptAction() {}
 
 func (a *TransferScriptAction) GroupType() ScriptActionGroupType {
-	return TransferScriptActionGroupType
+	return BalanceScriptActionGroupType
 }
 
 func (a *TransferScriptAction) SenderPK() *crypto.PublicKey {
@@ -107,7 +107,7 @@ type IssueScriptAction struct {
 func (a *IssueScriptAction) scriptAction() {}
 
 func (a *IssueScriptAction) GroupType() ScriptActionGroupType {
-	return IssueScriptActionGroupType
+	return AssetScriptActionGroupType
 }
 
 func (a *IssueScriptAction) SenderPK() *crypto.PublicKey {
@@ -164,7 +164,7 @@ type ReissueScriptAction struct {
 func (a *ReissueScriptAction) scriptAction() {}
 
 func (a *ReissueScriptAction) GroupType() ScriptActionGroupType {
-	return IssueScriptActionGroupType
+	return AssetScriptActionGroupType
 }
 
 func (a *ReissueScriptAction) SenderPK() *crypto.PublicKey {
@@ -189,7 +189,7 @@ type BurnScriptAction struct {
 func (a *BurnScriptAction) scriptAction() {}
 
 func (a *BurnScriptAction) GroupType() ScriptActionGroupType {
-	return IssueScriptActionGroupType
+	return AssetScriptActionGroupType
 }
 
 func (a *BurnScriptAction) SenderPK() *crypto.PublicKey {
@@ -213,7 +213,7 @@ type SponsorshipScriptAction struct {
 func (a *SponsorshipScriptAction) scriptAction() {}
 
 func (a *SponsorshipScriptAction) GroupType() ScriptActionGroupType {
-	return IssueScriptActionGroupType
+	return AssetScriptActionGroupType
 }
 
 func (a *SponsorshipScriptAction) SenderPK() *crypto.PublicKey {
@@ -241,7 +241,7 @@ type LeaseScriptAction struct {
 func (a *LeaseScriptAction) scriptAction() {}
 
 func (a *LeaseScriptAction) GroupType() ScriptActionGroupType {
-	return TransferScriptActionGroupType
+	return BalanceScriptActionGroupType
 }
 
 func (a *LeaseScriptAction) SenderPK() *crypto.PublicKey {
@@ -292,7 +292,7 @@ type LeaseCancelScriptAction struct {
 func (a *LeaseCancelScriptAction) scriptAction() {}
 
 func (a *LeaseCancelScriptAction) GroupType() ScriptActionGroupType {
-	return TransferScriptActionGroupType
+	return BalanceScriptActionGroupType
 }
 
 func (a *LeaseCancelScriptAction) SenderPK() *crypto.PublicKey {
@@ -492,30 +492,30 @@ type ActionsValidationRestrictions struct {
 }
 
 type ActionsCountValidator struct {
-	dataEntriesActionsCounter   int
-	issueGroupActionsCounter    int
-	transferGroupActionsCounter int
+	dataScriptActionsCounter    int
+	assetScriptActionsCounter   int
+	balanceScriptActionsCounter int
 }
 
 func NewScriptActionsCountValidator() ActionsCountValidator {
 	return ActionsCountValidator{
-		dataEntriesActionsCounter:   0,
-		issueGroupActionsCounter:    0,
-		transferGroupActionsCounter: 0,
+		dataScriptActionsCounter:    0,
+		assetScriptActionsCounter:   0,
+		balanceScriptActionsCounter: 0,
 	}
 }
 
 func (a *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
 	switch groupType := action.GroupType(); groupType {
-	case DataEntryScriptActionGroupType:
-		a.dataEntriesActionsCounter++
+	case DataScriptActionGroupType:
+		a.dataScriptActionsCounter++
 		return a.validateDataEntryGroup()
-	case IssueScriptActionGroupType:
-		a.issueGroupActionsCounter++
-		return a.validateIssueGroup(libVersion)
-	case TransferScriptActionGroupType:
-		a.transferGroupActionsCounter++
-		return a.validateTransferGroup(libVersion)
+	case AssetScriptActionGroupType:
+		a.assetScriptActionsCounter++
+		return a.validateAssetActionsGroup(libVersion)
+	case BalanceScriptActionGroupType:
+		a.balanceScriptActionsCounter++
+		return a.validateBalanceActionsGroup(libVersion)
 	case AttachedPaymentScriptActionGroupType:
 		return nil
 	default:
@@ -524,62 +524,62 @@ func (a *ActionsCountValidator) CountAction(action ScriptAction, libVersion int)
 }
 
 func (a *ActionsCountValidator) validateDataEntryGroup() error {
-	if a.dataEntriesActionsCounter > MaxDataEntryScriptActions {
+	if a.dataScriptActionsCounter > MaxDataEntryScriptActions {
 		return errors.Errorf("number of data entries (%d) produced by script is more than allowed %d",
-			a.dataEntriesActionsCounter, MaxDataEntryScriptActions,
+			a.dataScriptActionsCounter, MaxDataEntryScriptActions,
 		)
 	}
 	return nil
 }
 
-func (a *ActionsCountValidator) validateIssueGroup(libVersion int) error {
+func (a *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error {
 	switch {
 	case libVersion < 5:
-		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV1 {
+		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
 	case libVersion == 5:
-		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV2 {
+		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
 	case libVersion > 5:
-		if a.issueGroupActionsCounter > MaxScriptActionsIssueV3 {
+		if a.assetScriptActionsCounter > MaxAssetScriptActionsIssueV3 {
 			return errors.Errorf("number of issue group actions (%d) produced by script is more than allowed %d",
-				a.issueGroupActionsCounter, MaxScriptActionsIssueV3,
+				a.assetScriptActionsCounter, MaxAssetScriptActionsIssueV3,
 			)
 		}
 	default:
-		panic("ActionsCountValidator.validateIssueGroup: unreachable point reached")
+		panic("ActionsCountValidator.validateAssetActionsGroup: unreachable point reached")
 	}
 	return nil
 }
 
-func (a *ActionsCountValidator) validateTransferGroup(libVersion int) error {
+func (a *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) error {
 	switch {
 	case libVersion < 5:
-		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV1 {
+		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
 	case libVersion == 5:
-		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV2 {
+		if actionsCount := a.assetScriptActionsCounter + a.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
 	case libVersion > 5:
-		if a.transferGroupActionsCounter > MaxScriptActionsTransferV3 {
+		if a.balanceScriptActionsCounter > MaxBalanceScriptActionsV3 {
 			return errors.Errorf("number of transfer group actions (%d) produced by script is more than allowed %d",
-				a.transferGroupActionsCounter, MaxScriptActionsTransferV3,
+				a.balanceScriptActionsCounter, MaxBalanceScriptActionsV3,
 			)
 		}
 	default:
-		panic("ActionsCountValidator.validateTransferGroup: unreachable point reached")
+		panic("ActionsCountValidator.validateBalanceActionsGroup: unreachable point reached")
 	}
 	return nil
 }
