@@ -8,9 +8,19 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
+type ScriptActionGroupType byte
+
+const (
+	DataEntryScriptActionGroupType = iota + 1
+	AttachedPaymentScriptActionGroupType
+	IssueScriptActionGroupType
+	TransferScriptActionGroupType
+)
+
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {
 	scriptAction()
+	GroupType() ScriptActionGroupType
 	SenderPK() *crypto.PublicKey
 }
 
@@ -21,6 +31,10 @@ type DataEntryScriptAction struct {
 }
 
 func (a DataEntryScriptAction) scriptAction() {}
+
+func (a *DataEntryScriptAction) GroupType() ScriptActionGroupType {
+	return DataEntryScriptActionGroupType
+}
 
 func (a DataEntryScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
@@ -37,14 +51,14 @@ type AttachedPaymentScriptAction struct {
 	Asset     OptionalAsset
 }
 
-func (a AttachedPaymentScriptAction) scriptAction() {}
+func (a *AttachedPaymentScriptAction) scriptAction() {}
 
-func (a AttachedPaymentScriptAction) SenderPK() *crypto.PublicKey {
-	return a.Sender
+func (a *AttachedPaymentScriptAction) GroupType() ScriptActionGroupType {
+	return AttachedPaymentScriptActionGroupType
 }
 
-func (a *AttachedPaymentScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
-	panic("Serialization of AttachedPaymentScriptAction should not be called")
+func (a *AttachedPaymentScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
 }
 
 // TransferScriptAction is an action to emit transfer of asset.
@@ -55,9 +69,13 @@ type TransferScriptAction struct {
 	Asset     OptionalAsset
 }
 
-func (a TransferScriptAction) scriptAction() {}
+func (a *TransferScriptAction) scriptAction() {}
 
-func (a TransferScriptAction) SenderPK() *crypto.PublicKey {
+func (a *TransferScriptAction) GroupType() ScriptActionGroupType {
+	return TransferScriptActionGroupType
+}
+
+func (a *TransferScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -86,9 +104,13 @@ type IssueScriptAction struct {
 	Nonce       int64         // nonce
 }
 
-func (a IssueScriptAction) scriptAction() {}
+func (a *IssueScriptAction) scriptAction() {}
 
-func (a IssueScriptAction) SenderPK() *crypto.PublicKey {
+func (a *IssueScriptAction) GroupType() ScriptActionGroupType {
+	return IssueScriptActionGroupType
+}
+
+func (a *IssueScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -139,9 +161,13 @@ type ReissueScriptAction struct {
 	Reissuable bool          // isReissuable
 }
 
-func (a ReissueScriptAction) scriptAction() {}
+func (a *ReissueScriptAction) scriptAction() {}
 
-func (a ReissueScriptAction) SenderPK() *crypto.PublicKey {
+func (a *ReissueScriptAction) GroupType() ScriptActionGroupType {
+	return IssueScriptActionGroupType
+}
+
+func (a *ReissueScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -160,9 +186,13 @@ type BurnScriptAction struct {
 	Quantity int64         // quantity
 }
 
-func (a BurnScriptAction) scriptAction() {}
+func (a *BurnScriptAction) scriptAction() {}
 
-func (a BurnScriptAction) SenderPK() *crypto.PublicKey {
+func (a *BurnScriptAction) GroupType() ScriptActionGroupType {
+	return IssueScriptActionGroupType
+}
+
+func (a *BurnScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -180,9 +210,13 @@ type SponsorshipScriptAction struct {
 	MinFee  int64         // minSponsoredAssetFee
 }
 
-func (a SponsorshipScriptAction) scriptAction() {}
+func (a *SponsorshipScriptAction) scriptAction() {}
 
-func (a SponsorshipScriptAction) SenderPK() *crypto.PublicKey {
+func (a *SponsorshipScriptAction) GroupType() ScriptActionGroupType {
+	return IssueScriptActionGroupType
+}
+
+func (a *SponsorshipScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -204,9 +238,13 @@ type LeaseScriptAction struct {
 	Nonce     int64
 }
 
-func (a LeaseScriptAction) scriptAction() {}
+func (a *LeaseScriptAction) scriptAction() {}
 
-func (a LeaseScriptAction) SenderPK() *crypto.PublicKey {
+func (a *LeaseScriptAction) GroupType() ScriptActionGroupType {
+	return TransferScriptActionGroupType
+}
+
+func (a *LeaseScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -253,7 +291,11 @@ type LeaseCancelScriptAction struct {
 
 func (a *LeaseCancelScriptAction) scriptAction() {}
 
-func (a LeaseCancelScriptAction) SenderPK() *crypto.PublicKey {
+func (a *LeaseCancelScriptAction) GroupType() ScriptActionGroupType {
+	return TransferScriptActionGroupType
+}
+
+func (a *LeaseCancelScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
@@ -449,19 +491,110 @@ type ActionsValidationRestrictions struct {
 	Scheme                byte
 }
 
+type ActionsCountValidator struct {
+	dataEntriesActionsCounter   int
+	issueGroupActionsCounter    int
+	transferGroupActionsCounter int
+}
+
+func NewScriptActionsCountValidator() ActionsCountValidator {
+	return ActionsCountValidator{
+		dataEntriesActionsCounter:   0,
+		issueGroupActionsCounter:    0,
+		transferGroupActionsCounter: 0,
+	}
+}
+
+func (a *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
+	switch groupType := action.GroupType(); groupType {
+	case DataEntryScriptActionGroupType:
+		a.dataEntriesActionsCounter++
+		return a.validateDataEntryGroup()
+	case IssueScriptActionGroupType:
+		a.issueGroupActionsCounter++
+		return a.validateIssueGroup(libVersion)
+	case TransferScriptActionGroupType:
+		a.transferGroupActionsCounter++
+		return a.validateTransferGroup(libVersion)
+	case AttachedPaymentScriptActionGroupType:
+		return nil
+	default:
+		return errors.Errorf("unknown script action group type (%d)", groupType)
+	}
+}
+
+func (a *ActionsCountValidator) validateDataEntryGroup() error {
+	if a.dataEntriesActionsCounter > MaxDataEntryScriptActions {
+		return errors.Errorf("number of data entries (%d) produced by script is more than allowed %d",
+			a.dataEntriesActionsCounter, MaxDataEntryScriptActions,
+		)
+	}
+	return nil
+}
+
+func (a *ActionsCountValidator) validateIssueGroup(libVersion int) error {
+	switch {
+	case libVersion < 5:
+		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV1 {
+			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
+				actionsCount, MaxScriptActionsV1,
+			)
+		}
+	case libVersion == 5:
+		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV2 {
+			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
+				actionsCount, MaxScriptActionsV2,
+			)
+		}
+	case libVersion > 5:
+		if a.issueGroupActionsCounter > MaxScriptActionsIssueV3 {
+			return errors.Errorf("number of issue group actions (%d) produced by script is more than allowed %d",
+				a.issueGroupActionsCounter, MaxScriptActionsIssueV3,
+			)
+		}
+	default:
+		panic("ActionsCountValidator.validateIssueGroup: unreachable point reached")
+	}
+	return nil
+}
+
+func (a *ActionsCountValidator) validateTransferGroup(libVersion int) error {
+	switch {
+	case libVersion < 5:
+		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV1 {
+			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
+				actionsCount, MaxScriptActionsV1,
+			)
+		}
+	case libVersion == 5:
+		if actionsCount := a.issueGroupActionsCounter + a.transferGroupActionsCounter; actionsCount > MaxScriptActionsV2 {
+			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
+				actionsCount, MaxScriptActionsV2,
+			)
+		}
+	case libVersion > 5:
+		if a.transferGroupActionsCounter > MaxScriptActionsTransferV3 {
+			return errors.Errorf("number of transfer group actions (%d) produced by script is more than allowed %d",
+				a.transferGroupActionsCounter, MaxScriptActionsTransferV3,
+			)
+		}
+	default:
+		panic("ActionsCountValidator.validateTransferGroup: unreachable point reached")
+	}
+	return nil
+}
+
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, libVersion int, validatePayments bool) error {
 	var (
-		dataEntriesCount  = 0
-		dataEntriesSize   = 0
-		otherActionsCount = 0
+		dataEntriesSize       = 0
+		actionsCountValidator = NewScriptActionsCountValidator()
 	)
 	for _, a := range actions {
+		if err := actionsCountValidator.CountAction(a, libVersion); err != nil {
+			return errors.Wrap(err, "failed to validate actions count")
+		}
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
-			dataEntriesCount++
-			if dataEntriesCount > MaxDataEntryScriptActions {
-				return errors.Errorf("number of data entries produced by script is more than allowed %d", MaxDataEntryScriptActions)
-			}
 			if err := ta.Entry.Valid(restrictions.IsProtobufTransaction, restrictions.IsUTF16KeyLen); err != nil {
 				return err
 			}
@@ -475,12 +608,6 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 
 		case *TransferScriptAction:
-			otherActionsCount++
-
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
 			}
@@ -515,11 +642,6 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				}
 			}
 		case *IssueScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
 			}
@@ -534,41 +656,21 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 
 		case *ReissueScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
 			}
 
 		case *BurnScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
 			}
 
 		case *SponsorshipScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.MinFee < 0 {
 				return errors.New("negative minimal fee")
 			}
 
 		case *LeaseScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
 			if ta.Amount < 0 {
 				return errors.New("negative leasing amount")
 			}
@@ -585,12 +687,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 
 		case *LeaseCancelScriptAction:
-			otherActionsCount++
-			maxScriptActions := GetMaxScriptActions(libVersion)
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
-			}
-
+			// no-op
 		default:
 			return errors.Errorf("unsupported script action type '%T'", a)
 		}

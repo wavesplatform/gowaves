@@ -193,14 +193,14 @@ func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
 	for i, a := range actions {
 		switch ta := a.(type) {
-		case proto.TransferScriptAction:
+		case *proto.TransferScriptAction:
 			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
 			if err != nil {
 				return err
 			}
 			ta.Recipient = proto.NewRecipientFromAddress(*addr)
 			actions[i] = ta
-		case proto.LeaseScriptAction:
+		case *proto.LeaseScriptAction:
 			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
 			if err != nil {
 				return err

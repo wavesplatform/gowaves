@@ -909,7 +909,12 @@ func TestScriptResult(t *testing.T) {
 }
 
 func initWrappedState(state types.SmartState, env *mockRideEnvironment) *WrappedState {
-	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
+	return &WrappedState{
+		diff:                  newDiffState(state),
+		cle:                   env.this().(rideAddress),
+		scheme:                env.scheme(),
+		actionsCountValidator: proto.NewScriptActionsCountValidator(),
+	}
 }
 
 var wrappedSt WrappedState
