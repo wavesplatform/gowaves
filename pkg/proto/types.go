@@ -57,35 +57,22 @@ const (
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
 	MaxScriptActionsV1                       = 10
 	MaxScriptActionsV2                       = 30
+	MaxBalanceScriptActionsV3                = 100
+	MaxAssetScriptActionsIssueV3             = 30
 )
-
-func GetMaxScriptActions(scriptVersion int) int {
-	if scriptVersion >= 5 {
-		return MaxScriptActionsV2
-	}
-	return MaxScriptActionsV1
-}
 
 type Timestamp = uint64
 type Score = big.Int
 type Scheme = byte
 type Height = uint64
 
-var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
+var jsonNullBytes = []byte("null")
 
 type Bytes []byte
 
 func (a Bytes) WriteTo(w io.Writer) (int64, error) {
 	rs, err := w.Write(a)
 	return int64(rs), err
-}
-
-type WrapWriteTo struct {
-	buf *bytes.Buffer
-}
-
-func (a WrapWriteTo) Read(b []byte) (int, error) {
-	return a.buf.Read(b)
 }
 
 // B58Bytes represents bytes as Base58 string in JSON

@@ -253,6 +253,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 				info.rideV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
+				tree.LibVersion,
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
@@ -286,6 +287,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 				info.rideV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
+				tree.LibVersion,
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
@@ -340,6 +342,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 				info.rideV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
+				tree.LibVersion,
 			)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")

@@ -908,8 +908,14 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, env *mockRideEnvironment) *WrappedState {
-	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
+func initWrappedState(state types.SmartState, env *mockRideEnvironment, rootScriptLibVersion int) *WrappedState {
+	return &WrappedState{
+		diff:                      newDiffState(state),
+		cle:                       env.this().(rideAddress),
+		scheme:                    env.scheme(),
+		rootScriptLibVersion:      rootScriptLibVersion,
+		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
+	}
 }
 
 var wrappedSt WrappedState
@@ -1350,7 +1356,14 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
 	wrappedSt = *NewWrappedSt
 
 	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
@@ -1366,13 +1379,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedReissueWrites[0].AssetID = expectedIssueWrites[0].ID
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
 	assetIDIssue = expectedIssueWrites[0].ID
-
-	src, err := base64.StdEncoding.DecodeString(firstScript)
-	require.NoError(t, err)
-
-	tree, err := Parse(src)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 
@@ -1424,7 +1430,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balance
 
@@ -1550,15 +1556,15 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -1581,7 +1587,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 
 	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.data[dataEntryKey{intEntry.Key, addr}] = intEntry
@@ -1716,20 +1722,20 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -1752,7 +1758,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	balanceMain := diffBalance{asset: assetExp, regular: 9986, effectiveHistory: []int64{10000, 9986}}
@@ -1908,20 +1914,20 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -1945,7 +1951,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	balanceMain := diffBalance{asset: assetExp, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
@@ -2084,20 +2090,20 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 	require.Nil(t, res)
@@ -2240,20 +2246,20 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -2276,7 +2282,7 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	balanceMain := diffBalance{asset: assetExp, regular: 9987, effectiveHistory: []int64{10000, 9987}}
@@ -2365,15 +2371,15 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -2396,7 +2402,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
@@ -2475,9 +2481,6 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	if err != nil {
 		b.Fatal("Expected no errors, got error ", err)
@@ -2487,6 +2490,9 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 	if err != nil {
 		b.Fatal("Expected no errors, got error ", err)
 	}
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -2562,15 +2568,15 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -2593,7 +2599,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
@@ -2703,20 +2709,20 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 
@@ -2740,7 +2746,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
@@ -2861,20 +2867,20 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 
@@ -2898,7 +2904,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	balanceMain := diffBalance{asset: assetExp, regular: 9999}
@@ -3043,18 +3049,18 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(addressCallable, 10000, *assetCat)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(addressCallable, 10000, *assetCat)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 
@@ -3078,7 +3084,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
 	expectedDiffResult.balances[balanceDiffKey{addr, *assetCat}] = balance
 
@@ -3214,20 +3220,20 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
@@ -3250,7 +3256,7 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), env).diff
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
 	balanceMain := diffBalance{asset: assetExp, regular: 9984}
@@ -3363,20 +3369,20 @@ func TestExpressionScriptFailInvoke(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	_, err = CallVerifier(env, tree)
 	require.Error(t, err)
@@ -3477,20 +3483,20 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 	require.Nil(t, res)
@@ -3595,20 +3601,20 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 	require.Nil(t, res)
@@ -3617,7 +3623,7 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
-func TestActionsLimitInOneInvoke(t *testing.T) {
+func TestActionsLimitInOneInvokeV5(t *testing.T) {
 
 	/* script 1
 	{-# STDLIB_VERSION 5 #-}
@@ -3637,7 +3643,7 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	}
 	*/
 
-	/* script 2.1
+	/* script 1.2.1
 		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
@@ -3726,7 +3732,8 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 		Fee:       900000,
 		Timestamp: 1564703444249,
 	}
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, err = invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAH0BQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAACzb0+i"
 	secondScript = "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"
@@ -3736,20 +3743,20 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
 
@@ -3760,7 +3767,7 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
-	/* script 2.2
+	/* script 1.2.2
 		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
@@ -3797,7 +3804,7 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	    ScriptTransfer(i.caller, 27, unit),
 	    ScriptTransfer(i.caller, 28, unit),
 	    ScriptTransfer(i.caller, 29, unit),
-	    ScriptTransfer(i.caller, 30, unit)
+	    ScriptTransfer(i.caller, 30, unit),
 		ScriptTransfer(i.caller, 31, unit)
 		], 17)
 		}
@@ -3811,7 +3818,7 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
-func TestActionsLimitInvoke(t *testing.T) {
+func TestActionsLimitInvokeV5(t *testing.T) {
 
 	/* script 1
 		{-# STDLIB_VERSION 5 #-}
@@ -3911,7 +3918,7 @@ func TestActionsLimitInvoke(t *testing.T) {
 		Fee:       900000,
 		Timestamp: 1564703444249,
 	}
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(5, proto.MainNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAAAfQFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzAAAAAAAAAAARBAAAAARyZXMxCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAAAfQFAAAAA25pbAMJAAAAAAAAAgUAAAAEcmVzMQAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAACmltcG9zc2libGUJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAAKPxAAQ="
 	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAIFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAADBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAUFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAGBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAgFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAJBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAsFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAMBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA4FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAPBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAEAUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARAAAAAEnsJR0="
@@ -3921,20 +3928,20 @@ func TestActionsLimitInvoke(t *testing.T) {
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
-	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
-	require.NoError(t, err)
-	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-	require.NoError(t, err)
-
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
 	require.Nil(t, res)
@@ -4045,9 +4052,6 @@ func TestHashScriptFunc(t *testing.T) {
 		},
 		rideV6ActivatedFunc: noRideV6,
 	}
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	script = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABaAkAA/EAAAABBQAAAAR0aGlzAwkAAAAAAAACCQAD8QAAAAEIBQAAAAFpAAAABmNhbGxlcgUAAAAEdW5pdAkABEwAAAACCQEAAAALQmluYXJ5RW50cnkAAAACAgAAAARoYXNoCQEAAAAFdmFsdWUAAAABBQAAAAFoBQAAAANuaWwJAAACAAAAAQIAAAAcVW5leHBlY3RlZCBzY3JpcHQgd2FzIGZvdW5kLgAAAABGhMi8"
 	src, err := base64.StdEncoding.DecodeString(script)
 	require.NoError(t, err)
@@ -4055,6 +4059,9 @@ func TestHashScriptFunc(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 	require.NoError(t, err)
@@ -4172,9 +4179,6 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		},
 		rideV6ActivatedFunc: noRideV6,
 	}
-	NewWrappedSt := initWrappedState(smartState(), env)
-	wrappedSt = *NewWrappedSt
-
 	script = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAAFY2hlY2sJAAQeAAAAAQUAAAAEdGhpcwkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAGdmlyZ2luBQAAAAVjaGVjawUAAAADbmlsAAAAAA8AdTc="
 	src, err := base64.StdEncoding.DecodeString(script)
 	require.NoError(t, err)
@@ -4182,6 +4186,9 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 	require.NoError(t, err)
@@ -7117,14 +7124,15 @@ func TestOriginCaller(t *testing.T) {
 			return recipient.Address, nil
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -7330,14 +7338,15 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
-	testState = initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState = initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	// Expecting validation error for the switched on internal payments validation
 	require.Nil(t, res)
@@ -7350,14 +7359,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	testInv, err = invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress = dApp1
-	testState = initWrappedState(mockState, env)
+	testState = initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
 
-	tree, err = Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err = CallFunction(env, tree, "call", arguments)
 	// No error is expected in this case
 	require.NoError(t, err)
@@ -7521,7 +7527,11 @@ func TestAliasesInInvokes(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -7530,9 +7540,6 @@ func TestAliasesInInvokes(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -7752,7 +7759,11 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -7761,9 +7772,6 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -7930,7 +7938,11 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -7939,9 +7951,6 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.Nil(t, res)
 	require.Error(t, err)
@@ -8123,7 +8132,11 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 			}, nil
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8132,9 +8145,6 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.Nil(t, res)
 	require.Error(t, err)
@@ -8309,7 +8319,11 @@ func TestReissueInInvoke(t *testing.T) {
 			}, nil
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8318,9 +8332,6 @@ func TestReissueInInvoke(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -8477,7 +8488,11 @@ func TestNegativePayments(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8486,9 +8501,6 @@ func TestNegativePayments(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -8682,7 +8694,11 @@ func TestComplexityOverflow(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8691,9 +8707,6 @@ func TestComplexityOverflow(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	_, err = CallFunction(env, tree, "call", arguments)
 	require.Error(t, err)
 	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit for library version 5", err.Error())
@@ -8819,7 +8832,11 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8828,9 +8845,6 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	ur, ok := res.userResult().(rideString)
@@ -8978,7 +8992,11 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 			}
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -8987,9 +9005,6 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
 
-	tree, err := Parse(src1)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
 	_, err = CallFunction(env, tree, "call", arguments10)
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
@@ -8998,4 +9013,1047 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err = CallFunction(env, tree, "call", arguments1)
 	require.Error(t, err)
 	assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(err))
+}
+
+func TestInvokeFailForRideV4(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict r1 = invoke(dApp, "inner", [], nil)
+	    []
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABWlubmVyBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAHxaeYM="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 4 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func inner() = []
+	*/
+	code2 := "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAFaW5uZXIAAAAABQAAAANuaWwAAAAAwAitzA=="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &crypto.Digest{},
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		txIDFunc: func() rideType {
+			return rideBytes(tx.ID.Bytes())
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+	}
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Nil(t, res)
+	require.Error(t, err)
+	require.Equal(t, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'", err.Error())
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	caller := proto.NewAlias(proto.TestNetScheme, "caller")
+	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict res = invoke(callee,  "call", [], [])
+	    match (res) {
+	        case b:Boolean => if b then {
+	            strict res1 = invoke(callee,  "call", [], [])
+	            match (res1) {
+	                case bb:Boolean => if b then ([], res1) else throw("fail!!!")
+	                case _ => throw("not a boolean")
+			    }
+	        }else throw("fail!!!")
+	        case _ => throw("not a boolean")
+	    }
+	}
+	*/
+	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCBQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAOehhyY="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = {
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit),
+			ScriptTransfer(i.caller, 11, unit),
+			ScriptTransfer(i.caller, 12, unit),
+			ScriptTransfer(i.caller, 13, unit),
+			ScriptTransfer(i.caller, 14, unit),
+			ScriptTransfer(i.caller, 15, unit),
+			ScriptTransfer(i.caller, 16, unit),
+			ScriptTransfer(i.caller, 17, unit),
+			ScriptTransfer(i.caller, 18, unit),
+			ScriptTransfer(i.caller, 19, unit),
+			ScriptTransfer(i.caller, 20, unit),
+			ScriptTransfer(i.caller, 21, unit),
+			ScriptTransfer(i.caller, 22, unit),
+			ScriptTransfer(i.caller, 23, unit),
+			ScriptTransfer(i.caller, 24, unit),
+			ScriptTransfer(i.caller, 25, unit)
+		], true)
+	}
+	*/
+	code2 := "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"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAlias(*caller)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc:    noRideV6,
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.String() {
+			case caller.String():
+				return dApp1, nil
+			case callee.String():
+				return dApp2, nil
+			default:
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case caller.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+	}
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	require.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, 50, len(res.ScriptActions()))
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	caller := proto.NewAlias(proto.TestNetScheme, "caller")
+	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict res = reentrantInvoke(callee,  "call", [], [])
+	    match (res) {
+	        case b:Boolean => if b then {
+	            strict res1 = reentrantInvoke(callee,  "callReentrant", [], [])
+	            match (res1) {
+	                case bb:Boolean => if b then ([], res1) else throw("fail!!!")
+	                case _ => throw("not a boolean")
+	            }
+	        }else throw("fail!!!")
+	        case _ => throw("not a boolean")
+	    }
+	}
+
+	@Callable(i)
+	func callReentrant() = {
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit),
+			ScriptTransfer(i.caller, 11, unit),
+			ScriptTransfer(i.caller, 12, unit),
+			ScriptTransfer(i.caller, 13, unit),
+			ScriptTransfer(i.caller, 14, unit),
+			ScriptTransfer(i.caller, 15, unit),
+			ScriptTransfer(i.caller, 16, unit),
+			ScriptTransfer(i.caller, 17, unit),
+			ScriptTransfer(i.caller, 18, unit),
+			ScriptTransfer(i.caller, 19, unit),
+			ScriptTransfer(i.caller, 20, unit),
+			ScriptTransfer(i.caller, 21, unit),
+			ScriptTransfer(i.caller, 22, unit),
+			ScriptTransfer(i.caller, 23, unit),
+			ScriptTransfer(i.caller, 24, unit),
+			ScriptTransfer(i.caller, 25, unit),
+			ScriptTransfer(i.caller, 26, unit),
+			ScriptTransfer(i.caller, 27, unit),
+			ScriptTransfer(i.caller, 28, unit),
+			ScriptTransfer(i.caller, 29, unit),
+			ScriptTransfer(i.caller, 30, unit),
+			ScriptTransfer(i.caller, 31, unit),
+	        ScriptTransfer(i.caller, 32, unit),
+			ScriptTransfer(i.caller, 33, unit),
+	        ScriptTransfer(i.caller, 34, unit),
+	        ScriptTransfer(i.caller, 35, unit)
+		], true)
+	}
+	*/
+	code1 := "BgIGCAISABIAAQAGY2FsbGVlCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgFpAQRjYWxsAAQDcmVzCQD9BwQFBmNhbGxlZQIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMEByRtYXRjaDAFA3JlcwMJAAECBQckbWF0Y2gwAgdCb29sZWFuBAFiBQckbWF0Y2gwAwUBYgQEcmVzMQkA/QcEBQZjYWxsZWUCDWNhbGxSZWVudHJhbnQFA25pbAUDbmlsAwkAAAIFBHJlczEFBHJlczEEByRtYXRjaDEFBHJlczEDCQABAgUHJG1hdGNoMQIHQm9vbGVhbgQCYmIFByRtYXRjaDEDBQFiCQCUCgIFA25pbAUEcmVzMQkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQENY2FsbFJlZW50cmFudAAJAJQKAgkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIwUEdW5pdAUDbmlsBgDdu1FP"
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let caller = Address(base58'3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz')
+
+	@Callable(i)
+	func call() = {
+		strict res = reentrantInvoke(caller, "callReentrant", [], [])
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit)
+		], true)
+	}
+
+	@Callable(i)
+	func callReentrant() = {
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit)
+		], true)
+	}
+	*/
+	code2 := "AAIFAAAAAAAAAAYIAhIAEgAAAAACAAAAAARzZWxmCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAAZjYWxsZXIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVRxD3t7QlYtlQFS4jTlXZP4eDEHx8cC8AEAAAACAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP9AAAABAUAAAAGY2FsbGVyAgAAAA1jYWxsUmVlbnRyYW50BQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAACBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAQFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAFBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAcFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAIBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAoFAAAABHVuaXQFAAAAA25pbAYJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAWkBAAAADWNhbGxSZWVudHJhbnQAAAAACQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAABBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAMFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAEBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAYFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAHBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAkFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAKBQAAAAR1bml0BQAAAANuaWwGAAAAAEjicGU="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAlias(*caller)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc:    noRideV6,
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.String() {
+			case caller.String():
+				return dApp1, nil
+			case callee.String():
+				return dApp2, nil
+			default:
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 100_000_000_000, nil
+			case caller.String():
+				return 100_000_000_000, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+	}
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	require.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, 55, len(res.ScriptActions()))
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	caller := proto.NewAlias(proto.TestNetScheme, "caller")
+	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict res = invoke(callee,  "call", [], [])
+	    match (res) {
+	        case b:Boolean => if b then {
+	            strict res1 = invoke(callee,  "call", [], [])
+	            match (res1) {
+	                case bb:Boolean => if b then ([], res1) else throw("fail!!!")
+	                case _ => throw("not a boolean")
+			    }
+	        }else throw("fail!!!")
+	        case _ => throw("not a boolean")
+	    }
+	}
+	*/
+	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCBQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAOehhyY="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = {
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit),
+			ScriptTransfer(i.caller, 11, unit),
+			ScriptTransfer(i.caller, 12, unit),
+			ScriptTransfer(i.caller, 13, unit),
+			ScriptTransfer(i.caller, 14, unit),
+			ScriptTransfer(i.caller, 15, unit),
+			ScriptTransfer(i.caller, 16, unit),
+			ScriptTransfer(i.caller, 17, unit),
+			ScriptTransfer(i.caller, 18, unit),
+			ScriptTransfer(i.caller, 19, unit),
+			ScriptTransfer(i.caller, 20, unit),
+			ScriptTransfer(i.caller, 21, unit),
+			ScriptTransfer(i.caller, 22, unit),
+			ScriptTransfer(i.caller, 23, unit),
+			ScriptTransfer(i.caller, 24, unit),
+			ScriptTransfer(i.caller, 25, unit),
+			ScriptTransfer(i.caller, 26, unit),
+			ScriptTransfer(i.caller, 27, unit),
+			ScriptTransfer(i.caller, 28, unit),
+			ScriptTransfer(i.caller, 29, unit),
+			ScriptTransfer(i.caller, 30, unit),
+			ScriptTransfer(i.caller, 31, unit)
+		], true)
+	}
+	*/
+	code2 := "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"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAlias(*caller)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc:    noRideV6,
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.String() {
+			case caller.String():
+				return dApp1, nil
+			case callee.String():
+				return dApp2, nil
+			default:
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case caller.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+	}
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	require.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Error(t, err)
+	require.Equal(t, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30", err.Error())
+	assert.Nil(t, res)
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	caller := proto.NewAlias(proto.TestNetScheme, "caller")
+	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict res = invoke(callee,  "call", [], [])
+	    match (res) {
+	        case b:Boolean => if b then {
+	            strict res1 = invoke(callee,  "call", [], [])
+	            match (res1) {
+	                case bb:Boolean => if bb then {
+	                  strict res2 = invoke(callee,  "call", [], [])
+	                  match (res2) {
+	                      case bbb:Boolean =>  if bbb then {
+	                        strict res3 = invoke(callee,  "call", [], [])
+	                        match (res3) {
+	                            case bbbb:Boolean => if bbbb then ([], res2) else throw("fail!!!")
+	                            case _ => throw("not a boolean")
+	                          }
+	                      } else throw("fail!!!")
+	                      case _ => throw("not a boolean")
+	                    }
+
+	                } else throw("fail!!!")
+	                case _ => throw("not a boolean")
+			    }
+	        }else throw("fail!!!")
+	        case _ => throw("not a boolean")
+	    }
+	}
+	*/
+	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUCYmIEBHJlczIJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMyBQRyZXMyBAckbWF0Y2gyBQRyZXMyAwkAAQIFByRtYXRjaDICB0Jvb2xlYW4EA2JiYgUHJG1hdGNoMgMFA2JiYgQEcmVzMwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFBHJlczMFBHJlczMEByRtYXRjaDMFBHJlczMDCQABAgUHJG1hdGNoMwIHQm9vbGVhbgQEYmJiYgUHJG1hdGNoMwMFBGJiYmIJAJQKAgUDbmlsBQRyZXMyCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AW2slaw=="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = {
+		([
+			ScriptTransfer(i.caller, 1, unit),
+			ScriptTransfer(i.caller, 2, unit),
+			ScriptTransfer(i.caller, 3, unit),
+			ScriptTransfer(i.caller, 4, unit),
+			ScriptTransfer(i.caller, 5, unit),
+			ScriptTransfer(i.caller, 6, unit),
+			ScriptTransfer(i.caller, 7, unit),
+			ScriptTransfer(i.caller, 8, unit),
+			ScriptTransfer(i.caller, 9, unit),
+			ScriptTransfer(i.caller, 10, unit),
+			ScriptTransfer(i.caller, 11, unit),
+			ScriptTransfer(i.caller, 12, unit),
+			ScriptTransfer(i.caller, 13, unit),
+			ScriptTransfer(i.caller, 14, unit),
+			ScriptTransfer(i.caller, 15, unit),
+			ScriptTransfer(i.caller, 16, unit),
+			ScriptTransfer(i.caller, 17, unit),
+			ScriptTransfer(i.caller, 18, unit),
+			ScriptTransfer(i.caller, 19, unit),
+			ScriptTransfer(i.caller, 20, unit),
+			ScriptTransfer(i.caller, 21, unit),
+			ScriptTransfer(i.caller, 22, unit),
+			ScriptTransfer(i.caller, 23, unit),
+			ScriptTransfer(i.caller, 24, unit),
+			ScriptTransfer(i.caller, 25, unit),
+			ScriptTransfer(i.caller, 26, unit)
+		], true)
+	}
+	*/
+	code2 := "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"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAlias(*caller)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc:    noRideV6,
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.String() {
+			case caller.String():
+				return dApp1, nil
+			case callee.String():
+				return dApp2, nil
+			default:
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case caller.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+	}
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree, "call", arguments)
+	assert.Nil(t, res)
+	require.Error(t, err)
+	require.Equal(t, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100", err.Error())
 }
