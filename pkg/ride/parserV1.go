@@ -3,6 +3,11 @@ package ride
 import (
 	"bytes"
 	"encoding/binary"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func newParserV1(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
@@ -14,6 +19,7 @@ func newParserV1(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
 	p.readShort = readShortV1
 	p.readInt = readIntV1
 	p.readLong = readLongV1
+	p.readMeta = readMetaV1
 	return p
 }
 
@@ -42,4 +48,29 @@ func readLongV1(r *bytes.Reader) (int64, error) {
 		return 0, err
 	}
 	return int64(binary.BigEndian.Uint64(buf[:])), nil
+}
+
+func readMetaV1(p *parser) (meta.DApp, error) {
+	v, err := p.readInt(p.r)
+	if err != nil {
+		return meta.DApp{}, err
+	}
+	b, err := p.readBytes()
+	if err != nil {
+		return meta.DApp{}, err
+	}
+	switch v {
+	case 0:
+		pbMeta := new(g.DAppMeta)
+		if err := protobuf.Unmarshal(b, pbMeta); err != nil {
+			return meta.DApp{}, err
+		}
+		m, err := meta.Convert(pbMeta)
+		if err != nil {
+			return meta.DApp{}, err
+		}
+		return m, nil
+	default:
+		return meta.DApp{}, errors.Errorf("unsupported script meta version %d", v)
+	}
 }

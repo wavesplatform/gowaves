@@ -193,13 +193,54 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 }
 
 func TestActionsValidation(t *testing.T) {
-	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
+	pk0, err := crypto.NewPublicKeyFromBase58("FPqvNYPoqbkwvsyoNSiYU4xeU2tFCRe6AjsHGRNT2VWn")
+	require.NoError(t, err)
+	addr0, err := NewAddressFromPublicKey(TestNetScheme, pk0)
 	require.NoError(t, err)
 	rcp0 := NewRecipientFromAddress(addr0)
+	addr1, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
+	require.NoError(t, err)
+	generateActions := func(dataEntries, payments, transferGroup, issueGroup byte) []ScriptAction {
+		actions := make([]ScriptAction, 0, dataEntries+payments+transferGroup+issueGroup)
+		for i := byte(0); i < dataEntries; i++ {
+			action := &DataEntryScriptAction{
+				Entry: &IntegerDataEntry{Key: fmt.Sprintf("data entry #%d", i), Value: int64(i) + 1},
+			}
+			actions = append(actions, action)
+		}
+		for i := byte(0); i < payments; i++ {
+			action := &AttachedPaymentScriptAction{
+				Sender:    &pk0,
+				Recipient: Recipient{Address: &addr1},
+				Amount:    int64(i) + 100,
+				Asset:     NewOptionalAssetWaves(),
+			}
+			actions = append(actions, action)
+		}
+		for i := byte(0); i < transferGroup; i++ {
+			action := &TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: NewOptionalAssetWaves()}
+			actions = append(actions, action)
+		}
+		for i := byte(0); i < issueGroup; i++ {
+			action := &IssueScriptAction{
+				ID:          crypto.Digest{i},
+				Name:        fmt.Sprintf("xxx#%d", i),
+				Description: fmt.Sprintf("some asset #%d", i),
+				Quantity:    int64(i) + 10000000,
+				Decimals:    2,
+				Reissuable:  false,
+				Script:      Script{},
+				Nonce:       int64(i),
+			}
+			actions = append(actions, action)
+		}
+		return actions
+	}
 	tests := []struct {
 		actions           []ScriptAction
 		restrictions      ActionsValidationRestrictions
 		isRideV6Activated bool
+		libVersion        int
 		valid             bool
 	}{
 		{
@@ -213,6 +254,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
 			isRideV6Activated: false,
+			libVersion:        5,
 			valid:             true,
 		},
 		{
@@ -223,6 +265,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
 			isRideV6Activated: false,
+			libVersion:        5,
 			valid:             false,
 		},
 		{
@@ -240,6 +283,7 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize:   MaxDataEntriesScriptActionsSizeInBytesV1,
 			},
 			isRideV6Activated: false,
+			libVersion:        5,
 			valid:             false,
 		},
 		{
@@ -248,6 +292,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{ScriptAddress: addr0},
 			isRideV6Activated: false,
+			libVersion:        5,
 			valid:             false,
 		},
 		{
@@ -257,6 +302,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{},
 			isRideV6Activated: false,
+			libVersion:        5,
 			valid:             false,
 		},
 		{
@@ -272,6 +318,7 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize: 32 + 34 + 33 + 35,
 			},
 			isRideV6Activated: true,
+			libVersion:        5,
 			valid:             true,
 		},
 		{
@@ -287,11 +334,89 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize: 32 + 34 + 33 + 35 - 1,
 			},
 			isRideV6Activated: true,
+			libVersion:        5,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(100, 10, 5, 5),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        4,
+			valid:             true,
+		},
+		{
+			actions:           generateActions(101, 10, 5, 5),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        4,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 5, 5),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        4,
+			valid:             true,
+		},
+		{
+			actions:           generateActions(10, 10, 6, 5),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        4,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 5, 6),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        4,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 5, 25),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        5,
+			valid:             true,
+		},
+		{
+			actions:           generateActions(10, 10, 6, 25),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        5,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 25, 6),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        5,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 100, 30),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        6,
+			valid:             true,
+		},
+		{
+			actions:           generateActions(10, 10, 101, 30),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        6,
+			valid:             false,
+		},
+		{
+			actions:           generateActions(10, 10, 100, 31),
+			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
+			isRideV6Activated: true,
+			libVersion:        6,
 			valid:             false,
 		},
 	}
 	for i, test := range tests {
-		err := ValidateActions(test.actions, test.restrictions, test.isRideV6Activated, 5, true)
+		err := ValidateActions(test.actions, test.restrictions, test.isRideV6Activated, test.libVersion, true)
 		if test.valid {
 			require.NoError(t, err, "#%d", i)
 		} else {
