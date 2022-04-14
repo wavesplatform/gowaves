@@ -9372,6 +9372,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
+	assert.Equal(t, 50, len(res.ScriptActions()))
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
@@ -9622,6 +9623,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
+	assert.Equal(t, 55, len(res.ScriptActions()))
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
