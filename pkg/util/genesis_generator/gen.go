@@ -30,11 +30,7 @@ func GenerateGenesisBlock(scheme proto.Scheme, transactions []GenesisTransaction
 // RecreateGenesisBlock builds the GenesisBlock and sets it signature to the given signature.
 // Use this function to reproduce existing genesis blocks for known networks.
 func RecreateGenesisBlock(scheme proto.Scheme, transactions []GenesisTransactionInfo, baseTarget uint64, timestamp proto.Timestamp, signature crypto.Signature) (*proto.Block, error) {
-	txs, err := makeTransactions(scheme, transactions)
-	if err != nil {
-		return nil, err
-	}
-	block, err := newGenesisBlock(scheme, txs, baseTarget, timestamp)
+	block, err := GenerateGenesisBlock(scheme, transactions, baseTarget, timestamp)
 	if err != nil {
 		return nil, err
 	}

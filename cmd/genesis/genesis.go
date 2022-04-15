@@ -194,9 +194,9 @@ func parseAmounts(s string) ([]uint64, error) {
 func makeTransactions(seed []byte, amounts []uint64, scheme byte, ts uint64) ([]genesis_generator.GenesisTransactionInfo, error) {
 	r := make([]genesis_generator.GenesisTransactionInfo, 0, len(amounts))
 	for i, amount := range amounts {
-		iv := make([]byte, 4)
-		binary.LittleEndian.PutUint32(iv, uint32(i))
-		s := append(iv, seed...)
+		iv := [4]byte{}
+		binary.BigEndian.PutUint32(iv[:], uint32(i))
+		s := append(iv[:], seed...)
 		h, err := crypto.SecureHash(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
