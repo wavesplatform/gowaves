@@ -547,9 +547,9 @@ func (v *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error 
 			)
 		}
 	case libVersion > 5:
-		if v.assetScriptActionsCounter > MaxAssetScriptActionsIssueV3 {
+		if v.assetScriptActionsCounter > MaxAssetScriptActionsV3 {
 			return errors.Errorf("number of issue group actions (%d) produced by script is more than allowed %d",
-				v.assetScriptActionsCounter, MaxAssetScriptActionsIssueV3,
+				v.assetScriptActionsCounter, MaxAssetScriptActionsV3,
 			)
 		}
 	default:

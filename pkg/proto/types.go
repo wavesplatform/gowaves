@@ -52,13 +52,13 @@ const (
 	MaxDataWithProofsProtoBytes              = 165_890
 	MaxDataWithProofsV6PayloadBytes          = 165_835 // (DataEntry.MaxPBKeySize + DataEntry.MaxValueSize) * 5
 	maxDataEntryValueSize                    = 32767
-	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
 	MaxScriptActionsV1                       = 10
 	MaxScriptActionsV2                       = 30
+	MaxDataEntryScriptActions                = 100
 	MaxBalanceScriptActionsV3                = 100
-	MaxAssetScriptActionsIssueV3             = 30
+	MaxAssetScriptActionsV3                  = 30
 )
 
 type Timestamp = uint64
