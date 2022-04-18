@@ -751,10 +751,12 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 		},
 		Transactions: transactions,
 	}
-	if version <= RewardBlockVersion {
-		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
-	}
-	if version >= ProtobufBlockVersion {
+	switch {
+	case version < NgBlockVersion:
+		b.TransactionBlockLength = uint32(transactions.BinarySize() + 1) // add extra sizeof(byte) == 1 bytes for version
+	case version <= RewardBlockVersion:
+		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4) // add extra sizeof(int) == 4 bytes for version
+	case version >= ProtobufBlockVersion:
 		err := b.SetTransactionsRoot(scheme)
 		if err != nil {
 			return nil, err
@@ -769,10 +771,12 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 //BlockGetSignature get signature from block without deserialization
 func BlockGetSignature(data []byte) (crypto.Signature, error) {
 	sig := crypto.Signature{}
-	if len(data) < 64 {
-		return sig, errors.Errorf("not enough bytes to decode block signature, want at least 64, found %d", len(data))
+	if len(data) < crypto.SignatureSize {
+		return sig, errors.Errorf("not enough bytes to decode block signature, want at least %d, found %d",
+			crypto.SignatureSize, len(data),
+		)
 	}
-	copy(sig[:], data[len(data)-64:])
+	copy(sig[:], data[len(data)-crypto.SignatureSize:])
 	return sig, nil
 }
 
