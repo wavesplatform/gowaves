@@ -1,5 +1,28 @@
 package ride
 
+func selectFunctionsByName(v int, enableInvocation bool) (func(string) (rideFunction, bool), error) {
+	switch v {
+	case 1, 2:
+		return functionsV2, nil
+	case 3:
+		return functionsV3, nil
+	case 4:
+		return functionsV4, nil
+	case 5:
+		if enableInvocation {
+			return functionsV5, nil
+		}
+		return expressionFunctionsV5, nil
+	case 6:
+		if enableInvocation {
+			return functionsV6, nil
+		}
+		return expressionFunctionsV6, nil
+	default:
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+	}
+}
+
 func selectFunctions(v int) (func(id int) rideFunction, error) {
 	switch v {
 	case 1, 2:

@@ -25,7 +25,7 @@ type evaluationScope struct {
 	env       environment
 	constants map[string]esConstant
 	cs        [][]esValue
-	system    map[string]rideFunction
+	system    func(string) (rideFunction, bool)
 	user      []esFunction
 	cl        int
 	costs     map[string]int
@@ -143,25 +143,9 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 		}
 		cs[n] = esConstant{c: constantProvider(int(id))}
 	}
-	functions, err := selectFunctionNames(v, enableInvocation)
+	fs, err := selectFunctionsByName(v, enableInvocation)
 	if err != nil {
 		return evaluationScope{}, err
-	}
-	functionChecker, err := selectFunctionChecker(v)
-	if err != nil {
-		return evaluationScope{}, err
-	}
-	functionProvider, err := selectFunctions(v)
-	if err != nil {
-		return evaluationScope{}, err
-	}
-	fs := make(map[string]rideFunction, len(functions))
-	for _, fn := range functions {
-		id, ok := functionChecker(fn)
-		if !ok {
-			return evaluationScope{}, EvaluationFailure.Errorf("unknown function '%s'", fn)
-		}
-		fs[fn] = functionProvider(int(id))
 	}
 	ev := 1
 	if env.rideV6Activated() {
@@ -194,38 +178,6 @@ func selectConstantNames(v int) ([]string, error) {
 		return ConstantsV5, nil
 	case 6:
 		return ConstantsV6, nil
-	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
-	}
-}
-
-func keys(m map[string]int, enableInvocation bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		switch k {
-		case "1020", "1021": // invoke and reentrantInvoke function are disabled for expression calls
-			if enableInvocation {
-				keys = append(keys, k)
-			}
-		default:
-			keys = append(keys, k)
-		}
-	}
-	return keys
-}
-
-func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
-	switch v {
-	case 1, 2:
-		return keys(CatalogueV2, false), nil
-	case 3:
-		return keys(CatalogueV3, false), nil
-	case 4:
-		return keys(CatalogueV4, false), nil
-	case 5:
-		return keys(CatalogueV5, enableInvocation), nil
-	case 6:
-		return keys(CatalogueV6, enableInvocation), nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
 	}
@@ -389,7 +341,7 @@ func (e *treeEvaluator) materializeArguments(arguments []Node) ([]rideType, erro
 }
 
 func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (rideType, error) {
-	f, ok := e.s.system[name]
+	f, ok := e.s.system(name)
 	if !ok {
 		return nil, EvaluationFailure.Errorf("failed to find system function '%s'", name)
 	}

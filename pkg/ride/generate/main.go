@@ -1161,10 +1161,20 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 
 	// Create sorted list of functions
 	sb.WriteString(fmt.Sprintf("var _functions_%s [%d]rideFunction\n", ver, len(keys)))
+	sb.WriteString(fmt.Sprintf("var _functions_map_%s map[string]rideFunction\n", ver))
 	sb.WriteString("func init() {\n")
 	sb.WriteString(fmt.Sprintf("_functions_%s = [%d]rideFunction{", ver, len(keys)))
 	for i, k := range keys {
 		sb.WriteString(m[k])
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n")
+	// Create map of functions
+	sb.WriteString(fmt.Sprintf("_functions_map_%s = map[string]rideFunction{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\":%s", k, m[k]))
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
@@ -1236,6 +1246,19 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	sb.WriteString("return nil\n")
 	sb.WriteString("}\n")
 	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n\n", ver))
+
+	sb.WriteString(fmt.Sprintf("func functions%s(name string) (rideFunction, bool) {\n", ver))
+	sb.WriteString(fmt.Sprintf("f, ok := _functions_map_%s[name]\n", ver))
+	sb.WriteString("return f, ok\n")
+	sb.WriteString("}\n\n")
+
+	sb.WriteString(fmt.Sprintf("func expressionFunctions%s(name string) (rideFunction, bool) {\n", ver))
+	sb.WriteString("if name == \"1020\" || name == \"1021\" {\n")
+	sb.WriteString("return nil, false\n")
+	sb.WriteString("}\n")
+	sb.WriteString(fmt.Sprintf("f, ok := _functions_map_%s[name]\n", ver))
+	sb.WriteString("return f, ok\n")
+	sb.WriteString("}\n\n")
 
 	sb.WriteString(fmt.Sprintf("func checkFunction%s(name string) (uint16, bool) {\n", ver))
 	sb.WriteString(fmt.Sprintf("for i := 0; i <= %d; i++ {\n", len(keys)-1))
