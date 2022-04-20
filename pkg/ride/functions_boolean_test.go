@@ -21,7 +21,7 @@ func TestBooleanToByte(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := booleanToBytes(nil, nil, test.args...)
+		r, err := booleanToBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -45,7 +45,7 @@ func TestBooleanToString(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := booleanToString(nil, nil, test.args...)
+		r, err := booleanToString(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -69,7 +69,7 @@ func TestUnaryNot(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := unaryNot(nil, nil, test.args...)
+		r, err := unaryNot(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

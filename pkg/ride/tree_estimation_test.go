@@ -336,51 +336,6 @@ func TestFailOnInvocationInExpression(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestNativeFoldEstimation(t *testing.T) {
-	for _, test := range []struct {
-		comment    string
-		source     string
-		complexity int
-	}{
-		{`V6: func sum(a: String, b: Int) = "(" + a + "+" + toString(b) + ")";fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], "0", sum) == "(((((((((((((0+1)+2)+3)+4)+5)+6)+7)+8)+9)+10)+11)+12)+13)`, "BgEKAQNzdW0CAWEBYgkArAICCQCsAgIJAKwCAgkArAICAgEoBQFhAgErCQCkAwEFAWICASkJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwCATACA3N1bQI5KCgoKCgoKCgoKCgoKDArMSkrMikrMykrNCkrNSkrNikrNykrOCkrOSkrMTApKzExKSsxMikrMTMpW4xQtQ==", 117},
-		{`V6: func sum(a: Int, b: Int) = a + b;fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], 0, sum) == 91`, "BgEKAQNzdW0CAWEBYgkAZAIFAWEFAWIJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwAAAIDc3VtAFtN86UP", 37},
-		{`V6: func filter(a: List[Int], b: Int) = if b % 2 == 0 then a ++ [b] else a;fold_20([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], [], filter) == [2, 4, 6, 8, 10, 12]`, "BgEKAQZmaWx0ZXICAWEBYgMJAAACCQBqAgUBYgACAAAJAM4IAgUBYQkAzAgCBQFiBQNuaWwFAWEJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwFA25pbAIGZmlsdGVyCQDMCAIAAgkAzAgCAAQJAMwIAgAGCQDMCAIACAkAzAgCAAoJAMwIAgAMBQNuaWyxw0Yw", 163},
-		{`V6: func sum(accum: Int, next: Int) = accum + next;let arr = [1,2,3,4,5];fold_20(arr, 0, sum) == 15`, "BgEKAQNzdW0CBWFjY3VtBG5leHQJAGQCBQVhY2N1bQUEbmV4dAQDYXJyCQDMCAIAAQkAzAgCAAIJAMwIAgADCQDMCAIABAkAzAgCAAUFA25pbAkAAAIJAMIDAwUDYXJyAAACA3N1bQAPYO5AYA==", 29},
-		{`V6: func mult(accum: Int, next: Int) = accum * next;let arr = [1,2,3,4,5];fold_20(arr, 1, mult) == 120`, "BgEKAQRtdWx0AgVhY2N1bQRuZXh0CQBoAgUFYWNjdW0FBG5leHQEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgABAgRtdWx0AHhsgJ2A", 29},
-		{`V6: func filterEven(accum: List[Int], next: Int) = if (next % 2 == 0) then accum :+ next else accum;let arr = [1,2,3,4,5];fold_20(arr, [], filterEven) == [2, 4]`, "BgEKAQpmaWx0ZXJFdmVuAgVhY2N1bQRuZXh0AwkAAAIJAGoCBQRuZXh0AAIAAAkAzQgCBQVhY2N1bQUEbmV4dAUFYWNjdW0EA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgUDbmlsAgpmaWx0ZXJFdmVuCQDMCAIAAgkAzAgCAAQFA25pbDcomcQ=", 71},
-		{`V6: func map(accum: List[Int], next: Int) = (next - 1) :: accum; let arr = [1, 2, 3, 4, 5];fold_20(arr, [], map) == [4, 3, 2, 1, 0]`, "BgEKAQNtYXACBWFjY3VtBG5leHQJAMwIAgkAZQIFBG5leHQAAQUFYWNjdW0EA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgUDbmlsAgNtYXAJAMwIAgAECQDMCAIAAwkAzAgCAAIJAMwIAgABCQDMCAIAAAUDbmlsg4VsgA==", 54},
-		{`V6: let a = 4;func g(b: Int) = a;func f(x: Int , a: Int) = x + g(a);let arr = [1,2,3,4,5];fold_20(arr, 0, f) == 20`, "BgEEAWEABAoBAWcBAWIFAWEKAQFmAgF4AWEJAGQCBQF4CQEBZwEFAWEEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgAAAgFmABSQ7ChM", 49},
-		{`V6: func f() = {func f() = {func f() = {1};f();};f()};func s(x: Int , a: Int) = x + f();let arr = [1,2,3,4,5];fold_20(arr, 0, s) == 5`, "BgEKAQFmAAoBAWYACgEBZgAAAQkBAWYACQEBZgAKAQFzAgF4AWEJAGQCBQF4CQEBZgAEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgAAAgFzAAWhEymR", 49},
-		{`V6: func f(a: Int, n: Int) = a + n;func f1(a: Int, n: List[Int]) = {a + fold_20(n, 0, f)};let arr = [[1, 2, 3], [1, 2, 3], [1, 2, 3]];fold_20(arr, 0, f1) == 18`, "BgEKAQFmAgFhAW4JAGQCBQFhBQFuCgECZjECAWEBbgkAZAIFAWEJAMIDAwUBbgAAAgFmBANhcnIJAMwIAgkAzAgCAAEJAMwIAgACCQDMCAIAAwUDbmlsCQDMCAIJAMwIAgABCQDMCAIAAgkAzAgCAAMFA25pbAkAzAgCCQDMCAIAAQkAzAgCAAIJAMwIAgADBQNuaWwFA25pbAkAAAIJAMIDAwUDYXJyAAACAmYxABJAge10", 496},
-		{`V6: func f1(a: Int, n: List[Int]) = {func f(a: Int, n: Int) = a + n;a + fold_20(n, 0, f)};let arr = [[1, 2, 3], [1, 2, 3], [1, 2, 3]];fold_20(arr, 0, f1) == 18`, "BgEKAQJmMQIBYQFuCgEBZgIBYQFuCQBkAgUBYQUBbgkAZAIFAWEJAMIDAwUBbgAAAgFmBANhcnIJAMwIAgkAzAgCAAEJAMwIAgACCQDMCAIAAwUDbmlsCQDMCAIJAMwIAgABCQDMCAIAAgkAzAgCAAMFA25pbAkAzAgCCQDMCAIAAQkAzAgCAAIJAMwIAgADBQNuaWwFA25pbAkAAAIJAMIDAwUDYXJyAAACAmYxABJ/1dDi", 496},
-	} {
-		src, err := base64.StdEncoding.DecodeString(test.source)
-		require.NoError(t, err, test.comment)
-
-		tree, err := Parse(src)
-		require.NoError(t, err, test.comment)
-		assert.NotNil(t, tree, test.comment)
-
-		e4, err := EstimateTree(tree, 4)
-		require.NoError(t, err, test.comment)
-		assert.Equal(t, test.complexity, e4.Estimation, test.comment)
-	}
-}
-
-func TestBrokenNativeFold(t *testing.T) {
-	// Hacked script with replaced fold function parameter
-	code := "BgEKAQNzdW0CAWEBbgkAZAIFAWEFAW4EA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgAAAAAAD55COAs="
-	src, err := base64.StdEncoding.DecodeString(code)
-	require.NoError(t, err)
-
-	tree, err := Parse(src)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
-
-	_, err = EstimateTree(tree, 4)
-	assert.Error(t, err)
-}
-
 func TestDeclarationDuplication(t *testing.T) {
 	for _, test := range []struct {
 		comment            string

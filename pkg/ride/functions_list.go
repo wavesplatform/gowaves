@@ -86,7 +86,7 @@ func listAndElementArgs(args []rideType) (rideList, rideType, error) {
 	return l, args[1], nil
 }
 
-func intFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func intFromArray(_ environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArray")
@@ -98,7 +98,7 @@ func intFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return item, nil
 }
 
-func booleanFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func booleanFromArray(_ environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArray")
@@ -110,7 +110,7 @@ func booleanFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideTy
 	return item, nil
 }
 
-func bytesFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bytesFromArray(_ environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArray")
@@ -122,7 +122,7 @@ func bytesFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	return item, nil
 }
 
-func stringFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func stringFromArray(_ environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArray")
@@ -134,7 +134,7 @@ func stringFromArray(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return item, nil
 }
 
-func intFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func intFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArrayByIndex")
@@ -154,7 +154,7 @@ func intFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rid
 	}
 }
 
-func booleanFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func booleanFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArrayByIndex")
@@ -174,7 +174,7 @@ func booleanFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) 
 	}
 }
 
-func bytesFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bytesFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArrayByIndex")
@@ -194,7 +194,7 @@ func bytesFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (r
 	}
 }
 
-func stringFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func stringFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArrayByIndex")
@@ -214,7 +214,7 @@ func stringFromArrayByIndex(_ *treeEvaluator, _ environment, args ...rideType) (
 	}
 }
 
-func sizeList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func sizeList(_ environment, args ...rideType) (rideType, error) {
 	l, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeList")
@@ -222,7 +222,7 @@ func sizeList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return rideInt(len(l)), nil
 }
 
-func getList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func getList(_ environment, args ...rideType) (rideType, error) {
 	l, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "getList")
@@ -230,7 +230,7 @@ func getList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error
 	return l[i], nil
 }
 
-func createList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func createList(_ environment, args ...rideType) (rideType, error) {
 	if len(args) != 2 {
 		return nil, errors.Errorf("createList: %d is invalid number of arguments, expected %d", len(args), 2)
 	}
@@ -250,71 +250,71 @@ func createList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return append(rideList{args[0]}, tail...), nil
 }
 
-func intValueFromArray(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := intFromArray(ev, env, args...)
+func intValueFromArray(env environment, args ...rideType) (rideType, error) {
+	v, err := intFromArray(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func booleanValueFromArray(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := booleanFromArray(ev, env, args...)
+func booleanValueFromArray(env environment, args ...rideType) (rideType, error) {
+	v, err := booleanFromArray(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func bytesValueFromArray(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := bytesFromArray(ev, env, args...)
+func bytesValueFromArray(env environment, args ...rideType) (rideType, error) {
+	v, err := bytesFromArray(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func stringValueFromArray(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := stringFromArray(ev, env, args...)
+func stringValueFromArray(env environment, args ...rideType) (rideType, error) {
+	v, err := stringFromArray(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func intValueFromArrayByIndex(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := intFromArrayByIndex(ev, env, args...)
+func intValueFromArrayByIndex(env environment, args ...rideType) (rideType, error) {
+	v, err := intFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func booleanValueFromArrayByIndex(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := booleanFromArrayByIndex(ev, env, args...)
+func booleanValueFromArrayByIndex(env environment, args ...rideType) (rideType, error) {
+	v, err := booleanFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func bytesValueFromArrayByIndex(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := bytesFromArrayByIndex(ev, env, args...)
+func bytesValueFromArrayByIndex(env environment, args ...rideType) (rideType, error) {
+	v, err := bytesFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func stringValueFromArrayByIndex(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := stringFromArrayByIndex(ev, env, args...)
+func stringValueFromArrayByIndex(env environment, args ...rideType) (rideType, error) {
+	v, err := stringFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func limitedCreateList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func limitedCreateList(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "limitedCreateList")
 	}
@@ -331,7 +331,7 @@ func limitedCreateList(_ *treeEvaluator, _ environment, args ...rideType) (rideT
 	return append(rideList{args[0]}, tail...), nil
 }
 
-func appendToList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func appendToList(_ environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "appendToList")
@@ -345,7 +345,7 @@ func appendToList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return append(list, e), nil
 }
 
-func concatList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func concatList(_ environment, args ...rideType) (rideType, error) {
 	list1, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatList")
@@ -365,7 +365,7 @@ func concatList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return r, nil
 }
 
-func indexOfList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func indexOfList(_ environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "indexOfList")
@@ -381,7 +381,7 @@ func indexOfList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return rideUnit{}, nil // not found returns Unit
 }
 
-func lastIndexOfList(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func lastIndexOfList(_ environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfList")
@@ -397,7 +397,7 @@ func lastIndexOfList(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return rideUnit{}, nil // not found returns Unit
 }
 
-func median(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func median(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "median")
@@ -419,7 +419,7 @@ func median(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error)
 	}
 }
 
-func max(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func max(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "max")
@@ -436,7 +436,7 @@ func max(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	return rideInt(max), nil
 }
 
-func min(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func min(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "min")
@@ -453,7 +453,7 @@ func min(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	return rideInt(min), nil
 }
 
-func containsElement(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func containsElement(_ environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "containsElement")
@@ -466,7 +466,7 @@ func containsElement(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return rideBoolean(false), nil
 }
 
-func listRemoveByIndex(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "listRemoveByIndex")

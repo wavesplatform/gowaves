@@ -97,7 +97,7 @@ func twoStringsArgs(args []rideType) (string, string, error) {
 	return string(s1), string(s2), nil
 }
 
-func concatStrings(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func concatStrings(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatStrings")
@@ -110,7 +110,7 @@ func concatStrings(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	return rideString(out), nil
 }
 
-func takeString(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func takeString(env environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
@@ -118,7 +118,7 @@ func takeString(_ *treeEvaluator, env environment, args ...rideType) (rideType, 
 	return env.takeString(s, n), nil
 }
 
-func dropString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dropString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropString")
@@ -126,7 +126,7 @@ func dropString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return dropRideString(s, n), nil
 }
 
-func sizeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func sizeString(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeString")
@@ -134,7 +134,7 @@ func sizeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideInt(utf8.RuneCountInString(string(s))), nil
 }
 
-func indexOfSubstring(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func indexOfSubstring(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "indexOfSubstring")
@@ -146,7 +146,7 @@ func indexOfSubstring(_ *treeEvaluator, _ environment, args ...rideType) (rideTy
 	return rideInt(i), nil
 }
 
-func indexOfSubstringWithOffset(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func indexOfSubstringWithOffset(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -161,7 +161,7 @@ func indexOfSubstringWithOffset(_ *treeEvaluator, _ environment, args ...rideTyp
 	return rideInt(i + n), nil
 }
 
-func stringToBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func stringToBytes(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBytes")
@@ -169,7 +169,7 @@ func stringToBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	return rideBytes(s), nil
 }
 
-func dropRightString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dropRightString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightString")
@@ -177,7 +177,7 @@ func dropRightString(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return takeRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func takeRightString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func takeRightString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightString")
@@ -201,7 +201,7 @@ func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList,
 	return r, nil
 }
 
-func splitString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func splitString(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString")
@@ -213,7 +213,7 @@ func splitString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return r, nil
 }
 
-func splitString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func splitString1C(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString1C")
@@ -225,7 +225,7 @@ func splitString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	return r, nil
 }
 
-func splitString4C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func splitString4C(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString4C")
@@ -237,7 +237,7 @@ func splitString4C(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	return r, nil
 }
 
-func parseInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func parseInt(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseInt")
@@ -249,15 +249,15 @@ func parseInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return rideInt(i), nil
 }
 
-func parseIntValue(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	maybeInt, err := parseInt(ev, env, args...)
+func parseIntValue(env environment, args ...rideType) (rideType, error) {
+	maybeInt, err := parseInt(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseIntValue")
 	}
 	return extractValue(maybeInt)
 }
 
-func lastIndexOfSubstring(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func lastIndexOfSubstring(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstring")
@@ -269,7 +269,7 @@ func lastIndexOfSubstring(_ *treeEvaluator, _ environment, args ...rideType) (ri
 	return rideInt(i), nil
 }
 
-func lastIndexOfSubstringWithOffset(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func lastIndexOfSubstringWithOffset(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -342,7 +342,7 @@ func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int,
 	return strings.Join(parts, sep), nil
 }
 
-func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func makeString(_ environment, args ...rideType) (rideType, error) {
 	list, sep, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
@@ -354,7 +354,7 @@ func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideString(r), nil
 }
 
-func makeStringV6(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func makeStringV6(_ environment, args ...rideType) (rideType, error) {
 	list, sep, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeStringV6")
@@ -366,7 +366,7 @@ func makeStringV6(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return rideString(r), nil
 }
 
-func makeString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func makeString1C(_ environment, args ...rideType) (rideType, error) {
 	list, sep, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
@@ -378,7 +378,7 @@ func makeString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return rideString(r), nil
 }
 
-func makeString2C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func makeString2C(_ environment, args ...rideType) (rideType, error) {
 	list, sep, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
@@ -390,7 +390,7 @@ func makeString2C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return rideString(r), nil
 }
 
-func contains(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func contains(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "contains")

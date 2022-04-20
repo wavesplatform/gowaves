@@ -118,7 +118,7 @@ func (m *vm) run() (Result, error) {
 			if fn == nil {
 				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
 			}
-			res, err := fn(nil, m.env, in...)
+			res, err := fn(m.env, in...)
 			if err != nil {
 				return nil, err
 			}

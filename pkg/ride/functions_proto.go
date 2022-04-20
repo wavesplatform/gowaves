@@ -110,7 +110,7 @@ func (i *reentrantInvocation) blocklist() bool {
 	return false
 }
 
-func performInvoke(invocation invocation, ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
@@ -132,7 +132,7 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to extract first argument", invocation.name())
 	}
-	recipient, err = ensureRecipientAddress(ev, env, recipient)
+	recipient, err = ensureRecipientAddress(env, recipient)
 	if err != nil {
 		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
@@ -237,15 +237,15 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	return res.userResult(), nil
 }
 
-func reentrantInvoke(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	return performInvoke(&reentrantInvocation{}, ev, env, args...)
+func reentrantInvoke(env environment, args ...rideType) (rideType, error) {
+	return performInvoke(&reentrantInvocation{}, env, args...)
 }
 
-func invoke(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	return performInvoke(&nonReentrantInvocation{}, ev, env, args...)
+func invoke(env environment, args ...rideType) (rideType, error) {
+	return performInvoke(&nonReentrantInvocation{}, env, args...)
 }
 
-func ensureRecipientAddress(_ *treeEvaluator, env environment, recipient proto.Recipient) (proto.Recipient, error) {
+func ensureRecipientAddress(env environment, recipient proto.Recipient) (proto.Recipient, error) {
 	if recipient.Address == nil {
 		if recipient.Alias == nil {
 			return proto.Recipient{}, errors.New("empty recipient")
@@ -270,7 +270,7 @@ func recipientArg(args []rideType) (proto.Recipient, error) {
 	return extractRecipient(args[0])
 }
 
-func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 	recipient, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "hashScriptAtAddress")
@@ -294,7 +294,7 @@ func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (r
 	return rideUnit{}, nil
 }
 
-func isDataStorageUntouched(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func isDataStorageUntouched(env environment, args ...rideType) (rideType, error) {
 	recipient, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "isDataStorageUntouched")
@@ -306,7 +306,7 @@ func isDataStorageUntouched(_ *treeEvaluator, env environment, args ...rideType)
 	return rideBoolean(isUntouched), nil
 }
 
-func addressFromString(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func addressFromString(env environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromString")
@@ -321,8 +321,8 @@ func addressFromString(_ *treeEvaluator, env environment, args ...rideType) (rid
 	return rideAddress(a), nil
 }
 
-func addressValueFromString(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	r, err := addressFromString(ev, env, args...)
+func addressValueFromString(env environment, args ...rideType) (rideType, error) {
+	r, err := addressFromString(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressValueFromString")
 	}
@@ -332,7 +332,7 @@ func addressValueFromString(ev *treeEvaluator, env environment, args ...rideType
 	return r, nil
 }
 
-func transactionByID(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func transactionByID(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
@@ -351,7 +351,7 @@ func transactionByID(_ *treeEvaluator, env environment, args ...rideType) (rideT
 	return obj, nil
 }
 
-func transactionHeightByID(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func transactionHeightByID(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionHeightByID")
@@ -366,7 +366,7 @@ func transactionHeightByID(_ *treeEvaluator, env environment, args ...rideType) 
 	return rideInt(h), nil
 }
 
-func assetBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func assetBalanceV3(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -393,7 +393,7 @@ func assetBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 	return rideInt(balance), nil
 }
 
-func assetBalanceV4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func assetBalanceV4(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -416,7 +416,7 @@ func assetBalanceV4(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 	return rideInt(balance), nil
 }
 
-func intFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func intFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -428,7 +428,7 @@ func intFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType
 	return rideInt(entry.Value), nil
 }
 
-func intFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func intFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -445,7 +445,7 @@ func intFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (ride
 	return rideInt(entry.Value), nil
 }
 
-func bytesFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func bytesFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -457,7 +457,7 @@ func bytesFromState(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 	return rideBytes(entry.Value), nil
 }
 
-func bytesFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -474,7 +474,7 @@ func bytesFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (ri
 	return rideBytes(entry.Value), nil
 }
 
-func stringFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func stringFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -486,7 +486,7 @@ func stringFromState(_ *treeEvaluator, env environment, args ...rideType) (rideT
 	return rideString(entry.Value), nil
 }
 
-func stringFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func stringFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -503,7 +503,7 @@ func stringFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (r
 	return rideString(entry.Value), nil
 }
 
-func booleanFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func booleanFromState(env environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -515,7 +515,7 @@ func booleanFromState(_ *treeEvaluator, env environment, args ...rideType) (ride
 	return rideBoolean(entry.Value), nil
 }
 
-func booleanFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func booleanFromSelfState(env environment, args ...rideType) (rideType, error) {
 	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -532,7 +532,7 @@ func booleanFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (
 	return rideBoolean(entry.Value), nil
 }
 
-func addressFromRecipient(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func addressFromRecipient(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressFromRecipient")
 	}
@@ -562,7 +562,7 @@ func addressFromRecipient(_ *treeEvaluator, env environment, args ...rideType) (
 	}
 }
 
-func sigVerify(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func sigVerify(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify")
 	}
@@ -593,7 +593,7 @@ func sigVerify(_ *treeEvaluator, env environment, args ...rideType) (rideType, e
 	return rideBoolean(ok), nil
 }
 
-func keccak256(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func keccak256(env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256")
@@ -608,7 +608,7 @@ func keccak256(_ *treeEvaluator, env environment, args ...rideType) (rideType, e
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func blake2b256(env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256")
@@ -623,7 +623,7 @@ func blake2b256(_ *treeEvaluator, env environment, args ...rideType) (rideType, 
 	return rideBytes(d.Bytes()), nil
 }
 
-func sha256(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func sha256(env environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256")
@@ -639,7 +639,7 @@ func sha256(_ *treeEvaluator, env environment, args ...rideType) (rideType, erro
 	return rideBytes(d), nil
 }
 
-func addressFromPublicKey(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func addressFromPublicKey(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromPublicKey")
@@ -651,7 +651,7 @@ func addressFromPublicKey(_ *treeEvaluator, env environment, args ...rideType) (
 	return rideAddress(addr), nil
 }
 
-func addressFromPublicKeyStrict(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func addressFromPublicKeyStrict(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
@@ -685,7 +685,7 @@ func addressFromPublicKeyStrict(_ *treeEvaluator, env environment, args ...rideT
 	}
 }
 
-func wavesBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func wavesBalanceV3(env environment, args ...rideType) (rideType, error) {
 	recipient, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
@@ -697,7 +697,7 @@ func wavesBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 	return rideInt(balance), nil
 }
 
-func wavesBalanceV4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func wavesBalanceV4(env environment, args ...rideType) (rideType, error) {
 	r, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV4")
@@ -709,7 +709,7 @@ func wavesBalanceV4(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 	return balanceDetailsToObject(balance), nil
 }
 
-func assetInfoV3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func assetInfoV3(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV3")
@@ -725,7 +725,7 @@ func assetInfoV3(_ *treeEvaluator, env environment, args ...rideType) (rideType,
 	return assetInfoToObject(info), nil
 }
 
-func assetInfoV4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func assetInfoV4(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV4")
@@ -741,7 +741,7 @@ func assetInfoV4(_ *treeEvaluator, env environment, args ...rideType) (rideType,
 	return fullAssetInfoToObject(info), nil
 }
 
-func blockInfoByHeight(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
@@ -762,7 +762,7 @@ func blockInfoByHeight(_ *treeEvaluator, env environment, args ...rideType) (rid
 	return obj, nil
 }
 
-func transferByID(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func transferByID(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
@@ -781,7 +781,7 @@ func transferByID(_ *treeEvaluator, env environment, args ...rideType) (rideType
 	return obj, nil
 }
 
-func addressToString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func addressToString(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressToString")
 	}
@@ -800,7 +800,7 @@ func addressToString(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	}
 }
 
-func rsaVerify(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify")
 	}
@@ -844,7 +844,7 @@ func rsaVerify(_ *treeEvaluator, env environment, args ...rideType) (rideType, e
 	return rideBoolean(ok), nil
 }
 
-func checkMerkleProof(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "checkMerkleProof")
 	}
@@ -867,71 +867,71 @@ func checkMerkleProof(_ *treeEvaluator, _ environment, args ...rideType) (rideTy
 	return rideBoolean(bytes.Equal(root, r)), nil
 }
 
-func intValueFromState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := intFromState(ev, env, args...)
+func intValueFromState(env environment, args ...rideType) (rideType, error) {
+	v, err := intFromState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func intValueFromSelfState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := intFromSelfState(ev, env, args...)
+func intValueFromSelfState(env environment, args ...rideType) (rideType, error) {
+	v, err := intFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func booleanValueFromState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := booleanFromState(ev, env, args...)
+func booleanValueFromState(env environment, args ...rideType) (rideType, error) {
+	v, err := booleanFromState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func booleanValueFromSelfState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := booleanFromSelfState(ev, env, args...)
+func booleanValueFromSelfState(env environment, args ...rideType) (rideType, error) {
+	v, err := booleanFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func bytesValueFromState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := bytesFromState(ev, env, args...)
+func bytesValueFromState(env environment, args ...rideType) (rideType, error) {
+	v, err := bytesFromState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func bytesValueFromSelfState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := bytesFromSelfState(ev, env, args...)
+func bytesValueFromSelfState(env environment, args ...rideType) (rideType, error) {
+	v, err := bytesFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func stringValueFromState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := stringFromState(ev, env, args...)
+func stringValueFromState(env environment, args ...rideType) (rideType, error) {
+	v, err := stringFromState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func stringValueFromSelfState(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	v, err := stringFromSelfState(ev, env, args...)
+func stringValueFromSelfState(env environment, args ...rideType) (rideType, error) {
+	v, err := stringFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
 	return extractValue(v)
 }
 
-func transferFromProtobuf(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func transferFromProtobuf(env environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferFromProtobuf")
@@ -953,7 +953,7 @@ func transferFromProtobuf(_ *treeEvaluator, env environment, args ...rideType) (
 	return obj, nil
 }
 
-func calcAssetID(_ *treeEvaluator, env environment, name, description rideString, decimals, quantity rideInt, reissuable rideBoolean, nonce rideInt) (rideBytes, error) {
+func calcAssetID(env environment, name, description rideString, decimals, quantity rideInt, reissuable rideBoolean, nonce rideInt) (rideBytes, error) {
 	pid, ok := env.txID().(rideBytes)
 	if !ok {
 		return nil, errors.New("calculateAssetID: no parent transaction ID found")
@@ -966,7 +966,7 @@ func calcAssetID(_ *treeEvaluator, env environment, name, description rideString
 	return id.Bytes(), nil
 }
 
-func calculateAssetID(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func calculateAssetID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
@@ -1001,10 +1001,10 @@ func calculateAssetID(ev *treeEvaluator, env environment, args ...rideType) (rid
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
-	return calcAssetID(ev, env, name, description, decimals, quantity, reissuable, nonce)
+	return calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
 }
 
-func simplifiedIssue(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func simplifiedIssue(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 5); err != nil {
 		return nil, errors.Wrap(err, "simplifiedIssue")
 	}
@@ -1031,7 +1031,7 @@ func simplifiedIssue(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return newIssue(name, description, quantity, decimals, reissuable, rideUnit{}, 0), nil
 }
 
-func fullIssue(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func fullIssue(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 7); err != nil {
 		return nil, errors.Wrap(err, "fullIssue")
 	}
@@ -1071,7 +1071,7 @@ func fullIssue(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return newIssue(name, description, quantity, decimals, reissuable, script, nonce), nil
 }
 
-func rebuildMerkleRoot(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
@@ -1115,7 +1115,7 @@ func rebuildMerkleRoot(_ *treeEvaluator, _ environment, args ...rideType) (rideT
 	return rideBytes(root[:]), nil
 }
 
-func bls12Groth16Verify(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
 	}
@@ -1138,7 +1138,7 @@ func bls12Groth16Verify(_ *treeEvaluator, _ environment, args ...rideType) (ride
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify")
 	}
@@ -1161,7 +1161,7 @@ func bn256Groth16Verify(_ *treeEvaluator, _ environment, args ...rideType) (ride
 	return rideBoolean(ok), nil
 }
 
-func ecRecover(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	digest, signature, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "ecRecover")
@@ -1181,7 +1181,7 @@ func ecRecover(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return rideBytes(pkb[1:]), nil
 }
 
-func checkedBytesDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkedBytesDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedBytesDataEntry")
 	}
@@ -1196,7 +1196,7 @@ func checkedBytesDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (r
 	return newDataEntry("BinaryEntry", key, value), nil
 }
 
-func checkedBooleanDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkedBooleanDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedBooleanDataEntry")
 	}
@@ -1211,7 +1211,7 @@ func checkedBooleanDataEntry(_ *treeEvaluator, _ environment, args ...rideType) 
 	return newDataEntry("BooleanEntry", key, value), nil
 }
 
-func checkedDeleteEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkedDeleteEntry(_ environment, args ...rideType) (rideType, error) {
 	key, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "checkedDeleteEntry")
@@ -1219,7 +1219,7 @@ func checkedDeleteEntry(_ *treeEvaluator, _ environment, args ...rideType) (ride
 	return newDataEntry("DeleteEntry", key, rideUnit{}), nil
 }
 
-func checkedIntDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkedIntDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedIntDataEntry")
 	}
@@ -1234,7 +1234,7 @@ func checkedIntDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rid
 	return newDataEntry("IntegerEntry", key, value), nil
 }
 
-func checkedStringDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func checkedStringDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedStringDataEntry")
 	}
@@ -1251,7 +1251,7 @@ func checkedStringDataEntry(_ *treeEvaluator, _ environment, args ...rideType) (
 
 // Constructors
 
-func address(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func address(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "address")
@@ -1263,7 +1263,7 @@ func address(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error
 	return rideAddress(addr), nil
 }
 
-func alias(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func alias(env environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "alias")
@@ -1272,7 +1272,7 @@ func alias(_ *treeEvaluator, env environment, args ...rideType) (rideType, error
 	return rideAlias(*alias), nil
 }
 
-func assetPair(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func assetPair(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetPair")
 	}
@@ -1291,7 +1291,7 @@ func assetPair(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return obj, nil
 }
 
-func burn(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func burn(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "burn")
 	}
@@ -1310,7 +1310,7 @@ func burn(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	return obj, nil
 }
 
-func dataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dataEntry(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "dataEntry")
 	}
@@ -1328,7 +1328,7 @@ func dataEntry(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return newDataEntry("DataEntry", key, value), nil
 }
 
-func dataTransaction(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dataTransaction(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 9); err != nil {
 		return nil, errors.Wrap(err, "dataTransaction")
 	}
@@ -1382,7 +1382,7 @@ func dataTransaction(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return obj, nil
 }
 
-func transferObject(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func transferObject(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "transferObject")
 	}
@@ -1401,7 +1401,7 @@ func transferObject(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	return obj, nil
 }
 
-func scriptResult(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func scriptResult(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "scriptResult")
 	}
@@ -1418,7 +1418,7 @@ func scriptResult(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	return obj, nil
 }
 
-func writeSet(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func writeSet(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "writeSet")
 	}
@@ -1440,7 +1440,7 @@ func writeSet(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return obj, nil
 }
 
-func scriptTransfer(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "scriptTransfer")
 	}
@@ -1467,7 +1467,7 @@ func scriptTransfer(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	return obj, nil
 }
 
-func transferSet(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func transferSet(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "transferSet")
 	}
@@ -1489,11 +1489,11 @@ func transferSet(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return obj, nil
 }
 
-func unit(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
+func unit(_ environment, _ ...rideType) (rideType, error) {
 	return rideUnit{}, nil
 }
 
-func reissue(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func reissue(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "reissue")
 	}
@@ -1517,7 +1517,7 @@ func reissue(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error
 	return obj, nil
 }
 
-func sponsorship(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func sponsorship(_ environment, args ...rideType) (rideType, error) {
 	asset, fee, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sponsorship")
@@ -1529,7 +1529,7 @@ func sponsorship(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return obj, nil
 }
 
-func attachedPayment(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func attachedPayment(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "attachedPayment")
 	}
@@ -1684,7 +1684,7 @@ func calcLeaseID(env environment, recipient proto.Recipient, amount, nonce rideI
 	return id.Bytes(), nil
 }
 
-func calculateLeaseID(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+func calculateLeaseID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
@@ -1722,7 +1722,7 @@ func newLease(recipient rideRecipient, amount, nonce rideInt) rideObject {
 	return r
 }
 
-func simplifiedLease(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "simplifiedLease")
 	}
@@ -1737,7 +1737,7 @@ func simplifiedLease(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return newLease(rideRecipient(recipient), amount, 0), nil
 }
 
-func fullLease(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func fullLease(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "fullLease")
 	}
@@ -1756,7 +1756,7 @@ func fullLease(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return newLease(rideRecipient(recipient), amount, nonce), nil
 }
 
-func leaseCancel(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func leaseCancel(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "leaseCancel")
 	}

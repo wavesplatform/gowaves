@@ -52,7 +52,7 @@ func TestAddressFromString(t *testing.T) {
 		{[]rideType{rideInt(12345)}, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, true, nil},
 	} {
-		r, err := addressFromString(nil, te, test.args...)
+		r, err := addressFromString(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -81,7 +81,7 @@ func TestAddressValueFromString(t *testing.T) {
 		{[]rideType{rideInt(12345)}, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, true, nil},
 	} {
-		r, err := addressValueFromString(nil, te, test.args...)
+		r, err := addressValueFromString(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -126,7 +126,7 @@ func TestAssetBalanceV3(t *testing.T) {
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
-		balance, err := assetBalanceV3(nil, te, rideRecipient{}, tc.assetID)
+		balance, err := assetBalanceV3(te, rideRecipient{}, tc.assetID)
 		if tc.expectErr {
 			require.Error(t, err)
 		} else {
@@ -162,7 +162,7 @@ func TestAssetBalanceV4(t *testing.T) {
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
-		balance, err := assetBalanceV4(nil, te, rideRecipient{}, tc.assetID)
+		balance, err := assetBalanceV4(te, rideRecipient{}, tc.assetID)
 		if tc.expectErr {
 			require.Error(t, err)
 		} else {
@@ -212,7 +212,7 @@ func TestIntFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := intFromState(nil, env, test.args...)
+		r, err := intFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -262,7 +262,7 @@ func TestBytesFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := bytesFromState(nil, env, test.args...)
+		r, err := bytesFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -312,7 +312,7 @@ func TestStringFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := stringFromState(nil, env, test.args...)
+		r, err := stringFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -362,7 +362,7 @@ func TestBooleanFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := booleanFromState(nil, env, test.args...)
+		r, err := booleanFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -400,7 +400,7 @@ func TestIntFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := intFromSelfState(nil, env, test.args...)
+		r, err := intFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -438,7 +438,7 @@ func TestBytesFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := bytesFromSelfState(nil, env, test.args...)
+		r, err := bytesFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -476,7 +476,7 @@ func TestStringFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := stringFromSelfState(nil, env, test.args...)
+		r, err := stringFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -514,7 +514,7 @@ func TestBooleanFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
 	} {
-		r, err := booleanFromSelfState(nil, env, test.args...)
+		r, err := booleanFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -560,7 +560,7 @@ func TestAddressFromRecipient(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := addressFromRecipient(nil, e, test.args...)
+		r, err := addressFromRecipient(e, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -605,7 +605,7 @@ func TestSigVerify(t *testing.T) {
 				return 3
 			},
 		}
-		r, err := sigVerify(nil, te, test.args...)
+		r, err := sigVerify(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -640,7 +640,7 @@ func TestKeccak256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := keccak256(nil, &mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := keccak256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -675,7 +675,7 @@ func TestBlake2b256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := blake2b256(nil, &mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := blake2b256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -710,7 +710,7 @@ func TestSha256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := sha256(nil, &mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := sha256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -762,7 +762,7 @@ func TestAddressToString(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := addressToString(nil, nil, test.args...)
+		r, err := addressToString(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -813,7 +813,7 @@ func TestRSAVerify(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := base64.StdEncoding.DecodeString(test.sig)
 		require.NoErrorf(t, err, "#%d", i)
-		r, err := rsaVerify(nil, nil, test.alg, rideBytes(msg), rideBytes(sig), rideBytes(pk))
+		r, err := rsaVerify(nil, test.alg, rideBytes(msg), rideBytes(sig), rideBytes(pk))
 		require.NoErrorf(t, err, "#%d", i)
 		assert.Equalf(t, rideBoolean(test.ok), r, "#%d", i)
 	}
@@ -840,7 +840,7 @@ func TestCheckMerkleProof(t *testing.T) {
 		require.NoError(t, err)
 		leaf, err := base64.StdEncoding.DecodeString(test.leaf)
 		require.NoError(t, err)
-		r, err := checkMerkleProof(nil, nil, rideBytes(root), rideBytes(proof), rideBytes(leaf))
+		r, err := checkMerkleProof(nil, rideBytes(root), rideBytes(proof), rideBytes(leaf))
 		require.NoError(t, err)
 		assert.Equal(t, rideBoolean(test.result), r)
 	}
@@ -886,7 +886,7 @@ func TestIntValueFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
-		r, err := intValueFromState(nil, env, test.args...)
+		r, err := intValueFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -936,7 +936,7 @@ func TestBytesValueFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
-		r, err := bytesValueFromState(nil, env, test.args...)
+		r, err := bytesValueFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -986,7 +986,7 @@ func TestStringValueFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
-		r, err := stringValueFromState(nil, env, test.args...)
+		r, err := stringValueFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1036,7 +1036,7 @@ func TestBooleanValueFromState(t *testing.T) {
 		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
 		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
-		r, err := booleanValueFromState(nil, env, test.args...)
+		r, err := booleanValueFromState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1073,7 +1073,7 @@ func TestIntValueFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := intValueFromSelfState(nil, env, test.args...)
+		r, err := intValueFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1111,7 +1111,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := bytesValueFromSelfState(nil, env, test.args...)
+		r, err := bytesValueFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1149,7 +1149,7 @@ func TestStringValueFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := stringValueFromSelfState(nil, env, test.args...)
+		r, err := stringValueFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1187,7 +1187,7 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := booleanValueFromSelfState(nil, env, test.args...)
+		r, err := booleanValueFromSelfState(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1230,7 +1230,7 @@ func TestTransferFromProtobuf(t *testing.T) {
 		{[]rideType{}, true, nil, nil},
 		{[]rideType{rideString("x")}, true, nil, nil},
 	} {
-		r, err := transferFromProtobuf(nil, te, test.args...)
+		r, err := transferFromProtobuf(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1266,7 +1266,7 @@ func TestRebuildMerkleRoot(t *testing.T) {
 	require.NoError(t, err)
 	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
 	require.NoError(t, err)
-	r, err := rebuildMerkleRoot(nil, nil, rideList{rideBytes(p1), rideBytes(p2), rideBytes(p3)}, rideBytes(leaf), rideInt(3))
+	r, err := rebuildMerkleRoot(nil, rideList{rideBytes(p1), rideBytes(p2), rideBytes(p3)}, rideBytes(leaf), rideInt(3))
 	assert.NoError(t, err)
 	assert.Equal(t, "ByteVector", r.instanceOf())
 	assert.ElementsMatch(t, root, r)
@@ -1301,7 +1301,7 @@ func TestAddressFromPublicKeyStrict(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := addressFromPublicKeyStrict(nil, te, test.args...)
+		r, err := addressFromPublicKeyStrict(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -1360,7 +1360,7 @@ func TestHashScriptAtAddress(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := hashScriptAtAddress(nil, te, test.args...)
+		r, err := hashScriptAtAddress(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

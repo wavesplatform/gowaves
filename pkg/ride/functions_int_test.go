@@ -22,7 +22,7 @@ func TestGE(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := ge(nil, nil, test.args...)
+		r, err := ge(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -47,7 +47,7 @@ func TestGT(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := gt(nil, nil, test.args...)
+		r, err := gt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -74,7 +74,7 @@ func TestIntToString(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := intToString(nil, nil, test.args...)
+		r, err := intToString(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -100,7 +100,7 @@ func TestUnaryMinus(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := unaryMinus(nil, nil, test.args...)
+		r, err := unaryMinus(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -125,7 +125,7 @@ func TestSum(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sum(nil, nil, test.args...)
+		r, err := sum(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -151,7 +151,7 @@ func TestSub(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sub(nil, nil, test.args...)
+		r, err := sub(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -177,7 +177,7 @@ func TestMul(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := mul(nil, nil, test.args...)
+		r, err := mul(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -203,7 +203,7 @@ func TestDiv(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := div(nil, nil, test.args...)
+		r, err := div(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -230,7 +230,7 @@ func TestMod(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := mod(nil, nil, test.args...)
+		r, err := mod(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -262,7 +262,7 @@ func TestFraction(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fraction(nil, nil, test.args...)
+		r, err := fraction(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -276,7 +276,7 @@ func BenchmarkFraction(b *testing.B) {
 	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64)}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r, err := fraction(nil, nil, args...)
+		r, err := fraction(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
 	}
@@ -323,7 +323,7 @@ func TestFractionIntRounds(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fractionIntRounds(nil, nil, test.args...)
+		r, err := fractionIntRounds(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -337,7 +337,7 @@ func BenchmarkFractionIntRounds(b *testing.B) {
 	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64), newHalfEven(nil)}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r, err := fractionIntRounds(nil, nil, args...)
+		r, err := fractionIntRounds(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
 	}
@@ -356,7 +356,7 @@ func TestIntToBytes(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := intToBytes(nil, nil, test.args...)
+		r, err := intToBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -385,7 +385,7 @@ func TestPow(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := pow(nil, env, test.args...)
+		r, err := pow(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -405,7 +405,7 @@ func BenchmarkPow(b *testing.B) {
 	args := []rideType{rideInt(98765432), rideInt(8), rideInt(math.MinInt64), rideInt(0), rideInt(8), newDown(nil)}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r, err := pow(nil, e, args...)
+		r, err := pow(e, args...)
 		require.Error(b, err)
 		require.Nil(b, r)
 
@@ -430,7 +430,7 @@ func TestLog(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := log(nil, nil, test.args...)
+		r, err := log(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -442,19 +442,19 @@ func TestLog(t *testing.T) {
 
 // TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D reproduces pow(x, 0.5) failure in transaction 6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D on MainNet
 func TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D(t *testing.T) {
-	r3, err := fraction(nil, env, rideInt(50), rideInt(10_000), rideInt(50)) // (50 * 10_000) / 50 = 10_000
+	r3, err := fraction(env, rideInt(50), rideInt(10_000), rideInt(50)) // (50 * 10_000) / 50 = 10_000
 	require.NoError(t, err)
-	r4, err := mul(nil, env, rideInt(100_000), rideInt(10_000)) // 100_000 * 10_000 = 1_000_000_000
+	r4, err := mul(env, rideInt(100_000), rideInt(10_000)) // 100_000 * 10_000 = 1_000_000_000
 	require.NoError(t, err)
-	r5, err := sum(nil, env, rideInt(100_000), rideInt(100_000)) // 100_000 + 100_000 = 200_000
+	r5, err := sum(env, rideInt(100_000), rideInt(100_000)) // 100_000 + 100_000 = 200_000
 	require.NoError(t, err)
-	r2, err := div(nil, env, r4, r5) // 1_000_000_000 / 200_000 = 5_000
+	r2, err := div(env, r4, r5) // 1_000_000_000 / 200_000 = 5_000
 	require.NoError(t, err)
-	r1, err := pow(nil, env, r2, rideInt(4), r3, rideInt(4), rideInt(4), newFloor(nil)) // 0.5 ^ 1 = 0.5
+	r1, err := pow(env, r2, rideInt(4), r3, rideInt(4), rideInt(4), newFloor(nil)) // 0.5 ^ 1 = 0.5
 	require.NoError(t, err)
-	r0, err := sub(nil, env, rideInt(10_000), r1)
+	r0, err := sub(env, rideInt(10_000), r1)
 	require.NoError(t, err)
-	r, err := fraction(nil, env, rideInt(10_000), r0, rideInt(10_000))
+	r, err := fraction(env, rideInt(10_000), r0, rideInt(10_000))
 	require.NoError(t, err)
 	assert.Equal(t, rideInt(5_000), r)
 }
@@ -476,7 +476,7 @@ func TestSqrt(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sqrt(nil, env, test.args...)
+		r, err := sqrt(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
