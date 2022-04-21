@@ -293,7 +293,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case rideBoolean:
 		return ScriptResult{res: bool(res), complexity: e.complexity()}, nil
 	case rideObject:
-		a, err := objectToActions(e, e.env, res)
+		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 		}
@@ -301,7 +301,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
-			a, err := convertToAction(e, e.env, item)
+			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 			}
@@ -313,7 +313,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
-				a, err := convertToAction(e, e.env, item)
+				a, err := convertToAction(e.env, item)
 				if err != nil {
 					return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 				}
@@ -356,7 +356,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
-	r, err := f(e, e.env, args...)
+	r, err := f(e.env, args...)
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}

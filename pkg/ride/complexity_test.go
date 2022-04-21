@@ -431,25 +431,3 @@ func TestUserFunctionsArguments(t *testing.T) {
 		checkVerifierSpentComplexity(t, complexityTestEnvV6, test.source, test.complexityV6, test.comment)
 	}
 }
-
-func TestNativeFold(t *testing.T) {
-	for _, test := range []struct {
-		comment      string
-		source       string
-		complexityV6 int
-	}{
-		{`V6: func sum(a: String, b: Int) = "(" + a + "+" + toString(b) + ")";fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], "0", sum) == "(((((((((((((0+1)+2)+3)+4)+5)+6)+7)+8)+9)+10)+11)+12)+13)`, "BgEKAQNzdW0CAWEBYgkArAICCQCsAgIJAKwCAgkArAICAgEoBQFhAgErCQCkAwEFAWICASkJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwCATACA3N1bQI5KCgoKCgoKCgoKCgoKDArMSkrMikrMykrNCkrNSkrNikrNykrOCkrOSkrMTApKzExKSsxMikrMTMpW4xQtQ==", 82},
-		{`V6: func sum(a: Int, b: Int) = a + b;fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], 0, sum) == 91`, "BgEKAQNzdW0CAWEBYgkAZAIFAWEFAWIJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwAAAIDc3VtAFtN86UP", 30},
-		{`V6: func filter(a: List[Int], b: Int) = if b % 2 == 0 then a ++ [b] else a;fold_20([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], [], filter) == [2, 4, 6, 8, 10, 12]`, "BgEKAQZmaWx0ZXICAWEBYgMJAAACCQBqAgUBYgACAAAJAM4IAgUBYQkAzAgCBQFiBQNuaWwFAWEJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwFA25pbAIGZmlsdGVyCQDMCAIAAgkAzAgCAAQJAMwIAgAGCQDMCAIACAkAzAgCAAoJAMwIAgAMBQNuaWyxw0Yw", 79},
-		{`V6: func sum(accum: Int, next: Int) = accum + next;let arr = [1,2,3,4,5];fold_20(arr, 0, sum) == 15`, "BgEKAQNzdW0CBWFjY3VtBG5leHQJAGQCBQVhY2N1bQUEbmV4dAQDYXJyCQDMCAIAAQkAzAgCAAIJAMwIAgADCQDMCAIABAkAzAgCAAUFA25pbAkAAAIJAMIDAwUDYXJyAAACA3N1bQAPYO5AYA==", 14},
-		{`V6: func mult(accum: Int, next: Int) = accum * next;let arr = [1,2,3,4,5];fold_20(arr, 1, mult) == 120`, "BgEKAQRtdWx0AgVhY2N1bQRuZXh0CQBoAgUFYWNjdW0FBG5leHQEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgABAgRtdWx0AHhsgJ2A", 14},
-		{`V6: func filterEven(accum: List[Int], next: Int) = if (next % 2 == 0) then accum :+ next else accum;let arr = [1,2,3,4,5];fold_20(arr, [], filterEven) == [2, 4]`, "BgEKAQpmaWx0ZXJFdmVuAgVhY2N1bQRuZXh0AwkAAAIJAGoCBQRuZXh0AAIAAAkAzQgCBQVhY2N1bQUEbmV4dAUFYWNjdW0EA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgUDbmlsAgpmaWx0ZXJFdmVuCQDMCAIAAgkAzAgCAAQFA25pbDcomcQ=", 23},
-		{`V6: func map(accum: List[Int], next: Int) = (next - 1) :: accum; let arr = [1, 2, 3, 4, 5];fold_20(arr, [], map) == [4, 3, 2, 1, 0]`, "BgEKAQNtYXACBWFjY3VtBG5leHQJAMwIAgkAZQIFBG5leHQAAQUFYWNjdW0EA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgUDbmlsAgNtYXAJAMwIAgAECQDMCAIAAwkAzAgCAAIJAMwIAgABCQDMCAIAAAUDbmlsg4VsgA==", 24},
-		{`V6: let a = 4;func g(b: Int) = a;func f(x: Int , a: Int) = x + g(a);let arr = [1,2,3,4,5];fold_20(arr, 0, f) == 20`, "BgEEAWEABAoBAWcBAWIFAWEKAQFmAgF4AWEJAGQCBQF4CQEBZwEFAWEEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgAAAgFmABSQ7ChM", 19},
-		{`V6: func f() = {func f() = {func f() = {1};f();};f()};func s(x: Int , a: Int) = x + f();let arr = [1,2,3,4,5];fold_20(arr, 0, s) == 5`, "BgEKAQFmAAoBAWYACgEBZgAAAQkBAWYACQEBZgAKAQFzAgF4AWEJAGQCBQF4CQEBZgAEA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwJAAACCQDCAwMFA2FycgAAAgFzAAWhEymR", 19},
-		{`V6: func f(a: Int, n: Int) = a + n;func f1(a: Int, n: List[Int]) = {a + fold_20(n, 0, f)};let arr = [[1, 2, 3], [1, 2, 3], [1, 2, 3]];fold_20(arr, 0, f1) == 18`, "BgEKAQFmAgFhAW4JAGQCBQFhBQFuCgECZjECAWEBbgkAZAIFAWEJAMIDAwUBbgAAAgFmBANhcnIJAMwIAgkAzAgCAAEJAMwIAgACCQDMCAIAAwUDbmlsCQDMCAIJAMwIAgABCQDMCAIAAgkAzAgCAAMFA25pbAkAzAgCCQDMCAIAAQkAzAgCAAIJAMwIAgADBQNuaWwFA25pbAkAAAIJAMIDAwUDYXJyAAACAmYxABJAge10", 37},
-		{`V6: func f1(a: Int, n: List[Int]) = {func f(a: Int, n: Int) = a + n;a + fold_20(n, 0, f)};let arr = [[1, 2, 3], [1, 2, 3], [1, 2, 3]];fold_20(arr, 0, f1) == 18`, "BgEKAQJmMQIBYQFuCgEBZgIBYQFuCQBkAgUBYQUBbgkAZAIFAWEJAMIDAwUBbgAAAgFmBANhcnIJAMwIAgkAzAgCAAEJAMwIAgACCQDMCAIAAwUDbmlsCQDMCAIJAMwIAgABCQDMCAIAAgkAzAgCAAMFA25pbAkAzAgCCQDMCAIAAQkAzAgCAAIJAMwIAgADBQNuaWwFA25pbAkAAAIJAMIDAwUDYXJyAAACAmYxABJ/1dDi", 37},
-	} {
-		checkVerifierSpentComplexity(t, complexityTestEnvV6, test.source, test.complexityV6, test.comment)
-	}
-}

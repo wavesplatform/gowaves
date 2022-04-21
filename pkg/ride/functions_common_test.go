@@ -22,7 +22,7 @@ func TestGetType(t *testing.T) {
 		{[]rideType{rideInt(1), rideInt(2), rideInt(3)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := getType(nil, nil, test.args...)
+		r, err := getType(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -66,7 +66,7 @@ func TestSizeTuple(t *testing.T) {
 		{[]rideType{rideInt(1), rideInt(2), rideInt(3)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sizeTuple(nil, nil, test.args...)
+		r, err := sizeTuple(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

@@ -24,7 +24,7 @@ func TestSizeBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sizeBytes(nil, nil, test.args...)
+		r, err := sizeBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -52,7 +52,7 @@ func TestTakeBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := takeBytes(nil, nil, test.args...)
+		r, err := takeBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -82,7 +82,7 @@ func TestDropBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := dropBytes(nil, nil, test.args...)
+		r, err := dropBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -110,7 +110,7 @@ func TestConcatBytes(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := concatBytes(nil, nil, test.args...)
+		r, err := concatBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -136,7 +136,7 @@ func TestToBase58(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := toBase58(nil, nil, test.args...)
+		r, err := toBase58(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -161,7 +161,7 @@ func TestFromBase58(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fromBase58(nil, nil, test.args...)
+		r, err := fromBase58(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -187,7 +187,7 @@ func TestToBase64(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := toBase64(nil, nil, test.args...)
+		r, err := toBase64(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -216,7 +216,7 @@ func TestFromBase64(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fromBase64(nil, nil, test.args...)
+		r, err := fromBase64(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -241,7 +241,7 @@ func TestToBase16(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := toBase16(nil, nil, test.args...)
+		r, err := toBase16(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -268,7 +268,7 @@ func TestFromBase16(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fromBase16(nil, nil, test.args...)
+		r, err := fromBase16(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -298,7 +298,7 @@ func TestDropRightBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := dropRightBytes(nil, nil, test.args...)
+		r, err := dropRightBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -328,7 +328,7 @@ func TestTakeRightBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := takeRightBytes(nil, nil, test.args...)
+		r, err := takeRightBytes(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -354,7 +354,7 @@ func TestBytesToUTF8String(t *testing.T) {
 		{[]rideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bytesToUTF8String(nil, nil, test.args...)
+		r, err := bytesToUTF8String(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -380,7 +380,7 @@ func TestBytesToInt(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bytesToInt(nil, nil, test.args...)
+		r, err := bytesToInt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -406,7 +406,7 @@ func TestBytesToIntWithOffset(t *testing.T) {
 		{[]rideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}, rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bytesToIntWithOffset(nil, nil, test.args...)
+		r, err := bytesToIntWithOffset(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

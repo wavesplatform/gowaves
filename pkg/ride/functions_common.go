@@ -20,21 +20,21 @@ func checkArgs(args []rideType, count int) error {
 	return nil
 }
 
-func eq(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func eq(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "eq")
 	}
 	return rideBoolean(args[0].eq(args[1])), nil
 }
 
-func neq(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func neq(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "neq")
 	}
 	return rideBoolean(!args[0].eq(args[1])), nil
 }
 
-func instanceOf(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func instanceOf(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "instanceOf")
 	}
@@ -45,14 +45,14 @@ func instanceOf(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideBoolean(args[0].instanceOf() == string(t)), nil
 }
 
-func getType(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func getType(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "getType")
 	}
 	return rideString(args[0].instanceOf()), nil
 }
 
-func extract(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func extract(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")
 	}
@@ -62,7 +62,7 @@ func extract(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error
 	return args[0], nil
 }
 
-func isDefined(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func isDefined(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "isDefined")
 	}
@@ -72,7 +72,7 @@ func isDefined(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return rideBoolean(true), nil
 }
 
-func throw(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func throw(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "throw")
@@ -80,11 +80,11 @@ func throw(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) 
 	return nil, UserError.New(string(s))
 }
 
-func throw0(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
+func throw0(_ environment, _ ...rideType) (rideType, error) {
 	return nil, UserError.New(defaultThrowMessage)
 }
 
-func value(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func value(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "value")
 	}
@@ -94,7 +94,7 @@ func value(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) 
 	return args[0], nil
 }
 
-func valueOrErrorMessage(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func valueOrErrorMessage(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -108,7 +108,7 @@ func valueOrErrorMessage(_ *treeEvaluator, _ environment, args ...rideType) (rid
 	return args[0], nil
 }
 
-func valueOrElse(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func valueOrElse(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -118,7 +118,7 @@ func valueOrElse(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return args[0], nil
 }
 
-func sizeTuple(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func sizeTuple(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "sizeTuple")
 	}

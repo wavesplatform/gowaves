@@ -86,7 +86,7 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 	}
 }
 
-func sizeBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func sizeBytes(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeBytes")
@@ -94,7 +94,7 @@ func sizeBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return rideInt(len(b)), nil
 }
 
-func takeBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func takeBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeBytes")
@@ -102,7 +102,7 @@ func takeBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return takeRideBytes(b, n), nil
 }
 
-func dropBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dropBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropBytes")
@@ -110,7 +110,7 @@ func dropBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, err
 	return dropRideBytes(b, n), nil
 }
 
-func concatBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func concatBytes(_ environment, args ...rideType) (rideType, error) {
 	b1, b2, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatBytes")
@@ -125,7 +125,7 @@ func concatBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, e
 	return rideBytes(out), nil
 }
 
-func toBase58(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func toBase58(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
@@ -133,7 +133,7 @@ func toBase58(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return rideString(base58.Encode(b)), nil
 }
 
-func fromBase58(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func fromBase58(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
@@ -149,7 +149,7 @@ func fromBase58(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideBytes(r), nil
 }
 
-func toBase64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func toBase64(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
@@ -157,7 +157,7 @@ func toBase64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return rideString(base64.StdEncoding.EncodeToString(b)), nil
 }
 
-func fromBase64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func fromBase64(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase64")
@@ -174,7 +174,7 @@ func fromBase64(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideBytes(decoded), nil
 }
 
-func toBase16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func toBase16(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
@@ -182,7 +182,7 @@ func toBase16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, erro
 	return rideString(hex.EncodeToString(b)), nil
 }
 
-func fromBase16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func fromBase16(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
@@ -195,7 +195,7 @@ func fromBase16(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideBytes(decoded), nil
 }
 
-func dropRightBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightBytes")
@@ -203,7 +203,7 @@ func dropRightBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	return takeRideBytes(b, len(b)-n), nil
 }
 
-func takeRightBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightBytes")
@@ -211,7 +211,7 @@ func takeRightBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType
 	return dropRideBytes(b, len(b)-n), nil
 }
 
-func bytesToUTF8String(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
@@ -222,7 +222,7 @@ func bytesToUTF8String(_ *treeEvaluator, _ environment, args ...rideType) (rideT
 	return nil, errors.Errorf("invalid UTF-8 sequence")
 }
 
-func bytesToInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bytesToInt(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToInt")
@@ -233,7 +233,7 @@ func bytesToInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	return rideInt(binary.BigEndian.Uint64(b)), nil
 }
 
-func bytesToIntWithOffset(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+func bytesToIntWithOffset(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToLongWithOffset")
