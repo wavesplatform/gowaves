@@ -2268,18 +2268,26 @@ func TestArgumentsConversion(t *testing.T) {
 	ru := rideUnit{}
 	ra := rideAddress(proto.MustAddressFromString("3N9b3KejqpXFkbvZBKobythymXM4d3m2oRD"))
 	for _, test := range []struct {
-		args rideList
-		ok   bool
-		res  []rideType
+		args  rideList
+		check bool
+		ok    bool
+		res   []rideType
 	}{
-		{rideList([]rideType{ri, rs, rt, rb}), true, []rideType{ri, rs, rt, rb}},
-		{rideList([]rideType{ri, rs, rt, rb, rl}), true, []rideType{ri, rs, rt, rb, rl}},
-		{rideList([]rideType{rl, rl, rl, rl, rl}), true, []rideType{rl, rl, rl, rl, rl}},
-		{rideList([]rideType{ru, ri, rs, rt, rb, rl}), true, []rideType{ru, ri, rs, rt, rb, rl}},
-		{rideList([]rideType{ru, ri, rs, rt, rb, rl, ra}), false, nil},
-		{rideList([]rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}), false, nil},
+		{rideList([]rideType{ri, rs, rt, rb}), true, true, []rideType{ri, rs, rt, rb}},
+		{rideList([]rideType{ri, rs, rt, rb, rl}), true, true, []rideType{ri, rs, rt, rb, rl}},
+		{rideList([]rideType{rl, rl, rl, rl, rl}), true, true, []rideType{rl, rl, rl, rl, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl}), true, false, nil},
+		{rideList([]rideType{ri, rs, rt, rb, rideList([]rideType{ri, rs, rt, rb, ru})}), true, false, nil},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl, ra}), true, false, nil},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}), true, false, nil},
+		{rideList([]rideType{ri, rs, rt, rb}), false, true, []rideType{ri, rs, rt, rb}},
+		{rideList([]rideType{ri, rs, rt, rb, rl}), false, true, []rideType{ri, rs, rt, rb, rl}},
+		{rideList([]rideType{rl, rl, rl, rl, rl}), false, true, []rideType{rl, rl, rl, rl, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl}), false, true, []rideType{ru, ri, rs, rt, rb, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl, ra}), false, true, []rideType{ru, ri, rs, rt, rb, rl, ra}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}), false, true, []rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}},
 	} {
-		r, err := convertListArguments(test.args)
+		r, err := convertListArguments(test.args, test.check)
 		if test.ok {
 			assert.NoError(t, err)
 		} else {

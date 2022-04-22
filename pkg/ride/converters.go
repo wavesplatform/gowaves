@@ -1110,11 +1110,13 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	return r, nil
 }
 
-func convertListArguments(args rideList) ([]rideType, error) {
+func convertListArguments(args rideList, check bool) ([]rideType, error) {
 	r := make([]rideType, len(args))
 	for i, a := range args {
-		if err := checkArgument(a); err != nil {
-			return nil, err
+		if check {
+			if err := checkArgument(a); err != nil {
+				return nil, err
+			}
 		}
 		r[i] = a
 	}
@@ -1123,7 +1125,7 @@ func convertListArguments(args rideList) ([]rideType, error) {
 
 func checkArgument(arg rideType) error {
 	switch a := arg.(type) {
-	case rideInt, rideBoolean, rideString, rideBytes, rideUnit:
+	case rideInt, rideBoolean, rideString, rideBytes:
 		return nil
 	case rideList:
 		for _, item := range a {
