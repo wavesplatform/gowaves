@@ -1123,7 +1123,7 @@ func convertListArguments(args rideList) ([]rideType, error) {
 
 func checkArgument(arg rideType) error {
 	switch a := arg.(type) {
-	case rideInt, rideBoolean, rideString, rideBytes:
+	case rideInt, rideBoolean, rideString, rideBytes, rideUnit:
 		return nil
 	case rideList:
 		for _, item := range a {
