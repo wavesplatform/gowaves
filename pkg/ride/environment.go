@@ -550,12 +550,20 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if res.Asset.Present {
 		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID)
 	} else {
-		balance, err = ws.NewestWavesBalance(senderRcp)
+		if env.rideV6Activated() {
+			allBalance, err := ws.NewestFullWavesBalance(senderRcp)
+			if err != nil {
+				return err
+			}
+			balance = allBalance.Available
+		} else {
+			balance, err = ws.NewestWavesBalance(senderRcp)
+		}
 	}
 	if err != nil {
 		return err
 	}
-	if env.validateInternalPayments() && balance < uint64(res.Amount) {
+	if (env.validateInternalPayments() || env.rideV6Activated()) && balance < uint64(res.Amount) {
 		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
@@ -593,7 +601,15 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	if res.Asset.Present {
 		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID)
 	} else {
-		balance, err = ws.NewestWavesBalance(senderRcp)
+		if env.rideV6Activated() {
+			allBalance, err := ws.NewestFullWavesBalance(senderRcp)
+			if err != nil {
+				return err
+			}
+			balance = allBalance.Available
+		} else {
+			balance, err = ws.NewestWavesBalance(senderRcp)
+		}
 	}
 	if err != nil {
 		return err
@@ -745,7 +761,7 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction) error {
 	return ws.rootActionsCountValidator.CountAction(action, ws.rootScriptLibVersion)
 }
 
-func (ws *WrappedState) validateBalances() error {
+func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
 	for key, balanceDiff := range ws.diff.balances {
 		address := proto.NewRecipientFromAddress(key.address)
 		var (
@@ -755,7 +771,16 @@ func (ws *WrappedState) validateBalances() error {
 		if key.asset.Present {
 			balance, err = ws.diff.state.NewestAssetBalance(address, key.asset.ID)
 		} else {
-			balance, err = ws.diff.state.NewestWavesBalance(address)
+			if rideV6Activated {
+				allBalance, err := ws.diff.state.NewestFullWavesBalance(address)
+				if err != nil {
+					return err
+				}
+				balance = allBalance.Available
+			} else {
+
+				balance, err = ws.diff.state.NewestWavesBalance(address)
+			}
 		}
 		if err != nil {
 			return err
@@ -1163,7 +1188,15 @@ func NewEnvironmentWithWrappedState(
 		if payment.Asset.Present {
 			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
 		} else {
-			senderBalance, err = st.NewestWavesBalance(callerRcp)
+			if isRideV6Activated {
+				allBalance, err := st.NewestFullWavesBalance(callerRcp)
+				if err != nil {
+					return nil, err
+				}
+				senderBalance = allBalance.Available
+			} else {
+				senderBalance, err = st.NewestWavesBalance(callerRcp)
+			}
 		}
 		if err != nil {
 			return nil, err
