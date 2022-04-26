@@ -217,13 +217,15 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	if env.validateInternalPayments() && !env.rideV6Activated() {
-		err = ws.validateBalances()
-		if err != nil {
-			if ws.invCount() > 1 {
-				return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
-			}
-			return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
+		err = ws.validateBalances(env.rideV6Activated())
+	} else if env.rideV6Activated() {
+		err = ws.validateBalances(env.rideV6Activated())
+	}
+	if err != nil {
+		if ws.invCount() > 1 {
+			return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 		}
+		return nil, InternalInvocationError.Wrapf(err, "%s: failed to validate balances", invocation.name())
 	}
 
 	env.setNewDAppAddress(proto.WavesAddress(callerAddress))
