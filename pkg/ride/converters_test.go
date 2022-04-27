@@ -2258,3 +2258,41 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])
 	assert.Equal(t, rideInt(100000), rideObj["fee"])
 }
+
+func TestArgumentsConversion(t *testing.T) {
+	ri := rideInt(12345)
+	rs := rideString("xxx")
+	rt := rideBoolean(true)
+	rb := rideBytes([]byte{0xca, 0xfe, 0xbe, 0xbe, 0xde, 0xad, 0xbe, 0xef})
+	rl := rideList([]rideType{ri, rs, rt, rb})
+	ru := rideUnit{}
+	ra := rideAddress(proto.MustAddressFromString("3N9b3KejqpXFkbvZBKobythymXM4d3m2oRD"))
+	for _, test := range []struct {
+		args  rideList
+		check bool
+		ok    bool
+		res   []rideType
+	}{
+		{rideList([]rideType{ri, rs, rt, rb}), true, true, []rideType{ri, rs, rt, rb}},
+		{rideList([]rideType{ri, rs, rt, rb, rl}), true, true, []rideType{ri, rs, rt, rb, rl}},
+		{rideList([]rideType{rl, rl, rl, rl, rl}), true, true, []rideType{rl, rl, rl, rl, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl}), true, false, nil},
+		{rideList([]rideType{ri, rs, rt, rb, rideList([]rideType{ri, rs, rt, rb, ru})}), true, false, nil},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl, ra}), true, false, nil},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}), true, false, nil},
+		{rideList([]rideType{ri, rs, rt, rb}), false, true, []rideType{ri, rs, rt, rb}},
+		{rideList([]rideType{ri, rs, rt, rb, rl}), false, true, []rideType{ri, rs, rt, rb, rl}},
+		{rideList([]rideType{rl, rl, rl, rl, rl}), false, true, []rideType{rl, rl, rl, rl, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl}), false, true, []rideType{ru, ri, rs, rt, rb, rl}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rl, ra}), false, true, []rideType{ru, ri, rs, rt, rb, rl, ra}},
+		{rideList([]rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}), false, true, []rideType{ru, ri, rs, rt, rb, rideList([]rideType{ri, rs, ra})}},
+	} {
+		r, err := convertListArguments(test.args, test.check)
+		if test.ok {
+			assert.NoError(t, err)
+		} else {
+			assert.Error(t, err)
+		}
+		assert.ElementsMatch(t, test.res, r)
+	}
+}
