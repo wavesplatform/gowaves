@@ -36,6 +36,8 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.InvokeExpressionTransaction: 5,
 }
 
+var SetScriptTransactionV6Fee uint64 = 1
+
 type feeValidationParams struct {
 	stor           *blockchainEntitiesStorage
 	settings       *settings.BlockchainSettings
@@ -140,6 +142,26 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		if blockV5Activated {
 			return fee / 1000, nil
 		}
+	case proto.SetScriptTransaction:
+		isRideV6Activated, err := params.stor.features.newestIsActivated(int16(settings.RideV6))
+		if err != nil {
+			return 0, err
+		}
+		if !isRideV6Activated {
+			break
+		}
+		fee = SetScriptTransactionV6Fee
+		stx, ok := tx.(*proto.SetScriptWithProofs)
+		if !ok {
+			return 0, errors.New("failed to convert interface to SetScriptTransaction")
+		}
+
+		stxBytesForFee := len(stx.Script)
+		if stxBytesForFee < 0 {
+			panic(fmt.Sprintf("BUG, CREATE REPORT: setScriptTx bytes size (%d) must not be lower than zero", stxBytesForFee))
+		}
+
+		fee += uint64((stxBytesForFee - 1) / 1024)
 	}
 	return fee, nil
 }
