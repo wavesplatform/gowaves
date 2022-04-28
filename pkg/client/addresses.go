@@ -81,9 +81,14 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address proto.WavesAddre
 }
 
 type AddressesScriptInfo struct {
-	Address    proto.WavesAddress `json:"address"`
-	Complexity uint64             `json:"complexity"`
-	ExtraFee   uint64             `json:"extraFee"`
+	Address              proto.WavesAddress `json:"address"`
+	Script               string             `json:"script"`
+	ScriptText           string             `json:"scriptText"`
+	Version              uint64             `json:"version"`
+	Complexity           uint64             `json:"complexity"`
+	VerifierComplexity   uint64             `json:"verifierComplexity"`
+	CallableComplexities map[string]uint64  `json:"callableComplexities"`
+	ExtraFee             uint64             `json:"extraFee"`
 }
 
 // ScriptInfo gets account's script information
