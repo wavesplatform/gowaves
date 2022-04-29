@@ -13,6 +13,8 @@ import (
 const (
 	scriptExtraFee = 400000
 	FeeUnit        = 100000
+
+	SetScriptTransactionV6Fee = 1
 )
 
 var feeConstants = map[proto.TransactionType]uint64{
@@ -35,8 +37,6 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.UpdateAssetInfoTransaction:  1,
 	proto.InvokeExpressionTransaction: 5,
 }
-
-var SetScriptTransactionV6Fee uint64 = 1
 
 type feeValidationParams struct {
 	stor           *blockchainEntitiesStorage

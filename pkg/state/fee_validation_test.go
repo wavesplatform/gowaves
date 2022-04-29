@@ -314,4 +314,10 @@ func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid SetScriptTx fee")
 
+	// Validation with zero size script
+	tx.Script = proto.Script{}
+
+	tx.Fee = FeeUnit * 1
+	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
+	assert.NoError(t, err, "checkMinFeeWaves() failed with valid SetScriptTx fee")
 }
