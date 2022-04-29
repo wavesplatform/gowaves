@@ -16,7 +16,7 @@ func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName r
 	if tree.LibVersion < 5 {
 		return nil, RuntimeError.Errorf("failed to call 'invoke' for script with version %d. Scripts with version 5 are only allowed to be used in 'invoke'", tree.LibVersion)
 	}
-	args, err := convertListArguments(listArgs)
+	args, err := convertListArguments(listArgs, env.rideV6Activated())
 	if err != nil {
 		return nil, EvaluationFailure.Wrapf(err, "failed to invoke function '%s'", fnName)
 	}

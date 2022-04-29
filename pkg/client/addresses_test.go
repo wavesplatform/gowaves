@@ -44,9 +44,16 @@ func TestAddresses_BalanceDetails(t *testing.T) {
 
 var addressesScriptInfoJson = `
 {
-  "address": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "complexity": 0,
-  "extraFee": 0
+	"address": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+	"script": "",
+	"scriptText": "",
+	"version": 0,
+	"complexity": 0,
+	"verifierComplexity": 0,
+	"callableComplexities": {
+		"test": 0
+	},
+	"extraFee": 0
 }`
 
 func TestAddresses_ScriptInfo(t *testing.T) {
@@ -61,7 +68,10 @@ func TestAddresses_ScriptInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, address, body.Address)
-	assert.Equal(t, &AddressesScriptInfo{Address: address}, body)
+	assert.Equal(t, &AddressesScriptInfo{
+		Address:              address,
+		CallableComplexities: map[string]uint64{"test": 0},
+	}, body)
 	assert.Equal(t,
 		"https://testnode1.wavesnodes.com/addresses/scriptInfo/3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
 		resp.Request.URL.String())

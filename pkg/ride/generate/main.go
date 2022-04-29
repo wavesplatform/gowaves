@@ -467,7 +467,7 @@ func functionsV4() map[string]string {
 		m[strconv.Itoa(2800+i)] = fmt.Sprintf("blake2b256_%d", l)
 		m[strconv.Itoa(2900+i)] = fmt.Sprintf("sha256_%d", l)
 	}
-	m["@extrNative(1062)"] = "addressFromString"
+	m["@extrNative(1062)"] = "addressValueFromString"
 	for i := 2; i <= 22; i++ {
 		m[strconv.Itoa(1300+i-2)] = fmt.Sprintf("newTuple%d", i)
 	}
