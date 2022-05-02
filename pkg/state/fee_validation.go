@@ -157,9 +157,6 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		}
 
 		stxBytesForFee := len(stx.Script)
-		if stxBytesForFee < 0 {
-			panic(fmt.Sprintf("BUG, CREATE REPORT: setScriptTx bytes size (%d) must not be lower than zero", stxBytesForFee))
-		}
 
 		fee += uint64((stxBytesForFee - 1) / 1024)
 	}
