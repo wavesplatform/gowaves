@@ -8,7 +8,7 @@ exclude github.com/gogo/protobuf v1.1.1
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
 	github.com/beevik/ntp v0.3.0
-	github.com/btcsuite/btcd v0.22.0-beta
+	github.com/btcsuite/btcd v0.22.1
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.1
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
