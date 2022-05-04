@@ -13,6 +13,8 @@ import (
 const (
 	scriptExtraFee = 400000
 	FeeUnit        = 100000
+
+	SetScriptTransactionV6Fee = 1
 )
 
 var feeConstants = map[proto.TransactionType]uint64{
@@ -140,6 +142,23 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		if blockV5Activated {
 			return fee / 1000, nil
 		}
+	case proto.SetScriptTransaction:
+		isRideV6Activated, err := params.stor.features.newestIsActivated(int16(settings.RideV6))
+		if err != nil {
+			return 0, err
+		}
+		if !isRideV6Activated {
+			break
+		}
+		fee = SetScriptTransactionV6Fee
+		stx, ok := tx.(*proto.SetScriptWithProofs)
+		if !ok {
+			return 0, errors.New("failed to convert interface to SetScriptTransaction")
+		}
+
+		stxBytesForFee := len(stx.Script)
+
+		fee += uint64((stxBytesForFee - 1) / 1024)
 	}
 	return fee, nil
 }
