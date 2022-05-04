@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -270,4 +271,53 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 
 	require.NoError(t, checkMinFeeWaves(sponsorshipA, params, false, maxEstimatorVersion))
 	require.NoError(t, checkMinFeeWaves(sponsorshipB, params, false, maxEstimatorVersion))
+}
+
+func randomScript(size uint64) (proto.Script, error) {
+	var s proto.Script = make([]byte, size)
+	_, err := rand.Read(s[:])
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func TestSetScriptTransactionDynamicFee(t *testing.T) {
+	to, path, err := createSponsoredAssets(true)
+	assert.NoError(t, err, "createSponsoredAssets() failed")
+	to.stor.activateFeature(t, int16(settings.RideV6))
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptWithProofs(t)
+	params := &feeValidationParams{
+		stor:           to.stor.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+	}
+
+	tx.Script, err = randomScript(2 * 1024)
+	assert.NoError(t, err)
+
+	// Validation failed with min fee
+	tx.Fee = FeeUnit * 1
+	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
+	assert.Error(t, err)
+
+	// Validation ok
+	tx.Fee = FeeUnit * 4
+	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
+	assert.NoError(t, err, "checkMinFeeWaves() failed with valid SetScriptTx fee")
+
+	// Validation with zero size script
+	tx.Script = proto.Script{}
+
+	tx.Fee = FeeUnit * 1
+	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
+	assert.NoError(t, err, "checkMinFeeWaves() failed with valid SetScriptTx fee")
 }
