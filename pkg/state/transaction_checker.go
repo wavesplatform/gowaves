@@ -1437,6 +1437,13 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return nil, errs.Extend(err, "bad fee asset")
 	}
+	rideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if tx.FeeAsset.Present && rideV6Activated {
+		return nil, errors.Errorf("sponsored assets are prohibited for UpdateAssetInfo after feature (%d) activation", settings.RideV6)
+	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
 	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 	if err != nil {
