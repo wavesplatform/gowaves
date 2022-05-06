@@ -4993,10 +4993,24 @@ type InvokeExpressionTransactionWithProofs struct {
 	Expression B64Bytes         `json:"expression,omitempty"`
 }
 
+//NewUnsignedInvokeExpressionWithProofs creates new unsigned InvokeExpressionTransactionWithProofs transaction.
+func NewUnsignedInvokeExpressionWithProofs(v, chain byte, senderPK crypto.PublicKey, expression B64Bytes, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeExpressionTransactionWithProofs {
+	return &InvokeExpressionTransactionWithProofs{
+		Type:       InvokeExpressionTransaction,
+		Version:    v,
+		ChainID:    chain,
+		SenderPK:   senderPK,
+		FeeAsset:   feeAsset,
+		Fee:        fee,
+		Timestamp:  timestamp,
+		Expression: expression,
+	}
+}
+
 func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
+		return false, errors.Wrap(err, "failed to verify signature of InvokeExpressionTransactionWithProofs")
 	}
 	return tx.Proofs.Verify(publicKey, b)
 }
@@ -5032,7 +5046,7 @@ func (tx InvokeExpressionTransactionWithProofs) GetTimestamp() uint64 {
 
 func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
-		return tx, errors.Errorf("unexpected version %d for InvokeExpression", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for InvokeExpressionWithProofs", tx.Version)
 	}
 	if l := len(tx.Expression); l > MaxContractScriptSize {
 		return tx, errors.Errorf("size of the expression %d is exceeded limit %d", l, MaxContractScriptSize)
@@ -5044,7 +5058,7 @@ func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transa
 		return tx, errors.New("fee is too big")
 	}
 	if tx.ChainID != scheme {
-		return tx, errors.New("the chain id of InvokeExpression is not equal to network byte")
+		return tx, errors.New("the chain id of InvokeExpressionWithProofs is not equal to network byte")
 	}
 	return tx, nil
 }
@@ -5064,18 +5078,18 @@ func (tx *InvokeExpressionTransactionWithProofs) GenerateID(scheme Scheme) error
 func (tx *InvokeExpressionTransactionWithProofs) Sign(scheme Scheme, sk crypto.SecretKey) error {
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign InvokeExpression transaction")
+		return errors.Wrap(err, "failed to sign InvokeExpressionWithProofs transaction")
 	}
 	if tx.Proofs == nil {
 		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(sk, b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign InvokeExpression transaction")
+		return errors.Wrap(err, "failed to sign InvokeExpressionWithProofs transaction")
 	}
 	d, err := crypto.FastHash(b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign InvokeExpression transaction")
+		return errors.Wrap(err, "failed to sign InvokeExpressionWithProofs transaction")
 	}
 	tx.ID = &d
 	return nil
@@ -5112,7 +5126,7 @@ func (tx *InvokeExpressionTransactionWithProofs) UnmarshalFromProtobuf(data []by
 	}
 	invokeExpressionTx, ok := t.(*InvokeExpressionTransactionWithProofs)
 	if !ok {
-		return errors.New("failed to convert result to InvokeScripV1")
+		return errors.New("failed to convert result to InvokeExpressionTransactionWithProofs")
 	}
 	*tx = *invokeExpressionTx
 	return nil
@@ -5129,7 +5143,7 @@ func (tx *InvokeExpressionTransactionWithProofs) UnmarshalSignedFromProtobuf(dat
 	}
 	invokeExpressionTx, ok := t.(*InvokeExpressionTransactionWithProofs)
 	if !ok {
-		return errors.New("failed to convert result to InvokeScriptWithProofs")
+		return errors.New("failed to convert result to InvokeExpressionTransactionWithProofs")
 	}
 	*tx = *invokeExpressionTx
 	return nil
