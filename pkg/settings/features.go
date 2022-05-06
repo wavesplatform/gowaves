@@ -16,12 +16,11 @@ const (
 	Ride4DApps // RIDE V3
 	OrderV3
 	ReduceNFTFee
-	BlockReward             // 14
-	BlockV5                 // 15
-	RideV5                  // 16
-	RideV6                  // 17
-	ContinuationTransaction // 18
-	LeaseExpiration         // 19
+	BlockReward      // 14
+	BlockV5          // 15
+	RideV5           // 16
+	RideV6           // 17
+	InvokeExpression // 18
 )
 
 type FeatureInfo struct {
@@ -47,6 +46,5 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
 	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
 	RideV6:                          {true, "Ride V6, MetaMask support"},
-	ContinuationTransaction:         {false, "ContinuationTransaction, InvokeExpression"},
-	LeaseExpiration:                 {false, "LeaseExpiration"},
+	InvokeExpression:                {false, "InvokeExpression"},
 }
