@@ -1624,3 +1624,21 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.height+1)
 	assert.EqualError(t, err, correctError)
 }
+
+func TestCheckInvokeExpressionWithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createInvokeExpressionWithProofs(t, make([]byte, 1), proto.OptionalAsset{}, 1)
+	info := defaultCheckerInfo()
+
+	// Check activation.
+	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)
+	assert.Error(t, err, "checkInvokeExpressionWithProofs did not fail prior to feature InvokeExpression activation")
+}
