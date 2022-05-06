@@ -1640,5 +1640,5 @@ func TestCheckInvokeExpressionWithProofs(t *testing.T) {
 
 	// Check activation.
 	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)
-	assert.Error(t, err, "checkInvokeScriptWithProofs did not fail prior to feature InvokeExpression activation")
+	assert.Error(t, err, "checkInvokeExpressionWithProofs did not fail prior to feature InvokeExpression activation")
 }
