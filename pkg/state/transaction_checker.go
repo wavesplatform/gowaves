@@ -1408,12 +1408,12 @@ func (tc *transactionChecker) checkInvokeExpressionWithProofs(transaction proto.
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
-	isInvokeExpressionActivated, err := tc.stor.features.newestIsActivated(int16(settings.ContinuationTransaction))
+	isInvokeExpressionActivated, err := tc.stor.features.newestIsActivated(int16(settings.InvokeExpression))
 	if err != nil {
 		return nil, err
 	}
 	if !isInvokeExpressionActivated {
-		return nil, errors.Errorf("can not use InvokeExpression before feature (%d) activation", settings.ContinuationTransaction)
+		return nil, errors.Errorf("can not use InvokeExpression before feature (%d) activation", settings.InvokeExpression)
 	}
 	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return nil, err
