@@ -523,6 +523,13 @@ func (m *InvokeScriptResult_Call_Argument) MarshalToSizedBufferVTFlat(dAtA []byt
 			return 0, err
 		}
 	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_CaseObj); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
 	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_BooleanValue); ok {
 		size := msg.SizeVT()
 		i -= size
@@ -609,6 +616,20 @@ func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToSizedBufferVTFl
 	}
 	i--
 	dAtA[i] = 0x20
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_CaseObj) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_CaseObj) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.CaseObj)
+	copy(dAtA[i:], m.CaseObj)
+	i = encodeVarint(dAtA, i, uint64(len(m.CaseObj)))
+	i--
+	dAtA[i] = 0x2a
 	return len(dAtA) - i, nil
 }
 func (m *InvokeScriptResult_Call_Argument_List_) MarshalToVTFlat(dAtA []byte) (int, error) {
@@ -1483,6 +1504,20 @@ func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToSizedBufferVT(d
 	dAtA[i] = 0x20
 	return len(dAtA) - i, nil
 }
+func (m *InvokeScriptResult_Call_Argument_CaseObj) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_CaseObj) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.CaseObj)
+	copy(dAtA[i:], m.CaseObj)
+	i = encodeVarint(dAtA, i, uint64(len(m.CaseObj)))
+	i--
+	dAtA[i] = 0x2a
+	return len(dAtA) - i, nil
+}
 func (m *InvokeScriptResult_Call_Argument_List_) MarshalToVT(dAtA []byte) (int, error) {
 	size := m.SizeVT()
 	return m.MarshalToSizedBufferVT(dAtA[:size])
@@ -2033,6 +2068,16 @@ func (m *InvokeScriptResult_Call_Argument_BooleanValue) SizeVT() (n int) {
 	var l int
 	_ = l
 	n += 2
+	return n
+}
+func (m *InvokeScriptResult_Call_Argument_CaseObj) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.CaseObj)
+	n += 1 + l + sov(uint64(l))
 	return n
 }
 func (m *InvokeScriptResult_Call_Argument_List_) SizeVT() (n int) {
@@ -3437,6 +3482,39 @@ func (m *InvokeScriptResult_Call_Argument) UnmarshalVT(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.Value = &InvokeScriptResult_Call_Argument_BooleanValue{b}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CaseObj", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.Value = &InvokeScriptResult_Call_Argument_CaseObj{v}
+			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field List", wireType)

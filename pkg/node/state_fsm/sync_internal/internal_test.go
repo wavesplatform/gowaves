@@ -70,9 +70,8 @@ func TestSigFSM_Block(t *testing.T) {
 	require.Equal(t, 2, fsm.AvailableCount())
 
 	// no panic, cause `nearEnd` is True
-	fsm, blocks, _ := fsm.Blocks(nil)
+	_, blocks, _ := fsm.Blocks(nil)
 	require.Equal(t, 2, len(blocks))
-
 }
 
 func TestSigFSM_BlockGetSignatures(t *testing.T) {
