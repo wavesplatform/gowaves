@@ -1,0 +1,20 @@
+# Ignore git items
+.gitignore
+.gitmodules
+.git/
+:include .gitignore
+
+# Ignore docker items
+.dockerignore
+
+# Common large paths
+build/
+vendor/
+.run/
+*.min.js
+
+# Ignore swagger in wmd
+cmd/wmd/internal/swagger/
+
+# Ignore testdata folders
+pkg/state/testdata/
