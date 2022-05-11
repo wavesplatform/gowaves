@@ -671,7 +671,7 @@ func (m *Transaction_InvokeExpression) MarshalToSizedBufferVTFlat(dAtA []byte) (
 		i--
 		dAtA[i] = 0x7
 		i--
-		dAtA[i] = 0xb2
+		dAtA[i] = 0xba
 	}
 	return len(dAtA) - i, nil
 }
@@ -2285,7 +2285,7 @@ func (m *Transaction_InvokeExpression) MarshalToSizedBufferVT(dAtA []byte) (int,
 		i--
 		dAtA[i] = 0x7
 		i--
-		dAtA[i] = 0xb2
+		dAtA[i] = 0xba
 	}
 	return len(dAtA) - i, nil
 }
@@ -5097,7 +5097,7 @@ func (m *Transaction) UnmarshalVT(dAtA []byte) error {
 				m.Data = &Transaction_UpdateAssetInfo{v}
 			}
 			iNdEx = postIndex
-		case 118:
+		case 119:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InvokeExpression", wireType)
 			}
