@@ -454,10 +454,14 @@ func (s *Server) Serve(l net.Listener) {
 					delay = maxTemporaryErrorDelay
 				}
 				zap.S().Warnf("Failed to accept new connection on %s: %v", s.ln.Addr().String(), err)
+				timer := time.NewTimer(delay)
 				select {
-				case <-time.After(delay):
+				case <-timer.C:
 					continue
 				case <-s.stopped:
+					if !timer.Stop() {
+						<-timer.C
+					}
 					return
 				}
 			}
