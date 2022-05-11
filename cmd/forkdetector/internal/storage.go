@@ -210,22 +210,22 @@ func (s *storage) Close() error {
 }
 
 func (s *storage) peer(ip net.IP) (PeerNode, error) {
-	peer := PeerNode{}
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
-		return peer, err
+		return PeerNode{}, err
 	}
 	defer sn.Release()
 	k := peerKey{prefix: peerNodePrefix, ip: ip.To16()}
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
-		return peer, err
+		return PeerNode{}, err
 	}
+	peer := PeerNode{}
 	err = peer.UnmarshalBinary(v)
 	if err != nil {
-		return peer, err
+		return PeerNode{}, err
 	}
-	return peer, nil
+	return peer, err
 }
 
 func (s *storage) putPeer(ip net.IP, peer PeerNode) error {
@@ -236,11 +236,7 @@ func (s *storage) putPeer(ip net.IP, peer PeerNode) error {
 		return err
 	}
 	batch.Put(k.bytes(), v)
-	err = s.db.Write(batch, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.db.Write(batch, nil)
 }
 
 func (s *storage) peers() ([]PeerNode, error) {
