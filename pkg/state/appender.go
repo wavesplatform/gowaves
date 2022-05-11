@@ -653,14 +653,12 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	case *proto.InvokeExpressionTransactionWithProofs:
 		ID = *t.ID
 	case *proto.EthereumTransaction:
-		// TODO: handle ethereum invoke expression tx
 		switch t.TxKind.(type) {
 		case *proto.EthereumInvokeScriptTxKind:
 			ID = *t.ID
 		default:
 			return nil, errors.Errorf("unexpected ethereum tx kind (%T)", tx)
 		}
-		ID = *t.ID
 	default:
 		return nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}
