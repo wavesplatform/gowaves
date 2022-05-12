@@ -35,7 +35,7 @@ type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in base58 encoding.
 // This method doesn't recognize hex encoding according to the scala node implementation.
-func (epk *EthereumPublicKey) MarshalJSON() ([]byte, error) {
+func (epk EthereumPublicKey) MarshalJSON() ([]byte, error) {
 	// nickeskov: can't fail
 	data, _ := epk.MarshalBinary()
 	return B58Bytes(data).MarshalJSON()

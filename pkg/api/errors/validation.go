@@ -49,7 +49,7 @@ type (
 	TransactionNotAllowedByAccountScriptError validationErrorWithTransaction
 )
 
-func (e *StateCheckFailedError) MarshalJSON() ([]byte, error) {
+func (e StateCheckFailedError) MarshalJSON() ([]byte, error) {
 	errorJson, err := json.Marshal(e.validationErrorWithTransaction)
 	if err != nil {
 		return nil, errors.Wrap(err, "StateCheckFailedError.MarshalJSON")

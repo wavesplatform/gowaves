@@ -254,7 +254,7 @@ func (a Version) String() string {
 	return sb.String()
 }
 
-func (a *Version) MarshalJSON() ([]byte, error) {
+func (a Version) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteRune('"')
 	sb.WriteString(a.String())
