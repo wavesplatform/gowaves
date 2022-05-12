@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	void = []byte{}
+	void []byte
 
 	stateInfoKeyBytes         = []byte{stateInfoKeyPrefix}
 	rollbackMinHeightKeyBytes = []byte{rollbackMinHeightKeyPrefix}
@@ -47,10 +47,7 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 		return err
 	}
 	inf.hasStateHashes, err = proto.Bool(data[3:])
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {

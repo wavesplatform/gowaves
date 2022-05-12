@@ -487,16 +487,13 @@ func (a *Alias) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (a *Alias) Serialize(s *serializer.Serializer) error {
-	err := s.Byte(a.Version)
-	if err != nil {
+	if err := s.Byte(a.Version); err != nil {
 		return err
 	}
-	err = s.Byte(a.Scheme)
-	if err != nil {
+	if err := s.Byte(a.Scheme); err != nil {
 		return err
 	}
-	err = s.StringWithUInt16Len(a.Alias)
-	if err != nil {
+	if err := s.StringWithUInt16Len(a.Alias); err != nil {
 		return err
 	}
 	return nil
@@ -684,11 +681,7 @@ func (r *Recipient) Serialize(s *serializer.Serializer) error {
 	if r.Alias != nil {
 		return r.Alias.Serialize(s)
 	}
-	err := s.Bytes(r.Address[:])
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.Bytes(r.Address[:])
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.

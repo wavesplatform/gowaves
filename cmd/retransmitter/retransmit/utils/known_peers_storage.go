@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"github.com/spf13/afero"
 	"io/ioutil"
 	"os"
+
+	"github.com/spf13/afero"
 )
 
 type Storage interface {
@@ -38,10 +39,7 @@ func (a *FileBasedStorage) Save(b []byte) error {
 	}
 
 	_, err = a.f.Write(b)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (a *FileBasedStorage) Read() ([]byte, error) {

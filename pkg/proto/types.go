@@ -1805,7 +1805,7 @@ func (o *EthereumOrderV4) EthereumSign(scheme Scheme, sk *EthereumPrivateKey) (e
 	o.SenderPK = sk.EthereumPublicKey()
 	err = o.GenerateID(scheme)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed generate ID for EthereumOrderV4")
 	}
 	return nil
 }

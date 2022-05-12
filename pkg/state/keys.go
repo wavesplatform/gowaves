@@ -339,10 +339,7 @@ func (k *leaseKey) unmarshal(data []byte) error {
 	}
 	var err error
 	k.leaseID, err = crypto.NewDigestFromBytes(data[1:])
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (k *leaseKey) bytes() []byte {
@@ -372,10 +369,7 @@ func (k *aliasKey) unmarshal(data []byte) error {
 	}
 	var err error
 	k.alias, err = proto.StringWithUInt16Len(data[1:])
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type disabledAliasKey struct {

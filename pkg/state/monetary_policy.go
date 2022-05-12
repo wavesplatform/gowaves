@@ -156,11 +156,7 @@ func (m *monetaryPolicy) updateBlockReward(h uint64, blockID proto.BlockID) erro
 	if err != nil {
 		return err
 	}
-	err = m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, blockID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, blockID)
 }
 
 func blockRewardTermBoundaries(height, activation uint64, settings settings.FunctionalitySettings) (uint64, uint64) {

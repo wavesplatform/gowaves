@@ -387,11 +387,7 @@ func (c *compiler) pushGlobalValue(name string, node Node, annex *rideCallable) 
 	d := newGlobalValue(name, annex)
 	c.callable = nil
 	c.values = append(c.values, d)
-	err := c.compile(d.bb, node)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.compile(d.bb, node)
 }
 
 func (c *compiler) popValue() error {

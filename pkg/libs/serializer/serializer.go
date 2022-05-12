@@ -33,12 +33,10 @@ func (a *Serializer) StringWithUInt16Len(s string) error {
 	if len(s) > math.MaxUint16 {
 		return errors.Errorf("too long string, expected max %d, found %d", math.MaxUint16, len(s))
 	}
-	err := a.Uint16(uint16(len(s)))
-	if err != nil {
+	if err := a.Uint16(uint16(len(s))); err != nil {
 		return err
 	}
-	err = a.String(s)
-	if err != nil {
+	if err := a.String(s); err != nil {
 		return err
 	}
 	return nil
@@ -51,12 +49,10 @@ func (a *Serializer) StringWithUInt32Len(s string) error {
 	if lenStrU32 > maxU32 {
 		return errors.Errorf("too long string, expected max %d, found %d", maxU32, lenStrU32)
 	}
-	err := a.Uint32(lenStrU32)
-	if err != nil {
+	if err := a.Uint32(lenStrU32); err != nil {
 		return err
 	}
-	err = a.String(s)
-	if err != nil {
+	if err := a.String(s); err != nil {
 		return err
 	}
 	return nil
@@ -64,8 +60,7 @@ func (a *Serializer) StringWithUInt32Len(s string) error {
 
 func (a *Serializer) BytesWithUInt16Len(data []byte) error {
 	sl := uint16(len(data))
-	err := a.Uint16(sl)
-	if err != nil {
+	if err := a.Uint16(sl); err != nil {
 		return err
 	}
 	return a.Bytes(data)
@@ -73,17 +68,16 @@ func (a *Serializer) BytesWithUInt16Len(data []byte) error {
 
 func (a *Serializer) BytesWithUInt32Len(data []byte) error {
 	sl := uint32(len(data))
-	err := a.Uint32(sl)
-	if err != nil {
+	if err := a.Uint32(sl); err != nil {
 		return err
 	}
 	return a.Bytes(data)
 }
 
 func (a *Serializer) Uint16(v uint16) error {
-	buf := make([]byte, 2)
-	binary.BigEndian.PutUint16(buf, v)
-	n, err := a.w.Write(buf)
+	buf := [2]byte{}
+	binary.BigEndian.PutUint16(buf[:], v)
+	n, err := a.w.Write(buf[:])
 	if err != nil {
 		return err
 	}
@@ -92,9 +86,9 @@ func (a *Serializer) Uint16(v uint16) error {
 }
 
 func (a *Serializer) Uint32(v uint32) error {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, v)
-	n, err := a.w.Write(buf)
+	buf := [4]byte{}
+	binary.BigEndian.PutUint32(buf[:], v)
+	n, err := a.w.Write(buf[:])
 	if err != nil {
 		return err
 	}
@@ -103,9 +97,9 @@ func (a *Serializer) Uint32(v uint32) error {
 }
 
 func (a *Serializer) Uint64(v uint64) error {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, v)
-	n, err := a.w.Write(buf)
+	buf := [8]byte{}
+	binary.BigEndian.PutUint64(buf[:], v)
+	n, err := a.w.Write(buf[:])
 	if err != nil {
 		return err
 	}

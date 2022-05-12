@@ -171,7 +171,7 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 
 	response, err := doHttp(ctx, a.options, req, nil)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	return response, nil
 }

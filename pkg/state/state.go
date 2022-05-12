@@ -952,11 +952,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	if err != nil {
 		return err
 	}
-	err = s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {

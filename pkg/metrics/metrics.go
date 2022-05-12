@@ -498,11 +498,7 @@ func (r *reporter) report() error {
 		return err
 	}
 	batch.AddPoints(r.points)
-	err = r.c.Write(batch)
-	if err != nil {
-		return err
-	}
-	return nil
+	return r.c.Write(batch)
 }
 
 func parseURL(s string) (influx.HTTPConfig, string, error) {

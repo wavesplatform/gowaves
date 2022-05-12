@@ -131,10 +131,7 @@ func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
 	r.lastNameDescChangeHeight = binary.BigEndian.Uint64(data[:8])
 	data = data[8:]
 	r.reissuable, err = proto.Bool(data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type assets struct {

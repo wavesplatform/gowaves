@@ -101,11 +101,12 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	err := a.baseInfo.storage.RollbackTo(previousBlockID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
-			previousBlockID.String(), blockFromCache.ID.String())
+			previousBlockID.String(), blockFromCache.ID.String(),
+		)
 	}
 	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{blockFromCache})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
 	}
 	return nil
 }

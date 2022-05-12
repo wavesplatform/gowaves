@@ -1217,36 +1217,28 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 }
 
 func (tr *Transfer) Serialize(s *serializer.Serializer) error {
-	err := s.Bytes(tr.SenderPK[:])
-	if err != nil {
+	if err := s.Bytes(tr.SenderPK[:]); err != nil {
 		return err
 	}
-	err = tr.AmountAsset.Serialize(s)
-	if err != nil {
+	if err := tr.AmountAsset.Serialize(s); err != nil {
 		return err
 	}
-	err = tr.FeeAsset.Serialize(s)
-	if err != nil {
+	if err := tr.FeeAsset.Serialize(s); err != nil {
 		return err
 	}
-	err = s.Uint64(tr.Timestamp)
-	if err != nil {
+	if err := s.Uint64(tr.Timestamp); err != nil {
 		return err
 	}
-	err = s.Uint64(tr.Amount)
-	if err != nil {
+	if err := s.Uint64(tr.Amount); err != nil {
 		return err
 	}
-	err = s.Uint64(tr.Fee)
-	if err != nil {
+	if err := s.Uint64(tr.Fee); err != nil {
 		return err
 	}
-	err = tr.Recipient.Serialize(s)
-	if err != nil {
+	if err := tr.Recipient.Serialize(s); err != nil {
 		return err
 	}
-	err = s.BytesWithUInt16Len(tr.Attachment)
-	if err != nil {
+	if err := s.BytesWithUInt16Len(tr.Attachment); err != nil {
 		return err
 	}
 	return nil
