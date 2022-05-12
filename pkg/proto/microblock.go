@@ -223,9 +223,9 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := buf.Write(a.Body)
+	_, err := buf.Write(a.Body)
 	if err != nil {
-		return int64(n), err
+		return 0, err
 	}
 
 	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
