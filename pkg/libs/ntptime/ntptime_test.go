@@ -17,7 +17,7 @@ func TestNtpTimeImpl_Run(t *testing.T) {
 		},
 		err: nil,
 	}
-	tm, err := new("pool.ntp.org", st)
+	tm, err := newNTPTime("pool.ntp.org", st)
 	require.NoError(t, err)
 	rs := tm.Now()
 	require.NotEmpty(t, rs)

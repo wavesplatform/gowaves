@@ -41,16 +41,16 @@ func TryNew(addr string, tries uint) (*ntpTimeImpl, error) {
 
 func tryNew(addr string, tries uint, inner inner) (*ntpTimeImpl, error) {
 	if tries == 0 {
-		return new(addr, inner)
+		return newNTPTime(addr, inner)
 	}
-	rs, err := new(addr, inner)
+	rs, err := newNTPTime(addr, inner)
 	if err != nil {
 		return tryNew(addr, tries-1, inner)
 	}
 	return rs, nil
 }
 
-func new(addr string, inner inner) (*ntpTimeImpl, error) {
+func newNTPTime(addr string, inner inner) (*ntpTimeImpl, error) {
 	a := &ntpTimeImpl{
 		mu:    sync.RWMutex{},
 		addr:  addr,
@@ -66,10 +66,14 @@ func new(addr string, inner inner) (*ntpTimeImpl, error) {
 
 func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 	for {
+		timer := time.NewTimer(duration)
 		select {
 		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return
-		case <-time.After(duration):
+		case <-timer.C:
 			tm, err := a.inner.Query(a.addr)
 			if err != nil {
 				zap.S().Debug("ntpTimeImpl Run: ", err)
