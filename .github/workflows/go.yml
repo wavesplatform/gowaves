@@ -50,6 +50,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        if: github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves' # disable for forks
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
