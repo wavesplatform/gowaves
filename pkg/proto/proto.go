@@ -310,7 +310,7 @@ func NewTCPAddr(ip net.IP, port int) TCPAddr {
 }
 
 func (a TCPAddr) String() string {
-	return fmt.Sprintf("%s:%d", a.IP.String(), a.Port)
+	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
 func (a TCPAddr) Empty() bool {
