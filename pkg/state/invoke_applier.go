@@ -838,11 +838,23 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
-		// In the following cases the transaction is rejected:
+		// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
+		isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
+		if info.rideV6Activated {
+			if !info.acceptFailed || isCheap {
+				return nil, errors.Wrapf(
+					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+					ride.EvaluationErrorSpentComplexity(err),
+					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+				)
+			}
+			res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
+			return ia.handleInvocationResult(txID, info, res)
+		}
+		// Before RideV6 activation in the following cases the transaction is rejected:
 		// 1) Failing of transactions is not activated yet, reject everything
 		// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
 		// 3) The spent complexity is less than limit
-		isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
 		switch ride.GetEvaluationErrorType(err) {
 		case ride.UserError, ride.RuntimeError:
 			// Usual script error produced by user code or system functions.

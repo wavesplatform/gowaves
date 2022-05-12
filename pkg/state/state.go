@@ -473,19 +473,19 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 		key := accountScriptKey{recipient.Address.ID()}
 		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get script by address")
+			return nil, errors.Wrapf(err, "failed to get script by address '%s'", recipient.Address.String())
 		}
 		return script, nil
 	}
 	if recipient.Alias != nil {
 		address, err := s.NewestAddrByAlias(*recipient.Alias)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get address by alias")
+			return nil, errors.Wrapf(err, "failed to get address by alias '%s'", recipient.Alias.String())
 		}
 		key := accountScriptKey{address.ID()}
 		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get script by address")
+			return nil, errors.Wrapf(err, "failed to get script by address '%s'", address.String())
 		}
 		return script, nil
 	}
