@@ -21,6 +21,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	spawnOutgoingConnectionsInterval        = 1 * time.Minute
+	metricInternalChannelSizeUpdateInterval = 1 * time.Second
+)
+
 type Config struct {
 	AppName  string
 	NodeName string
@@ -114,20 +119,28 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	go func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
+			timer := time.NewTimer(spawnOutgoingConnectionsInterval)
 			select {
 			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
 				return
-			case <-time.After(1 * time.Minute):
+			case <-timer.C:
 			}
 		}
 	}()
 
 	go func() {
 		for {
+			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
 			select {
 			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
 				return
-			case <-time.After(1 * time.Second):
+			case <-timer.C:
 				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
 			}
 		}
