@@ -168,7 +168,7 @@ func joinUrl(baseRaw string, pathRaw string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	// nosemgrep: go.lang.correctness.use-filepath-join.use-filepath-join
 	baseUrl.Path = path.Join(baseUrl.Path, pathUrl.Path)
 
 	query := baseUrl.Query()

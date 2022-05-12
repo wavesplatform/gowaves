@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 
 	"github.com/howeyc/gopass"
@@ -177,7 +176,7 @@ func getWalletPath(userDefinedPath string) string {
 		fmt.Printf("Err: %s\n", err.Error())
 		os.Exit(0)
 	}
-	return path.Join(home, ".waves")
+	return filepath.Join(home, ".waves")
 }
 
 func exists(name string) bool {
