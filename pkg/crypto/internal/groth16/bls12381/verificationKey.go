@@ -2,8 +2,9 @@ package bls12381
 
 import (
 	"bytes"
-	bls "github.com/kilic/bls12-381"
 	"io"
+
+	bls "github.com/kilic/bls12-381"
 )
 
 type VerificationKey struct {
@@ -35,9 +36,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err != nil {
-		return nil, err
-	}
+
 	betaG2, err := bls.NewG2().FromCompressed(g2Repr)
 	if err != nil {
 		return nil, err
