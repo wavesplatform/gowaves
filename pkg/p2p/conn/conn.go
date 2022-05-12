@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"strings"
 
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -52,15 +51,11 @@ func sendToRemote(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRe
 // nonRecoverableError returns `true` if we can't recover from such error.
 // On non-recoverable errors we should close connection and exit.
 func nonRecoverableError(err error) bool {
-	if err != nil {
-		if err == io.EOF {
-			return true
-		}
-		if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
-			return true
-		}
+	if err == nil {
+		return false
 	}
-	return false
+	// for more details with net.ErrClosed see https://github.com/golang/go/issues/4373
+	return errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)
 }
 
 // SkipFilter indicates that the network message should be skipped.
