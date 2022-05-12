@@ -2990,7 +2990,7 @@ func (s Script) MarshalJSON() ([]byte, error) {
 }
 
 func (s Script) IsValidChecksum() bool {
-	if len(s)-4 < 0 {
+	if len(s) < 4 {
 		return false
 	}
 	k, err := crypto.SecureHash(s[:len(s)-4])

@@ -108,7 +108,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
-	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
+	if (newBalance < newLeaseOut) && !diff.allowLeasedTransfer {
 		return nil, errs.NewTxValidationError("Reason: Cannot lease more than own")
 	}
 	// Create new profile.
