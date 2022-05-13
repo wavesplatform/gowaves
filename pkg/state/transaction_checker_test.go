@@ -3,9 +3,7 @@ package state
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1023,15 +1021,8 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	// Test script activation rules.
-	dir, err := getLocalDir()
-	assert.NoError(t, err, "getLocalDir() failed")
-	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
-	scriptBase64, err := ioutil.ReadFile(scriptV3Path)
-	assert.NoError(t, err)
-	scriptBytes := make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
-	n, err := base64.StdEncoding.Decode(scriptBytes, scriptBase64)
-	assert.NoError(t, err)
-	scriptBytes = scriptBytes[:n]
+	scriptBytes, err := readTestScript("version3.base64")
+	require.NoError(t, err)
 	prevScript := tx.Script
 	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
@@ -1040,13 +1031,8 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
-	scriptBase64, err = ioutil.ReadFile(complexScriptPath)
-	assert.NoError(t, err)
-	scriptBytes = make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
-	n, err = base64.StdEncoding.Decode(scriptBytes, scriptBase64)
-	assert.NoError(t, err)
-	scriptBytes = scriptBytes[:n]
+	scriptBytes, err = readTestScript("exceeds_complexity.base64")
+	require.NoError(t, err)
 	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script that exceeds complexity limit")

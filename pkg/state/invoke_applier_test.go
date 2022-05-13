@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -19,8 +20,9 @@ import (
 )
 
 var (
-	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
-	feeAsset  = proto.NewOptionalAssetWaves()
+	invokeFee        = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	feeAsset         = proto.NewOptionalAssetWaves()
+	cutCommentsRegex = regexp.MustCompile(`\s*#.*\n?`)
 )
 
 func invokeSenderRecipient() (proto.Recipient, proto.Recipient) {
@@ -80,16 +82,27 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.WavesAddr
 	assert.NoError(t, err, "failed to set account script")
 }
 
-func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testWavesAddrData) {
+func readTestScript(name string) ([]byte, error) {
 	dir, err := getLocalDir()
-	assert.NoError(t, err, "getLocalDir() failed")
-	dAppPath := filepath.Join(dir, "testdata", "scripts", dappFilename)
-	scriptBase64, err := ioutil.ReadFile(dAppPath)
-	assert.NoError(t, err, "ReadFile() failed")
-	scriptBytes := make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
-	l, err := base64.StdEncoding.Decode(scriptBytes, scriptBase64)
+	if err != nil {
+		return nil, err
+	}
+	dAppPath := filepath.Join(dir, "testdata", "scripts", name)
+	scriptFileContent, err := ioutil.ReadFile(dAppPath)
+	if err != nil {
+		return nil, err
+	}
+	scriptBase64WithComments := string(scriptFileContent)
+	scriptBase64WithoutComments := cutCommentsRegex.ReplaceAllString(scriptBase64WithComments, "")
+	scriptBase64 := strings.TrimSpace(scriptBase64WithoutComments)
+
+	return base64.StdEncoding.DecodeString(scriptBase64)
+}
+
+func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testWavesAddrData) {
+	scriptBytes, err := readTestScript(dappFilename)
 	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
-	to.setScript(t, dappAddr.addr, dappAddr.pk, scriptBytes[:l])
+	to.setScript(t, dappAddr.addr, dappAddr.pk, scriptBytes)
 }
 
 func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16) {
