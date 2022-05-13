@@ -21,6 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 	g "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type report struct {
@@ -158,7 +159,7 @@ func parseNodesList(nodes string) ([]string, error) {
 func dialEndpoints(endpoints []string) ([]*g.ClientConn, error) {
 	r := make([]*g.ClientConn, len(endpoints))
 	for i, e := range endpoints {
-		c, err := g.Dial(e, g.WithInsecure())
+		c, err := g.Dial(e, g.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, err
 		}
