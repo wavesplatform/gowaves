@@ -1,1 +1,150 @@
+# {-# STDLIB_VERSION 1 #-}
+# {-# CONTENT_TYPE EXPRESSION #-}
+# match tx {
+#     case dt: DataTransaction =>
+#         let gameNotStarted =         match getInteger(dt.sender, "gameState") {
+#             case i: Int =>
+#                 false
+#             case _ =>
+#                 true
+#         }
+#         let oldGameState = extract(getInteger(dt.sender, "gameState"))
+#         let newGameState =         match getInteger(dt.data, "gameState") {
+#             case k: Int =>
+#                 k
+#             case _ =>
+#                 7
+#         }
+#         let uselessVar = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar2 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar3 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar4 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar5 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar6 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar7 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar8 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar9 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar10 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar11 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar12 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar13 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar14 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar15 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar16 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let uselessVar17 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar2 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar3 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar4 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar5 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar6 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar7 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar8 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar9 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar10 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar11 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar12 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar13 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar14 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar15 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar16 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let newUselessVar17 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar2 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar3 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar4 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar5 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar6 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar7 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar8 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar9 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar10 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar11 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar12 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar13 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar14 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar15 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar16 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let anotherVar17 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar2 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar3 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar4 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar5 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar6 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar7 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar8 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar9 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar10 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar11 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar12 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar13 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar14 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar15 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar16 = sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let whateverVar17 = sigVerify(dt.bodyBytes, dt.proofs[1], fromBase58String(extract(getString(dt.data, "whatever"))))
+#         let validStep = ((oldGameState + 1) == newGameState)
+#         let gameInitialization = if (if (gameNotStarted)
+#             then (extract(getInteger(dt.data, "command")) == 0)
+#             else false)
+#             then (extract(getInteger(dt.data, "gameState")) == 0)
+#             else false
+#         let playersRegistration = if (if (if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 1)
+#             else false)
+#             then (extract(getString(dt.data, "player1")) == "")
+#             else false)
+#             then (extract(getString(dt.data, "player2")) == "")
+#             else false
+#         let player1Registration = if (if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 2)
+#             else false)
+#             then sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "player1"))))
+#             else false
+#         let player2Registration = if (if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 3)
+#             else false)
+#             then sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.data, "player2"))))
+#             else false
+#         let gameBegin = if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 4)
+#             else false
+#         let move1 = if (if (if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 5)
+#             else false)
+#             then (2 >= extract(getInteger(dt.data, "move1")))
+#             else false)
+#             then sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.sender, "player1"))))
+#             else false
+#         let move2 = if (if (if (validStep)
+#             then (extract(getInteger(dt.data, "command")) == 6)
+#             else false)
+#             then (2 >= extract(getInteger(dt.data, "move2")))
+#             else false)
+#             then sigVerify(dt.bodyBytes, dt.proofs[0], fromBase58String(extract(getString(dt.sender, "player2"))))
+#             else false
+#         let gameEnd = if (if ((extract(getInteger(dt.sender, "gameState")) == 6))
+#             then (extract(getInteger(dt.data, "command")) == 7)
+#             else false)
+#             then (extract(getString(dt.data, "gameState")) == "ended")
+#             else false
+#         if (if (if (if (if (if (if (gameInitialization)
+#             then true
+#             else playersRegistration)
+#             then true
+#             else player1Registration)
+#             then true
+#             else player2Registration)
+#             then true
+#             else gameBegin)
+#             then true
+#             else move1)
+#             then true
+#             else move2)
+#             then true
+#             else gameEnd
+#     case _ =>
+#         true
+# }
+
 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
