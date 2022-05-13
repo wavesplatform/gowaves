@@ -795,7 +795,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
 	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 150)}}}
 	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
-	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 11}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -852,6 +852,85 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: infoAfter,
+		},
+	}
+	for _, tc := range tests {
+		tc.applyTest(t, to)
+	}
+}
+
+func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+	to.activateFeature(t, int16(settings.RideV5))
+	to.activateFeature(t, int16(settings.RideV6))
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	info := to.fallibleValidationParams(t)
+	info.acceptFailed = true
+	info.blockV5Activated = true
+	info.rideV5Activated = true
+	info.checkerInfo.height = 2_800_000
+	info.rideV6Activated = true
+
+	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
+	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
+
+	//Note that after activation of RideV6 only the size of payload is counted
+	sender, dapp := invokeSenderRecipient()
+	//This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
+	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
+	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 200)}}}
+	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
+	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 11}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	tests := []invokeApplierTestData{
+		{ // No error, no failure - transaction applied
+			payments: []proto.ScriptPayment{},
+			fc:       fcEverythingFine,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee * 2,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: info,
+		},
+		{ // Failed transaction because of too much spent complexity
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitAfterComplexityLimit,
+			errorRes: false,
+			failRes:  true,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: info,
+		},
+		{ // Rejected transaction because of low spent complexity
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitBeforeComplexityLimit,
+			errorRes: true,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {

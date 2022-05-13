@@ -187,7 +187,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidators)
 	if err != nil {
-		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		if GetEvaluationErrorType(err) == Undefined {
+			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		}
+		return nil, err
 	}
 
 	if invocation.blocklist() {
@@ -213,7 +216,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidators)
 	if err != nil {
-		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
+		if GetEvaluationErrorType(err) == Undefined {
+			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
+		}
+		return nil, err
 	}
 
 	if env.validateInternalPayments() && !env.rideV6Activated() {
