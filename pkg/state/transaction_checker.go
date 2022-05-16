@@ -1158,7 +1158,7 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkDataWithProofsSize(tx *proto.DataWithProofs, scheme proto.Scheme, isRideV6Activated bool) error {
+func (tc *transactionChecker) checkDataWithProofsSize(tx *proto.DataWithProofs, isRideV6Activated bool) error {
 	switch {
 	case isRideV6Activated:
 		if pl := tx.Entries.PayloadSize(); pl > proto.MaxDataWithProofsV6PayloadBytes {
@@ -1213,7 +1213,7 @@ func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction,
 	if err := tx.Entries.Valid(true, utf16KeyLen); err != nil {
 		return nil, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")
 	}
-	if err := tc.checkDataWithProofsSize(tx, tc.settings.AddressSchemeCharacter, isRideV6Activated); err != nil {
+	if err := tc.checkDataWithProofsSize(tx, isRideV6Activated); err != nil {
 		return nil, err
 	}
 	return nil, nil

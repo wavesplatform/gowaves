@@ -225,6 +225,10 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 	return NewOptionalAssetFromDigest(d), nil
 }
 
+func NewOptionalAsset(present bool, id crypto.Digest) OptionalAsset {
+	return OptionalAsset{Present: present, ID: id}
+}
+
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
 	return &OptionalAsset{Present: true, ID: d}
 }
