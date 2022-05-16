@@ -154,13 +154,15 @@ func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool)
 		}
 	}
 
-	decoded := DecodedCallData{Signature: method.Sig, Name: method.RawName, Payments: payments}
-	for i := 0; i < len(method.Inputs); i++ {
-		decoded.Inputs = append(decoded.Inputs, DecodedArg{
-			Soltype: method.Inputs[i],
-			Value:   values[i],
-		})
+	decodedInputs := make([]DecodedArg, len(method.Inputs))
+	for i := range method.Inputs {
+		decodedInputs[i] = DecodedArg{Soltype: method.Inputs[i], Value: values[i]}
 	}
-
+	decoded := DecodedCallData{
+		Signature: method.Sig,
+		Name:      method.RawName,
+		Inputs:    decodedInputs,
+		Payments:  payments,
+	}
 	return &decoded, nil
 }
