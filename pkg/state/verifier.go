@@ -206,7 +206,11 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 		}
 	case verifyTx:
 		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, scheme); err != nil {
-			return err
+			txID, err := task.tx.GetID(scheme)
+			if err != nil {
+				return errors.Wrap(err, "failed to get transaction ID")
+			}
+			return errors.Wrapf(err, "transaction '%s' verification failed", txID)
 		}
 	}
 	return nil
