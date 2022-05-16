@@ -455,26 +455,23 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 		}
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
-		for _, payment := range abiPayments {
-			var optionalAsset proto.OptionalAsset
-			if payment.PresentAssetID {
-				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(payment.AssetID), true)
+		for _, p := range abiPayments {
+			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
+			if optAsset.Present {
+				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(optAsset.ID), true)
 				if err != nil {
 					return nil, err
 				}
 				if isSmart {
 					minFee += proto.EthereumScriptedAssetMinFee
 				}
-
-				optionalAsset = *proto.NewOptionalAssetFromDigest(payment.AssetID)
-				if err := tc.checkAsset(&optionalAsset, info.initialisation); err != nil {
+				if err := tc.checkAsset(&optAsset, info.initialisation); err != nil {
 					return nil, errs.Extend(err, "bad payment asset")
 				}
-			} else {
-				// we don't have to check WAVES asset because it can't be scripted and always exists
-				optionalAsset = proto.NewOptionalAssetWaves()
 			}
-			paymentAssets = append(paymentAssets, optionalAsset)
+			// if optAsset.Present == false then it's WAVES asset
+			// we don't have to check WAVES asset because it can't be scripted and always exists
+			paymentAssets = append(paymentAssets, optAsset)
 		}
 
 		if tx.GetFee() < minFee {
