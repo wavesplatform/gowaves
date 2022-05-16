@@ -17,13 +17,14 @@ type VerificationKey struct {
 }
 
 func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
-	reader := bytes.NewReader(vk)
-
-	var g1Repr = [g1ReprLen]byte{}
-	var g2Repr = [g2ReprLen]byte{}
+	var (
+		g1Repr = [g1ReprLen]byte{}
+		g2Repr = [g2ReprLen]byte{}
+		r      = bytes.NewReader(vk)
+	)
 
 	// Alpha G1
-	if _, err := reader.Read(g1Repr[:]); err != nil {
+	if _, err := io.ReadFull(r, g1Repr[:]); err != nil {
 		return nil, err
 	}
 	alphaG1, err := bls.NewG1().FromCompressed(g1Repr[:])
@@ -32,7 +33,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	}
 
 	// Beta G2
-	if _, err := reader.Read(g2Repr[:]); err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
 	betaG2, err := bls.NewG2().FromCompressed(g2Repr[:])
@@ -41,7 +42,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	}
 
 	// Gamma G2
-	if _, err := reader.Read(g2Repr[:]); err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
 	gammaG2, err := bls.NewG2().FromCompressed(g2Repr[:])
@@ -50,7 +51,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	}
 
 	// Delta G2
-	if _, err := reader.Read(g2Repr[:]); err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
 	deltaG2, err := bls.NewG2().FromCompressed(g2Repr[:])
@@ -61,7 +62,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	// IC []G1
 	var ic []*bls.PointG1
 	for {
-		if _, err := reader.Read(g1Repr[:]); err != nil {
+		if _, err := io.ReadFull(r, g1Repr[:]); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
