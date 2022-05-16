@@ -221,11 +221,10 @@ func (s *storage) peer(ip net.IP) (PeerNode, error) {
 		return PeerNode{}, err
 	}
 	peer := PeerNode{}
-	err = peer.UnmarshalBinary(v)
-	if err != nil {
+	if err := peer.UnmarshalBinary(v); err != nil {
 		return PeerNode{}, err
 	}
-	return peer, err
+	return peer, nil
 }
 
 func (s *storage) putPeer(ip net.IP, peer PeerNode) error {
