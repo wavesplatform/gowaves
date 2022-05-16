@@ -234,7 +234,7 @@ func (a Version) WriteTo(writer io.Writer) (int64, error) {
 
 func (a *Version) ReadFrom(r io.Reader) (int64, error) {
 	b := [12]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -423,7 +423,7 @@ func (a HandshakeTCPAddr) WriteTo(w io.Writer) (int64, error) {
 
 func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
 	size := [4]byte{}
-	n, err := r.Read(size[:])
+	n, err := io.ReadFull(r, size[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -437,13 +437,13 @@ func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	b := [4]byte{}
-	n2, err := r.Read(b[:])
+	n2, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return 0, err
 	}
 	a.IP = net.IPv4(b[0], b[1], b[2], b[3])
 
-	n3, err := r.Read(b[:])
+	n3, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return 0, err
 	}
@@ -506,12 +506,12 @@ func (a U8String) WriteTo(w io.Writer) (int64, error) {
 
 func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
 	size := [1]byte{}
-	n1, err := r.Read(size[:])
+	n1, err := io.ReadFull(r, size[:])
 	if err != nil {
 		return int64(n1), err
 	}
 	str := make([]byte, size[0])
-	n2, err := r.Read(str)
+	n2, err := io.ReadFull(r, str)
 	if err != nil {
 		return int64(n1 + n2), err
 	}
@@ -530,7 +530,7 @@ func (a U64) WriteTo(w io.Writer) (int64, error) {
 
 func (a *U64) ReadFrom(r io.Reader) (int64, error) {
 	b := [8]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -549,7 +549,7 @@ func (a U32) WriteTo(w io.Writer) (int64, error) {
 
 func (a *U32) ReadFrom(r io.Reader) (int64, error) {
 	b := [4]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -737,7 +737,7 @@ func (p PeerInfo) WriteTo(w io.Writer) (int64, error) {
 
 func (p *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 	b := [8]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
