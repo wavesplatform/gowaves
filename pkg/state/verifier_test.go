@@ -97,6 +97,7 @@ func TestVerifier(t *testing.T) {
 	recipient, err := proto.NewAddressFromString(testAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	unsignedTx := proto.NewUnsignedPayment(spk, recipient, 100, 1, 0)
+	unsignedTx.ID = &crypto.Signature{} // stub to avoid segfault in verifier goroutine
 	txs = []proto.Transaction{unsignedTx}
 	err = verifyTransactions(txs, chans)
 	assert.Error(t, err, "verifyTransactions() did not fail with unsigned tx")
