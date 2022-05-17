@@ -229,16 +229,16 @@ func TestProtocolMarshalling(t *testing.T) {
 		t.Run(fmt.Sprintf("%T", v.testMessage), func(t *testing.T) {
 			trimmed := strings.Replace(v.testEncoded, " ", "", -1)
 			decoded, err := hex.DecodeString(trimmed)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoError(t, err)
 
 			buf := new(bytes.Buffer)
-			_, _ = v.testMessage.WriteTo(buf)
+			_, err = v.testMessage.WriteTo(buf)
+			require.NoError(t, err)
 			require.Equal(t, decoded, buf.Bytes())
 
 			m := v.testMessage
-			_, _ = m.ReadFrom(buf)
+			_, err = m.ReadFrom(buf)
+			require.NoError(t, err)
 			require.Equal(t, v.testMessage, m)
 		})
 	}

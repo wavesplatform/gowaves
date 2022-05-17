@@ -152,31 +152,27 @@ func (a *storeImpl) saveData(f io.WriterTo) error {
 		return err
 	}
 	defer func() {
-		err := file.Close()
-		if err != nil {
+		if err := file.Close(); err != nil {
 			zap.S().Warnf("Failed to save bloom filter: %v", err)
 		}
 	}()
 
-	err = file.Truncate(0)
-	if err != nil {
+	if err := file.Truncate(0); err != nil {
 		return err
 	}
-	_, err = file.Seek(0, 0)
-	if err != nil {
+
+	if _, err := file.Seek(0, 0); err != nil {
 		return err
 	}
 
 	buffer := bufio.NewWriter(file)
 	defer func() {
-		err := buffer.Flush()
-		if err != nil {
+		if err := buffer.Flush(); err != nil {
 			zap.S().Warnf("Failed to save bloom filter: %v", err)
 		}
 	}()
 
-	_, err = f.WriteTo(buffer)
-	if err != nil {
+	if _, err := f.WriteTo(buffer); err != nil {
 		return err
 	}
 	return nil

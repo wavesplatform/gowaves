@@ -2,6 +2,7 @@ package bn256
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254" //nolint
@@ -16,47 +17,44 @@ type VerificationKey struct {
 }
 
 func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
-	reader := bytes.NewReader(vk)
-
-	var g1Repr = make([]byte, 32)
-	var g2Repr = make([]byte, 64)
+	var (
+		g1Repr = [g1ReprLen]byte{}
+		g2Repr = [g2ReprLen]byte{}
+		r      = bytes.NewReader(vk)
+	)
 
 	// Alpha G1
-	_, err := reader.Read(g1Repr)
-	if err != nil {
+	if _, err := io.ReadFull(r, g1Repr[:]); err != nil {
 		return nil, err
 	}
-	alphaG1, err := bn254.NewG1().FromCompressed(g1Repr)
+	alphaG1, err := bn254.NewG1().FromCompressed(g1Repr[:])
 	if err != nil {
 		return nil, err
 	}
 
 	// Beta G2
-	_, err = reader.Read(g2Repr)
-	if err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
-	betaG2, err := bn254.NewG2().FromCompressed(g2Repr)
+	betaG2, err := bn254.NewG2().FromCompressed(g2Repr[:])
 	if err != nil {
 		return nil, err
 	}
 
 	// Gamma G2
-	_, err = reader.Read(g2Repr)
-	if err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
-	gammaG2, err := bn254.NewG2().FromCompressed(g2Repr)
+	gammaG2, err := bn254.NewG2().FromCompressed(g2Repr[:])
 	if err != nil {
 		return nil, err
 	}
 
 	// Delta G2
-	_, err = reader.Read(g2Repr)
-	if err != nil {
+	if _, err := io.ReadFull(r, g2Repr[:]); err != nil {
 		return nil, err
 	}
-	deltaG2, err := bn254.NewG2().FromCompressed(g2Repr)
+	deltaG2, err := bn254.NewG2().FromCompressed(g2Repr[:])
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +62,13 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 	// IC []G1
 	var ic []*bn254.PointG1
 	for {
-		_, err := reader.Read(g1Repr)
-		if err == io.EOF {
-			break
-		} else if err != nil && err != io.EOF {
+		if _, err := io.ReadFull(r, g1Repr[:]); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			return nil, err
 		}
-
-		g1, err := bn254.NewG1().FromCompressed(g1Repr)
+		g1, err := bn254.NewG1().FromCompressed(g1Repr[:])
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +89,7 @@ func (v *VerificationKey) ToCompressed() []byte {
 	var (
 		g1  = bn254.NewG1()
 		g2  = bn254.NewG2()
-		out = make([]byte, 0, 32+3*64+32*len(v.Ic))
+		out = make([]byte, 0, g1ReprLen+3*g2ReprLen+g1ReprLen*len(v.Ic))
 	)
 	out = append(out, g1.ToCompressed(v.AlphaG1)...)
 	out = append(out, g2.ToCompressed(v.BetaG2)...)

@@ -108,7 +108,8 @@ func main() {
 		arguments = arguments.Empty("disable-miner")
 	}
 
-	cmd := exec.Command(*node, arguments.Strings()...) // #nosec: node binary will check all arguments
+	// #nosec: node binary will check all arguments
+	cmd := exec.Command(*node, arguments.Strings()...) // nosem
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

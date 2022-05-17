@@ -168,10 +168,5 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 	if err != nil {
 		return nil, err
 	}
-
-	response, err := doHttp(ctx, a.options, req, nil)
-	if err != nil {
-		return response, err
-	}
-	return response, nil
+	return doHttp(ctx, a.options, req, nil)
 }

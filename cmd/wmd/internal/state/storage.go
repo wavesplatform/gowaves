@@ -140,28 +140,23 @@ func (s *Storage) Rollback(removeHeight int) error {
 	}
 	batch := new(leveldb.Batch)
 	rh := uint32(removeHeight)
-	err = rollbackTrades(snapshot, batch, rh)
-	if err != nil {
+
+	if err := rollbackTrades(snapshot, batch, rh); err != nil {
 		return err
 	}
-	err = rollbackAccounts(snapshot, batch, rh)
-	if err != nil {
+	if err := rollbackAccounts(snapshot, batch, rh); err != nil {
 		return err
 	}
-	err = rollbackAssets(snapshot, batch, rh)
-	if err != nil {
+	if err := rollbackAssets(snapshot, batch, rh); err != nil {
 		return err
 	}
-	err = rollbackAliases(snapshot, batch, rh)
-	if err != nil {
+	if err := rollbackAliases(snapshot, batch, rh); err != nil {
 		return err
 	}
-	err = rollbackBlocks(snapshot, batch, rh)
-	if err != nil {
+	if err := rollbackBlocks(snapshot, batch, rh); err != nil {
 		return err
 	}
-	err = s.db.Write(batch, nil)
-	if err != nil {
+	if err := s.db.Write(batch, nil); err != nil {
 		return err
 	}
 	return nil

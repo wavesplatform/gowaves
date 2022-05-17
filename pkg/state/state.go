@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -363,13 +364,13 @@ func newStateManager(dataDir string, filter bool, params StateParams, settings *
 	if err != nil {
 		return nil, err
 	}
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
 		if err := os.Mkdir(dataDir, 0750); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
-	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
+	if _, err := os.Stat(blockStorageDir); errors.Is(err, fs.ErrNotExist) {
 		if err := os.Mkdir(blockStorageDir, 0750); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", err))
 		}
@@ -951,11 +952,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	if err != nil {
 		return err
 	}
-	err = s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {

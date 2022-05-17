@@ -72,16 +72,13 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 }
 
 func (h *Header) WriteTo(w io.Writer) (int64, error) {
-	buf := make([]byte, 17)
-	n, err := h.Copy(buf)
+	buf := [17]byte{}
+	n, err := h.Copy(buf[:])
 	if err != nil {
 		return 0, err
 	}
 	rs, err := w.Write(buf[:n])
-	if err != nil {
-		return 0, err
-	}
-	return int64(rs), nil
+	return int64(rs), err
 }
 
 func (h *Header) HeaderLength() uint32 {
@@ -227,20 +224,17 @@ func NewVersionFromString(version string) (*Version, error) {
 }
 
 func (a Version) WriteTo(writer io.Writer) (int64, error) {
-	b := make([]byte, 12)
+	b := [12]byte{}
 	binary.BigEndian.PutUint32(b[:4], a.Major)
 	binary.BigEndian.PutUint32(b[4:8], a.Minor)
 	binary.BigEndian.PutUint32(b[8:], a.Patch)
-	n, err := writer.Write(b)
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	n, err := writer.Write(b[:])
+	return int64(n), err
 }
 
 func (a *Version) ReadFrom(r io.Reader) (int64, error) {
-	b := make([]byte, 12)
-	n, err := r.Read(b)
+	b := [12]byte{}
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -260,7 +254,7 @@ func (a Version) String() string {
 	return sb.String()
 }
 
-func (a *Version) MarshalJSON() ([]byte, error) {
+func (a Version) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteRune('"')
 	sb.WriteString(a.String())
@@ -316,7 +310,7 @@ func NewTCPAddr(ip net.IP, port int) TCPAddr {
 }
 
 func (a TCPAddr) String() string {
-	return fmt.Sprintf("%s:%d", a.IP.String(), a.Port)
+	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
 func (a TCPAddr) Empty() bool {
@@ -325,19 +319,14 @@ func (a TCPAddr) Empty() bool {
 
 func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
 	b := []byte(a.IP.To16())
-	n, err := w.Write(b)
+	n1, err := w.Write(b)
 	if err != nil {
-		return int64(n), err
+		return int64(n1), err
 	}
-
-	b8 := make([]byte, 8)
-	binary.BigEndian.PutUint64(b8, uint64(a.Port))
-	n2, err := w.Write(b8)
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(n + n2), nil
+	b8 := [8]byte{}
+	binary.BigEndian.PutUint64(b8[:], uint64(a.Port))
+	n2, err := w.Write(b8[:])
+	return int64(n1 + n2), err
 }
 
 // ToUint64 converts TCPAddr to uint64 number.
@@ -434,7 +423,7 @@ func (a HandshakeTCPAddr) WriteTo(w io.Writer) (int64, error) {
 
 func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
 	size := [4]byte{}
-	n, err := r.Read(size[:])
+	n, err := io.ReadFull(r, size[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -448,13 +437,13 @@ func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	b := [4]byte{}
-	n2, err := r.Read(b[:])
+	n2, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return 0, err
 	}
 	a.IP = net.IPv4(b[0], b[1], b[2], b[3])
 
-	n3, err := r.Read(b[:])
+	n3, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return 0, err
 	}
@@ -512,42 +501,36 @@ func (a U8String) WriteTo(w io.Writer) (int64, error) {
 	data[0] = byte(l)
 	copy(data[1:1+l], a.S)
 	n, err := w.Write(data)
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	return int64(n), err
 }
 
 func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
-	size := make([]byte, 1)
-	n, err := r.Read(size)
+	size := [1]byte{}
+	n1, err := io.ReadFull(r, size[:])
 	if err != nil {
-		return 0, err
+		return int64(n1), err
 	}
 	str := make([]byte, size[0])
-	n2, err := r.Read(str)
+	n2, err := io.ReadFull(r, str)
 	if err != nil {
-		return 0, err
+		return int64(n1 + n2), err
 	}
 	a.S = string(str)
-	return int64(n + n2), nil
+	return int64(n1 + n2), nil
 }
 
 type U64 uint64
 
 func (a U64) WriteTo(w io.Writer) (int64, error) {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(a))
-	n, err := w.Write(b)
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	b := [8]byte{}
+	binary.BigEndian.PutUint64(b[:], uint64(a))
+	n, err := w.Write(b[:])
+	return int64(n), err
 }
 
 func (a *U64) ReadFrom(r io.Reader) (int64, error) {
 	b := [8]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -558,18 +541,15 @@ func (a *U64) ReadFrom(r io.Reader) (int64, error) {
 type U32 uint32
 
 func (a U32) WriteTo(w io.Writer) (int64, error) {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, uint32(a))
-	n, err := w.Write(b)
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	b := [4]byte{}
+	binary.BigEndian.PutUint32(b[:], uint32(a))
+	n, err := w.Write(b[:])
+	return int64(n), err
 }
 
 func (a *U32) ReadFrom(r io.Reader) (int64, error) {
 	b := [4]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -752,15 +732,12 @@ func (p PeerInfo) WriteTo(w io.Writer) (int64, error) {
 	copy(b[:4], p.Addr.To4())
 	binary.BigEndian.PutUint32(b[4:8], uint32(p.Port))
 	n, err := w.Write(b[:])
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	return int64(n), err
 }
 
 func (p *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 	b := [8]byte{}
-	n, err := r.Read(b[:])
+	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
@@ -986,14 +963,6 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	packet = append(packetLen[:], packet...)
 
 	return packet, int64(nn), nil
-}
-
-func ReadPayload(buf []byte, r io.Reader) (int64, error) {
-	nn, err := io.ReadFull(r, buf)
-	if err != nil {
-		return int64(nn), err
-	}
-	return int64(nn), nil
 }
 
 // ReadFrom reads PeersMessage from io.Reader

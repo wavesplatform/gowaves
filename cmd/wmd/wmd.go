@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"runtime"
@@ -196,7 +197,7 @@ func run() error {
 	}
 
 	if *importFile != "" {
-		if _, err := os.Stat(*importFile); os.IsNotExist(err) {
+		if _, err := os.Stat(*importFile); errors.Is(err, fs.ErrNotExist) {
 			zap.S().Errorf("Failed to import blockchain from file: %v", err)
 			return err
 		}

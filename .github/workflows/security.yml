@@ -27,6 +27,33 @@ jobs:
         with:
           sarif_file: gosec.sarif
 
+  semgrep:
+    name: semgrep scan
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        # we let the report trigger content trigger a failure using the GitHub Security features.
+        # see https://semgrep.dev/docs/cli-usage/#exit-codes for more details.
+      - name: Run semgrep security scanner
+        run: |
+          cat << 'EOF' | bash
+              semgrep ci --config=auto --sarif --output=semgrep.sarif --max-target-bytes=2MB
+              EXIT_CODE=$?
+              if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "1" ]
+              then
+                exit 0
+              else
+                exit $EXIT_CODE
+              fi
+          EOF
+      - name: Upload SARIF file for GitHub Advanced Security Dashboard
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+
   vuln-scan:
     name: Vulnerability scanner
     runs-on: ubuntu-latest

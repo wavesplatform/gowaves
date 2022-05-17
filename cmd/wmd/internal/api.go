@@ -372,11 +372,11 @@ func (a *DataFeedAPI) tradesRange(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
-	f, err := strconv.Atoi(chi.URLParam(r, fromPlaceholder))
+	f, err := strconv.ParseUint(chi.URLParam(r, fromPlaceholder), 10, 64)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 	}
-	t, err := strconv.Atoi(chi.URLParam(r, toPlaceholder))
+	t, err := strconv.ParseUint(chi.URLParam(r, toPlaceholder), 10, 64)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 	}
@@ -390,7 +390,7 @@ func (a *DataFeedAPI) tradesRange(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	trades, err := a.Storage.TradesRange(amountAsset, priceAsset, uint64(f), uint64(t))
+	trades, err := a.Storage.TradesRange(amountAsset, priceAsset, f, t)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusInternalServerError)
 		return

@@ -120,13 +120,7 @@ func (a *KnownPeers) save() error {
 	if err != nil {
 		return err
 	}
-
-	err = a.storage.Save(bts)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.storage.Save(bts)
 }
 
 func (a *KnownPeers) Stop() {

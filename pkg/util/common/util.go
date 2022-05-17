@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +66,7 @@ func GetStatePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return path.Join(u.HomeDir, ".gowaves"), nil
+	return filepath.Join(u.HomeDir, ".gowaves"), nil
 }
 
 func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {

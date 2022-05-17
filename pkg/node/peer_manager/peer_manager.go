@@ -15,7 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const suspendDuration = 5 * time.Minute
+const (
+	suspendDuration             = 5 * time.Minute
+	clearSuspendedPeersInterval = 1 * time.Minute
+)
 
 type peerInfo struct {
 	score *big.Int
@@ -340,10 +343,14 @@ func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {
 	for {
+		timer := time.NewTimer(clearSuspendedPeersInterval)
 		select {
 		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return
-		case <-time.After(1 * time.Minute):
+		case <-timer.C:
 			a.clearSuspended(time.Now())
 		}
 	}

@@ -1805,7 +1805,7 @@ func (o *EthereumOrderV4) EthereumSign(scheme Scheme, sk *EthereumPrivateKey) (e
 	o.SenderPK = sk.EthereumPublicKey()
 	err = o.GenerateID(scheme)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed generate ID for EthereumOrderV4")
 	}
 	return nil
 }
@@ -2990,7 +2990,7 @@ func (s Script) MarshalJSON() ([]byte, error) {
 }
 
 func (s Script) IsValidChecksum() bool {
-	if len(s)-4 < 0 {
+	if len(s) < 4 {
 		return false
 	}
 	k, err := crypto.SecureHash(s[:len(s)-4])

@@ -3,6 +3,7 @@ package ride
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
@@ -25,8 +26,7 @@ func newParserV1(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
 
 func readShortV1(r *bytes.Reader) (int16, error) {
 	buf := [2]byte{}
-	_, err := r.Read(buf[:])
-	if err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, err
 	}
 	return int16(binary.BigEndian.Uint16(buf[:])), nil
@@ -34,8 +34,7 @@ func readShortV1(r *bytes.Reader) (int16, error) {
 
 func readIntV1(r *bytes.Reader) (int32, error) {
 	buf := [4]byte{}
-	_, err := r.Read(buf[:])
-	if err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, err
 	}
 	return int32(binary.BigEndian.Uint32(buf[:])), nil
@@ -43,8 +42,7 @@ func readIntV1(r *bytes.Reader) (int32, error) {
 
 func readLongV1(r *bytes.Reader) (int64, error) {
 	buf := [8]byte{}
-	_, err := r.Read(buf[:])
-	if err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, err
 	}
 	return int64(binary.BigEndian.Uint64(buf[:])), nil

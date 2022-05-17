@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -273,7 +274,7 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) error {
 	}
 	// TODO(nickeskov): remove this and use auth middleware
 	apiKey := r.Header.Get("X-API-Key")
-	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
+	addr := net.JoinHostPort(req.Host, strconv.FormatUint(uint64(req.Port), 10))
 	rs, err := a.app.PeersConnect(r.Context(), apiKey, addr)
 	if err != nil {
 		return errors.Wrapf(err, "failed to connect to new peer, addr %s", addr)

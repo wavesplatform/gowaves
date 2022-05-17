@@ -76,7 +76,7 @@ func (r *Registry) Check(addr net.Addr, application string) error {
 	// Check what we already know about the address
 	peer, err := r.storage.peer(ip)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return nil
 		}
 		return err
@@ -134,16 +134,19 @@ func (r *Registry) PeerConnected(addr net.Addr) error {
 	}
 	peer, err := r.storage.peer(ip)
 	if err != nil {
-		if err != leveldb.ErrNotFound {
+		if !errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
-		peer.Address = ip
-		peer.Port = port
-		peer.Nonce = 0
-		peer.Name = "N/A"
-		peer.Version = proto.Version{}
-		peer.Attempts = 0
-		peer.NextAttempt = time.Time{}
+		peer = PeerNode{
+			Address:     ip,
+			Port:        port,
+			Nonce:       0,
+			Name:        "N/A",
+			Version:     proto.Version{},
+			Attempts:    0,
+			NextAttempt: time.Time{},
+			State:       NodeUnknown,
+		}
 	}
 	switch peer.State {
 	case NodeUnknown, NodeDiscarded, NodeResponding:
@@ -153,11 +156,7 @@ func (r *Registry) PeerConnected(addr net.Addr) error {
 	case NodeGreeted:
 		return nil
 	}
-	err = r.storage.putPeer(ip, peer)
-	if err != nil {
-		return err
-	}
-	return nil
+	return r.storage.putPeer(ip, peer)
 }
 
 func (r *Registry) PeerGreeted(addr net.Addr, nonce uint64, name string, v proto.Version) error {
@@ -186,11 +185,7 @@ func (r *Registry) PeerGreeted(addr net.Addr, nonce uint64, name string, v proto
 	peer.Attempts = 0
 	peer.NextAttempt = time.Time{}
 	peer.State = NodeGreeted
-	err = r.storage.putPeer(ip, peer)
-	if err != nil {
-		return err
-	}
-	return nil
+	return r.storage.putPeer(ip, peer)
 }
 
 func (r *Registry) PeerHostile(addr net.Addr, nonce uint64, name string, v proto.Version) error {
@@ -217,11 +212,7 @@ func (r *Registry) PeerHostile(addr net.Addr, nonce uint64, name string, v proto
 	peer.Name = name
 	peer.Version = v
 	peer.State = NodeHostile
-	err = r.storage.putPeer(ip, peer)
-	if err != nil {
-		return err
-	}
-	return nil
+	return r.storage.putPeer(ip, peer)
 }
 
 func (r *Registry) PeerDiscarded(addr net.Addr) error {
@@ -249,11 +240,7 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 		} else {
 			peer.NextAttempt = time.Now().Add(hourDelay)
 		}
-		err = r.storage.putPeer(ip, peer)
-		if err != nil {
-			return err
-		}
-		return nil
+		return r.storage.putPeer(ip, peer)
 	}
 }
 

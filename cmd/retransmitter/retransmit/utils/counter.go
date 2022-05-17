@@ -58,7 +58,7 @@ func (a *Counter) IncUniqueTransaction() {
 }
 
 func (a *Counter) Get() []Response {
-	var out []Response
+	out := make([]Response, 0, len(a.resendTransactionCount))
 	a.mu.Lock()
 	for k, v := range a.resendTransactionCount {
 		out = append(out, Response{

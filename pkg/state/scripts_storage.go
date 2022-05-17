@@ -432,10 +432,7 @@ func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress, filter bool
 func (ss *scriptsStorage) clear() error {
 	var err error
 	ss.cache, err = newLru(maxCacheSize, maxCacheBytes)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (ss *scriptsStorage) prepareHashes() error {

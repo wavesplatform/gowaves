@@ -148,11 +148,7 @@ func (s *synchronizer) requestIds() {
 
 func (s *synchronizer) movePeer(id proto.BlockID) error {
 	zap.S().Debugf("[%s][SYN] Moving peer link to block '%s'", s.conn.RawConn.RemoteAddr(), id.String())
-	err := s.drawer.movePeer(s.addr, id)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.drawer.movePeer(s.addr, id)
 }
 
 func contains(a []proto.BlockID, e proto.BlockID) (bool, int) {

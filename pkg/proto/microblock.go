@@ -223,9 +223,9 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := buf.Write(a.Body)
+	_, err := buf.Write(a.Body)
 	if err != nil {
-		return int64(n), err
+		return 0, err
 	}
 
 	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
@@ -239,10 +239,7 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	n2, err := buf.WriteTo(w)
-	if err != nil {
-		return n1 + n2, err
-	}
-	return n1 + n2, nil
+	return n1 + n2, err
 }
 
 func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
@@ -435,10 +432,7 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 		a.Reference = NewBlockIDFromSignature(ref)
 	}
 	a.Signature, err = d.Signature()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (a *MicroBlockInv) WriteTo(w io.Writer) (int64, error) {
@@ -458,10 +452,7 @@ func (a *MicroBlockInv) Sign(key crypto.SecretKey, schema Scheme) error {
 		return err
 	}
 	a.Signature, err = crypto.Sign(key, buf.Bytes())
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (a *MicroBlockInv) bodyBytes(w io.Writer, schema Scheme) error {
@@ -538,10 +529,7 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	n2, err := buf.WriteTo(w)
-	if err != nil {
-		return n1 + n2, err
-	}
-	return n1 + n2, nil
+	return n1 + n2, err
 }
 
 func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
