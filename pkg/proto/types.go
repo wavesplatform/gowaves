@@ -16,7 +16,6 @@ import (
 	"unicode/utf16"
 
 	"github.com/btcsuite/btcd/btcec"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -223,6 +222,10 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
 	return NewOptionalAssetFromDigest(d), nil
+}
+
+func NewOptionalAsset(present bool, id crypto.Digest) OptionalAsset {
+	return OptionalAsset{Present: present, ID: id}
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {

@@ -1032,14 +1032,10 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
-		var scriptPayments []proto.ScriptPayment
-		for _, p := range tx.TxKind.DecodedData().Payments {
-			var optAsset proto.OptionalAsset
-			if p.PresentAssetID {
-				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
-			} else {
-				optAsset = proto.NewOptionalAssetWaves()
-			}
+		abiPayments := tx.TxKind.DecodedData().Payments
+		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
+		for _, p := range abiPayments {
+			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}

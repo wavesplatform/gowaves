@@ -206,6 +206,9 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 			return "", errors.Errorf("failed to parse ethereum data, %v", err)
 		}
 		for _, payment := range decodedData.Payments {
+			if !payment.PresentAssetID {
+				continue // it's waves asset, skip
+			}
 			assetID := proto.AssetIDFromDigest(payment.AssetID)
 			asset, err := s.nodeRPCApp.State.AssetInfo(assetID)
 			if err != nil {

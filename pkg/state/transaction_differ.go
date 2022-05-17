@@ -1464,18 +1464,14 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 }
 
 func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
-
-	updateMinIntermediateBalance := false
-
 	txInvokeScriptKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
-	decodedData := txInvokeScriptKind.DecodedData()
-
-	noPayments := len(decodedData.Payments) == 0
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
+	payments := txInvokeScriptKind.DecodedData().Payments
+	updateMinIntermediateBalance := false
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && len(payments) > 0 {
 		updateMinIntermediateBalance = true
 	}
 	diff := newTxDiff()
@@ -1501,15 +1497,15 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 
-	for _, payment := range decodedData.Payments {
-		assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
-		senderPaymentKey := byteKey(senderAddrID, *assetID)
-		senderBalanceDiff := -payment.Amount
+	for _, p := range payments {
+		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
+		senderPaymentKey := byteKey(senderAddrID, optAsset)
+		senderBalanceDiff := -p.Amount
 		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
-		receiverKey := byteKey(scriptAddrID, *assetID)
-		receiverBalanceDiff := payment.Amount
+		receiverKey := byteKey(scriptAddrID, optAsset)
+		receiverBalanceDiff := p.Amount
 		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
