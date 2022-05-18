@@ -1665,6 +1665,14 @@ func (s *stateManager) AllFeatures() ([]int16, error) {
 }
 
 func (s *stateManager) EstimatorVersion() (int, error) {
+	rideV6, err := s.IsActivated(int16(settings.RideV6))
+	if err != nil {
+		return 0, err
+	}
+	if rideV6 {
+		return 4, nil
+	}
+
 	blockV5, err := s.IsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return 0, err
@@ -1672,6 +1680,7 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 	if blockV5 {
 		return 3, nil
 	}
+
 	blockReward, err := s.IsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return 0, err
@@ -1679,6 +1688,7 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 	if blockReward {
 		return 2, nil
 	}
+
 	smartAccounts, err := s.IsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return 0, err
@@ -1686,7 +1696,7 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 	if smartAccounts {
 		return 1, nil
 	}
-	return 0, errors.Errorf("inactive RIDE")
+	return 0, errors.New("inactive RIDE")
 }
 
 // Accounts data storage.
