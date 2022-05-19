@@ -1868,7 +1868,7 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		},
 		PrimaryType: "Order",
 		Domain: ethereumTypedDataDomain{
-			Name:              "Waves Exchange",
+			Name:              "Waves Order",
 			Version:           "1",
 			ChainId:           newHexOrDecimal256(int64(scheme)),
 			VerifyingContract: EncodeToHexString(verifyingContract[:]),
