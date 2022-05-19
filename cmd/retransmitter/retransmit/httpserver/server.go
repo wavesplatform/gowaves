@@ -80,7 +80,7 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 	sort.Sort(out)
 
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
-		http.Error(rw, fmt.Sprintf("Failed to marshal JSON ans Write() failed: %v", err), http.StatusInternalServerError)
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -88,7 +88,7 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 func (a *HttpServer) KnownPeers(rw http.ResponseWriter, r *http.Request) {
 	out := a.retransmitter.KnownPeers().GetAll()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
-		http.Error(rw, fmt.Sprintf("Failed to marshal JSON ans Write() failed: %v", err), http.StatusInternalServerError)
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -96,7 +96,7 @@ func (a *HttpServer) KnownPeers(rw http.ResponseWriter, r *http.Request) {
 func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 	out := a.retransmitter.SpawnedPeers().GetAll()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
-		http.Error(rw, fmt.Sprintf("Failed to marshal JSON ans Write() failed: %v", err), http.StatusInternalServerError)
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -105,7 +105,7 @@ func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 	c := a.retransmitter.Counter()
 	out := c.Get()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
-		http.Error(rw, fmt.Sprintf("Failed to marshal JSON ans Write() failed: %v", err), http.StatusInternalServerError)
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 }

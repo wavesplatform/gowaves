@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -210,7 +211,7 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 			if txIdErr != nil {
 				return errors.Wrap(txIdErr, "failed to get transaction ID")
 			}
-			return errors.Wrapf(err, "transaction '%s' verification failed", txID)
+			return errors.Wrapf(err, "transaction '%s' verification failed", base58.Encode(txID))
 		}
 	}
 	return nil
