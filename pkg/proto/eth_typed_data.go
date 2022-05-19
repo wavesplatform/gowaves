@@ -47,7 +47,6 @@ type ethereumTypedDataDomain struct {
 	Version           string           `json:"version,omitempty"`
 	ChainId           *hexOrDecimal256 `json:"chainId,omitempty"`
 	VerifyingContract string           `json:"verifyingContract,omitempty"`
-	Salt              string           `json:"salt,omitempty"`
 }
 
 type ethereumTypedDataMessage map[string]interface{}
@@ -585,7 +584,7 @@ func (t ethereumTypedDataTypes) validate() error {
 // validate checks if the given domain is valid, i.e. contains at least
 // the minimum viable keys and values
 func (domain *ethereumTypedDataDomain) validate() error {
-	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 && len(domain.Salt) == 0 {
+	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 {
 		return errors.New("domain is undefined")
 	}
 
@@ -612,8 +611,5 @@ func (domain *ethereumTypedDataDomain) Map() map[string]interface{} {
 		dataMap["verifyingContract"] = domain.VerifyingContract
 	}
 
-	if len(domain.Salt) > 0 {
-		dataMap["salt"] = domain.Salt
-	}
 	return dataMap
 }
