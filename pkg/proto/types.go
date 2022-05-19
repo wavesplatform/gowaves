@@ -1654,7 +1654,7 @@ func (o *OrderV4) GenerateID(scheme Scheme) error {
 func (o *OrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	pbOrder := o.ToProtobuf(scheme)
 	pbOrder.Proofs = nil
-	return MarshalToProtobufDeterministic(pbOrder)
+	return pbOrder.MarshalVTFlat()
 }
 
 //Sign adds a signature to the order.
