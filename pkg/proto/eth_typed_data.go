@@ -50,7 +50,7 @@ type ethereumTypedDataDomain struct {
 	Salt              string           `json:"salt,omitempty"`
 }
 
-type ethereumTypedDataMessage = map[string]interface{}
+type ethereumTypedDataMessage map[string]interface{}
 
 type ethereumTypedData struct {
 	Types       ethereumTypedDataTypes   `json:"types"`
