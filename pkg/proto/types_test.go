@@ -1634,7 +1634,10 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 }
 
 func TestEthereumOrderV4(t *testing.T) {
-	ethStub32 := bytes.Repeat([]byte{CustomNetScheme}, 32)
+	const (
+		ethChainIdByte = 'E'
+	)
+	ethStub32 := bytes.Repeat([]byte{ethChainIdByte}, 32)
 
 	stubAssetID, err := crypto.NewDigestFromBytes(ethStub32)
 	require.NoError(t, err)
@@ -1646,24 +1649,15 @@ func TestEthereumOrderV4(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Verify-Scala", func(t *testing.T) {
-		// taken from scala-node
+		// taken from scala-node tests
 
-		testAssetPair := AssetPair{
-			AmountAsset: OptionalAsset{
-				Present: true,
-				ID:      stubAssetID,
-			},
-			PriceAsset: OptionalAsset{
-				Present: true,
-				ID:      stubAssetID,
-			},
-		}
+		asset := *NewOptionalAssetFromDigest(stubAssetID)
 
 		testEthPubKeyHex := "0xf69531bdb61b48f8cd4963291d07773d09b07081795dae2a43931a5c3cd86e15018836e653bc7c1e6a2718c9b28a9f299d4b86d956488b432ab719d5cc962d2e"
 		testEthSenderPK, err := NewEthereumPublicKeyFromHexString(testEthPubKeyHex)
 		require.NoError(t, err)
 
-		testEthSigHex := "0xae7cb5b5e9713862fdbfb6b5f1518d89b4f1cc29a865a9248ad72a36044e2a90683092c2fe49fd5e00d6ce734e6ee623b9206f7ad05e587dfe9b45cbd586d5fd1b"
+		testEthSigHex := "0xfe56e1cbd6945f1e17ce9f9eb21172dd7810bcc74651dd7d3eaeca5d9ae0409113e5236075841af8195cb4dba3947ae9b99dbd560fd0c43afe89cc0b648690321c"
 		testEthSig, err := NewEthereumSignatureFromHexString(testEthSigHex)
 		require.NoError(t, err)
 
@@ -1671,18 +1665,15 @@ func TestEthereumOrderV4(t *testing.T) {
 			SenderPK:        &testEthSenderPK,
 			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
-				PriceMode: OrderPriceModeAssetDecimals,
-				Version:   1,
-				ID:        nil,
-				Proofs:    nil, // no proofs because order has Eip712Signature
-				MatcherFeeAsset: OptionalAsset{
-					Present: true,
-					ID:      stubAssetID,
-				}, // waves asset by default
+				PriceMode:       OrderPriceModeFixedDecimals,
+				Version:         4,
+				ID:              nil,
+				Proofs:          nil, // no proofs because order has Eip712Signature
+				MatcherFeeAsset: asset,
 				OrderBody: OrderBody{
 					SenderPK:   crypto.PublicKey{}, // empty because this is ethereum-signed order
 					MatcherPK:  wavesPKStub,
-					AssetPair:  testAssetPair,
+					AssetPair:  AssetPair{AmountAsset: asset, PriceAsset: asset},
 					OrderType:  Buy,
 					Price:      1,
 					Amount:     1,
@@ -1693,7 +1684,7 @@ func TestEthereumOrderV4(t *testing.T) {
 			},
 		}
 
-		valid, err := ethOrder.Verify(CustomNetScheme)
+		valid, err := ethOrder.Verify(TestNetScheme)
 		require.NoError(t, err)
 		require.True(t, valid)
 	})
