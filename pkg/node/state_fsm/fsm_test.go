@@ -23,7 +23,9 @@ func (noopReschedule) Reschedule() {
 }
 
 func TestNewFsm(t *testing.T) {
-	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}}, 1000)
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, ListOfExcludedCh: fakeCh}, 1000)
 
 	require.NoError(t, err)
 	require.Equal(t, []int{tasks.AskPeers, tasks.Ping}, mapAsync(async))

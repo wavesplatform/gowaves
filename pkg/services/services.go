@@ -26,18 +26,19 @@ type MicroBlockInvCache interface {
 }
 
 type Services struct {
-	NodeName        string
-	State           state.State
-	Peers           peer_manager.PeerManager
-	Scheduler       types.Scheduler
-	BlocksApplier   BlocksApplier
-	UtxPool         types.UtxPool
-	Scheme          proto.Scheme
-	InvRequester    types.InvRequester
-	LoggableRunner  runner.LogRunner
-	Time            types.Time
-	Wallet          types.EmbeddedWallet
-	MicroBlockCache MicroBlockCache
-	InternalChannel chan messages.InternalMessage
-	MinPeersMining  int
+	NodeName         string
+	State            state.State
+	Peers            peer_manager.PeerManager
+	Scheduler        types.Scheduler
+	BlocksApplier    BlocksApplier
+	UtxPool          types.UtxPool
+	Scheme           proto.Scheme
+	InvRequester     types.InvRequester
+	LoggableRunner   runner.LogRunner
+	Time             types.Time
+	Wallet           types.EmbeddedWallet
+	MicroBlockCache  MicroBlockCache
+	InternalChannel  chan messages.InternalMessage
+	MinPeersMining   int
+	ListOfExcludedCh chan []uint8
 }

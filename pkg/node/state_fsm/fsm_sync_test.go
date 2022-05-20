@@ -30,6 +30,9 @@ func TestSyncFsm_Sync(t *testing.T) {
 	mockPeer.EXPECT().Handshake().Return(proto.Handshake{Version: proto.NewVersion(1, 2, 0)})
 	mockPeer.EXPECT().SendMessage(gomock.Any())
 
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+
 	baseInfo := BaseInfo{
 		peers:   mockManager,
 		storage: mockState,
@@ -38,6 +41,7 @@ func TestSyncFsm_Sync(t *testing.T) {
 				return time.Now()
 			},
 		},
+		excludeListCh: fakeCh,
 	}
 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	require.NoError(t, err)
@@ -60,7 +64,9 @@ func TestSyncFsm_SignaturesTimeout(t *testing.T) {
 	p.EXPECT().ID()
 
 	conf := conf{peerSyncWith: p}
-	fsm, async, err := NewSyncFsm(BaseInfo{tm: ntptime.Stub{}}, conf, sync_internal.Internal{})
+	fakeCh := make(chan []uint8, 2)
+	defer close(fakeCh)
+	fsm, async, err := NewSyncFsm(BaseInfo{tm: ntptime.Stub{}, excludeListCh: fakeCh}, conf, sync_internal.Internal{})
 	require.NoError(t, err)
 	require.Len(t, async, 0)
 	require.NotNil(t, fsm)

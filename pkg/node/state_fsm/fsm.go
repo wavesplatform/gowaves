@@ -60,6 +60,8 @@ type BaseInfo struct {
 	utx types.UtxPool
 
 	minPeersMining int
+
+	excludeListCh chan []uint8
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -129,6 +131,8 @@ func NewFsm(
 		utx: services.UtxPool,
 
 		minPeersMining: services.MinPeersMining,
+
+		excludeListCh: services.ListOfExcludedCh,
 	}
 
 	b.Scheduler.Reschedule()

@@ -19,6 +19,25 @@ type InvRequester interface {
 	Request(p types.MessageSender, id []byte)
 }
 
+var (
+	idleListOfExcludedMessages = []uint8{
+		proto.ContentIDGetSignatures,
+		proto.ContentIDSignatures,
+		proto.ContentIDGetBlock,
+		proto.ContentIDBlock,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBBlock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDGetBlockIds,
+		proto.ContentIDBlockIds,
+	}
+)
+
 type IdleFsm struct {
 	baseInfo BaseInfo
 }
@@ -114,6 +133,7 @@ func (a *IdleFsm) String() string {
 }
 
 func NewIdleFsm(info BaseInfo) *IdleFsm {
+	info.excludeListCh <- idleListOfExcludedMessages
 	return &IdleFsm{
 		baseInfo: info,
 	}

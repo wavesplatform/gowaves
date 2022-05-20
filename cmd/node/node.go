@@ -365,18 +365,19 @@ func main() {
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	svs := services.Services{
-		State:           st,
-		Peers:           peerManager,
-		Scheduler:       minerScheduler,
-		BlocksApplier:   blockApplier,
-		UtxPool:         utx,
-		Scheme:          cfg.AddressSchemeCharacter,
-		LoggableRunner:  logRunner,
-		Time:            ntpTime,
-		Wallet:          wal,
-		MicroBlockCache: microblock_cache.NewMicroblockCache(),
-		InternalChannel: messages.NewInternalChannel(),
-		MinPeersMining:  *minPeersMining,
+		State:            st,
+		Peers:            peerManager,
+		Scheduler:        minerScheduler,
+		BlocksApplier:    blockApplier,
+		UtxPool:          utx,
+		Scheme:           cfg.AddressSchemeCharacter,
+		LoggableRunner:   logRunner,
+		Time:             ntpTime,
+		Wallet:           wal,
+		MicroBlockCache:  microblock_cache.NewMicroblockCache(),
+		InternalChannel:  messages.NewInternalChannel(),
+		MinPeersMining:   *minPeersMining,
+		ListOfExcludedCh: parent.ListOfExcludedCh,
 	}
 
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)

@@ -14,6 +14,24 @@ type PersistFsm struct {
 	BaseInfo
 }
 
+var (
+	persistListOfExcludedMessages = []uint8{
+		proto.ContentIDGetSignatures,
+		proto.ContentIDSignatures,
+		proto.ContentIDGetBlock,
+		proto.ContentIDBlock,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBBlock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDGetBlockIds,
+	}
+)
+
 func (a *PersistFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	return newPeer(a, p, a.peers)
 }
@@ -80,6 +98,7 @@ func NewPersistTransition(info BaseInfo) (FSM, Async, error) {
 		return err
 	}, tasks.PersistComplete)
 
+	info.excludeListCh <- persistListOfExcludedMessages
 	return &PersistFsm{
 		info,
 	}, tasks.Tasks(t), nil

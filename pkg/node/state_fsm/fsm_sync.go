@@ -35,6 +35,20 @@ func (c conf) Now(tm types.Time) conf {
 type noopWrapper struct {
 }
 
+var (
+	syncListOfExcludedMessages = []uint8{
+		proto.ContentIDGetBlock,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDGetBlockIds,
+	}
+)
+
 func (noopWrapper) AskBlocksIDs([]proto.BlockID) {
 }
 
@@ -242,6 +256,7 @@ func NewSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (
 }
 
 func newSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) FSM {
+	baseInfo.excludeListCh <- syncListOfExcludedMessages
 	return &SyncFsm{
 		baseInfo: baseInfo,
 		conf:     conf,

@@ -11,8 +11,9 @@ func TestIdleFsm_MicroBlock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	def := NewMockDefault(ctrl)
-	idle := NewIdleFsm(BaseInfo{d: def})
-
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+	idle := NewIdleFsm(BaseInfo{d: def, excludeListCh: fakeCh})
 	def.EXPECT().Noop(gomock.Any())
 	_, _, _ = idle.MicroBlock(nil, nil)
 }
@@ -22,7 +23,9 @@ func TestIdleFsm_MicroBlockInv(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	def := NewMockDefault(ctrl)
-	idle := NewIdleFsm(BaseInfo{d: def})
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+	idle := NewIdleFsm(BaseInfo{d: def, excludeListCh: fakeCh})
 
 	def.EXPECT().Noop(gomock.Any())
 	_, _, _ = idle.MicroBlockInv(nil, nil)
@@ -33,7 +36,9 @@ func TestIdleFsm_Signatures(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	def := NewMockDefault(ctrl)
-	idle := NewIdleFsm(BaseInfo{d: def})
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+	idle := NewIdleFsm(BaseInfo{d: def, excludeListCh: fakeCh})
 
 	def.EXPECT().Noop(gomock.Any())
 	_, _, _ = idle.BlockIDs(nil, nil)
@@ -44,7 +49,9 @@ func TestIdleFsm_PeerError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	def := NewMockDefault(ctrl)
-	idle := NewIdleFsm(BaseInfo{d: def})
+	fakeCh := make(chan []uint8, 1)
+	defer close(fakeCh)
+	idle := NewIdleFsm(BaseInfo{d: def, excludeListCh: fakeCh})
 
 	def.EXPECT().Noop(gomock.Any())
 	_, _, _ = idle.BlockIDs(nil, nil)

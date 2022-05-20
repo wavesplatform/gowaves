@@ -241,17 +241,18 @@ func main() {
 	InternalCh := messages.NewInternalChannel()
 
 	var nodeServices = services.Services{
-		State:           nodeState,
-		Peers:           peerManager,
-		Scheduler:       scheduler,
-		BlocksApplier:   blockApplier,
-		UtxPool:         utx,
-		Scheme:          custom.AddressSchemeCharacter,
-		InvRequester:    ng.NewInvRequester(),
-		LoggableRunner:  logRunner,
-		MicroBlockCache: microblock_cache.NewMicroblockCache(),
-		InternalChannel: InternalCh,
-		Time:            ntpTime,
+		State:            nodeState,
+		Peers:            peerManager,
+		Scheduler:        scheduler,
+		BlocksApplier:    blockApplier,
+		UtxPool:          utx,
+		Scheme:           custom.AddressSchemeCharacter,
+		InvRequester:     ng.NewInvRequester(),
+		LoggableRunner:   logRunner,
+		MicroBlockCache:  microblock_cache.NewMicroblockCache(),
+		InternalChannel:  InternalCh,
+		Time:             ntpTime,
+		ListOfExcludedCh: parent.ListOfExcludedCh,
 	}
 	Miner := miner.NewMicroblockMiner(nodeServices, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
