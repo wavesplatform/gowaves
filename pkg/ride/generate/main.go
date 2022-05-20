@@ -919,6 +919,22 @@ func catalogueV6() map[string]int {
 	m["1205"] = 51
 	m["108"] = 28
 	m["118"] = 270
+	m["500"] = 180
+	m["501"] = 195
+	m["502"] = 136
+	m["503"] = 118
+	for i, c := range []int{43, 50, 64, 93, 150} {
+		m[strconv.Itoa(2500+i)] = c
+	}
+	for i, c := range []int{20, 39, 74, 147} {
+		m[strconv.Itoa(2700+i)] = c
+	}
+	for i, c := range []int{13, 29, 58, 115} {
+		m[strconv.Itoa(2800+i)] = c
+	}
+	for i, c := range []int{12, 23, 47, 93} {
+		m[strconv.Itoa(2900+i)] = c
+	}
 	return m
 }
 

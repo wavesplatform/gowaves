@@ -36,7 +36,13 @@ func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 }
 
 func defaultCheckerInfo() *checkerInfo {
-	return &checkerInfo{false, defaultTimestamp, defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2, blockID0, 1, 100500, false}
+	return &checkerInfo{
+		currentTimestamp: defaultTimestamp,
+		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		blockID:          blockID0,
+		blockVersion:     1,
+		height:           100500,
+	}
 }
 
 func TestCheckGenesis(t *testing.T) {

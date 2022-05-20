@@ -39,10 +39,12 @@ var feeConstants = map[proto.TransactionType]uint64{
 }
 
 type feeValidationParams struct {
-	stor           *blockchainEntitiesStorage
-	settings       *settings.BlockchainSettings
-	initialisation bool
-	txAssets       *txAssets
+	stor             *blockchainEntitiesStorage
+	settings         *settings.BlockchainSettings
+	initialisation   bool
+	txAssets         *txAssets
+	rideV5Activated  bool
+	estimatorVersion int
 }
 
 type assetParams struct {
@@ -206,7 +208,7 @@ func (tc *txCosts) toString() string {
 	return str
 }
 
-func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) (*txCosts, error) {
+func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, error) {
 	smartAssets := uint64(len(params.txAssets.smartAssets))
 	senderAddr, err := tx.GetSender(params.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -225,8 +227,8 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
-	if accountScripted && isRideV5Activated {
-		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, estimatorVersion, !params.initialisation)
+	if accountScripted && params.rideV5Activated {
+		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, params.estimatorVersion, !params.initialisation)
 		if err != nil {
 			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
 		}
@@ -251,16 +253,16 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 			smartAssets += 1
 		}
 	}
-	return newTxCosts(smartAssets, smartAccounts, isRideV5Activated, complexity, accountScripted), nil
+	return newTxCosts(smartAssets, smartAccounts, params.rideV5Activated, complexity, accountScripted), nil
 }
 
-func minFeeInWaves(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) (*txCosts, error) {
+func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (*txCosts, error) {
 	feeInUnits, err := minFeeInUnits(params, tx)
 	if err != nil {
 		return nil, err
 	}
 	minFee := feeInUnits * FeeUnit
-	cost, err := scriptsCost(tx, params, isRideV5Activated, estimatorVersion)
+	cost, err := scriptsCost(tx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +270,8 @@ func minFeeInWaves(tx proto.Transaction, params *feeValidationParams, isRideV5Ac
 	return cost, nil
 }
 
-func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) error {
-	minWaves, err := minFeeInWaves(tx, params, isRideV5Activated, estimatorVersion)
+func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v", err)
 	}
@@ -283,7 +285,7 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams, isRideV
 	return nil
 }
 
-func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) error {
+func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams) error {
 	shortFeeAssetID := proto.AssetIDFromDigest(feeAssetID)
 	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(shortFeeAssetID, !params.initialisation)
 	if err != nil {
@@ -294,7 +296,7 @@ func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *fe
 			feeAssetID.String(),
 		))
 	}
-	minWaves, err := minFeeInWaves(tx, params, isRideV5Activated, estimatorVersion)
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v", err)
 	}

@@ -515,7 +515,11 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	default:
 		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
-			return errors.Errorf("failed to handle transaction, %v", err)
+			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
+			if idErr != nil {
+				return errors.Wrap(err, "failed to generate transaction ID")
+			}
+			return errors.Wrapf(err, "failed to handle transaction '%s'", base58.Encode(id))
 		}
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
@@ -554,7 +558,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.sc.resetComplexity()
 		a.totalScriptsRuns = 0
 	}()
-
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return err
+	}
 	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
 		return err
@@ -565,6 +572,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		blockID:          params.block.BlockID(),
 		blockVersion:     params.block.Version,
 		height:           params.height,
+		rideV5Activated:  rideV5Activated,
 		rideV6Activated:  rideV6Activated,
 	}
 	hasParent := params.parent != nil
@@ -591,11 +599,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return err
-	}
-
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -802,6 +805,10 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed get currentBlockInfo")
 	}
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'RideV5' is activated")
+	}
 	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'RideV6' is activated")
@@ -814,17 +821,13 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		blockID:          block.BlockID(),
 		blockVersion:     version,
 		height:           blockInfo.Height,
+		rideV5Activated:  rideV5Activated,
 		rideV6Activated:  rideV6Activated,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockV5' is activated")
 	}
-	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return errs.Extend(err, "failed to check 'RideV5' is activated")
-	}
-
 	appendTxArgs := &appendTxParams{
 		chans:            nil, // nil because validatingUtx == true
 		checkerInfo:      checkerInfo,
