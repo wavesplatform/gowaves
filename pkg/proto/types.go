@@ -1839,17 +1839,12 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		"priceMode":         priceMode.upperSnakeCaseString(),
 	}
 
-	verifyingContract := [EthereumAddressSize]byte{}
-	for i := range verifyingContract {
-		verifyingContract[i] = scheme
-	}
 	var orderDomain = ethereumTypedData{
 		Types: ethereumTypedDataTypes{
 			"EIP712Domain": []ethereumTypedDataType{
 				{Name: "name", Type: "string"},
 				{Name: "version", Type: "string"},
 				{Name: "chainId", Type: "uint256"},
-				{Name: "verifyingContract", Type: "address"},
 			},
 			"Order": []ethereumTypedDataType{
 				{Name: "version", Type: "int32"},
@@ -1868,10 +1863,9 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		},
 		PrimaryType: "Order",
 		Domain: ethereumTypedDataDomain{
-			Name:              "Waves Exchange",
-			Version:           "1",
-			ChainId:           newHexOrDecimal256(int64(scheme)),
-			VerifyingContract: EncodeToHexString(verifyingContract[:]),
+			Name:    "Waves Order",
+			Version: "1",
+			ChainId: newHexOrDecimal256(int64(scheme)),
 		},
 		Message: message,
 	}

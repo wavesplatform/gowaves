@@ -43,14 +43,12 @@ func (t *ethereumTypedDataType) isReferenceType() bool {
 type ethereumTypedDataTypes map[string][]ethereumTypedDataType
 
 type ethereumTypedDataDomain struct {
-	Name              string           `json:"name,omitempty"`
-	Version           string           `json:"version,omitempty"`
-	ChainId           *hexOrDecimal256 `json:"chainId,omitempty"`
-	VerifyingContract string           `json:"verifyingContract,omitempty"`
-	Salt              string           `json:"salt,omitempty"`
+	Name    string           `json:"name,omitempty"`
+	Version string           `json:"version,omitempty"`
+	ChainId *hexOrDecimal256 `json:"chainId,omitempty"`
 }
 
-type ethereumTypedDataMessage = map[string]interface{}
+type ethereumTypedDataMessage map[string]interface{}
 
 type ethereumTypedData struct {
 	Types       ethereumTypedDataTypes   `json:"types"`
@@ -585,16 +583,15 @@ func (t ethereumTypedDataTypes) validate() error {
 // validate checks if the given domain is valid, i.e. contains at least
 // the minimum viable keys and values
 func (domain *ethereumTypedDataDomain) validate() error {
-	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 && len(domain.VerifyingContract) == 0 && len(domain.Salt) == 0 {
+	if domain.ChainId == nil && len(domain.Name) == 0 && len(domain.Version) == 0 {
 		return errors.New("domain is undefined")
 	}
-
 	return nil
 }
 
 // Map is a helper function to generate a map version of the domain
 func (domain *ethereumTypedDataDomain) Map() map[string]interface{} {
-	dataMap := map[string]interface{}{}
+	dataMap := make(map[string]interface{}, 3)
 
 	if domain.ChainId != nil {
 		dataMap["chainId"] = domain.ChainId
@@ -608,12 +605,5 @@ func (domain *ethereumTypedDataDomain) Map() map[string]interface{} {
 		dataMap["version"] = domain.Version
 	}
 
-	if len(domain.VerifyingContract) > 0 {
-		dataMap["verifyingContract"] = domain.VerifyingContract
-	}
-
-	if len(domain.Salt) > 0 {
-		dataMap["salt"] = domain.Salt
-	}
 	return dataMap
 }

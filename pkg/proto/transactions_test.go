@@ -3329,35 +3329,106 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 	require.Equal(t, matcherPublicKey, crypto.GeneratePublicKey(matcherSecretKey))
 
 	tests := []struct {
-		scheme              Scheme
-		jsonExchange        string
-		order1Base58        string
-		order2Base58        string
-		signedTxBytesBase58 string
-		txBytesBase58       string
-		txIDBase58          string
+		scheme                     Scheme
+		jsonExchange               string
+		order1ProtobufSignedBase58 string
+		order2ProtobufSignedBase58 string
+		signedTxBytesBase58        string
+		txBytesBase58              string
+		txIDBase58                 string
 	}{
-		{
-			scheme: CustomNetScheme,
+		{ // order1 is an orderV3, order2 is an ethereumOrderV4
+			scheme: TestNetScheme,
 			jsonExchange: `
 				{
 				  "type": 7,
-				  "id": "Dea8HVNzvaSf49JNwbkDb2AiCPouarvPg2nu8gLwEpqJ",
+				  "id": "3FDtgyStkFCw89G6C6QJDJ3eqobpbaUfXCFb3qqg9qdQ",
 				  "fee": 1000000,
 				  "feeAssetId": null,
 				  "timestamp": 100,
 				  "version": 3,
-				  "chainId": 69,
-				  "sender": "3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
+				  "chainId": 84,
+				  "sender": "3MtGzgmNa5fMjGCcPi5nqMTdtZkfojyWHL9",
 				  "senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
 				  "proofs": [
-					"2xVvf2HQQoYHmKs5dErdoykrW8GeZATiFKKq6QViUghMZxdwkBD25o4sFz4AYer8tzm1qFXs25fseML5bA4trzPG"
+					"4QSeB7bVUxvdn2jNdwVpYxKk935CQMS2kv2s21a98W6JibqJNq3cgfkjs3tU2t6NNnGWpiWHFiX2ddfyyVwBtbgK"
+				  ],
+				  "order1": {
+					"version": 3,
+					"id": "75YqwVQbiQmLMQBE61W1aLcsaAUnWbzM5Udh9Z4mXUBf",
+					"sender": "3MtGzgmNa5fMjGCcPi5nqMTdtZkfojyWHL9",
+					"senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					"assetPair": {
+					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					  "priceAsset": null
+					},
+					"orderType": "buy",
+					"amount": 1,
+					"price": 100,
+					"timestamp": 1,
+					"expiration": 123,
+					"matcherFee": 100000,
+					"signature": "2FekVM3s2CUf79uaG92MqdzyCzr9dhrG4jtXzbAQNxW3B9LGWwtFmMdgHCVuKWqhdAgUfV6PTsZwDxFKrejeT4vu",
+					"proofs": [
+					  "2FekVM3s2CUf79uaG92MqdzyCzr9dhrG4jtXzbAQNxW3B9LGWwtFmMdgHCVuKWqhdAgUfV6PTsZwDxFKrejeT4vu"
+					],
+					"matcherFeeAssetId": null
+				  },
+				  "order2": {
+					"version": 4,
+					"id": "6tXL591oH3mnwgFcbxqQnqHBF1oQ1Cc6hdLuBU6FB6UG",
+					"sender": "3Mvrr424JENHdP4wrSFyNWBVEuQTHBDxMVi",
+					"senderPublicKey": "4nZcsfxa3mtAg8D2iR8J139CTVm7Y2aTEd3B8J6p45tX6v8sjCT9JGAWnHGa8ZxenQyaSAVu3FPsry1RnXucpcqE",
+					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					"assetPair": {
+					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					  "priceAsset": null
+					},
+					"orderType": "sell",
+					"amount": 1,
+					"price": 100,
+					"timestamp": 1,
+					"expiration": 123,
+					"matcherFee": 100000,
+					"signature": "",
+					"proofs": [],
+					"matcherFeeAssetId": null,
+					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
+					"priceMode": null
+				  },
+				  "amount": 1,
+				  "price": 100,
+				  "buyMatcherFee": 1,
+				  "sellMatcherFee": 1
+				}`,
+			order1ProtobufSignedBase58: "ffTiDB9neoubfGj1UBSFq9H8QcGsWY8HJWpZRSz4fDDbmikNs8aLitAoPhKtQMZUJwHiVFsebz26YwX7TvtnUtmj1aXTGNmzvtG9TuuS7EPCZxZeJw2nKhe4pre1hAFRA1NV2bwp9a34LYPtu9FT91G2zkrZc2J3wKQLEWZxhX7Bah11YaWoo4RGUMWfrPfA8BpC4nbM5X9YxfPxmfQPffvjdXoDWpv864DnGUNDP6v5DrhtE3jrTtsjkigJ8g25",
+			order2ProtobufSignedBase58: "AuUJrZEtZPM7wXFkZwmKEqmXzkUNPpK3t1Gz7jtjtWxgT5NcxcMjHnUNpRJVhsPBBkn7ChYvrLp9mR4WsdLa1YBxuSBgkSVAAAUNnuAhrfoHPQRNWkbPNvaACYPJAKrpiAJP1bE2XmcPL9HKwgDQfiwrgjHFbT5wyMdwm8fUPrzji614z41Tzix6UVCr778DZtu3WVHVna1pQa1wTYnuce",
+			signedTxBytesBase58:        "215qG5Yy98oCnP24ZfwtRXNagQTThioD4KoKuRmAKpKd2NAzyucVqNcuasoHdVwVmvu92UAPPqhZvDzn1T7ViuwzTEvAsbHxkzxGBoaBSFgyRpia6czPd3tdd9Uk8KZ4snqPEPjYXoQoqqPqM1JynnAhHLzSaZK1dV85RnUys9DLJ4gSLhf9o8joW8wJKfHucR3WaEBazzAFJXesUTA9naeZhTrRfK6pBDcvGtXLbjpEubFxxMn2D2veB6j7uNSkFj6JKPUNnSWD8hAFpYHkzkwJz15oVqrGYKA9RfQW5zBv1rE7GeL3gEDYrHsfzHrHg76fw4Lgi8hrxLmn3MDXJabqAYa3HUi49vuhNy2CsHuQQWtEE82FKG1GU1HtXPaM9ntswQYsjnFfshzJwvAKRng9aK3oMx2vnrjDrkFn5yCitPxg2itxnMrp5zs7S28MA8xyrwL9onK1JpKa6QZe3umLb1vSVkUK4mrkBh9yvooe7TuRG1qkgZkg15GmpXPcQw3bJTv9YbuPPyWjvds5vYjWYRnN2u77Yn28fkxqJeKn4jc7AoeJo8dHnbsCYg5aXMfjVaiqoanW7MT4NkhbidmnzVtc4AWoLpK8kYrBBSUuo8SFe2V4fjw5FcrmcZ6dvP5FvRqNTtQcf",
+			txBytesBase58:              "JujQ26EJkTpemn82adxMW595LN3Qw1qTCyfyna8v1MAiHQBFfLWG6yuTUZwMBPX6mFCHzqiqYjVbGiGFaiJrUniUdzbNfHVgPoyA1rX2XuMa9WzRhPHAFq1JtHpjEVA2WSaFsYH91qAW861JYh5RevgfPJduZNSib2r3jFnbEk4Nj9PDmzGDt91scuEC7kwYcV15Q2dTdAW9UEoVYSNXCz6Qx1cAqZAhYSzaqU1CzDZ4LkRFLJgwwitDzMzp6JAcZDeqckvFnTjtkUztDm5cj5suQP8EybpQdeDpCMFny6RpcmJ3di5xFAWWTWRqo9ZjkDwyRaZmaH5BLgKtrMc8T4F6oewTfiajfuDYYbEro2JpV44bdFDqkgUHGhFPGu5UqZSia8hoqB3jpGL739PJVDCLPpuY1zoaj9ueoTpRjNKryiBeXAktFvurCL4JsKjF431tyM6u2RnmEE6LAdsvLDSKj16fJYQowe31ZrY78k3G3PYGddKp8PQ8XwF14FtmQVtvm58fFxskZEJWYfgooQ1Pzk2opCWt69LSZP3BNT6Wgi",
+			txIDBase58:                 "3FDtgyStkFCw89G6C6QJDJ3eqobpbaUfXCFb3qqg9qdQ",
+		},
+		{ // order1 is an ethereumOrderV4, order2 is an ethereumOrderV4
+			scheme: TestNetScheme,
+			jsonExchange: `
+				{
+				  "type": 7,
+				  "id": "7htGhFdnyuuSvkqpjPYpPhHqVaH8Q6ww3naZXve6Jk9y",
+				  "fee": 1000000,
+				  "feeAssetId": null,
+				  "timestamp": 100,
+				  "version": 3,
+				  "chainId": 84,
+				  "sender": "3MtGzgmNa5fMjGCcPi5nqMTdtZkfojyWHL9",
+				  "senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				  "proofs": [
+					"5yhe5LmUZMeUZh2tSUvhADkUMoLBCUgPDttPBAiyFGvoKgaNL19W2S1wjRXoBw4PrB2zyRmJso3FcDycWxrYnZ8R"
 				  ],
 				  "order1": {
 					"version": 4,
-					"id": "6mYgEbEgrx5M6zMRbpQFbzKHcDy78bYXLgBzygTDGM4a",
-					"sender": "3G9uRSP4uVjTFjGZixYW4arBZUKWHxjnfeW",
-					"senderPublicKey": "5vwTDMooR7Hp57MekN7qHz7fHNVrkn2Nx4CiWdq4cyBR4LNnZWYAr7UfBbzhmSvtNkv6e45aJ4Q4aKCSinyHVw33",
+					"id": "4d8z9G58EmFggv62L8famqEQxXpvGZiGZyn8PDDVoZF9",
+					"sender": "3Myw4GzqGpELqVgVMi6zqzoWssJS6Y44rhx",
+					"senderPublicKey": "4TKgCQejYe8zVkXTyS3Q2P8Yvaij4RYz67ig6XkPcBu4PEawuB3Rwhy5Lg1vh9y9eaQr6PHUB58BwCAZ6SfRtSg5",
 					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
 					"assetPair": {
 					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
@@ -3377,9 +3448,9 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 				  },
 				  "order2": {
 					"version": 4,
-					"id": "8274Mc8WiNQdP3YhinBGkEX79AcZe5th51DJCTW8rEUZ",
-					"sender": "3G9uRSP4uVjTFjGZixYW4arBZUKWHxjnfeW",
-					"senderPublicKey": "5vwTDMooR7Hp57MekN7qHz7fHNVrkn2Nx4CiWdq4cyBR4LNnZWYAr7UfBbzhmSvtNkv6e45aJ4Q4aKCSinyHVw33",
+					"id": "6tXL591oH3mnwgFcbxqQnqHBF1oQ1Cc6hdLuBU6FB6UG",
+					"sender": "3Mvrr424JENHdP4wrSFyNWBVEuQTHBDxMVi",
+					"senderPublicKey": "4nZcsfxa3mtAg8D2iR8J139CTVm7Y2aTEd3B8J6p45tX6v8sjCT9JGAWnHGa8ZxenQyaSAVu3FPsry1RnXucpcqE",
 					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
 					"assetPair": {
 					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
@@ -3399,85 +3470,14 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 				  },
 				  "amount": 1,
 				  "price": 100,
-				  "buyMatcherFee": 100000,
-				  "sellMatcherFee": 100000
+				  "buyMatcherFee": 1,
+				  "sellMatcherFee": 1
 				}`,
-			order1Base58:        "WHGTNQc2MuaLdLdqibbZKEL9C8aTJkFXzWQvrebyo1qvg3GL3BQf8jQxJEqYJUbWe6V5zHBdZCKH9rtYPF1CT1jJH4KbP7PjiGJfPvQEyzq8UCqsJGKnrWmB9EvnAwdnMVp4CLCVs9fRgfjASZBrSnLQJ9tWFc8TC5TRAhQYWGXvxeNxn2BtnGVyoFsRXF8hy3FaY5aPHyahM5R7Qks",
-			order2Base58:        "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
-			signedTxBytesBase58: "6BTHt7m4RAa4j64NandsspRC9RMveUgrV3maGFC5JuYDpHohwwTCAAfvu7WV4zLwKzfY558TJ4kA96dLk48GvVCtbUUrGoMjfxE1KbZcdZD4TxeDaSh7bwYkZeSswiRhomSqDRfyETAh4Eq3hGNhNics27FDA2q9ckokYDshFHCP3XFm1ejupuqwrFkw6A97TK2gaEx27UksDDbp22qkf8DFxDYXeZYB7CXkLP8pBXLPX9NHVZu1JJ6oV5pkqR3rX6tPj2ZdVEmVUFa9RXLJc92Kgft9jP72GR4Cjc3dZC2qVLtFwnVk4CSsYnXdgJQgdqMukZj6D4YXGkZxBsBzrqV2A1fNcptATgvWKCAt1Muj7eVCQhcF2eHXesJb5Je5DFx8ogKDvuUq7ic9MYZiaBrRsLYzNdz64UZftchpyq2a2Fdyob6gehrhk6dBPeQNURGjVmTcvPc6YkDR5umAH2iRES5GGezkoXwCZAfMbnJ4j4UjU69EDzPXHRmQhzQBjsFhs3j4zsvq3JdVUUGMKBbCEsW1DMg7AkbWtrd6XeYQ12ku9v8RuZCyDNVLAioo6tafcdo14Pe2QDCcnkF2dXZrL2s3wVp6W782r",
-			txBytesBase58:       "2XkWrMiF23EfNuaBrGsQKLZTByfE8zHuwsM5kJYBsG6zSzzMYJfxHYsoukKYXQMwxNXxerxqTzmVj7BUpksTXt9XsdXSTz3wC9ZPURi7gBhQdnYvvx6BpU5WKFKKYnj9FZpSAYSekzDaZSz4ubracaFwBwq6gdQ1bWtExRZkUpp1rSUDFtC4oHPqZJSc8x3aK8hgD2rZLYk7Woh9iBSGBEwMJxk9szagA55G3zArUXhRd5W33Hbd2FEi85YQbuYmNDpGLDoU395aYgUbQLt2d2pCVTzarajVkyGfPzuiyVfpYDQEJ7xPwc7uMDVCtXu4X4uRkmHkNSb9RYkeXVEkyAi8wWPMenactWupGEUWDYUPKALuN6vTjByxg6D9QLSgZ3FvXMrvVDFAzjtmpezJQc3eEdbfRHFMQJ7Sr1fLhMQEQf4d7QuiexCRKNNNFvTRR9f7MPAJofPPFGreK67Vc7vrQ1rfP5TvLNTLavEUY6mQMkDaXGqknUknD5Ftja4kN7R9EzW",
-			txIDBase58:          "Dea8HVNzvaSf49JNwbkDb2AiCPouarvPg2nu8gLwEpqJ",
-		},
-		{
-			scheme: CustomNetScheme,
-			jsonExchange: `
-				{
-				  "type": 7,
-				  "id": "GNz9EGRPNroTXhQ4Kjz2Qb4u3oBoRdteRTYwsHfDHJW5",
-				  "fee": 1000000,
-				  "feeAssetId": null,
-				  "timestamp": 100,
-				  "version": 3,
-				  "chainId": 69,
-				  "sender": "3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
-				  "senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-				  "proofs": [
-					"4WrABDgkk9JraBLNQK4LTq7LWqVLgLzAEv8fr1rjr4ovca7224EBzLrEgcHdtHscGpQbLsk39ttQfqHMVLr9tXcB"
-				  ],
-				  "order1": {
-					"version": 3,
-					"id": "75YqwVQbiQmLMQBE61W1aLcsaAUnWbzM5Udh9Z4mXUBf",
-					"sender": "3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
-					"senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-					"assetPair": {
-					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
-					  "priceAsset": null
-					},
-					"orderType": "buy",
-					"amount": 1,
-					"price": 100,
-					"timestamp": 1,
-					"expiration": 123,
-					"matcherFee": 100000,
-					"signature": "2Bi5YFCeAUvQqWFJYUTzaDUfAdoHmQ4RC6nviBwvQgUYJLKrsa4T5eESGr5Er261kdeyNgHVJUGai8mALtLLWDoQ",
-					"proofs": [
-					  "2Bi5YFCeAUvQqWFJYUTzaDUfAdoHmQ4RC6nviBwvQgUYJLKrsa4T5eESGr5Er261kdeyNgHVJUGai8mALtLLWDoQ"
-					],
-					"matcherFeeAssetId": null
-				  },
-				  "order2": {
-					"version": 4,
-					"id": "8274Mc8WiNQdP3YhinBGkEX79AcZe5th51DJCTW8rEUZ",
-					"sender": "3G9uRSP4uVjTFjGZixYW4arBZUKWHxjnfeW",
-					"senderPublicKey": "5vwTDMooR7Hp57MekN7qHz7fHNVrkn2Nx4CiWdq4cyBR4LNnZWYAr7UfBbzhmSvtNkv6e45aJ4Q4aKCSinyHVw33",
-					"matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-					"assetPair": {
-					  "amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
-					  "priceAsset": null
-					},
-					"orderType": "sell",
-					"amount": 1,
-					"price": 100,
-					"timestamp": 1,
-					"expiration": 123,
-					"matcherFee": 100000,
-					"signature": "",
-					"proofs": [],
-					"matcherFeeAssetId": null,
-					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
-					"priceMode": null
-				  },
-				  "amount": 1,
-				  "price": 100,
-				  "buyMatcherFee": 100000,
-				  "sellMatcherFee": 100000
-				}`,
-			order1Base58:        "fPgfbuxTLuT6FyuanBTzpUJaUYdNgBL4FJ7ttmFpF7To76u4gTK4pWt5htWDKLu9iqdEoN594DsN5YfEWQ18Gvq5mxozueS15qL2JuwvYhzbMUJM7LMzZ7B6AdT86i5JptbvxChtNg1mmjvJTg67cHoYaUcUkzUv24KcdNyKkjCHKPALcqwuvtKaYiv7PVcvdrre22T739ZNeKtuNpYZwz8ysSyiQYsNLDJAigj5bkdE8tSpEVps4iaA4oFGvVAS",
-			order2Base58:        "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
-			signedTxBytesBase58: "7ZdxAr3wNDXFg2yQeDKFQbkno9QchKtx6tvBHmYx9VCkKDTdtzL4SWeD4pdN2qkD59N2GhLfcY8gzTsrgxVYYLax3WSQ8eq7kEZJ56THCKB1mrqHRfkYLg4Ne38VcvAzWkTZEtVbPzTC5XVWANMqK7iC4A5ekzSnWP1t8xNEuauvjGpxbgXHXzR68S8kDgEMyDxFi5sHWMe3zPLN1fRYeKqapGAHfT7hbyoKqvwksnhzihuAbq4RRdQU1XfL1mHMvHTQRWBjWDxuuMwa3NVZxba38LiUMfoFXirz2NEa5xp76VzHUBeULd1XX3Z1RrWmSCuVaZgr6dwiARYoyWXmCNZa7M1xvXcHQPVcBzHP9PrL8yacMc72cZpzYfszMFFKr266xm8YEg2D72kWqTDxvc14sMDRjRZFKGfezUimMEtwAQDqoGtFmuFU4LMgHcq4MytKec3jhKYJNXTh66VVnj7n2nuT97GYaw8UmUyfy45NvzhEaNUUfpU9g5zbxUdXEjqHZXwUUjwYScGBNxAQd8mqx3L6cwL83D1WShoDFgmcM7GyQdCtSuGUWNH5GGnQbb4Wqc5msWTyd8e1FkSQPVzpUmngiDDP8QmvgBJt82Nv9okufzt2PAZcBNJGo1f7Frn7TirPS22M1oFfcs",
-			txBytesBase58:       "31NGbw9Q4rsDNUGohkGJRqVQjek8kBrUzbQ91C5ELq5MQAV8kaQJRCdaDzqbaGDPM1UZcQBbvY3CTouEjAVBE2ZcmszEd2eJnACuRgmf7e4tiddGPT52TWrCmuo4XopcMkwhNGQr2HjSyfWKV8AvE91C1bezQwmhneD6WZ9m5rRtqWG3e8eDbDSBp3WrVARuqNX5RiNXcvBW2Mji3zwKFdHi7FsvzJMCyyPDPtNeowLR7DsBsJW84fSHjasuS6JC2Qu5JmWShqfkjMjUsJrCy57fwHHTrd1jbhj1f7DqnQZJWARLuhqMp9QqZz7XNjTmXSSPn2yuR9n2jmZueZUPRosyzniCrNiuGEL7LxaQznXc5rhFxko8eZztLVZC1cg8da5PJ6jmTuK2VXhkvuF87u8dAECMxmtfUdSSdjhfwpf4UzrvSSwaWHdwXHiuSm4cDMHzDZhcKUP59Gx4N7bvZ14Jog15HF9Ufw4vSY8K1attPivLF6Vxa3zFMLskxX4jbQVRRMUnnQAcKTpt7dEHd4inqSvwL8Qhv4YQCJAPFt2FkT8c8bar",
-			txIDBase58:          "GNz9EGRPNroTXhQ4Kjz2Qb4u3oBoRdteRTYwsHfDHJW5",
+			order1ProtobufSignedBase58: "WVJLeSzmAK1DT2ftcjx5uigpm5YC8uhAY3t63Xb2jp3oppNX2pUHTctYmgT3bq5BdNEL2KzYgjBmCf6ssHzVmcXCXPKLeJoDSUhY3bfJYfqoB4pDcVdYNGM9ni5ST5bFgwJtJFvhMSzYpWpcLNGYAMqdXMyXVmvJQwSZUQo8yptTET2AmTpLw9VEF1V86aPnKQp1ot6n6XC5SXiKCUK",
+			order2ProtobufSignedBase58: "AuUJrZEtZPM7wXFkZwmKEqmXzkUNPpK3t1Gz7jtjtWxgT5NcxcMjHnUNpRJVhsPBBkn7ChYvrLp9mR4WsdLa1YBxuSBgkSVAAAUNnuAhrfoHPQRNWkbPNvaACYPJAKrpiAJP1bE2XmcPL9HKwgDQfiwrgjHFbT5wyMdwm8fUPrzji614z41Tzix6UVCr778DZtu3WVHVna1pQa1wTYnuce",
+			signedTxBytesBase58:        "nrJERcPdjjdCaxcdD8B8Ejz1u8Rofy6hH2nGSJome1ZGHG4KXxjzdpgiX2tdatq7w82ubWe5JY8aaBf98SEXQDmJXgjBDp71QpaKkjmEmxGiqmDdwhrK6wkG1BjktTmFfd2TQriNB8n37iZFzcmC8QU7jyK9AQzMtYAjUzTucZ7dD6ELKTdHwrejVRCtXTQm6R47jsXm3ouFAc5wNhwhiapDYRm4AezyFA2siP2yxB2fxyXapQkq6QnxiSatd9N66KoUiKQ3jJPHEnbTkAU8v4ELajxok7QwggVwWkEtZ3z3Q4QZTFKdPAPBfrwSoEWZEgwJXG3b4CHjpwVvHZntzeexK1sA5nC91tRNDNurkkN3AvpPkKVJAwJEYV3nURHEdLCiRQXVJ9X419se6Qtjc8ruXX2oSJXdkFYMMUCJMmprLDQWqqEpFKei9xxTdPiFxv6TFyfpGfxDJkufQ7QSpmarmrmqvLNMyPKwYbSsy5eRQQUx3mNekpXueDfKofadauTL8QBnhj47jPAasLqE4UKMtcN1EWSmtnVbZzuZqvy9FXYxjaKijqmB2pDmszXrECi12LwJ5pQdmr3YywpY8KydTW293DP",
+			txBytesBase58:              "EfDZepTtTR6GPsU2qT23ktdiP4uNpm1isevYKiBWWnT66nEAVvkeo8iYWLwgf2EzBHL6HdnQdssyNraLpVrnKq9N784ZkavvwwkM7U7F5WowNSxV5g4hno38LEbyBrqzjN5zByKzCtwkuQYNmx6SvkR7k4J4L2Npo8RrnYJmQ9yGgX3aAS32maihBaDfFqvmToncnrndMjMSq389jcFcbPtt8NLcibQZ8qypDYSgcQppqywfnYzk54EUwh7R1vMSC1PHEVZ2qBzWwoEShFJMCVK5xAvwcAjJSMw42FtzfnsokpWKrPpB8H3jCj8YNXo8fmLtUrEdduHD9g8ipkRb6w2yZs89gQKVq7KECiU9QRmRNGdjwLE6irnRpKooX8sHtZG3aSaxVohgiuWzEERkGdX1GJrbVb41Qn7ZuCRPY6xAjC5Sa86Q59yeRfqbnTo2sEdmH8PAQAqvPsePL3SKxQ4jiCpzbcsUwX2Lo3ZAWzH6o5paK33g1RhyorCeVQHhL",
+			txIDBase58:                 "7htGhFdnyuuSvkqpjPYpPhHqVaH8Q6ww3naZXve6Jk9y",
 		},
 	}
 	for _, tc := range tests {
@@ -3485,8 +3485,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 			expectedTxID          = mustFromBase58(t, tc.txIDBase58)
 			expectedTxBytes       = mustFromBase58(t, tc.txBytesBase58)
 			expectedSignedTxBytes = mustFromBase58(t, tc.signedTxBytesBase58)
-			expectedOrder1Bytes   = mustFromBase58(t, tc.order1Base58)
-			expectedOrder2Bytes   = mustFromBase58(t, tc.order2Base58)
+			expectedOrder1Bytes   = mustFromBase58(t, tc.order1ProtobufSignedBase58)
+			expectedOrder2Bytes   = mustFromBase58(t, tc.order2ProtobufSignedBase58)
 		)
 		var (
 			unmarshalOrder = func(orderBytes []byte) Order {

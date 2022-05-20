@@ -1634,7 +1634,10 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 }
 
 func TestEthereumOrderV4(t *testing.T) {
-	ethStub32 := bytes.Repeat([]byte{CustomNetScheme}, 32)
+	const (
+		ethChainIdByte = 'E'
+	)
+	ethStub32 := bytes.Repeat([]byte{ethChainIdByte}, 32)
 
 	stubAssetID, err := crypto.NewDigestFromBytes(ethStub32)
 	require.NoError(t, err)
@@ -1646,24 +1649,15 @@ func TestEthereumOrderV4(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Verify-Scala", func(t *testing.T) {
-		// taken from scala-node
+		// taken from scala-node tests
 
-		testAssetPair := AssetPair{
-			AmountAsset: OptionalAsset{
-				Present: true,
-				ID:      stubAssetID,
-			},
-			PriceAsset: OptionalAsset{
-				Present: true,
-				ID:      stubAssetID,
-			},
-		}
+		asset := *NewOptionalAssetFromDigest(stubAssetID)
 
 		testEthPubKeyHex := "0xf69531bdb61b48f8cd4963291d07773d09b07081795dae2a43931a5c3cd86e15018836e653bc7c1e6a2718c9b28a9f299d4b86d956488b432ab719d5cc962d2e"
 		testEthSenderPK, err := NewEthereumPublicKeyFromHexString(testEthPubKeyHex)
 		require.NoError(t, err)
 
-		testEthSigHex := "0xae7cb5b5e9713862fdbfb6b5f1518d89b4f1cc29a865a9248ad72a36044e2a90683092c2fe49fd5e00d6ce734e6ee623b9206f7ad05e587dfe9b45cbd586d5fd1b"
+		testEthSigHex := "0xfe56e1cbd6945f1e17ce9f9eb21172dd7810bcc74651dd7d3eaeca5d9ae0409113e5236075841af8195cb4dba3947ae9b99dbd560fd0c43afe89cc0b648690321c"
 		testEthSig, err := NewEthereumSignatureFromHexString(testEthSigHex)
 		require.NoError(t, err)
 
@@ -1671,18 +1665,15 @@ func TestEthereumOrderV4(t *testing.T) {
 			SenderPK:        &testEthSenderPK,
 			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
-				PriceMode: OrderPriceModeAssetDecimals,
-				Version:   1,
-				ID:        nil,
-				Proofs:    nil, // no proofs because order has Eip712Signature
-				MatcherFeeAsset: OptionalAsset{
-					Present: true,
-					ID:      stubAssetID,
-				}, // waves asset by default
+				PriceMode:       OrderPriceModeFixedDecimals,
+				Version:         4,
+				ID:              nil,
+				Proofs:          nil, // no proofs because order has Eip712Signature
+				MatcherFeeAsset: asset,
 				OrderBody: OrderBody{
 					SenderPK:   crypto.PublicKey{}, // empty because this is ethereum-signed order
 					MatcherPK:  wavesPKStub,
-					AssetPair:  testAssetPair,
+					AssetPair:  AssetPair{AmountAsset: asset, PriceAsset: asset},
 					OrderType:  Buy,
 					Price:      1,
 					Amount:     1,
@@ -1693,7 +1684,7 @@ func TestEthereumOrderV4(t *testing.T) {
 			},
 		}
 
-		valid, err := ethOrder.Verify(CustomNetScheme)
+		valid, err := ethOrder.Verify(TestNetScheme)
 		require.NoError(t, err)
 		require.True(t, valid)
 	})
@@ -1759,18 +1750,18 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 		fee                    uint64
 		prideMode              OrderPriceMode
 	}{
-		{1, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0xc8d0ed38c1281dd3f6f0c3a6d9dcba68721aa5eb8b5624adc9a70ea7d417fea80a9ca0c6c3be5b09047c2950e5525da159f5e11beeb096ec34d3730064c42d811c", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", Sell, 10000000, 1300, 1080, 1031 + MaxOrderTTL, 3, OrderPriceModeDefault},
-		{3, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x8b3112c9a70043d40101ffd0a444f2b38aada38a069fca6dfa51d128064ef79b028f98ce6202cd390dd971d6125adbef2fe79d4a48b334bf145b06c38a88aa091c", "4qoBVcLxf4NEn6e4PyNkYAK4fkTHyH6rK8oKRY1dLfJG", "75NyDiTrambxhHGgBu7JeBqNnTryANZf1v6FTZwwqhDF", "9QT4JoWyk2iC9Y9VBoaEBnEL7gw2ofB8HKKLSEjs3SR", Buy, 100, 345100, 610, 126340 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
-		{42, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0xbb524f31a0a02459fb83bb600f650ec027402a0cfe56f80c7252163762e42b9e0a22dc5e08e7969bcf5efc9a46efd6e54f9c0b6d737f5493ff3b5873d5d13aa31c", "4uRYdwy5FY7TW66gV7bektQeRfSPJvnvHNLjLzMojJwG", "5zKtndukP6219omWiALaXtuVhMnQoMVQxYkDgGxz8ARG", "mCKpvzjog9DHTwLXNk1NU5aysZ1xpVg3wxLCQ5jWYXR", Sell, 100234000, 176500, 110, 310 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xa45cfb2a87a5e7f9dbc1c737277e1c8d3d5e36d29c711ded8a33f3e3f630f55942faef7050c9ced200696d0e3f1766ea2c51bc632192b906947dff910ebf8ce91b", "2HPPrEGV2jqa5W5npRdjV5DTV4wpXnDx1GvKU3dLmnhu", "2AeWVoR5D5CnJbpioSB8qYnYSqJH1ji8Wzf1ubzxsvrK", "4vYK24GfY9F7gEptuXTfLic93dbcVTtxiQoKNZ6zKz5z", Sell, 100034000000, 10053, 104, 180 + MaxOrderTTL, 3, OrderPriceModeDefault},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xdfeda0f83167e388a301ef6e0334d9c40c84c81d268d2af90808ccd3b10794711bf6a2c5d02c5f115627dd9eadda224d6ad86256ed9cc5221bbdaa76cb3420751b", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
-		{4, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x70b68164fa2f875541373397c92609a62f92d39be0dff86e62198a67a403304c3ee207591dcdfbb09ccf588e3d7ff210e8acb2d04c8eca0b8ad5c8b15fba7f6c1c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
-		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xf679b89ee002fd3337a274ab6e68db33b2e175e55e060c3bbc7d6edfa4e2e8505423bb14eda28bb88bf3eca368713387bc655e4926d8a2673f0b91368ac93a2b1c", "4SFiJcXaqVB2YU6LywpsZ3sjLqNtKJ41aof3jXnZBFPV", "MwU9RtbCZYgMSofewpwoqJVdeDB8MW644ggbLTLH8sv", "6zRVMyyz5miXFfRaFuxvGyFqGBjU1xCGt7VFjyK3eyNx", Buy, 1000000564000, 167300, 190, 310 + MaxOrderTTL, 3, OrderPriceModeDefault},
-		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x43db696fda9cb974364e0a41c4f5efc5b21253b00191cf32a7ea9ce16a9a2c1b310364f2d28d381bac961b066f0823b0b79b7fe5d09494ee8dfeec8d347c34651c", "2AS8mF66XiKPrEzk3ZQzBC93ef8HWKy2EHBtaU3pWCoh", "QphFC3SdhirC1o365ixoYNUjGVK82gSR7DD5KCMwWke", "3vELR7xbNxFXoxkrNGFQsXXz4gJEacKAgVW9FVCP2Zs9", Sell, 10020000000, 10680, 1110, 10 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
-		{1, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xc0ec40673634c7b1ce8bcd071ac3ba5317339c77059fe55976a54fed08419fda692322b7946487c830b6591a27a343809602adcf87213f0d68f6d0d714203ec21c", "2DKxemVYxp1xaAPf2LEy2ovDSsgDDuNS8BMd1QTBwSWD", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "q23YK66dnRKTsYhr2EYMiJE8cUovoaAFyFcvh2bgX8o", Buy, 10000060, 15400, 1670, 13450 + MaxOrderTTL, 3, OrderPriceModeDefault},
-		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x852888a888d4d95616739539e74a6905df89de06d737df2fb0736aefb96274eb6796ce222008e0f6a952aa86e8641799a123ea0816d67231edbc046401bd63b71b", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "9LAbFKB1NgNzTmc6r1HcC6LQmmQMrEZ1JwxT4Rfhi63", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 10073460000000, 45100, 1560, 160 + MaxOrderTTL, 3, OrderPriceModeDefault},
-		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xf917b609f7394cc7b79b388e32f1855b99b5b6c545c15258d526b8acdae9981152a6a585d8af47c069bdcaa9eeefe0416f1cb7686a74096ca3b4945c1eae2f9c1c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 1007346040000, 451400, 11560, 1605 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x0c8953853a9915f21907039fd1b09331c5b4a9c8f3143e0b4def2835e83d1e616e11ac7200055b5e6903cc20a51531b76e33c973e1ecbffe03143edda27634961b", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "", Buy, 10073460000, 4100, 15160, 1360 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{5, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x05c8d63b42b3eb072e16efe40c448d5c7719a5ca84f6f04fff5467032186d9bb222943527e054b979ec037a665323bdaa3f9f299bc90e617fbe9c55c54a73b941b", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{4, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x33499f53db48be48c622245ba19af8135a241b5e6a6ad950380f612c112189782860ebbf42a1f8a1e55264700b4b143cb25f6e6b45168cbd7703252cec0a6f5c1c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{3, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x9e625c07a2c949ad841c7364d21527b2280dd8671495804a7a923a495c451e971bc489ed2d912d99629ac2f9138d3bb4fcd2c485a56c674c1deca5a2f52876881c", "4SFiJcXaqVB2YU6LywpsZ3sjLqNtKJ41aof3jXnZBFPV", "MwU9RtbCZYgMSofewpwoqJVdeDB8MW644ggbLTLH8sv", "6zRVMyyz5miXFfRaFuxvGyFqGBjU1xCGt7VFjyK3eyNx", Buy, 1000000564000, 167300, 190, 310 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{42, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0xd9c8215c7757265a3ae8a4bd2e78b74d5e827a3fe6ede009df8608836baff87734159bb976ceea950b89d247be0fad8ce79af9507e39a7bc8aef6faa50c96cc21b", "2AS8mF66XiKPrEzk3ZQzBC93ef8HWKy2EHBtaU3pWCoh", "QphFC3SdhirC1o365ixoYNUjGVK82gSR7DD5KCMwWke", "3vELR7xbNxFXoxkrNGFQsXXz4gJEacKAgVW9FVCP2Zs9", Sell, 10020000000, 10680, 1110, 10 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{1, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x4b0d292d1d4bce507319bb112e78ec32b5b11021ee283853a48f3c1f46e513270c397138ff3e78bedfd22c0e7272293684339f9a6a6d9827a8bdf2c97849e93a1b", "2DKxemVYxp1xaAPf2LEy2ovDSsgDDuNS8BMd1QTBwSWD", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "q23YK66dnRKTsYhr2EYMiJE8cUovoaAFyFcvh2bgX8o", Buy, 10000060, 15400, 1670, 13450 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{3, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x22943810479c1de98d03399ef8df972c7c022db77453dff405e9c591840a372f3df32cc7d68ad528fbae587835b42975115ceeed0196cbd24f9517ed02be7c5d1b", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "9LAbFKB1NgNzTmc6r1HcC6LQmmQMrEZ1JwxT4Rfhi63", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 10073460000000, 45100, 1560, 160 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{42, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x500dcb2515c58905d9f2f10b66a3b08de99094935b3115a196b23dd58c3f34fd2dcb4755dfb2455550a67cb50d0633d0ce03851dd6e2283ee3c1322946fdcf8e1b", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 1007346040000, 451400, 11560, 1605 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{5, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0xf164a8179e93758879a2214ddacf5b505427282b1f92333fc5477fc43e3d6a7735ea47739226329354a2044043157b6bfaebb488328b81e8348fccbc438a7bfe1b", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "", Buy, 10073460000, 4100, 15160, 1360 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+
+		{1, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xeabe4f424019b4355888ac9bffce201ed0e4118c9fcbe9291c474fb3745e775e2b7ac81d74e9d696da2bcd8f623c434a8ab5cf3f5675b19dc1f25577a9f572e31b", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", Sell, 10000000, 1300, 1080, 1031 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x018a705460523bcec16f17a762bb3aa91f93cabedc064fc475b21b53e969daf756a4b38bb5cda7d95bc80059c312be751e672edf2d4e66c033ddc9baa1525e891c", "4qoBVcLxf4NEn6e4PyNkYAK4fkTHyH6rK8oKRY1dLfJG", "75NyDiTrambxhHGgBu7JeBqNnTryANZf1v6FTZwwqhDF", "9QT4JoWyk2iC9Y9VBoaEBnEL7gw2ofB8HKKLSEjs3SR", Buy, 100, 345100, 610, 126340 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xc7a3879a4c44365a2011af6a8b6bfd550a0ddaf2a3f3a4264ff995a345cdb60e1222b64f856986c05d4f257b2992cc981a56bcd305069148156270382f6041ac1c", "4uRYdwy5FY7TW66gV7bektQeRfSPJvnvHNLjLzMojJwG", "5zKtndukP6219omWiALaXtuVhMnQoMVQxYkDgGxz8ARG", "mCKpvzjog9DHTwLXNk1NU5aysZ1xpVg3wxLCQ5jWYXR", Sell, 100234000, 176500, 110, 310 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
 	}
 	for _, tc := range tests {
 		order := newEthereumOrderV4(
