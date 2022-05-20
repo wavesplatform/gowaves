@@ -27,6 +27,7 @@ type checkerInfo struct {
 	blockID          proto.BlockID
 	blockVersion     proto.BlockVersion
 	height           uint64
+	rideV5Activated  bool
 	rideV6Activated  bool
 }
 
@@ -230,21 +231,17 @@ func (tc *transactionChecker) checkFee(
 		return nil
 	}
 	params := &feeValidationParams{
-		stor:           tc.stor,
-		settings:       tc.settings,
-		initialisation: info.initialisation,
-		txAssets:       assets,
-	}
-
-	isRideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return errors.Errorf("failed to check if feature is was activated, %v", err)
+		stor:             tc.stor,
+		settings:         tc.settings,
+		initialisation:   info.initialisation,
+		txAssets:         assets,
+		rideV5Activated:  info.rideV5Activated,
+		estimatorVersion: info.estimatorVersion(),
 	}
 	if !assets.feeAsset.Present {
-		// Waves.
-		return checkMinFeeWaves(tx, params, isRideV5Activated, info.estimatorVersion())
+		return checkMinFeeWaves(tx, params)
 	}
-	return checkMinFeeAsset(tx, assets.feeAsset.ID, params, isRideV5Activated, info.estimatorVersion())
+	return checkMinFeeAsset(tx, assets.feeAsset.ID, params)
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
@@ -431,7 +428,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 
 		if tx.GetFee() < minFee {
-			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
+			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", minFee, tx.GetFee())
 		}
 
 		allAssets := []proto.OptionalAsset{kind.Asset}

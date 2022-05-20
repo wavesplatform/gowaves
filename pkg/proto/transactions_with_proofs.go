@@ -52,7 +52,7 @@ const (
 	maxInvokeScriptWithProofsBinaryTransactionsBytes     = 5 * 1024
 	maxInvokeScriptWithProofsProtobufPayloadBytes        = 5 * 1024
 
-	topRideVersion = 5
+	topRideVersion = 6
 )
 
 // IssueWithProofs is a transaction to issue new asset, second version.
