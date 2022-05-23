@@ -34,10 +34,6 @@ func NewSkipFilter(listCh chan []uint8, list *[]uint8) conn.SkipFilter {
 	}
 }
 
-//func noSkip(_ proto.Header) bool {
-//	return false
-//}
-
 type PeerSpawner interface {
 	SpawnOutgoing(ctx context.Context, addr proto.TCPAddr) error
 	SpawnIncoming(ctx context.Context, c net.Conn) error
