@@ -76,7 +76,7 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 }
 
 func (h *Header) WriteTo(w io.Writer) (int64, error) {
-	buf := [17]byte{}
+	buf := [headerSizeWithPayload]byte{}
 	n, err := h.Copy(buf[:])
 	if err != nil {
 		return 0, err
@@ -99,7 +99,7 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), err
 	}
 
-	payloadLength := binary.BigEndian.Uint32(body[9:13])
+	payloadLength := binary.BigEndian.Uint32(body[9:headerSizeWithoutPayload])
 	nn := 0
 	if payloadLength > 0 {
 		nn, err = io.ReadFull(r, body[headerSizeWithoutPayload:headerSizeWithPayload])
@@ -122,30 +122,30 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("received wrong magic: want %x, have %x", headerMagic, h.Magic)
 	}
 	h.ContentID = PeerMessageID(data[HeaderContentIDPosition])
-	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
+	h.PayloadLength = binary.BigEndian.Uint32(data[9:headerSizeWithoutPayload])
 	if h.PayloadLength > 0 {
 		if uint32(len(data)) < headerSizeWithPayload {
 			return errors.New("Header UnmarshalBinary: invalid data size")
 		}
-		copy(h.PayloadChecksum[:], data[13:17])
+		copy(h.PayloadChecksum[:], data[headerSizeWithoutPayload:headerSizeWithPayload])
 	}
 
 	return nil
 }
 
 func (h *Header) Copy(data []byte) (int, error) {
-	if len(data) < 13 {
+	if len(data) < headerSizeWithoutPayload {
 		return 0, errors.New("Header Copy: invalid data size")
 	}
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
 	data[HeaderContentIDPosition] = byte(h.ContentID)
-	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
+	binary.BigEndian.PutUint32(data[9:headerSizeWithoutPayload], h.PayloadLength)
 	if h.PayloadLength > 0 {
-		if len(data) < 17 {
+		if len(data) < headerSizeWithPayload {
 			return 0, errors.New("Header Copy: invalid data size")
 		}
-		copy(data[13:17], h.PayloadChecksum[:])
+		copy(data[headerSizeWithoutPayload:headerSizeWithPayload], h.PayloadChecksum[:])
 		return headerSizeWithPayload, nil
 	}
 	return headerSizeWithoutPayload, nil
