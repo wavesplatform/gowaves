@@ -494,7 +494,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	localEnv.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
-	case 1, 2, 3:
+	case scripting.LibV1, scripting.LibV2, scripting.LibV3:
 		assetInfo, err := ws.NewestAssetInfo(asset.ID)
 		if err != nil {
 			return false, err

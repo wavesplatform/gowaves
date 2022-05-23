@@ -280,7 +280,7 @@ func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction
 		functionName = ""
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= 5 {
+		if tree.LibVersion >= scripting.LibV5 {
 			env, err = ride.NewEnvironmentWithWrappedState(
 				env,
 				payments,
@@ -330,7 +330,7 @@ func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction
 		functionArguments = arguments
 		defaultFunction = true
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= 5 {
+		if tree.LibVersion >= scripting.LibV5 {
 			env, err = ride.NewEnvironmentWithWrappedState(
 				env,
 				payments,
