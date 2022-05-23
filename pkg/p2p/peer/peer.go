@@ -31,7 +31,7 @@ func NewParent() Parent {
 	return Parent{
 		MessageCh:              make(chan ProtoMessage, 100),
 		InfoCh:                 make(chan InfoMessage, 100),
-		ListOfExcludedCh:       make(chan []uint8, 1),
+		ListOfExcludedCh:       make(chan []uint8),
 		ListOfExcludedMessages: make([]uint8, 0),
 	}
 }

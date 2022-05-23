@@ -315,6 +315,8 @@ func main() {
 
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 	parent := peer.NewParent()
+	go peer_manager.ApplyNewListMessage(ctx, parent.ListOfExcludedCh, &parent.ListOfExcludedMessages)
+
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {
 		zap.S().Error(err)

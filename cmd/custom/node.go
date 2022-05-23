@@ -194,6 +194,8 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	parent := peer.NewParent()
+	go peer_manager.ApplyNewListMessage(ctx, parent.ListOfExcludedCh, &parent.ListOfExcludedMessages)
+
 	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {

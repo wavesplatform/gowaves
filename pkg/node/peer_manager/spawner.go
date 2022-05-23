@@ -16,21 +16,27 @@ type DuplicateChecker interface {
 	Add([]byte) bool
 }
 
-func NewSkipFilter(listCh chan []uint8, list *[]uint8) conn.SkipFilter {
-	return func(h proto.Header) bool {
-		return func(h proto.Header, l *[]uint8, ch chan []uint8) bool {
-			select {
-			case newList := <-ch:
-				*l = newList
-			default:
-			}
+func ApplyNewListMessage(ctx context.Context, listCh chan []uint8, list *[]uint8) {
+	for {
+		select {
+		case newList := <-listCh:
+			*list = newList
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func NewSkipFilter(list *[]uint8) conn.SkipFilter {
+	return func(header proto.Header) bool {
+		return func(h proto.Header, l *[]uint8) bool {
 			for _, id := range *l {
 				if h.ContentID == id {
 					return true
 				}
 			}
 			return false
-		}(h, list, listCh)
+		}(header, list)
 	}
 }
 
@@ -52,7 +58,7 @@ type PeerSpawnerImpl struct {
 
 func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
-		skipFunc:         NewSkipFilter(parent.ListOfExcludedCh, &parent.ListOfExcludedMessages),
+		skipFunc:         NewSkipFilter(&parent.ListOfExcludedMessages),
 		parent:           parent,
 		wavesNetwork:     WavesNetwork,
 		declAddr:         declAddr,
