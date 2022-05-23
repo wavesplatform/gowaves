@@ -57,6 +57,7 @@ const (
 	MaxScriptActionsV2                       = 30
 	MaxDataEntryScriptActions                = 100
 	MaxBalanceScriptActionsV3                = 100
+	MaxAttachedPaymentsScriptActions         = 100
 	MaxAssetScriptActionsV3                  = 30
 )
 

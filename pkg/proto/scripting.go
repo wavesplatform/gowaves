@@ -492,20 +492,22 @@ type ActionsValidationRestrictions struct {
 }
 
 type ActionsCountValidator struct {
-	dataScriptActionsCounter    int
-	assetScriptActionsCounter   int
-	balanceScriptActionsCounter int
+	dataScriptActionsCounter            int
+	assetScriptActionsCounter           int
+	balanceScriptActionsCounter         int
+	attachedPaymentScriptActionsCounter int
 }
 
 func NewScriptActionsCountValidator() ActionsCountValidator {
 	return ActionsCountValidator{
-		dataScriptActionsCounter:    0,
-		assetScriptActionsCounter:   0,
-		balanceScriptActionsCounter: 0,
+		dataScriptActionsCounter:            0,
+		assetScriptActionsCounter:           0,
+		balanceScriptActionsCounter:         0,
+		attachedPaymentScriptActionsCounter: 0,
 	}
 }
 
-func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
+func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion int, isRideV6Activated bool) error {
 	switch groupType := action.GroupType(); groupType {
 	case DataScriptActionGroupType:
 		v.dataScriptActionsCounter++
@@ -517,7 +519,8 @@ func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion int)
 		v.balanceScriptActionsCounter++
 		return v.validateBalanceActionsGroup(libVersion)
 	case AttachedPaymentScriptActionGroupType:
-		return nil
+		v.attachedPaymentScriptActionsCounter++
+		return v.validateAttachedPaymentActionGroup(isRideV6Activated)
 	default:
 		return errors.Errorf("unknown script action group type (%d)", groupType)
 	}
@@ -584,13 +587,22 @@ func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) erro
 	return nil
 }
 
+func (v *ActionsCountValidator) validateAttachedPaymentActionGroup(isRideV6Activated bool) error {
+	if isRideV6Activated && v.attachedPaymentScriptActionsCounter > MaxAttachedPaymentsScriptActions {
+		return errors.Errorf("number of attached payments (%d) produced by script is more than allowed %d",
+			v.attachedPaymentScriptActionsCounter, MaxAttachedPaymentsScriptActions,
+		)
+	}
+	return nil
+}
+
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, libVersion int, validatePayments bool) error {
 	var (
 		dataEntriesSize       = 0
 		actionsCountValidator = NewScriptActionsCountValidator()
 	)
 	for _, a := range actions {
-		if err := actionsCountValidator.CountAction(a, libVersion); err != nil {
+		if err := actionsCountValidator.CountAction(a, libVersion, isRideV6Activated); err != nil {
 			return errors.Wrap(err, "failed to validate actions count")
 		}
 		switch ta := a.(type) {

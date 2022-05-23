@@ -10390,3 +10390,181 @@ func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100", err.Error())
 }
+
+func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On both dApp1 and dApp2 addresses
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func test(dapp2: String, payments_counter: Int, limit: Int) = {
+		let c = payments_counter + size(i.payments)
+
+		if (c > limit) then
+			(
+				[IntegerEntry("total_payments_counter", c)],
+				payments_counter
+			)
+		else
+			strict res = reentrantInvoke(
+				addressFromStringValue(dapp2),
+				"test",
+				[this.toString(), c, limit],
+				[AttachedPayment(unit, 1), AttachedPayment(unit, 1), AttachedPayment(unit, 1), AttachedPayment(unit, 1), AttachedPayment(unit, 1), AttachedPayment(unit, 1)]
+			)
+
+			match (res) {
+				case res: Int =>
+				(
+					[IntegerEntry("last_payments_counter", res)],
+					res
+				)
+				case _ => throw("Unexpected return value from Dapp")
+			}
+	}
+	*/
+
+	code := "AAIFAAAAAAAAAAkIAhIFCgMIAQEAAAAAAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAwAAAAVkYXBwMgAAABBwYXltZW50c19jb3VudGVyAAAABWxpbWl0BAAAAAFjCQAAZAAAAAIFAAAAEHBheW1lbnRzX2NvdW50ZXIJAAGQAAAAAQgFAAAAAWkAAAAIcGF5bWVudHMDCQAAZgAAAAIFAAAAAWMFAAAABWxpbWl0CQAFFAAAAAIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAFnRvdGFsX3BheW1lbnRzX2NvdW50ZXIFAAAAAWMFAAAAA25pbAUAAAAQcGF5bWVudHNfY291bnRlcgQAAAADcmVzCQAD/QAAAAQJAQAAABFAZXh0ck5hdGl2ZSgxMDYyKQAAAAEFAAAABWRhcHAyAgAAAAR0ZXN0CQAETAAAAAIJAAQlAAAAAQUAAAAEdGhpcwkABEwAAAACBQAAAAFjCQAETAAAAAIFAAAABWxpbWl0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAAEFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMEAAAAByRtYXRjaDAFAAAAA3JlcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAANyZXMFAAAAByRtYXRjaDAJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAAVbGFzdF9wYXltZW50c19jb3VudGVyBQAAAANyZXMFAAAAA25pbAUAAAADcmVzCQAAAgAAAAECAAAAIVVuZXhwZWN0ZWQgcmV0dXJuIHZhbHVlIGZyb20gRGFwcAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAZKF4ng=="
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+
+	arguments := proto.Arguments{}
+	arguments.Append(proto.NewStringArgument(dApp2.String()))
+	arguments.Append(proto.NewIntegerArgument(0))
+	arguments.Append(proto.NewIntegerArgument(proto.MaxAttachedPaymentsScriptActions))
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "test",
+		Arguments: arguments,
+	}
+
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &crypto.Digest{},
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	rideV6Activated := true
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		txIDFunc: func() rideType {
+			return rideBytes(tx.ID.Bytes())
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: func() bool {
+			return rideV6Activated
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String(), dApp2.String():
+				return src, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 5000000000, nil
+		},
+		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			return &proto.FullWavesBalance{Available: 5000000000}, nil
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+	}
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	testState := initWrappedState(mockState, env, tree.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	rideV6Activated = true
+	res, err := CallFunction(env, tree, "test", arguments)
+	require.Error(t, err)
+	require.Equal(t, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100", err.Error())
+	require.Nil(t, res)
+
+	rideV6Activated = false
+	res, err = CallFunction(env, tree, "test", arguments)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}

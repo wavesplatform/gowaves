@@ -757,8 +757,8 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invocationCount++
 }
 
-func (ws *WrappedState) countActionTotal(action proto.ScriptAction) error {
-	return ws.rootActionsCountValidator.CountAction(action, ws.rootScriptLibVersion)
+func (ws *WrappedState) countActionTotal(action proto.ScriptAction, isRideV6Activated bool) error {
+	return ws.rootActionsCountValidator.CountAction(action, ws.rootScriptLibVersion, isRideV6Activated)
 }
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
@@ -815,10 +815,10 @@ func (ws *WrappedState) ApplyToState(
 		MaxDataEntriesSize:    env.maxDataEntriesSize(),
 	}
 	for _, action := range actions {
-		if err := localActionsCountValidator.CountAction(action, currentLibVersion); err != nil {
+		if err := localActionsCountValidator.CountAction(action, currentLibVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate local actions count")
 		}
-		if err := ws.countActionTotal(action); err != nil {
+		if err := ws.countActionTotal(action, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 		switch res := action.(type) {
