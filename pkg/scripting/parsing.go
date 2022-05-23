@@ -1,4 +1,4 @@
-package ride
+package scripting
 
 import (
 	"bytes"
@@ -10,38 +10,38 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
-type contentType byte
+type ContentType byte
 
 const (
-	contentTypeExpression contentType = iota + 1
-	contentTypeApplication
+	ContentTypeExpression ContentType = iota + 1
+	ContentTypeApplication
 )
 
-func newContentType(b byte) (contentType, error) {
-	ct := contentType(b)
+func newContentType(b byte) (ContentType, error) {
+	ct := ContentType(b)
 	switch ct {
-	case contentTypeExpression, contentTypeApplication:
+	case ContentTypeExpression, ContentTypeApplication:
 		return ct, nil
 	default:
 		return 0, errors.Errorf("unsupported content type '%d'", b)
 	}
 }
 
-type libraryVersion byte
+type LibraryVersion byte
 
 const (
-	libV1 libraryVersion = iota + 1
-	libV2
-	libV3
-	libV4
-	libV5
-	libV6
+	LibV1 LibraryVersion = iota + 1
+	LibV2
+	LibV3
+	LibV4
+	LibV5
+	LibV6
 )
 
-func newLibraryVersion(b byte) (libraryVersion, error) {
-	lv := libraryVersion(b)
+func newLibraryVersion(b byte) (LibraryVersion, error) {
+	lv := LibraryVersion(b)
 	switch lv {
-	case libV1, libV2, libV3, libV4, libV5, libV6:
+	case LibV1, LibV2, LibV3, LibV4, LibV5, LibV6:
 		return lv, nil
 	default:
 		return 0, errors.Errorf("unsupported library version '%d'", b)
@@ -71,6 +71,22 @@ const (
 	declarationTypeLet byte = iota
 	declarationTypeFunction
 )
+
+func ParseHeader(script []byte) error {
+	ok, err := verifyCheckSum(script)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse script header")
+	}
+	if !ok {
+		return errors.New("invalid script checksum")
+	}
+	r := bytes.NewReader(script)
+	_, err = parseHeader(r, [32]byte{})
+	if err != nil {
+		return errors.Wrap(err, "failed to parse script header")
+	}
+	return nil
+}
 
 func Parse(script []byte) (*Tree, error) {
 	ok, err := verifyCheckSum(script)
@@ -102,9 +118,9 @@ type parser struct {
 
 func (p *parser) parse() (*Tree, error) {
 	switch p.header.content {
-	case contentTypeExpression:
+	case ContentTypeExpression:
 		return p.parseExpression()
-	case contentTypeApplication:
+	case ContentTypeApplication:
 		return p.parseDApp()
 	default:
 		return nil, errors.Errorf("unsupported content type '%d'", p.header.content)
@@ -112,10 +128,7 @@ func (p *parser) parse() (*Tree, error) {
 }
 
 func (p *parser) parseDApp() (*Tree, error) {
-	tree := &Tree{
-		contentType: p.header.content,
-		LibVersion:  int(p.header.library),
-	}
+	tree := NewTree(p.header.content, p.header.library)
 	m, err := p.readMeta(p)
 	if err != nil {
 		return nil, err
@@ -154,7 +167,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 		if !ok {
 			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
-		fn.invocationParameter = invocationParameter
+		fn.InvocationParameter = invocationParameter
 		functions[i] = fn
 		// Update callable name in tree's meta
 		if len(tree.Meta.Functions) > i {
@@ -180,7 +193,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 		if !ok {
 			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
-		fn.invocationParameter = invocationParameter
+		fn.InvocationParameter = invocationParameter
 		tree.Verifier = fn
 	}
 	tree.HasBlockV2 = p.seenBlockV2
@@ -189,10 +202,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 }
 
 func (p *parser) parseExpression() (*Tree, error) {
-	tree := &Tree{
-		contentType: p.header.content,
-		LibVersion:  int(p.header.library),
-	}
+	tree := NewTree(p.header.content, p.header.library)
 	node, err := p.parseNext()
 	if err != nil {
 		return nil, err
@@ -315,7 +325,7 @@ func (p *parser) parseNext() (Node, error) {
 			return nil, err
 		}
 		if ad, ok := declaration.(*AssignmentNode); ok {
-			ad.newBlock = true
+			ad.NewBlock = true
 		}
 		block, err := p.parseNext()
 		if err != nil {
@@ -352,20 +362,20 @@ func (p *parser) readString() (string, error) {
 	return string(b), nil
 }
 
-func (p *parser) readFunctionName(ft byte) (function, error) {
+func (p *parser) readFunctionName(ft byte) (Function, error) {
 	switch ft {
 	case functionTypeNative:
 		id, err := p.readShort(p.r)
 		if err != nil {
 			return nil, err
 		}
-		return nativeFunction(strconv.Itoa(int(id))), nil
+		return NativeFunction(strconv.Itoa(int(id))), nil
 	case functionTypeUser:
 		name, err := p.readString()
 		if err != nil {
 			return nil, err
 		}
-		return userFunction(name), nil
+		return UserFunction(name), nil
 	default:
 		return nil, errors.Errorf("unsupported function type %d", ft)
 	}
@@ -416,8 +426,8 @@ func (p *parser) readDeclaration() (Node, error) {
 }
 
 type scriptHeader struct {
-	content contentType
-	library libraryVersion
+	content ContentType
+	library LibraryVersion
 }
 
 /*
@@ -433,7 +443,7 @@ func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b < byte(libV6) {
+	if b < byte(LibV6) {
 		switch b {
 		case 0:
 			b, err = r.ReadByte()
@@ -454,8 +464,8 @@ func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 			}
 			return newParserV1(r, id, scriptHeader{content: ct, library: lv}), nil
 		default:
-			lv := libraryVersion(b)
-			return newParserV1(r, id, scriptHeader{content: contentTypeExpression, library: lv}), nil
+			lv := LibraryVersion(b)
+			return newParserV1(r, id, scriptHeader{content: ContentTypeExpression, library: lv}), nil
 		}
 	}
 	lv, err := newLibraryVersion(b)

@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 )
 
 type ScriptActionGroupType byte
@@ -505,7 +506,7 @@ func NewScriptActionsCountValidator() ActionsCountValidator {
 	}
 }
 
-func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion int) error {
+func (v *ActionsCountValidator) CountAction(action ScriptAction, libVersion scripting.LibraryVersion) error {
 	switch groupType := action.GroupType(); groupType {
 	case DataScriptActionGroupType:
 		v.dataScriptActionsCounter++
@@ -532,21 +533,21 @@ func (v *ActionsCountValidator) validateDataEntryGroup() error {
 	return nil
 }
 
-func (v *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error {
+func (v *ActionsCountValidator) validateAssetActionsGroup(libVersion scripting.LibraryVersion) error {
 	switch {
-	case libVersion < 5:
+	case libVersion < scripting.LibV5:
 		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
-	case libVersion == 5:
+	case libVersion == scripting.LibV5:
 		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
-	case libVersion > 5:
+	case libVersion > scripting.LibV5:
 		if v.assetScriptActionsCounter > MaxAssetScriptActionsV3 {
 			return errors.Errorf("number of issue group actions (%d) produced by script is more than allowed %d",
 				v.assetScriptActionsCounter, MaxAssetScriptActionsV3,
@@ -558,21 +559,21 @@ func (v *ActionsCountValidator) validateAssetActionsGroup(libVersion int) error 
 	return nil
 }
 
-func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) error {
+func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion scripting.LibraryVersion) error {
 	switch {
-	case libVersion < 5:
+	case libVersion < scripting.LibV5:
 		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV1 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV1,
 			)
 		}
-	case libVersion == 5:
+	case libVersion == scripting.LibV5:
 		if actionsCount := v.assetScriptActionsCounter + v.balanceScriptActionsCounter; actionsCount > MaxScriptActionsV2 {
 			return errors.Errorf("number of actions (%d) produced by script is more than allowed %d",
 				actionsCount, MaxScriptActionsV2,
 			)
 		}
-	case libVersion > 5:
+	case libVersion > scripting.LibV5:
 		if v.balanceScriptActionsCounter > MaxBalanceScriptActionsV3 {
 			return errors.Errorf("number of transfer group actions (%d) produced by script is more than allowed %d",
 				v.balanceScriptActionsCounter, MaxBalanceScriptActionsV3,
@@ -584,7 +585,13 @@ func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion int) erro
 	return nil
 }
 
-func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, libVersion int, validatePayments bool) error {
+func ValidateActions(
+	actions []ScriptAction,
+	restrictions ActionsValidationRestrictions,
+	isRideV6Activated bool,
+	libVersion scripting.LibraryVersion,
+	validatePayments bool,
+) error {
 	var (
 		dataEntriesSize       = 0
 		actionsCountValidator = NewScriptActionsCountValidator()

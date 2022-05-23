@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -63,7 +64,7 @@ type scriptFeaturesActivations struct {
 	rideForDAppsActivated, blockV5Activated, rideV5Activated, rideV6Activated bool
 }
 
-func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) (scriptFeaturesActivations, error) {
+func (tc *transactionChecker) scriptActivation(libVersion scripting.LibraryVersion, hasBlockV2 bool) (scriptFeaturesActivations, error) {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return scriptFeaturesActivations{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
@@ -80,19 +81,19 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
-	if libVersion == 3 && !rideForDAppsActivated {
+	if libVersion == scripting.LibV3 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
 	if hasBlockV2 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
-	if libVersion == 4 && !blockV5Activated {
+	if libVersion == scripting.LibV4 && !blockV5Activated {
 		return scriptFeaturesActivations{}, errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
-	if libVersion == 5 && !rideV5Activated {
+	if libVersion == scripting.LibV5 && !rideV5Activated {
 		return scriptFeaturesActivations{}, errors.New("RideV5 feature must be activated for scripts version 5")
 	}
-	if libVersion == 6 && !rideV6Activated {
+	if libVersion == scripting.LibV6 && !rideV6Activated {
 		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
 	}
 	return scriptFeaturesActivations{
@@ -103,7 +104,7 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	}, nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
+func (tc *transactionChecker) checkScriptComplexity(libVersion scripting.LibraryVersion, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
 	/*
 		| Script Type                            | Max complexity before BlockV5 | Max complexity after BlockV5 |
 		| -------------------------------------- | ----------------------------- | ---------------------------- |
@@ -118,16 +119,16 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation r
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
-	case 1, 2:
+	case scripting.LibV1, scripting.LibV2:
 		maxCallableComplexity = MaxCallableScriptComplexityV12
 		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
-	case 3, 4:
+	case scripting.LibV3, scripting.LibV4:
 		maxCallableComplexity = MaxCallableScriptComplexityV34
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case 5:
+	case scripting.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case 6:
+	case scripting.LibV6:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:
@@ -151,8 +152,8 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation r
 	return nil
 }
 
-func (tc *transactionChecker) checkDAppCallables(tree *ride.Tree, rideV6Activated bool) error {
-	if !rideV6Activated || tree.LibVersion < 6 {
+func (tc *transactionChecker) checkDAppCallables(tree *scripting.Tree, rideV6Activated bool) error {
+	if !rideV6Activated || tree.LibVersion < scripting.LibV6 {
 		return nil
 	}
 	for _, fn := range tree.Meta.Functions {
@@ -173,7 +174,7 @@ func (tc *transactionChecker) checkDAppCallables(tree *ride.Tree, rideV6Activate
 }
 
 func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
-	tree, err := ride.Parse(script)
+	tree, err := scripting.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}

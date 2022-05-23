@@ -1,4 +1,4 @@
-package ride
+package scripting
 
 import (
 	"bytes"

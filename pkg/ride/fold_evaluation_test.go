@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -22,8 +23,8 @@ var (
 		stateFunc: func() types.SmartState {
 			return nativeFoldTestState
 		},
-		libVersionFunc: func() int {
-			return 5
+		libVersionFunc: func() scripting.LibraryVersion {
+			return scripting.LibV5
 		},
 		rideV6ActivatedFunc: func() bool {
 			return true
@@ -35,7 +36,7 @@ func evaluateFold(t *testing.T, code string) {
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
 
-	tree, err := Parse(src)
+	tree, err := scripting.Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 

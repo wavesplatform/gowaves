@@ -7,7 +7,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 )
 
 const (
@@ -17,8 +17,8 @@ const (
 	maxCacheBytes = maxCacheSize * scriptSize
 )
 
-func scriptBytesToTree(script proto.Script) (*ride.Tree, error) {
-	tree, err := ride.Parse(script)
+func scriptBytesToTree(script proto.Script) (*scripting.Tree, error) {
+	tree, err := scripting.Parse(script)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto
 	return script, nil
 }
 
-func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
+func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*scripting.Tree, error) {
 	if script.IsEmpty() {
 		// Empty script = no script.
 		return nil, proto.ErrNotFound
@@ -192,7 +192,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*ride.T
 	return scriptBytesToTree(script)
 }
 
-func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*scripting.Tree, error) {
 	script, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.T
 	return ss.scriptAstFromRecordBytes(script)
 }
 
-func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*scripting.Tree, error) {
 	script, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return nil, err // Possible errors are `keyvalue.ErrNotFoundHere` and untyped "empty history"
@@ -284,7 +284,7 @@ func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID, filter bool) (bool
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool) (*scripting.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
 		if r.scriptDBItem.script.IsEmpty() {
 			return nil, proto.ErrNotFound
@@ -304,7 +304,7 @@ func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool
 	return tree, nil
 }
 
-func (ss *scriptsStorage) scriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) scriptByAsset(assetID proto.AssetID, filter bool) (*scripting.Tree, error) {
 	key := assetScriptKey{assetID}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }
@@ -388,7 +388,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress, filter bool)
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*scripting.Tree, error) {
 	key := accountScriptKey{addr.ID()}
 	keyBytes := key.bytes()
 	if tree, has := ss.cache.get(keyBytes); has {
@@ -417,7 +417,7 @@ func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.WavesAddress, filter b
 
 // scriptByAddr returns script of corresponding proto.WavesAddress.
 // Note that only real proto.WavesAddress account can have a scripts.
-func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress, filter bool) (*scripting.Tree, error) {
 	key := accountScriptKey{addr: addr.ID()}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }

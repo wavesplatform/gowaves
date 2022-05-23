@@ -5,6 +5,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -22,11 +23,11 @@ type WrappedState struct {
 	invocationCount           int
 	totalComplexity           int
 	dataEntriesSize           int
-	rootScriptLibVersion      int
+	rootScriptLibVersion      scripting.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion int) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion scripting.LibraryVersion) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
@@ -486,7 +487,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 
-	tree, err := Parse(script)
+	tree, err := scripting.Parse(script)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get tree by script")
 	}
@@ -737,12 +738,12 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 	return nil
 }
 
-func (ws *WrappedState) getLibVersion() (int, error) {
+func (ws *WrappedState) getLibVersion() (scripting.LibraryVersion, error) {
 	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get script by recipient")
 	}
-	tree, err := Parse(script)
+	tree, err := scripting.Parse(script)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get tree by script")
 	}
@@ -1144,7 +1145,7 @@ type EvaluationEnvironment struct {
 	check                 func(int) bool
 	takeStr               func(s string, n int) rideString
 	inv                   rideObject
-	ver                   int
+	ver                   scripting.LibraryVersion
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
 	isRiveV6Activated     bool
@@ -1174,7 +1175,7 @@ func NewEnvironmentWithWrappedState(
 	isBlockV5Activated bool,
 	isRideV6Activated bool,
 	isProtobufTransaction bool,
-	rootScriptLibVersion int,
+	rootScriptLibVersion scripting.LibraryVersion,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
@@ -1258,7 +1259,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 	}
 }
 
-func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
+func (e *EvaluationEnvironment) ChooseSizeCheck(v scripting.LibraryVersion) {
 	e.ver = v
 	if v > 2 {
 		e.check = func(l int) bool {
@@ -1340,7 +1341,7 @@ func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
+func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v scripting.LibraryVersion) error {
 	obj, err := invocationToObject(v, e.sch, tx)
 	if err != nil {
 		return err
@@ -1350,7 +1351,7 @@ func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v scripting.LibraryVersion, payments []proto.ScriptPayment) error {
 	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
 	if err != nil {
 		return err
@@ -1417,7 +1418,7 @@ func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 	e.inv = inv
 }
 
-func (e *EvaluationEnvironment) libVersion() int {
+func (e *EvaluationEnvironment) libVersion() scripting.LibraryVersion {
 	return e.ver
 }
 

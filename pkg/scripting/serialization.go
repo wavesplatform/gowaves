@@ -1,4 +1,4 @@
-package ride
+package scripting
 
 import (
 	"bytes"
@@ -136,7 +136,7 @@ func (s *serializer) writeVerifier(verifier Node) error {
 }
 
 func (s *serializer) writeFunction(function *FunctionDeclarationNode) error {
-	if err := s.writeString(function.invocationParameter); err != nil {
+	if err := s.writeString(function.InvocationParameter); err != nil {
 		return err
 	}
 	if err := s.writeFunctionDeclaration(function); err != nil {
@@ -224,7 +224,7 @@ func (s *serializer) walk(node Node) error {
 		return nil
 
 	case *AssignmentNode:
-		if n.newBlock {
+		if n.NewBlock {
 			if err := s.writeByte(tokenBlockV2); err != nil {
 				return err
 			}
@@ -264,7 +264,7 @@ func (s *serializer) walk(node Node) error {
 			return err
 		}
 		switch tf := n.Function.(type) {
-		case nativeFunction:
+		case NativeFunction:
 			if err := s.writeByte(functionTypeNative); err != nil {
 				return err
 			}
@@ -275,7 +275,7 @@ func (s *serializer) walk(node Node) error {
 			if err := s.writeUint16(s.buf, uint16(id)); err != nil {
 				return err
 			}
-		case userFunction:
+		case UserFunction:
 			if err := s.writeByte(functionTypeUser); err != nil {
 				return err
 			}

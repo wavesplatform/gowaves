@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
+	"github.com/wavesplatform/gowaves/pkg/scripting"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -1172,7 +1173,7 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-func invocationToObject(rideVersion int, scheme byte, tx proto.Transaction) (rideObject, error) {
+func invocationToObject(rideVersion scripting.LibraryVersion, scheme byte, tx proto.Transaction) (rideObject, error) {
 	var (
 		senderPK crypto.PublicKey
 		ID       crypto.Digest
@@ -1228,7 +1229,7 @@ func invocationToObject(rideVersion int, scheme byte, tx proto.Transaction) (rid
 	return r, nil
 }
 
-func ethereumInvocationToObject(rideVersion int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(rideVersion scripting.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
