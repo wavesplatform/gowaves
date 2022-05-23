@@ -22,7 +22,7 @@ type NGFsm struct {
 }
 
 var (
-	ngListOfExcludedMessages []uint8
+	ngListOfExcludedMessages proto.PeerMessageIDs
 )
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {

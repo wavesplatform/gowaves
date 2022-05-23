@@ -36,7 +36,7 @@ type noopWrapper struct {
 }
 
 var (
-	syncListOfExcludedMessages = []uint8{
+	syncListOfExcludedMessages = proto.PeerMessageIDs{
 		proto.ContentIDGetBlock,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,

@@ -20,7 +20,7 @@ type InvRequester interface {
 }
 
 var (
-	idleListOfExcludedMessages = []uint8{
+	idleListOfExcludedMessages = proto.PeerMessageIDs{
 		proto.ContentIDGetSignatures,
 		proto.ContentIDSignatures,
 		proto.ContentIDGetBlock,

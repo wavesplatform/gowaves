@@ -16,7 +16,7 @@ type DuplicateChecker interface {
 	Add([]byte) bool
 }
 
-func ApplyNewListMessage(ctx context.Context, listCh chan []uint8, list *[]uint8) {
+func ApplyNewListMessage(ctx context.Context, listCh chan proto.PeerMessageIDs, list *proto.PeerMessageIDs) {
 	for {
 		select {
 		case newList := <-listCh:
@@ -27,9 +27,9 @@ func ApplyNewListMessage(ctx context.Context, listCh chan []uint8, list *[]uint8
 	}
 }
 
-func NewSkipFilter(list *[]uint8) conn.SkipFilter {
+func NewSkipFilter(list *proto.PeerMessageIDs) conn.SkipFilter {
 	return func(header proto.Header) bool {
-		return func(h proto.Header, l *[]uint8) bool {
+		return func(h proto.Header, l *proto.PeerMessageIDs) bool {
 			for _, id := range *l {
 				if h.ContentID == id {
 					return true

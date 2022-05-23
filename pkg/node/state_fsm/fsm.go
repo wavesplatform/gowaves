@@ -61,7 +61,7 @@ type BaseInfo struct {
 
 	minPeersMining int
 
-	excludeListCh chan []uint8
+	excludeListCh chan proto.PeerMessageIDs
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {

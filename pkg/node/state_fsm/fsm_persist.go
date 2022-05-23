@@ -15,7 +15,7 @@ type PersistFsm struct {
 }
 
 var (
-	persistListOfExcludedMessages = []uint8{
+	persistListOfExcludedMessages = proto.PeerMessageIDs{
 		proto.ContentIDGetSignatures,
 		proto.ContentIDSignatures,
 		proto.ContentIDGetBlock,

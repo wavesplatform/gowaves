@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
@@ -23,7 +24,7 @@ func (noopReschedule) Reschedule() {
 }
 
 func TestNewFsm(t *testing.T) {
-	fakeCh := make(chan []uint8, 1)
+	fakeCh := make(chan proto.PeerMessageIDs, 1)
 	defer close(fakeCh)
 	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, ListOfExcludedCh: fakeCh}, 1000)
 

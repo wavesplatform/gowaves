@@ -11,7 +11,7 @@ type HaltFSM struct {
 }
 
 var (
-	haltListOfExcludedMessages = []uint8{
+	haltListOfExcludedMessages = proto.PeerMessageIDs{
 		proto.ContentIDGetPeers,
 		proto.ContentIDPeers,
 		proto.ContentIDGetSignatures,

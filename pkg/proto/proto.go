@@ -25,27 +25,31 @@ const (
 	HeaderSizeWithoutPayload = 13
 )
 
+type (
+	PeerMessageID  byte
+	PeerMessageIDs []PeerMessageID
+)
+
 // Constants for message IDs
 const (
-	ContentIDGetPeers          = 0x1
-	ContentIDPeers             = 0x2
-	ContentIDGetSignatures     = 0x14
-	ContentIDSignatures        = 0x15
-	ContentIDGetBlock          = 0x16
-	ContentIDBlock             = 0x17
-	ContentIDScore             = 0x18
-	ContentIDTransaction       = 0x19
-	ContentIDInvMicroblock     = 0x1A
-	ContentIDCheckpoint        = 0x64
-	ContentIDMicroblockRequest = 27
-	ContentIDMicroblock        = 28
-	ContentIDPBBlock           = 29
-	ContentIDPBMicroBlock      = 30
-	ContentIDPBTransaction     = 31
-	ContentIDGetBlockIds       = 32
-	ContentIDBlockIds          = 33
-
-	HeaderContentIDPosition = 8
+	ContentIDGetPeers          PeerMessageID = 0x1
+	ContentIDPeers             PeerMessageID = 0x2
+	ContentIDGetSignatures     PeerMessageID = 0x14
+	ContentIDSignatures        PeerMessageID = 0x15
+	ContentIDGetBlock          PeerMessageID = 0x16
+	ContentIDBlock             PeerMessageID = 0x17
+	ContentIDScore             PeerMessageID = 0x18
+	ContentIDTransaction       PeerMessageID = 0x19
+	ContentIDInvMicroblock     PeerMessageID = 0x1A
+	ContentIDCheckpoint        PeerMessageID = 0x64
+	ContentIDMicroblockRequest PeerMessageID = 27
+	ContentIDMicroblock        PeerMessageID = 28
+	ContentIDPBBlock           PeerMessageID = 29
+	ContentIDPBMicroBlock      PeerMessageID = 30
+	ContentIDPBTransaction     PeerMessageID = 31
+	ContentIDGetBlockIds       PeerMessageID = 32
+	ContentIDBlockIds          PeerMessageID = 33
+	HeaderContentIDPosition    PeerMessageID = 8
 )
 
 type Message interface {
@@ -58,7 +62,7 @@ type Message interface {
 type Header struct {
 	Length          uint32
 	Magic           uint32
-	ContentID       uint8
+	ContentID       PeerMessageID
 	PayloadLength   uint32
 	PayloadChecksum [headerChecksumLen]byte
 }
@@ -117,7 +121,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 	if h.Magic != headerMagic {
 		return fmt.Errorf("received wrong magic: want %x, have %x", headerMagic, h.Magic)
 	}
-	h.ContentID = data[8]
+	h.ContentID = PeerMessageID(data[8])
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
 	if h.PayloadLength > 0 {
 		if uint32(len(data)) < HeaderSizeWithPayload {
@@ -135,7 +139,7 @@ func (h *Header) Copy(data []byte) (int, error) {
 	}
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
-	data[8] = h.ContentID
+	data[8] = byte(h.ContentID)
 	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
 	if h.PayloadLength > 0 {
 		if len(data) < 17 {
@@ -1222,7 +1226,7 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 	})
 }
 
-func parsePacket(data []byte, ContentID uint8, name string, f func(payload []byte) error) error {
+func parsePacket(data []byte, ContentID PeerMessageID, name string, f func(payload []byte) error) error {
 	if len(data) < 17 {
 		return errors.Errorf("%s: invalid data size %d, expected at least 17", name, len(data))
 	}
@@ -1305,7 +1309,7 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
-func MakeHeader(contentID uint8, payload []byte) (Header, error) {
+func MakeHeader(contentID PeerMessageID, payload []byte) (Header, error) {
 	var h Header
 	h.Length = MaxHeaderLength + uint32(len(payload)) - 4
 	h.Magic = headerMagic
@@ -1749,7 +1753,7 @@ func UnmarshalMessage(b []byte) (Message, error) {
 	}
 
 	var m Message
-	switch b[HeaderContentIDPosition] {
+	switch messageID := b[HeaderContentIDPosition]; PeerMessageID(messageID) {
 	case ContentIDGetPeers:
 		m = &GetPeersMessage{}
 	case ContentIDPeers:

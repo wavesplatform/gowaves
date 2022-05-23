@@ -23,16 +23,16 @@ func NewRemote() Remote {
 type Parent struct {
 	MessageCh              chan ProtoMessage
 	InfoCh                 chan InfoMessage
-	ListOfExcludedCh       chan []uint8
-	ListOfExcludedMessages []uint8
+	ListOfExcludedCh       chan proto.PeerMessageIDs
+	ListOfExcludedMessages proto.PeerMessageIDs
 }
 
 func NewParent() Parent {
 	return Parent{
 		MessageCh:              make(chan ProtoMessage, 100),
 		InfoCh:                 make(chan InfoMessage, 100),
-		ListOfExcludedCh:       make(chan []uint8),
-		ListOfExcludedMessages: make([]uint8, 0),
+		ListOfExcludedCh:       make(chan proto.PeerMessageIDs),
+		ListOfExcludedMessages: make(proto.PeerMessageIDs, 0),
 	}
 }
 

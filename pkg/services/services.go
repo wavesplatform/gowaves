@@ -40,5 +40,5 @@ type Services struct {
 	MicroBlockCache  MicroBlockCache
 	InternalChannel  chan messages.InternalMessage
 	MinPeersMining   int
-	ListOfExcludedCh chan []uint8
+	ListOfExcludedCh chan proto.PeerMessageIDs
 }

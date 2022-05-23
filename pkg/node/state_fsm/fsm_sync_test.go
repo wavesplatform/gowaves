@@ -30,7 +30,7 @@ func TestSyncFsm_Sync(t *testing.T) {
 	mockPeer.EXPECT().Handshake().Return(proto.Handshake{Version: proto.NewVersion(1, 2, 0)})
 	mockPeer.EXPECT().SendMessage(gomock.Any())
 
-	fakeCh := make(chan []uint8, 1)
+	fakeCh := make(chan proto.PeerMessageIDs, 1)
 	defer close(fakeCh)
 
 	baseInfo := BaseInfo{
@@ -64,7 +64,7 @@ func TestSyncFsm_SignaturesTimeout(t *testing.T) {
 	p.EXPECT().ID()
 
 	conf := conf{peerSyncWith: p}
-	fakeCh := make(chan []uint8, 2)
+	fakeCh := make(chan proto.PeerMessageIDs, 2)
 	defer close(fakeCh)
 	fsm, async, err := NewSyncFsm(BaseInfo{tm: ntptime.Stub{}, excludeListCh: fakeCh}, conf, sync_internal.Internal{})
 	require.NoError(t, err)

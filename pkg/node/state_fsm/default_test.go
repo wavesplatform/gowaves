@@ -6,6 +6,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestDefaultImpl_PeerError(t *testing.T) {
@@ -29,7 +30,7 @@ func TestDefaultImpl_PeerError(t *testing.T) {
 		manager := mock.NewMockPeerManager(ctrl)
 		manager.EXPECT().Disconnect(peer)
 		manager.EXPECT().ConnectedCount().Return(0)
-		fakeCh := make(chan []uint8, 1)
+		fakeCh := make(chan proto.PeerMessageIDs, 1)
 		defer close(fakeCh)
 		fsm, async, err := d.PeerError(nil, peer, BaseInfo{peers: manager, excludeListCh: fakeCh}, nil)
 		require.NoError(t, err)
