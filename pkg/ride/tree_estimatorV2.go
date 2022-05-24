@@ -102,7 +102,9 @@ func newTreeEstimatorV2(tree *scripting.Tree) (*treeEstimatorV2, error) {
 	case scripting.LibV4:
 		r.scope = newEstimationScopeV2(ConstantsV4, CatalogueV4)
 	case scripting.LibV5:
-		r.scope = newEstimationScopeV2(ConstantsV4, CatalogueV5)
+		r.scope = newEstimationScopeV2(ConstantsV5, CatalogueV5)
+	case scripting.LibV6:
+		r.scope = newEstimationScopeV2(ConstantsV6, CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}

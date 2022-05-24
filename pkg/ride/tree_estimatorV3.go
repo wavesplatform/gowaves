@@ -150,14 +150,16 @@ type treeEstimatorV3 struct {
 func newTreeEstimatorV3(tree *scripting.Tree) (*treeEstimatorV3, error) {
 	r := &treeEstimatorV3{tree: tree}
 	switch tree.LibVersion {
-	case 1, 2:
+	case scripting.LibV1, scripting.LibV2:
 		r.scope = newEstimationScopeV3(CatalogueV2)
-	case 3:
+	case scripting.LibV3:
 		r.scope = newEstimationScopeV3(CatalogueV3)
-	case 4:
+	case scripting.LibV4:
 		r.scope = newEstimationScopeV3(CatalogueV4)
-	case 5:
+	case scripting.LibV5:
 		r.scope = newEstimationScopeV3(CatalogueV5)
+	case scripting.LibV6:
+		r.scope = newEstimationScopeV3(CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}
