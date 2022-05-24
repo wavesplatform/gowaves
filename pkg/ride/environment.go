@@ -808,8 +808,8 @@ func (ws *WrappedState) ApplyToState(
 	if err != nil {
 		return nil, err
 	}
-	disableSelfTransfers := currentLibVersion >= 4 // it's OK, this flag depends on library version, not feature
-	isUTF16KeyLen := !env.blockV5Activated()       // if RideV4 isn't activated
+	disableSelfTransfers := currentLibVersion >= ast.LibV4 // it's OK, this flag depends on library version, not feature
+	isUTF16KeyLen := !env.blockV5Activated()               // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:  disableSelfTransfers,
 		IsUTF16KeyLen:         isUTF16KeyLen,
@@ -1262,7 +1262,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
 	e.ver = v
-	if v > 2 {
+	if v > ast.LibV2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
 		}

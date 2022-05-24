@@ -51,7 +51,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 			e.complexity()+wrappedStateComplexity(env.state()),
 		)
 	}
-	if tree.LibVersion < 5 { // Shortcut because no wrapped state before version 5
+	if tree.LibVersion < ast.LibV5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
 	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(ast.LibraryVersion(tree.LibVersion))

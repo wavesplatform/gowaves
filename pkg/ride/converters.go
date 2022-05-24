@@ -1219,7 +1219,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 	r["caller"] = rideAddress(sender)
 	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	r["callerPublicKey"] = callerPK
-	if rideVersion >= 5 {
+	if rideVersion >= ast.LibV5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
@@ -1244,7 +1244,7 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	r["callerPublicKey"] = callerPK
-	if rideVersion >= 5 {
+	if rideVersion >= ast.LibV5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
