@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 const (
@@ -196,7 +196,7 @@ func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 		return tx, err
 	}
 	if tx.NonEmptyScript() {
-		if err := scripting.ParseHeader(tx.Script); err != nil {
+		if err := serialization.ParseHeader(tx.Script); err != nil {
 			return tx, err
 		}
 	}

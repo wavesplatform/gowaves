@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	pb "google.golang.org/protobuf/proto"
 )
 
@@ -241,7 +241,7 @@ func TestActionsValidation(t *testing.T) {
 		actions           []ScriptAction
 		restrictions      ActionsValidationRestrictions
 		isRideV6Activated bool
-		libVersion        scripting.LibraryVersion
+		libVersion        ast.LibraryVersion
 		valid             bool
 	}{
 		{
@@ -255,7 +255,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
 			isRideV6Activated: false,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             true,
 		},
 		{
@@ -266,7 +266,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1},
 			isRideV6Activated: false,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             false,
 		},
 		{
@@ -284,7 +284,7 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize:   MaxDataEntriesScriptActionsSizeInBytesV1,
 			},
 			isRideV6Activated: false,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             false,
 		},
 		{
@@ -293,7 +293,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{ScriptAddress: addr0},
 			isRideV6Activated: false,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             false,
 		},
 		{
@@ -303,7 +303,7 @@ func TestActionsValidation(t *testing.T) {
 			},
 			restrictions:      ActionsValidationRestrictions{},
 			isRideV6Activated: false,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             false,
 		},
 		{
@@ -319,7 +319,7 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize: 32 + 34 + 33 + 35,
 			},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             true,
 		},
 		{
@@ -335,49 +335,49 @@ func TestActionsValidation(t *testing.T) {
 				MaxDataEntriesSize: 32 + 34 + 33 + 35 - 1,
 			},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             false,
 		},
 		{
 			actions:           generateActions(100, 10, 5, 5),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV4,
+			libVersion:        ast.LibV4,
 			valid:             true,
 		},
 		{
 			actions:           generateActions(101, 10, 5, 5),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV4,
+			libVersion:        ast.LibV4,
 			valid:             false,
 		},
 		{
 			actions:           generateActions(10, 10, 5, 5),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV4,
+			libVersion:        ast.LibV4,
 			valid:             true,
 		},
 		{
 			actions:           generateActions(10, 10, 6, 5),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV4,
+			libVersion:        ast.LibV4,
 			valid:             false,
 		},
 		{
 			actions:           generateActions(10, 10, 5, 6),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV4,
+			libVersion:        ast.LibV4,
 			valid:             false,
 		},
 		{
 			actions:           generateActions(10, 10, 5, 25),
 			restrictions:      ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV2},
 			isRideV6Activated: true,
-			libVersion:        scripting.LibV5,
+			libVersion:        ast.LibV5,
 			valid:             true,
 		},
 		{

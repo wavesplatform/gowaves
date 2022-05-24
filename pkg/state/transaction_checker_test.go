@@ -11,7 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -1056,7 +1057,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 	tests := []struct {
 		estimationStub            ride.TreeEstimation
-		libVersions               []scripting.LibraryVersion
+		libVersions               []ast.LibraryVersion
 		isDapp                    bool
 		reducedVerifierComplexity bool
 		valid                     bool
@@ -1067,7 +1068,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV12 - 1,
 				Verifier:   MaxVerifierScriptComplexityReduced - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1077,7 +1078,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV12,
 				Verifier:   MaxVerifierScriptComplexityReduced,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1087,7 +1088,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV12 + 1,
 				Verifier:   MaxVerifierScriptComplexityReduced,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1097,7 +1098,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV12,
 				Verifier:   MaxVerifierScriptComplexityReduced + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1108,7 +1109,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34 - 1,
 				Verifier:   MaxVerifierScriptComplexity - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1118,7 +1119,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV12,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1128,7 +1129,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34 + 1,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1138,7 +1139,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34,
 				Verifier:   MaxVerifierScriptComplexity + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1149,7 +1150,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV5 - 1,
 				Verifier:   MaxVerifierScriptComplexity - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV5},
+			libVersions:               []ast.LibraryVersion{ast.LibV5},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1159,7 +1160,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV5,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV5},
+			libVersions:               []ast.LibraryVersion{ast.LibV5},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1169,7 +1170,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV5 + 1,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV5},
+			libVersions:               []ast.LibraryVersion{ast.LibV5},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1179,7 +1180,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV5,
 				Verifier:   MaxVerifierScriptComplexity + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV5},
+			libVersions:               []ast.LibraryVersion{ast.LibV5},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1190,7 +1191,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6 - 1,
 				Verifier:   MaxVerifierScriptComplexity - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1200,7 +1201,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1210,7 +1211,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6 + 1,
 				Verifier:   MaxVerifierScriptComplexity,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1220,7 +1221,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6,
 				Verifier:   MaxVerifierScriptComplexity + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1231,7 +1232,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34,
 				Verifier:   MaxVerifierScriptComplexityReduced - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4, scripting.LibV5, scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4, ast.LibV5, ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: true,
 			valid:                     true,
@@ -1241,7 +1242,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34,
 				Verifier:   MaxVerifierScriptComplexityReduced,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4, scripting.LibV5, scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4, ast.LibV5, ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: true,
 			valid:                     true,
@@ -1251,7 +1252,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV34,
 				Verifier:   MaxVerifierScriptComplexityReduced + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV3, scripting.LibV4, scripting.LibV5, scripting.LibV6},
+			libVersions:               []ast.LibraryVersion{ast.LibV3, ast.LibV4, ast.LibV5, ast.LibV6},
 			isDapp:                    true,
 			reducedVerifierComplexity: true,
 			valid:                     false,
@@ -1262,7 +1263,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6,
 				Verifier:   MaxVerifierScriptComplexityReduced - 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    false,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1272,7 +1273,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6,
 				Verifier:   MaxVerifierScriptComplexityReduced,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    false,
 			reducedVerifierComplexity: false,
 			valid:                     true,
@@ -1282,7 +1283,7 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 				Estimation: MaxCallableScriptComplexityV6,
 				Verifier:   MaxVerifierScriptComplexityReduced + 1,
 			},
-			libVersions:               []scripting.LibraryVersion{scripting.LibV1, scripting.LibV2},
+			libVersions:               []ast.LibraryVersion{ast.LibV1, ast.LibV2},
 			isDapp:                    false,
 			reducedVerifierComplexity: false,
 			valid:                     false,
@@ -1460,7 +1461,7 @@ func TestCheckSetScriptWithProofsCheckDAppCallables(t *testing.T) {
 
 		script, err := base64.StdEncoding.DecodeString(tc.source)
 		require.NoError(t, err)
-		tree, err := scripting.Parse(script)
+		tree, err := serialization.Parse(script)
 		require.NoError(t, err)
 
 		err = checker.checkDAppCallables(tree, tc.rideV6Activated)

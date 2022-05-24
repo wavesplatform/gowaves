@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 func TestEstimatorCommon(t *testing.T) {
@@ -167,7 +167,7 @@ func TestEstimatorCommon(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
 
-		tree, err := scripting.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
@@ -202,7 +202,7 @@ func TestStackOverflowOnV2(t *testing.T) {
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
-		tree, err := scripting.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
@@ -294,7 +294,7 @@ func TestCostOverflow(t *testing.T) {
 
 	src, err := base64.StdEncoding.DecodeString(source)
 	require.NoError(t, err)
-	tree, err := scripting.Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
@@ -327,7 +327,7 @@ func TestFailOnInvocationInExpression(t *testing.T) {
 	src, err := base64.StdEncoding.DecodeString(source)
 	require.NoError(t, err)
 
-	tree, err := scripting.Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
@@ -350,7 +350,7 @@ func TestDeclarationDuplication(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
 
-		tree, err := scripting.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 

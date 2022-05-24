@@ -2,11 +2,11 @@ package ride
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-func CallVerifier(env environment, tree *scripting.Tree) (Result, error) {
+func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
 		return nil, RuntimeError.Wrap(err, "failed to call verifier")
@@ -14,7 +14,7 @@ func CallVerifier(env environment, tree *scripting.Tree) (Result, error) {
 	return e.evaluate()
 }
 
-func CallFunction(env environment, tree *scripting.Tree, name string, args proto.Arguments) (Result, error) {
+func CallFunction(env environment, tree *ast.Tree, name string, args proto.Arguments) (Result, error) {
 	if name == "" {
 		name = "default"
 	}
@@ -54,7 +54,7 @@ func CallFunction(env environment, tree *scripting.Tree, name string, args proto
 	if tree.LibVersion < 5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
-	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(scripting.LibraryVersion(tree.LibVersion))
+	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(ast.LibraryVersion(tree.LibVersion))
 	if err != nil {
 		return nil, EvaluationFailure.Errorf("failed to get max chain invoke complexity: %v", err)
 	}

@@ -1,4 +1,4 @@
-package scripting
+package serialization
 
 import (
 	"bytes"
@@ -7,46 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
-
-type ContentType byte
-
-const (
-	ContentTypeExpression ContentType = iota + 1
-	ContentTypeApplication
-)
-
-func newContentType(b byte) (ContentType, error) {
-	ct := ContentType(b)
-	switch ct {
-	case ContentTypeExpression, ContentTypeApplication:
-		return ct, nil
-	default:
-		return 0, errors.Errorf("unsupported content type '%d'", b)
-	}
-}
-
-type LibraryVersion byte
-
-const (
-	LibV1 LibraryVersion = iota + 1
-	LibV2
-	LibV3
-	LibV4
-	LibV5
-	LibV6
-)
-
-func newLibraryVersion(b byte) (LibraryVersion, error) {
-	lv := LibraryVersion(b)
-	switch lv {
-	case LibV1, LibV2, LibV3, LibV4, LibV5, LibV6:
-		return lv, nil
-	default:
-		return 0, errors.Errorf("unsupported library version '%d'", b)
-	}
-}
 
 const (
 	tokenLong byte = iota
@@ -88,7 +51,7 @@ func ParseHeader(script []byte) error {
 	return nil
 }
 
-func Parse(script []byte) (*Tree, error) {
+func Parse(script []byte) (*ast.Tree, error) {
 	ok, err := verifyCheckSum(script)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse script")
@@ -116,19 +79,19 @@ type parser struct {
 	readMeta    func(p *parser) (meta.DApp, error)
 }
 
-func (p *parser) parse() (*Tree, error) {
+func (p *parser) parse() (*ast.Tree, error) {
 	switch p.header.content {
-	case ContentTypeExpression:
+	case ast.ContentTypeExpression:
 		return p.parseExpression()
-	case ContentTypeApplication:
+	case ast.ContentTypeApplication:
 		return p.parseDApp()
 	default:
 		return nil, errors.Errorf("unsupported content type '%d'", p.header.content)
 	}
 }
 
-func (p *parser) parseDApp() (*Tree, error) {
-	tree := NewTree(p.header.content, p.header.library)
+func (p *parser) parseDApp() (*ast.Tree, error) {
+	tree := ast.NewTree(p.header.content, p.header.library)
 	m, err := p.readMeta(p)
 	if err != nil {
 		return nil, err
@@ -139,7 +102,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	declarations := make([]Node, n)
+	declarations := make([]ast.Node, n)
 	for i := 0; i < int(n); i++ {
 		d, err := p.readDeclaration()
 		if err != nil {
@@ -153,7 +116,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	functions := make([]Node, n)
+	functions := make([]ast.Node, n)
 	for i := 0; i < int(n); i++ {
 		invocationParameter, err := p.readString()
 		if err != nil {
@@ -163,7 +126,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 		if err != nil {
 			return nil, err
 		}
-		fn, ok := node.(*FunctionDeclarationNode)
+		fn, ok := node.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
@@ -189,7 +152,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 		if err != nil {
 			return nil, err
 		}
-		fn, ok := node.(*FunctionDeclarationNode)
+		fn, ok := node.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
@@ -201,8 +164,8 @@ func (p *parser) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseExpression() (*Tree, error) {
-	tree := NewTree(p.header.content, p.header.library)
+func (p *parser) parseExpression() (*ast.Tree, error) {
+	tree := ast.NewTree(p.header.content, p.header.library)
 	node, err := p.parseNext()
 	if err != nil {
 		return nil, err
@@ -213,7 +176,7 @@ func (p *parser) parseExpression() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseNext() (Node, error) {
+func (p *parser) parseNext() (ast.Node, error) {
 	t, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -224,21 +187,21 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewLongNode(v), nil
+		return ast.NewLongNode(v), nil
 
 	case tokenBytes:
 		v, err := p.readBytes()
 		if err != nil {
 			return nil, err
 		}
-		return NewBytesNode(v), nil
+		return ast.NewBytesNode(v), nil
 
 	case tokenString:
 		v, err := p.readString()
 		if err != nil {
 			return nil, err
 		}
-		return NewStringNode(v), nil
+		return ast.NewStringNode(v), nil
 
 	case tokenIf:
 		condition, err := p.parseNext()
@@ -253,7 +216,7 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewConditionalNode(condition, trueBranch, falseBranch), nil
+		return ast.NewConditionalNode(condition, trueBranch, falseBranch), nil
 
 	case tokenBlockV1:
 		name, err := p.readString()
@@ -268,20 +231,20 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewAssignmentNode(name, expr, block), nil
+		return ast.NewAssignmentNode(name, expr, block), nil
 
 	case tokenRef:
 		name, err := p.readString()
 		if err != nil {
 			return nil, err
 		}
-		return NewReferenceNode(name), nil
+		return ast.NewReferenceNode(name), nil
 
 	case tokenTrue:
-		return NewBooleanNode(true), nil
+		return ast.NewBooleanNode(true), nil
 
 	case tokenFalse:
-		return NewBooleanNode(false), nil
+		return ast.NewBooleanNode(false), nil
 
 	case tokenGetter:
 		object, err := p.parseNext()
@@ -292,7 +255,7 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewPropertyNode(field, object), nil
+		return ast.NewPropertyNode(field, object), nil
 
 	case tokenFunctionCall:
 		ft, err := p.r.ReadByte()
@@ -308,7 +271,7 @@ func (p *parser) parseNext() (Node, error) {
 			return nil, err
 		}
 		ac := int(argumentsCount)
-		arguments := make([]Node, ac)
+		arguments := make([]ast.Node, ac)
 		for i := 0; i < ac; i++ {
 			arg, err := p.parseNext()
 			if err != nil {
@@ -316,7 +279,7 @@ func (p *parser) parseNext() (Node, error) {
 			}
 			arguments[i] = arg
 		}
-		return NewFunctionCallNode(function, arguments), nil
+		return ast.NewFunctionCallNode(function, arguments), nil
 
 	case tokenBlockV2:
 		p.seenBlockV2 = true
@@ -324,7 +287,7 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if ad, ok := declaration.(*AssignmentNode); ok {
+		if ad, ok := declaration.(*ast.AssignmentNode); ok {
 			ad.NewBlock = true
 		}
 		block, err := p.parseNext()
@@ -362,26 +325,26 @@ func (p *parser) readString() (string, error) {
 	return string(b), nil
 }
 
-func (p *parser) readFunctionName(ft byte) (Function, error) {
+func (p *parser) readFunctionName(ft byte) (ast.Function, error) {
 	switch ft {
 	case functionTypeNative:
 		id, err := p.readShort(p.r)
 		if err != nil {
 			return nil, err
 		}
-		return NativeFunction(strconv.Itoa(int(id))), nil
+		return ast.NativeFunction(strconv.Itoa(int(id))), nil
 	case functionTypeUser:
 		name, err := p.readString()
 		if err != nil {
 			return nil, err
 		}
-		return UserFunction(name), nil
+		return ast.UserFunction(name), nil
 	default:
 		return nil, errors.Errorf("unsupported function type %d", ft)
 	}
 }
 
-func (p *parser) readDeclaration() (Node, error) {
+func (p *parser) readDeclaration() (ast.Node, error) {
 	dt, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -396,7 +359,7 @@ func (p *parser) readDeclaration() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewAssignmentNode(name, exp, nil), nil
+		return ast.NewAssignmentNode(name, exp, nil), nil
 	case declarationTypeFunction:
 		name, err := p.readString()
 		if err != nil {
@@ -419,15 +382,15 @@ func (p *parser) readDeclaration() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewFunctionDeclarationNode(name, arguments, body, nil), nil
+		return ast.NewFunctionDeclarationNode(name, arguments, body, nil), nil
 	default:
 		return nil, errors.Errorf("unsupported declaration type %d", dt)
 	}
 }
 
 type scriptHeader struct {
-	content ContentType
-	library LibraryVersion
+	content ast.ContentType
+	library ast.LibraryVersion
 }
 
 /*
@@ -443,14 +406,14 @@ func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b < byte(LibV6) {
+	if b < byte(ast.LibV6) {
 		switch b {
 		case 0:
 			b, err = r.ReadByte()
 			if err != nil {
 				return nil, err
 			}
-			ct, err := newContentType(b)
+			ct, err := ast.NewContentType(b)
 			if err != nil {
 				return nil, err
 			}
@@ -458,17 +421,17 @@ func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 			if err != nil {
 				return nil, err
 			}
-			lv, err := newLibraryVersion(b)
+			lv, err := ast.NewLibraryVersion(b)
 			if err != nil {
 				return nil, err
 			}
 			return newParserV1(r, id, scriptHeader{content: ct, library: lv}), nil
 		default:
-			lv := LibraryVersion(b)
-			return newParserV1(r, id, scriptHeader{content: ContentTypeExpression, library: lv}), nil
+			lv := ast.LibraryVersion(b)
+			return newParserV1(r, id, scriptHeader{content: ast.ContentTypeExpression, library: lv}), nil
 		}
 	}
-	lv, err := newLibraryVersion(b)
+	lv, err := ast.NewLibraryVersion(b)
 	if err != nil {
 		return nil, err
 	}
@@ -476,7 +439,7 @@ func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 	if err != nil {
 		return nil, err
 	}
-	ct, err := newContentType(b)
+	ct, err := ast.NewContentType(b)
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -73,7 +73,7 @@ func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T,
 }
 
 func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.WavesAddress, pk crypto.PublicKey, script proto.Script) {
-	tree, err := scripting.Parse(script)
+	tree, err := serialization.Parse(script)
 	require.NoError(t, err)
 	estimation, err := ride.EstimateTree(tree, 1)
 	require.NoError(t, err)

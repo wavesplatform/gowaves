@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type TreeEstimation struct {
@@ -13,7 +13,7 @@ type TreeEstimation struct {
 	Functions  map[string]int `cbor:"2,keyasint,omitempty"`
 }
 
-func EstimateTree(tree *scripting.Tree, v int) (TreeEstimation, error) {
+func EstimateTree(tree *ast.Tree, v int) (TreeEstimation, error) {
 	switch v {
 	case 1:
 		te, err := newTreeEstimatorV1(tree)

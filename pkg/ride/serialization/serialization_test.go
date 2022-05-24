@@ -1,4 +1,4 @@
-package scripting
+package serialization
 
 import (
 	"encoding/base64"

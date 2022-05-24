@@ -2,27 +2,27 @@ package ride
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type treeEstimatorV4 struct {
-	tree  *scripting.Tree
+	tree  *ast.Tree
 	scope *estimationScopeV3
 }
 
-func newTreeEstimatorV4(tree *scripting.Tree) (*treeEstimatorV4, error) {
+func newTreeEstimatorV4(tree *ast.Tree) (*treeEstimatorV4, error) {
 	r := &treeEstimatorV4{tree: tree}
 	switch tree.LibVersion {
-	case scripting.LibV1, scripting.LibV2:
+	case ast.LibV1, ast.LibV2:
 		r.scope = newEstimationScopeV3(CatalogueV2)
-	case scripting.LibV3:
+	case ast.LibV3:
 		r.scope = newEstimationScopeV3(CatalogueV3)
-	case scripting.LibV4:
+	case ast.LibV4:
 		r.scope = newEstimationScopeV3(CatalogueV4)
-	case scripting.LibV5:
+	case ast.LibV5:
 		r.scope = newEstimationScopeV3(CatalogueV5)
-	case scripting.LibV6:
+	case ast.LibV6:
 		r.scope = newEstimationScopeV3(CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
@@ -44,7 +44,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	m := make(map[string]int)
 	for i := 0; i < len(e.tree.Functions); i++ {
 		e.scope.resetFunctions()
-		function, ok := e.tree.Functions[i].(*scripting.FunctionDeclarationNode)
+		function, ok := e.tree.Functions[i].(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
@@ -62,7 +62,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	vc := 0
 	if e.tree.HasVerifier() {
 		e.scope.resetFunctions()
-		verifier, ok := e.tree.Verifier.(*scripting.FunctionDeclarationNode)
+		verifier, ok := e.tree.Verifier.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
@@ -80,15 +80,15 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	return max, vc, m, nil
 }
 
-func (e *treeEstimatorV4) wrapFunction(node *scripting.FunctionDeclarationNode) scripting.Node {
-	args := make([]scripting.Node, len(node.Arguments))
+func (e *treeEstimatorV4) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
+	args := make([]ast.Node, len(node.Arguments))
 	for i := range node.Arguments {
-		args[i] = scripting.NewBooleanNode(true)
+		args[i] = ast.NewBooleanNode(true)
 	}
 	// It's definitely user function as node is sent from FunctionDeclarationNode
-	node.SetBlock(scripting.NewFunctionCallNode(scripting.UserFunction(node.Name), args))
-	var block scripting.Node
-	block = scripting.NewAssignmentNode(node.InvocationParameter, scripting.NewBooleanNode(true), node)
+	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
+	var block ast.Node
+	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
 		e.tree.Declarations[i].SetBlock(block)
 		block = e.tree.Declarations[i]
@@ -96,12 +96,12 @@ func (e *treeEstimatorV4) wrapFunction(node *scripting.FunctionDeclarationNode) 
 	return block
 }
 
-func (e *treeEstimatorV4) walk(node scripting.Node, enableInvocation bool) (int, error) {
+func (e *treeEstimatorV4) walk(node ast.Node, enableInvocation bool) (int, error) {
 	switch n := node.(type) {
-	case *scripting.LongNode, *scripting.BytesNode, *scripting.BooleanNode, *scripting.StringNode:
+	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
 		return 0, nil
 
-	case *scripting.ConditionalNode:
+	case *ast.ConditionalNode:
 		ce, err := e.walk(n.Condition, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to estimate the condition of if")
@@ -131,7 +131,7 @@ func (e *treeEstimatorV4) walk(node scripting.Node, enableInvocation bool) (int,
 		}
 		return res, nil
 
-	case *scripting.AssignmentNode:
+	case *ast.AssignmentNode:
 		id := n.Name
 		overlapped := e.scope.used(id)
 		e.scope.remove(id)
@@ -158,11 +158,11 @@ func (e *treeEstimatorV4) walk(node scripting.Node, enableInvocation bool) (int,
 		}
 		return c, nil
 
-	case *scripting.ReferenceNode:
+	case *ast.ReferenceNode:
 		e.scope.use(n.Name)
 		return 0, nil
 
-	case *scripting.FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		tmp := e.scope.save()
 		e.scope.submerge()
@@ -181,7 +181,7 @@ func (e *treeEstimatorV4) walk(node scripting.Node, enableInvocation bool) (int,
 		}
 		return bc, nil
 
-	case *scripting.FunctionCallNode:
+	case *ast.FunctionCallNode:
 		name := n.Function.Name()
 		fc, bu, err := e.scope.function(n.Function, enableInvocation)
 		if err != nil {
@@ -212,7 +212,7 @@ func (e *treeEstimatorV4) walk(node scripting.Node, enableInvocation bool) (int,
 		}
 		return res, nil
 
-	case *scripting.PropertyNode:
+	case *ast.PropertyNode:
 		res, err := e.walk(n.Object, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)

@@ -12,8 +12,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -64,7 +65,7 @@ type scriptFeaturesActivations struct {
 	rideForDAppsActivated, blockV5Activated, rideV5Activated, rideV6Activated bool
 }
 
-func (tc *transactionChecker) scriptActivation(libVersion scripting.LibraryVersion, hasBlockV2 bool) (scriptFeaturesActivations, error) {
+func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, hasBlockV2 bool) (scriptFeaturesActivations, error) {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return scriptFeaturesActivations{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
@@ -81,19 +82,19 @@ func (tc *transactionChecker) scriptActivation(libVersion scripting.LibraryVersi
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
-	if libVersion == scripting.LibV3 && !rideForDAppsActivated {
+	if libVersion == ast.LibV3 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
 	if hasBlockV2 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
-	if libVersion == scripting.LibV4 && !blockV5Activated {
+	if libVersion == ast.LibV4 && !blockV5Activated {
 		return scriptFeaturesActivations{}, errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
-	if libVersion == scripting.LibV5 && !rideV5Activated {
+	if libVersion == ast.LibV5 && !rideV5Activated {
 		return scriptFeaturesActivations{}, errors.New("RideV5 feature must be activated for scripts version 5")
 	}
-	if libVersion == scripting.LibV6 && !rideV6Activated {
+	if libVersion == ast.LibV6 && !rideV6Activated {
 		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
 	}
 	return scriptFeaturesActivations{
@@ -104,7 +105,7 @@ func (tc *transactionChecker) scriptActivation(libVersion scripting.LibraryVersi
 	}, nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(libVersion scripting.LibraryVersion, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
+func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersion, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
 	/*
 		| Script Type                            | Max complexity before BlockV5 | Max complexity after BlockV5 |
 		| -------------------------------------- | ----------------------------- | ---------------------------- |
@@ -119,16 +120,16 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion scripting.Library
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
-	case scripting.LibV1, scripting.LibV2:
+	case ast.LibV1, ast.LibV2:
 		maxCallableComplexity = MaxCallableScriptComplexityV12
 		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
-	case scripting.LibV3, scripting.LibV4:
+	case ast.LibV3, ast.LibV4:
 		maxCallableComplexity = MaxCallableScriptComplexityV34
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case scripting.LibV5:
+	case ast.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case scripting.LibV6:
+	case ast.LibV6:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:
@@ -152,8 +153,8 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion scripting.Library
 	return nil
 }
 
-func (tc *transactionChecker) checkDAppCallables(tree *scripting.Tree, rideV6Activated bool) error {
-	if !rideV6Activated || tree.LibVersion < scripting.LibV6 {
+func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated bool) error {
+	if !rideV6Activated || tree.LibVersion < ast.LibV6 {
 		return nil
 	}
 	for _, fn := range tree.Meta.Functions {
@@ -174,7 +175,7 @@ func (tc *transactionChecker) checkDAppCallables(tree *scripting.Tree, rideV6Act
 }
 
 func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
-	tree, err := scripting.Parse(script)
+	tree, err := serialization.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}
@@ -581,7 +582,7 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	assetID := *tx.ID
-	// Save complexities to storage so we won't have to calculate it every time the script is called.
+	// Save complexities to storage, so we won't have to calculate it every time the script is called.
 	complexity, ok := estimations[currentEstimatorVersion]
 	if !ok {
 		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
@@ -1283,7 +1284,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
-	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
 		return nil, err
 	}
@@ -1331,7 +1332,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
-	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
 	estimation, ok := estimations[currentEstimatorVersion]
 	if !ok {
 		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)

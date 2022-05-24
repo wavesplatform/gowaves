@@ -7,7 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -206,7 +206,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
+func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
@@ -246,7 +246,7 @@ func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction
 		defaultFunction = transaction.FunctionCall.Default
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= scripting.LibV5 {
+		if tree.LibVersion >= ast.LibV5 {
 			env, err = ride.NewEnvironmentWithWrappedState(
 				env,
 				payments,
@@ -280,7 +280,7 @@ func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction
 		functionName = ""
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= scripting.LibV5 {
+		if tree.LibVersion >= ast.LibV5 {
 			env, err = ride.NewEnvironmentWithWrappedState(
 				env,
 				payments,
@@ -330,7 +330,7 @@ func (a *scriptCaller) invokeFunction(tree *scripting.Tree, tx proto.Transaction
 		functionArguments = arguments
 		defaultFunction = true
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= scripting.LibV5 {
+		if tree.LibVersion >= ast.LibV5 {
 			env, err = ride.NewEnvironmentWithWrappedState(
 				env,
 				payments,

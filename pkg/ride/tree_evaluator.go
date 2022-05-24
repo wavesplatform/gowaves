@@ -2,7 +2,7 @@ package ride
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -14,11 +14,11 @@ type esConstant struct {
 type esValue struct {
 	id         string
 	value      rideType
-	expression scripting.Node
+	expression ast.Node
 }
 
 type esFunction struct {
-	fn *scripting.FunctionDeclarationNode
+	fn *ast.FunctionDeclarationNode
 	sp int
 }
 
@@ -32,12 +32,12 @@ type evaluationScope struct {
 	costs     map[string]int
 }
 
-func (s *evaluationScope) declare(n scripting.Node) error {
+func (s *evaluationScope) declare(n ast.Node) error {
 	switch d := n.(type) {
-	case *scripting.FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		s.pushUserFunction(d)
 		return nil
-	case *scripting.AssignmentNode:
+	case *ast.AssignmentNode:
 		s.pushExpression(d.Name, d.Expression)
 		return nil
 	default:
@@ -45,7 +45,7 @@ func (s *evaluationScope) declare(n scripting.Node) error {
 	}
 }
 
-func (s *evaluationScope) pushExpression(id string, n scripting.Node) {
+func (s *evaluationScope) pushExpression(id string, n ast.Node) {
 	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, expression: n})
 }
 
@@ -100,7 +100,7 @@ func (s *evaluationScope) value(id string) (esValue, bool, int, int) {
 	return esValue{}, false, 0, 0
 }
 
-func (s *evaluationScope) pushUserFunction(uf *scripting.FunctionDeclarationNode) {
+func (s *evaluationScope) pushUserFunction(uf *ast.FunctionDeclarationNode) {
 	s.user = append(s.user, esFunction{fn: uf, sp: len(s.cs)})
 }
 
@@ -113,7 +113,7 @@ func (s *evaluationScope) popUserFunction() error {
 	return nil
 }
 
-func (s *evaluationScope) userFunction(id string) (*scripting.FunctionDeclarationNode, int, bool) {
+func (s *evaluationScope) userFunction(id string) (*ast.FunctionDeclarationNode, int, bool) {
 	for i := len(s.user) - 1; i >= 0; i-- {
 		uf := s.user[i]
 		if uf.fn.Name == id {
@@ -123,7 +123,7 @@ func (s *evaluationScope) userFunction(id string) (*scripting.FunctionDeclaratio
 	return nil, 0, false
 }
 
-func newEvaluationScope(v scripting.LibraryVersion, env environment, enableInvocation bool) (evaluationScope, error) {
+func newEvaluationScope(v ast.LibraryVersion, env environment, enableInvocation bool) (evaluationScope, error) {
 	constants, err := selectConstantNames(v)
 	if err != nil {
 		return evaluationScope{}, err
@@ -165,19 +165,19 @@ func newEvaluationScope(v scripting.LibraryVersion, env environment, enableInvoc
 	}, nil
 }
 
-func selectConstantNames(v scripting.LibraryVersion) ([]string, error) {
+func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 	switch v {
-	case scripting.LibV1:
+	case ast.LibV1:
 		return ConstantsV1, nil
-	case scripting.LibV2:
+	case ast.LibV2:
 		return ConstantsV2, nil
-	case scripting.LibV3:
+	case ast.LibV3:
 		return ConstantsV3, nil
-	case scripting.LibV4:
+	case ast.LibV4:
 		return ConstantsV4, nil
-	case scripting.LibV5:
+	case ast.LibV5:
 		return ConstantsV5, nil
-	case scripting.LibV6:
+	case ast.LibV6:
 		return ConstantsV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
@@ -275,7 +275,7 @@ func (cc *complexityCalculatorV2) addPropertyComplexity() {}
 type treeEvaluator struct {
 	dapp bool
 	cc   complexityCalculator
-	f    scripting.Node
+	f    ast.Node
 	s    evaluationScope
 	env  environment
 }
@@ -329,7 +329,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	}
 }
 
-func (e *treeEvaluator) materializeArguments(arguments []scripting.Node) ([]rideType, error) {
+func (e *treeEvaluator) materializeArguments(arguments []ast.Node) ([]rideType, error) {
 	args := make([]rideType, len(arguments))
 	for i, arg := range arguments {
 		a, err := e.walk(arg)
@@ -341,7 +341,7 @@ func (e *treeEvaluator) materializeArguments(arguments []scripting.Node) ([]ride
 	return args, nil
 }
 
-func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []scripting.Node) (rideType, error) {
+func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node) (rideType, error) {
 	f, ok := e.s.system(name)
 	if !ok {
 		return nil, EvaluationFailure.Errorf("failed to find system function '%s'", name)
@@ -396,24 +396,24 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	return r, nil
 }
 
-func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
+func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 	if e.cc.overflow() {
 		return nil, RuntimeError.New("evaluation complexity overflow")
 	}
 	switch n := node.(type) {
-	case *scripting.LongNode:
+	case *ast.LongNode:
 		return rideInt(n.Value), nil
 
-	case *scripting.BytesNode:
+	case *ast.BytesNode:
 		return rideBytes(n.Value), nil
 
-	case *scripting.BooleanNode:
+	case *ast.BooleanNode:
 		return rideBoolean(n.Value), nil
 
-	case *scripting.StringNode:
+	case *ast.StringNode:
 		return rideString(n.Value), nil
 
-	case *scripting.ConditionalNode:
+	case *ast.ConditionalNode:
 		defer func() {
 			e.cc.addConditionalComplexity()
 		}()
@@ -431,7 +431,7 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 			return e.walk(n.FalseExpression)
 		}
 
-	case *scripting.AssignmentNode:
+	case *ast.AssignmentNode:
 		id := n.Name
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
@@ -441,7 +441,7 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 		e.s.popValue()
 		return r, nil
 
-	case *scripting.ReferenceNode:
+	case *ast.ReferenceNode:
 		defer func() {
 			e.cc.addReferenceComplexity()
 		}()
@@ -466,7 +466,7 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 		}
 		return v.value, nil
 
-	case *scripting.FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
@@ -479,12 +479,12 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 		}
 		return r, nil
 
-	case *scripting.FunctionCallNode:
+	case *ast.FunctionCallNode:
 		name := n.Function.Name()
 		switch n.Function.(type) {
-		case scripting.NativeFunction:
+		case ast.NativeFunction:
 			return e.evaluateNativeFunction(name, n.Arguments)
-		case scripting.UserFunction:
+		case ast.UserFunction:
 			_, _, found := e.s.userFunction(name)
 			if !found {
 				return e.evaluateNativeFunction(name, n.Arguments)
@@ -498,7 +498,7 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 			return nil, RuntimeError.Errorf("unknown function type: %s", n.Function.Type())
 		}
 
-	case *scripting.PropertyNode:
+	case *ast.PropertyNode:
 		defer func() {
 			e.cc.addPropertyComplexity()
 		}()
@@ -519,7 +519,7 @@ func (e *treeEvaluator) walk(node scripting.Node) (rideType, error) {
 	}
 }
 
-func treeVerifierEvaluator(env environment, tree *scripting.Tree) (*treeEvaluator, error) {
+func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, false) // Invocation is disabled for expression calls
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
@@ -530,7 +530,7 @@ func treeVerifierEvaluator(env environment, tree *scripting.Tree) (*treeEvaluato
 	}
 	if tree.IsDApp() {
 		if tree.HasVerifier() {
-			verifier, ok := tree.Verifier.(*scripting.FunctionDeclarationNode)
+			verifier, ok := tree.Verifier.(*ast.FunctionDeclarationNode)
 			if !ok {
 				return nil, EvaluationFailure.New("invalid verifier declaration")
 			}
@@ -560,7 +560,7 @@ func treeVerifierEvaluator(env environment, tree *scripting.Tree) (*treeEvaluato
 	}, nil
 }
 
-func treeFunctionEvaluator(env environment, tree *scripting.Tree, name string, args []rideType) (*treeEvaluator, error) {
+func treeFunctionEvaluator(env environment, tree *ast.Tree, name string, args []rideType) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
@@ -579,7 +579,7 @@ func treeFunctionEvaluator(env environment, tree *scripting.Tree, name string, a
 		cc = &complexityCalculatorV2{}
 	}
 	for i := 0; i < len(tree.Functions); i++ {
-		function, ok := tree.Functions[i].(*scripting.FunctionDeclarationNode)
+		function, ok := tree.Functions[i].(*ast.FunctionDeclarationNode)
 		if !ok {
 			return nil, EvaluationFailure.New("invalid callable declaration")
 		}

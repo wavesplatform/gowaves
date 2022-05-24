@@ -2,7 +2,7 @@ package ride
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
@@ -10,7 +10,7 @@ func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName r
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to get script by recipient")
 	}
-	tree, err := scripting.Parse(newScript)
+	tree, err := serialization.Parse(newScript)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to parse script")
 	}

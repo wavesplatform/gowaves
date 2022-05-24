@@ -2,12 +2,12 @@ package ride
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type scopeValue struct {
 	id string
-	n  scripting.Node
+	n  ast.Node
 }
 
 type estimationScopeV1 struct {
@@ -28,11 +28,11 @@ func newEstimationScopeV1(values []string, functions map[string]int) *estimation
 	}
 }
 
-func (s *estimationScopeV1) setValue(id string, n scripting.Node) {
+func (s *estimationScopeV1) setValue(id string, n ast.Node) {
 	s.values = append(s.values, scopeValue{id: id, n: n})
 }
 
-func (s *estimationScopeV1) value(id string) (scripting.Node, error) {
+func (s *estimationScopeV1) value(id string) (ast.Node, error) {
 	for i := len(s.values) - 1; i >= 0; i-- {
 		if s.values[i].id == id {
 			return s.values[i].n, nil
@@ -60,10 +60,10 @@ func (s *estimationScopeV1) setFunction(id string, cost int) {
 	s.functions[id] = cost
 }
 
-func (s *estimationScopeV1) function(function scripting.Function) (int, error) {
+func (s *estimationScopeV1) function(function ast.Function) (int, error) {
 	id := function.Name()
 	switch function.(type) {
-	case scripting.UserFunction:
+	case ast.UserFunction:
 		if c, ok := s.functions[id]; ok {
 			return c, nil
 		}
@@ -71,7 +71,7 @@ func (s *estimationScopeV1) function(function scripting.Function) (int, error) {
 			return c, nil
 		}
 		return 0, errors.Errorf("function '%s' not found", id)
-	case scripting.NativeFunction:
+	case ast.NativeFunction:
 		if c, ok := s.builtin[id]; ok {
 			return c, nil
 		}
@@ -82,24 +82,24 @@ func (s *estimationScopeV1) function(function scripting.Function) (int, error) {
 }
 
 type treeEstimatorV1 struct {
-	tree  *scripting.Tree
+	tree  *ast.Tree
 	scope *estimationScopeV1
 }
 
-func newTreeEstimatorV1(tree *scripting.Tree) (*treeEstimatorV1, error) {
+func newTreeEstimatorV1(tree *ast.Tree) (*treeEstimatorV1, error) {
 	r := &treeEstimatorV1{tree: tree}
 	switch tree.LibVersion {
-	case scripting.LibV1:
+	case ast.LibV1:
 		r.scope = newEstimationScopeV1(ConstantsV1, CatalogueV2)
-	case scripting.LibV2:
+	case ast.LibV2:
 		r.scope = newEstimationScopeV1(ConstantsV2, CatalogueV2)
-	case scripting.LibV3:
+	case ast.LibV3:
 		r.scope = newEstimationScopeV1(ConstantsV3, CatalogueV3)
-	case scripting.LibV4:
+	case ast.LibV4:
 		r.scope = newEstimationScopeV1(ConstantsV4, CatalogueV4)
-	case scripting.LibV5:
+	case ast.LibV5:
 		r.scope = newEstimationScopeV1(ConstantsV5, CatalogueV5)
-	case scripting.LibV6:
+	case ast.LibV6:
 		r.scope = newEstimationScopeV1(ConstantsV6, CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
@@ -119,7 +119,7 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 	m := make(map[string]int)
 	for i := 0; i < len(e.tree.Functions); i++ {
 		s := e.scope.save()
-		function, ok := e.tree.Functions[i].(*scripting.FunctionDeclarationNode)
+		function, ok := e.tree.Functions[i].(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
@@ -135,7 +135,7 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 	}
 	vc := 0
 	if e.tree.HasVerifier() {
-		verifier, ok := e.tree.Verifier.(*scripting.FunctionDeclarationNode)
+		verifier, ok := e.tree.Verifier.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
@@ -151,14 +151,14 @@ func (e *treeEstimatorV1) estimate() (int, int, map[string]int, error) {
 	return max, vc, m, nil
 }
 
-func (e *treeEstimatorV1) wrapFunction(node *scripting.FunctionDeclarationNode) scripting.Node {
-	args := make([]scripting.Node, len(node.Arguments))
+func (e *treeEstimatorV1) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
+	args := make([]ast.Node, len(node.Arguments))
 	for i := range node.Arguments {
-		args[i] = scripting.NewBooleanNode(true)
+		args[i] = ast.NewBooleanNode(true)
 	}
-	node.SetBlock(scripting.NewFunctionCallNode(scripting.UserFunction(node.Name), args))
-	var block scripting.Node
-	block = scripting.NewAssignmentNode(node.InvocationParameter, scripting.NewBooleanNode(true), node)
+	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
+	var block ast.Node
+	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
 		e.tree.Declarations[i].SetBlock(block)
 		block = e.tree.Declarations[i]
@@ -166,12 +166,12 @@ func (e *treeEstimatorV1) wrapFunction(node *scripting.FunctionDeclarationNode) 
 	return block
 }
 
-func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
+func (e *treeEstimatorV1) walk(node ast.Node) (int, error) {
 	switch n := node.(type) {
-	case *scripting.LongNode, *scripting.BytesNode, *scripting.BooleanNode, *scripting.StringNode:
+	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
 		return 1, nil
 
-	case *scripting.ConditionalNode:
+	case *ast.ConditionalNode:
 		ce, err := e.walk(n.Condition)
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to estimate the condition of if")
@@ -193,7 +193,7 @@ func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
 		}
 		return ce + fe + 1, nil
 
-	case *scripting.AssignmentNode:
+	case *ast.AssignmentNode:
 		id := n.Name
 		e.scope.setValue(id, n.Expression)
 		c, err := e.walk(n.Block)
@@ -202,7 +202,7 @@ func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
 		}
 		return c + 5, nil
 
-	case *scripting.ReferenceNode:
+	case *ast.ReferenceNode:
 		id := n.Name
 		v, err := e.scope.value(id)
 		if err != nil {
@@ -218,11 +218,11 @@ func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
 		}
 		return 2, nil
 
-	case *scripting.FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		tmp := e.scope.save()
 		for _, a := range n.Arguments {
-			e.scope.setValue(a, scripting.NewBooleanNode(true))
+			e.scope.setValue(a, ast.NewBooleanNode(true))
 		}
 		fc, err := e.walk(n.Body)
 		if err != nil {
@@ -238,7 +238,7 @@ func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
 		}
 		return bc + 5, nil
 
-	case *scripting.FunctionCallNode:
+	case *ast.FunctionCallNode:
 		id := n.Function.Name()
 		function := n.Function
 		fc, err := e.scope.function(function)
@@ -255,7 +255,7 @@ func (e *treeEstimatorV1) walk(node scripting.Node) (int, error) {
 		}
 		return fc + ac, nil
 
-	case *scripting.PropertyNode:
+	case *ast.PropertyNode:
 		c, err := e.walk(n.Object)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)

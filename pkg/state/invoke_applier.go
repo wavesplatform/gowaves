@@ -11,7 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/scripting"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -293,7 +294,7 @@ type addlInvokeInfo struct {
 	actions              []proto.ScriptAction
 	paymentSmartAssets   []crypto.Digest
 	disableSelfTransfers bool
-	libVersion           scripting.LibraryVersion
+	libVersion           ast.LibraryVersion
 }
 
 func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.WavesAddress, error) {
@@ -735,7 +736,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		scriptAddr     *proto.WavesAddress
 		txID           crypto.Digest
 		sender         proto.Address
-		tree           *scripting.Tree
+		tree           *ast.Tree
 		scriptPK       crypto.PublicKey
 	)
 	switch transaction := tx.(type) {
@@ -767,7 +768,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 		sender = addr
 		scriptAddr = &addr
-		tree, err = scripting.Parse(transaction.Expression)
+		tree, err = serialization.Parse(transaction.Expression)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
@@ -817,7 +818,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
-	if paymentsLength >= 2 && tree.LibVersion < scripting.LibV4 {
+	if paymentsLength >= 2 && tree.LibVersion < ast.LibV4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.

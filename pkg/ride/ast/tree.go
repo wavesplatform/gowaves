@@ -1,4 +1,4 @@
-package scripting
+package ast
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
@@ -190,7 +190,7 @@ func NewPropertyNode(name string, object Node) *PropertyNode {
 
 type Tree struct {
 	Digest       [32]byte
-	contentType  ContentType
+	ContentType  ContentType
 	LibVersion   LibraryVersion
 	HasBlockV2   bool
 	Meta         meta.DApp
@@ -200,7 +200,7 @@ type Tree struct {
 }
 
 func NewTree(content ContentType, library LibraryVersion) *Tree {
-	return &Tree{contentType: content, LibVersion: library}
+	return &Tree{ContentType: content, LibVersion: library}
 }
 
 func (t *Tree) HasVerifier() bool {
@@ -208,5 +208,5 @@ func (t *Tree) HasVerifier() bool {
 }
 
 func (t *Tree) IsDApp() bool {
-	return t.contentType == ContentTypeApplication
+	return t.ContentType == ContentTypeApplication
 }
