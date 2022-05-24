@@ -1332,7 +1332,7 @@ func TestHashScriptAtAddress(t *testing.T) {
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+				NewestScriptBytesByAccountFunc: func(recipient proto.Recipient) (proto.Script, error) {
 					switch recipient {
 					case r1:
 						return s1, nil

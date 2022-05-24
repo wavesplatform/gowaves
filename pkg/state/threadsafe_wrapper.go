@@ -7,6 +7,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -289,10 +290,16 @@ func (a *ThreadSafeReadWrapper) ScriptInfoByAsset(assetID proto.AssetID) (*proto
 	return a.s.ScriptInfoByAsset(assetID)
 }
 
-func (a *ThreadSafeReadWrapper) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+func (a *ThreadSafeReadWrapper) NewestScriptByAccount(recipient proto.Recipient) (*ast.Tree, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.GetByteTree(recipient)
+	return a.s.NewestScriptByAccount(recipient)
+}
+
+func (a *ThreadSafeReadWrapper) NewestScriptBytesByAccount(recipient proto.Recipient) (proto.Script, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.NewestScriptBytesByAccount(recipient)
 }
 
 func (a *ThreadSafeReadWrapper) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
