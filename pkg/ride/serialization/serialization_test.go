@@ -1,4 +1,4 @@
-package ride
+package serialization
 
 import (
 	"encoding/base64"

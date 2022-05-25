@@ -2,17 +2,17 @@ package state
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type element struct {
 	key        string
-	value      ride.Tree
+	value      ast.Tree
 	prev, next *element
 	bytes      uint64
 }
 
-var defaultValue ride.Tree
+var defaultValue ast.Tree
 
 type lru struct {
 	maxSize, maxBytes, size, bytesUsed uint64
@@ -82,7 +82,7 @@ func (l *lru) makeFreeSpace(bytes uint64) {
 	}
 }
 
-func (l *lru) get(key []byte) (value ride.Tree, has bool) {
+func (l *lru) get(key []byte) (value ast.Tree, has bool) {
 	var e *element
 	e, has = l.m[string(key)]
 	if !has {
@@ -93,7 +93,7 @@ func (l *lru) get(key []byte) (value ride.Tree, has bool) {
 	return e.value, true
 }
 
-func (l *lru) set(key []byte, value ride.Tree, bytes uint64) (existed bool) {
+func (l *lru) set(key []byte, value ast.Tree, bytes uint64) (existed bool) {
 	keyStr := string(key)
 	e, has := l.m[keyStr]
 	if has {

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -21,8 +23,8 @@ var (
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{}
 		},
-		libVersionFunc: func() int {
-			return 5
+		libVersionFunc: func() ast.LibraryVersion {
+			return ast.LibV5
 		},
 		rideV6ActivatedFunc: func() bool {
 			return false
@@ -38,8 +40,8 @@ var (
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{}
 		},
-		libVersionFunc: func() int {
-			return 6
+		libVersionFunc: func() ast.LibraryVersion {
+			return ast.LibV6
 		},
 		rideV6ActivatedFunc: func() bool {
 			return true
@@ -50,7 +52,7 @@ var (
 func checkVerifierSpentComplexity(t *testing.T, env environment, code string, complexity int, comment string) {
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err, comment)
-	tree, err := Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(t, err, comment)
 	assert.NotNil(t, tree, comment)
 
@@ -64,7 +66,7 @@ func checkVerifierSpentComplexity(t *testing.T, env environment, code string, co
 func checkFunctionCallComplexity(t *testing.T, env environment, code, fn string, fa proto.Arguments, complexity int) {
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
-	tree, err := Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
@@ -230,7 +232,7 @@ func TestStrictThrow(t *testing.T) {
 	code := "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAAIAAAABAgAAABVTdHJpY3QgZXhlY3V0ZWQgZXJyb3IDCQAAAAAAAAIFAAAAAWEFAAAAAWEGCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkBAAAACHRlc3RGdW5jAAAAABn7LqM="
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
-	tree, err := Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 

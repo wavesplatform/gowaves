@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -70,7 +71,7 @@ func TestExecution(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
 
-		tree, err := Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
@@ -359,7 +360,7 @@ func TestFunctions(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.script)
 		require.NoError(t, err, test.name)
 
-		tree, err := Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.name)
 		assert.NotNil(t, tree, test.name)
 
@@ -385,7 +386,7 @@ func BenchmarkSimplestScript(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		src, err := base64.StdEncoding.DecodeString("AwZd0cYf") // V3: true
 		require.NoError(b, err)
-		tree, err := Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(b, err)
 		prg, err := Compile(tree)
 		require.NoError(b, err)
@@ -413,7 +414,7 @@ func BenchmarkEval(b *testing.B) {
 	b.ReportAllocs()
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(b, err)
-	tree, err := Parse(src)
+	tree, err := serialization.Parse(src)
 	require.NoError(b, err)
 	prg, err := Compile(tree)
 	require.NoError(b, err)

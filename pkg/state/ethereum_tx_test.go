@@ -12,7 +12,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -203,7 +204,7 @@ func defaultDecodedData(name string, arguments []ethabi.DecodedArg, payments []e
 	return decodedData
 }
 
-func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorageState, info *fallibleValidationParams) (proto.WavesAddress, *ride.Tree) {
+func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorageState, info *fallibleValidationParams) (proto.WavesAddress, *ast.Tree) {
 	scriptAddr, err := tx.WavesAddressTo(0)
 	require.NoError(t, err)
 	tree, err := stor.newestScriptByAddr(*scriptAddr, !info.initialisation)
@@ -213,7 +214,7 @@ func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorage
 
 func TestEthereumInvoke(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -227,7 +228,7 @@ func TestEthereumInvoke(t *testing.T) {
 		*/
 		src, err := base64.StdEncoding.DecodeString("AAIEAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAAGbnVtYmVyCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQFAAAABm51bWJlcgUAAAADbmlsAAAAAE5VO+E=")
 		require.NoError(t, err)
-		tree, err := ride.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err)
 		assert.NotNil(t, tree)
 		return tree, nil
@@ -270,7 +271,7 @@ func TestEthereumInvoke(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -345,7 +346,7 @@ func TestTransferCheckFee(t *testing.T) {
 
 func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -359,7 +360,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 		*/
 		src, err := base64.StdEncoding.DecodeString("AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2ludAAAAAAAAAAAAQUAAAADbmlsAAAAAOhqG0I=")
 		require.NoError(t, err)
-		tree, err := ride.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err)
 		assert.NotNil(t, tree)
 		return tree, nil
@@ -398,7 +399,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -413,7 +414,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 
 func TestEthereumInvokeAllArguments(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -427,7 +428,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		*/
 		src, err := base64.StdEncoding.DecodeString("AAIEAAAAAAAAAAsIAhIHCgUBBAIJEQAAAAAAAAABAAAAAWkBAAAABGNhbGwAAAAFAAAAA251bQAAAARmbGFnAAAAA3ZlYwAAAANsaXMAAAAEbGlzdAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADaW50BQAAAANudW0FAAAAA25pbAAAAAC7za7+")
 		require.NoError(t, err)
-		tree, err := ride.Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err)
 		assert.NotNil(t, tree)
 		return tree, nil
@@ -472,7 +473,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 

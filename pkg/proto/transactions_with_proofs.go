@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 const (
@@ -51,8 +52,6 @@ const (
 	maxFunctionNameBytes                                 = 255
 	maxInvokeScriptWithProofsBinaryTransactionsBytes     = 5 * 1024
 	maxInvokeScriptWithProofsProtobufPayloadBytes        = 5 * 1024
-
-	topRideVersion = 6
 )
 
 // IssueWithProofs is a transaction to issue new asset, second version.
@@ -188,14 +187,6 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
 }
 
-func validContentType(t byte) bool {
-	return t >= 1 && t <= 3
-}
-
-func validScriptVersion(v byte) bool {
-	return v <= topRideVersion
-}
-
 func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
@@ -205,22 +196,8 @@ func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 		return tx, err
 	}
 	if tx.NonEmptyScript() {
-		if !validScriptVersion(tx.Script[0]) {
-			return tx, errors.Errorf("Invalid version of script: %d", tx.Script[0])
-		}
-		if tx.Script[0] == 0 { // version byte
-			if len(tx.Script) <= 2 {
-				return tx, errors.Errorf("Illegal length of script: %d", len(tx.Script))
-			}
-			if !validContentType(tx.Script[1]) {
-				return tx, errors.Errorf("Invalid content type of script: %d", tx.Script[1])
-			}
-			if !validScriptVersion(tx.Script[2]) {
-				return tx, errors.Errorf("Invalid version of script: %d", tx.Script[2])
-			}
-		}
-		if !tx.Script.IsValidChecksum() {
-			return tx, errors.Errorf("Invalid checksum: %+v", []byte(tx.Script))
+		if err := serialization.CheckHeader(tx.Script); err != nil {
+			return tx, err
 		}
 	}
 	return tx, nil

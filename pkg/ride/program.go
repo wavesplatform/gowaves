@@ -1,6 +1,9 @@
 package ride
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+)
 
 type callable struct {
 	entryPoint    int
@@ -13,7 +16,7 @@ type RideScript interface {
 }
 
 type SimpleScript struct {
-	LibVersion int
+	LibVersion ast.LibraryVersion
 	EntryPoint int
 	Code       []byte
 	Constants  []rideType
@@ -55,7 +58,7 @@ func (s *SimpleScript) code() []byte {
 }
 
 type DAppScript struct {
-	LibVersion  int
+	LibVersion  ast.LibraryVersion
 	Code        []byte
 	Constants   []rideType
 	EntryPoints map[string]callable

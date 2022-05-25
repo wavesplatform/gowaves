@@ -8,9 +8,10 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-func Compile(tree *Tree) (RideScript, error) {
+func Compile(tree *ast.Tree) (RideScript, error) {
 	fCheck, err := selectFunctionChecker(tree.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "compile")
@@ -45,7 +46,7 @@ type compiler struct {
 	callable      *rideCallable
 }
 
-func (c *compiler) compileSimpleScript(tree *Tree) (*SimpleScript, error) {
+func (c *compiler) compileSimpleScript(tree *ast.Tree) (*SimpleScript, error) {
 	bb := new(bytes.Buffer)
 	err := c.compile(bb, tree.Verifier)
 	if err != nil {
@@ -77,7 +78,7 @@ func (c *compiler) compileSimpleScript(tree *Tree) (*SimpleScript, error) {
 	}, nil
 }
 
-func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
+func (c *compiler) compileDAppScript(tree *ast.Tree) (*DAppScript, error) {
 	// Compile global declarations.
 	// Each declaration goes to the declaration stack with code compiled in its own buffer.
 	functions := make(map[string]callable)
@@ -89,13 +90,13 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 		}
 	}
 	for _, n := range tree.Functions {
-		fn, ok := n.(*FunctionDeclarationNode)
+		fn, ok := n.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return nil, errors.Errorf("invalid node type %T", n)
 		}
 		c.callable = &rideCallable{
 			name:      fn.Name,
-			parameter: fn.invocationParameter,
+			parameter: fn.InvocationParameter,
 		}
 		err := c.compile(bb, fn)
 		if err != nil {
@@ -103,13 +104,13 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 		}
 	}
 	if tree.HasVerifier() {
-		v, ok := tree.Verifier.(*FunctionDeclarationNode)
+		v, ok := tree.Verifier.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return nil, errors.Errorf("invalid node type for DApp's verifier '%T'", tree.Verifier)
 		}
 		c.callable = &rideCallable{
 			name:      "", // Verifier has empty name
-			parameter: v.invocationParameter,
+			parameter: v.InvocationParameter,
 		}
 		err := c.compile(bb, v)
 		if err != nil {
@@ -117,7 +118,7 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 		}
 		functions[""] = callable{
 			entryPoint:    0,
-			parameterName: v.invocationParameter,
+			parameterName: v.InvocationParameter,
 		}
 	}
 	// All declarations goes here after verifier and public functions
@@ -155,34 +156,34 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 	}, nil
 }
 
-func (c *compiler) compile(bb *bytes.Buffer, node Node) error {
+func (c *compiler) compile(bb *bytes.Buffer, node ast.Node) error {
 	switch n := node.(type) {
-	case *LongNode:
+	case *ast.LongNode:
 		return c.longNode(bb, n)
-	case *BytesNode:
+	case *ast.BytesNode:
 		return c.bytesNode(bb, n)
-	case *StringNode:
+	case *ast.StringNode:
 		return c.stringNode(bb, n)
-	case *BooleanNode:
+	case *ast.BooleanNode:
 		return c.booleanNode(bb, n)
-	case *ConditionalNode:
+	case *ast.ConditionalNode:
 		return c.conditionalNode(bb, n)
-	case *AssignmentNode:
+	case *ast.AssignmentNode:
 		return c.assignmentNode(bb, n)
-	case *ReferenceNode:
+	case *ast.ReferenceNode:
 		return c.referenceNode(bb, n)
-	case *FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		return c.functionDeclarationNode(bb, n)
-	case *FunctionCallNode:
+	case *ast.FunctionCallNode:
 		return c.callNode(bb, n)
-	case *PropertyNode:
+	case *ast.PropertyNode:
 		return c.propertyNode(bb, n)
 	default:
 		return errors.Errorf("unexpected node type '%T'", node)
 	}
 }
 
-func (c *compiler) longNode(bb *bytes.Buffer, node *LongNode) error {
+func (c *compiler) longNode(bb *bytes.Buffer, node *ast.LongNode) error {
 	cid, err := c.constants.put(rideInt(node.Value))
 	if err != nil {
 		return err
@@ -192,7 +193,7 @@ func (c *compiler) longNode(bb *bytes.Buffer, node *LongNode) error {
 	return nil
 }
 
-func (c *compiler) bytesNode(bb *bytes.Buffer, node *BytesNode) error {
+func (c *compiler) bytesNode(bb *bytes.Buffer, node *ast.BytesNode) error {
 	cid, err := c.constants.put(rideBytes(node.Value))
 	if err != nil {
 		return err
@@ -202,7 +203,7 @@ func (c *compiler) bytesNode(bb *bytes.Buffer, node *BytesNode) error {
 	return nil
 }
 
-func (c *compiler) stringNode(bb *bytes.Buffer, node *StringNode) error {
+func (c *compiler) stringNode(bb *bytes.Buffer, node *ast.StringNode) error {
 	cid, err := c.constants.put(rideString(node.Value))
 	if err != nil {
 		return err
@@ -212,7 +213,7 @@ func (c *compiler) stringNode(bb *bytes.Buffer, node *StringNode) error {
 	return nil
 }
 
-func (c *compiler) booleanNode(bb *bytes.Buffer, node *BooleanNode) error {
+func (c *compiler) booleanNode(bb *bytes.Buffer, node *ast.BooleanNode) error {
 	if node.Value {
 		bb.WriteByte(OpTrue)
 	} else {
@@ -221,7 +222,7 @@ func (c *compiler) booleanNode(bb *bytes.Buffer, node *BooleanNode) error {
 	return nil
 }
 
-func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) error {
+func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ast.ConditionalNode) error {
 	err := c.compile(bb, node.Condition)
 	if err != nil {
 		return err
@@ -260,7 +261,7 @@ func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) erro
 	return nil
 }
 
-func (c *compiler) assignmentNode(bb *bytes.Buffer, node *AssignmentNode) error {
+func (c *compiler) assignmentNode(bb *bytes.Buffer, node *ast.AssignmentNode) error {
 	err := c.pushGlobalValue(node.Name, node.Expression, c.callable)
 	if err != nil {
 		return err
@@ -283,7 +284,7 @@ func (c *compiler) assignmentNode(bb *bytes.Buffer, node *AssignmentNode) error 
 	return nil
 }
 
-func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
+func (c *compiler) referenceNode(bb *bytes.Buffer, node *ast.ReferenceNode) error {
 	if id, ok := c.checkConstant(node.Name); ok {
 		//Globally declared constant
 		bb.WriteByte(OpGlobal)
@@ -310,7 +311,7 @@ func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
 	}
 }
 
-func (c *compiler) functionDeclarationNode(bb *bytes.Buffer, node *FunctionDeclarationNode) error {
+func (c *compiler) functionDeclarationNode(bb *bytes.Buffer, node *ast.FunctionDeclarationNode) error {
 	var args []string
 	if c.callable != nil { // DApp callable function
 		args = make([]string, len(node.Arguments)+1)
@@ -341,7 +342,7 @@ func (c *compiler) functionDeclarationNode(bb *bytes.Buffer, node *FunctionDecla
 	return nil
 }
 
-func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
+func (c *compiler) callNode(bb *bytes.Buffer, node *ast.FunctionCallNode) error {
 	for _, arg := range node.Arguments {
 		err := c.compile(bb, arg)
 		if err != nil {
@@ -369,7 +370,7 @@ func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
 	return nil
 }
 
-func (c *compiler) propertyNode(bb *bytes.Buffer, node *PropertyNode) error {
+func (c *compiler) propertyNode(bb *bytes.Buffer, node *ast.PropertyNode) error {
 	err := c.compile(bb, node.Object)
 	if err != nil {
 		return err
@@ -383,7 +384,7 @@ func (c *compiler) propertyNode(bb *bytes.Buffer, node *PropertyNode) error {
 	return nil
 }
 
-func (c *compiler) pushGlobalValue(name string, node Node, annex *rideCallable) error {
+func (c *compiler) pushGlobalValue(name string, node ast.Node, annex *rideCallable) error {
 	d := newGlobalValue(name, annex)
 	c.callable = nil
 	c.values = append(c.values, d)
@@ -424,7 +425,7 @@ func (c *compiler) lookupValue(name string) (rideValue, error) {
 	return nil, errors.Errorf("value '%s' is not declared", name)
 }
 
-func (c *compiler) pushFunction(name string, args []string, node Node, annex *rideCallable) error {
+func (c *compiler) pushFunction(name string, args []string, node ast.Node, annex *rideCallable) error {
 	d := newLocalFunction(name, args, annex)
 	c.functions = append(c.functions, d)
 	for i, a := range args {

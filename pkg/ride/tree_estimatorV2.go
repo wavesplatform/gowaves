@@ -2,12 +2,13 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type estimationScopeV2 struct {
 	values    []scopeValue
 	stash     []scopeValue
-	functions []*FunctionDeclarationNode
+	functions []*ast.FunctionDeclarationNode
 	builtin   map[string]int
 }
 
@@ -19,16 +20,16 @@ func newEstimationScopeV2(values []string, functions map[string]int) *estimation
 	return &estimationScopeV2{
 		values:    initial,
 		stash:     make([]scopeValue, 0),
-		functions: make([]*FunctionDeclarationNode, 0),
+		functions: make([]*ast.FunctionDeclarationNode, 0),
 		builtin:   functions,
 	}
 }
 
-func (s *estimationScopeV2) setValue(id string, n Node) {
+func (s *estimationScopeV2) setValue(id string, n ast.Node) {
 	s.values = append(s.values, scopeValue{id: id, n: n})
 }
 
-func (s *estimationScopeV2) value(id string) (Node, error) {
+func (s *estimationScopeV2) value(id string) (ast.Node, error) {
 	for i := len(s.values) - 1; i >= 0; i-- {
 		if s.values[i].id == id {
 			return s.values[i].n, nil
@@ -45,11 +46,11 @@ func (s *estimationScopeV2) deleteValue(id string, limit int) {
 	}
 }
 
-func (s *estimationScopeV2) setFunction(n *FunctionDeclarationNode) {
+func (s *estimationScopeV2) setFunction(n *ast.FunctionDeclarationNode) {
 	s.functions = append(s.functions, n)
 }
 
-func (s *estimationScopeV2) function(id string) (*FunctionDeclarationNode, error) {
+func (s *estimationScopeV2) function(id string) (*ast.FunctionDeclarationNode, error) {
 	for i := len(s.functions) - 1; i >= 0; i-- {
 		if s.functions[i].Name == id {
 			return s.functions[i], nil
@@ -58,8 +59,8 @@ func (s *estimationScopeV2) function(id string) (*FunctionDeclarationNode, error
 	return nil, errors.Errorf("function '%s' not found", id)
 }
 
-func (s *estimationScopeV2) overlaps() map[string]Node {
-	r := make(map[string]Node)
+func (s *estimationScopeV2) overlaps() map[string]ast.Node {
+	r := make(map[string]ast.Node)
 	for i := 0; i < len(s.stash); i++ {
 		r[s.stash[i].id] = s.stash[i].n
 	}
@@ -70,7 +71,7 @@ func (s *estimationScopeV2) addOverlaps(overlaps []scopeValue) {
 	s.stash = append(s.stash, overlaps...)
 }
 
-func (s *estimationScopeV2) setOverlap(id string, n Node) {
+func (s *estimationScopeV2) setOverlap(id string, n ast.Node) {
 	s.stash = append(s.stash, scopeValue{id: id, n: n})
 }
 
@@ -85,23 +86,25 @@ func (s *estimationScopeV2) restore(pv, pf, po int) {
 }
 
 type treeEstimatorV2 struct {
-	tree  *Tree
+	tree  *ast.Tree
 	scope *estimationScopeV2
 }
 
-func newTreeEstimatorV2(tree *Tree) (*treeEstimatorV2, error) {
+func newTreeEstimatorV2(tree *ast.Tree) (*treeEstimatorV2, error) {
 	r := &treeEstimatorV2{tree: tree}
 	switch tree.LibVersion {
-	case 1:
+	case ast.LibV1:
 		r.scope = newEstimationScopeV2(ConstantsV1, CatalogueV2)
-	case 2:
+	case ast.LibV2:
 		r.scope = newEstimationScopeV2(ConstantsV2, CatalogueV2)
-	case 3:
+	case ast.LibV3:
 		r.scope = newEstimationScopeV2(ConstantsV3, CatalogueV3)
-	case 4:
+	case ast.LibV4:
 		r.scope = newEstimationScopeV2(ConstantsV4, CatalogueV4)
-	case 5:
-		r.scope = newEstimationScopeV2(ConstantsV4, CatalogueV5)
+	case ast.LibV5:
+		r.scope = newEstimationScopeV2(ConstantsV5, CatalogueV5)
+	case ast.LibV6:
+		r.scope = newEstimationScopeV2(ConstantsV6, CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}
@@ -120,7 +123,7 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 	m := make(map[string]int)
 	for i := 0; i < len(e.tree.Functions); i++ {
 		vp, fp, op := e.scope.save()
-		function, ok := e.tree.Functions[i].(*FunctionDeclarationNode)
+		function, ok := e.tree.Functions[i].(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
@@ -136,7 +139,7 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 	}
 	vc := 0
 	if e.tree.HasVerifier() {
-		verifier, ok := e.tree.Verifier.(*FunctionDeclarationNode)
+		verifier, ok := e.tree.Verifier.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
@@ -152,14 +155,14 @@ func (e *treeEstimatorV2) estimate() (int, int, map[string]int, error) {
 	return max, vc, m, nil
 }
 
-func (e *treeEstimatorV2) wrapFunction(node *FunctionDeclarationNode) Node {
-	args := make([]Node, len(node.Arguments))
+func (e *treeEstimatorV2) wrapFunction(node *ast.FunctionDeclarationNode) ast.Node {
+	args := make([]ast.Node, len(node.Arguments))
 	for i := range node.Arguments {
-		args[i] = NewBooleanNode(true)
+		args[i] = ast.NewBooleanNode(true)
 	}
-	node.SetBlock(NewFunctionCallNode(userFunction(node.Name), args))
-	var block Node
-	block = NewAssignmentNode(node.invocationParameter, NewBooleanNode(true), node)
+	node.SetBlock(ast.NewFunctionCallNode(ast.UserFunction(node.Name), args))
+	var block ast.Node
+	block = ast.NewAssignmentNode(node.InvocationParameter, ast.NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
 		e.tree.Declarations[i].SetBlock(block)
 		block = e.tree.Declarations[i]
@@ -167,12 +170,12 @@ func (e *treeEstimatorV2) wrapFunction(node *FunctionDeclarationNode) Node {
 	return block
 }
 
-func (e *treeEstimatorV2) walk(node Node) (int, error) {
+func (e *treeEstimatorV2) walk(node ast.Node) (int, error) {
 	switch n := node.(type) {
-	case *LongNode, *BytesNode, *BooleanNode, *StringNode:
+	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
 		return 1, nil
 
-	case *ConditionalNode:
+	case *ast.ConditionalNode:
 		ce, err := e.walk(n.Condition)
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to estimate the condition of if")
@@ -190,7 +193,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		}
 		return ce + fe + 1, nil
 
-	case *AssignmentNode:
+	case *ast.AssignmentNode:
 		id := n.Name
 		vp, fp, op := e.scope.save()
 		e.scope.setValue(id, n.Expression)
@@ -201,7 +204,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		e.scope.restore(vp, fp, op)
 		return c + 5, nil
 
-	case *ReferenceNode:
+	case *ast.ReferenceNode:
 		id := n.Name
 		v, err := e.scope.value(id)
 		if err != nil {
@@ -217,7 +220,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		}
 		return 2, nil
 
-	case *FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		e.scope.setFunction(n)
 		bc, err := e.walk(n.Block)
@@ -226,7 +229,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		}
 		return bc + 5, nil
 
-	case *FunctionCallNode:
+	case *ast.FunctionCallNode:
 		id := n.Function.Name()
 		ac := 0
 		for i, a := range n.Arguments {
@@ -265,7 +268,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		l := len(e.scope.values)
 		// Stack arguments
 		for _, a := range fn.Arguments {
-			e.scope.setValue(a, NewBooleanNode(true))
+			e.scope.setValue(a, ast.NewBooleanNode(true))
 		}
 
 		// Stash current overlaps
@@ -290,7 +293,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		ac += len(fn.Arguments) * 5
 		return fc + ac, nil
 
-	case *PropertyNode:
+	case *ast.PropertyNode:
 		c, err := e.walk(n.Object)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)

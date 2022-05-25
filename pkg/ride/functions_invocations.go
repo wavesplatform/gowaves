@@ -2,6 +2,8 @@ package ride
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
@@ -9,11 +11,11 @@ func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName r
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to get script by recipient")
 	}
-	tree, err := Parse(newScript)
+	tree, err := serialization.Parse(newScript)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to parse script")
 	}
-	if tree.LibVersion < 5 {
+	if tree.LibVersion < ast.LibV5 {
 		return nil, RuntimeError.Errorf("failed to call 'invoke' for script with version %d. Scripts with version 5 are only allowed to be used in 'invoke'", tree.LibVersion)
 	}
 	args, err := convertListArguments(listArgs, env.rideV6Activated())

@@ -14,7 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -193,7 +193,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get script by address '%s'", scriptAddr.String())
 		}
-		tree, err := ride.Parse(script)
+		tree, err := serialization.Parse(script)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to get tree by script")
 		}

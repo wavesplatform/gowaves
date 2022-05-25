@@ -2984,17 +2984,6 @@ func (s Script) MarshalJSON() ([]byte, error) {
 	return []byte(sb.String()), nil
 }
 
-func (s Script) IsValidChecksum() bool {
-	if len(s) < 4 {
-		return false
-	}
-	k, err := crypto.SecureHash(s[:len(s)-4])
-	if err != nil {
-		return false
-	}
-	return bytes.Equal(k.Bytes()[:4], s[len(s)-4:])
-}
-
 // UnmarshalJSON reads Script from it's JSON representation
 func (s *Script) UnmarshalJSON(value []byte) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Script from JSON") }

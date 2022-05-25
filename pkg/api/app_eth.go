@@ -4,7 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -19,7 +19,7 @@ func (a *App) EthereumDAppMethods(addr proto.WavesAddress) (ethabi.MethodsMap, e
 	if len(scriptInfo.Bytes) == 0 {
 		return ethabi.MethodsMap{}, errors.Wrap(notFound, "script is empty")
 	}
-	tree, err := ride.Parse(scriptInfo.Bytes)
+	tree, err := serialization.Parse(scriptInfo.Bytes)
 	if err != nil {
 		return ethabi.MethodsMap{}, err
 	}

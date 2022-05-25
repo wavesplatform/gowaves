@@ -1,4 +1,4 @@
-package ride
+package serialization
 
 import (
 	"bytes"
@@ -6,10 +6,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
-func SerializeTreeV1(tree *Tree) ([]byte, error) {
+func SerializeTreeV1(tree *ast.Tree) ([]byte, error) {
 	s := serializer{
 		buf: new(bytes.Buffer),
 	}
@@ -22,7 +23,7 @@ func SerializeTreeV1(tree *Tree) ([]byte, error) {
 	return s.serialize(tree)
 }
 
-func SerializeTreeV2(tree *Tree) ([]byte, error) {
+func SerializeTreeV2(tree *ast.Tree) ([]byte, error) {
 	s := serializer{
 		buf: new(bytes.Buffer),
 	}
@@ -37,15 +38,15 @@ func SerializeTreeV2(tree *Tree) ([]byte, error) {
 
 type serializer struct {
 	buf             *bytes.Buffer
-	serializeDApp   func(*serializer, *Tree) error
-	serializeScript func(*serializer, *Tree) error
+	serializeDApp   func(*serializer, *ast.Tree) error
+	serializeScript func(*serializer, *ast.Tree) error
 	writeUint16     func(*bytes.Buffer, uint16) error
 	writeUint32     func(*bytes.Buffer, uint32) error
 	writeInt64      func(*bytes.Buffer, int64) error
 	writeMeta       func(*serializer, meta.DApp) error
 }
 
-func (s *serializer) serialize(tree *Tree) ([]byte, error) {
+func (s *serializer) serialize(tree *ast.Tree) ([]byte, error) {
 	if tree.IsDApp() {
 		if err := s.serializeDApp(s, tree); err != nil {
 			return nil, err
@@ -67,7 +68,7 @@ func (s *serializer) serialize(tree *Tree) ([]byte, error) {
 	return s.buf.Bytes(), nil
 }
 
-func (s *serializer) writeDeclarations(declarations []Node) error {
+func (s *serializer) writeDeclarations(declarations []ast.Node) error {
 	if err := s.writeUint32(s.buf, uint32(len(declarations))); err != nil {
 		return err
 	}
@@ -79,14 +80,14 @@ func (s *serializer) writeDeclarations(declarations []Node) error {
 	return nil
 }
 
-func (s *serializer) writeDeclaration(declaration Node) error {
+func (s *serializer) writeDeclaration(declaration ast.Node) error {
 	switch d := declaration.(type) {
-	case *FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		if err := s.writeFunctionDeclaration(d); err != nil {
 			return err
 		}
 		return nil
-	case *AssignmentNode:
+	case *ast.AssignmentNode:
 		if err := s.writeByte(declarationTypeLet); err != nil {
 			return err
 		}
@@ -99,12 +100,12 @@ func (s *serializer) writeDeclaration(declaration Node) error {
 	}
 }
 
-func (s *serializer) writeFunctions(functions []Node) error {
+func (s *serializer) writeFunctions(functions []ast.Node) error {
 	if err := s.writeUint32(s.buf, uint32(len(functions))); err != nil {
 		return err
 	}
 	for _, f := range functions {
-		fn, ok := f.(*FunctionDeclarationNode)
+		fn, ok := f.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return errors.Errorf("unexpected function declaration type '%T'", f)
 		}
@@ -115,12 +116,12 @@ func (s *serializer) writeFunctions(functions []Node) error {
 	return nil
 }
 
-func (s *serializer) writeVerifier(verifier Node) error {
+func (s *serializer) writeVerifier(verifier ast.Node) error {
 	if verifier != nil {
 		if err := s.writeUint32(s.buf, 1); err != nil {
 			return err
 		}
-		fn, ok := verifier.(*FunctionDeclarationNode)
+		fn, ok := verifier.(*ast.FunctionDeclarationNode)
 		if !ok {
 			return errors.Errorf("invalid type of verifier node '%T'", verifier)
 		}
@@ -135,8 +136,8 @@ func (s *serializer) writeVerifier(verifier Node) error {
 	return nil
 }
 
-func (s *serializer) writeFunction(function *FunctionDeclarationNode) error {
-	if err := s.writeString(function.invocationParameter); err != nil {
+func (s *serializer) writeFunction(function *ast.FunctionDeclarationNode) error {
+	if err := s.writeString(function.InvocationParameter); err != nil {
 		return err
 	}
 	if err := s.writeFunctionDeclaration(function); err != nil {
@@ -145,14 +146,14 @@ func (s *serializer) writeFunction(function *FunctionDeclarationNode) error {
 	return nil
 }
 
-func (s *serializer) writeAssignmentDeclaration(assignment *AssignmentNode) error {
+func (s *serializer) writeAssignmentDeclaration(assignment *ast.AssignmentNode) error {
 	if err := s.writeString(assignment.Name); err != nil {
 		return err
 	}
 	return s.walk(assignment.Expression)
 }
 
-func (s *serializer) writeFunctionDeclaration(function *FunctionDeclarationNode) error {
+func (s *serializer) writeFunctionDeclaration(function *ast.FunctionDeclarationNode) error {
 	if err := s.writeByte(declarationTypeFunction); err != nil {
 		return err
 	}
@@ -170,9 +171,9 @@ func (s *serializer) writeFunctionDeclaration(function *FunctionDeclarationNode)
 	return s.walk(function.Body)
 }
 
-func (s *serializer) walk(node Node) error {
+func (s *serializer) walk(node ast.Node) error {
 	switch n := node.(type) {
-	case *LongNode:
+	case *ast.LongNode:
 		if err := s.writeByte(tokenLong); err != nil {
 			return err
 		}
@@ -180,7 +181,7 @@ func (s *serializer) walk(node Node) error {
 			return err
 		}
 		return nil
-	case *BytesNode:
+	case *ast.BytesNode:
 		if err := s.writeByte(tokenBytes); err != nil {
 			return err
 		}
@@ -188,7 +189,7 @@ func (s *serializer) walk(node Node) error {
 			return err
 		}
 		return nil
-	case *BooleanNode:
+	case *ast.BooleanNode:
 		if n.Value {
 			if err := s.writeByte(tokenTrue); err != nil {
 				return err
@@ -199,7 +200,7 @@ func (s *serializer) walk(node Node) error {
 			}
 		}
 		return nil
-	case *StringNode:
+	case *ast.StringNode:
 		if err := s.writeByte(tokenString); err != nil {
 			return err
 		}
@@ -208,7 +209,7 @@ func (s *serializer) walk(node Node) error {
 		}
 		return nil
 
-	case *ConditionalNode:
+	case *ast.ConditionalNode:
 		if err := s.writeByte(tokenIf); err != nil {
 			return err
 		}
@@ -223,8 +224,8 @@ func (s *serializer) walk(node Node) error {
 		}
 		return nil
 
-	case *AssignmentNode:
-		if n.newBlock {
+	case *ast.AssignmentNode:
+		if n.NewBlock {
 			if err := s.writeByte(tokenBlockV2); err != nil {
 				return err
 			}
@@ -241,7 +242,7 @@ func (s *serializer) walk(node Node) error {
 		}
 		return s.walk(n.Block)
 
-	case *ReferenceNode:
+	case *ast.ReferenceNode:
 		if err := s.writeByte(tokenRef); err != nil {
 			return err
 		}
@@ -250,7 +251,7 @@ func (s *serializer) walk(node Node) error {
 		}
 		return nil
 
-	case *FunctionDeclarationNode:
+	case *ast.FunctionDeclarationNode:
 		if err := s.writeByte(tokenBlockV2); err != nil {
 			return err
 		}
@@ -259,12 +260,12 @@ func (s *serializer) walk(node Node) error {
 		}
 		return s.walk(n.Block)
 
-	case *FunctionCallNode:
+	case *ast.FunctionCallNode:
 		if err := s.writeByte(tokenFunctionCall); err != nil {
 			return err
 		}
 		switch tf := n.Function.(type) {
-		case nativeFunction:
+		case ast.NativeFunction:
 			if err := s.writeByte(functionTypeNative); err != nil {
 				return err
 			}
@@ -275,7 +276,7 @@ func (s *serializer) walk(node Node) error {
 			if err := s.writeUint16(s.buf, uint16(id)); err != nil {
 				return err
 			}
-		case userFunction:
+		case ast.UserFunction:
 			if err := s.writeByte(functionTypeUser); err != nil {
 				return err
 			}
@@ -295,7 +296,7 @@ func (s *serializer) walk(node Node) error {
 		}
 		return nil
 
-	case *PropertyNode:
+	case *ast.PropertyNode:
 		if err := s.writeByte(tokenGetter); err != nil {
 			return err
 		}

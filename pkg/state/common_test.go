@@ -15,7 +15,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -231,7 +232,7 @@ type testGlobalVars struct {
 	recipientEthInfo *testEthAkaWavesAddrData
 
 	scriptBytes []byte
-	scriptAst   *ride.Tree
+	scriptAst   *ast.Tree
 }
 
 var testGlobal testGlobalVars
@@ -288,7 +289,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
 	testGlobal.scriptBytes = scriptBytes
-	scriptAst, err := ride.Parse(testGlobal.scriptBytes)
+	scriptAst, err := serialization.Parse(testGlobal.scriptBytes)
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}

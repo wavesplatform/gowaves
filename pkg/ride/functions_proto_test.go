@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -601,8 +602,8 @@ func TestSigVerify(t *testing.T) {
 	} {
 		te := &mockRideEnvironment{
 			checkMessageLengthFunc: test.check,
-			libVersionFunc: func() int {
-				return 3
+			libVersionFunc: func() ast.LibraryVersion {
+				return ast.LibV3
 			},
 		}
 		r, err := sigVerify(te, test.args...)

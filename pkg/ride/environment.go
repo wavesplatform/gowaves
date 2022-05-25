@@ -5,6 +5,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -22,11 +24,11 @@ type WrappedState struct {
 	invocationCount           int
 	totalComplexity           int
 	dataEntriesSize           int
-	rootScriptLibVersion      int
+	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion int) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
@@ -486,14 +488,14 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 
-	tree, err := Parse(script)
+	tree, err := serialization.Parse(script)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get tree by script")
 	}
 
 	localEnv.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
-	case 1, 2, 3:
+	case ast.LibV1, ast.LibV2, ast.LibV3:
 		assetInfo, err := ws.NewestAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
@@ -737,12 +739,12 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 	return nil
 }
 
-func (ws *WrappedState) getLibVersion() (int, error) {
+func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
 	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get script by recipient")
 	}
-	tree, err := Parse(script)
+	tree, err := serialization.Parse(script)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get tree by script")
 	}
@@ -806,8 +808,8 @@ func (ws *WrappedState) ApplyToState(
 	if err != nil {
 		return nil, err
 	}
-	disableSelfTransfers := currentLibVersion >= 4 // it's OK, this flag depends on library version, not feature
-	isUTF16KeyLen := !env.blockV5Activated()       // if RideV4 isn't activated
+	disableSelfTransfers := currentLibVersion >= ast.LibV4 // it's OK, this flag depends on library version, not feature
+	isUTF16KeyLen := !env.blockV5Activated()               // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:  disableSelfTransfers,
 		IsUTF16KeyLen:         isUTF16KeyLen,
@@ -1144,7 +1146,7 @@ type EvaluationEnvironment struct {
 	check                 func(int) bool
 	takeStr               func(s string, n int) rideString
 	inv                   rideObject
-	ver                   int
+	ver                   ast.LibraryVersion
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
 	isRiveV6Activated     bool
@@ -1174,7 +1176,7 @@ func NewEnvironmentWithWrappedState(
 	isBlockV5Activated bool,
 	isRideV6Activated bool,
 	isProtobufTransaction bool,
-	rootScriptLibVersion int,
+	rootScriptLibVersion ast.LibraryVersion,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
@@ -1258,9 +1260,9 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 	}
 }
 
-func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
+func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
 	e.ver = v
-	if v > 2 {
+	if v > ast.LibV2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
 		}
@@ -1340,7 +1342,7 @@ func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
+func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v ast.LibraryVersion) error {
 	obj, err := invocationToObject(v, e.sch, tx)
 	if err != nil {
 		return err
@@ -1350,7 +1352,7 @@ func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v ast.LibraryVersion, payments []proto.ScriptPayment) error {
 	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
 	if err != nil {
 		return err
@@ -1417,7 +1419,7 @@ func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 	e.inv = inv
 }
 
-func (e *EvaluationEnvironment) libVersion() int {
+func (e *EvaluationEnvironment) libVersion() ast.LibraryVersion {
 	return e.ver
 }
 

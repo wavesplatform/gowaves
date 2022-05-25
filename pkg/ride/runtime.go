@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -363,7 +364,7 @@ type environment interface {
 	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
-	libVersion() int
+	libVersion() ast.LibraryVersion
 	validateInternalPayments() bool
 	blockV5Activated() bool
 	rideV6Activated() bool
