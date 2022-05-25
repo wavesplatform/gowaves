@@ -6,7 +6,7 @@ go 1.18
 exclude github.com/gogo/protobuf v1.1.1
 
 require (
-	filippo.io/edwards25519 v1.0.0-rc.1
+	filippo.io/edwards25519 v1.0.0
 	github.com/beevik/ntp v0.3.0
 	github.com/btcsuite/btcd v0.22.1
 	github.com/cespare/xxhash/v2 v2.1.2
