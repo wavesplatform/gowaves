@@ -247,8 +247,15 @@ func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to decode 'data' parameter as hex")
 	}
-	var selector ethabi.Selector
-	copy(selector[:], callData)
+	if l := len(callData); l < ethabi.SelectorSize {
+		return "", errors.Errorf("insufficient call data size: wanted at least %d, got %d",
+			ethabi.SelectorSize, l,
+		)
+	}
+	selector, err := ethabi.NewSelectorFromBytes(callData[:ethabi.SelectorSize])
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse selector from call data")
+	}
 
 	shortAssetID := proto.AssetID(params.To)
 
@@ -298,7 +305,7 @@ func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 			)
 			return "", err
 		}
-		return bigIntToHexString(proto.WaveletToEthereumWei(accountBalance)), nil
+		return uint64ToHexString(accountBalance), nil
 	default:
 		return "", errors.Errorf("unexpected call, %s", params.String())
 	}
