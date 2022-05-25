@@ -1288,6 +1288,17 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 			reducedVerifierComplexity: false,
 			valid:                     false,
 		},
+		// unknown lib version
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []ast.LibraryVersion{128},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
 	}
 	for i, tc := range tests {
 		for _, libVersion := range tc.libVersions {
