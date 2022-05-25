@@ -531,8 +531,13 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if env.validateInternalPayments() && res.Amount < 0 {
-		return errors.New("negative transfer amount")
+	if env.validateInternalPayments() {
+		switch {
+		case res.Amount < 0:
+			return errors.New("negative transfer amount")
+		case res.Amount == 0 && env.rideV6Activated():
+			return errors.New("zero payments are forbidden since activation of RIDE V6")
+		}
 	}
 	if restrictions.DisableSelfTransfers {
 		senderAddress := restrictions.ScriptAddress
