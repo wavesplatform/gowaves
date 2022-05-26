@@ -20,7 +20,7 @@ type InvRequester interface {
 }
 
 var (
-	idleListOfExcludedMessages = proto.PeerMessageIDs{
+	idleSkipMessageList = proto.PeerMessageIDs{
 		proto.ContentIDGetSignatures,
 		proto.ContentIDSignatures,
 		proto.ContentIDGetBlock,
@@ -133,7 +133,7 @@ func (a *IdleFsm) String() string {
 }
 
 func NewIdleFsm(info BaseInfo) *IdleFsm {
-	info.excludeListCh <- idleListOfExcludedMessages
+	info.skipMessageList.SetList(idleSkipMessageList)
 	return &IdleFsm{
 		baseInfo: info,
 	}

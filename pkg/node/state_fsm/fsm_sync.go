@@ -36,7 +36,7 @@ type noopWrapper struct {
 }
 
 var (
-	syncListOfExcludedMessages = proto.PeerMessageIDs{
+	syncSkipMessageList = proto.PeerMessageIDs{
 		proto.ContentIDGetBlock,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
@@ -256,7 +256,7 @@ func NewSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (
 }
 
 func newSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) FSM {
-	baseInfo.excludeListCh <- syncListOfExcludedMessages
+	baseInfo.skipMessageList.SetList(syncSkipMessageList)
 	return &SyncFsm{
 		baseInfo: baseInfo,
 		conf:     conf,

@@ -315,7 +315,6 @@ func main() {
 
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 	parent := peer.NewParent()
-	go peer_manager.ApplyNewListMessage(ctx, parent.ListOfExcludedCh, &parent.ListOfExcludedMessages)
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {
@@ -367,19 +366,19 @@ func main() {
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	svs := services.Services{
-		State:            st,
-		Peers:            peerManager,
-		Scheduler:        minerScheduler,
-		BlocksApplier:    blockApplier,
-		UtxPool:          utx,
-		Scheme:           cfg.AddressSchemeCharacter,
-		LoggableRunner:   logRunner,
-		Time:             ntpTime,
-		Wallet:           wal,
-		MicroBlockCache:  microblock_cache.NewMicroblockCache(),
-		InternalChannel:  messages.NewInternalChannel(),
-		MinPeersMining:   *minPeersMining,
-		ListOfExcludedCh: parent.ListOfExcludedCh,
+		State:           st,
+		Peers:           peerManager,
+		Scheduler:       minerScheduler,
+		BlocksApplier:   blockApplier,
+		UtxPool:         utx,
+		Scheme:          cfg.AddressSchemeCharacter,
+		LoggableRunner:  logRunner,
+		Time:            ntpTime,
+		Wallet:          wal,
+		MicroBlockCache: microblock_cache.NewMicroblockCache(),
+		InternalChannel: messages.NewInternalChannel(),
+		MinPeersMining:  *minPeersMining,
+		SkipMessageList: parent.SkipMessageList,
 	}
 
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)

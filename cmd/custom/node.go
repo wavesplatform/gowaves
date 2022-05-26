@@ -194,7 +194,6 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	parent := peer.NewParent()
-	go peer_manager.ApplyNewListMessage(ctx, parent.ListOfExcludedCh, &parent.ListOfExcludedMessages)
 
 	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
@@ -243,18 +242,18 @@ func main() {
 	InternalCh := messages.NewInternalChannel()
 
 	var nodeServices = services.Services{
-		State:            nodeState,
-		Peers:            peerManager,
-		Scheduler:        scheduler,
-		BlocksApplier:    blockApplier,
-		UtxPool:          utx,
-		Scheme:           custom.AddressSchemeCharacter,
-		InvRequester:     ng.NewInvRequester(),
-		LoggableRunner:   logRunner,
-		MicroBlockCache:  microblock_cache.NewMicroblockCache(),
-		InternalChannel:  InternalCh,
-		Time:             ntpTime,
-		ListOfExcludedCh: parent.ListOfExcludedCh,
+		State:           nodeState,
+		Peers:           peerManager,
+		Scheduler:       scheduler,
+		BlocksApplier:   blockApplier,
+		UtxPool:         utx,
+		Scheme:          custom.AddressSchemeCharacter,
+		InvRequester:    ng.NewInvRequester(),
+		LoggableRunner:  logRunner,
+		MicroBlockCache: microblock_cache.NewMicroblockCache(),
+		InternalChannel: InternalCh,
+		Time:            ntpTime,
+		SkipMessageList: parent.SkipMessageList,
 	}
 	Miner := miner.NewMicroblockMiner(nodeServices, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)

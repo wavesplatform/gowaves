@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
@@ -16,21 +17,10 @@ type DuplicateChecker interface {
 	Add([]byte) bool
 }
 
-func ApplyNewListMessage(ctx context.Context, listCh chan proto.PeerMessageIDs, list *proto.PeerMessageIDs) {
-	for {
-		select {
-		case newList := <-listCh:
-			*list = newList
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func NewSkipFilter(list *proto.PeerMessageIDs) conn.SkipFilter {
+func NewSkipFilter(list *messages.SkipMessageList) conn.SkipFilter {
 	return func(header proto.Header) bool {
-		return func(h proto.Header, l *proto.PeerMessageIDs) bool {
-			for _, id := range *l {
+		return func(h proto.Header, l *messages.SkipMessageList) bool {
+			for _, id := range l.List() {
 				if h.ContentID == id {
 					return true
 				}
@@ -58,7 +48,7 @@ type PeerSpawnerImpl struct {
 
 func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
-		skipFunc:         NewSkipFilter(&parent.ListOfExcludedMessages),
+		skipFunc:         NewSkipFilter(parent.SkipMessageList),
 		parent:           parent,
 		wavesNetwork:     WavesNetwork,
 		declAddr:         declAddr,

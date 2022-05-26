@@ -15,7 +15,7 @@ type PersistFsm struct {
 }
 
 var (
-	persistListOfExcludedMessages = proto.PeerMessageIDs{
+	persistSkipMessageList = proto.PeerMessageIDs{
 		proto.ContentIDGetSignatures,
 		proto.ContentIDSignatures,
 		proto.ContentIDGetBlock,
@@ -98,7 +98,7 @@ func NewPersistTransition(info BaseInfo) (FSM, Async, error) {
 		return err
 	}, tasks.PersistComplete)
 
-	info.excludeListCh <- persistListOfExcludedMessages
+	info.skipMessageList.SetList(persistSkipMessageList)
 	return &PersistFsm{
 		info,
 	}, tasks.Tasks(t), nil

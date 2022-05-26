@@ -11,7 +11,7 @@ type HaltFSM struct {
 }
 
 var (
-	haltListOfExcludedMessages = proto.PeerMessageIDs{
+	haltSkipMessageList = proto.PeerMessageIDs{
 		proto.ContentIDGetPeers,
 		proto.ContentIDPeers,
 		proto.ContentIDGetSignatures,
@@ -88,6 +88,6 @@ func HaltTransition(info BaseInfo) (FSM, Async, error) {
 		return nil, nil, err
 	}
 	zap.S().Debugf("storage closed")
-	info.excludeListCh <- haltListOfExcludedMessages
+	info.skipMessageList.SetList(haltSkipMessageList)
 	return HaltFSM{}, nil, nil
 }

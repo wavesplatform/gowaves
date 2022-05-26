@@ -2,6 +2,7 @@ package peer
 
 import (
 	"github.com/valyala/bytebufferpool"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -21,18 +22,16 @@ func NewRemote() Remote {
 }
 
 type Parent struct {
-	MessageCh              chan ProtoMessage
-	InfoCh                 chan InfoMessage
-	ListOfExcludedCh       chan proto.PeerMessageIDs
-	ListOfExcludedMessages proto.PeerMessageIDs
+	MessageCh       chan ProtoMessage
+	InfoCh          chan InfoMessage
+	SkipMessageList *messages.SkipMessageList
 }
 
 func NewParent() Parent {
 	return Parent{
-		MessageCh:              make(chan ProtoMessage, 100),
-		InfoCh:                 make(chan InfoMessage, 100),
-		ListOfExcludedCh:       make(chan proto.PeerMessageIDs, 1),
-		ListOfExcludedMessages: make(proto.PeerMessageIDs, 0),
+		MessageCh:       make(chan ProtoMessage, 100),
+		InfoCh:          make(chan InfoMessage, 100),
+		SkipMessageList: &messages.SkipMessageList{},
 	}
 }
 
