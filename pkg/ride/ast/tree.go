@@ -1,6 +1,8 @@
-package ride
+package ast
 
-import "github.com/wavesplatform/gowaves/pkg/ride/meta"
+import (
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+)
 
 type Node interface {
 	node()
@@ -77,7 +79,7 @@ type AssignmentNode struct {
 	Name       string
 	Expression Node
 	Block      Node
-	newBlock   bool
+	NewBlock   bool
 }
 
 func (*AssignmentNode) node() {}
@@ -111,7 +113,7 @@ type FunctionDeclarationNode struct {
 	Arguments           []string
 	Body                Node
 	Block               Node
-	invocationParameter string
+	InvocationParameter string
 }
 
 func (*FunctionDeclarationNode) node() {}
@@ -129,33 +131,33 @@ func NewFunctionDeclarationNode(name string, arguments []string, body, block Nod
 	}
 }
 
-type function interface {
+type Function interface {
 	Name() string
 	Type() string
 }
 
-type userFunction string
+type UserFunction string
 
-func (name userFunction) Name() string {
+func (name UserFunction) Name() string {
 	return string(name)
 }
 
-func (name userFunction) Type() string {
+func (name UserFunction) Type() string {
 	return "user function"
 }
 
-type nativeFunction string
+type NativeFunction string
 
-func (name nativeFunction) Name() string {
+func (name NativeFunction) Name() string {
 	return string(name)
 }
 
-func (name nativeFunction) Type() string {
+func (name NativeFunction) Type() string {
 	return "native function"
 }
 
 type FunctionCallNode struct {
-	Function  function
+	Function  Function
 	Arguments []Node
 }
 
@@ -163,7 +165,7 @@ func (*FunctionCallNode) node() {}
 
 func (*FunctionCallNode) SetBlock(Node) {}
 
-func NewFunctionCallNode(function function, arguments []Node) *FunctionCallNode {
+func NewFunctionCallNode(function Function, arguments []Node) *FunctionCallNode {
 	return &FunctionCallNode{
 		Function:  function,
 		Arguments: arguments,
@@ -188,8 +190,8 @@ func NewPropertyNode(name string, object Node) *PropertyNode {
 
 type Tree struct {
 	Digest       [32]byte
-	contentType  contentType
-	LibVersion   int
+	ContentType  ContentType
+	LibVersion   LibraryVersion
 	HasBlockV2   bool
 	Meta         meta.DApp
 	Declarations []Node
@@ -197,10 +199,14 @@ type Tree struct {
 	Verifier     Node
 }
 
+func NewTree(content ContentType, library LibraryVersion) *Tree {
+	return &Tree{ContentType: content, LibVersion: library}
+}
+
 func (t *Tree) HasVerifier() bool {
 	return t.Verifier != nil
 }
 
 func (t *Tree) IsDApp() bool {
-	return t.contentType == contentTypeApplication
+	return t.ContentType == ContentTypeApplication
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -578,7 +579,7 @@ func sigVerify(env environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if l := len(message); env != nil && env.libVersion() == 3 && !env.checkMessageLength(l) {
+	if l := len(message); env != nil && env.libVersion() == ast.LibV3 && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	signature, ok := args[1].(rideBytes)
@@ -820,7 +821,7 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	if l := len(message); env != nil && env.libVersion() == 3 && !env.checkMessageLength(l) {
+	if l := len(message); env != nil && env.libVersion() == ast.LibV3 && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	sig, ok := args[2].(rideBytes)

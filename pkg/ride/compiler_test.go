@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 func c(values ...rideType) []rideType {
@@ -80,7 +81,7 @@ func TestSimpleScriptsCompilation(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
 
-		tree, err := Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
@@ -141,7 +142,7 @@ func TestDAppScriptsCompilation(t *testing.T) {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
 
-		tree, err := Parse(src)
+		tree, err := serialization.Parse(src)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 

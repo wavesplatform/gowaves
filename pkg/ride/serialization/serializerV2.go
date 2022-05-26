@@ -1,18 +1,19 @@
-package ride
+package serialization
 
 import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-func serializeDAppV2(s *serializer, tree *Tree) error {
+func serializeDAppV2(s *serializer, tree *ast.Tree) error {
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {
 		return err
 	}
-	if err := s.writeByte(byte(tree.contentType)); err != nil {
+	if err := s.writeByte(byte(tree.ContentType)); err != nil {
 		return err
 	}
 	if err := s.writeMeta(s, tree.Meta); err != nil {
@@ -30,11 +31,11 @@ func serializeDAppV2(s *serializer, tree *Tree) error {
 	return nil
 }
 
-func serializeScriptV2(s *serializer, tree *Tree) error {
+func serializeScriptV2(s *serializer, tree *ast.Tree) error {
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {
 		return err
 	}
-	if err := s.writeByte(byte(tree.contentType)); err != nil {
+	if err := s.writeByte(byte(tree.ContentType)); err != nil {
 		return err
 	}
 	if err := s.walk(tree.Verifier); err != nil {

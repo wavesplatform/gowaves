@@ -5,6 +5,7 @@ package ride
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 )
@@ -40,7 +41,7 @@ var _ environment = &mockRideEnvironment{}
 // 			isProtobufTxFunc: func() bool {
 // 				panic("mock out the isProtobufTx method")
 // 			},
-// 			libVersionFunc: func() int {
+// 			libVersionFunc: func() ast.LibraryVersion {
 // 				panic("mock out the libVersion method")
 // 			},
 // 			maxDataEntriesSizeFunc: func() int {
@@ -108,7 +109,7 @@ type mockRideEnvironment struct {
 	isProtobufTxFunc func() bool
 
 	// libVersionFunc mocks the libVersion method.
-	libVersionFunc func() int
+	libVersionFunc func() ast.LibraryVersion
 
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
@@ -429,7 +430,7 @@ func (mock *mockRideEnvironment) isProtobufTxCalls() []struct {
 }
 
 // libVersion calls libVersionFunc.
-func (mock *mockRideEnvironment) libVersion() int {
+func (mock *mockRideEnvironment) libVersion() ast.LibraryVersion {
 	if mock.libVersionFunc == nil {
 		panic("mockRideEnvironment.libVersionFunc: method is nil but environment.libVersion was just called")
 	}

@@ -11,6 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -292,7 +294,7 @@ type addlInvokeInfo struct {
 	actions              []proto.ScriptAction
 	paymentSmartAssets   []crypto.Digest
 	disableSelfTransfers bool
-	libVersion           byte
+	libVersion           ast.LibraryVersion
 }
 
 func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.WavesAddress, error) {
@@ -338,7 +340,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		MaxDataEntriesSize:    maxDataEntriesSize,
 	}
 	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
-	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion), validatePayments); err != nil {
+	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, info.libVersion, validatePayments); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).
@@ -734,7 +736,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		scriptAddr     *proto.WavesAddress
 		txID           crypto.Digest
 		sender         proto.Address
-		tree           *ride.Tree
+		tree           *ast.Tree
 		scriptPK       crypto.PublicKey
 	)
 	switch transaction := tx.(type) {
@@ -766,7 +768,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 		sender = addr
 		scriptAddr = &addr
-		tree, err = ride.Parse(transaction.Expression)
+		tree, err = serialization.Parse(transaction.Expression)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
@@ -816,7 +818,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
-	if paymentsLength >= 2 && tree.LibVersion < 4 {
+	if paymentsLength >= 2 && tree.LibVersion < ast.LibV4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
@@ -835,7 +837,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
+	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
@@ -920,7 +922,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		actions:                  r.ScriptActions(),
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
-		libVersion:               byte(tree.LibVersion),
+		libVersion:               tree.LibVersion,
 	})
 	if err != nil {
 		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())

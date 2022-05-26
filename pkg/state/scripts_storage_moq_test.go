@@ -4,10 +4,11 @@
 package state
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
-	"sync"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 // Ensure, that mockScriptStorageState does implement scriptStorageState.
@@ -151,13 +152,13 @@ type mockScriptStorageState struct {
 	newestIsSmartAssetFunc func(assetID proto.AssetID, filter bool) (bool, error)
 
 	// newestScriptAstByKeyFunc mocks the newestScriptAstByKey method.
-	newestScriptAstByKeyFunc func(key []byte, filter bool) (*ride.Tree, error)
+	newestScriptAstByKeyFunc func(key []byte, filter bool) (*ast.Tree, error)
 
 	// newestScriptByAddrFunc mocks the newestScriptByAddr method.
-	newestScriptByAddrFunc func(addr proto.WavesAddress, filter bool) (*ride.Tree, error)
+	newestScriptByAddrFunc func(addr proto.WavesAddress, filter bool) (*ast.Tree, error)
 
 	// newestScriptByAssetFunc mocks the newestScriptByAsset method.
-	newestScriptByAssetFunc func(assetID proto.AssetID, filter bool) (*ride.Tree, error)
+	newestScriptByAssetFunc func(assetID proto.AssetID, filter bool) (*ast.Tree, error)
 
 	// newestScriptBytesByAssetFunc mocks the newestScriptBytesByAsset method.
 	newestScriptBytesByAssetFunc func(assetID proto.AssetID, filter bool) (proto.Script, error)
@@ -175,13 +176,13 @@ type mockScriptStorageState struct {
 	resetFunc func()
 
 	// scriptAstFromRecordBytesFunc mocks the scriptAstFromRecordBytes method.
-	scriptAstFromRecordBytesFunc func(script proto.Script) (*ride.Tree, error)
+	scriptAstFromRecordBytesFunc func(script proto.Script) (*ast.Tree, error)
 
 	// scriptByAddrFunc mocks the scriptByAddr method.
-	scriptByAddrFunc func(addr proto.WavesAddress, filter bool) (*ride.Tree, error)
+	scriptByAddrFunc func(addr proto.WavesAddress, filter bool) (*ast.Tree, error)
 
 	// scriptByAssetFunc mocks the scriptByAsset method.
-	scriptByAssetFunc func(assetID proto.AssetID, filter bool) (*ride.Tree, error)
+	scriptByAssetFunc func(assetID proto.AssetID, filter bool) (*ast.Tree, error)
 
 	// scriptBytesByAddrFunc mocks the scriptBytesByAddr method.
 	scriptBytesByAddrFunc func(addr proto.WavesAddress, filter bool) (proto.Script, error)
@@ -193,7 +194,7 @@ type mockScriptStorageState struct {
 	scriptBytesByKeyFunc func(key []byte, filter bool) (proto.Script, error)
 
 	// scriptTreeByKeyFunc mocks the scriptTreeByKey method.
-	scriptTreeByKeyFunc func(key []byte, filter bool) (*ride.Tree, error)
+	scriptTreeByKeyFunc func(key []byte, filter bool) (*ast.Tree, error)
 
 	// setAccountScriptFunc mocks the setAccountScript method.
 	setAccountScriptFunc func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
@@ -784,7 +785,7 @@ func (mock *mockScriptStorageState) newestIsSmartAssetCalls() []struct {
 }
 
 // newestScriptAstByKey calls newestScriptAstByKeyFunc.
-func (mock *mockScriptStorageState) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptAstByKey(key []byte, filter bool) (*ast.Tree, error) {
 	if mock.newestScriptAstByKeyFunc == nil {
 		panic("mockScriptStorageState.newestScriptAstByKeyFunc: method is nil but scriptStorageState.newestScriptAstByKey was just called")
 	}
@@ -819,7 +820,7 @@ func (mock *mockScriptStorageState) newestScriptAstByKeyCalls() []struct {
 }
 
 // newestScriptByAddr calls newestScriptByAddrFunc.
-func (mock *mockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 	if mock.newestScriptByAddrFunc == nil {
 		panic("mockScriptStorageState.newestScriptByAddrFunc: method is nil but scriptStorageState.newestScriptByAddr was just called")
 	}
@@ -854,7 +855,7 @@ func (mock *mockScriptStorageState) newestScriptByAddrCalls() []struct {
 }
 
 // newestScriptByAsset calls newestScriptByAssetFunc.
-func (mock *mockScriptStorageState) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
 	if mock.newestScriptByAssetFunc == nil {
 		panic("mockScriptStorageState.newestScriptByAssetFunc: method is nil but scriptStorageState.newestScriptByAsset was just called")
 	}
@@ -1046,7 +1047,7 @@ func (mock *mockScriptStorageState) resetCalls() []struct {
 }
 
 // scriptAstFromRecordBytes calls scriptAstFromRecordBytesFunc.
-func (mock *mockScriptStorageState) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptAstFromRecordBytes(script proto.Script) (*ast.Tree, error) {
 	if mock.scriptAstFromRecordBytesFunc == nil {
 		panic("mockScriptStorageState.scriptAstFromRecordBytesFunc: method is nil but scriptStorageState.scriptAstFromRecordBytes was just called")
 	}
@@ -1077,7 +1078,7 @@ func (mock *mockScriptStorageState) scriptAstFromRecordBytesCalls() []struct {
 }
 
 // scriptByAddr calls scriptByAddrFunc.
-func (mock *mockScriptStorageState) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptByAddr(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 	if mock.scriptByAddrFunc == nil {
 		panic("mockScriptStorageState.scriptByAddrFunc: method is nil but scriptStorageState.scriptByAddr was just called")
 	}
@@ -1112,7 +1113,7 @@ func (mock *mockScriptStorageState) scriptByAddrCalls() []struct {
 }
 
 // scriptByAsset calls scriptByAssetFunc.
-func (mock *mockScriptStorageState) scriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptByAsset(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
 	if mock.scriptByAssetFunc == nil {
 		panic("mockScriptStorageState.scriptByAssetFunc: method is nil but scriptStorageState.scriptByAsset was just called")
 	}
@@ -1252,7 +1253,7 @@ func (mock *mockScriptStorageState) scriptBytesByKeyCalls() []struct {
 }
 
 // scriptTreeByKey calls scriptTreeByKeyFunc.
-func (mock *mockScriptStorageState) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptTreeByKey(key []byte, filter bool) (*ast.Tree, error) {
 	if mock.scriptTreeByKeyFunc == nil {
 		panic("mockScriptStorageState.scriptTreeByKeyFunc: method is nil but scriptStorageState.scriptTreeByKey was just called")
 	}
