@@ -644,8 +644,13 @@ func ValidateActions(
 				}
 			}
 		case *AttachedPaymentScriptAction:
-			if validatePayments && ta.Amount < 0 {
-				return errors.New("negative transfer amount")
+			if validatePayments {
+				switch {
+				case ta.Amount < 0:
+					return errors.New("negative transfer amount")
+				case ta.Amount == 0 && isRideV6Activated:
+					return errors.New("zero payments are forbidden since activation of RIDE V6")
+				}
 			}
 			if restrictions.DisableSelfTransfers {
 				senderAddress := restrictions.ScriptAddress

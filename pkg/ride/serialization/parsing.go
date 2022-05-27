@@ -35,7 +35,7 @@ const (
 	declarationTypeFunction
 )
 
-func ParseHeader(script []byte) error {
+func CheckHeader(script []byte) error {
 	ok, err := verifyCheckSum(script)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse script header")

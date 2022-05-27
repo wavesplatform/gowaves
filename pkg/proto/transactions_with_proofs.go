@@ -196,7 +196,7 @@ func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 		return tx, err
 	}
 	if tx.NonEmptyScript() {
-		if err := serialization.ParseHeader(tx.Script); err != nil {
+		if err := serialization.CheckHeader(tx.Script); err != nil {
 			return tx, err
 		}
 	}
