@@ -37,7 +37,6 @@ type noopWrapper struct {
 
 var (
 	syncSkipMessageList = proto.PeerMessageIDs{
-		proto.ContentIDGetBlock,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
 		proto.ContentIDCheckpoint,
@@ -45,7 +44,6 @@ var (
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
 	}
 )
 

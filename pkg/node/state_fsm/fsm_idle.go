@@ -21,9 +21,7 @@ type InvRequester interface {
 
 var (
 	idleSkipMessageList = proto.PeerMessageIDs{
-		proto.ContentIDGetSignatures,
 		proto.ContentIDSignatures,
-		proto.ContentIDGetBlock,
 		proto.ContentIDBlock,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
@@ -33,7 +31,6 @@ var (
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
 		proto.ContentIDBlockIds,
 	}
 )
