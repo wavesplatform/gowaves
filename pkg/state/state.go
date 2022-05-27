@@ -1152,7 +1152,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		// Only needed for MainNet.
 		return s.settings.Type == settings.MainNet, nil
 	case rideV5Height:
-		// Cancellation of leasings to stolen aliases only required for MainNet
+		// Cancellation of leases to stolen aliases only required for MainNet
 		return s.settings.Type == settings.MainNet, nil
 	default:
 		return false, nil
@@ -1386,7 +1386,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err := s.stor.handleStateHashes(height, ids, initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
-	// Validate consensus (i.e. that all of the new blocks were mined fairly).
+	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
@@ -1730,7 +1730,7 @@ func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	entryExist, err := s.stor.accountsDataStor.entryExists(addr, s.filter)
+	entryExist, err := s.stor.accountsDataStor.newestEntryExists(addr)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}

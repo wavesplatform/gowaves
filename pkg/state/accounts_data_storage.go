@@ -164,7 +164,7 @@ func (s *accountsDataStorage) commitUncertain(blockID proto.BlockID) error {
 }
 
 func (s *accountsDataStorage) appendEntryUncertain(addr proto.Address, entry proto.DataEntry) {
-	id := entryId{addr.ID(), entry.GetKey()} // todo
+	id := entryId{addr.ID(), entry.GetKey()}
 	s.uncertainEntries[id] = uncertainAccountsDataStorageEntry{addr, entry}
 }
 
@@ -274,8 +274,8 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	return entries, nil
 }
 
-func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool, error) {
-	addrNum, err := s.addrToNum(addr)
+func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error) {
+	_, err := s.newestAddrToNum(addr)
 	if err != nil {
 		// If there is no number for the address, no data for this address was saved before
 		if errors.Is(err, keyvalue.ErrNotFound) {
@@ -283,22 +283,7 @@ func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool
 		}
 		return false, err // Other bloom filter errors is possible
 	}
-	key := accountsDataStorKey{addrNum: addrNum}
-	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
-	if err != nil {
-		return false, err
-	}
-	defer func() {
-		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-
-	for iter.Next() {
-		return true, nil
-	}
-	return false, nil
+	return true, nil
 }
 
 func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {
