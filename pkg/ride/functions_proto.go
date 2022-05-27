@@ -184,9 +184,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 	env.setNewDAppAddress(*address)
 
-	localActionsCountValidators := proto.NewScriptActionsCountValidator()
+	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
-	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidators)
+	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
@@ -215,7 +215,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
-	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidators)
+	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
