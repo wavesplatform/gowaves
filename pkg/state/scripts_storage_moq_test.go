@@ -4,11 +4,10 @@
 package state
 
 import (
-	"sync"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"sync"
 )
 
 // Ensure, that mockScriptStorageState does implement scriptStorageState.
@@ -54,14 +53,17 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
 // 				panic("mock out the newestIsSmartAsset method")
 // 			},
-// 			newestScriptAstByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
+// 			newestScriptAstByKeyFunc: func(key []byte, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the newestScriptAstByKey method")
 // 			},
-// 			newestScriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+// 			newestScriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the newestScriptByAddr method")
 // 			},
-// 			newestScriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+// 			newestScriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the newestScriptByAsset method")
+// 			},
+// 			newestScriptBytesByAddrFunc: func(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+// 				panic("mock out the newestScriptBytesByAddr method")
 // 			},
 // 			newestScriptBytesByAssetFunc: func(assetID proto.AssetID, filter bool) (proto.Script, error) {
 // 				panic("mock out the newestScriptBytesByAsset method")
@@ -78,13 +80,13 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			resetFunc: func()  {
 // 				panic("mock out the reset method")
 // 			},
-// 			scriptAstFromRecordBytesFunc: func(script proto.Script) (*ride.Tree, error) {
+// 			scriptAstFromRecordBytesFunc: func(script proto.Script) (*ast.Tree, error) {
 // 				panic("mock out the scriptAstFromRecordBytes method")
 // 			},
-// 			scriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+// 			scriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the scriptByAddr method")
 // 			},
-// 			scriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+// 			scriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the scriptByAsset method")
 // 			},
 // 			scriptBytesByAddrFunc: func(addr proto.WavesAddress, filter bool) (proto.Script, error) {
@@ -96,7 +98,7 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			scriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
 // 				panic("mock out the scriptBytesByKey method")
 // 			},
-// 			scriptTreeByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
+// 			scriptTreeByKeyFunc: func(key []byte, filter bool) (*ast.Tree, error) {
 // 				panic("mock out the scriptTreeByKey method")
 // 			},
 // 			setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
@@ -159,6 +161,9 @@ type mockScriptStorageState struct {
 
 	// newestScriptByAssetFunc mocks the newestScriptByAsset method.
 	newestScriptByAssetFunc func(assetID proto.AssetID, filter bool) (*ast.Tree, error)
+
+	// newestScriptBytesByAddrFunc mocks the newestScriptBytesByAddr method.
+	newestScriptBytesByAddrFunc func(addr proto.WavesAddress, filter bool) (proto.Script, error)
 
 	// newestScriptBytesByAssetFunc mocks the newestScriptBytesByAsset method.
 	newestScriptBytesByAssetFunc func(assetID proto.AssetID, filter bool) (proto.Script, error)
@@ -287,6 +292,13 @@ type mockScriptStorageState struct {
 		newestScriptByAsset []struct {
 			// AssetID is the assetID argument value.
 			AssetID proto.AssetID
+			// Filter is the filter argument value.
+			Filter bool
+		}
+		// newestScriptBytesByAddr holds details about calls to the newestScriptBytesByAddr method.
+		newestScriptBytesByAddr []struct {
+			// Addr is the addr argument value.
+			Addr proto.WavesAddress
 			// Filter is the filter argument value.
 			Filter bool
 		}
@@ -421,6 +433,7 @@ type mockScriptStorageState struct {
 	locknewestScriptAstByKey     sync.RWMutex
 	locknewestScriptByAddr       sync.RWMutex
 	locknewestScriptByAsset      sync.RWMutex
+	locknewestScriptBytesByAddr  sync.RWMutex
 	locknewestScriptBytesByAsset sync.RWMutex
 	locknewestScriptBytesByKey   sync.RWMutex
 	locknewestScriptPKByAddr     sync.RWMutex
@@ -886,6 +899,41 @@ func (mock *mockScriptStorageState) newestScriptByAssetCalls() []struct {
 	mock.locknewestScriptByAsset.RLock()
 	calls = mock.calls.newestScriptByAsset
 	mock.locknewestScriptByAsset.RUnlock()
+	return calls
+}
+
+// newestScriptBytesByAddr calls newestScriptBytesByAddrFunc.
+func (mock *mockScriptStorageState) newestScriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+	if mock.newestScriptBytesByAddrFunc == nil {
+		panic("mockScriptStorageState.newestScriptBytesByAddrFunc: method is nil but scriptStorageState.newestScriptBytesByAddr was just called")
+	}
+	callInfo := struct {
+		Addr   proto.WavesAddress
+		Filter bool
+	}{
+		Addr:   addr,
+		Filter: filter,
+	}
+	mock.locknewestScriptBytesByAddr.Lock()
+	mock.calls.newestScriptBytesByAddr = append(mock.calls.newestScriptBytesByAddr, callInfo)
+	mock.locknewestScriptBytesByAddr.Unlock()
+	return mock.newestScriptBytesByAddrFunc(addr, filter)
+}
+
+// newestScriptBytesByAddrCalls gets all the calls that were made to newestScriptBytesByAddr.
+// Check the length with:
+//     len(mockedscriptStorageState.newestScriptBytesByAddrCalls())
+func (mock *mockScriptStorageState) newestScriptBytesByAddrCalls() []struct {
+	Addr   proto.WavesAddress
+	Filter bool
+} {
+	var calls []struct {
+		Addr   proto.WavesAddress
+		Filter bool
+	}
+	mock.locknewestScriptBytesByAddr.RLock()
+	calls = mock.calls.newestScriptBytesByAddr
+	mock.locknewestScriptBytesByAddr.RUnlock()
 	return calls
 }
 
