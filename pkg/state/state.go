@@ -487,8 +487,7 @@ func (s *stateManager) NewestScriptBytesByAccount(account proto.Recipient) (prot
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
-	key := accountScriptKey{addr.ID()}
-	script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
+	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(*addr, s.filter)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
