@@ -1,8 +1,11 @@
 package proto
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/mr-tron/base58"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,4 +78,46 @@ func TestEthereumTransaction_DecodeCanonical_EncodeCanonical(t *testing.T) {
 	require.NoError(t, err)
 	encodedHexTxData := EncodeToHexString(encodedTxData)
 	require.Equal(t, hexTxData, encodedHexTxData)
+}
+
+func TestEthereumTransactionFromScalaJSON(t *testing.T) {
+	const js = `{
+        "type": 18,
+        "id": "2Mk4jcXFuN1mDzMeXdLGCMnfL3hhVKXLhYCdzt5MthKk",
+        "fee": 100000,
+        "feeAssetId": null,
+        "timestamp": 1653299401495,
+        "version": 1,
+        "chainId": 84,
+        "bytes": "0xf8b1860180f052d3178502540be400830186a094f776eaf7f783ca65db6e13ee023bcf582995a9c180b844a9059cbb000000000000000000000000779fab3c8bf30f1cea7ac195596232372638344d0000000000000000000000000000000000000000000000000000000000004e2081cca054e074c4d97a283f4b4d41c97fc48d5dcb65ae18ab07501c5e842560f39aaeffa05a65c374be6138195d768a077ea7c15d3831e71af2058071e924a199009e72ac",
+        "sender": "3N81NwRm3r9h7tWFq2QufbCQCc9ajieC33s",
+        "senderPublicKey": "49KhYiWgG2MRRqYBVKY1ZNhwMoCS52BeuHhdcCVnGvuA4fMHYMKL3pUZ3JRe51trPSBPmyiFVzAwtyXCvcPK3Xj7",
+        "applicationStatus": "succeeded"
+      }`
+	tx := &EthereumTransaction{}
+	err := json.Unmarshal([]byte(js), tx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, int(tx.GetVersion()))
+	expID, err := base58.Decode("2Mk4jcXFuN1mDzMeXdLGCMnfL3hhVKXLhYCdzt5MthKk")
+	require.NoError(t, err)
+	id, err := tx.GetID(TestNetScheme)
+	require.NoError(t, err)
+	assert.Equal(t, expID, id)
+	assert.Equal(t, 100000, int(tx.GetFee()))
+	assert.Equal(t, 1653299401495, int(tx.GetTimestamp()))
+	assert.Equal(t, 1, int(tx.GetVersion()))
+	expSender, err := base58.Decode("3N81NwRm3r9h7tWFq2QufbCQCc9ajieC33s")
+	require.NoError(t, err)
+	ethSender, err := tx.GetSender(TestNetScheme)
+	require.NoError(t, err)
+	sender, err := ethSender.ToWavesAddress(TestNetScheme)
+	require.NoError(t, err)
+	assert.Equal(t, expSender, sender.Bytes())
+	expSenderPK, err := base58.Decode("49KhYiWgG2MRRqYBVKY1ZNhwMoCS52BeuHhdcCVnGvuA4fMHYMKL3pUZ3JRe51trPSBPmyiFVzAwtyXCvcPK3Xj7")
+	require.NoError(t, err)
+	senderPK, err := tx.Verify()
+	require.NoError(t, err)
+	pk, err := senderPK.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, expSenderPK, pk)
 }
