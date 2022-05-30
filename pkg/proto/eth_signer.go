@@ -62,7 +62,7 @@ func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 	return NewEthereumPublicKeyFromBytes(b)
 }
 
-// NewEthereumAddressFromBase58String creates an EthereumPublicKey from its string representation.
+// NewEthereumPublicKeyFromBase58String creates an EthereumPublicKey from its string representation.
 func NewEthereumPublicKeyFromBase58String(s string) (EthereumPublicKey, error) {
 	b, err := base58.Decode(s)
 	if err != nil {
