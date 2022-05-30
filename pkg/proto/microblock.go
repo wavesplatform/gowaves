@@ -285,7 +285,7 @@ func (a *MicroBlockInvMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 
 func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
 	var h Header
-	h.Length = MaxHeaderLength + uint32(len(a.Body)) - 4
+	h.Length = maxHeaderLength + uint32(len(a.Body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDInvMicroblock
 	h.PayloadLength = uint32(len(a.Body))
@@ -328,7 +328,7 @@ func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 	var h Header
-	h.Length = MaxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
+	h.Length = maxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
 	h.PayloadLength = uint32(len(a.TotalBlockSig))

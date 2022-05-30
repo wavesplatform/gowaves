@@ -194,6 +194,7 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	parent := peer.NewParent()
+
 	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {
@@ -252,6 +253,7 @@ func main() {
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: InternalCh,
 		Time:            ntpTime,
+		SkipMessageList: parent.SkipMessageList,
 	}
 	Miner := miner.NewMicroblockMiner(nodeServices, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
