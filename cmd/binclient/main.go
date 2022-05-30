@@ -99,7 +99,7 @@ func main() {
 	zap.S().Infof("readed handshake %+v", readH)
 
 	go func() {
-		expectedContentID := byte(0x15)
+		const expectedContentID = byte(proto.ContentIDSignatures)
 
 		for {
 			bts, err := readPacket(conn)
