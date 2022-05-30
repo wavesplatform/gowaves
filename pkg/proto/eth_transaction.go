@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
@@ -25,6 +26,7 @@ const (
 	EthereumLegacyTxType EthereumTxType = iota
 	EthereumAccessListTxType
 	EthereumDynamicFeeTxType
+	UndefinedTxType
 )
 
 const (
@@ -171,8 +173,8 @@ func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
 }
 
 func (tx *EthereumTransaction) GetVersion() byte {
-	// EthereumTransaction version always should be zero
-	return 0
+	// EthereumTransaction version always should be 1
+	return 1
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
@@ -369,6 +371,9 @@ func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction,
 
 // EthereumTxType returns the transaction type.
 func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
+	if tx.inner == nil {
+		return UndefinedTxType
+	}
 	return tx.inner.ethereumTxType()
 }
 
@@ -376,38 +381,89 @@ func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
 func (tx *EthereumTransaction) ChainId() *big.Int {
+	if tx.inner == nil {
+		return big.NewInt(0)
+	}
 	return tx.inner.chainID()
 }
 
 // Data returns the input data of the transaction.
-func (tx *EthereumTransaction) Data() []byte { return tx.inner.data() }
+func (tx *EthereumTransaction) Data() []byte {
+	if tx.inner == nil {
+		return nil
+	}
+	return tx.inner.data()
+}
 
 // AccessList returns the access list of the transaction.
-func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.inner.accessList() }
+func (tx *EthereumTransaction) AccessList() EthereumAccessList {
+	if tx.inner == nil {
+		return nil
+	}
+	return tx.inner.accessList()
+}
 
 // Gas returns the gas limit of the transaction.
-func (tx *EthereumTransaction) Gas() uint64 { return tx.inner.gas() }
+func (tx *EthereumTransaction) Gas() uint64 {
+	if tx.inner == nil {
+		return 0
+	}
+	return tx.inner.gas()
+}
 
 // GasPrice returns the gas price of the transaction.
-func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.inner.gasPrice()) }
+func (tx *EthereumTransaction) GasPrice() *big.Int {
+	if tx.inner == nil {
+		return big.NewInt(0)
+	}
+	return copyBigInt(tx.inner.gasPrice())
+}
 
 // GasTipCap returns the gasTipCap per gas of the transaction.
-func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.inner.gasTipCap()) }
+func (tx *EthereumTransaction) GasTipCap() *big.Int {
+	if tx.inner == nil {
+		return big.NewInt(0)
+	}
+	return copyBigInt(tx.inner.gasTipCap())
+}
 
 // GasFeeCap returns the fee cap per gas of the transaction.
-func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.inner.gasFeeCap()) }
+func (tx *EthereumTransaction) GasFeeCap() *big.Int {
+	if tx.inner == nil {
+		return big.NewInt(0)
+	}
+	return copyBigInt(tx.inner.gasFeeCap())
+}
 
 // Value returns the ether amount of the transaction.
-func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.inner.value()) }
+func (tx *EthereumTransaction) Value() *big.Int {
+	if tx.inner == nil {
+		return big.NewInt(0)
+	}
+	return copyBigInt(tx.inner.value())
+}
 
 // Nonce returns the sender account nonce of the transaction.
-func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
+func (tx *EthereumTransaction) Nonce() uint64 {
+	if tx.inner == nil {
+		return 0
+	}
+	return tx.inner.nonce()
+}
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
-func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
+func (tx *EthereumTransaction) To() *EthereumAddress {
+	if tx.inner == nil {
+		return nil
+	}
+	return tx.inner.to().copy()
+}
 
 func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (*WavesAddress, error) {
+	if tx.inner == nil {
+		return nil, errors.New("empty Ethereum transaction")
+	}
 	toEthAdr := tx.inner.to()
 	if toEthAdr == nil { // contract-creation transactions, To returns nil
 		return nil, errors.New("recipient address is nil, but it has been called")
@@ -455,6 +511,10 @@ func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, erro
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
+	if tx.inner == nil {
+		zero := big.NewInt(0)
+		return zero, zero, zero
+	}
 	return tx.inner.rawSignatureValues()
 }
 
@@ -539,6 +599,9 @@ func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (Ether
 
 // encodeTypedCanonical returns the canonical encoding of a typed transaction.
 func (tx *EthereumTransaction) encodeTypedCanonical(arena *fastrlp.Arena) []byte {
+	if tx.inner == nil {
+		return nil
+	}
 	typedTxVal := tx.inner.marshalToFastRLP(arena)
 	canonicalMarshaled := make([]byte, 0, 1+typedTxVal.Len())
 	canonicalMarshaled = append(canonicalMarshaled, byte(tx.EthereumTxType()))
@@ -563,4 +626,14 @@ func (tx *EthereumTransaction) Protected() bool {
 	default:
 		return true
 	}
+}
+
+func (tx *EthereumTransaction) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Bytes HexBytes `json:"bytes"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	return tx.DecodeCanonical(tmp.Bytes)
 }
