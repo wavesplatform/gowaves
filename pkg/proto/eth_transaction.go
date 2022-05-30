@@ -630,10 +630,10 @@ func (tx *EthereumTransaction) Protected() bool {
 
 func (tx *EthereumTransaction) UnmarshalJSON(data []byte) error {
 	tmp := struct {
-		Data HexBytes `json:"bytes"`
+		Bytes HexBytes `json:"bytes"`
 	}{}
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
-	return tx.DecodeCanonical(tmp.Data)
+	return tx.DecodeCanonical(tmp.Bytes)
 }
