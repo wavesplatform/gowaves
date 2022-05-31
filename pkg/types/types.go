@@ -6,6 +6,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type Scheduler interface {
@@ -42,12 +43,12 @@ type SmartState interface {
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
-	GetByteTree(recipient proto.Recipient) (proto.Script, error)
+	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
+	NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error)
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)
-	// NewestAssetBalance retrieves balance of address in specific currency, asset is asset's ID.
 	NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error)
 	NewestWavesBalance(account proto.Recipient) (uint64, error)
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
@@ -58,7 +59,7 @@ type SmartState interface {
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error)
+	NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 

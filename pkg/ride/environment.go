@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -79,8 +78,12 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
 
-func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	return ws.diff.state.GetByteTree(recipient)
+func (ws *WrappedState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	return ws.diff.state.NewestScriptByAccount(account)
+}
+
+func (ws *WrappedState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	return ws.diff.state.NewestScriptBytesByAccount(account)
 }
 
 func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
@@ -415,7 +418,7 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
-func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
+func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
@@ -483,16 +486,10 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	}
 
-	script, err := ws.NewestScriptByAsset(asset.ID)
+	tree, err := ws.NewestScriptByAsset(asset.ID)
 	if err != nil {
 		return false, err
 	}
-
-	tree, err := serialization.Parse(script)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get tree by script")
-	}
-
 	localEnv.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -745,13 +742,9 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 }
 
 func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
-	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.callee()))
+	tree, err := ws.NewestScriptByAccount(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get script by recipient")
-	}
-	tree, err := serialization.Parse(script)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to get tree by script")
 	}
 	return tree.LibVersion, nil
 }

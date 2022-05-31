@@ -284,14 +284,13 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "hashScriptAtAddress")
 	}
-	script, err := env.state().GetByteTree(recipient)
+	script, err := env.state().NewestScriptBytesByAccount(recipient)
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return rideUnit{}, nil
 		}
 		return nil, errors.Errorf("hashScriptAtAddress: failed to get script by recipient, %v", err)
 	}
-
 	if len(script) != 0 {
 		hash, err := crypto.FastHash(script)
 		if err != nil {
@@ -299,7 +298,6 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 		}
 		return rideBytes(hash.Bytes()), nil
 	}
-
 	return rideUnit{}, nil
 }
 
