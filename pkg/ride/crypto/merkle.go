@@ -21,7 +21,7 @@ func MerkleRootHash(leaf, proof []byte) ([]byte, error) {
 
 	hash := h.Sum(nil)
 
-	for pos := 0; len(proof[pos:]) > 2; {
+	for pos := 0; len(proof[pos:]) >= 2; {
 		side := proof[pos]
 		pos++
 		l := int(proof[pos])
