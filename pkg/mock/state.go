@@ -8,6 +8,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
+	ast "github.com/wavesplatform/gowaves/pkg/ride/ast"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
 	state "github.com/wavesplatform/gowaves/pkg/state"
 	big "math/big"
@@ -775,19 +776,34 @@ func (mr *MockStateInfoMockRecorder) ScriptInfoByAsset(assetID interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockStateInfo)(nil).ScriptInfoByAsset), assetID)
 }
 
-// GetByteTree mocks base method
-func (m *MockStateInfo) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+// NewestScriptByAccount mocks base method
+func (m *MockStateInfo) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
+	ret0, _ := ret[0].(*ast.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptByAccount indicates an expected call of NewestScriptByAccount
+func (mr *MockStateInfoMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptByAccount), account)
+}
+
+// NewestScriptBytesByAccount mocks base method
+func (m *MockStateInfo) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
 	ret0, _ := ret[0].(proto.Script)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByteTree indicates an expected call of GetByteTree
-func (mr *MockStateInfoMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount
+func (mr *MockStateInfoMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockStateInfo)(nil).GetByteTree), recipient)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptBytesByAccount), account)
 }
 
 // IsActiveLeasing mocks base method
@@ -1835,19 +1851,34 @@ func (mr *MockStateMockRecorder) ScriptInfoByAsset(assetID interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockState)(nil).ScriptInfoByAsset), assetID)
 }
 
-// GetByteTree mocks base method
-func (m *MockState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+// NewestScriptByAccount mocks base method
+func (m *MockState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
+	ret0, _ := ret[0].(*ast.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptByAccount indicates an expected call of NewestScriptByAccount
+func (mr *MockStateMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptByAccount), account)
+}
+
+// NewestScriptBytesByAccount mocks base method
+func (m *MockState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
 	ret0, _ := ret[0].(proto.Script)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByteTree indicates an expected call of GetByteTree
-func (mr *MockStateMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount
+func (mr *MockStateMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockState)(nil).GetByteTree), recipient)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptBytesByAccount), account)
 }
 
 // IsActiveLeasing mocks base method

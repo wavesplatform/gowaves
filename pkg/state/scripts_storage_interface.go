@@ -8,12 +8,6 @@ import (
 
 //go:generate moq -out scripts_storage_moq_test.go . scriptStorageState:mockScriptStorageState
 type scriptStorageState interface {
-	setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error
-	scriptBytesByKey(key []byte, filter bool) (proto.Script, error)
-	newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error)
-	scriptAstFromRecordBytes(script proto.Script) (*ast.Tree, error)
-	newestScriptAstByKey(key []byte, filter bool) (*ast.Tree, error)
-	scriptTreeByKey(key []byte, filter bool) (*ast.Tree, error)
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()
 	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
@@ -24,6 +18,7 @@ type scriptStorageState interface {
 	scriptByAsset(assetID proto.AssetID, filter bool) (*ast.Tree, error)
 	scriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error)
 	newestScriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error)
+	newestScriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error)
 	setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 	newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error)
 	accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error)

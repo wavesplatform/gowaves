@@ -320,6 +320,11 @@ func (ss *scriptsStorage) newestScriptBytesByAsset(assetID proto.AssetID, filter
 	return ss.newestScriptBytesByKey(key.bytes(), filter)
 }
 
+func (ss *scriptsStorage) newestScriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+	key := accountScriptKey{addr.ID()}
+	return ss.newestScriptBytesByKey(key.bytes(), filter)
+}
+
 func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	key := accountScriptKey{addr.ID()}
 	if ss.calculateHashes {
