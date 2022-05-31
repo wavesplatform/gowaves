@@ -127,12 +127,11 @@ build-node-windows:
 
 release-node: ver build-node-linux build-node-linux-arm build-node-linux-i386 build-node-darwin build-node-windows
 
-build-node-linux-with-race:
-	@GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc go build -race -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
-build-node-darwin-with-race:
-	@GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 CC=gcc go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+build-node-linux-with-race: clean ver
+	@GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -race -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
-release-node-with-race: ver build-node-linux-with-race build-node-darwin-with-race
+build-node-darwin-with-race: clean ver
+	@GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
 dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package build-node-stagenet-deb-package
 	@mkdir -p build/dist
