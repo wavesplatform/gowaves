@@ -836,6 +836,8 @@ func TestCheckMerkleProof(t *testing.T) {
 		{"", "ACBx7RO4K2tuSrrQ+OG3jn8uAT2qKUlxAR1bEz/ucQEsWgAgLFOaa1LHOwhqzFou9Tece3AUeC0izlUraXyfAxnyLGMBIG/cdbO2OvahmTl/38TlRqUKZEhygqlov1KuxYPDLnPhACBUIRPanY7B4wSCGIQr8rifqw1PYIUwJB9Xj/ZFWpSRzwAgTzGXR+KVcknm5jJzJxZocqdtF14Hd8nJliISmI8lrLsAIDwdXWHBoJDzVc31XmVUOPJjgf4oezXhydg8W5nPU5NgACCVh+rJdfzMBUxlzl5N+EJ07X6/REWE8jmB4v319R0L9Q==", "AAAkig==", false},
 		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAA=", "b25l", true},
 		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAAA", "b25l", false},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAE=", "b25l", false},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "", "b25l", false},
 		{"d9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVw=", "ACCTBUdXB60nbh3qIIdmjvj2HMyhJ5RBlNuSzRxDjsXfPQ==", "b25l", true},
 		{"d9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVw=", "ASAG92VR0XqYKEIc/+gu9XPZder2cGNMiK/Hx6RTHK/glw==", "dHdv", true},
 		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ACCTBUdXB60nbh3qIIdmjvj2HMyhJ5RBlNuSzRxDjsXfPQAgqV3r5um7EyOBsrm5cNxe166J2UTv0ecd4YAjwYvhw9gAIBkZnGsnn99LWW5ibWKO9dbcDa95qlCwdMUAZnQ0zsSHACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "b25l", true},
