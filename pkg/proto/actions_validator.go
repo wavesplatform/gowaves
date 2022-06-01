@@ -160,22 +160,19 @@ func ValidateIssueScriptAction(action *IssueScriptAction) error {
 	return nil
 }
 
-func ValidateDataEntryScriptAction(action *DataEntryScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, dataEntriesSize *int) error {
-	if dataEntriesSize == nil {
-		return errors.Errorf("ValidateDataEntryScriptAction: pointer to dataEntriesSize is nil")
-	}
+func ValidateDataEntryScriptAction(action *DataEntryScriptAction, restrictions ActionsValidationRestrictions, isRideV6Activated bool, dataEntriesSize int) (int, error) {
 	if err := action.Entry.Valid(restrictions.IsProtobufTransaction, restrictions.IsUTF16KeyLen); err != nil {
-		return err
+		return 0, err
 	}
 	if isRideV6Activated {
-		*dataEntriesSize += action.Entry.PayloadSize()
+		dataEntriesSize += action.Entry.PayloadSize()
 	} else {
-		*dataEntriesSize += action.Entry.BinarySize()
+		dataEntriesSize += action.Entry.BinarySize()
 	}
-	if *dataEntriesSize > restrictions.MaxDataEntriesSize {
-		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
+	if dataEntriesSize > restrictions.MaxDataEntriesSize {
+		return 0, errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 	}
-	return nil
+	return dataEntriesSize, nil
 }
 
 func ValidateTransferScriptAction(action *TransferScriptAction, restrictions ActionsValidationRestrictions) error {
@@ -254,45 +251,39 @@ func ValidateActions(
 		}
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
-			if err := ValidateDataEntryScriptAction(ta, restrictions, isRideV6Activated, &dataEntriesSize); err != nil {
+			newSize, err := ValidateDataEntryScriptAction(ta, restrictions, isRideV6Activated, dataEntriesSize)
+			if err != nil {
 				return err
 			}
-
+			dataEntriesSize = newSize
 		case *TransferScriptAction:
 			if err := ValidateTransferScriptAction(ta, restrictions); err != nil {
 				return err
 			}
-
 		case *AttachedPaymentScriptAction:
 			if err := ValidateAttachedPaymentScriptAction(ta, restrictions, validatePayments, isRideV6Activated); err != nil {
 				return err
 			}
-
 		case *IssueScriptAction:
 			if err := ValidateIssueScriptAction(ta); err != nil {
 				return err
 			}
-
 		case *ReissueScriptAction:
 			if err := ValidateReissueScriptAction(ta); err != nil {
 				return err
 			}
-
 		case *BurnScriptAction:
 			if err := ValidateBurnScriptAction(ta); err != nil {
 				return err
 			}
-
 		case *SponsorshipScriptAction:
 			if err := ValidateSponsorshipScriptAction(ta); err != nil {
 				return err
 			}
-
 		case *LeaseScriptAction:
 			if err := ValidateLeaseScriptAction(ta, restrictions); err != nil {
 				return err
 			}
-
 		case *LeaseCancelScriptAction:
 			// no-op
 		default:
