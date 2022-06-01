@@ -869,7 +869,7 @@ func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 	}
 	r, err := c2.MerkleRootHash(leaf, proof)
 	if err != nil {
-		return nil, errors.Wrap(err, "checkMerkleProof")
+		return rideBoolean(false), nil
 	}
 	return rideBoolean(bytes.Equal(root, r)), nil
 }
