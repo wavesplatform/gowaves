@@ -834,6 +834,22 @@ func TestCheckMerkleProof(t *testing.T) {
 		{"eh9fm3HeHZ3XA/UfMpC9HSwLVMyBLgkAJL0MIVBIoYk=", "ACBlQ+wlERW7AiK0dPotu7wLCCaMcH+X2D9XEU+D8TSNbwEgld8vUreEqWpiFo0nMwUsiP6LPhi8XWpV6Gge/3edo5MBIFCGuyg86lVn9ga7hNacZPBNd6T5gtMk+5OWpO8HthAmASDPIhoSPwQ9YL5aa+S6MjaLNe74dY3/Mq/OrpP7C46/8wAg1FSDEXwBdMgQkmK245kByRV39HfsgpmTdbbYd85GqI0BICdQYY0pkNys0gKNdIzTMj3Ou1Ags2EgP237fvxZqR9yACAUkUex5ycLaviKxbHHkaC563PXFUWouAlN7c1xjz98Sw==", "AAAdIQ==", false},
 		{"AYzKgOs9ARx/ulwB5wBMAAsB//8Aj381Wv8lvRA8gMR/owBwlU8BsQD//7jAnABQ", "ACCtPAMekYsdrprYYtydmNgluQzuW4v8vw2V96ufptzLRAEgkZVHs/yAFKm+dzB6zGol3RqipV9n8J5tkgiA/xGxfIUBIIWgSXngwWlUvpTBVbUM9D2zGEcaLio1PlZNAgkUcpgtASBIvie1RD4kOXIEWFHyWKxGyXR+NAr1r/GX5huq/HOV+gAgHdWZ4xwPTlrgQjIL1M0aOephVd9bOEK4nO08qmyR54oAIJFT7UAb6kacEYQPYORHoMEUwF6hhVbuI3RBPcsMyg9SASCNjzIYs57ugoE56TuTjnSbtkKnJL2c0qxZ/NxEfVAf4w==", "AAASIA==", false},
 		{"", "ACBx7RO4K2tuSrrQ+OG3jn8uAT2qKUlxAR1bEz/ucQEsWgAgLFOaa1LHOwhqzFou9Tece3AUeC0izlUraXyfAxnyLGMBIG/cdbO2OvahmTl/38TlRqUKZEhygqlov1KuxYPDLnPhACBUIRPanY7B4wSCGIQr8rifqw1PYIUwJB9Xj/ZFWpSRzwAgTzGXR+KVcknm5jJzJxZocqdtF14Hd8nJliISmI8lrLsAIDwdXWHBoJDzVc31XmVUOPJjgf4oezXhydg8W5nPU5NgACCVh+rJdfzMBUxlzl5N+EJ07X6/REWE8jmB4v319R0L9Q==", "AAAkig==", false},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAA=", "b25l", true},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAAA", "b25l", false},
+		{"BvdlUdF6mChCHP/oLvVz2XXq9nBjTIivx8ekUxyv4Jc=", "AA==", "b25l", false},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "AAE=", "b25l", false},
+		{"+YJ4xei2Zj95SyUgDAKivHRtZmtp9k1dex3r3MUO+qE=", "", "b25l", false},
+		{"d9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVw=", "ACCTBUdXB60nbh3qIIdmjvj2HMyhJ5RBlNuSzRxDjsXfPQ==", "b25l", true},
+		{"d9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVw=", "ASAG92VR0XqYKEIc/+gu9XPZder2cGNMiK/Hx6RTHK/glw==", "dHdv", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ACCTBUdXB60nbh3qIIdmjvj2HMyhJ5RBlNuSzRxDjsXfPQAgqV3r5um7EyOBsrm5cNxe166J2UTv0ecd4YAjwYvhw9gAIBkZnGsnn99LWW5ibWKO9dbcDa95qlCwdMUAZnQ0zsSHACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "b25l", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ASAG92VR0XqYKEIc/+gu9XPZder2cGNMiK/Hx6RTHK/glwAgqV3r5um7EyOBsrm5cNxe166J2UTv0ecd4YAjwYvhw9gAIBkZnGsnn99LWW5ibWKO9dbcDa95qlCwdMUAZnQ0zsSHACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "dHdv", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ACDFNqa4s+qMMjyHDkd3wALrBuWlReRrEMUhEGINmPxBtgEgd9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVwAIBkZnGsnn99LWW5ibWKO9dbcDa95qlCwdMUAZnQ0zsSHACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "dGhyZWU=", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ASD+Q5E4EjGnbX2bOLx4VAUOFsTMAxlunOYRHktspTHaWAEgd9bgB9if3XVM9fe+48c4/VSEdfmqTSMTWkpJxUqLsVwAIBkZnGsnn99LWW5ibWKO9dbcDa95qlCwdMUAZnQ0zsSHACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "Zm91cg==", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ACDmklNa/tWyRtlwDn9zniHF5UlBCWg4j9ac0zB7Uyt3jQAgZc5JlfwzRL+/zvy0UBFYn2KH9ucvfM6EfLoDxYHADZ8BIL0hz1FSQpvkYrqjh6T7U8T1pX0qXnoMMatb5C/rlgxOACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "Zml2ZQ==", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ASBouwl99wCYVUNxalwv92EdY8VyCLzE6fDBtENWPnQEdgAgZc5JlfwzRL+/zvy0UBFYn2KH9ucvfM6EfLoDxYHADZ8BIL0hz1FSQpvkYrqjh6T7U8T1pX0qXnoMMatb5C/rlgxOACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "c2l4", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ACD7UfkUEaMeNZ2K/nNt7gpZ8NClGYsfOkZPIT+jdw5oUAEgCxgJy40nSZ8FFaSvkLG2q9zFSGCMZRVIhIp8Mq6pAHMBIL0hz1FSQpvkYrqjh6T7U8T1pX0qXnoMMatb5C/rlgxOACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "c2V2ZW4=", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "ASCzQhdi1jyM+eQd3s7/zZYRvpiI4uuHcRSHwsHIvIly+AEgCxgJy40nSZ8FFaSvkLG2q9zFSGCMZRVIhIp8Mq6pAHMBIL0hz1FSQpvkYrqjh6T7U8T1pX0qXnoMMatb5C/rlgxOACBFc08tWQBIDwhWu2zaUlkBuGP/BOJBwEa0TDaPTTDq1A==", "ZWlnaHQ=", true},
+		{"r25IskaiOuKSJVv+YVyCTHqy+GUCWxnTSSVjP7YjRms=", "AAAAAAAAASBm6bRiUqWGohBhYktqMWoCLx/rxN/pzAD6Q1PyAj4H9w==", "bmluZQ==", true},
 	} {
 		root, err := base64.StdEncoding.DecodeString(test.root)
 		require.NoError(t, err)
