@@ -601,7 +601,12 @@ func (ws *WrappedState) validateDataEntryAction(
 	restrictions proto.ActionsValidationRestrictions,
 	isRideV6Activated bool,
 ) error {
-	return proto.ValidateDataEntryScriptAction(res, restrictions, isRideV6Activated, &ws.dataEntriesSize)
+	newSize, err := proto.ValidateDataEntryScriptAction(res, restrictions, isRideV6Activated, ws.dataEntriesSize)
+	if err != nil {
+		return err
+	}
+	ws.dataEntriesSize = newSize
+	return nil
 }
 
 func (ws *WrappedState) validateIssueAction(res *proto.IssueScriptAction) error {
