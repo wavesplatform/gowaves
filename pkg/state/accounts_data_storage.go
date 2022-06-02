@@ -294,7 +294,7 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address, filter bool)
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
+		if err := iter.Error(); err != nil && !errors.Is(iter.Error(), keyvalue.ErrNotFound) {
 			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
