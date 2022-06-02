@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -79,8 +78,12 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
 
-func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	return ws.diff.state.GetByteTree(recipient)
+func (ws *WrappedState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	return ws.diff.state.NewestScriptByAccount(account)
+}
+
+func (ws *WrappedState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	return ws.diff.state.NewestScriptBytesByAccount(account)
 }
 
 func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
@@ -415,7 +418,7 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
-func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
+func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
@@ -483,16 +486,10 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	}
 
-	script, err := ws.NewestScriptByAsset(asset.ID)
+	tree, err := ws.NewestScriptByAsset(asset.ID)
 	if err != nil {
 		return false, err
 	}
-
-	tree, err := serialization.Parse(script)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get tree by script")
-	}
-
 	localEnv.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -531,26 +528,8 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if env.validateInternalPayments() {
-		switch {
-		case res.Amount < 0:
-			return errors.New("negative transfer amount")
-		case res.Amount == 0 && env.rideV6Activated():
-			return errors.New("zero payments are forbidden since activation of RIDE V6")
-		}
-	}
-	if restrictions.DisableSelfTransfers {
-		senderAddress := restrictions.ScriptAddress
-		if res.SenderPK() != nil {
-			var err error
-			senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *res.SenderPK())
-			if err != nil {
-				return errors.Wrap(err, "failed to validate TransferScriptAction")
-			}
-		}
-		if res.Recipient.Address.Equal(senderAddress) {
-			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
-		}
+	if err := proto.ValidateAttachedPaymentScriptAction(res, restrictions, env.validateInternalPayments(), env.rideV6Activated()); err != nil {
+		return err
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
 	var balance uint64
@@ -585,21 +564,8 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if res.Amount < 0 {
-		return errors.New("negative transfer amount")
-	}
-	if restrictions.DisableSelfTransfers {
-		senderAddress := restrictions.ScriptAddress
-		if res.SenderPK() != nil {
-			var err error
-			senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *res.SenderPK())
-			if err != nil {
-				return errors.Wrap(err, "failed to validate TransferScriptAction")
-			}
-		}
-		if res.Recipient.Address.Equal(senderAddress) {
-			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
-		}
+	if err := proto.ValidateTransferScriptAction(res, restrictions); err != nil {
+		return err
 	}
 	var (
 		balance   uint64
@@ -635,37 +601,16 @@ func (ws *WrappedState) validateDataEntryAction(
 	restrictions proto.ActionsValidationRestrictions,
 	isRideV6Activated bool,
 ) error {
-	if err := res.Entry.Valid(restrictions.IsProtobufTransaction, restrictions.IsUTF16KeyLen); err != nil {
+	newSize, err := proto.ValidateDataEntryScriptAction(res, restrictions, isRideV6Activated, ws.dataEntriesSize)
+	if err != nil {
 		return err
 	}
-	if isRideV6Activated {
-		ws.dataEntriesSize += res.Entry.PayloadSize()
-	} else {
-		ws.dataEntriesSize += res.Entry.BinarySize()
-	}
-	if ws.dataEntriesSize > restrictions.MaxDataEntriesSize {
-		return errors.Errorf("total size of data entries (%d) produced by script is more than %d bytes",
-			ws.dataEntriesSize,
-			restrictions.MaxDataEntriesSize,
-		)
-	}
+	ws.dataEntriesSize = newSize
 	return nil
 }
 
 func (ws *WrappedState) validateIssueAction(res *proto.IssueScriptAction) error {
-	if res.Quantity < 0 {
-		return errors.New("negative quantity")
-	}
-	if res.Decimals < 0 || res.Decimals > proto.MaxDecimals {
-		return errors.New("invalid decimals")
-	}
-	if l := len(res.Name); l < proto.MinAssetNameLen || l > proto.MaxAssetNameLen {
-		return errors.New("invalid asset's name")
-	}
-	if l := len(res.Description); l > proto.MaxDescriptionLen {
-		return errors.New("invalid asset's description")
-	}
-	return nil
+	return proto.ValidateIssueScriptAction(res)
 }
 
 func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env environment) error {
@@ -677,8 +622,8 @@ func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, en
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if res.Quantity < 0 {
-		return errors.New("negative quantity")
+	if err := proto.ValidateReissueScriptAction(res); err != nil {
+		return err
 	}
 	assetInfo, err := ws.NewestAssetInfo(res.AssetID)
 	if err != nil {
@@ -699,8 +644,8 @@ func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env envi
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if res.Quantity < 0 {
-		return errors.New("negative quantity")
+	if err := proto.ValidateBurnScriptAction(res); err != nil {
+		return err
 	}
 	assetInfo, err := ws.NewestAssetInfo(res.AssetID)
 	if err != nil {
@@ -713,26 +658,12 @@ func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env envi
 }
 
 func (ws *WrappedState) validateSponsorshipAction(res *proto.SponsorshipScriptAction) error {
-	if res.MinFee < 0 {
-		return errors.New("negative minimal fee")
-	}
-	return nil
+	return proto.ValidateSponsorshipScriptAction(res)
 }
 
 func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restrictions proto.ActionsValidationRestrictions) error {
-	if res.Amount < 0 {
-		return errors.New("negative leasing amount")
-	}
-	senderAddress := restrictions.ScriptAddress
-	if res.SenderPK() != nil {
-		var err error
-		senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *res.SenderPK())
-		if err != nil {
-			return errors.Wrap(err, "failed to validate TransferScriptAction")
-		}
-	}
-	if res.Recipient.Address.Equal(senderAddress) {
-		return errors.New("leasing to DApp itself is forbidden")
+	if err := proto.ValidateLeaseScriptAction(res, restrictions); err != nil {
+		return err
 	}
 	balance, err := ws.NewestFullWavesBalance(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
@@ -745,13 +676,9 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 }
 
 func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
-	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.callee()))
+	tree, err := ws.NewestScriptByAccount(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get script by recipient")
-	}
-	tree, err := serialization.Parse(script)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to get tree by script")
 	}
 	return tree.LibVersion, nil
 }

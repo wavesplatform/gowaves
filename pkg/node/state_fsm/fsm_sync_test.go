@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
@@ -38,6 +39,7 @@ func TestSyncFsm_Sync(t *testing.T) {
 				return time.Now()
 			},
 		},
+		skipMessageList: &messages.SkipMessageList{},
 	}
 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	require.NoError(t, err)
@@ -60,7 +62,7 @@ func TestSyncFsm_SignaturesTimeout(t *testing.T) {
 	p.EXPECT().ID()
 
 	conf := conf{peerSyncWith: p}
-	fsm, async, err := NewSyncFsm(BaseInfo{tm: ntptime.Stub{}}, conf, sync_internal.Internal{})
+	fsm, async, err := NewSyncFsm(BaseInfo{tm: ntptime.Stub{}, skipMessageList: &messages.SkipMessageList{}}, conf, sync_internal.Internal{})
 	require.NoError(t, err)
 	require.Len(t, async, 0)
 	require.NotNil(t, fsm)
