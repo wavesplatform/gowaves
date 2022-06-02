@@ -6,6 +6,7 @@ package ride
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 )
@@ -28,9 +29,6 @@ var _ types.SmartState = &MockSmartState{}
 // 			},
 // 			EstimatorVersionFunc: func() (int, error) {
 // 				panic("mock out the EstimatorVersion method")
-// 			},
-// 			GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
-// 				panic("mock out the GetByteTree method")
 // 			},
 // 			IsNotFoundFunc: func(err error) bool {
 // 				panic("mock out the IsNotFound method")
@@ -65,8 +63,14 @@ var _ types.SmartState = &MockSmartState{}
 // 			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 // 				panic("mock out the NewestRecipientToAddress method")
 // 			},
-// 			NewestScriptByAssetFunc: func(assetID crypto.Digest) (proto.Script, error) {
+// 			NewestScriptByAccountFunc: func(account proto.Recipient) (*ast.Tree, error) {
+// 				panic("mock out the NewestScriptByAccount method")
+// 			},
+// 			NewestScriptByAssetFunc: func(assetID crypto.Digest) (*ast.Tree, error) {
 // 				panic("mock out the NewestScriptByAsset method")
+// 			},
+// 			NewestScriptBytesByAccountFunc: func(account proto.Recipient) (proto.Script, error) {
+// 				panic("mock out the NewestScriptBytesByAccount method")
 // 			},
 // 			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 // 				panic("mock out the NewestScriptPKByAddr method")
@@ -108,9 +112,6 @@ type MockSmartState struct {
 	// EstimatorVersionFunc mocks the EstimatorVersion method.
 	EstimatorVersionFunc func() (int, error)
 
-	// GetByteTreeFunc mocks the GetByteTree method.
-	GetByteTreeFunc func(recipient proto.Recipient) (proto.Script, error)
-
 	// IsNotFoundFunc mocks the IsNotFound method.
 	IsNotFoundFunc func(err error) bool
 
@@ -144,8 +145,14 @@ type MockSmartState struct {
 	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
 	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.WavesAddress, error)
 
+	// NewestScriptByAccountFunc mocks the NewestScriptByAccount method.
+	NewestScriptByAccountFunc func(account proto.Recipient) (*ast.Tree, error)
+
 	// NewestScriptByAssetFunc mocks the NewestScriptByAsset method.
-	NewestScriptByAssetFunc func(assetID crypto.Digest) (proto.Script, error)
+	NewestScriptByAssetFunc func(assetID crypto.Digest) (*ast.Tree, error)
+
+	// NewestScriptBytesByAccountFunc mocks the NewestScriptBytesByAccount method.
+	NewestScriptBytesByAccountFunc func(account proto.Recipient) (proto.Script, error)
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.WavesAddress) (crypto.PublicKey, error)
@@ -185,11 +192,6 @@ type MockSmartState struct {
 		}
 		// EstimatorVersion holds details about calls to the EstimatorVersion method.
 		EstimatorVersion []struct {
-		}
-		// GetByteTree holds details about calls to the GetByteTree method.
-		GetByteTree []struct {
-			// Recipient is the recipient argument value.
-			Recipient proto.Recipient
 		}
 		// IsNotFound holds details about calls to the IsNotFound method.
 		IsNotFound []struct {
@@ -248,10 +250,20 @@ type MockSmartState struct {
 			// Recipient is the recipient argument value.
 			Recipient proto.Recipient
 		}
+		// NewestScriptByAccount holds details about calls to the NewestScriptByAccount method.
+		NewestScriptByAccount []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+		}
 		// NewestScriptByAsset holds details about calls to the NewestScriptByAsset method.
 		NewestScriptByAsset []struct {
 			// AssetID is the assetID argument value.
 			AssetID crypto.Digest
+		}
+		// NewestScriptBytesByAccount holds details about calls to the NewestScriptBytesByAccount method.
+		NewestScriptBytesByAccount []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
 		}
 		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
 		NewestScriptPKByAddr []struct {
@@ -305,7 +317,6 @@ type MockSmartState struct {
 	lockAddingBlockHeight           sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
 	lockEstimatorVersion            sync.RWMutex
-	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
 	lockIsStateUntouched            sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
@@ -317,7 +328,9 @@ type MockSmartState struct {
 	lockNewestHeaderByHeight        sync.RWMutex
 	lockNewestLeasingInfo           sync.RWMutex
 	lockNewestRecipientToAddress    sync.RWMutex
+	lockNewestScriptByAccount       sync.RWMutex
 	lockNewestScriptByAsset         sync.RWMutex
+	lockNewestScriptBytesByAccount  sync.RWMutex
 	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
@@ -412,37 +425,6 @@ func (mock *MockSmartState) EstimatorVersionCalls() []struct {
 	mock.lockEstimatorVersion.RLock()
 	calls = mock.calls.EstimatorVersion
 	mock.lockEstimatorVersion.RUnlock()
-	return calls
-}
-
-// GetByteTree calls GetByteTreeFunc.
-func (mock *MockSmartState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	if mock.GetByteTreeFunc == nil {
-		panic("MockSmartState.GetByteTreeFunc: method is nil but SmartState.GetByteTree was just called")
-	}
-	callInfo := struct {
-		Recipient proto.Recipient
-	}{
-		Recipient: recipient,
-	}
-	mock.lockGetByteTree.Lock()
-	mock.calls.GetByteTree = append(mock.calls.GetByteTree, callInfo)
-	mock.lockGetByteTree.Unlock()
-	return mock.GetByteTreeFunc(recipient)
-}
-
-// GetByteTreeCalls gets all the calls that were made to GetByteTree.
-// Check the length with:
-//     len(mockedSmartState.GetByteTreeCalls())
-func (mock *MockSmartState) GetByteTreeCalls() []struct {
-	Recipient proto.Recipient
-} {
-	var calls []struct {
-		Recipient proto.Recipient
-	}
-	mock.lockGetByteTree.RLock()
-	calls = mock.calls.GetByteTree
-	mock.lockGetByteTree.RUnlock()
 	return calls
 }
 
@@ -791,8 +773,39 @@ func (mock *MockSmartState) NewestRecipientToAddressCalls() []struct {
 	return calls
 }
 
+// NewestScriptByAccount calls NewestScriptByAccountFunc.
+func (mock *MockSmartState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	if mock.NewestScriptByAccountFunc == nil {
+		panic("MockSmartState.NewestScriptByAccountFunc: method is nil but SmartState.NewestScriptByAccount was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockNewestScriptByAccount.Lock()
+	mock.calls.NewestScriptByAccount = append(mock.calls.NewestScriptByAccount, callInfo)
+	mock.lockNewestScriptByAccount.Unlock()
+	return mock.NewestScriptByAccountFunc(account)
+}
+
+// NewestScriptByAccountCalls gets all the calls that were made to NewestScriptByAccount.
+// Check the length with:
+//     len(mockedSmartState.NewestScriptByAccountCalls())
+func (mock *MockSmartState) NewestScriptByAccountCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockNewestScriptByAccount.RLock()
+	calls = mock.calls.NewestScriptByAccount
+	mock.lockNewestScriptByAccount.RUnlock()
+	return calls
+}
+
 // NewestScriptByAsset calls NewestScriptByAssetFunc.
-func (mock *MockSmartState) NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error) {
+func (mock *MockSmartState) NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error) {
 	if mock.NewestScriptByAssetFunc == nil {
 		panic("MockSmartState.NewestScriptByAssetFunc: method is nil but SmartState.NewestScriptByAsset was just called")
 	}
@@ -819,6 +832,37 @@ func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
 	mock.lockNewestScriptByAsset.RLock()
 	calls = mock.calls.NewestScriptByAsset
 	mock.lockNewestScriptByAsset.RUnlock()
+	return calls
+}
+
+// NewestScriptBytesByAccount calls NewestScriptBytesByAccountFunc.
+func (mock *MockSmartState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	if mock.NewestScriptBytesByAccountFunc == nil {
+		panic("MockSmartState.NewestScriptBytesByAccountFunc: method is nil but SmartState.NewestScriptBytesByAccount was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockNewestScriptBytesByAccount.Lock()
+	mock.calls.NewestScriptBytesByAccount = append(mock.calls.NewestScriptBytesByAccount, callInfo)
+	mock.lockNewestScriptBytesByAccount.Unlock()
+	return mock.NewestScriptBytesByAccountFunc(account)
+}
+
+// NewestScriptBytesByAccountCalls gets all the calls that were made to NewestScriptBytesByAccount.
+// Check the length with:
+//     len(mockedSmartState.NewestScriptBytesByAccountCalls())
+func (mock *MockSmartState) NewestScriptBytesByAccountCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockNewestScriptBytesByAccount.RLock()
+	calls = mock.calls.NewestScriptBytesByAccount
+	mock.lockNewestScriptBytesByAccount.RUnlock()
 	return calls
 }
 

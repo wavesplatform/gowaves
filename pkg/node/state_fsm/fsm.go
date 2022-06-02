@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -60,6 +61,8 @@ type BaseInfo struct {
 	utx types.UtxPool
 
 	minPeersMining int
+
+	skipMessageList *messages.SkipMessageList
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -129,6 +132,8 @@ func NewFsm(
 		utx: services.UtxPool,
 
 		minPeersMining: services.MinPeersMining,
+
+		skipMessageList: services.SkipMessageList,
 	}
 
 	b.Scheduler.Reschedule()

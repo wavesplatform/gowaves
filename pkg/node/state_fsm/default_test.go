@@ -6,6 +6,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 )
 
 func TestDefaultImpl_PeerError(t *testing.T) {
@@ -29,7 +30,7 @@ func TestDefaultImpl_PeerError(t *testing.T) {
 		manager := mock.NewMockPeerManager(ctrl)
 		manager.EXPECT().Disconnect(peer)
 		manager.EXPECT().ConnectedCount().Return(0)
-		fsm, async, err := d.PeerError(nil, peer, BaseInfo{peers: manager}, nil)
+		fsm, async, err := d.PeerError(nil, peer, BaseInfo{peers: manager, skipMessageList: &messages.SkipMessageList{}}, nil)
 		require.NoError(t, err)
 		require.IsType(t, &IdleFsm{}, fsm)
 		require.Nil(t, async)

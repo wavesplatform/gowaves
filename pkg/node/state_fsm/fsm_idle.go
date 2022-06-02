@@ -19,6 +19,22 @@ type InvRequester interface {
 	Request(p types.MessageSender, id []byte)
 }
 
+var (
+	idleSkipMessageList = proto.PeerMessageIDs{
+		proto.ContentIDSignatures,
+		proto.ContentIDBlock,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBBlock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDBlockIds,
+	}
+)
+
 type IdleFsm struct {
 	baseInfo BaseInfo
 }
@@ -114,6 +130,7 @@ func (a *IdleFsm) String() string {
 }
 
 func NewIdleFsm(info BaseInfo) *IdleFsm {
+	info.skipMessageList.SetList(idleSkipMessageList)
 	return &IdleFsm{
 		baseInfo: info,
 	}

@@ -40,4 +40,5 @@ type Services struct {
 	MicroBlockCache MicroBlockCache
 	InternalChannel chan messages.InternalMessage
 	MinPeersMining  int
+	SkipMessageList *messages.SkipMessageList
 }

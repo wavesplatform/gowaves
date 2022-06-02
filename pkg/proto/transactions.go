@@ -37,9 +37,8 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	InvokeExpressionTransaction                            // 18 - InvokeExpressionTransaction
-	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which is received from metamask
-
+	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which is received from metamask
+	InvokeExpressionTransaction                            // 19 - InvokeExpressionTransaction
 )
 
 // TxFailureReason indicates Transactions failure reasons.
@@ -391,9 +390,9 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &SetAssetScriptWithProofs{}
 	case InvokeScriptTransaction: // 16
 		out = &InvokeScriptWithProofs{}
-	case UpdateAssetInfoTransaction:
+	case UpdateAssetInfoTransaction: // 17
 		out = &UpdateAssetInfoWithProofs{}
-	case EthereumMetamaskTransaction:
+	case EthereumMetamaskTransaction: // 18
 		out = &EthereumTransaction{}
 	}
 	if out == nil {

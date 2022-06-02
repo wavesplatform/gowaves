@@ -21,6 +21,10 @@ type NGFsm struct {
 	blocksCache blockStatesCache
 }
 
+var (
+	ngSkipMessageList proto.PeerMessageIDs
+)
+
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
 	if err != nil {
@@ -52,6 +56,7 @@ func (a *NGFsm) Halt() (FSM, Async, error) {
 }
 
 func NewNGFsm12(info BaseInfo) *NGFsm {
+	info.skipMessageList.SetList(ngSkipMessageList)
 	return &NGFsm{
 		baseInfo:    info,
 		blocksCache: blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}},

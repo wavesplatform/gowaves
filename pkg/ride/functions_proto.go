@@ -184,9 +184,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 	env.setNewDAppAddress(*address)
 
-	localActionsCountValidators := proto.NewScriptActionsCountValidator()
+	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
-	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidators)
+	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
@@ -215,7 +215,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
-	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidators)
+	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
@@ -284,14 +284,13 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "hashScriptAtAddress")
 	}
-	script, err := env.state().GetByteTree(recipient)
+	script, err := env.state().NewestScriptBytesByAccount(recipient)
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return rideUnit{}, nil
 		}
 		return nil, errors.Errorf("hashScriptAtAddress: failed to get script by recipient, %v", err)
 	}
-
 	if len(script) != 0 {
 		hash, err := crypto.FastHash(script)
 		if err != nil {
@@ -299,7 +298,6 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 		}
 		return rideBytes(hash.Bytes()), nil
 	}
-
 	return rideUnit{}, nil
 }
 
@@ -871,7 +869,7 @@ func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 	}
 	r, err := c2.MerkleRootHash(leaf, proof)
 	if err != nil {
-		return nil, errors.Wrap(err, "checkMerkleProof")
+		return rideBoolean(false), nil
 	}
 	return rideBoolean(bytes.Equal(root, r)), nil
 }
