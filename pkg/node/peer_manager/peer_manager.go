@@ -256,10 +256,13 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		go func(ipPort proto.IpPort) {
 			addr := proto.NewTCPAddr(ipPort.Addr(), ipPort.Port())
 			defer a.removeSpawned(addr)
-			err := a.spawner.SpawnOutgoing(ctx, addr)
-			if err != nil {
+			if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
 				zap.S().Debugf("[%s] Failed to establish outbound connection: %v", ipPort.String(), err)
 			}
+			if err := a.UpdateKnownPeers([]storage.KnownPeer{storage.KnownPeer(ipPort)}); err != nil {
+				zap.S().Errorf("[%s] Failed to update peer info in peer storage: %v", ipPort.String(), err)
+			}
+
 		}(ipPort)
 	}
 }

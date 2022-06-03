@@ -114,10 +114,6 @@ func (bs *CBORStorage) AddKnown(known []KnownPeer) error {
 
 	// Save existing known peers with their last attempt timestamps in backup
 	backup := bs.unsafeKnownIntersection(known)
-	// Fast path if all known peers already in storage
-	if len(backup) == len(known) {
-		return nil
-	}
 
 	// Add new values into known map with current timestamp
 	ts := time.Now().UnixNano()
