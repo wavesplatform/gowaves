@@ -10,6 +10,27 @@ import (
 type HaltFSM struct {
 }
 
+var (
+	haltSkipMessageList = proto.PeerMessageIDs{
+		proto.ContentIDGetPeers,
+		proto.ContentIDPeers,
+		proto.ContentIDGetSignatures,
+		proto.ContentIDSignatures,
+		proto.ContentIDGetBlock,
+		proto.ContentIDBlock,
+		proto.ContentIDScore,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBBlock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDGetBlockIds,
+	}
+)
+
 func (a HaltFSM) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	return noop(a)
 }
@@ -67,5 +88,6 @@ func HaltTransition(info BaseInfo) (FSM, Async, error) {
 		return nil, nil, err
 	}
 	zap.S().Debugf("storage closed")
+	info.skipMessageList.SetList(haltSkipMessageList)
 	return HaltFSM{}, nil, nil
 }

@@ -415,6 +415,8 @@ func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) 
 	err := s.stateDB.rollbackBlock(blockID)
 	assert.NoError(t, err, "rollbackBlock() failed")
 	s.flush(t)
+	err = s.rw.syncWithDb()
+	assert.NoError(t, err)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {

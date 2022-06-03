@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/atomic"
@@ -469,33 +470,33 @@ func (s *stateManager) Filter() bool {
 	return s.filter
 }
 
-func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	if recipient.Address != nil {
-		key := accountScriptKey{recipient.Address.ID()}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get script by address '%s'", recipient.Address.String())
-		}
-		return script, nil
+func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	addr, err := s.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
-	if recipient.Alias != nil {
-		address, err := s.NewestAddrByAlias(*recipient.Alias)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get address by alias '%s'", recipient.Alias.String())
-		}
-		key := accountScriptKey{address.ID()}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), s.filter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get script by address '%s'", address.String())
-		}
-		return script, nil
+	tree, err := s.stor.scriptsStorage.newestScriptByAddr(*addr, s.filter)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
-	return nil, errors.Errorf("address and alias from recipient are nil")
+	return tree, nil
 }
 
-func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
+func (s *stateManager) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	addr, err := s.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
+	}
+	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(*addr, s.filter)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
+	}
+	return script, nil
+}
+
+func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	assetID := proto.AssetIDFromDigest(asset)
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, s.filter)
+	return s.stor.scriptsStorage.newestScriptByAsset(assetID, s.filter)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -1152,7 +1153,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		// Only needed for MainNet.
 		return s.settings.Type == settings.MainNet, nil
 	case rideV5Height:
-		// Cancellation of leasings to stolen aliases only required for MainNet
+		// Cancellation of leases to stolen aliases only required for MainNet
 		return s.settings.Type == settings.MainNet, nil
 	default:
 		return false, nil
@@ -1386,7 +1387,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err := s.stor.handleStateHashes(height, ids, initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
-	// Validate consensus (i.e. that all of the new blocks were mined fairly).
+	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
@@ -1730,7 +1731,7 @@ func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	entryExist, err := s.stor.accountsDataStor.entryExists(addr, s.filter)
+	entryExist, err := s.stor.accountsDataStor.newestEntryExists(addr, s.filter)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}

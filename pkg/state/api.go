@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 
 	"github.com/pkg/errors"
 
@@ -104,7 +105,8 @@ type StateInfo interface {
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
-	GetByteTree(recipient proto.Recipient) (proto.Script, error)
+	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
+	NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error)
 
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)

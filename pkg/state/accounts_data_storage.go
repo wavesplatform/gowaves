@@ -114,11 +114,15 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 	return nil
 }
 
-func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, error) {
+// newestAddressToNum returns the number of given address. It looks up for the address in cache map first
+// and if not present in state. The second result parameter is true if account's number was found cache otherwise false.
+// Error can be `keyvalue.ErrNotFound` if no corresponding number found for given address.
+func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, bool, error) {
 	if addrNum, ok := s.addrToNumMem[addr.ID()]; ok {
-		return addrNum, nil
+		return addrNum, true, nil
 	}
-	return s.addrToNum(addr)
+	addrNum, err := s.addrToNum(addr)
+	return addrNum, false, err
 }
 
 func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
@@ -132,7 +136,7 @@ func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
 }
 
 func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
-	if addrNum, err := s.newestAddrToNum(addr); err == nil {
+	if addrNum, _, err := s.newestAddrToNum(addr); err == nil {
 		// Already there.
 		return addrNum, nil
 	}
@@ -164,7 +168,7 @@ func (s *accountsDataStorage) commitUncertain(blockID proto.BlockID) error {
 }
 
 func (s *accountsDataStorage) appendEntryUncertain(addr proto.Address, entry proto.DataEntry) {
-	id := entryId{addr.ID(), entry.GetKey()} // todo
+	id := entryId{addr.ID(), entry.GetKey()}
 	s.uncertainEntries[id] = uncertainAccountsDataStorageEntry{addr, entry}
 }
 
@@ -202,7 +206,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 }
 
 func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey string, filter bool) ([]byte, error) {
-	addrNum, err := s.newestAddrToNum(addr)
+	addrNum, _, err := s.newestAddrToNum(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -274,14 +278,17 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	return entries, nil
 }
 
-func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool, error) {
-	addrNum, err := s.addrToNum(addr)
+func (s *accountsDataStorage) newestEntryExists(addr proto.Address, filter bool) (bool, error) {
+	addrNum, newest, err := s.newestAddrToNum(addr)
 	if err != nil {
 		// If there is no number for the address, no data for this address was saved before
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return false, nil
 		}
 		return false, err // Other bloom filter errors is possible
+	}
+	if newest {
+		return true, nil
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
@@ -290,11 +297,10 @@ func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
+		if err := iter.Error(); err != nil && !errors.Is(iter.Error(), keyvalue.ErrNotFound) {
 			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
-
 	for iter.Next() {
 		return true, nil
 	}

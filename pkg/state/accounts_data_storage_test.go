@@ -122,18 +122,39 @@ func TestRollbackEntry(t *testing.T) {
 	entry1 := &proto.BooleanDataEntry{Key: "Whatever", Value: true}
 	err = to.accountsDataStor.appendEntry(addr0, entry1, blockID1)
 	assert.NoError(t, err)
+	ok, err := to.accountsDataStor.newestEntryExists(addr0, true)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 	// Latest entry should be from blockID1.
 	entry, err := to.accountsDataStor.retrieveNewestEntry(addr0, entry0.Key, true)
 	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry1, entry)
 	// Flush and reset before rollback.
 	to.stor.flush(t)
+	to.accountsDataStor.reset()
 	// Rollback block.
 	to.stor.rollbackBlock(t, blockID1)
+	to.stor.flush(t)
+	to.accountsDataStor.reset()
 	// Make sure data entry is now from blockID0.
 	entry, err = to.accountsDataStor.retrieveEntry(addr0, entry0.Key, true)
 	assert.NoError(t, err, "retrieveEntry() failed")
 	assert.Equal(t, entry0, entry)
+	ok, err = to.accountsDataStor.newestEntryExists(addr0, true)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	to.stor.flush(t)
+	to.accountsDataStor.reset()
+	to.stor.rollbackBlock(t, blockID0)
+	to.stor.flush(t)
+	to.accountsDataStor.reset()
+	// Make sure there is no data entry
+	entry, err = to.accountsDataStor.retrieveEntry(addr0, entry0.Key, true)
+	assert.Error(t, err)
+	assert.Nil(t, entry)
+	ok, err = to.accountsDataStor.newestEntryExists(addr0, true)
+	assert.NoError(t, err)
+	assert.False(t, ok)
 }
 
 func TestRetrieveIntegerEntry(t *testing.T) {

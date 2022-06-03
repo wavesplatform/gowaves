@@ -90,6 +90,76 @@ To list the seed, run the next command and provide the password.
 ./wallet show -w [path to the wallet file]
 ```
 
+
+### Client library examples
+
+Create sender's public key from BASE58 string:
+```go
+   sender, err := crypto.NewPublicKeyFromBase58("<your-public-key>")
+   if err != nil {
+	   panic(err)
+   }
+```
+Create sender's private key from BASE58 string:
+```go
+    sk, err := crypto.NewSecretKeyFromBase58("<your-private-key>")
+    if err != nil {
+        panic(err)
+    }
+```
+
+Create script's address:
+```go
+    a, err := proto.NewAddressFromString("<script's address")
+    if err != nil {
+        panic(err)
+    }
+```
+
+Create Function Call that will be passed to the script:
+```go
+    fc := proto.FunctionCall{
+        Name: "foo",
+        Arguments: proto.Arguments{
+            proto.IntegerArgument{
+                Value: 12345,
+            },
+            proto.BooleanArgument{
+                Value: true,
+            },
+        },
+    }
+```
+
+New InvokeScript Transaction:
+```go
+    tx, err := proto.NewUnsignedInvokeScriptV1('T', sender, a, fc, proto.ScriptPayments{}, waves, 500000, uint64(ts))
+    if err != nil {
+        panic(err)
+    }
+```
+
+Sign the transaction with the private key:
+```go
+    err = tx.Sign(sk)
+```
+
+Create new HTTP client to send the transaction to public TestNet nodes:
+```go
+    client, err := client.NewClient(client.Options{BaseUrl: "https://testnodes.wavesnodes.com", Client: &http.Client{}})
+    if err != nil {
+        panic(err)
+    }
+```
+
+Send the transaction to the network:
+```go
+    _, err = client.Transactions.Broadcast(ctx, tx)
+    if err != nil {
+        panic(err)
+    }
+```
+
 ### What's done
 
 * Full blockchain support of Waves version 1.3
