@@ -35,7 +35,7 @@ jobs:
     # Skip any created PR or push by dependabot to avoid permission issues
     if: github.actor != 'dependabot[bot]'
     container:
-      image: returntocorp/semgrep
+      image: returntocorp/semgrep:0.94.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
