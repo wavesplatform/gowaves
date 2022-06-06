@@ -123,11 +123,16 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("42.54.1.6:54356"))),
 	}
 
-	knownMap := make(knownPeers)
-	setPeersTs := func(list []KnownPeer, ts int64) {
+	setPeersTs := func(m knownPeers, list []KnownPeer, ts int64) {
 		for _, v := range list {
-			knownMap[v] = ts
+			m[v] = ts
 		}
+	}
+
+	initKnownMap := func(list []KnownPeer, ts int64) knownPeers {
+		knownMap := make(knownPeers)
+		setPeersTs(knownMap, list, ts)
+		return knownMap
 	}
 
 	check := func(known knownPeers) {
@@ -157,22 +162,32 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		// nickeskov: check empty input
 		require.NoError(s.T(), s.storage.AddOrUpdateKnown(nil, time.Time{}))
 
+		knownMap := initKnownMap(knownList, 0)
+
 		ts := time.Now()
-		setPeersTs(knownList, ts.UnixNano())
+		setPeersTs(knownMap, knownList, ts.UnixNano())
 		require.NoError(s.T(), s.storage.AddOrUpdateKnown(knownList, ts))
 		check(knownMap)
 
 		// check input with same addresses and new timestamps
 		newTs := time.Now()
-		setPeersTs(knownList, newTs.UnixNano())
+		setPeersTs(knownMap, knownList, newTs.UnixNano())
 		err := s.storage.AddOrUpdateKnown(knownList, newTs)
 		require.NoError(s.T(), err)
 		check(knownMap)
+
+		// clean known in storage not to affect next test cases
+		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
 	s.Run("delete and get known peers", func() {
 		// nickeskov: check empty input
 		require.NoError(s.T(), s.storage.DeleteKnown(nil))
+
+		// fill known in storage
+		ts := time.Now()
+		knownMap := initKnownMap(knownList, ts.UnixNano())
+		require.NoError(s.T(), s.storage.AddOrUpdateKnown(knownList, ts))
 
 		// nickeskov: remove first entry
 		err := s.storage.DeleteKnown(knownList[:1])
@@ -180,6 +195,10 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 
 		delete(knownMap, knownList[0])
 		check(knownMap)
+		require.NoError(s.T(), s.storage.DropKnown())
+
+		// clean known in storage not to affect next test cases
+		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
 	s.Run("unsafe sync known peers bad storage file", func() {
