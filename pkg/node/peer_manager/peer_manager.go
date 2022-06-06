@@ -121,7 +121,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		if !p.Handshake().DeclaredAddr.Empty() {
 			known := storage.KnownPeer(proto.TCPAddr(p.Handshake().DeclaredAddr).ToIpPort())
 			// TODO(nickeskov): maybe log error?
-			_ = a.peerStorage.AddKnown([]storage.KnownPeer{known})
+			_ = a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, time.Now())
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
@@ -190,7 +190,7 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []storage.KnownPeer) error {
 	if len(known) == 0 {
 		return nil
 	}
-	if err := a.peerStorage.AddKnown(known); err != nil {
+	if err := a.peerStorage.AddOrUpdateKnown(known, time.Now()); err != nil {
 		return errors.Wrap(err, "failed to update known peers")
 	}
 	return nil
@@ -361,7 +361,7 @@ func (a *PeerManagerImpl) Run(ctx context.Context) {
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) error {
 	known := storage.KnownPeer(addr.ToIpPort())
-	if err := a.peerStorage.AddKnown([]storage.KnownPeer{known}); err != nil {
+	if err := a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, time.Now()); err != nil {
 		return errors.Wrapf(err, "failed to add addr %q into known peers storage", addr.String())
 	}
 	go func() {
