@@ -176,7 +176,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		require.NoError(s.T(), err)
 		check(knownMap)
 
-		// clean known in storage not to affect next test cases
+		// clean known peers storage to eliminate unexpected side effects
 		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
@@ -197,7 +197,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		check(knownMap)
 		require.NoError(s.T(), s.storage.DropKnown())
 
-		// clean known in storage not to affect next test cases
+		// clean known peers storage to eliminate unexpected side effects
 		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
