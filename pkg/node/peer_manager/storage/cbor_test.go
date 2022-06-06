@@ -143,7 +143,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		for expectedPeer, expectedTs := range known {
 			ts, in := unmarshalled[expectedPeer]
 			require.True(s.T(), in)
-			require.Equal(s.T(), ts, expectedTs)
+			require.Equal(s.T(), expectedTs, ts)
 		}
 
 		// nickeskov: check that all data saved in cache
