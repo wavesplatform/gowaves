@@ -120,13 +120,8 @@ func (v *ActionsCountValidator) validateAttachedPaymentActionGroup(isRideV6Activ
 }
 
 func ValidateAttachedPaymentScriptAction(action *AttachedPaymentScriptAction, restrictions ActionsValidationRestrictions, validatePayments bool, isRideV6Activated bool) error {
-	if validatePayments {
-		switch {
-		case action.Amount < 0:
-			return errors.New("negative transfer amount")
-		case action.Amount == 0 && isRideV6Activated:
-			return errors.New("zero payments are forbidden since activation of RIDE V6")
-		}
+	if validatePayments && action.Amount < 0 {
+		return errors.New("negative transfer amount")
 	}
 	if restrictions.DisableSelfTransfers {
 		senderAddress := restrictions.ScriptAddress
