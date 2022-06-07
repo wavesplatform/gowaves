@@ -116,21 +116,34 @@ func TestBinaryStorageCborTestSuite(t *testing.T) {
 }
 
 func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
-	known := []KnownPeer{
+	knownList := []KnownPeer{
 		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("13.3.4.1:2345"))),
 		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("3.54.1.9:1454"))),
 		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("23.43.7.43:4234"))),
 		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("42.54.1.6:54356"))),
 	}
 
-	check := func(known []KnownPeer) {
+	setPeersTs := func(m knownPeers, list []KnownPeer, ts int64) {
+		for _, v := range list {
+			m[v] = ts
+		}
+	}
+
+	initKnownMap := func(list []KnownPeer, ts int64) knownPeers {
+		knownMap := make(knownPeers)
+		setPeersTs(knownMap, list, ts)
+		return knownMap
+	}
+
+	check := func(known knownPeers) {
 		var unmarshalled knownPeers
 		require.NoError(s.T(), unmarshalCborFromFile(s.storage.knownFilePath, &unmarshalled))
 		assert.Equal(s.T(), len(known), len(unmarshalled))
 		// nickeskov: check that all marshaled data saved in file
-		for _, expected := range known {
-			_, in := unmarshalled[expected]
+		for expectedPeer, expectedTs := range known {
+			ts, in := unmarshalled[expectedPeer]
 			require.True(s.T(), in)
+			require.Equal(s.T(), expectedTs, ts)
 		}
 
 		// nickeskov: check that all data saved in cache
@@ -147,23 +160,45 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 
 	s.Run("add and get known peers", func() {
 		// nickeskov: check empty input
-		require.NoError(s.T(), s.storage.AddKnown(nil))
-		// nickeskov: check same input
-		require.NoError(s.T(), s.storage.AddKnown(known))
+		require.NoError(s.T(), s.storage.AddOrUpdateKnown(nil, time.Time{}))
 
-		err := s.storage.AddKnown(known)
+		knownMap := initKnownMap(knownList, 0)
+
+		ts := time.Now()
+		setPeersTs(knownMap, knownList, ts.UnixNano())
+		require.NoError(s.T(), s.storage.AddOrUpdateKnown(knownList, ts))
+		check(knownMap)
+
+		// check input with same addresses and new timestamps
+		newTs := time.Now()
+		setPeersTs(knownMap, knownList, newTs.UnixNano())
+		err := s.storage.AddOrUpdateKnown(knownList, newTs)
 		require.NoError(s.T(), err)
-		check(known)
+		check(knownMap)
+
+		// clean known peers storage to eliminate unexpected side effects
+		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
 	s.Run("delete and get known peers", func() {
 		// nickeskov: check empty input
 		require.NoError(s.T(), s.storage.DeleteKnown(nil))
 
+		// fill known in storage
+		ts := time.Now()
+		knownMap := initKnownMap(knownList, ts.UnixNano())
+		require.NoError(s.T(), s.storage.AddOrUpdateKnown(knownList, ts))
+
 		// nickeskov: remove first entry
-		err := s.storage.DeleteKnown(known[:1])
+		err := s.storage.DeleteKnown(knownList[:1])
 		require.NoError(s.T(), err)
-		check(known[1:])
+
+		delete(knownMap, knownList[0])
+		check(knownMap)
+		require.NoError(s.T(), s.storage.DropKnown())
+
+		// clean known peers storage to eliminate unexpected side effects
+		require.NoError(s.T(), s.storage.DropKnown())
 	})
 
 	s.Run("unsafe sync known peers bad storage file", func() {
@@ -401,7 +436,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 
 	s.Run("drop known peers", func() {
 		defer func() {
-			require.NoError(s.T(), s.storage.AddKnown(known))
+			require.NoError(s.T(), s.storage.AddOrUpdateKnown(known, time.Now()))
 		}()
 
 		err := s.storage.DropKnown()
@@ -413,7 +448,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 	s.Run("drop peers storage", func() {
 		defer func() {
 			require.NoError(s.T(), s.storage.AddSuspended(suspended))
-			require.NoError(s.T(), s.storage.AddKnown(known))
+			require.NoError(s.T(), s.storage.AddOrUpdateKnown(known, time.Now()))
 		}()
 
 		err := s.storage.DropStorage()
@@ -435,7 +470,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 			require.Equal(s.T(), peersStorageCurrentVersion, version)
 
 			require.NoError(s.T(), s.storage.AddSuspended(suspended))
-			require.NoError(s.T(), s.storage.AddKnown(known))
+			require.NoError(s.T(), s.storage.AddOrUpdateKnown(known, time.Now()))
 		}()
 
 		storage, err := newCBORStorageInDir(s.storage.storageDir, s.now, -1)

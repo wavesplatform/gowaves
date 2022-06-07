@@ -5,106 +5,51 @@
 package mock
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	storage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
+	storage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 )
 
-// MockPeerStorage is a mock of PeerStorage interface
+// MockPeerStorage is a mock of PeerStorage interface.
 type MockPeerStorage struct {
 	ctrl     *gomock.Controller
 	recorder *MockPeerStorageMockRecorder
 }
 
-// MockPeerStorageMockRecorder is the mock recorder for MockPeerStorage
+// MockPeerStorageMockRecorder is the mock recorder for MockPeerStorage.
 type MockPeerStorageMockRecorder struct {
 	mock *MockPeerStorage
 }
 
-// NewMockPeerStorage creates a new mock instance
+// NewMockPeerStorage creates a new mock instance.
 func NewMockPeerStorage(ctrl *gomock.Controller) *MockPeerStorage {
 	mock := &MockPeerStorage{ctrl: ctrl}
 	mock.recorder = &MockPeerStorageMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPeerStorage) EXPECT() *MockPeerStorageMockRecorder {
 	return m.recorder
 }
 
-// Known mocks base method
-func (m *MockPeerStorage) Known(limit int) []storage.KnownPeer {
+// AddOrUpdateKnown mocks base method.
+func (m *MockPeerStorage) AddOrUpdateKnown(known []storage.KnownPeer, now time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Known", limit)
-	ret0, _ := ret[0].([]storage.KnownPeer)
-	return ret0
-}
-
-// Known indicates an expected call of Known
-func (mr *MockPeerStorageMockRecorder) Known(limit interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Known", reflect.TypeOf((*MockPeerStorage)(nil).Known), limit)
-}
-
-// AddKnown mocks base method
-func (m *MockPeerStorage) AddKnown(known []storage.KnownPeer) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddKnown", known)
+	ret := m.ctrl.Call(m, "AddOrUpdateKnown", known, now)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddKnown indicates an expected call of AddKnown
-func (mr *MockPeerStorageMockRecorder) AddKnown(known interface{}) *gomock.Call {
+// AddOrUpdateKnown indicates an expected call of AddOrUpdateKnown.
+func (mr *MockPeerStorageMockRecorder) AddOrUpdateKnown(known, now interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddKnown", reflect.TypeOf((*MockPeerStorage)(nil).AddKnown), known)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOrUpdateKnown", reflect.TypeOf((*MockPeerStorage)(nil).AddOrUpdateKnown), known, now)
 }
 
-// DeleteKnown mocks base method
-func (m *MockPeerStorage) DeleteKnown(known []storage.KnownPeer) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteKnown", known)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteKnown indicates an expected call of DeleteKnown
-func (mr *MockPeerStorageMockRecorder) DeleteKnown(known interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteKnown", reflect.TypeOf((*MockPeerStorage)(nil).DeleteKnown), known)
-}
-
-// DropKnown mocks base method
-func (m *MockPeerStorage) DropKnown() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DropKnown")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DropKnown indicates an expected call of DropKnown
-func (mr *MockPeerStorageMockRecorder) DropKnown() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropKnown", reflect.TypeOf((*MockPeerStorage)(nil).DropKnown))
-}
-
-// Suspended mocks base method
-func (m *MockPeerStorage) Suspended(now time.Time) []storage.SuspendedPeer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Suspended", now)
-	ret0, _ := ret[0].([]storage.SuspendedPeer)
-	return ret0
-}
-
-// Suspended indicates an expected call of Suspended
-func (mr *MockPeerStorageMockRecorder) Suspended(now interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspended", reflect.TypeOf((*MockPeerStorage)(nil).Suspended), now)
-}
-
-// AddSuspended mocks base method
+// AddSuspended mocks base method.
 func (m *MockPeerStorage) AddSuspended(suspended []storage.SuspendedPeer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddSuspended", suspended)
@@ -112,41 +57,27 @@ func (m *MockPeerStorage) AddSuspended(suspended []storage.SuspendedPeer) error 
 	return ret0
 }
 
-// AddSuspended indicates an expected call of AddSuspended
+// AddSuspended indicates an expected call of AddSuspended.
 func (mr *MockPeerStorageMockRecorder) AddSuspended(suspended interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSuspended", reflect.TypeOf((*MockPeerStorage)(nil).AddSuspended), suspended)
 }
 
-// IsSuspendedIP mocks base method
-func (m *MockPeerStorage) IsSuspendedIP(ip storage.IP, now time.Time) bool {
+// DeleteKnown mocks base method.
+func (m *MockPeerStorage) DeleteKnown(known []storage.KnownPeer) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSuspendedIP", ip, now)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "DeleteKnown", known)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// IsSuspendedIP indicates an expected call of IsSuspendedIP
-func (mr *MockPeerStorageMockRecorder) IsSuspendedIP(ip, now interface{}) *gomock.Call {
+// DeleteKnown indicates an expected call of DeleteKnown.
+func (mr *MockPeerStorageMockRecorder) DeleteKnown(known interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuspendedIP", reflect.TypeOf((*MockPeerStorage)(nil).IsSuspendedIP), ip, now)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteKnown", reflect.TypeOf((*MockPeerStorage)(nil).DeleteKnown), known)
 }
 
-// IsSuspendedIPs mocks base method
-func (m *MockPeerStorage) IsSuspendedIPs(ips []storage.IP, now time.Time) []bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSuspendedIPs", ips, now)
-	ret0, _ := ret[0].([]bool)
-	return ret0
-}
-
-// IsSuspendedIPs indicates an expected call of IsSuspendedIPs
-func (mr *MockPeerStorageMockRecorder) IsSuspendedIPs(ips, now interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuspendedIPs", reflect.TypeOf((*MockPeerStorage)(nil).IsSuspendedIPs), ips, now)
-}
-
-// DeleteSuspendedByIP mocks base method
+// DeleteSuspendedByIP mocks base method.
 func (m *MockPeerStorage) DeleteSuspendedByIP(suspended []storage.SuspendedPeer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteSuspendedByIP", suspended)
@@ -154,41 +85,27 @@ func (m *MockPeerStorage) DeleteSuspendedByIP(suspended []storage.SuspendedPeer)
 	return ret0
 }
 
-// DeleteSuspendedByIP indicates an expected call of DeleteSuspendedByIP
+// DeleteSuspendedByIP indicates an expected call of DeleteSuspendedByIP.
 func (mr *MockPeerStorageMockRecorder) DeleteSuspendedByIP(suspended interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSuspendedByIP", reflect.TypeOf((*MockPeerStorage)(nil).DeleteSuspendedByIP), suspended)
 }
 
-// RefreshSuspended mocks base method
-func (m *MockPeerStorage) RefreshSuspended(now time.Time) error {
+// DropKnown mocks base method.
+func (m *MockPeerStorage) DropKnown() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RefreshSuspended", now)
+	ret := m.ctrl.Call(m, "DropKnown")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RefreshSuspended indicates an expected call of RefreshSuspended
-func (mr *MockPeerStorageMockRecorder) RefreshSuspended(now interface{}) *gomock.Call {
+// DropKnown indicates an expected call of DropKnown.
+func (mr *MockPeerStorageMockRecorder) DropKnown() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshSuspended", reflect.TypeOf((*MockPeerStorage)(nil).RefreshSuspended), now)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropKnown", reflect.TypeOf((*MockPeerStorage)(nil).DropKnown))
 }
 
-// DropSuspended mocks base method
-func (m *MockPeerStorage) DropSuspended() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DropSuspended")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DropSuspended indicates an expected call of DropSuspended
-func (mr *MockPeerStorageMockRecorder) DropSuspended() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropSuspended", reflect.TypeOf((*MockPeerStorage)(nil).DropSuspended))
-}
-
-// DropStorage mocks base method
+// DropStorage mocks base method.
 func (m *MockPeerStorage) DropStorage() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DropStorage")
@@ -196,8 +113,92 @@ func (m *MockPeerStorage) DropStorage() error {
 	return ret0
 }
 
-// DropStorage indicates an expected call of DropStorage
+// DropStorage indicates an expected call of DropStorage.
 func (mr *MockPeerStorageMockRecorder) DropStorage() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropStorage", reflect.TypeOf((*MockPeerStorage)(nil).DropStorage))
+}
+
+// DropSuspended mocks base method.
+func (m *MockPeerStorage) DropSuspended() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DropSuspended")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DropSuspended indicates an expected call of DropSuspended.
+func (mr *MockPeerStorageMockRecorder) DropSuspended() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropSuspended", reflect.TypeOf((*MockPeerStorage)(nil).DropSuspended))
+}
+
+// IsSuspendedIP mocks base method.
+func (m *MockPeerStorage) IsSuspendedIP(ip storage.IP, now time.Time) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSuspendedIP", ip, now)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsSuspendedIP indicates an expected call of IsSuspendedIP.
+func (mr *MockPeerStorageMockRecorder) IsSuspendedIP(ip, now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuspendedIP", reflect.TypeOf((*MockPeerStorage)(nil).IsSuspendedIP), ip, now)
+}
+
+// IsSuspendedIPs mocks base method.
+func (m *MockPeerStorage) IsSuspendedIPs(ips []storage.IP, now time.Time) []bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSuspendedIPs", ips, now)
+	ret0, _ := ret[0].([]bool)
+	return ret0
+}
+
+// IsSuspendedIPs indicates an expected call of IsSuspendedIPs.
+func (mr *MockPeerStorageMockRecorder) IsSuspendedIPs(ips, now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuspendedIPs", reflect.TypeOf((*MockPeerStorage)(nil).IsSuspendedIPs), ips, now)
+}
+
+// Known mocks base method.
+func (m *MockPeerStorage) Known(limit int) []storage.KnownPeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Known", limit)
+	ret0, _ := ret[0].([]storage.KnownPeer)
+	return ret0
+}
+
+// Known indicates an expected call of Known.
+func (mr *MockPeerStorageMockRecorder) Known(limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Known", reflect.TypeOf((*MockPeerStorage)(nil).Known), limit)
+}
+
+// RefreshSuspended mocks base method.
+func (m *MockPeerStorage) RefreshSuspended(now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RefreshSuspended", now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RefreshSuspended indicates an expected call of RefreshSuspended.
+func (mr *MockPeerStorageMockRecorder) RefreshSuspended(now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshSuspended", reflect.TypeOf((*MockPeerStorage)(nil).RefreshSuspended), now)
+}
+
+// Suspended mocks base method.
+func (m *MockPeerStorage) Suspended(now time.Time) []storage.SuspendedPeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Suspended", now)
+	ret0, _ := ret[0].([]storage.SuspendedPeer)
+	return ret0
+}
+
+// Suspended indicates an expected call of Suspended.
+func (mr *MockPeerStorageMockRecorder) Suspended(now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspended", reflect.TypeOf((*MockPeerStorage)(nil).Suspended), now)
 }

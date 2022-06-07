@@ -103,8 +103,8 @@ func (bs *CBORStorage) Known(limit int) []KnownPeer {
 	return bs.known.OldestFirst(limit)
 }
 
-// AddKnown adds known peers into peers storage with strong error guarantees.
-func (bs *CBORStorage) AddKnown(known []KnownPeer) error {
+// AddOrUpdateKnown adds known peers with now timestamp into peers storage with strong error guarantees.
+func (bs *CBORStorage) AddOrUpdateKnown(known []KnownPeer, now time.Time) error {
 	if len(known) == 0 {
 		return nil
 	}
@@ -114,15 +114,10 @@ func (bs *CBORStorage) AddKnown(known []KnownPeer) error {
 
 	// Save existing known peers with their last attempt timestamps in backup
 	backup := bs.unsafeKnownIntersection(known)
-	// Fast path if all known peers already in storage
-	if len(backup) == len(known) {
-		return nil
-	}
 
-	// Add new values into known map with current timestamp
-	ts := time.Now().UnixNano()
+	nowInt := now.UnixNano()
 	for _, k := range known {
-		bs.known[k] = ts
+		bs.known[k] = nowInt
 	}
 
 	if err := bs.unsafeSyncKnown(known, backup); err != nil {
