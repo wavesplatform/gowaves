@@ -119,7 +119,7 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
-		return a, nil, err
+		return a, nil, errors.Wrapf(err, "peer '%s'", peer.ID())
 	}
 	if ok {
 		return a, nil, proto.NewInfoMsg(errors.Errorf("Block '%s' already exists", block.BlockID().String()))
@@ -143,7 +143,7 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
 		metrics.FSMKeyBlockDeclined("ng", block, err)
-		return a, nil, err
+		return a, nil, errors.Wrapf(err, "peer '%s'", peer.ID())
 	}
 	metrics.FSMKeyBlockApplied("ng", block)
 
