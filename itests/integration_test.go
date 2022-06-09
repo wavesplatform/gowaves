@@ -1,12 +1,12 @@
 package integration_test
 
 import (
+	"github.com/wavesplatform/gowaves/itests/config"
+	d "github.com/wavesplatform/gowaves/itests/docker"
 	"log"
 	"os"
 	"testing"
 	"time"
-
-	d "github.com/wavesplatform/gowaves/itests/docker"
 )
 
 func TestMain(m *testing.M) {
@@ -23,9 +23,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't purge docker containers %s", err)
 	}
+	err = config.DeleteConfig()
+	if err != nil {
+		log.Fatalf("couldn't delete config %s", err)
+	}
 	os.Exit(code)
 }
 
 func TestSleep(t *testing.T) {
-	time.Sleep(2 * time.Minute)
+	time.Sleep(1 * time.Minute)
 }
