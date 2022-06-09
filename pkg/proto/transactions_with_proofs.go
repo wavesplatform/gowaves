@@ -3114,7 +3114,7 @@ func (tx *DataWithProofs) Clone() *DataWithProofs {
 	return out
 }
 
-func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
+func NewUnsignedDataWithProofs(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 

@@ -486,7 +486,7 @@ func TestUserFunctionsInExpression(t *testing.T) {
 func TestDataFunctions(t *testing.T) {
 	secret, public, err := crypto.GenerateKeyPair([]byte("test data transaction"))
 	require.NoError(t, err)
-	data := proto.NewUnsignedData(1, public, 10000, 1544715621)
+	data := proto.NewUnsignedDataWithProofs(1, public, 10000, 1544715621)
 	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
 		Key:   "integer",
 		Value: 100500,
@@ -4411,7 +4411,7 @@ func TestMatchOverwrite(t *testing.T) {
 	*/
 	pk := crypto.PublicKey{}
 	sig := crypto.Signature{}
-	tx := proto.NewUnsignedData(1, pk, 1400000, 1539113093702)
+	tx := proto.NewUnsignedDataWithProofs(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "x", Value: 2})
 	tx.ID = &crypto.Digest{}
 	tx.Proofs = proto.NewProofs()
@@ -4465,7 +4465,7 @@ func TestFailSript1(t *testing.T) {
 	id, err := crypto.NewDigestFromBase58("Eg5yoFwXcBrq3ik4JvbbhSg429b6HT2qdXTURAUMBTh9")
 	require.NoError(t, err)
 
-	tx := proto.NewUnsignedData(1, pk, 1400000, 1539113093702)
+	tx := proto.NewUnsignedDataWithProofs(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "command", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "gameState", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "player1", Value: ""})
