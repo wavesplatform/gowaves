@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/xenolf/lego/log"
 	"html/template"
 	"os"
 	"time"
@@ -148,7 +149,11 @@ func CreateNewScalaConfig() error {
 		return err
 	}
 	f, err := os.Create(pwd + "/config/waves.conf")
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Warnf("couldn't close file %s", err)
+		}
+	}()
 	if err != nil {
 		return err
 	}
