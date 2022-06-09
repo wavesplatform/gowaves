@@ -85,5 +85,6 @@ func (d *Docker) runScalaNode() (*dockertest.Resource, error) {
 		return nil, err
 	}
 	return d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
+		hc.AutoRemove = true
 	})
 }

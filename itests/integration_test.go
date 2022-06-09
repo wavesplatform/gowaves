@@ -1,12 +1,13 @@
 package integration_test
 
 import (
-	"github.com/wavesplatform/gowaves/itests/config"
-	d "github.com/wavesplatform/gowaves/itests/docker"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/wavesplatform/gowaves/itests/config"
+	d "github.com/wavesplatform/gowaves/itests/docker"
 )
 
 func TestMain(m *testing.M) {

@@ -1,9 +1,10 @@
 package config
 
 import (
-	"github.com/xenolf/lego/log"
 	"html/template"
+	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -138,6 +139,11 @@ type GenesisParams struct {
 	GenesisBaseTarget uint64
 }
 
+const (
+	scalaConfigFilename = "waves.conf"
+	configFolder        = "config"
+)
+
 func CreateNewScalaConfig() error {
 	t, err := template.New("scala_conf").Parse(scalaTemplateConfig)
 	if err != nil {
@@ -148,10 +154,11 @@ func CreateNewScalaConfig() error {
 	if err != nil {
 		return err
 	}
-	f, err := os.Create(pwd + "/config/waves.conf")
+	configPath := filepath.Clean(filepath.Join(pwd, configFolder, scalaConfigFilename))
+	f, err := os.Create(configPath)
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Warnf("couldn't close file %s", err)
+			log.Fatalf("couldn't close file %s", err)
 		}
 	}()
 	if err != nil {
@@ -222,5 +229,6 @@ func DeleteConfig() error {
 	if err != nil {
 		return err
 	}
-	return os.Remove(pwd + "/config/waves.conf")
+	configPath := filepath.Clean(filepath.Join(pwd, configFolder, scalaConfigFilename))
+	return os.Remove(configPath)
 }
