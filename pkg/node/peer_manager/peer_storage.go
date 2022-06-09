@@ -8,7 +8,7 @@ import (
 
 type PeerStorage interface {
 	Known(limit int) []storage.KnownPeer
-	AddKnown(known []storage.KnownPeer) error
+	AddOrUpdateKnown(known []storage.KnownPeer, now time.Time) error
 	DeleteKnown(known []storage.KnownPeer) error
 	DropKnown() error
 

@@ -10228,7 +10228,7 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 	require.NotNil(t, res)
 }
 
-func TestZeroPaymentsV6(t *testing.T) {
+func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -10365,26 +10365,7 @@ func TestZeroPaymentsV6(t *testing.T) {
 		},
 	}
 
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	rideV6Activated = false
-	res, err := CallFunction(env, tree1, "call", arguments)
-	require.NoError(t, err)
-	r, ok := res.(DAppResult)
-	require.True(t, ok)
-
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(ap))
-	assert.Equal(t, []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp2), Amount: 0, Asset: proto.NewOptionalAssetWaves()}}, ap)
-	expectedResult := &proto.ScriptResult{
+	expectedScriptResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 		Transfers:    make([]*proto.TransferScriptAction, 0),
 		Issues:       make([]*proto.IssueScriptAction, 0),
@@ -10395,10 +10376,40 @@ func TestZeroPaymentsV6(t *testing.T) {
 		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
-	assert.Equal(t, expectedResult, sr)
 
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
+		{
+			Sender:    &dApp1PK,
+			Recipient: proto.NewRecipientFromAddress(dApp2),
+			Amount:    0,
+			Asset:     proto.NewOptionalAssetWaves(),
+		},
+	}
+
+	callAndCheckResults := func() {
+		testState := initWrappedState(mockState, env, tree1.LibVersion)
+		env.stateFunc = func() types.SmartState {
+			return testState
+		}
+		env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+			testDAppAddress = address
+			testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		}
+
+		res, err := CallFunction(env, tree1, "call", arguments)
+		require.NoError(t, err)
+		r, ok := res.(DAppResult)
+		require.True(t, ok)
+
+		sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(ap))
+		assert.Equal(t, expectedAttachedPaymentActions, ap)
+		assert.Equal(t, expectedScriptResult, sr)
+	}
+
+	rideV6Activated = false
+	callAndCheckResults()
 	rideV6Activated = true
-	_, err = CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	assert.Equal(t, "invoke: failed to apply attached payments: failed to pass validation of attached payments: zero payments are forbidden since activation of RIDE V6", err.Error())
+	callAndCheckResults()
 }

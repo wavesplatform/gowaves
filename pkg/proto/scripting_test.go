@@ -486,18 +486,16 @@ func TestNegativePaymentsValidation(t *testing.T) {
 	for i, test := range []struct {
 		actions          []ScriptAction
 		validatePayments bool
-		rideV6Activated  bool
 		error            bool
 	}{
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, true, false, false},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, true, true, true},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, true, false, false},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, true, false, true},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, false, false, false},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, false, false, false},
-		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, false, false, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, true, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, true, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, true, true},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 0, NewOptionalAssetWaves()}}, false, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, 1000, NewOptionalAssetWaves()}}, false, false},
+		{[]ScriptAction{&AttachedPaymentScriptAction{&pk1, rcp, -1000, NewOptionalAssetWaves()}}, false, false},
 	} {
-		err := ValidateActions(test.actions, restrictions, test.rideV6Activated, 5, test.validatePayments)
+		err := ValidateActions(test.actions, restrictions, false, 5, test.validatePayments)
 		if !test.error {
 			require.NoError(t, err, fmt.Sprintf("#%d", i))
 		} else {
