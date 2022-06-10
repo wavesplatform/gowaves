@@ -5022,11 +5022,12 @@ func (tx InvokeExpressionTransactionWithProofs) GetTimestamp() uint64 {
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transaction, error) {
+	//TODO: Check specification on size check of InvokeExpression transaction
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeExpressionWithProofs", tx.Version)
 	}
-	if l := len(tx.Expression); l > MaxContractScriptSize {
-		return tx, errors.Errorf("size of the expression %d is exceeded limit %d", l, MaxContractScriptSize)
+	if l := len(tx.Expression); l > MaxContractScriptSizeV1V5 {
+		return tx, errors.Errorf("size of the expression %d is exceeded limit %d", l, MaxContractScriptSizeV1V5)
 	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
