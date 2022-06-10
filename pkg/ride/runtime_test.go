@@ -24,6 +24,7 @@ func TestIndent(t *testing.T) {
 		{"ab\ncd\n", "\tab\n\tcd\n"},
 		{"\tab\n\tc\td\n", "\t\tab\n\t\tc\td\n"},
 		{"\tHello, 世界\n\t世界\n", "\t\tHello, 世界\n\t\t世界\n"},
+		{"\"abc\ndef\"\n", "\t\"abc\ndef\"\n"},
 	} {
 		assert.Equal(t, test.exp, indent(test.str))
 	}

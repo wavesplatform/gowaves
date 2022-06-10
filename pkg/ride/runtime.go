@@ -417,15 +417,36 @@ func fieldString(name string, value rideType) string {
 	return sb.String()
 }
 
+func nextStop(s string) (int, int) {
+	i := strings.IndexAny(s, "\"[]\n")
+	if i > 0 {
+		if s[i] == '\n' {
+			return i, 0
+		}
+		return i, 1
+	}
+	return i, 0
+}
+
 func indent(s string) string {
 	sb := new(strings.Builder)
 	start := 0
-	stop := strings.IndexRune(s[start:], '\n')
+	stop, lvl := nextStop(s[start:])
 	for stop >= start {
-		sb.WriteRune('\t')
-		sb.WriteString(s[start : stop+1])
-		start = stop + 1
-		stop = start + strings.IndexRune(s[start:], '\n')
+		if lvl == 0 {
+			sb.WriteRune('\t')
+			sb.WriteString(s[start : stop+1])
+			start = stop + 1
+			s, l := nextStop(s[start:])
+			stop = start + s
+			lvl += l
+		} else {
+			var ok bool
+			stop, ok = nextStop(s[start+stop:])
+			if !ok {
+				enabled = !enabled
+			}
+		}
 	}
 	return sb.String()
 }
