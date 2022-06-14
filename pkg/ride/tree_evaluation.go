@@ -6,6 +6,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+// invokeCallComplexityV5 is invoke() or reentrantInvoke() functions cost for RideV5
+const invokeCallComplexityV5 = 75
+
 func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
@@ -33,18 +36,9 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
 		// Produced actions are not stored for failed transactions, no need to return them here
 		et := GetEvaluationErrorType(err)
+		complexity := complexityInCaseOfEvaluationError(et, e, env)
 		if et == Undefined {
-			return nil, EvaluationErrorAddComplexity(
-				et.Wrap(err, "unhandled error"),
-				// Error was not handled in wrapped state properly,
-				// so we need to add both complexity from current evaluation and from internal invokes
-				e.complexity()+wrappedStateComplexity(env.state()),
-			)
-		}
-		complexity := e.complexity() + wrappedStateComplexity(env.state())
-		if env.rideV5Activated() && !env.rideV6Activated() && et == InternalInvocationError {
-			ws := env.state().(*WrappedState)
-			// TODO: this should be handled only when err == ride.InternalInvocationError
+			return nil, EvaluationErrorAddComplexity(et.Wrap(err, "unhandled error"), complexity)
 		}
 		return nil, EvaluationErrorAddComplexity(err, complexity)
 	}
@@ -52,7 +46,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	if !ok { // Unexpected result type
 		return nil, EvaluationErrorAddComplexity(
 			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
-			// New error, both complexities should be added
+			// New error, both complexities should be added (also see comment in complexityInCaseOfEvaluationError)
 			e.complexity()+wrappedStateComplexity(env.state()),
 		)
 	}
@@ -92,4 +86,23 @@ func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
 		return nil
 	}
 	return ws.act
+}
+
+func complexityInCaseOfEvaluationError(et EvaluationError, e *treeEvaluator, env environment) int {
+	// Error was not handled in wrapped state properly,
+	// so we need to add both complexity from current evaluation and from internal invokes
+	complexity := e.complexity() + wrappedStateComplexity(env.state())
+	// reproduce scala's node buggy behaviour
+	if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() && et == InternalInvocationError {
+		// if invoke script tx nesting level is 2 or less ==> complexity should be set to 0
+		// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txNestingLevel = 1 + invCount()
+		if txNestingLevel := 1 + ws.invCount(); txNestingLevel <= 2 {
+			complexity = 0
+		} else {
+			// if nesting level is 3 or greater, then we should sub last two invoke complexities plus
+			// cost of the last invoke() or reentrantInvoke() function call
+			complexity -= ws.lastTwoInvokeComplexities.sum() + invokeCallComplexityV5
+		}
+	}
+	return complexity
 }

@@ -239,6 +239,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	env.setInvocation(oldInvocationParam)
 
 	ws.totalComplexity += res.Complexity()
+	// need to reproduce scala's node buggy behaviour in complexity calculations after RideV5 and before RideV6
+	ws.lastTwoInvokeComplexities.pushComplexity(res.Complexity())
 
 	if res.userResult() == nil {
 		return rideUnit{}, nil

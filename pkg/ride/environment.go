@@ -9,11 +9,19 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const invokeCallComplexityV5 = 75
-
 var (
 	errDeletedEntry = errors.New("entry has been deleted")
 )
+
+type lastTwoInvokeComplexities [2]int
+
+func (l *lastTwoInvokeComplexities) pushComplexity(complexity int) {
+	l[0], l[1] = l[1], complexity
+}
+
+func (l *lastTwoInvokeComplexities) sum() int {
+	return l[0] + l[1]
+}
 
 type WrappedState struct {
 	diff                      diffState
@@ -26,6 +34,7 @@ type WrappedState struct {
 	dataEntriesSize           int
 	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
+	lastTwoInvokeComplexities lastTwoInvokeComplexities
 }
 
 func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
