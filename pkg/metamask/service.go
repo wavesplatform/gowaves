@@ -20,6 +20,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const defaultTimeout = 30 * time.Second
+
 func RunMetaMaskService(ctx context.Context, address string, service RPCService, enableRpcServiceLog bool) error {
 	// TODO(nickeskov): what about `BatchMaxLen` option?
 	rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
@@ -31,7 +33,7 @@ func RunMetaMaskService(ctx context.Context, address string, service RPCService,
 
 	http.Handle("/eth", rpc)
 
-	server := &http.Server{Addr: address, Handler: nil}
+	server := &http.Server{Addr: address, Handler: nil, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 
 	go func() {
 		<-ctx.Done()
