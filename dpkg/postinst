@@ -1,5 +1,17 @@
 #!/bin/sh
 set -e
+
+# create user
+if [ "$1" = "configure" ] ; then
+	if [ `sed -n "/^NAME/p" /etc/passwd` ]; then
+		echo "User NAME already exists"
+	else
+		useradd NAME -s /sbin/nologin -M
+	fi
+	chown NAME:NAME /usr/share/PACKAGE
+	chown NAME:NAME /var/lib/PACKAGE
+fi
+
 # Automatically added by dh_systemd_enable/12.10ubuntu1
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
 	# This will only remove masks created by d-s-h on package removal.
@@ -43,13 +55,3 @@ if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-decon
 	fi
 fi
 # End automatically added section
-
-if [ "$1" = "configure" ] ; then
-	if [ `sed -n "/^NAME/p" /etc/passwd` ]; then
-		echo "User NAME already exists"
-	else 
-		useradd NAME -s /sbin/nologin -M
-	fi
-	chown NAME:NAME /usr/share/PACKAGE
-	chown NAME:NAME /var/lib/PACKAGE
-fi
