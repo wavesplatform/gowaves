@@ -19,12 +19,16 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't run docker containers %s", err)
 	}
+	err = config.CreateNewScalaConfig()
+	if err != nil {
+		log.Fatalf("couldn't create config %s", err)
+	}
 	code := m.Run()
 	err = docker.Purge()
 	if err != nil {
 		log.Fatalf("couldn't purge docker containers %s", err)
 	}
-	err = config.DeleteConfig()
+	err = config.DeleteScalaConfig()
 	if err != nil {
 		log.Fatalf("couldn't delete config %s", err)
 	}
