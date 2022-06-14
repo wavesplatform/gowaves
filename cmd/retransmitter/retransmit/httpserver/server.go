@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"sort"
+	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
+
+const defaultTimeout = 30 * time.Second
 
 type HttpServer struct {
 	retransmitter Retransmitter
@@ -58,7 +61,7 @@ type FullState struct {
 	Known   []string
 }
 
-func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) {
+func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, _ *http.Request) {
 	var out ActiveConnections
 	addr2peer := a.retransmitter.ActiveConnections()
 	addr2peer.Each(func(p peer.Peer) {
@@ -85,7 +88,7 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (a *HttpServer) KnownPeers(rw http.ResponseWriter, r *http.Request) {
+func (a *HttpServer) KnownPeers(rw http.ResponseWriter, _ *http.Request) {
 	out := a.retransmitter.KnownPeers().GetAll()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
 		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
@@ -93,7 +96,7 @@ func (a *HttpServer) KnownPeers(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
+func (a *HttpServer) Spawned(rw http.ResponseWriter, _ *http.Request) {
 	out := a.retransmitter.SpawnedPeers().GetAll()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
 		http.Error(rw, fmt.Sprintf("Failed to marshal JSON and Write() failed: %v", err), http.StatusInternalServerError)
@@ -101,7 +104,7 @@ func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
+func (a *HttpServer) counter(rw http.ResponseWriter, _ *http.Request) {
 	c := a.retransmitter.Counter()
 	out := c.Get()
 	if err := json.NewEncoder(rw).Encode(out); err != nil {
@@ -131,8 +134,10 @@ func (a *HttpServer) ListenAndServe() error {
 	http.Handle("/", router)
 
 	a.srv = http.Server{
-		Handler: router,
-		Addr:    "0.0.0.0:8000",
+		Handler:           router,
+		Addr:              "0.0.0.0:8000",
+		ReadHeaderTimeout: defaultTimeout,
+		ReadTimeout:       defaultTimeout,
 	}
 	return a.srv.ListenAndServe()
 }
