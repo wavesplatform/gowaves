@@ -92,10 +92,11 @@ const (
 	MinFeeScriptedAsset = 400_000
 	MinFeeInvokeScript  = 500_000
 
-	MaxContractScriptSize = 32 * KiB
-	MaxVerifierScriptSize = 8 * KiB
-	KiB                   = 1024
-	MiB                   = 1024 * KiB
+	MaxContractScriptSizeV1V5 = 32 * KiB
+	MaxContractScriptSizeV6   = 160 * KiB
+	MaxVerifierScriptSize     = 8 * KiB
+	KiB                       = 1024
+	MiB                       = 1024 * KiB
 )
 
 var (

@@ -179,16 +179,19 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}
-	maxSize := proto.MaxVerifierScriptSize
-	if tree.IsDApp() {
-		maxSize = proto.MaxContractScriptSize
-	}
-	if l := len(script); l > maxSize {
-		return nil, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)
-	}
 	activations, err := tc.scriptActivation(tree.LibVersion, tree.HasBlockV2)
 	if err != nil {
 		return nil, errs.Extend(err, "script activation check failed")
+	}
+	maxSize := proto.MaxVerifierScriptSize
+	if tree.IsDApp() {
+		maxSize = proto.MaxContractScriptSizeV1V5
+		if activations.rideV6Activated {
+			maxSize = proto.MaxContractScriptSizeV6
+		}
+	}
+	if l := len(script); l > maxSize {
+		return nil, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)
 	}
 	if tree.IsDApp() {
 		if err := tc.checkDAppCallables(tree, activations.rideV6Activated); err != nil {

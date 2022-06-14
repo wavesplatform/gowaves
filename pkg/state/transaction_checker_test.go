@@ -1048,6 +1048,23 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
+	// Check script that exceeds 32kb in size
+	to.stor.activateFeature(t, int16(settings.RideV5))
+	scriptBytes, err = readTestScript("ride5_dapp_exceeds_32kb.base64")
+	require.NoError(t, err)
+	tx.Script = scriptBytes
+	// Big script, RideV6 feature is not activated
+	_, err = to.tc.checkSetScriptWithProofs(tx, info)
+	assert.EqualError(t, err, "checkScript() tx CHkPmr2rRLoj8CBuK1fMah2Z8pboMQZRtPsvXvHBFur8: script size 32857 is greater than limit of 32768")
+	// RideV6 feature is active, but fee is not enough
+	to.stor.activateFeature(t, int16(settings.RideV6))
+	_, err = to.tc.checkSetScriptWithProofs(tx, info)
+	assert.EqualError(t, err, "Fee 1000000 does not exceed minimal value of 3300000 WAVES. ") // Scala error text, note the space at the end
+	// Everything fine now
+	tx.Fee = 3300000
+	_, err = to.tc.checkSetScriptWithProofs(tx, info)
+	assert.NoError(t, err)
+
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)

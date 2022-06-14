@@ -160,7 +160,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 
 		stxBytesForFee := len(stx.Script)
 
-		fee += uint64((stxBytesForFee - 1) / 1024)
+		fee += uint64((stxBytesForFee - 1) / proto.KiB)
 	}
 	return fee, nil
 }
