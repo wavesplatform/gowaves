@@ -41,7 +41,12 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 				e.complexity()+wrappedStateComplexity(env.state()),
 			)
 		}
-		return nil, EvaluationErrorAddComplexity(err, e.complexity()+wrappedStateComplexity(env.state()))
+		complexity := e.complexity() + wrappedStateComplexity(env.state())
+		if env.rideV5Activated() && !env.rideV6Activated() && et == InternalInvocationError {
+			ws := env.state().(*WrappedState)
+			// TODO: this should be handled only when err == ride.InternalInvocationError
+		}
+		return nil, EvaluationErrorAddComplexity(err, complexity)
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
@@ -54,7 +59,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	if tree.LibVersion < ast.LibV5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
-	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(ast.LibraryVersion(tree.LibVersion))
+	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(tree.LibVersion)
 	if err != nil {
 		return nil, EvaluationFailure.Errorf("failed to get max chain invoke complexity: %v", err)
 	}
