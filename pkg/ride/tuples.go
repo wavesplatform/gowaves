@@ -66,6 +66,10 @@ func (a tuple2) size() int {
 	return 2
 }
 
+func (a tuple2) lines() []string {
+	return []string{a.String()}
+}
+
 func (a tuple2) String() string {
 	sb := new(strings.Builder)
 	sb.WriteRune('(')
@@ -131,6 +135,10 @@ func (a tuple3) eq(other rideType) bool {
 
 func (a tuple3) size() int {
 	return 3
+}
+
+func (a tuple3) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple3) String() string {
@@ -205,6 +213,10 @@ func (a tuple4) eq(other rideType) bool {
 
 func (a tuple4) size() int {
 	return 4
+}
+
+func (a tuple4) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple4) String() string {
@@ -286,6 +298,10 @@ func (a tuple5) eq(other rideType) bool {
 
 func (a tuple5) size() int {
 	return 5
+}
+
+func (a tuple5) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple5) String() string {
@@ -374,6 +390,10 @@ func (a tuple6) eq(other rideType) bool {
 
 func (a tuple6) size() int {
 	return 6
+}
+
+func (a tuple6) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple6) String() string {
@@ -469,6 +489,10 @@ func (a tuple7) eq(other rideType) bool {
 
 func (a tuple7) size() int {
 	return 7
+}
+
+func (a tuple7) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple7) String() string {
@@ -571,6 +595,10 @@ func (a tuple8) eq(other rideType) bool {
 
 func (a tuple8) size() int {
 	return 8
+}
+
+func (a tuple8) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple8) String() string {
@@ -680,6 +708,10 @@ func (a tuple9) eq(other rideType) bool {
 
 func (a tuple9) size() int {
 	return 9
+}
+
+func (a tuple9) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple9) String() string {
@@ -796,6 +828,10 @@ func (a tuple10) eq(other rideType) bool {
 
 func (a tuple10) size() int {
 	return 10
+}
+
+func (a tuple10) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple10) String() string {
@@ -919,6 +955,10 @@ func (a tuple11) eq(other rideType) bool {
 
 func (a tuple11) size() int {
 	return 11
+}
+
+func (a tuple11) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple11) String() string {
@@ -1049,6 +1089,10 @@ func (a tuple12) eq(other rideType) bool {
 
 func (a tuple12) size() int {
 	return 12
+}
+
+func (a tuple12) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple12) String() string {
@@ -1186,6 +1230,10 @@ func (a tuple13) eq(other rideType) bool {
 
 func (a tuple13) size() int {
 	return 13
+}
+
+func (a tuple13) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple13) String() string {
@@ -1330,6 +1378,10 @@ func (a tuple14) eq(other rideType) bool {
 
 func (a tuple14) size() int {
 	return 14
+}
+
+func (a tuple14) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple14) String() string {
@@ -1481,6 +1533,10 @@ func (a tuple15) eq(other rideType) bool {
 
 func (a tuple15) size() int {
 	return 15
+}
+
+func (a tuple15) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple15) String() string {
@@ -1639,6 +1695,10 @@ func (a tuple16) eq(other rideType) bool {
 
 func (a tuple16) size() int {
 	return 16
+}
+
+func (a tuple16) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple16) String() string {
@@ -1804,6 +1864,10 @@ func (a tuple17) eq(other rideType) bool {
 
 func (a tuple17) size() int {
 	return 17
+}
+
+func (a tuple17) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple17) String() string {
@@ -1976,6 +2040,10 @@ func (a tuple18) eq(other rideType) bool {
 
 func (a tuple18) size() int {
 	return 18
+}
+
+func (a tuple18) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple18) String() string {
@@ -2155,6 +2223,10 @@ func (a tuple19) eq(other rideType) bool {
 
 func (a tuple19) size() int {
 	return 19
+}
+
+func (a tuple19) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple19) String() string {
@@ -2341,6 +2413,10 @@ func (a tuple20) eq(other rideType) bool {
 
 func (a tuple20) size() int {
 	return 20
+}
+
+func (a tuple20) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple20) String() string {
@@ -2534,6 +2610,10 @@ func (a tuple21) eq(other rideType) bool {
 
 func (a tuple21) size() int {
 	return 21
+}
+
+func (a tuple21) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple21) String() string {
@@ -2734,6 +2814,10 @@ func (a tuple22) eq(other rideType) bool {
 
 func (a tuple22) size() int {
 	return 22
+}
+
+func (a tuple22) lines() []string {
+	return []string{a.String()}
 }
 
 func (a tuple22) String() string {
