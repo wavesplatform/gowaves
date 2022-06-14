@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"html"
 	"math/big"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ import (
 const (
 	byteVectorBase58Prefix = "base58"
 	byteVectorBase64Prefix = "base64"
-	tickRune               = '\''
 
 	addressTypeName         = "Address"
 	aliasTypeName           = "Alias"
@@ -199,6 +197,7 @@ type rideType interface {
 	instanceOf() string
 	eq(other rideType) bool
 	get(prop string) (rideType, error)
+	lines() []string
 	fmt.Stringer
 }
 
@@ -217,6 +216,10 @@ func (b rideBoolean) eq(other rideType) bool {
 
 func (b rideBoolean) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
+}
+
+func (b rideBoolean) lines() []string {
+	return []string{strconv.FormatBool(bool(b))}
 }
 
 func (b rideBoolean) String() string {
@@ -238,6 +241,10 @@ func (l rideInt) eq(other rideType) bool {
 
 func (l rideInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+func (l rideInt) lines() []string {
+	return []string{strconv.FormatInt(int64(l), 10)}
 }
 
 func (l rideInt) String() string {
@@ -263,6 +270,10 @@ func (l rideBigInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
+func (l rideBigInt) lines() []string {
+	return []string{l.v.String()}
+}
+
 func (l rideBigInt) String() string {
 	return l.v.String()
 }
@@ -284,12 +295,12 @@ func (s rideString) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", s.instanceOf(), prop)
 }
 
+func (s rideString) lines() []string {
+	return []string{strconv.Quote(string(s))}
+}
+
 func (s rideString) String() string {
-	sb := new(strings.Builder)
-	sb.WriteRune('"')
-	sb.WriteString(html.EscapeString(string(s)))
-	sb.WriteRune('"')
-	return sb.String()
+	return strconv.Quote(string(s))
 }
 
 type rideBytes []byte
@@ -309,21 +320,25 @@ func (b rideBytes) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
 }
 
-func (b rideBytes) stringAndPrefix() (string, string) {
-	if len(b) > 1024 {
-		return base64.StdEncoding.EncodeToString(b), byteVectorBase64Prefix
-	}
-	return base58.Encode(b), byteVectorBase58Prefix
+func (b rideBytes) lines() []string {
+	return []string{b.String()}
 }
 
 func (b rideBytes) String() string {
 	sb := new(strings.Builder)
 	str, prefix := b.stringAndPrefix()
 	sb.WriteString(prefix)
-	sb.WriteRune(tickRune)
+	sb.WriteRune('\'')
 	sb.WriteString(str)
-	sb.WriteRune(tickRune)
+	sb.WriteRune('\'')
 	return sb.String()
+}
+
+func (b rideBytes) stringAndPrefix() (string, string) {
+	if len(b) > 1024 {
+		return base64.StdEncoding.EncodeToString(b), byteVectorBase64Prefix
+	}
+	return base58.Encode(b), byteVectorBase58Prefix
 }
 
 func (b rideBytes) scalaString() string {
@@ -379,18 +394,36 @@ func (o rideObject) copy() rideObject {
 	return r
 }
 
-func (o rideObject) String() string {
+func fieldLines(key string, valueLines []string) []string {
+	r := make([]string, len(valueLines))
+	sb := new(strings.Builder)
+	for i := range valueLines {
+		sb.Reset()
+		sb.WriteRune('\t')
+		if i == 0 {
+			sb.WriteString(key)
+			sb.WriteRune(' ')
+			sb.WriteRune('=')
+			sb.WriteRune(' ')
+		}
+		sb.WriteString(valueLines[i])
+		r[i] = sb.String()
+	}
+	return r
+}
+
+func (o rideObject) lines() []string {
 	objectType := o.instanceOf()
 	sb := new(strings.Builder)
 	sb.WriteString(objectType)
 	if len(o) > 1 {
 		sb.WriteRune('(')
-		sb.WriteRune('\n')
+		r := []string{sb.String()}
 		order, ok := knownRideObjects[objectType]
 		if ok { // Order of fields is predefined, so use it to iterate over fields
 			for _, k := range order {
 				if v, ok := o[k]; ok {
-					sb.WriteString(indent(fieldString(k, v)))
+					r = append(r, fieldLines(k, v.lines())...)
 				}
 			}
 		} else { // Order of object's fields is not defined
@@ -398,36 +431,17 @@ func (o rideObject) String() string {
 				if k == instanceField {
 					continue
 				}
-				sb.WriteString(indent(fieldString(k, v)))
+				r = append(r, fieldLines(k, v.lines())...)
 			}
 		}
-		sb.WriteRune(')')
+		r = append(r, ")")
+		return r
 	}
-	return sb.String()
+	return []string{sb.String()}
 }
 
-func fieldString(name string, value rideType) string {
-	sb := new(strings.Builder)
-	sb.WriteString(name)
-	sb.WriteRune(' ')
-	sb.WriteRune('=')
-	sb.WriteRune(' ')
-	sb.WriteString(value.String())
-	sb.WriteRune('\n')
-	return sb.String()
-}
-
-func indent(s string) string {
-	sb := new(strings.Builder)
-	start := 0
-	stop := strings.IndexRune(s[start:], '\n')
-	for stop >= start {
-		sb.WriteRune('\t')
-		sb.WriteString(s[start : stop+1])
-		start = stop + 1
-		stop = start + strings.IndexRune(s[start:], '\n')
-	}
-	return sb.String()
+func (o rideObject) String() string {
+	return strings.Join(o.lines(), "\n")
 }
 
 type rideAddress proto.WavesAddress
@@ -458,14 +472,30 @@ func (a rideAddress) get(prop string) (rideType, error) {
 	}
 }
 
-func (a rideAddress) String() string {
+func makeLinesForAddressBytes(b []byte) []string {
+	r := make([]string, 3)
 	sb := new(strings.Builder)
 	sb.WriteString(addressTypeName)
 	sb.WriteRune('(')
-	sb.WriteRune('\n')
-	sb.WriteString(indent(fieldString(bytesField, rideBytes(a[:]))))
-	sb.WriteRune(')')
-	return sb.String()
+	r[0] = sb.String()
+	sb.Reset()
+	sb.WriteRune('\t')
+	sb.WriteString(bytesField)
+	sb.WriteRune(' ')
+	sb.WriteRune('=')
+	sb.WriteRune(' ')
+	sb.WriteString(rideBytes(b).String())
+	r[1] = sb.String()
+	r[2] = ")"
+	return r
+}
+
+func (a rideAddress) lines() []string {
+	return makeLinesForAddressBytes(a[:])
+}
+
+func (a rideAddress) String() string {
+	return strings.Join(a.lines(), "\n")
 }
 
 type rideAddressLike []byte
@@ -498,13 +528,12 @@ func (a rideAddressLike) get(prop string) (rideType, error) {
 	}
 }
 
+func (a rideAddressLike) lines() []string {
+	return makeLinesForAddressBytes(a[:])
+}
+
 func (a rideAddressLike) String() string {
-	sb := new(strings.Builder)
-	sb.WriteString(addressTypeName)
-	sb.WriteRune('(')
-	sb.WriteString(indent(fieldString(bytesField, rideBytes(a[:]))))
-	sb.WriteRune(')')
-	return sb.String()
+	return strings.Join(a.lines(), "\n")
 }
 
 type rideRecipient proto.Recipient
@@ -552,16 +581,15 @@ func (a rideRecipient) get(prop string) (rideType, error) {
 	}
 }
 
-func (a rideRecipient) String() string {
-	switch {
-	case a.Address != nil:
-		return rideAddress(*a.Address).String()
-	case a.Alias != nil:
-		return rideAlias(*a.Alias).String()
-	default:
-		r := proto.Recipient(a)
-		return r.String()
+func (a rideRecipient) lines() []string {
+	if a.Alias != nil {
+		return rideAlias(*a.Alias).lines()
 	}
+	return rideAddress(*a.Address).lines()
+}
+
+func (a rideRecipient) String() string {
+	return strings.Join(a.lines(), "\n")
 }
 
 type rideAlias proto.Alias
@@ -591,13 +619,25 @@ func (a rideAlias) get(prop string) (rideType, error) {
 }
 
 func (a rideAlias) String() string {
+	return strings.Join(a.lines(), "\n")
+}
+
+func (a rideAlias) lines() []string {
+	r := make([]string, 3)
 	sb := new(strings.Builder)
 	sb.WriteString(aliasTypeName)
 	sb.WriteRune('(')
-	sb.WriteRune('\n')
-	sb.WriteString(indent(fieldString(aliasField, rideString(a.Alias))))
-	sb.WriteRune(')')
-	return sb.String()
+	r[0] = sb.String()
+	sb.Reset()
+	sb.WriteRune('\t')
+	sb.WriteString(aliasField)
+	sb.WriteRune(' ')
+	sb.WriteRune('=')
+	sb.WriteRune(' ')
+	sb.WriteString(strconv.Quote(a.Alias))
+	r[1] = sb.String()
+	r[2] = ")"
+	return r
 }
 
 type rideUnit struct{}
@@ -612,6 +652,10 @@ func (a rideUnit) eq(other rideType) bool {
 
 func (a rideUnit) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+}
+
+func (a rideUnit) lines() []string {
+	return []string{unitTypeName}
 }
 
 func (a rideUnit) String() string {
@@ -632,6 +676,10 @@ func (a rideNamedType) eq(other rideType) bool {
 
 func (a rideNamedType) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+}
+
+func (a rideNamedType) lines() []string {
+	return []string{a.name}
 }
 
 func (a rideNamedType) String() string {
@@ -665,6 +713,10 @@ func (a rideList) eq(other rideType) bool {
 
 func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+}
+
+func (a rideList) lines() []string {
+	return []string{a.String()}
 }
 
 func (a rideList) String() string {
