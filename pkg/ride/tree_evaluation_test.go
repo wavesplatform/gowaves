@@ -1118,6 +1118,9 @@ var envDappFromDapp = &mockRideEnvironment{
 	blockV5ActivatedFunc: func() bool {
 		return true
 	},
+	rideV5ActivatedFunc: func() bool {
+		return true
+	},
 	rideV6ActivatedFunc: noRideV6,
 	validateInternalPaymentsFunc: func() bool {
 		return true
@@ -1140,6 +1143,9 @@ func tearDownDappFromDapp() {
 	addressCallable = proto.WavesAddress{}
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
+	envDappFromDapp.rideV5ActivatedFunc = func() bool {
+		return true
+	}
 	envDappFromDapp.rideV6ActivatedFunc = noRideV6
 
 	thisAddress = proto.WavesAddress{}
