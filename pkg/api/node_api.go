@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
@@ -19,6 +20,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
+
+const defaultTimeout = 30 * time.Second
 
 type NodeApi struct {
 	state state.State
@@ -130,7 +133,7 @@ func findFirstInvalidRuneInBase58String(str string) (rune, bool) {
 }
 
 func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
-	// nickeskov: in this case id param must be non zero length
+	// nickeskov: in this case id param must be non-zero length
 	s := chi.URLParam(r, "id")
 	id, err := proto.NewBlockIDFromBase58(s)
 	if err != nil {
@@ -210,7 +213,7 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		return errors.Wrap(err, "RunWithOpts")
 	}
 
-	apiServer := &http.Server{Addr: address, Handler: routes}
+	apiServer := &http.Server{Addr: address, Handler: routes, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
 		<-ctx.Done()
 		zap.S().Info("Shutting down API...")
@@ -469,7 +472,7 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	methods, err := a.app.EthereumDAppMethods(addr)
 	if err != nil {
 		if errors.Is(err, notFound) {
-			return nil // emtpy output if script is not found (according to the scala node)
+			return nil // empty output if script is not found (according to the scala node)
 		}
 		return errors.Wrapf(err, "failed to get EthereumDAppMethods by address=%q", addr.String())
 	}
