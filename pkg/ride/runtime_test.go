@@ -535,6 +535,8 @@ func TestTypesStrings(t *testing.T) {
 		{newSha3256(nil), "Sha3256"},
 		{newSha3384(nil), "Sha3384"},
 		{newSha3512(nil), "Sha3512"},
+		{rideList{rideBoolean(true)}, "[true]"},
+		{rideList{}, "[]"},
 		{testAddress, "Address(\n\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n)"},
 		{testAlias, "Alias(\n\talias = \"str\"\n)"},
 		{rideRecipient(recipient1), "Address(\n\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n)"},

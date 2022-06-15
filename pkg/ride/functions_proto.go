@@ -1291,19 +1291,19 @@ func assetPair(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("assetPair: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(assetPairTypeName)
-	obj[amountAssetField] = aa
-	obj[priceAssetField] = pa
-	return obj, nil
+	return rideObject{
+		instanceField:    rideString(assetPairTypeName),
+		amountAssetField: aa,
+		priceAssetField:  pa,
+	}, nil
 }
 
 func newBurn(assetID rideBytes, quantity rideInt) rideObject {
-	obj := make(rideObject)
-	obj[instanceField] = rideString(burnTypeName)
-	obj[assetIDField] = assetID
-	obj[quantityField] = quantity
-	return obj
+	return rideObject{
+		instanceField: rideString(burnTypeName),
+		assetIDField:  assetID,
+		quantityField: quantity,
+	}
 }
 
 func burn(_ environment, args ...rideType) (rideType, error) {
@@ -1343,73 +1343,73 @@ func dataTransaction(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 9); err != nil {
 		return nil, errors.Wrap(err, "dataTransaction")
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(dataTransactionTypeName)
 	entries, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	obj[dataField] = entries
 	id, ok := args[1].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	obj[idField] = id
 	fee, ok := args[2].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	obj[feeField] = fee
 	timestamp, ok := args[3].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[3].instanceOf())
 	}
-	obj[timestampField] = timestamp
 	version, ok := args[4].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[4].instanceOf())
 	}
-	obj[versionField] = version
 	addr, ok := args[5].(rideAddress)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[5].instanceOf())
 	}
-	obj[senderField] = addr
 	pk, ok := args[6].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[6].instanceOf())
 	}
-	obj[senderPublicKeyField] = pk
 	body, ok := args[7].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[7].instanceOf())
 	}
-	obj[bodyBytesField] = body
 	proofs, ok := args[8].(rideList)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[8].instanceOf())
 	}
-	obj[proofsField] = proofs
-	return obj, nil
+	return rideObject{
+		instanceField:        rideString(dataTransactionTypeName),
+		dataField:            entries,
+		idField:              id,
+		feeField:             fee,
+		timestampField:       timestamp,
+		versionField:         version,
+		senderField:          addr,
+		senderPublicKeyField: pk,
+		bodyBytesField:       body,
+		proofsField:          proofs,
+	}, nil
 }
 
 func transferObject(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "transferObject")
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(transferEntryTypeName)
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
 		return nil, errors.Errorf("transferObject: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	obj[recipientField] = rideRecipient(recipient)
 	amount, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("transferObject: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	obj[amountField] = amount
-	return obj, nil
+	return rideObject{
+		instanceField:  rideString(transferEntryTypeName),
+		recipientField: rideRecipient(recipient),
+		amountField:    amount,
+	}, nil
 }
 
 func scriptResult(_ environment, args ...rideType) (rideType, error) {
@@ -1422,11 +1422,11 @@ func scriptResult(_ environment, args ...rideType) (rideType, error) {
 	if args[1].instanceOf() != transferSetTypeName {
 		return nil, errors.Errorf("scriptResult: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(scriptResultTypeName)
-	obj[writeSetField] = args[0]
-	obj[transferSetField] = args[1]
-	return obj, nil
+	return rideObject{
+		instanceField:    rideString(scriptResultTypeName),
+		writeSetField:    args[0],
+		transferSetField: args[1],
+	}, nil
 }
 
 func writeSet(_ environment, args ...rideType) (rideType, error) {
@@ -1445,10 +1445,10 @@ func writeSet(_ environment, args ...rideType) (rideType, error) {
 		}
 		entries = append(entries, e)
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(writeSetTypeName)
-	obj[dataField] = entries
-	return obj, nil
+	return rideObject{
+		instanceField: rideString(writeSetTypeName),
+		dataField:     entries,
+	}, nil
 }
 
 func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
@@ -1470,12 +1470,12 @@ func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString("ScriptTransfer")
-	obj[recipientField] = recipient
-	obj[amountField] = amount
-	obj[assetField] = asset
-	return obj, nil
+	return rideObject{
+		instanceField:  rideString("ScriptTransfer"),
+		recipientField: recipient,
+		amountField:    amount,
+		assetField:     asset,
+	}, nil
 }
 
 func transferSet(_ environment, args ...rideType) (rideType, error) {
@@ -1494,10 +1494,10 @@ func transferSet(_ environment, args ...rideType) (rideType, error) {
 		}
 		transfers = append(transfers, t)
 	}
-	obj := make(rideObject)
-	obj[instanceField] = rideString(transferSetTypeName)
-	obj[transfersField] = transfers
-	return obj, nil
+	return rideObject{
+		instanceField:  rideString(transferSetTypeName),
+		transfersField: transfers,
+	}, nil
 }
 
 func unit(_ environment, _ ...rideType) (rideType, error) {
@@ -1505,12 +1505,12 @@ func unit(_ environment, _ ...rideType) (rideType, error) {
 }
 
 func newReissue(assetID rideBytes, quantity rideInt, reissuable rideBoolean) rideObject {
-	obj := make(rideObject)
-	obj[instanceField] = rideString(reissueTypeName)
-	obj[assetIDField] = assetID
-	obj[quantityField] = quantity
-	obj[isReissuableField] = reissuable
-	return obj
+	return rideObject{
+		instanceField:     rideString(reissueTypeName),
+		assetIDField:      assetID,
+		quantityField:     quantity,
+		isReissuableField: reissuable,
+	}
 }
 
 func reissue(_ environment, args ...rideType) (rideType, error) {
@@ -1533,11 +1533,11 @@ func reissue(_ environment, args ...rideType) (rideType, error) {
 }
 
 func newSponsorFee(asset rideBytes, fee rideInt) rideObject {
-	obj := make(rideObject)
-	obj[instanceField] = rideString(sponsorFeeTypeName)
-	obj[assetIDField] = asset
-	obj[minSponsoredAssetFeeField] = fee
-	return obj
+	return rideObject{
+		instanceField:             rideString(sponsorFeeTypeName),
+		assetIDField:              asset,
+		minSponsoredAssetFeeField: fee,
+	}
 }
 
 func sponsorship(_ environment, args ...rideType) (rideType, error) {
@@ -1552,10 +1552,6 @@ func attachedPayment(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "attachedPayment")
 	}
-
-	r := make(rideObject)
-	r[instanceField] = rideString(attachedPaymentTypeName)
-
 	var assetID rideType
 	switch assID := args[0].(type) {
 	case rideBytes, rideUnit:
@@ -1563,14 +1559,15 @@ func attachedPayment(_ environment, args ...rideType) (rideType, error) {
 	default:
 		return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	r[assetIDField] = assetID
-
 	amount, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	r[amountField] = amount
-	return r, nil
+	return rideObject{
+		instanceField: rideString(attachedPaymentTypeName),
+		assetIDField:  assetID,
+		amountField:   amount,
+	}, nil
 }
 
 func extractRecipient(v rideType) (proto.Recipient, error) {
@@ -1661,24 +1658,24 @@ func digest(v rideType) (c1.Hash, error) {
 }
 
 func newIssue(name, description rideString, quantity, decimals rideInt, reissuable rideBoolean, script rideType, nonce rideInt) rideObject {
-	r := make(rideObject)
-	r[instanceField] = rideString(issueTypeName)
-	r[nameField] = name
-	r[descriptionField] = description
-	r[quantityField] = quantity
-	r[decimalsField] = decimals
-	r[isReissuableField] = reissuable
-	r[compiledScriptField] = script
-	r[nonceField] = nonce
-	return r
+	return rideObject{
+		instanceField:       rideString(issueTypeName),
+		nameField:           name,
+		descriptionField:    description,
+		quantityField:       quantity,
+		decimalsField:       decimals,
+		isReissuableField:   reissuable,
+		compiledScriptField: script,
+		nonceField:          nonce,
+	}
 }
 
 func newDataEntry(name, key rideString, value rideType) rideObject {
-	r := make(rideObject)
-	r[instanceField] = name
-	r[keyField] = key
-	r[valueField] = value
-	return r
+	return rideObject{
+		instanceField: name,
+		keyField:      key,
+		valueField:    value,
+	}
 }
 
 func checkAsset(v rideType) (rideType, bool) {
@@ -1733,12 +1730,12 @@ func calculateLeaseID(env environment, args ...rideType) (rideType, error) {
 }
 
 func newLease(recipient rideRecipient, amount, nonce rideInt) rideObject {
-	r := make(rideObject)
-	r[instanceField] = rideString(leaseTypeName)
-	r[recipientField] = recipient
-	r[amountField] = amount
-	r[nonceField] = nonce
-	return r
+	return rideObject{
+		instanceField:  rideString(leaseTypeName),
+		recipientField: recipient,
+		amountField:    amount,
+		nonceField:     nonce,
+	}
 }
 
 func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
@@ -1776,10 +1773,10 @@ func fullLease(_ environment, args ...rideType) (rideType, error) {
 }
 
 func newLeaseCancel(id rideBytes) rideObject {
-	obj := make(rideObject)
-	obj[instanceField] = rideString(leaseCancelTypeName)
-	obj[leaseIDField] = id
-	return obj
+	return rideObject{
+		instanceField: rideString(leaseCancelTypeName),
+		leaseIDField:  id,
+	}
 }
 
 func leaseCancel(_ environment, args ...rideType) (rideType, error) {

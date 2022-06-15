@@ -325,15 +325,13 @@ func (b rideBytes) lines() []string {
 }
 
 func (b rideBytes) String() string {
-	sb := new(strings.Builder)
 	str, prefix := b.stringAndPrefix()
-	sb.WriteString(prefix)
-	sb.WriteRune('\'')
-	sb.WriteString(str)
-	sb.WriteRune('\'')
-	return sb.String()
+	return prefix + "'" + str + "'"
 }
 
+// stringAndPrefix function return string representation of byte slice and the name of encoding used to produce it.
+// In Scala implementation the string representation of byte arrays switches from Base58 to Base64 for arrays of size
+// bigger than 1024 bytes.
 func (b rideBytes) stringAndPrefix() (string, string) {
 	if len(b) > 1024 {
 		return base64.StdEncoding.EncodeToString(b), byteVectorBase64Prefix
@@ -346,11 +344,7 @@ func (b rideBytes) scalaString() string {
 	if prefix == byteVectorBase58Prefix {
 		return str
 	}
-	sb := new(strings.Builder)
-	sb.WriteString(prefix)
-	sb.WriteRune(':')
-	sb.WriteString(str)
-	return sb.String()
+	return prefix + ":" + str
 }
 
 type rideObject map[string]rideType
@@ -395,49 +389,40 @@ func (o rideObject) copy() rideObject {
 }
 
 func fieldLines(key string, valueLines []string) []string {
-	r := make([]string, len(valueLines))
-	sb := new(strings.Builder)
-	for i := range valueLines {
-		sb.Reset()
-		sb.WriteRune('\t')
-		if i == 0 {
-			sb.WriteString(key)
-			sb.WriteRune(' ')
-			sb.WriteRune('=')
-			sb.WriteRune(' ')
-		}
-		sb.WriteString(valueLines[i])
-		r[i] = sb.String()
+	l := len(valueLines)
+	r := make([]string, l)
+	r[0] = "\t" + key + " = " + valueLines[0]
+	for i := 1; i < l; i++ {
+		r[i] = "\t" + valueLines[i]
 	}
 	return r
 }
 
 func (o rideObject) lines() []string {
 	objectType := o.instanceOf()
-	sb := new(strings.Builder)
-	sb.WriteString(objectType)
-	if len(o) > 1 {
-		sb.WriteRune('(')
-		r := []string{sb.String()}
-		order, ok := knownRideObjects[objectType]
-		if ok { // Order of fields is predefined, so use it to iterate over fields
-			for _, k := range order {
-				if v, ok := o[k]; ok {
-					r = append(r, fieldLines(k, v.lines())...)
-				}
-			}
-		} else { // Order of object's fields is not defined
-			for k, v := range o {
-				if k == instanceField {
-					continue
-				}
+	l := len(o)
+	if l <= 1 {
+		return []string{objectType}
+	}
+	r := make([]string, 0, l+1)
+	r = append(r, objectType+"(")
+	order, ok := knownRideObjects[objectType]
+	if ok { // Order of fields is predefined, so use it to iterate over fields
+		for _, k := range order {
+			if v, ok := o[k]; ok {
 				r = append(r, fieldLines(k, v.lines())...)
 			}
 		}
-		r = append(r, ")")
-		return r
+	} else { // Order of object's fields is not defined
+		for k, v := range o {
+			if k == instanceField {
+				continue
+			}
+			r = append(r, fieldLines(k, v.lines())...)
+		}
 	}
-	return []string{sb.String()}
+	r = append(r, ")")
+	return r
 }
 
 func (o rideObject) String() string {
@@ -473,21 +458,11 @@ func (a rideAddress) get(prop string) (rideType, error) {
 }
 
 func makeLinesForAddressBytes(b []byte) []string {
-	r := make([]string, 3)
-	sb := new(strings.Builder)
-	sb.WriteString(addressTypeName)
-	sb.WriteRune('(')
-	r[0] = sb.String()
-	sb.Reset()
-	sb.WriteRune('\t')
-	sb.WriteString(bytesField)
-	sb.WriteRune(' ')
-	sb.WriteRune('=')
-	sb.WriteRune(' ')
-	sb.WriteString(rideBytes(b).String())
-	r[1] = sb.String()
-	r[2] = ")"
-	return r
+	return []string{
+		addressTypeName + "(",
+		"\t" + bytesField + " = " + rideBytes(b).String(),
+		")",
+	}
 }
 
 func (a rideAddress) lines() []string {
@@ -623,21 +598,11 @@ func (a rideAlias) String() string {
 }
 
 func (a rideAlias) lines() []string {
-	r := make([]string, 3)
-	sb := new(strings.Builder)
-	sb.WriteString(aliasTypeName)
-	sb.WriteRune('(')
-	r[0] = sb.String()
-	sb.Reset()
-	sb.WriteRune('\t')
-	sb.WriteString(aliasField)
-	sb.WriteRune(' ')
-	sb.WriteRune('=')
-	sb.WriteRune(' ')
-	sb.WriteString(strconv.Quote(a.Alias))
-	r[1] = sb.String()
-	r[2] = ")"
-	return r
+	return []string{
+		aliasTypeName + "(",
+		"\t" + aliasField + " = " + strconv.Quote(a.Alias),
+		")",
+	}
 }
 
 type rideUnit struct{}
@@ -720,18 +685,11 @@ func (a rideList) lines() []string {
 }
 
 func (a rideList) String() string {
-	sb := new(strings.Builder)
-	sb.WriteRune('[')
-	last := len(a) - 1
-	for i, item := range a {
-		sb.WriteString(item.String())
-		if i != last {
-			sb.WriteRune(',')
-			sb.WriteRune(' ')
-		}
+	ss := make([]string, len(a))
+	for i, e := range a {
+		ss[i] = e.String()
 	}
-	sb.WriteRune(']')
-	return sb.String()
+	return "[" + strings.Join(ss, ", ") + "]"
 }
 
 type (
