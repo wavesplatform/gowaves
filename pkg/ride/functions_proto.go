@@ -1223,7 +1223,7 @@ func checkedDeleteEntry(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "checkedDeleteEntry")
 	}
-	return newDataEntry("DeleteEntry", key, rideUnit{}), nil
+	return newDataEntry(deleteEntryTypeName, key, rideUnit{}), nil
 }
 
 func checkedIntDataEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1471,7 +1471,7 @@ func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	return rideObject{
-		instanceField:  rideString("ScriptTransfer"),
+		instanceField:  rideString(scriptTransferTypeName),
 		recipientField: recipient,
 		amountField:    amount,
 		assetField:     asset,
@@ -1489,7 +1489,7 @@ func transferSet(_ environment, args ...rideType) (rideType, error) {
 	var transfers rideList
 	for _, item := range list {
 		t, ok := item.(rideObject)
-		if !ok || t.instanceOf() != "ScriptTransfer" {
+		if !ok || t.instanceOf() != scriptTransferTypeName {
 			return nil, errors.Errorf("transferSet: unexpected list item type '%s'", item.instanceOf())
 		}
 		transfers = append(transfers, t)

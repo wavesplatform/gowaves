@@ -1566,7 +1566,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 			Quantity:   int64(quantity),
 			Reissuable: bool(reissuable),
 		}, nil
-	case "ScriptTransfer":
+	case scriptTransferTypeName:
 		recipient, err := recipientProperty(obj, recipientField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
@@ -1595,7 +1595,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 			Amount:    int64(amount),
 			Asset:     asset,
 		}, nil
-	case "SponsorFee":
+	case sponsorFeeTypeName:
 		id, err := digestProperty(obj, assetIDField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert SponsorFee to ScriptAction")
