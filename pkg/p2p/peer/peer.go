@@ -35,11 +35,13 @@ func NewParent() Parent {
 	}
 }
 
+type PeerID string
+
 type Peer interface {
 	Direction() Direction
 	Close() error
 	SendMessage(proto.Message)
-	ID() string
+	ID() PeerID
 	Connection() conn.Connection
 	Handshake() proto.Handshake
 	RemoteAddr() proto.TCPAddr

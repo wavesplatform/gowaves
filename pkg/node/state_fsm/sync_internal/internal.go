@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type Blocks []*proto.Block
@@ -28,6 +29,7 @@ type Internal struct {
 }
 
 func InternalFromLastSignatures(p extension.PeerExtension, signatures *signatures.ReverseOrdering) Internal {
+	zap.S().Infof("AskBlocksIDs(%v, %v) from InternalFromLastSignatures()", signatures.BlockIDS()[0], len(signatures.BlockIDS()))
 	p.AskBlocksIDs(signatures.BlockIDS())
 	return NewInternal(ordered_blocks.NewOrderedBlocks(), signatures, true)
 }
@@ -84,6 +86,7 @@ func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
 	if a.orderedBlocks.RequestedCount() < 100 {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true
 	}
+	zap.S().Infof("AskBlocksIDs(%v, %v) from Blocks()", a.respondedSignatures.BlockIDS()[0], len(a.respondedSignatures.BlockIDS()))
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false
 }

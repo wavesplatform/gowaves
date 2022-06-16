@@ -54,8 +54,8 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 	}
 }
 
-func (a *PeerImpl) ID() string {
-	return a.id
+func (a *PeerImpl) ID() PeerID {
+	return PeerID(a.id)
 }
 
 func (a *PeerImpl) Connection() conn.Connection {
