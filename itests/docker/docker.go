@@ -64,7 +64,6 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 			"WALLET_PASSWORD=test",
 			"GRPS_ADDR=0.0.0.0:6871",
 			"API_ADDR=0.0.0.0:6872",
-			"API_KEY=7L6GpLHhA5KyJTAVc8WFHwEcyTY8fC8rRbyMCiFnM4i",
 			"PEERS=" + d.scalaNode.GetIPInNetwork(d.network) + ":6868",
 		},
 		PortBindings: map[dc.Port][]dc.PortBinding{
