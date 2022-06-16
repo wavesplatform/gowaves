@@ -24,14 +24,29 @@ ENV TZ=Etc/UTC \
 RUN addgroup -S $APP_USER \
     && adduser -S $APP_USER -G $APP_USER
 
-EXPOSE 6863
-EXPOSE 6869
-EXPOSE 6870
-EXPOSE 8083
+RUN mkdir -p /home/gowaves/config
+
+ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
+    STATE_PATH=/home/gowaves/
+
+EXPOSE 6871
+EXPOSE 6872
+EXPOSE 6873
 
 USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node        /app/node
 
-CMD /app/node -blockchain-type $WAVES_NETWORK -state-path /home/gowaves \
-    -api-address 127.0.0.1:8083 -build-extended-api -build-state-hashes -serve-extended-api -bloom=true -api-key="key"
+CMD /app/node \
+    -cfg-path=$CONFIG_PATH \
+    -peers=$PEERS \
+    -state-path=$STATE_PATH \
+    -enable-grpc-api=true \
+    -grpc-address=$GRPC_ADDR \
+    -api-address=$API_ADDR \
+    -bind-address=0.0.0.0:6873 \
+    -api-key=$API_KEY \
+    -build-extended-api \
+    -build-state-hashes \
+    -serve-extended-api \
+    -bloom=true

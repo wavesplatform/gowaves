@@ -3,15 +3,15 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
 )
@@ -41,8 +41,6 @@ type GenesisSettings struct {
 	SchemeRaw         string             `json:"scheme"`
 	AverageBlockDelay uint64             `json:"average_block_delay"`
 	Distributions     []DistributionItem `json:"distributions"`
-	MinBlockTime      uint64             `json:"min_block_time"`
-	DelayDelta        uint64             `json:"delay_delta"`
 }
 
 func parseGenesisSettings() (GenesisSettings, error) {
@@ -53,49 +51,42 @@ func parseGenesisSettings() (GenesisSettings, error) {
 	configPath := filepath.Clean(filepath.Join(pwd, configFolder, genesisSettingsFileName))
 	f, err := os.Open(configPath)
 	if err != nil {
-		return GenesisSettings{}, errors.Errorf("failed to open file: %s", err)
+		return GenesisSettings{}, fmt.Errorf("failed to open file: %s", err)
 	}
 	jsonParser := json.NewDecoder(f)
 	s := GenesisSettings{}
 	if err := jsonParser.Decode(&s); err != nil {
-		return GenesisSettings{}, errors.Errorf("failed to decode genesis settings: %s", err)
+		return GenesisSettings{}, fmt.Errorf("failed to decode genesis settings: %s", err)
 	}
 	s.Scheme = s.SchemeRaw[0]
 	return s, nil
 }
 
-func NewGenesisConfig() (GenesisConfig, error) {
-	settings, err := parseGenesisSettings()
+func NewBlockchainConfig() (*settings.BlockchainSettings, error) {
+	genSettings, err := parseGenesisSettings()
 	if err != nil {
-		return GenesisConfig{}, err
+		return nil, err
 	}
 	ts := time.Now().UnixMilli()
-	txs, acc, err := makeTransactionAndKeyPairs(settings, uint64(ts))
+	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
 	if err != nil {
-		return GenesisConfig{}, err
+		return nil, err
 	}
-	bt, err := calcInitialBaseTarget(acc, settings.AverageBlockDelay)
+	bt, err := calcInitialBaseTarget(acc, genSettings.AverageBlockDelay)
 	if err != nil {
-		return GenesisConfig{}, err
+		return nil, err
 	}
-	b, err := genesis_generator.GenerateGenesisBlock(settings.Scheme, txs, bt, uint64(ts))
+	b, err := genesis_generator.GenerateGenesisBlock(genSettings.Scheme, txs, bt, uint64(ts))
 	if err != nil {
-		return GenesisConfig{}, err
+		return nil, err
 	}
-	ok, err := b.VerifySignature(settings.Scheme)
-	if err != nil {
-		return GenesisConfig{}, errors.Errorf("failed to validate genesis block signature: %s", err)
-	}
-	if !ok {
-		return GenesisConfig{}, errors.Errorf("genesis block signature '%s' is not valid", b.BlockSignature)
-	}
-	return GenesisConfig{
-		GenesisTimestamp:  ts,
-		GenesisSignature:  b.BlockSignature,
-		GenesisBaseTarget: bt,
-		AverageBlockDelay: settings.AverageBlockDelay,
-		Transaction:       txs,
-	}, nil
+	cfg := settings.DefaultCustomSettings
+	cfg.Genesis = *b
+	cfg.AddressSchemeCharacter = genSettings.Scheme
+	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
+	cfg.PreactivatedFeatures = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+
+	return cfg, nil
 }
 
 type AccountInfo struct {
@@ -114,15 +105,15 @@ func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]g
 		s := append(iv[:], seed...)
 		h, err := crypto.SecureHash(s)
 		if err != nil {
-			return nil, nil, errors.Errorf("failed to generate hash from seed '%s': %s", string(seed), err)
+			return nil, nil, fmt.Errorf("failed to generate hash from seed '%s': %s", string(seed), err)
 		}
 		sk, pk, err := crypto.GenerateKeyPair(h[:])
 		if err != nil {
-			return nil, nil, errors.Errorf("failed to generate keyPair from seed '%s': %s", string(seed), err)
+			return nil, nil, fmt.Errorf("failed to generate keyPair from seed '%s': %s", string(seed), err)
 		}
 		addr, err := proto.NewAddressFromPublicKey(settings.Scheme, pk)
 		if err != nil {
-			return nil, nil, errors.Errorf("failed to generate address from seed '%s': %s", string(seed), err)
+			return nil, nil, fmt.Errorf("failed to generate address from seed '%s': %s", string(seed), err)
 		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
 		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount})

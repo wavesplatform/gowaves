@@ -31,7 +31,10 @@ build-forkdetector-linux-arm:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/forkdetector -ldflags="-X main.version=$(VERSION)" ./cmd/forkdetector
 
 gotest:
-	go test -cover ./...
+	go test -cover $$(go list ./... | grep -v "/itests")
+
+itest:
+	go test $$(go list ./... | grep "/itests")
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go" | grep -v ".*bn254/.*\.go"; if [ "$$?" = "0" ]; then exit 1; fi

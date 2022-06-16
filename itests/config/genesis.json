@@ -1,8 +1,6 @@
 {
   "scheme": "L",
   "average_block_delay": 10,
-  "min_block_time": 5,
-  "delay_delta": 0,
   "distributions": [
     {
       "seed_text": "3Hm3LGoNPmw1VTZ3eRA2pAfeQPhnaBm6YFC",
