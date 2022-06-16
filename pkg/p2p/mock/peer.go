@@ -47,8 +47,8 @@ func (a *Peer) SendMessage(m proto.Message) {
 	a.mu.Unlock()
 }
 
-func (a *Peer) ID() string {
-	return a.Addr
+func (a *Peer) ID() peer.PeerID {
+	return peer.PeerID(a.Addr)
 }
 
 func (a *Peer) Handshake() proto.Handshake {

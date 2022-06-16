@@ -61,7 +61,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 
 	if err := peer.Handle(peer.HandlerParams{
 		Ctx:        ctx,
-		ID:         params.Address,
+		ID:         peer.PeerID(params.Address),
 		Connection: p.connection,
 		Remote:     remote,
 		Parent:     params.Parent,
@@ -153,8 +153,8 @@ func (a *OutgoingPeer) Close() error {
 	return nil
 }
 
-func (a *OutgoingPeer) ID() string {
-	return a.params.Address
+func (a *OutgoingPeer) ID() peer.PeerID {
+	return peer.PeerID(a.params.Address)
 }
 
 func (a *OutgoingPeer) Connection() conn.Connection {

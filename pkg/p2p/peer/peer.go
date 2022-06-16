@@ -35,8 +35,6 @@ func NewParent() Parent {
 	}
 }
 
-type PeerID string
-
 type Peer interface {
 	Direction() Direction
 	Close() error

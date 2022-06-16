@@ -406,7 +406,7 @@ func (a *PeerManagerImpl) addConnected(peer peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	delete(a.spawned, peer.RemoteAddr().ToIpPort())
-	a.active[peer] = newPeerInfo(peer)
+	a.active.Add(peer)
 }
 
 func (a *PeerManagerImpl) suspended(p peer.Peer) bool {

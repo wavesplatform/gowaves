@@ -33,3 +33,5 @@ func (a Direction) String() string {
 		return "Unknown"
 	}
 }
+
+type PeerID string
