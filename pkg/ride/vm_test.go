@@ -113,7 +113,7 @@ func newDataTransaction() *proto.DataWithProofs {
 	if err != nil {
 		panic(err)
 	}
-	tx := proto.NewUnsignedData(1, pk, 100000, 1568640015000)
+	tx := proto.NewUnsignedDataWithProofs(1, pk, 100000, 1568640015000)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "integer", Value: 100500})
 	tx.Entries = append(tx.Entries, &proto.BooleanDataEntry{Key: "boolean", Value: true})
 	tx.Entries = append(tx.Entries, &proto.BinaryDataEntry{Key: "binary", Value: []byte{0xCA, 0xFE, 0xBE, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}})

@@ -18,6 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const defaultTimeout = 30 * time.Second
+
 // Logger is a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
@@ -83,7 +85,7 @@ func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, dra
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 	r.Use(middleware.Compress(flate.DefaultCompression))
 	r.Mount("/api", a.routes())
-	a.srv = &http.Server{Addr: bind, Handler: r}
+	a.srv = &http.Server{Addr: bind, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	return &a, nil
 }
 
@@ -126,7 +128,7 @@ func (a *api) routes() chi.Router {
 	r.Get("/all-forks", a.allForks)                     // Returns the combined info about all registered forks
 	r.Get("/fork/{address}", a.fork)                    // Returns the info about fork of the given peer
 	r.Get("/height/{height:\\d+}", a.blocksAtHeight)    // Returns the list of blocks' IDs on the given height
-	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block) // Returns the block content by it's ID
+	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block) // Returns the block content by ID
 	return r
 }
 
