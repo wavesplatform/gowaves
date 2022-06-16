@@ -159,16 +159,16 @@ func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeig
 			}
 		}
 		if err := cv.validateGeneratorSignatureAndBlockDelay(height, header); err != nil {
-			return errors.Wrap(err, "block generator signature validation failed")
+			return errors.Wrapf(err, "generator signature validation failed for block '%s'", header.ID.String())
 		}
 		if err := cv.validateBlockTimestamp(header); err != nil {
-			return errors.Wrap(err, "block timestamp validation failed")
+			return errors.Wrapf(err, "timestamp validation failed for block '%s'", header.ID.String())
 		}
 		if err := cv.validateBaseTarget(height, header, parent, greatGrandParent); err != nil {
-			return errors.Wrapf(err, "base target validation failed at %d", height)
+			return errors.Wrapf(err, "base target validation failed at height %d for block '%s'", height, header.ID.String())
 		}
 		if err := cv.validateBlockVersion(header, height); err != nil {
-			return errors.Wrap(err, "block version validation failed")
+			return errors.Wrapf(err, "version validation failed for block '%s'", header.ID.String())
 		}
 	}
 	return nil
