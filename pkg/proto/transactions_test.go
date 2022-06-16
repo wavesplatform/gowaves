@@ -5000,7 +5000,7 @@ func TestDataWithProofsValidations(t *testing.T) {
 	for i, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		tx := NewUnsignedData(1, spk, tc.fee, 0)
+		tx := NewUnsignedDataWithProofs(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
 		_, err = tx.Validate(MainNetScheme)
 		assert.Error(t, err, "#%d", i) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
@@ -5013,13 +5013,13 @@ func TestDataWithProofsDeleteValidation(t *testing.T) {
 	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	require.NoError(t, err)
 	de := &DeleteDataEntry{Key: "key"}
-	tx1 := NewUnsignedData(1, spk, MinFee, 67890)
+	tx1 := NewUnsignedDataWithProofs(1, spk, MinFee, 67890)
 	tx1.Entries = DataEntries{de}
 	_, err = tx1.Validate(MainNetScheme)
 	msg := "delete supported only for protobuf transaction"
 	assert.EqualError(t, err, msg, fmt.Sprintf("expected: %s", msg))
 
-	tx2 := NewUnsignedData(2, spk, MinFee, 67890)
+	tx2 := NewUnsignedDataWithProofs(2, spk, MinFee, 67890)
 	tx2.Entries = DataEntries{de}
 	_, err = tx2.Validate(MainNetScheme)
 	assert.NoError(t, err)
@@ -5050,7 +5050,7 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		tx := NewUnsignedData(1, spk, tc.fee, 0)
+		tx := NewUnsignedDataWithProofs(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
 		err = tx.Sign(MainNetScheme, sk)
 		require.NoError(t, err)
@@ -5094,7 +5094,7 @@ func TestDataWithProofsFromMainNet(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		tx := NewUnsignedData(1, spk, tc.fee, tc.timestamp)
+		tx := NewUnsignedDataWithProofs(1, spk, tc.fee, tc.timestamp)
 		for i, k := range tc.keys {
 			e := &StringDataEntry{k, tc.values[i]}
 			err := tx.AppendEntry(e)
@@ -5124,7 +5124,7 @@ func TestDataWithProofsProtobufRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedData(1, pk, tc.fee, ts)
+		tx := NewUnsignedDataWithProofs(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -5182,7 +5182,7 @@ func TestDataWithProofsBinarySize(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedData(1, pk, tc.fee, ts)
+		tx := NewUnsignedDataWithProofs(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -5224,7 +5224,7 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedData(1, pk, tc.fee, ts)
+		tx := NewUnsignedDataWithProofs(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -5288,7 +5288,7 @@ func TestDataWithProofsToJSON(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedData(1, pk, tc.fee, ts)
+		tx := NewUnsignedDataWithProofs(1, pk, tc.fee, ts)
 		var sb strings.Builder
 		for i, k := range tc.keys {
 			if i != 0 {

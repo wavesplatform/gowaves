@@ -1254,7 +1254,7 @@ func TestTransferFromProtobuf(t *testing.T) {
 			require.NoError(t, err)
 			o, ok := r.(rideObject)
 			assert.True(t, ok)
-			assert.Equal(t, test.inst, o[instanceFieldName])
+			assert.Equal(t, test.inst, o[instanceField])
 			assert.Equal(t, test.id, o["id"])
 		}
 	}
