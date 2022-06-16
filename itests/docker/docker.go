@@ -76,7 +76,7 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 		},
 	}
 	res, err := d.pool.BuildAndRunWithOptions(pwd+"/../Dockerfile.gowaves-it", opt, func(hc *dc.HostConfig) {
-		//hc.AutoRemove = true
+		hc.AutoRemove = true
 	})
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 		},
 	}
 	res, err := d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
-		//hc.AutoRemove = true
+		hc.AutoRemove = true
 	})
 	if err != nil {
 		return nil, err
