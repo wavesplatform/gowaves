@@ -1230,7 +1230,7 @@ func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
 	e.id = rideBytes(transfer.ID.Bytes())
-	e.tx = scriptTransferToObject(transfer)
+	e.tx = scriptTransferToTransferTransactionObject(transfer)
 }
 
 func (e *EvaluationEnvironment) SetTransactionWithoutProofs(tx proto.Transaction) error {
@@ -1238,7 +1238,7 @@ func (e *EvaluationEnvironment) SetTransactionWithoutProofs(tx proto.Transaction
 	if err != nil {
 		return err
 	}
-	e.tx["proofs"] = rideUnit{}
+	e.tx[proofsField] = rideUnit{}
 	return nil
 }
 

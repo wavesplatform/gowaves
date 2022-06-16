@@ -627,7 +627,7 @@ func TestMakeString(t *testing.T) {
 		{[]rideType{rideList{rideString("")}, rideString("")}, false, rideString("")},
 		{[]rideType{rideList{}, rideString(",")}, false, rideString("")},
 		{[]rideType{rideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, false, rideString("one, 2, tree")},
-		{[]rideType{rideList{rideString("one"), rideBoolean(true), rideString("tree")}, rideString(", ")}, true, nil},
+		{[]rideType{rideList{rideString("one"), rideBoolean(true), rideString("tree")}, rideString(", ")}, false, rideString("one, true, tree")},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, true, nil},

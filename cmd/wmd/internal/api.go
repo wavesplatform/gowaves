@@ -34,6 +34,8 @@ const (
 	timeFramePlaceholder   = "TimeFrame"
 	fromPlaceholder        = "From"
 	toPlaceholder          = "To"
+
+	defaultTimeout = 30 * time.Second
 )
 
 var (
@@ -93,7 +95,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Use(middleware.Compress(flate.DefaultCompression))
 	r.Mount("/", a.swagger(swaggerFS))
 	r.Mount("/api", a.routes())
-	apiServer := &http.Server{Addr: address, Handler: r}
+	apiServer := &http.Server{Addr: address, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
 		err := apiServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {

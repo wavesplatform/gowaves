@@ -52,6 +52,7 @@ var protocolVersion = proto.Version{Major: 1, Minor: 4, Patch: 0}
 const (
 	maxTransactionTimeForwardOffset = 300 // seconds
 	mb                              = 1 << (10 * 2)
+	defaultTimeout                  = 30 * time.Second
 )
 
 var (
@@ -428,7 +429,7 @@ func main() {
 		if *prometheus != "" {
 			h := http.NewServeMux()
 			h.Handle("/metrics", promhttp.Handler())
-			s := &http.Server{Addr: *prometheus, Handler: h}
+			s := &http.Server{Addr: *prometheus, Handler: h, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 			zap.S().Infof("Starting node metrics endpoint on '%v'", *prometheus)
 			_ = s.ListenAndServe()
 		}

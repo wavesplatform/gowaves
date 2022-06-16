@@ -1345,6 +1345,22 @@ func createTuples(sb *strings.Builder) {
 		sb.WriteString(fmt.Sprintf("func (a %s) size() int {\n", name))
 		sb.WriteString(fmt.Sprintf("return %d\n", n))
 		sb.WriteString("}\n\n")
+		sb.WriteString(fmt.Sprintf("func (a %s) lines() []string {\n", name))
+		sb.WriteString("return []string{a.String()}\n")
+		sb.WriteString("}\n\n")
+		sb.WriteString(fmt.Sprintf("func (a %s) String() string {\n", name))
+		sb.WriteString("sb := new(strings.Builder)\n")
+		sb.WriteString("sb.WriteRune('(')\n")
+		for i, el := range elements {
+			sb.WriteString(fmt.Sprintf("sb.WriteString(a.%s.String())\n", el))
+			if i < len(elements)-1 {
+				sb.WriteString("sb.WriteRune(',')\n")
+				sb.WriteString("sb.WriteRune(' ')\n")
+			}
+		}
+		sb.WriteString("sb.WriteRune(')')\n")
+		sb.WriteString("return sb.String()\n")
+		sb.WriteString("}\n\n")
 	}
 }
 

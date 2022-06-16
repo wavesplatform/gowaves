@@ -56,7 +56,7 @@ func extract(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")
 	}
-	if args[0].instanceOf() == "Unit" {
+	if args[0].instanceOf() == unitTypeName {
 		return nil, UserError.New("extract() called on unit value")
 	}
 	return args[0], nil
@@ -66,7 +66,7 @@ func isDefined(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "isDefined")
 	}
-	if args[0].instanceOf() == "Unit" {
+	if args[0].instanceOf() == unitTypeName {
 		return rideBoolean(false), nil
 	}
 	return rideBoolean(true), nil
@@ -88,7 +88,7 @@ func value(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "value")
 	}
-	if args[0].instanceOf() == "Unit" {
+	if args[0].instanceOf() == unitTypeName {
 		return nil, UserError.New(defaultThrowMessage)
 	}
 	return args[0], nil
@@ -102,7 +102,7 @@ func valueOrErrorMessage(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("valueOrErrorMessage: unexpected argument type '%s'", args[1])
 	}
-	if args[0].instanceOf() == "Unit" {
+	if args[0].instanceOf() == unitTypeName {
 		return nil, UserError.New(string(msg))
 	}
 	return args[0], nil
@@ -112,7 +112,7 @@ func valueOrElse(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
-	if args[0].instanceOf() == "Unit" {
+	if args[0].instanceOf() == unitTypeName {
 		return args[1], nil
 	}
 	return args[0], nil

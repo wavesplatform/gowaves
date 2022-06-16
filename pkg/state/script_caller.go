@@ -147,7 +147,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	switch tree.LibVersion {
-	case 1, 2, 3:
+	case ast.LibV1, ast.LibV2, ast.LibV3:
 		assetInfo, err := a.state.NewestAssetInfo(assetID)
 		if err != nil {
 			return nil, err
@@ -251,7 +251,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 				env,
 				payments,
 				sender,
-				info.rideV5Activated,
+				info.blockV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
 				tree.LibVersion,
@@ -285,7 +285,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 				env,
 				payments,
 				sender,
-				info.rideV5Activated,
+				info.blockV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
 				tree.LibVersion,
@@ -335,7 +335,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 				env,
 				payments,
 				sender,
-				info.rideV5Activated,
+				info.blockV5Activated,
 				info.rideV6Activated,
 				proto.IsProtobufTx(tx),
 				tree.LibVersion,
