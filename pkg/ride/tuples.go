@@ -66,6 +66,21 @@ func (a tuple2) size() int {
 	return 2
 }
 
+func (a tuple2) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple2) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(')')
+	return sb.String()
+}
+
 type tuple3 struct {
 	el1 rideType
 	el2 rideType
@@ -120,6 +135,24 @@ func (a tuple3) eq(other rideType) bool {
 
 func (a tuple3) size() int {
 	return 3
+}
+
+func (a tuple3) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple3) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple4 struct {
@@ -180,6 +213,27 @@ func (a tuple4) eq(other rideType) bool {
 
 func (a tuple4) size() int {
 	return 4
+}
+
+func (a tuple4) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple4) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple5 struct {
@@ -244,6 +298,30 @@ func (a tuple5) eq(other rideType) bool {
 
 func (a tuple5) size() int {
 	return 5
+}
+
+func (a tuple5) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple5) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple6 struct {
@@ -312,6 +390,33 @@ func (a tuple6) eq(other rideType) bool {
 
 func (a tuple6) size() int {
 	return 6
+}
+
+func (a tuple6) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple6) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple7 struct {
@@ -384,6 +489,36 @@ func (a tuple7) eq(other rideType) bool {
 
 func (a tuple7) size() int {
 	return 7
+}
+
+func (a tuple7) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple7) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple8 struct {
@@ -460,6 +595,39 @@ func (a tuple8) eq(other rideType) bool {
 
 func (a tuple8) size() int {
 	return 8
+}
+
+func (a tuple8) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple8) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple9 struct {
@@ -540,6 +708,42 @@ func (a tuple9) eq(other rideType) bool {
 
 func (a tuple9) size() int {
 	return 9
+}
+
+func (a tuple9) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple9) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple10 struct {
@@ -624,6 +828,45 @@ func (a tuple10) eq(other rideType) bool {
 
 func (a tuple10) size() int {
 	return 10
+}
+
+func (a tuple10) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple10) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple11 struct {
@@ -712,6 +955,48 @@ func (a tuple11) eq(other rideType) bool {
 
 func (a tuple11) size() int {
 	return 11
+}
+
+func (a tuple11) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple11) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple12 struct {
@@ -804,6 +1089,51 @@ func (a tuple12) eq(other rideType) bool {
 
 func (a tuple12) size() int {
 	return 12
+}
+
+func (a tuple12) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple12) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple13 struct {
@@ -900,6 +1230,54 @@ func (a tuple13) eq(other rideType) bool {
 
 func (a tuple13) size() int {
 	return 13
+}
+
+func (a tuple13) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple13) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple14 struct {
@@ -1000,6 +1378,57 @@ func (a tuple14) eq(other rideType) bool {
 
 func (a tuple14) size() int {
 	return 14
+}
+
+func (a tuple14) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple14) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple15 struct {
@@ -1104,6 +1533,60 @@ func (a tuple15) eq(other rideType) bool {
 
 func (a tuple15) size() int {
 	return 15
+}
+
+func (a tuple15) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple15) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple16 struct {
@@ -1212,6 +1695,63 @@ func (a tuple16) eq(other rideType) bool {
 
 func (a tuple16) size() int {
 	return 16
+}
+
+func (a tuple16) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple16) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple17 struct {
@@ -1324,6 +1864,66 @@ func (a tuple17) eq(other rideType) bool {
 
 func (a tuple17) size() int {
 	return 17
+}
+
+func (a tuple17) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple17) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple18 struct {
@@ -1440,6 +2040,69 @@ func (a tuple18) eq(other rideType) bool {
 
 func (a tuple18) size() int {
 	return 18
+}
+
+func (a tuple18) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple18) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el18.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple19 struct {
@@ -1560,6 +2223,72 @@ func (a tuple19) eq(other rideType) bool {
 
 func (a tuple19) size() int {
 	return 19
+}
+
+func (a tuple19) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple19) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el18.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el19.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple20 struct {
@@ -1684,6 +2413,75 @@ func (a tuple20) eq(other rideType) bool {
 
 func (a tuple20) size() int {
 	return 20
+}
+
+func (a tuple20) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple20) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el18.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el19.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el20.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple21 struct {
@@ -1812,6 +2610,78 @@ func (a tuple21) eq(other rideType) bool {
 
 func (a tuple21) size() int {
 	return 21
+}
+
+func (a tuple21) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple21) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el18.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el19.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el20.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el21.String())
+	sb.WriteRune(')')
+	return sb.String()
 }
 
 type tuple22 struct {
@@ -1944,4 +2814,79 @@ func (a tuple22) eq(other rideType) bool {
 
 func (a tuple22) size() int {
 	return 22
+}
+
+func (a tuple22) lines() []string {
+	return []string{a.String()}
+}
+
+func (a tuple22) String() string {
+	sb := new(strings.Builder)
+	sb.WriteRune('(')
+	sb.WriteString(a.el1.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el2.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el3.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el4.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el5.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el6.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el7.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el8.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el9.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el10.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el11.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el12.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el13.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el14.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el15.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el16.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el17.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el18.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el19.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el20.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el21.String())
+	sb.WriteRune(',')
+	sb.WriteRune(' ')
+	sb.WriteString(a.el22.String())
+	sb.WriteRune(')')
+	return sb.String()
 }

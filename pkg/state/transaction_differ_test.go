@@ -1183,7 +1183,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 }
 
 func createDataWithProofs(t *testing.T, entriesNum int) *proto.DataWithProofs {
-	tx := proto.NewUnsignedData(1, testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedDataWithProofs(1, testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
 	for i := 0; i < entriesNum; i++ {
 		entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 		tx.Entries = append(tx.Entries, entry)

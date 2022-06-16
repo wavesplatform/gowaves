@@ -124,7 +124,7 @@ func (a *TransferWithSigTestSuite) Test_proofs() {
 
 func (a *TransferWithSigTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("TransferTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("TransferTransaction"), rs[instanceField])
 }
 
 func TestNewVariablesFromTransferWithSig(t *testing.T) {
@@ -233,7 +233,7 @@ func (a *TransferWithProofsTestSuite) Test_proofs() {
 
 func (a *TransferWithProofsTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("TransferTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("TransferTransaction"), rs[instanceField])
 }
 
 func TestNewVariablesFromTransferWithProofs(t *testing.T) {
@@ -367,7 +367,7 @@ func (a *PaymentTestSuite) Test_proofs() {
 
 func (a *PaymentTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("PaymentTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("PaymentTransaction"), rs[instanceField])
 }
 
 func TestNewVariablesFromPayment(t *testing.T) {
@@ -447,7 +447,7 @@ func (a *ReissueWithSigTestSuite) Test_proofs() {
 
 func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("ReissueTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("ReissueTransaction"), rs[instanceField])
 }
 
 //ReissueTransaction
@@ -529,7 +529,7 @@ func (a *ReissueWithProofsTestSuite) Test_proofs() {
 
 func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("ReissueTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("ReissueTransaction"), rs[instanceField])
 }
 
 //ReissueTransaction
@@ -605,7 +605,7 @@ func (a *BurnWithSigTestSuite) Test_proofs() {
 
 func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("BurnTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("BurnTransaction"), rs[instanceField])
 }
 
 //BurnWithSig
@@ -682,7 +682,7 @@ func (a *BurnWithProofsTestSuite) Test_proofs() {
 
 func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("BurnTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("BurnTransaction"), rs[instanceField])
 }
 
 //BurnWithProofs
@@ -792,7 +792,7 @@ func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 
 func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("MassTransferTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("MassTransferTransaction"), rs[instanceField])
 }
 
 //MassTransferTransaction
@@ -887,7 +887,7 @@ func (a *ExchangeWithSigTestSuite) Test_proofs() {
 
 func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("ExchangeTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("ExchangeTransaction"), rs[instanceField])
 }
 
 //ExchangeWithSig
@@ -984,7 +984,7 @@ func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 
 func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString("ExchangeTransaction"), rs[instanceFieldName])
+	a.Equal(rideString("ExchangeTransaction"), rs[instanceField])
 }
 
 //ExchangeWithProofs
@@ -2031,7 +2031,7 @@ func (a *CreateAliasWithSigTestSuite) SetupTest() {
 
 func (a *CreateAliasWithSigTestSuite) Test_alias() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString(a.tx.Alias.String()), rs["alias"])
+	a.Equal(rideString(a.tx.Alias.Alias), rs["alias"])
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_id() {
@@ -2102,7 +2102,7 @@ func (a *CreateAliasWithProofsTestSuite) SetupTest() {
 
 func (a *CreateAliasWithProofsTestSuite) Test_alias() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideString(a.tx.Alias.String()), rs["alias"])
+	a.Equal(rideString(a.tx.Alias.Alias), rs["alias"])
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_id() {
