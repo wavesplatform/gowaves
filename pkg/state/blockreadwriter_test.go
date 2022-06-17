@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"go.uber.org/atomic"
 )
 
 const (
@@ -283,19 +284,16 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
-	var mtx sync.Mutex
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	errCounter := 0
+	var errCounter atomic.Int64
 	readTasks := make(chan *readTask, tasksChanBufferSize)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, true, false)
 		if err1 != nil {
-			mtx.Lock()
-			errCounter++
-			mtx.Unlock()
+			errCounter.Inc()
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
@@ -306,16 +304,14 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			defer wg.Done()
 			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
-				mtx.Lock()
-				errCounter++
-				mtx.Unlock()
+				errCounter.Inc()
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
 		}()
 	}
 	wg.Wait()
-	if errCounter != 0 {
+	if errCounter.Load() != 0 {
 		t.Fatalf("Reader/writer error.")
 	}
 }
@@ -338,19 +334,16 @@ func TestReadNewest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
-	var mtx sync.Mutex
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	errCounter := 0
+	var errCounter atomic.Int64
 	readTasks := make(chan *readTask, tasksChanBufferSize)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, false, false)
 		if err1 != nil {
-			mtx.Lock()
-			errCounter++
-			mtx.Unlock()
+			errCounter.Inc()
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
@@ -361,16 +354,14 @@ func TestReadNewest(t *testing.T) {
 			defer wg.Done()
 			err1 := testNewestReader(to.rw, readTasks)
 			if err1 != nil {
-				mtx.Lock()
-				errCounter++
-				mtx.Unlock()
+				errCounter.Inc()
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
 		}()
 	}
 	wg.Wait()
-	if errCounter != 0 {
+	if errCounter.Load() != 0 {
 		t.Fatalf("Reader/writer error.")
 	}
 }
@@ -480,19 +471,16 @@ func TestProtobufReadWrite(t *testing.T) {
 		prevId = protobufBlocks[i].BlockID()
 	}
 
-	var mtx sync.Mutex
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	errCounter := 0
+	var errCounter atomic.Int64
 	readTasks := make(chan *readTask, tasksChanBufferSize)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err1 := writeBlocks(ctx, to.rw, protobufBlocks, readTasks, true, true)
 		if err1 != nil {
-			mtx.Lock()
-			errCounter++
-			mtx.Unlock()
+			errCounter.Inc()
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
@@ -503,16 +491,14 @@ func TestProtobufReadWrite(t *testing.T) {
 			defer wg.Done()
 			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
-				mtx.Lock()
-				errCounter++
-				mtx.Unlock()
+				errCounter.Inc()
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
 		}()
 	}
 	wg.Wait()
-	if errCounter != 0 {
+	if errCounter.Load() != 0 {
 		t.Fatalf("Reader/writer error.")
 	}
 }
