@@ -86,7 +86,8 @@ func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
 	if a.orderedBlocks.RequestedCount() < 100 {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true
 	}
-	zap.S().Infof("AskBlocksIDs(%v, %v) from Blocks()", a.respondedSignatures.BlockIDS()[0], len(a.respondedSignatures.BlockIDS()))
+	// zap.S().Infof("AskBlocksIDs(%v, %v) from Blocks()", a.respondedSignatures.BlockIDS()[0], len(a.respondedSignatures.BlockIDS()))
+
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false
 }

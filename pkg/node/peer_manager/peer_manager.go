@@ -51,6 +51,8 @@ type PeerManager interface {
 	// AskPeers sends GetPeersMessage message to all connected nodes.
 	AskPeers()
 
+	GetPeerWithMaxScore() (peer.Peer, error)
+
 	Disconnect(peer.Peer)
 }
 
@@ -380,6 +382,13 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) er
 		}
 	}()
 	return nil
+}
+
+func (a *PeerManagerImpl) GetPeerWithMaxScore() (peer.Peer, error) {
+	if info, ok := a.active.GetPeerWithMaxScore(); ok {
+		return info.peer, nil
+	}
+	return nil, errors.Errorf("no active peers")
 }
 
 func (a *PeerManagerImpl) connected(p peer.Peer) (peer.Peer, bool) {
