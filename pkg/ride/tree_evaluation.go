@@ -94,12 +94,12 @@ func complexityInCaseOfEvaluationError(et EvaluationError, e *treeEvaluator, env
 	complexity := e.complexity() + wrappedStateComplexity(env.state())
 	// reproduce scala's node buggy behaviour
 	if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() && et == InternalInvocationError {
-		// if invoke script tx nesting level is 2 or less ==> complexity should be set to 0
-		// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txNestingLevel = 1 + invCount()
-		if txNestingLevel := 1 + ws.invCount(); txNestingLevel <= 2 {
+		// if invoke script tx depth level is 2 or less ==> complexity should be set to 0
+		// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txDepthLevel = 1 + invCount()
+		if txDepthLevel := 1 + ws.invCount(); txDepthLevel <= 2 {
 			complexity = 0
 		} else {
-			// if nesting level is 3 or greater, then we should sub last two invoke complexities plus
+			// if depth level is 3 or greater, then we should sub last two invoke complexities plus
 			// cost of the last invoke() or reentrantInvoke() function call
 			complexity -= ws.lastTwoInvokeComplexities.sum() + invokeCallComplexityV5
 		}
