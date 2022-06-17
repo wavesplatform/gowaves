@@ -93,10 +93,10 @@ func (mr *MockPeerMockRecorder) Handshake() *gomock.Call {
 }
 
 // ID mocks base method.
-func (m *MockPeer) ID() string {
+func (m *MockPeer) ID() peer.PeerID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(peer.PeerID)
 	return ret0
 }
 
