@@ -115,6 +115,21 @@ func (mr *MockPeerManagerMockRecorder) EachConnected(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EachConnected", reflect.TypeOf((*MockPeerManager)(nil).EachConnected), arg0)
 }
 
+// GetPeerWithMaxScore mocks base method.
+func (m *MockPeerManager) GetPeerWithMaxScore() (peer.Peer, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPeerWithMaxScore")
+	ret0, _ := ret[0].(peer.Peer)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPeerWithMaxScore indicates an expected call of GetPeerWithMaxScore.
+func (mr *MockPeerManagerMockRecorder) GetPeerWithMaxScore() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeerWithMaxScore", reflect.TypeOf((*MockPeerManager)(nil).GetPeerWithMaxScore))
+}
+
 // KnownPeers mocks base method.
 func (m *MockPeerManager) KnownPeers() []storage.KnownPeer {
 	m.ctrl.T.Helper()
