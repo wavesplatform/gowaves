@@ -35,12 +35,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	if err != nil {
 		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
 		// Produced actions are not stored for failed transactions, no need to return them here
-		et := GetEvaluationErrorType(err)
-		complexity := complexityInCaseOfEvaluationError(et, e, env)
-		if et == Undefined {
-			return nil, EvaluationErrorAddComplexity(et.Wrap(err, "unhandled error"), complexity)
-		}
-		return nil, EvaluationErrorAddComplexity(err, complexity)
+		return nil, handleComplexityInCaseOfEvaluationError(err, e, env)
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
@@ -88,21 +83,36 @@ func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
 	return ws.act
 }
 
-func complexityInCaseOfEvaluationError(et EvaluationError, e *treeEvaluator, env environment) int {
-	// Error was not handled in wrapped state properly,
-	// so we need to add both complexity from current evaluation and from internal invokes
-	complexity := e.complexity() + wrappedStateComplexity(env.state())
-	// reproduce scala's node buggy behaviour
-	if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() && et == InternalInvocationError {
-		// if invoke script tx depth level is 2 or less ==> complexity should be set to 0
-		// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txDepthLevel = 1 + invCount()
-		if txDepthLevel := 1 + ws.invCount(); txDepthLevel <= 2 {
-			complexity = 0
-		} else {
-			// if depth level is 3 or greater, then we should sub last two invoke complexities plus
-			// cost of the last invoke() or reentrantInvoke() function call
-			complexity -= ws.lastTwoInvokeComplexities.sum() + invokeCallComplexityV5
-		}
+func evaluationErrorSetComplexity(err error, complexity int) error {
+	if ee, ok := err.(evaluationError); ok {
+		ee.spentComplexity = complexity
+		return ee
 	}
-	return complexity
+	return err
+}
+
+func handleComplexityInCaseOfEvaluationError(err error, e *treeEvaluator, env environment) error {
+	// Error was not handled in wrapped state properly,
+	// so we need to add complexities from current evaluation, from internal invokes and from internal failed invoke
+	totalComplexity := e.complexity() + wrappedStateComplexity(env.state()) + EvaluationErrorSpentComplexity(err)
+	switch et := GetEvaluationErrorType(err); et {
+	case Undefined:
+		return evaluationErrorSetComplexity(et.Wrap(err, "unhandled error"), totalComplexity)
+	case InternalInvocationError:
+		// reproduce scala's node buggy behaviour
+		if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() {
+			// if invoke script tx depth level is 2 or less ==> complexity should be set to 0
+			// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txDepthLevel = 1 + invCount()
+			if txDepthLevel := 1 + ws.invCount(); txDepthLevel <= 2 {
+				totalComplexity = 0
+			} else {
+				// if depth level is 3 or greater, then we should sub last two invoke complexities plus
+				// cost of the last invoke() or reentrantInvoke() function call
+				totalComplexity -= ws.lastTwoInvokeComplexities.sum() + invokeCallComplexityV5
+			}
+		}
+		return evaluationErrorSetComplexity(err, totalComplexity)
+	default:
+		return evaluationErrorSetComplexity(err, totalComplexity)
+	}
 }
