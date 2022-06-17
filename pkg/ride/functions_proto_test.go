@@ -19,16 +19,17 @@ import (
 )
 
 var (
-	v2check = func(int) bool {
-		return true
-	}
-	v3check = func(size int) bool {
-		return size <= maxMessageLength
-	}
+	trueFn  = func() bool { return true }
+	falseFn = func() bool { return false }
+)
+
+var (
+	v2check      = libV2CheckMessageLength
+	v3check      = libV3CheckMessageLength
 	v5takeString = takeRideString
-	noRideV6     = func() bool {
-		return false
-	}
+	yesRideV5    = trueFn
+	yesRideV6    = trueFn
+	noRideV6     = falseFn
 )
 
 func TestAddressFromString(t *testing.T) {

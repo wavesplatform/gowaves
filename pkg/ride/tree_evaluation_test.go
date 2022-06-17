@@ -28,9 +28,7 @@ var (
 		},
 		rideV6ActivatedFunc: noRideV6,
 	}
-	isProtobufTx = func() bool {
-		return true
-	}
+	isProtobufTx = trueFn
 )
 
 func TestSimpleScriptEvaluation(t *testing.T) {
@@ -176,10 +174,8 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		rideV6ActivatedFunc: noRideV6,
+		validateInternalPaymentsFunc: falseFn,
+		rideV6ActivatedFunc:          noRideV6,
 	}
 	envWithDataTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -1115,16 +1111,10 @@ var envDappFromDapp = &mockRideEnvironment{
 	timestampFunc: func() uint64 {
 		return 1564703444249
 	},
-	blockV5ActivatedFunc: func() bool {
-		return true
-	},
-	rideV5ActivatedFunc: func() bool {
-		return true
-	},
-	rideV6ActivatedFunc: noRideV6,
-	validateInternalPaymentsFunc: func() bool {
-		return true
-	},
+	blockV5ActivatedFunc:         trueFn,
+	rideV5ActivatedFunc:          yesRideV5,
+	rideV6ActivatedFunc:          noRideV6,
+	validateInternalPaymentsFunc: trueFn,
 	internalPaymentsValidationHeightFunc: func() uint64 {
 		return 0
 	},
@@ -1143,9 +1133,7 @@ func tearDownDappFromDapp() {
 	addressCallable = proto.WavesAddress{}
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
-	envDappFromDapp.rideV5ActivatedFunc = func() bool {
-		return true
-	}
+	envDappFromDapp.rideV5ActivatedFunc = trueFn
 	envDappFromDapp.rideV6ActivatedFunc = noRideV6
 
 	thisAddress = proto.WavesAddress{}
@@ -1513,9 +1501,7 @@ func TestInvokeBalanceValidationV6(t *testing.T) {
 
 	thisAddress = addr
 	env := envDappFromDapp
-	env.rideV6ActivatedFunc = func() bool {
-		return true
-	}
+	env.rideV6ActivatedFunc = trueFn
 
 	_, tree := parseBase64Script(t, firstScript)
 
@@ -1671,9 +1657,7 @@ func TestInvokeFailedBalanceValidationV6(t *testing.T) {
 
 	thisAddress = addr
 	env := envDappFromDapp
-	env.rideV6ActivatedFunc = func() bool {
-		return true
-	}
+	env.rideV6ActivatedFunc = trueFn
 
 	_, tree := parseBase64Script(t, firstScript)
 
@@ -5596,10 +5580,8 @@ func TestMathDApp(t *testing.T) {
 			require.NoError(t, err)
 			return obj
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		rideV6ActivatedFunc: noRideV6,
+		validateInternalPaymentsFunc: falseFn,
+		rideV6ActivatedFunc:          noRideV6,
 	}
 
 	code := "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"
@@ -7067,13 +7049,9 @@ func TestOriginCaller(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		isProtobufTxFunc: isProtobufTx,
+		validateInternalPaymentsFunc: trueFn,
+		blockV5ActivatedFunc:         trueFn,
+		isProtobufTxFunc:             isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -7238,17 +7216,14 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  noRideV6,
 		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
 			testState.cle = rideAddress(address)
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -7327,9 +7302,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	require.Error(t, err)
 
 	// Turning off internal payments validation
-	env.validateInternalPaymentsFunc = func() bool {
-		return false
-	}
+	env.validateInternalPaymentsFunc = falseFn
 	testInv, err = invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress = dApp1
@@ -7420,17 +7393,13 @@ func TestAliasesInInvokes(t *testing.T) {
 		invocationFunc: func() rideObject {
 			return testInv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
+		blockV5ActivatedFunc:   trueFn,
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -7661,13 +7630,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		blockV5ActivatedFunc:         trueFn,
+		rideV6ActivatedFunc:          noRideV6,
+		validateInternalPaymentsFunc: trueFn,
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
@@ -7856,22 +7821,17 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: func() bool {
-			return true
-		},
-		isProtobufTxFunc: isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  yesRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8018,10 +7978,9 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  noRideV6,
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
@@ -8034,9 +7993,7 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -8228,17 +8185,13 @@ func TestReissueInInvoke(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV6ActivatedFunc:  noRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8438,11 +8391,10 @@ func TestNegativePayments(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  noRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -8642,17 +8594,13 @@ func TestComplexityOverflow(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV6ActivatedFunc:  noRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 		libVersionFunc: func() ast.LibraryVersion {
 			return ast.LibV5
 		},
@@ -8786,17 +8734,13 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV6ActivatedFunc:  noRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 		libVersionFunc: func() ast.LibraryVersion {
 			return ast.LibV5
 		},
@@ -8928,17 +8872,14 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  noRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 		libVersionFunc: func() ast.LibraryVersion {
 			return ast.LibV5
 		},
@@ -9103,22 +9044,17 @@ func TestInvokeFailForRideV4(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: func() bool {
-			return true
-		},
-		isProtobufTxFunc: isProtobufTx,
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
+		rideV6ActivatedFunc:  yesRideV6,
+		isProtobufTxFunc:     isProtobufTx,
 	}
 
 	mockState := &MockSmartState{
@@ -9287,17 +9223,14 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		invocationFunc: func() rideObject {
 			return testInv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
+		blockV5ActivatedFunc:   trueFn,
+		rideV5ActivatedFunc:    yesRideV5,
+		rideV6ActivatedFunc:    yesRideV6,
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -9347,19 +9280,21 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			var available uint64
 			switch account.String() {
 			case dApp1.String():
-				return 0, nil
+				available = 0
 			case caller.String():
-				return 0, nil
+				available = 0
 			case dApp2.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case callee.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
+				return nil, errors.Errorf("unexpected account '%s'", account.String())
 			}
+			return &proto.FullWavesBalance{Available: available}, nil
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			switch id {
@@ -9543,17 +9478,14 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 		invocationFunc: func() rideObject {
 			return testInv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
+		blockV5ActivatedFunc:   trueFn,
+		rideV5ActivatedFunc:    yesRideV5,
+		rideV6ActivatedFunc:    yesRideV6,
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -9603,19 +9535,21 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			var available uint64
 			switch account.String() {
 			case dApp1.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case caller.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case dApp2.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case callee.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
+				return nil, errors.Errorf("unexpected account '%s'", account.String())
 			}
+			return &proto.FullWavesBalance{Available: available}, nil
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			switch id {
@@ -9760,17 +9694,14 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 		invocationFunc: func() rideObject {
 			return testInv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
+		blockV5ActivatedFunc:   trueFn,
+		rideV5ActivatedFunc:    yesRideV5,
+		rideV6ActivatedFunc:    yesRideV6,
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -9820,19 +9751,21 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			var available uint64
 			switch account.String() {
 			case dApp1.String():
-				return 0, nil
+				available = 0
 			case caller.String():
-				return 0, nil
+				available = 0
 			case dApp2.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case callee.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
+				return nil, errors.Errorf("unexpected account '%s'", account.String())
 			}
+			return &proto.FullWavesBalance{Available: available}, nil
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			switch id {
@@ -9985,17 +9918,14 @@ func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
 		invocationFunc: func() rideObject {
 			return testInv
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
+		blockV5ActivatedFunc:   trueFn,
+		rideV5ActivatedFunc:    yesRideV5,
+		rideV6ActivatedFunc:    yesRideV6,
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
@@ -10045,19 +9975,21 @@ func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
 				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			var available uint64
 			switch account.String() {
 			case dApp1.String():
-				return 0, nil
+				available = 0
 			case caller.String():
-				return 0, nil
+				available = 0
 			case dApp2.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			case callee.String():
-				return 100_000_000_000, nil
+				available = 100_000_000_000
 			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
+				return nil, errors.Errorf("unexpected account '%s'", account.String())
 			}
+			return &proto.FullWavesBalance{Available: available}, nil
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			switch id {
@@ -10178,18 +10110,15 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
+		blockV5ActivatedFunc: trueFn,
+		rideV5ActivatedFunc:  yesRideV5,
 		rideV6ActivatedFunc: func() bool {
 			return rideV6Activated
 		},
@@ -10343,15 +10272,11 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
+		validateInternalPaymentsFunc: trueFn,
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
+		blockV5ActivatedFunc: trueFn,
 		rideV6ActivatedFunc: func() bool {
 			return rideV6Activated
 		},

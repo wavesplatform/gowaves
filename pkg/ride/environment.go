@@ -13,6 +13,13 @@ var (
 	errDeletedEntry = errors.New("entry has been deleted")
 )
 
+var (
+	libV2CheckMessageLength = func(int) bool { return true }
+	libV3CheckMessageLength = func(l int) bool {
+		return l <= maxMessageLength
+	}
+)
+
 type lastTwoInvokeComplexities [2]int
 
 func (l *lastTwoInvokeComplexities) pushComplexity(complexity int) {
@@ -969,7 +976,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		sch:                   scheme,
 		st:                    state,
 		h:                     rideInt(height),
-		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		check:                 libV2CheckMessageLength, // By default, for versions below 2 there was no check, always ok.
 		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter: internalPaymentsValidationHeight,
 	}, nil
@@ -1081,9 +1088,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
 	e.ver = v
 	if v > ast.LibV2 {
-		e.check = func(l int) bool {
-			return l <= maxMessageLength
-		}
+		e.check = libV3CheckMessageLength
 	}
 }
 
