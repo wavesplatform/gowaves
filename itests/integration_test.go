@@ -34,14 +34,10 @@ func TestMain(m *testing.M) {
 
 func TestCheckHeight(t *testing.T) {
 	goHeight, err := d.GoNodeClient.GetHeight()
-	if err != nil {
-		log.Printf("failed to get heigth from go node: %s", err)
-		return
-	}
+	assert.NoError(t, err, "failed to get height from go node")
+
 	scalaHeight, err := d.ScalaNodeClient.GetHeight()
-	if err != nil {
-		log.Printf("failed to get heigth from scala node: %s", err)
-		return
-	}
+	assert.NoError(t, err, "failed to get height from scala node")
+
 	assert.Equal(t, goHeight, scalaHeight)
 }
