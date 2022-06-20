@@ -111,10 +111,7 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 
 	err = d.pool.Retry(func() error {
 		_, err := GoNodeClient.GetHeight()
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -150,10 +147,7 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 
 	err = d.pool.Retry(func() error {
 		_, err := ScalaNodeClient.GetHeight()
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 	if err != nil {
 		return nil, err
