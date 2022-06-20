@@ -14,7 +14,8 @@ const (
 	scalaConfigFilename      = "waves.conf"
 	goConfigFilename         = "gowaves-it.json"
 	templateScalaCfgFilename = "template.conf"
-	tmpDir                   = "../build"
+
+	tmpDir = "../build"
 )
 
 func CreateScalaNodeConfig(cfg *settings.BlockchainSettings) (string, error) {

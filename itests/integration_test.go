@@ -4,10 +4,10 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/wavesplatform/gowaves/itests/config"
-
 	d "github.com/wavesplatform/gowaves/itests/docker"
 )
 
@@ -32,6 +32,16 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestSleep(t *testing.T) {
-	time.Sleep(1 * time.Minute)
+func TestCheckHeight(t *testing.T) {
+	goHeight, err := d.GoNodeClient.GetHeight()
+	if err != nil {
+		log.Printf("failed to get heigth from go node: %s", err)
+		return
+	}
+	scalaHeight, err := d.ScalaNodeClient.GetHeight()
+	if err != nil {
+		log.Printf("failed to get heigth from scala node: %s", err)
+		return
+	}
+	assert.Equal(t, goHeight, scalaHeight)
 }

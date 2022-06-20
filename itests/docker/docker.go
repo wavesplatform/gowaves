@@ -6,7 +6,31 @@ import (
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 
+	"github.com/wavesplatform/gowaves/itests/api"
 	"github.com/wavesplatform/gowaves/itests/config"
+)
+
+var (
+	GoNodeClient    = api.NewNodeClient("http://"+Localhost+":"+GoNodeRESTApiPort+"/", api.DefaultTimeout)
+	ScalaNodeClient = api.NewNodeClient("http://"+Localhost+":"+ScalaNodeRESTApiPort+"/", api.DefaultTimeout)
+)
+
+const (
+	Localhost = "0.0.0.0"
+
+	GoNodeRESTApiPort = "6872"
+	GoNodeGrpsApiPort = "6871"
+	GoNodeBindPort    = "6873"
+
+	ScalaNodeRESTApiPort = "6869"
+	ScalaNodeGrpsApiPort = "6870"
+	ScalaNodeBindPort    = "6868"
+
+	tcp = "/tcp"
+)
+
+const (
+	dockerfilePath = "/../Dockerfile.gowaves-it"
 )
 
 type Docker struct {
@@ -43,44 +67,59 @@ func (d *Docker) RunContainers(paths config.ConfigPaths) error {
 }
 
 func (d *Docker) Purge() error {
+	if err := d.pool.Purge(d.scalaNode); err != nil {
+		return err
+	}
 	if err := d.pool.Purge(d.goNode); err != nil {
 		return err
 	}
-	if err := d.pool.Purge(d.scalaNode); err != nil {
+	if err := d.pool.RemoveNetwork(d.network); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
 	opt := &dockertest.RunOptions{
 		Name: "go-node",
 		User: "gowaves",
 		Env: []string{
 			"WALLET_PASSWORD=test",
-			"GRPS_ADDR=0.0.0.0:6871",
-			"API_ADDR=0.0.0.0:6872",
-			"PEERS=" + d.scalaNode.GetIPInNetwork(d.network) + ":6868",
+			"GRPC_ADDR=" + Localhost + ":" + GoNodeGrpsApiPort,
+			"API_ADDR=" + Localhost + ":" + GoNodeRESTApiPort,
+			"PEERS=" + d.scalaNode.GetIPInNetwork(d.network) + ":" + ScalaNodeBindPort,
 		},
 		PortBindings: map[dc.Port][]dc.PortBinding{
-			"6871/tcp": {{HostPort: "6871"}},
-			"6872/tcp": {{HostPort: "6872"}},
-			"6873/tcp": {{HostPort: "6873"}},
+			GoNodeGrpsApiPort + tcp: {{HostPort: GoNodeGrpsApiPort}},
+			GoNodeRESTApiPort + tcp: {{HostPort: GoNodeRESTApiPort}},
+			GoNodeBindPort + tcp:    {{HostPort: GoNodeBindPort}},
 		},
 		Mounts: []string{
 			cfgPath + ":/home/gowaves/config",
 		},
 	}
-	res, err := d.pool.BuildAndRunWithOptions(pwd+"/../Dockerfile.gowaves-it", opt, func(hc *dc.HostConfig) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	res, err := d.pool.BuildAndRunWithOptions(pwd+dockerfilePath, opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	err = d.pool.Retry(func() error {
+		_, err := GoNodeClient.GetHeight()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	err = res.ConnectToNetwork(d.network)
 	if err != nil {
 		return nil, err
@@ -94,10 +133,9 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 		Name:       "scala_node",
 		Tag:        "latest",
 		PortBindings: map[dc.Port][]dc.PortBinding{
-			"6870/tcp": {{HostPort: "6870"}},
-			"6869/tcp": {{HostPort: "6869"}},
-			"6868/tcp": {{HostPort: "6868"}},
-			"6873/tcp": {{HostPort: "6873"}},
+			ScalaNodeGrpsApiPort + tcp: {{HostPort: ScalaNodeGrpsApiPort}},
+			ScalaNodeRESTApiPort + tcp: {{HostPort: ScalaNodeRESTApiPort}},
+			ScalaNodeBindPort + tcp:    {{HostPort: ScalaNodeBindPort}},
 		},
 		Mounts: []string{
 			cfgPath + ":/etc/waves",
@@ -109,6 +147,18 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = d.pool.Retry(func() error {
+		_, err := ScalaNodeClient.GetHeight()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	err = res.ConnectToNetwork(d.network)
 	if err != nil {
 		return nil, err
