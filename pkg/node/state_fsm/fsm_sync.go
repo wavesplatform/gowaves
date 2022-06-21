@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -103,7 +102,7 @@ func (a *SyncFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 func (a *SyncFsm) PeerError(p peer.Peer, _ error) (FSM, Async, error) {
 	a.baseInfo.peers.Disconnect(p)
 	if a.conf.peerSyncWith == p {
-		_, blocks, _ := a.internal.Blocks(noopWrapper{})
+		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
@@ -184,45 +183,48 @@ func (a *SyncFsm) Halt() (FSM, Async, error) {
 	return HaltTransition(a.baseInfo)
 }
 
-type peerExtension struct {
-	peerSyncWith peer.Peer
-	peerManager  peer_manager.PeerManager
-	scheme       proto.Scheme
-
-	changePeerSyncCb func(old, new peer.Peer)
-}
-
-func (pe *peerExtension) AskBlocksIDs(ids []proto.BlockID) {
-	peerMaxScore, err := pe.peerManager.GetPeerWithMaxScore()
+func (a *SyncFsm) getPeerWithMaxScore() (peer.Peer, error) {
+	maxScorePeer, err := a.baseInfo.peers.GetPeerWithMaxScore()
 	if err != nil {
-		zap.S().Debugf("Failed to get peer with max block: '%s'. trying to ask old one", err.Error())
-		pe.askBlocksIDs(ids)
-		return
+		return nil, errors.Wrapf(err, "Failed to get peer with max score")
+	}
+	maxScore, err := a.baseInfo.peers.Score(maxScorePeer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get score of peer '%s'", maxScorePeer.ID())
 	}
 
-	if peerMaxScore != pe.peerSyncWith {
-		pe.changePeerSyncCb(pe.peerSyncWith, peerMaxScore)
-		pe.peerSyncWith = peerMaxScore
+	syncWithPeer := a.conf.peerSyncWith
+	peerSyncWithScore, err := a.baseInfo.peers.Score(syncWithPeer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get score of peer synced with '%s'", maxScorePeer.ID())
 	}
-	pe.askBlocksIDs(ids)
+
+	if maxScorePeer != syncWithPeer && maxScore == peerSyncWithScore {
+		return syncWithPeer, nil
+	}
+	return maxScorePeer, nil
 }
 
-func (pe *peerExtension) askBlocksIDs(ids []proto.BlockID) {
-	extension.NewPeerExtension(pe.peerSyncWith, pe.scheme).AskBlocksIDs(ids)
+func (a *SyncFsm) changePeerSyncWith() (FSM, Async, error) {
+	peer, err := a.getPeerWithMaxScore()
+	if err != nil {
+		return NewIdleFsm(a.baseInfo), nil, errors.Wrapf(err, "Failed to change peer for sync")
+	}
+	return syncWithNewPeer(a, a.baseInfo, peer)
 }
 
 // TODO suspend peer on state error
 func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
-	peerExtension := &peerExtension{
-		peerSyncWith: conf.peerSyncWith,
-		peerManager:  a.baseInfo.peers,
-		scheme:       a.baseInfo.scheme,
-		changePeerSyncCb: func(_, new peer.Peer) {
-			zap.S().Debugf("[Sync] Starting synchronisation with peer '%s'", new.ID())
-			conf.peerSyncWith = new
+	internal, blocks, eof, needToChangePeer := internal.Blocks(
+		extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme),
+		func() bool {
+			peer, err := a.getPeerWithMaxScore()
+			return err == nil && peer != a.conf.peerSyncWith
 		},
+	)
+	if needToChangePeer {
+		return a.changePeerSyncWith()
 	}
-	internal, blocks, eof := internal.Blocks(peerExtension)
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
