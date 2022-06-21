@@ -143,32 +143,11 @@ func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	return a, nil, nil
 }
 
-// TODO: here
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
-	zap.S().Info("[Sync] Score event happened")
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, proto.NewInfoMsg(err)
 	}
-	// //TODO: Handle new higher score
-	// nodeScore, err := a.baseInfo.storage.CurrentScore()
-	// if err != nil {
-	// 	return a, nil, err
-	// }
-	// if score.Cmp(nodeScore) == 1 {
-	// 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
-	// 	if err != nil {
-	// 		return a, nil, err
-	// 	}
-	// 	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
-	// 	c := conf{
-	// 		peerSyncWith: p,
-	// 		timeout:      30 * time.Second,
-	// 	}
-	// 	zap.S().Infof("[Sync] Higher score received, starting synchronisation with peer '%s'", p.ID())
-	// 	return NewSyncFsm(a.baseInfo, c.Now(a.baseInfo.tm), internal)
-	// }
-
 	return noop(a)
 }
 
@@ -216,7 +195,7 @@ type peerExtension struct {
 func (pe *peerExtension) AskBlocksIDs(ids []proto.BlockID) {
 	peerMaxScore, err := pe.peerManager.GetPeerWithMaxScore()
 	if err != nil {
-		zap.S().Infof("Failed to get peer with max block: '%s'. trying to ask old one")
+		zap.S().Debugf("Failed to get peer with max block: '%s'. trying to ask old one", err.Error())
 		pe.askBlocksIDs(ids)
 		return
 	}
@@ -239,7 +218,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 		peerManager:  a.baseInfo.peers,
 		scheme:       a.baseInfo.scheme,
 		changePeerSyncCb: func(_, new peer.Peer) {
-			zap.S().Infow("[Sync] Starting synchronisation with peer '%s'", new.ID())
+			zap.S().Debugf("[Sync] Starting synchronisation with peer '%s'", new.ID())
 			conf.peerSyncWith = new
 		},
 	}

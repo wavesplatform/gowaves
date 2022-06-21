@@ -175,7 +175,6 @@ func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 	return a.peerStorage.Suspended(time.Now())
 }
 
-// TODO: remake key as interface.
 func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -205,7 +204,7 @@ func (a *PeerManagerImpl) Close() {
 
 	a.active.ForEach(
 		func(_ peer.PeerID, info peerInfo) {
-			info.peer.Close()
+			_ = info.peer.Close()
 		},
 	)
 }
