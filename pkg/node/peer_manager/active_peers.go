@@ -50,7 +50,7 @@ func (ap *ActivePeers) Remove(peerID peer.PeerID) {
 	delete(ap.m, peerID)
 
 	i := 0
-	for i < len(ap.sortedByScore) {
+	for ; i < len(ap.sortedByScore); i++ {
 		if ap.sortedByScore[i] == peerID {
 			break
 		}
