@@ -9,6 +9,7 @@ import (
 type fd struct {
 	cost   int
 	usages []string
+	dirty  bool
 }
 type fsV3 struct {
 	parent    *fsV3
@@ -27,21 +28,21 @@ func (f *fsV3) spawn() *fsV3 {
 }
 
 // set adds new function descriptor to context, returns true if new function overwrite old one.
-func (f *fsV3) set(key string, cost int, usages []string) bool {
+func (f *fsV3) set(key string, cost int, usages []string, invocation bool) bool {
 	_, ok := f.functions[key]
-	f.functions[key] = fd{cost, usages}
+	f.functions[key] = fd{cost: cost, usages: usages, dirty: invocation}
 	return ok
 }
 
-func (f *fsV3) get(key string) (int, []string, bool) {
+func (f *fsV3) get(key string) (int, []string, bool, bool) {
 	fd, ok := f.functions[key]
 	if !ok {
 		if f.parent == nil {
-			return 0, nil, false
+			return 0, nil, false, false
 		}
 		return f.parent.get(key)
 	}
-	return fd.cost, fd.usages, true
+	return fd.cost, fd.usages, fd.dirty, true
 }
 
 type estimationScopeV3 struct {
@@ -68,37 +69,35 @@ func (s *estimationScopeV3) restore(fs *fsV3) {
 	s.functions = fs
 }
 
-func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) bool {
-	return s.functions.set(id, cost, usages)
+func (s *estimationScopeV3) setFunction(id string, cost int, usages []string, invocation bool) bool {
+	return s.functions.set(id, cost, usages, invocation)
 }
 
 func (s *estimationScopeV3) resetFunctions() {
 	s.functions = newFsV3()
 }
 
-func (s *estimationScopeV3) nativeFunction(ut, id string, enableInvocation bool) (int, []string, error) {
+func (s *estimationScopeV3) nativeFunction(ut, id string) (int, []string, bool, error) {
 	if c, ok := s.builtin[id]; ok {
-		if (id == "1020" || id == "1021") && !enableInvocation {
-			return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
-		}
-		return c, nil, nil
+		inv := id == "1020" || id == "1021"
+		return c, nil, inv, nil
 	}
-	return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
+	return 0, nil, false, errors.Errorf("%s function '%s' not found", ut, id)
 }
 
-func (s *estimationScopeV3) function(function ast.Function, enableInvocation bool) (int, []string, error) {
+func (s *estimationScopeV3) function(function ast.Function) (int, []string, bool, error) {
 	id := function.Name()
 	switch function.(type) {
 	case ast.UserFunction:
-		cost, usages, found := s.functions.get(id)
+		cost, usages, inv, found := s.functions.get(id)
 		if found {
-			return cost, usages, nil
+			return cost, usages, inv, nil
 		}
-		return s.nativeFunction("user", id, enableInvocation)
+		return s.nativeFunction("user", id)
 	case ast.NativeFunction:
-		return s.nativeFunction("native", id, enableInvocation)
+		return s.nativeFunction("native", id)
 	default:
-		return 0, nil, errors.Errorf("unknown type of function '%s'", id)
+		return 0, nil, false, errors.Errorf("unknown type of function '%s'", id)
 	}
 }
 
@@ -169,9 +168,12 @@ func newTreeEstimatorV3(tree *ast.Tree) (*treeEstimatorV3, error) {
 func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 	if !e.tree.IsDApp() {
 		e.scope.submerge()
-		c, err := e.walk(e.tree.Verifier, false)
+		c, inv, err := e.walk(e.tree.Verifier)
 		if err != nil {
 			return 0, 0, nil, err
+		}
+		if inv {
+			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in expressions")
 		}
 		e.scope.emerge()
 		return c, c, nil, nil
@@ -184,7 +186,7 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
 		e.scope.submerge()
-		c, err := e.walk(e.wrapFunction(function), true)
+		c, _, err := e.walk(e.wrapFunction(function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -201,9 +203,12 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
 		e.scope.submerge()
-		c, err := e.walk(e.wrapFunction(verifier), false)
+		c, inv, err := e.walk(e.wrapFunction(verifier))
 		if err != nil {
 			return 0, 0, nil, err
+		}
+		if inv {
+			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in verifier")
 		}
 		e.scope.emerge()
 		vc = c
@@ -230,67 +235,68 @@ func (e *treeEstimatorV3) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	return block
 }
 
-func (e *treeEstimatorV3) walk(node ast.Node, enableInvocation bool) (int, error) {
+func (e *treeEstimatorV3) walk(node ast.Node) (int, bool, error) {
 	switch n := node.(type) {
 	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
-		return 1, nil
+		return 1, false, nil
 
 	case *ast.ConditionalNode:
-		ce, err := e.walk(n.Condition, enableInvocation)
+		ce, ci, err := e.walk(n.Condition)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the condition of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the condition of if")
 		}
 		cs := e.scope.save()
-		le, err := e.walk(n.TrueExpression, enableInvocation)
+		le, li, err := e.walk(n.TrueExpression)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the true branch of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the true branch of if")
 		}
 		ls := e.scope.save()
 		e.scope.restore(cs)
-		re, err := e.walk(n.FalseExpression, enableInvocation)
+		re, ri, err := e.walk(n.FalseExpression)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the false branch of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the false branch of if")
 		}
 		if le > re {
 			e.scope.restore(ls)
 			sum, err := common.AddInt(ce, le)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
 			res, err := common.AddInt(sum, 1)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
-			return res, nil
+			return res, ci || li, nil
 		}
 		sum, err := common.AddInt(ce, re)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
 		res, err := common.AddInt(sum, 1)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return res, nil
+		return res, ci || ri, nil
 
 	case *ast.AssignmentNode:
 		id := n.Name
 		overlapped := e.scope.used(id)
 		e.scope.remove(id)
-		c, err := e.walk(n.Block, enableInvocation)
+		c, inv, err := e.walk(n.Block)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)
 		}
 		if e.scope.used(id) {
 			tmp := e.scope.save()
-			le, err := e.walk(n.Expression, enableInvocation)
+			le, li, err := e.walk(n.Expression)
 			if err != nil {
-				return 0, errors.Wrap(err, "failed to estimate let expression")
+				return 0, false, errors.Wrap(err, "failed to estimate let expression")
 			}
+			inv = inv || li
 			e.scope.restore(tmp)
 			c, err = common.AddInt(c, le)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
 		}
 		if overlapped {
@@ -298,34 +304,34 @@ func (e *treeEstimatorV3) walk(node ast.Node, enableInvocation bool) (int, error
 		} else {
 			e.scope.remove(id)
 		}
-		return c, nil
+		return c, inv, nil
 
 	case *ast.ReferenceNode:
 		e.scope.use(n.Name)
-		return 1, nil
+		return 1, false, nil
 
 	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		tmp := e.scope.save()
 		e.scope.submerge()
-		fc, err := e.walk(n.Body, enableInvocation)
+		fc, bi, err := e.walk(n.Body)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
 		}
 		bodyUsages := e.scope.emerge()
 		e.scope.restore(tmp)
-		e.scope.setFunction(id, fc, bodyUsages)
-		bc, err := e.walk(n.Block, enableInvocation)
+		e.scope.setFunction(id, fc, bodyUsages, bi)
+		bc, inv, err := e.walk(n.Block)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
 		}
-		return bc, nil
+		return bc, inv, nil
 
 	case *ast.FunctionCallNode:
 		name := n.Function.Name()
-		fc, bu, err := e.scope.function(n.Function, enableInvocation)
+		fc, bu, inv, err := e.scope.function(n.Function)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
+			return 0, false, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
 		}
 		for _, u := range bu {
 			e.scope.use(u)
@@ -333,34 +339,35 @@ func (e *treeEstimatorV3) walk(node ast.Node, enableInvocation bool) (int, error
 		ac := 0
 		for i, a := range n.Arguments {
 			tmp := e.scope.save()
-			c, err := e.walk(a, enableInvocation)
+			c, ai, err := e.walk(a)
 			if err != nil {
-				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
+				return 0, false, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
 			}
+			inv = inv || ai
 			e.scope.restore(tmp)
 			ac, err = common.AddInt(ac, c)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
 		}
 		res, err := common.AddInt(fc, ac)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return res, nil
+		return res, inv, nil
 
 	case *ast.PropertyNode:
-		c, err := e.walk(n.Object, enableInvocation)
+		c, inv, err := e.walk(n.Object)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
+			return 0, false, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
 		}
 		res, err := common.AddInt(c, 1)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return res, nil
+		return res, inv, nil
 
 	default:
-		return 0, errors.Errorf("unsupported type of node '%T'", node)
+		return 0, false, errors.Errorf("unsupported type of node '%T'", node)
 	}
 }
