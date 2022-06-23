@@ -36,6 +36,6 @@ func (a Direction) String() string {
 	}
 }
 
-type PeerID interface {
+type ID interface {
 	fmt.Stringer
 }

@@ -167,7 +167,7 @@ func (a *OutgoingPeer) Close() error {
 	return nil
 }
 
-func (a *OutgoingPeer) ID() peer.PeerID {
+func (a *OutgoingPeer) ID() peer.ID {
 	return a.id
 }
 

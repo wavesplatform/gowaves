@@ -12,7 +12,7 @@ type peerID struct {
 	Addr string
 }
 
-func newPeerID(addr string) peer.PeerID {
+func newPeerID(addr string) peer.ID {
 	return peerID{Addr: addr}
 }
 
@@ -59,7 +59,7 @@ func (a *Peer) SendMessage(m proto.Message) {
 	a.mu.Unlock()
 }
 
-func (a *Peer) ID() peer.PeerID {
+func (a *Peer) ID() peer.ID {
 	return newPeerID(a.Addr)
 }
 

@@ -148,7 +148,7 @@ func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) 
 	defer a.mu.Unlock()
 
 	a.active.forEach(
-		func(_ peer.PeerID, info peerInfo) {
+		func(_ peer.ID, info peerInfo) {
 			f(info.peer, info.score)
 		},
 	)
@@ -203,7 +203,7 @@ func (a *PeerManagerImpl) Close() {
 	defer a.mu.Unlock()
 
 	a.active.forEach(
-		func(_ peer.PeerID, info peerInfo) {
+		func(_ peer.ID, info peerInfo) {
 			_ = info.peer.Close()
 		},
 	)
@@ -218,7 +218,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	}
 	var outCnt int
 	a.active.forEach(
-		func(_ peer.PeerID, info peerInfo) {
+		func(_ peer.ID, info peerInfo) {
 			if info.peer.Direction() == peer.Outgoing {
 				outCnt += 1
 			}
@@ -236,7 +236,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	known := a.KnownPeers()
 
 	active := map[proto.IpPort]struct{}{}
-	a.active.forEach(func(_ peer.PeerID, info peerInfo) {
+	a.active.forEach(func(_ peer.ID, info peerInfo) {
 		if info.peer.Direction() == peer.Outgoing {
 			active[info.peer.RemoteAddr().ToIpPort()] = struct{}{}
 		} else {
@@ -294,7 +294,7 @@ func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error
 	defer a.mu.Unlock()
 
 	active := map[proto.IpPort]struct{}{}
-	a.active.forEach(func(_ peer.PeerID, info peerInfo) {
+	a.active.forEach(func(_ peer.ID, info peerInfo) {
 		if info.peer.Direction() == peer.Outgoing {
 			active[info.peer.RemoteAddr().ToIpPort()] = struct{}{}
 		} else {
@@ -339,7 +339,7 @@ func (a *PeerManagerImpl) AskPeers() {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	a.active.forEach(func(_ peer.PeerID, info peerInfo) {
+	a.active.forEach(func(_ peer.ID, info peerInfo) {
 		info.peer.SendMessage(&proto.GetPeersMessage{})
 	})
 }
@@ -429,7 +429,7 @@ func (a *PeerManagerImpl) countDirections() (int, int) {
 	in, out := 0, 0
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	a.active.forEach(func(_ peer.PeerID, info peerInfo) {
+	a.active.forEach(func(_ peer.ID, info peerInfo) {
 		if info.peer.Direction() == peer.Outgoing {
 			out += 1
 		} else {

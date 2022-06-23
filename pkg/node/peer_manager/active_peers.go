@@ -10,14 +10,14 @@ import (
 )
 
 type activePeers struct {
-	m             map[peer.PeerID]peerInfo
-	sortedByScore []peer.PeerID
+	m             map[peer.ID]peerInfo
+	sortedByScore []peer.ID
 }
 
 func newActivePeers() activePeers {
 	return activePeers{
-		m:             make(map[peer.PeerID]peerInfo),
-		sortedByScore: make([]peer.PeerID, 0),
+		m:             make(map[peer.ID]peerInfo),
+		sortedByScore: make([]peer.ID, 0),
 	}
 }
 
@@ -30,7 +30,7 @@ func (ap *activePeers) add(p peer.Peer) {
 	ap.sortedByScore = append(ap.sortedByScore, p.ID())
 }
 
-func (ap *activePeers) updateScore(peerID peer.PeerID, score *big.Int) error {
+func (ap *activePeers) updateScore(peerID peer.ID, score *big.Int) error {
 	info, ok := ap.m[peerID]
 	if !ok {
 		return errors.Errorf("peer '%s' is not active", peerID)
@@ -42,7 +42,7 @@ func (ap *activePeers) updateScore(peerID peer.PeerID, score *big.Int) error {
 	return nil
 }
 
-func (ap *activePeers) remove(peerID peer.PeerID) {
+func (ap *activePeers) remove(peerID peer.ID) {
 	if _, ok := ap.get(peerID); !ok {
 		return
 	}
@@ -59,12 +59,12 @@ func (ap *activePeers) remove(peerID peer.PeerID) {
 	ap.sortedByScore = append(ap.sortedByScore[:i], ap.sortedByScore[i+1:]...)
 }
 
-func (ap *activePeers) get(peerID peer.PeerID) (peerInfo, bool) {
+func (ap *activePeers) get(peerID peer.ID) (peerInfo, bool) {
 	info, ok := ap.m[peerID]
 	return info, ok
 }
 
-func (ap *activePeers) forEach(f func(peer.PeerID, peerInfo)) {
+func (ap *activePeers) forEach(f func(peer.ID, peerInfo)) {
 	for id, info := range ap.m {
 		f(id, info)
 	}

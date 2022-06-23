@@ -144,7 +144,7 @@ func (a *IncomingPeer) SendMessage(m proto.Message) {
 	}
 }
 
-func (a *IncomingPeer) ID() peer.PeerID {
+func (a *IncomingPeer) ID() peer.ID {
 	return a.uniqueID
 }
 

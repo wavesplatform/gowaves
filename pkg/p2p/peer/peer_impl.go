@@ -68,7 +68,7 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 	}
 }
 
-func (a *PeerImpl) ID() PeerID {
+func (a *PeerImpl) ID() ID {
 	return a.id
 }
 

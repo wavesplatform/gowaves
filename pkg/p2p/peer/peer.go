@@ -39,7 +39,7 @@ type Peer interface {
 	Direction() Direction
 	Close() error
 	SendMessage(proto.Message)
-	ID() PeerID
+	ID() ID
 	Connection() conn.Connection
 	Handshake() proto.Handshake
 	RemoteAddr() proto.TCPAddr
