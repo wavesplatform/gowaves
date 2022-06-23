@@ -33,9 +33,12 @@ func newTreeEstimatorV4(tree *ast.Tree) (*treeEstimatorV4, error) {
 func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	if !e.tree.IsDApp() {
 		e.scope.submerge()
-		c, err := e.walk(e.tree.Verifier, false)
+		c, inv, err := e.walk(e.tree.Verifier)
 		if err != nil {
 			return 0, 0, nil, err
+		}
+		if inv {
+			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in expressions")
 		}
 		e.scope.emerge()
 		return c, c, nil, nil
@@ -49,7 +52,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
 		e.scope.submerge()
-		c, err := e.walk(e.wrapFunction(function), true)
+		c, _, err := e.walk(e.wrapFunction(function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
@@ -67,9 +70,12 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
 		e.scope.submerge()
-		c, err := e.walk(e.wrapFunction(verifier), false)
+		c, inv, err := e.walk(e.wrapFunction(verifier))
 		if err != nil {
 			return 0, 0, nil, err
+		}
+		if inv {
+			return 0, 0, nil, errors.New("usage of invocation functions is prohibited in verifier")
 		}
 		e.scope.emerge()
 		vc = c
@@ -96,59 +102,63 @@ func (e *treeEstimatorV4) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	return block
 }
 
-func (e *treeEstimatorV4) walk(node ast.Node, enableInvocation bool) (int, error) {
+// walk function iterates over AST and calculates an estimation of every node.
+// Function returns the cumulative cost of a node's subtree,
+// the bool indicator of invocation function usage in the node's subtree and error if any.
+func (e *treeEstimatorV4) walk(node ast.Node) (int, bool, error) {
 	switch n := node.(type) {
 	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
-		return 0, nil
+		return 0, false, nil
 
 	case *ast.ConditionalNode:
-		ce, err := e.walk(n.Condition, enableInvocation)
+		ce, ci, err := e.walk(n.Condition)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the condition of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the condition of if")
 		}
 		cs := e.scope.save()
-		le, err := e.walk(n.TrueExpression, enableInvocation)
+		le, li, err := e.walk(n.TrueExpression)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the true branch of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the true branch of if")
 		}
 		ls := e.scope.save()
 		e.scope.restore(cs)
-		re, err := e.walk(n.FalseExpression, enableInvocation)
+		re, ri, err := e.walk(n.FalseExpression)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to estimate the false branch of if")
+			return 0, false, errors.Wrap(err, "failed to estimate the false branch of if")
 		}
 		if le > re {
 			e.scope.restore(ls)
 			res, err := common.AddInt(ce, le)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
-			return res, nil
+			return res, ci || li, nil
 		}
 		res, err := common.AddInt(ce, re)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return res, nil
+		return res, ci || ri, nil
 
 	case *ast.AssignmentNode:
 		id := n.Name
 		overlapped := e.scope.used(id)
 		e.scope.remove(id)
-		c, err := e.walk(n.Block, enableInvocation)
+		c, inv, err := e.walk(n.Block)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)
 		}
 		if e.scope.used(id) {
 			tmp := e.scope.save()
-			le, err := e.walk(n.Expression, enableInvocation)
+			le, li, err := e.walk(n.Expression)
 			if err != nil {
-				return 0, errors.Wrap(err, "failed to estimate let expression")
+				return 0, false, errors.Wrap(err, "failed to estimate let expression")
 			}
 			e.scope.restore(tmp)
+			inv = inv || li
 			c, err = common.AddInt(c, le)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
 		}
 		if overlapped {
@@ -156,70 +166,73 @@ func (e *treeEstimatorV4) walk(node ast.Node, enableInvocation bool) (int, error
 		} else {
 			e.scope.remove(id)
 		}
-		return c, nil
+		return c, inv, nil
 
 	case *ast.ReferenceNode:
 		e.scope.use(n.Name)
-		return 0, nil
+		return 0, false, nil
 
 	case *ast.FunctionDeclarationNode:
 		id := n.Name
 		tmp := e.scope.save()
 		e.scope.submerge()
-		fc, err := e.walk(n.Body, enableInvocation)
+		fc, bi, err := e.walk(n.Body)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
 		}
 		bodyUsages := e.scope.emerge()
 		e.scope.restore(tmp)
-		if e.scope.setFunction(id, fc, bodyUsages) {
-			return 0, errors.Errorf("function '%s' already declared", id)
+		if e.scope.setFunction(id, fc, bodyUsages, bi) {
+			return 0, false, errors.Errorf("function '%s' already declared", id)
 		}
-		bc, err := e.walk(n.Block, enableInvocation)
+		bc, inv, err := e.walk(n.Block)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
+			return 0, false, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
 		}
-		return bc, nil
+		return bc, inv, nil
 
 	case *ast.FunctionCallNode:
 		name := n.Function.Name()
-		fc, bu, err := e.scope.function(n.Function, enableInvocation)
+		fd, err := e.scope.function(n.Function)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
+			return 0, false, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
 		}
-		for _, u := range bu {
+		for _, u := range fd.usages {
 			e.scope.use(u)
 		}
 		ac := 0
+		inv := fd.callsInvocation
 		for i, a := range n.Arguments {
 			tmp := e.scope.save()
-			c, err := e.walk(a, enableInvocation)
+			c, ai, err := e.walk(a)
 			if err != nil {
-				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
+				return 0, false, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
 			}
+			inv = inv || ai
 			e.scope.restore(tmp)
 			ac, err = common.AddInt(ac, c)
 			if err != nil {
-				return 0, err
+				return 0, false, err
 			}
 		}
+		fc := fd.cost
 		if fc == 0 {
 			fc = 1
 		}
 		res, err := common.AddInt(fc, ac)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
-		return res, nil
+		return res, inv, nil
 
 	case *ast.PropertyNode:
-		res, err := e.walk(n.Object, enableInvocation)
+		res, inv, err := e.walk(n.Object)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
+			return 0, false, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
 		}
-		return res, nil
+		return res, inv, nil
 
 	default:
-		return 0, errors.Errorf("unsupported type of node '%T'", node)
+		return 0, false, errors.Errorf("unsupported type of node '%T'", node)
 	}
 }
