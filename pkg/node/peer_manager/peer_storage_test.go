@@ -30,7 +30,7 @@ func TestPeerManagerImpl_Suspend(t *testing.T) {
 	peerStorage := mock.NewMockPeerStorage(ctrl)
 	peerStorage.EXPECT().AddSuspended([]storage.SuspendedPeer{{
 		IP:                     storage.IpFromIpPort(tcpAddr.ToIpPort()),
-		SuspendTimestampMillis: unixMillis(now),
+		SuspendTimestampMillis: now.UnixMilli(),
 		SuspendDuration:        suspendDuration,
 		Reason:                 reason,
 	}})

@@ -9,19 +9,19 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 )
 
-type ActivePeers struct {
+type activePeers struct {
 	m             map[peer.PeerID]peerInfo
 	sortedByScore []peer.PeerID
 }
 
-func NewActivePeers() ActivePeers {
-	return ActivePeers{
+func newActivePeers() activePeers {
+	return activePeers{
 		m:             make(map[peer.PeerID]peerInfo),
 		sortedByScore: make([]peer.PeerID, 0),
 	}
 }
 
-func (ap *ActivePeers) Add(p peer.Peer) {
+func (ap *activePeers) add(p peer.Peer) {
 	if _, ok := ap.m[p.ID()]; ok {
 		return
 	}
@@ -30,7 +30,7 @@ func (ap *ActivePeers) Add(p peer.Peer) {
 	ap.sortedByScore = append(ap.sortedByScore, p.ID())
 }
 
-func (ap *ActivePeers) UpdateScore(peerID peer.PeerID, score *big.Int) error {
+func (ap *activePeers) updateScore(peerID peer.PeerID, score *big.Int) error {
 	info, ok := ap.m[peerID]
 	if !ok {
 		return errors.Errorf("peer '%s' is not active", peerID)
@@ -42,8 +42,8 @@ func (ap *ActivePeers) UpdateScore(peerID peer.PeerID, score *big.Int) error {
 	return nil
 }
 
-func (ap *ActivePeers) Remove(peerID peer.PeerID) {
-	if _, ok := ap.Get(peerID); !ok {
+func (ap *activePeers) remove(peerID peer.PeerID) {
+	if _, ok := ap.get(peerID); !ok {
 		return
 	}
 
@@ -59,18 +59,18 @@ func (ap *ActivePeers) Remove(peerID peer.PeerID) {
 	ap.sortedByScore = append(ap.sortedByScore[:i], ap.sortedByScore[i+1:]...)
 }
 
-func (ap *ActivePeers) Get(peerID peer.PeerID) (peerInfo, bool) {
+func (ap *activePeers) get(peerID peer.PeerID) (peerInfo, bool) {
 	info, ok := ap.m[peerID]
 	return info, ok
 }
 
-func (ap *ActivePeers) ForEach(f func(peer.PeerID, peerInfo)) {
+func (ap *activePeers) forEach(f func(peer.PeerID, peerInfo)) {
 	for id, info := range ap.m {
 		f(id, info)
 	}
 }
 
-func (ap *ActivePeers) GetPeerWithMaxScore() (peerInfo, bool) {
+func (ap *activePeers) getPeerWithMaxScore() (peerInfo, bool) {
 	if len(ap.m) == 0 {
 		return peerInfo{}, false
 	}
@@ -78,11 +78,11 @@ func (ap *ActivePeers) GetPeerWithMaxScore() (peerInfo, bool) {
 	return ap.m[ap.sortedByScore[0]], true
 }
 
-func (ap *ActivePeers) Size() int {
+func (ap *activePeers) size() int {
 	return len(ap.m)
 }
 
-func (ap *ActivePeers) sort() {
+func (ap *activePeers) sort() {
 	sort.SliceStable(
 		ap.sortedByScore,
 		func(i, j int) bool {
