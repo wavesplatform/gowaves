@@ -4,13 +4,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -86,17 +83,7 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 		return a, nil, err
 	}
 	if score.Cmp(nodeScore) == 1 {
-		lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
-		if err != nil {
-			return a, nil, err
-		}
-		internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
-		c := conf{
-			peerSyncWith: p,
-			timeout:      30 * time.Second,
-		}
-		zap.S().Debugf("[NG] Higher score received, starting synchronisation with peer '%s'", p.ID())
-		return NewSyncFsm(a.baseInfo, c.Now(a.baseInfo.tm), internal)
+		return syncWithNewPeer(a, a.baseInfo, p)
 	}
 	return noop(a)
 }

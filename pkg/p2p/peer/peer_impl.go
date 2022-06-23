@@ -12,12 +12,26 @@ import (
 	"go.uber.org/zap"
 )
 
+type peerImplID struct {
+	addr  net.Addr
+	nonce uint64
+}
+
+func newPeerImplID(addr net.Addr, nonce uint64) peerImplID {
+	return peerImplID{addr: addr, nonce: nonce}
+}
+
+func (id peerImplID) String() string {
+	a := strings.Split(id.addr.String(), ":")[0]
+	return fmt.Sprintf("%s-%d", a, id.nonce)
+}
+
 type PeerImpl struct {
 	handshake proto.Handshake
 	conn      conn.Connection
 	direction Direction
 	remote    Remote
-	id        string
+	id        peerImplID
 	cancel    context.CancelFunc
 }
 
@@ -27,7 +41,7 @@ func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Dire
 		conn:      conn,
 		direction: direction,
 		remote:    remote,
-		id:        id(conn.Conn().RemoteAddr().String(), handshake.NodeNonce),
+		id:        newPeerImplID(conn.Conn().RemoteAddr(), handshake.NodeNonce),
 		cancel:    cancel,
 	}
 }
@@ -54,7 +68,7 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 	}
 }
 
-func (a *PeerImpl) ID() string {
+func (a *PeerImpl) ID() ID {
 	return a.id
 }
 
@@ -64,11 +78,6 @@ func (a *PeerImpl) Connection() conn.Connection {
 
 func (a *PeerImpl) Handshake() proto.Handshake {
 	return a.handshake
-}
-
-func id(addr string, nonce uint64) string {
-	a := strings.Split(addr, ":")[0]
-	return fmt.Sprintf("%s-%d", a, nonce)
 }
 
 func (a *PeerImpl) RemoteAddr() proto.TCPAddr {

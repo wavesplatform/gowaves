@@ -88,7 +88,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	return peer.Handle(peer.HandlerParams{
 		Ctx:              ctx,
-		ID:               peerImpl.ID(),
+		ID:               peerImpl.ID().String(),
 		Connection:       connection,
 		Remote:           remote,
 		Parent:           params.Parent,

@@ -5,81 +5,40 @@
 package mock
 
 import (
-	big "math/big"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	ast "github.com/wavesplatform/gowaves/pkg/ride/ast"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
 	state "github.com/wavesplatform/gowaves/pkg/state"
+	big "math/big"
+	reflect "reflect"
 )
 
-// MockTransactionIterator is a mock of TransactionIterator interface.
+// MockTransactionIterator is a mock of TransactionIterator interface
 type MockTransactionIterator struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionIteratorMockRecorder
 }
 
-// MockTransactionIteratorMockRecorder is the mock recorder for MockTransactionIterator.
+// MockTransactionIteratorMockRecorder is the mock recorder for MockTransactionIterator
 type MockTransactionIteratorMockRecorder struct {
 	mock *MockTransactionIterator
 }
 
-// NewMockTransactionIterator creates a new mock instance.
+// NewMockTransactionIterator creates a new mock instance
 func NewMockTransactionIterator(ctrl *gomock.Controller) *MockTransactionIterator {
 	mock := &MockTransactionIterator{ctrl: ctrl}
 	mock.recorder = &MockTransactionIteratorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockTransactionIterator) EXPECT() *MockTransactionIteratorMockRecorder {
 	return m.recorder
 }
 
-// Error mocks base method.
-func (m *MockTransactionIterator) Error() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Error")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Error indicates an expected call of Error.
-func (mr *MockTransactionIteratorMockRecorder) Error() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockTransactionIterator)(nil).Error))
-}
-
-// Next mocks base method.
-func (m *MockTransactionIterator) Next() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Next")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Next indicates an expected call of Next.
-func (mr *MockTransactionIteratorMockRecorder) Next() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Next", reflect.TypeOf((*MockTransactionIterator)(nil).Next))
-}
-
-// Release mocks base method.
-func (m *MockTransactionIterator) Release() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Release")
-}
-
-// Release indicates an expected call of Release.
-func (mr *MockTransactionIteratorMockRecorder) Release() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockTransactionIterator)(nil).Release))
-}
-
-// Transaction mocks base method.
+// Transaction mocks base method
 func (m *MockTransactionIterator) Transaction() (proto.Transaction, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transaction")
@@ -89,141 +48,104 @@ func (m *MockTransactionIterator) Transaction() (proto.Transaction, bool, error)
 	return ret0, ret1, ret2
 }
 
-// Transaction indicates an expected call of Transaction.
+// Transaction indicates an expected call of Transaction
 func (mr *MockTransactionIteratorMockRecorder) Transaction() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transaction", reflect.TypeOf((*MockTransactionIterator)(nil).Transaction))
 }
 
-// MockStateInfo is a mock of StateInfo interface.
+// Next mocks base method
+func (m *MockTransactionIterator) Next() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Next")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Next indicates an expected call of Next
+func (mr *MockTransactionIteratorMockRecorder) Next() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Next", reflect.TypeOf((*MockTransactionIterator)(nil).Next))
+}
+
+// Release mocks base method
+func (m *MockTransactionIterator) Release() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Release")
+}
+
+// Release indicates an expected call of Release
+func (mr *MockTransactionIteratorMockRecorder) Release() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockTransactionIterator)(nil).Release))
+}
+
+// Error mocks base method
+func (m *MockTransactionIterator) Error() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Error")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Error indicates an expected call of Error
+func (mr *MockTransactionIteratorMockRecorder) Error() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockTransactionIterator)(nil).Error))
+}
+
+// MockStateInfo is a mock of StateInfo interface
 type MockStateInfo struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateInfoMockRecorder
 }
 
-// MockStateInfoMockRecorder is the mock recorder for MockStateInfo.
+// MockStateInfoMockRecorder is the mock recorder for MockStateInfo
 type MockStateInfoMockRecorder struct {
 	mock *MockStateInfo
 }
 
-// NewMockStateInfo creates a new mock instance.
+// NewMockStateInfo creates a new mock instance
 func NewMockStateInfo(ctrl *gomock.Controller) *MockStateInfo {
 	mock := &MockStateInfo{ctrl: ctrl}
 	mock.recorder = &MockStateInfoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockStateInfo) EXPECT() *MockStateInfoMockRecorder {
 	return m.recorder
 }
 
-// ActivationHeight mocks base method.
-func (m *MockStateInfo) ActivationHeight(featureID int16) (proto.Height, error) {
+// Filter mocks base method
+func (m *MockStateInfo) Filter() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivationHeight", featureID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ActivationHeight indicates an expected call of ActivationHeight.
-func (mr *MockStateInfoMockRecorder) ActivationHeight(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivationHeight", reflect.TypeOf((*MockStateInfo)(nil).ActivationHeight), featureID)
-}
-
-// AddrByAlias mocks base method.
-func (m *MockStateInfo) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddrByAlias", alias)
-	ret0, _ := ret[0].(proto.WavesAddress)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddrByAlias indicates an expected call of AddrByAlias.
-func (mr *MockStateInfoMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockStateInfo)(nil).AddrByAlias), alias)
-}
-
-// AllFeatures mocks base method.
-func (m *MockStateInfo) AllFeatures() ([]int16, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AllFeatures")
-	ret0, _ := ret[0].([]int16)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AllFeatures indicates an expected call of AllFeatures.
-func (mr *MockStateInfoMockRecorder) AllFeatures() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockStateInfo)(nil).AllFeatures))
-}
-
-// ApprovalHeight mocks base method.
-func (m *MockStateInfo) ApprovalHeight(featureID int16) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApprovalHeight", featureID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ApprovalHeight indicates an expected call of ApprovalHeight.
-func (mr *MockStateInfoMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockStateInfo)(nil).ApprovalHeight), featureID)
-}
-
-// AssetBalance mocks base method.
-func (m *MockStateInfo) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AssetBalance indicates an expected call of AssetBalance.
-func (mr *MockStateInfoMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockStateInfo)(nil).AssetBalance), account, assetID)
-}
-
-// AssetInfo mocks base method.
-func (m *MockStateInfo) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetInfo", assetID)
-	ret0, _ := ret[0].(*proto.AssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AssetInfo indicates an expected call of AssetInfo.
-func (mr *MockStateInfoMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockStateInfo)(nil).AssetInfo), assetID)
-}
-
-// AssetIsSponsored mocks base method.
-func (m *MockStateInfo) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
+	ret := m.ctrl.Call(m, "Filter")
 	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
-// AssetIsSponsored indicates an expected call of AssetIsSponsored.
-func (mr *MockStateInfoMockRecorder) AssetIsSponsored(assetID interface{}) *gomock.Call {
+// Filter indicates an expected call of Filter
+func (mr *MockStateInfoMockRecorder) Filter() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetIsSponsored", reflect.TypeOf((*MockStateInfo)(nil).AssetIsSponsored), assetID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockStateInfo)(nil).Filter))
 }
 
-// Block mocks base method.
+// TopBlock mocks base method
+func (m *MockStateInfo) TopBlock() *proto.Block {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TopBlock")
+	ret0, _ := ret[0].(*proto.Block)
+	return ret0
+}
+
+// TopBlock indicates an expected call of TopBlock
+func (mr *MockStateInfoMockRecorder) TopBlock() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockStateInfo)(nil).TopBlock))
+}
+
+// Block mocks base method
 func (m *MockStateInfo) Block(blockID proto.BlockID) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Block", blockID)
@@ -232,13 +154,13 @@ func (m *MockStateInfo) Block(blockID proto.BlockID) (*proto.Block, error) {
 	return ret0, ret1
 }
 
-// Block indicates an expected call of Block.
+// Block indicates an expected call of Block
 func (mr *MockStateInfoMockRecorder) Block(blockID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Block", reflect.TypeOf((*MockStateInfo)(nil).Block), blockID)
 }
 
-// BlockByHeight mocks base method.
+// BlockByHeight mocks base method
 func (m *MockStateInfo) BlockByHeight(height proto.Height) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BlockByHeight", height)
@@ -247,132 +169,13 @@ func (m *MockStateInfo) BlockByHeight(height proto.Height) (*proto.Block, error)
 	return ret0, ret1
 }
 
-// BlockByHeight indicates an expected call of BlockByHeight.
+// BlockByHeight indicates an expected call of BlockByHeight
 func (mr *MockStateInfoMockRecorder) BlockByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockByHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockByHeight), height)
 }
 
-// BlockIDToHeight mocks base method.
-func (m *MockStateInfo) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockIDToHeight indicates an expected call of BlockIDToHeight.
-func (mr *MockStateInfoMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockIDToHeight), blockID)
-}
-
-// BlockchainSettings mocks base method.
-func (m *MockStateInfo) BlockchainSettings() (*settings.BlockchainSettings, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockchainSettings")
-	ret0, _ := ret[0].(*settings.BlockchainSettings)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockchainSettings indicates an expected call of BlockchainSettings.
-func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
-}
-
-// CurrentScore mocks base method.
-func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CurrentScore")
-	ret0, _ := ret[0].(*big.Int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CurrentScore indicates an expected call of CurrentScore.
-func (mr *MockStateInfoMockRecorder) CurrentScore() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockStateInfo)(nil).CurrentScore))
-}
-
-// EffectiveBalance mocks base method.
-func (m *MockStateInfo) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EffectiveBalance indicates an expected call of EffectiveBalance.
-func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
-}
-
-// EstimatorVersion mocks base method.
-func (m *MockStateInfo) EstimatorVersion() (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EstimatorVersion")
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EstimatorVersion indicates an expected call of EstimatorVersion.
-func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
-}
-
-// Filter mocks base method.
-func (m *MockStateInfo) Filter() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Filter")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Filter indicates an expected call of Filter.
-func (mr *MockStateInfoMockRecorder) Filter() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockStateInfo)(nil).Filter))
-}
-
-// FullAssetInfo mocks base method.
-func (m *MockStateInfo) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
-	ret0, _ := ret[0].(*proto.FullAssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FullAssetInfo indicates an expected call of FullAssetInfo.
-func (mr *MockStateInfoMockRecorder) FullAssetInfo(assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockStateInfo)(nil).FullAssetInfo), assetID)
-}
-
-// FullWavesBalance mocks base method.
-func (m *MockStateInfo) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FullWavesBalance", account)
-	ret0, _ := ret[0].(*proto.FullWavesBalance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FullWavesBalance indicates an expected call of FullWavesBalance.
-func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
-}
-
-// Header mocks base method.
+// Header mocks base method
 func (m *MockStateInfo) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Header", blockID)
@@ -381,13 +184,13 @@ func (m *MockStateInfo) Header(blockID proto.BlockID) (*proto.BlockHeader, error
 	return ret0, ret1
 }
 
-// Header indicates an expected call of Header.
+// Header indicates an expected call of Header
 func (mr *MockStateInfoMockRecorder) Header(blockID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockStateInfo)(nil).Header), blockID)
 }
 
-// HeaderByHeight mocks base method.
+// HeaderByHeight mocks base method
 func (m *MockStateInfo) HeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeaderByHeight", height)
@@ -396,13 +199,13 @@ func (m *MockStateInfo) HeaderByHeight(height proto.Height) (*proto.BlockHeader,
 	return ret0, ret1
 }
 
-// HeaderByHeight indicates an expected call of HeaderByHeight.
+// HeaderByHeight indicates an expected call of HeaderByHeight
 func (mr *MockStateInfoMockRecorder) HeaderByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderByHeight", reflect.TypeOf((*MockStateInfo)(nil).HeaderByHeight), height)
 }
 
-// Height mocks base method.
+// Height mocks base method
 func (m *MockStateInfo) Height() (proto.Height, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Height")
@@ -411,13 +214,28 @@ func (m *MockStateInfo) Height() (proto.Height, error) {
 	return ret0, ret1
 }
 
-// Height indicates an expected call of Height.
+// Height indicates an expected call of Height
 func (mr *MockStateInfoMockRecorder) Height() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Height", reflect.TypeOf((*MockStateInfo)(nil).Height))
 }
 
-// HeightToBlockID mocks base method.
+// BlockIDToHeight mocks base method
+func (m *MockStateInfo) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockIDToHeight indicates an expected call of BlockIDToHeight
+func (mr *MockStateInfoMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockIDToHeight), blockID)
+}
+
+// HeightToBlockID mocks base method
 func (m *MockStateInfo) HeightToBlockID(height proto.Height) (proto.BlockID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeightToBlockID", height)
@@ -426,313 +244,88 @@ func (m *MockStateInfo) HeightToBlockID(height proto.Height) (proto.BlockID, err
 	return ret0, ret1
 }
 
-// HeightToBlockID indicates an expected call of HeightToBlockID.
+// HeightToBlockID indicates an expected call of HeightToBlockID
 func (mr *MockStateInfoMockRecorder) HeightToBlockID(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeightToBlockID", reflect.TypeOf((*MockStateInfo)(nil).HeightToBlockID), height)
 }
 
-// HitSourceAtHeight mocks base method.
-func (m *MockStateInfo) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+// WavesBalance mocks base method
+func (m *MockStateInfo) WavesBalance(account proto.Recipient) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
-	ret0, _ := ret[0].([]byte)
+	ret := m.ctrl.Call(m, "WavesBalance", account)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// HitSourceAtHeight indicates an expected call of HitSourceAtHeight.
-func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+// WavesBalance indicates an expected call of WavesBalance
+func (mr *MockStateInfoMockRecorder) WavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesBalance", reflect.TypeOf((*MockStateInfo)(nil).WavesBalance), account)
 }
 
-// InvokeResultByID mocks base method.
-func (m *MockStateInfo) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+// FullWavesBalance mocks base method
+func (m *MockStateInfo) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InvokeResultByID", invokeID)
-	ret0, _ := ret[0].(*proto.ScriptResult)
+	ret := m.ctrl.Call(m, "FullWavesBalance", account)
+	ret0, _ := ret[0].(*proto.FullWavesBalance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InvokeResultByID indicates an expected call of InvokeResultByID.
-func (mr *MockStateInfoMockRecorder) InvokeResultByID(invokeID interface{}) *gomock.Call {
+// FullWavesBalance indicates an expected call of FullWavesBalance
+func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvokeResultByID", reflect.TypeOf((*MockStateInfo)(nil).InvokeResultByID), invokeID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
 }
 
-// IsActivated mocks base method.
-func (m *MockStateInfo) IsActivated(featureID int16) (bool, error) {
+// EffectiveBalance mocks base method
+func (m *MockStateInfo) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActivated", featureID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActivated indicates an expected call of IsActivated.
-func (mr *MockStateInfoMockRecorder) IsActivated(featureID interface{}) *gomock.Call {
+// EffectiveBalance indicates an expected call of EffectiveBalance
+func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActivated", reflect.TypeOf((*MockStateInfo)(nil).IsActivated), featureID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
 }
 
-// IsActiveAtHeight mocks base method.
-func (m *MockStateInfo) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+// AssetBalance mocks base method
+func (m *MockStateInfo) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveAtHeight", featureID, height)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActiveAtHeight indicates an expected call of IsActiveAtHeight.
-func (mr *MockStateInfoMockRecorder) IsActiveAtHeight(featureID, height interface{}) *gomock.Call {
+// AssetBalance indicates an expected call of AssetBalance
+func (mr *MockStateInfoMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsActiveAtHeight), featureID, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockStateInfo)(nil).AssetBalance), account, assetID)
 }
 
-// IsActiveLeasing mocks base method.
-func (m *MockStateInfo) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+// WavesAddressesNumber mocks base method
+func (m *MockStateInfo) WavesAddressesNumber() (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveLeasing", leaseID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "WavesAddressesNumber")
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActiveLeasing indicates an expected call of IsActiveLeasing.
-func (mr *MockStateInfoMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
+// WavesAddressesNumber indicates an expected call of WavesAddressesNumber
+func (mr *MockStateInfoMockRecorder) WavesAddressesNumber() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLeasing), leaseID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesAddressesNumber", reflect.TypeOf((*MockStateInfo)(nil).WavesAddressesNumber))
 }
 
-// IsApproved mocks base method.
-func (m *MockStateInfo) IsApproved(featureID int16) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsApproved", featureID)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsApproved indicates an expected call of IsApproved.
-func (mr *MockStateInfoMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockStateInfo)(nil).IsApproved), featureID)
-}
-
-// IsApprovedAtHeight mocks base method.
-func (m *MockStateInfo) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight.
-func (mr *MockStateInfoMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsApprovedAtHeight), featureID, height)
-}
-
-// MapR mocks base method.
-func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MapR", arg0)
-	ret0, _ := ret[0].(interface{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// MapR indicates an expected call of MapR.
-func (mr *MockStateInfoMockRecorder) MapR(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockStateInfo)(nil).MapR), arg0)
-}
-
-// NFTList mocks base method.
-func (m *MockStateInfo) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
-	ret0, _ := ret[0].([]*proto.FullAssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NFTList indicates an expected call of NFTList.
-func (mr *MockStateInfoMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockStateInfo)(nil).NFTList), account, limit, afterAssetID)
-}
-
-// NewAddrTransactionsIterator mocks base method.
-func (m *MockStateInfo) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewAddrTransactionsIterator", addr)
-	ret0, _ := ret[0].(state.TransactionIterator)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewAddrTransactionsIterator indicates an expected call of NewAddrTransactionsIterator.
-func (mr *MockStateInfoMockRecorder) NewAddrTransactionsIterator(addr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockStateInfo)(nil).NewAddrTransactionsIterator), addr)
-}
-
-// NewestScriptByAccount mocks base method.
-func (m *MockStateInfo) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
-	ret0, _ := ret[0].(*ast.Tree)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestScriptByAccount indicates an expected call of NewestScriptByAccount.
-func (mr *MockStateInfoMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptByAccount), account)
-}
-
-// NewestScriptBytesByAccount mocks base method.
-func (m *MockStateInfo) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
-	ret0, _ := ret[0].(proto.Script)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount.
-func (mr *MockStateInfoMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptBytesByAccount), account)
-}
-
-// ProvidesExtendedApi mocks base method.
-func (m *MockStateInfo) ProvidesExtendedApi() (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProvidesExtendedApi")
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ProvidesExtendedApi indicates an expected call of ProvidesExtendedApi.
-func (mr *MockStateInfoMockRecorder) ProvidesExtendedApi() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockStateInfo)(nil).ProvidesExtendedApi))
-}
-
-// ProvidesStateHashes mocks base method.
-func (m *MockStateInfo) ProvidesStateHashes() (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProvidesStateHashes")
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ProvidesStateHashes indicates an expected call of ProvidesStateHashes.
-func (mr *MockStateInfoMockRecorder) ProvidesStateHashes() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockStateInfo)(nil).ProvidesStateHashes))
-}
-
-// RetrieveBinaryEntry mocks base method.
-func (m *MockStateInfo) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveBinaryEntry", account, key)
-	ret0, _ := ret[0].(*proto.BinaryDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveBinaryEntry indicates an expected call of RetrieveBinaryEntry.
-func (mr *MockStateInfoMockRecorder) RetrieveBinaryEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBinaryEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveBinaryEntry), account, key)
-}
-
-// RetrieveBooleanEntry mocks base method.
-func (m *MockStateInfo) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveBooleanEntry", account, key)
-	ret0, _ := ret[0].(*proto.BooleanDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveBooleanEntry indicates an expected call of RetrieveBooleanEntry.
-func (mr *MockStateInfoMockRecorder) RetrieveBooleanEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBooleanEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveBooleanEntry), account, key)
-}
-
-// RetrieveEntries mocks base method.
-func (m *MockStateInfo) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntries", account)
-	ret0, _ := ret[0].([]proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntries indicates an expected call of RetrieveEntries.
-func (mr *MockStateInfoMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntries), account)
-}
-
-// RetrieveEntry mocks base method.
-func (m *MockStateInfo) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntry", account, key)
-	ret0, _ := ret[0].(proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntry indicates an expected call of RetrieveEntry.
-func (mr *MockStateInfoMockRecorder) RetrieveEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntry), account, key)
-}
-
-// RetrieveIntegerEntry mocks base method.
-func (m *MockStateInfo) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveIntegerEntry", account, key)
-	ret0, _ := ret[0].(*proto.IntegerDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveIntegerEntry indicates an expected call of RetrieveIntegerEntry.
-func (mr *MockStateInfoMockRecorder) RetrieveIntegerEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveIntegerEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveIntegerEntry), account, key)
-}
-
-// RetrieveStringEntry mocks base method.
-func (m *MockStateInfo) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveStringEntry", account, key)
-	ret0, _ := ret[0].(*proto.StringDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveStringEntry indicates an expected call of RetrieveStringEntry.
-func (mr *MockStateInfoMockRecorder) RetrieveStringEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveStringEntry), account, key)
-}
-
-// ScoreAtHeight mocks base method.
+// ScoreAtHeight mocks base method
 func (m *MockStateInfo) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ScoreAtHeight", height)
@@ -741,87 +334,298 @@ func (m *MockStateInfo) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 	return ret0, ret1
 }
 
-// ScoreAtHeight indicates an expected call of ScoreAtHeight.
+// ScoreAtHeight indicates an expected call of ScoreAtHeight
 func (mr *MockStateInfoMockRecorder) ScoreAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScoreAtHeight", reflect.TypeOf((*MockStateInfo)(nil).ScoreAtHeight), height)
 }
 
-// ScriptInfoByAccount mocks base method.
-func (m *MockStateInfo) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+// CurrentScore mocks base method
+func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScriptInfoByAccount", account)
-	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret := m.ctrl.Call(m, "CurrentScore")
+	ret0, _ := ret[0].(*big.Int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ScriptInfoByAccount indicates an expected call of ScriptInfoByAccount.
-func (mr *MockStateInfoMockRecorder) ScriptInfoByAccount(account interface{}) *gomock.Call {
+// CurrentScore indicates an expected call of CurrentScore
+func (mr *MockStateInfoMockRecorder) CurrentScore() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAccount", reflect.TypeOf((*MockStateInfo)(nil).ScriptInfoByAccount), account)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockStateInfo)(nil).CurrentScore))
 }
 
-// ScriptInfoByAsset mocks base method.
-func (m *MockStateInfo) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
+// BlockchainSettings mocks base method
+func (m *MockStateInfo) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
-	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret := m.ctrl.Call(m, "BlockchainSettings")
+	ret0, _ := ret[0].(*settings.BlockchainSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ScriptInfoByAsset indicates an expected call of ScriptInfoByAsset.
-func (mr *MockStateInfoMockRecorder) ScriptInfoByAsset(assetID interface{}) *gomock.Call {
+// BlockchainSettings indicates an expected call of BlockchainSettings
+func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockStateInfo)(nil).ScriptInfoByAsset), assetID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
-// ShouldPersistAddressTransactions mocks base method.
-func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
+// VotesNum mocks base method
+func (m *MockStateInfo) VotesNum(featureID int16) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
+	ret := m.ctrl.Call(m, "VotesNum", featureID)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNum indicates an expected call of VotesNum
+func (mr *MockStateInfoMockRecorder) VotesNum(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockStateInfo)(nil).VotesNum), featureID)
+}
+
+// VotesNumAtHeight mocks base method
+func (m *MockStateInfo) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNumAtHeight indicates an expected call of VotesNumAtHeight
+func (mr *MockStateInfoMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockStateInfo)(nil).VotesNumAtHeight), featureID, height)
+}
+
+// IsActivated mocks base method
+func (m *MockStateInfo) IsActivated(featureID int16) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActivated", featureID)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions.
-func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
+// IsActivated indicates an expected call of IsActivated
+func (mr *MockStateInfoMockRecorder) IsActivated(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActivated", reflect.TypeOf((*MockStateInfo)(nil).IsActivated), featureID)
 }
 
-// StateHashAtHeight mocks base method.
-func (m *MockStateInfo) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+// IsActiveAtHeight mocks base method
+func (m *MockStateInfo) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
+	ret := m.ctrl.Call(m, "IsActiveAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// StateHashAtHeight indicates an expected call of StateHashAtHeight.
-func (mr *MockStateInfoMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+// IsActiveAtHeight indicates an expected call of IsActiveAtHeight
+func (mr *MockStateInfoMockRecorder) IsActiveAtHeight(featureID, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).StateHashAtHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsActiveAtHeight), featureID, height)
 }
 
-// TopBlock mocks base method.
-func (m *MockStateInfo) TopBlock() *proto.Block {
+// ActivationHeight mocks base method
+func (m *MockStateInfo) ActivationHeight(featureID int16) (proto.Height, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TopBlock")
-	ret0, _ := ret[0].(*proto.Block)
-	return ret0
+	ret := m.ctrl.Call(m, "ActivationHeight", featureID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// TopBlock indicates an expected call of TopBlock.
-func (mr *MockStateInfoMockRecorder) TopBlock() *gomock.Call {
+// ActivationHeight indicates an expected call of ActivationHeight
+func (mr *MockStateInfoMockRecorder) ActivationHeight(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockStateInfo)(nil).TopBlock))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivationHeight", reflect.TypeOf((*MockStateInfo)(nil).ActivationHeight), featureID)
 }
 
-// TransactionByID mocks base method.
+// IsApproved mocks base method
+func (m *MockStateInfo) IsApproved(featureID int16) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApproved", featureID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApproved indicates an expected call of IsApproved
+func (mr *MockStateInfoMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockStateInfo)(nil).IsApproved), featureID)
+}
+
+// IsApprovedAtHeight mocks base method
+func (m *MockStateInfo) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight
+func (mr *MockStateInfoMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsApprovedAtHeight), featureID, height)
+}
+
+// ApprovalHeight mocks base method
+func (m *MockStateInfo) ApprovalHeight(featureID int16) (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ApprovalHeight", featureID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ApprovalHeight indicates an expected call of ApprovalHeight
+func (mr *MockStateInfoMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockStateInfo)(nil).ApprovalHeight), featureID)
+}
+
+// AllFeatures mocks base method
+func (m *MockStateInfo) AllFeatures() ([]int16, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllFeatures")
+	ret0, _ := ret[0].([]int16)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllFeatures indicates an expected call of AllFeatures
+func (mr *MockStateInfoMockRecorder) AllFeatures() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockStateInfo)(nil).AllFeatures))
+}
+
+// EstimatorVersion mocks base method
+func (m *MockStateInfo) EstimatorVersion() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EstimatorVersion")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EstimatorVersion indicates an expected call of EstimatorVersion
+func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
+}
+
+// AddrByAlias mocks base method
+func (m *MockStateInfo) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddrByAlias", alias)
+	ret0, _ := ret[0].(proto.WavesAddress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddrByAlias indicates an expected call of AddrByAlias
+func (mr *MockStateInfoMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockStateInfo)(nil).AddrByAlias), alias)
+}
+
+// RetrieveEntries mocks base method
+func (m *MockStateInfo) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveEntries", account)
+	ret0, _ := ret[0].([]proto.DataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveEntries indicates an expected call of RetrieveEntries
+func (mr *MockStateInfoMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntries), account)
+}
+
+// RetrieveEntry mocks base method
+func (m *MockStateInfo) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveEntry", account, key)
+	ret0, _ := ret[0].(proto.DataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveEntry indicates an expected call of RetrieveEntry
+func (mr *MockStateInfoMockRecorder) RetrieveEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntry), account, key)
+}
+
+// RetrieveIntegerEntry mocks base method
+func (m *MockStateInfo) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveIntegerEntry", account, key)
+	ret0, _ := ret[0].(*proto.IntegerDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveIntegerEntry indicates an expected call of RetrieveIntegerEntry
+func (mr *MockStateInfoMockRecorder) RetrieveIntegerEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveIntegerEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveIntegerEntry), account, key)
+}
+
+// RetrieveBooleanEntry mocks base method
+func (m *MockStateInfo) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveBooleanEntry", account, key)
+	ret0, _ := ret[0].(*proto.BooleanDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveBooleanEntry indicates an expected call of RetrieveBooleanEntry
+func (mr *MockStateInfoMockRecorder) RetrieveBooleanEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBooleanEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveBooleanEntry), account, key)
+}
+
+// RetrieveStringEntry mocks base method
+func (m *MockStateInfo) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveStringEntry", account, key)
+	ret0, _ := ret[0].(*proto.StringDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveStringEntry indicates an expected call of RetrieveStringEntry
+func (mr *MockStateInfoMockRecorder) RetrieveStringEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveStringEntry), account, key)
+}
+
+// RetrieveBinaryEntry mocks base method
+func (m *MockStateInfo) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveBinaryEntry", account, key)
+	ret0, _ := ret[0].(*proto.BinaryDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveBinaryEntry indicates an expected call of RetrieveBinaryEntry
+func (mr *MockStateInfoMockRecorder) RetrieveBinaryEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBinaryEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveBinaryEntry), account, key)
+}
+
+// TransactionByID mocks base method
 func (m *MockStateInfo) TransactionByID(id []byte) (proto.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByID", id)
@@ -830,13 +634,13 @@ func (m *MockStateInfo) TransactionByID(id []byte) (proto.Transaction, error) {
 	return ret0, ret1
 }
 
-// TransactionByID indicates an expected call of TransactionByID.
+// TransactionByID indicates an expected call of TransactionByID
 func (mr *MockStateInfoMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockStateInfo)(nil).TransactionByID), id)
 }
 
-// TransactionByIDWithStatus mocks base method.
+// TransactionByIDWithStatus mocks base method
 func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
@@ -846,13 +650,13 @@ func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction,
 	return ret0, ret1, ret2
 }
 
-// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus.
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
 func (mr *MockStateInfoMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockStateInfo)(nil).TransactionByIDWithStatus), id)
 }
 
-// TransactionHeightByID mocks base method.
+// TransactionHeightByID mocks base method
 func (m *MockStateInfo) TransactionHeightByID(id []byte) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionHeightByID", id)
@@ -861,96 +665,291 @@ func (m *MockStateInfo) TransactionHeightByID(id []byte) (uint64, error) {
 	return ret0, ret1
 }
 
-// TransactionHeightByID indicates an expected call of TransactionHeightByID.
+// TransactionHeightByID indicates an expected call of TransactionHeightByID
 func (mr *MockStateInfoMockRecorder) TransactionHeightByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionHeightByID", reflect.TypeOf((*MockStateInfo)(nil).TransactionHeightByID), id)
 }
 
-// VotesNum mocks base method.
-func (m *MockStateInfo) VotesNum(featureID int16) (uint64, error) {
+// NewAddrTransactionsIterator mocks base method
+func (m *MockStateInfo) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VotesNum", featureID)
-	ret0, _ := ret[0].(uint64)
+	ret := m.ctrl.Call(m, "NewAddrTransactionsIterator", addr)
+	ret0, _ := ret[0].(state.TransactionIterator)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// VotesNum indicates an expected call of VotesNum.
-func (mr *MockStateInfoMockRecorder) VotesNum(featureID interface{}) *gomock.Call {
+// NewAddrTransactionsIterator indicates an expected call of NewAddrTransactionsIterator
+func (mr *MockStateInfoMockRecorder) NewAddrTransactionsIterator(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockStateInfo)(nil).VotesNum), featureID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockStateInfo)(nil).NewAddrTransactionsIterator), addr)
 }
 
-// VotesNumAtHeight mocks base method.
-func (m *MockStateInfo) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+// AssetIsSponsored mocks base method
+func (m *MockStateInfo) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
-	ret0, _ := ret[0].(uint64)
+	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
+	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// VotesNumAtHeight indicates an expected call of VotesNumAtHeight.
-func (mr *MockStateInfoMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+// AssetIsSponsored indicates an expected call of AssetIsSponsored
+func (mr *MockStateInfoMockRecorder) AssetIsSponsored(assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockStateInfo)(nil).VotesNumAtHeight), featureID, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetIsSponsored", reflect.TypeOf((*MockStateInfo)(nil).AssetIsSponsored), assetID)
 }
 
-// WavesAddressesNumber mocks base method.
-func (m *MockStateInfo) WavesAddressesNumber() (uint64, error) {
+// AssetInfo mocks base method
+func (m *MockStateInfo) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WavesAddressesNumber")
-	ret0, _ := ret[0].(uint64)
+	ret := m.ctrl.Call(m, "AssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.AssetInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// WavesAddressesNumber indicates an expected call of WavesAddressesNumber.
-func (mr *MockStateInfoMockRecorder) WavesAddressesNumber() *gomock.Call {
+// AssetInfo indicates an expected call of AssetInfo
+func (mr *MockStateInfoMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesAddressesNumber", reflect.TypeOf((*MockStateInfo)(nil).WavesAddressesNumber))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockStateInfo)(nil).AssetInfo), assetID)
 }
 
-// WavesBalance mocks base method.
-func (m *MockStateInfo) WavesBalance(account proto.Recipient) (uint64, error) {
+// FullAssetInfo mocks base method
+func (m *MockStateInfo) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WavesBalance", account)
-	ret0, _ := ret[0].(uint64)
+	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.FullAssetInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// WavesBalance indicates an expected call of WavesBalance.
-func (mr *MockStateInfoMockRecorder) WavesBalance(account interface{}) *gomock.Call {
+// FullAssetInfo indicates an expected call of FullAssetInfo
+func (mr *MockStateInfoMockRecorder) FullAssetInfo(assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesBalance", reflect.TypeOf((*MockStateInfo)(nil).WavesBalance), account)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockStateInfo)(nil).FullAssetInfo), assetID)
 }
 
-// MockStateModifier is a mock of StateModifier interface.
+// NFTList mocks base method
+func (m *MockStateInfo) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
+	ret0, _ := ret[0].([]*proto.FullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NFTList indicates an expected call of NFTList
+func (mr *MockStateInfoMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockStateInfo)(nil).NFTList), account, limit, afterAssetID)
+}
+
+// ScriptInfoByAccount mocks base method
+func (m *MockStateInfo) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptInfoByAccount", account)
+	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptInfoByAccount indicates an expected call of ScriptInfoByAccount
+func (mr *MockStateInfoMockRecorder) ScriptInfoByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAccount", reflect.TypeOf((*MockStateInfo)(nil).ScriptInfoByAccount), account)
+}
+
+// ScriptInfoByAsset mocks base method
+func (m *MockStateInfo) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
+	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptInfoByAsset indicates an expected call of ScriptInfoByAsset
+func (mr *MockStateInfoMockRecorder) ScriptInfoByAsset(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockStateInfo)(nil).ScriptInfoByAsset), assetID)
+}
+
+// NewestScriptByAccount mocks base method
+func (m *MockStateInfo) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
+	ret0, _ := ret[0].(*ast.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptByAccount indicates an expected call of NewestScriptByAccount
+func (mr *MockStateInfoMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptByAccount), account)
+}
+
+// NewestScriptBytesByAccount mocks base method
+func (m *MockStateInfo) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount
+func (mr *MockStateInfoMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptBytesByAccount), account)
+}
+
+// IsActiveLeasing mocks base method
+func (m *MockStateInfo) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLeasing", leaseID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLeasing indicates an expected call of IsActiveLeasing
+func (mr *MockStateInfoMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLeasing), leaseID)
+}
+
+// InvokeResultByID mocks base method
+func (m *MockStateInfo) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InvokeResultByID", invokeID)
+	ret0, _ := ret[0].(*proto.ScriptResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InvokeResultByID indicates an expected call of InvokeResultByID
+func (mr *MockStateInfoMockRecorder) InvokeResultByID(invokeID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvokeResultByID", reflect.TypeOf((*MockStateInfo)(nil).InvokeResultByID), invokeID)
+}
+
+// ProvidesExtendedApi mocks base method
+func (m *MockStateInfo) ProvidesExtendedApi() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesExtendedApi")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesExtendedApi indicates an expected call of ProvidesExtendedApi
+func (mr *MockStateInfoMockRecorder) ProvidesExtendedApi() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockStateInfo)(nil).ProvidesExtendedApi))
+}
+
+// ProvidesStateHashes mocks base method
+func (m *MockStateInfo) ProvidesStateHashes() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesStateHashes")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesStateHashes indicates an expected call of ProvidesStateHashes
+func (mr *MockStateInfoMockRecorder) ProvidesStateHashes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockStateInfo)(nil).ProvidesStateHashes))
+}
+
+// StateHashAtHeight mocks base method
+func (m *MockStateInfo) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StateHashAtHeight indicates an expected call of StateHashAtHeight
+func (mr *MockStateInfoMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).StateHashAtHeight), height)
+}
+
+// MapR mocks base method
+func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapR", arg0)
+	ret0, _ := ret[0].(interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MapR indicates an expected call of MapR
+func (mr *MockStateInfoMockRecorder) MapR(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockStateInfo)(nil).MapR), arg0)
+}
+
+// HitSourceAtHeight mocks base method
+func (m *MockStateInfo) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HitSourceAtHeight indicates an expected call of HitSourceAtHeight
+func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
+}
+
+// ShouldPersistAddressTransactions mocks base method
+func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions
+func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
+}
+
+// MockStateModifier is a mock of StateModifier interface
 type MockStateModifier struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateModifierMockRecorder
 }
 
-// MockStateModifierMockRecorder is the mock recorder for MockStateModifier.
+// MockStateModifierMockRecorder is the mock recorder for MockStateModifier
 type MockStateModifierMockRecorder struct {
 	mock *MockStateModifier
 }
 
-// NewMockStateModifier creates a new mock instance.
+// NewMockStateModifier creates a new mock instance
 func NewMockStateModifier(ctrl *gomock.Controller) *MockStateModifier {
 	mock := &MockStateModifier{ctrl: ctrl}
 	mock.recorder = &MockStateModifierMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockStateModifier) EXPECT() *MockStateModifierMockRecorder {
 	return m.recorder
 }
 
-// AddBlock mocks base method.
+// AddBlock mocks base method
 func (m *MockStateModifier) AddBlock(block []byte) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddBlock", block)
@@ -959,27 +958,13 @@ func (m *MockStateModifier) AddBlock(block []byte) (*proto.Block, error) {
 	return ret0, ret1
 }
 
-// AddBlock indicates an expected call of AddBlock.
+// AddBlock indicates an expected call of AddBlock
 func (mr *MockStateModifierMockRecorder) AddBlock(block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlock", reflect.TypeOf((*MockStateModifier)(nil).AddBlock), block)
 }
 
-// AddBlocks mocks base method.
-func (m *MockStateModifier) AddBlocks(blocks [][]byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlocks", blocks)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddBlocks indicates an expected call of AddBlocks.
-func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
-}
-
-// AddDeserializedBlock mocks base method.
+// AddDeserializedBlock mocks base method
 func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddDeserializedBlock", block)
@@ -988,13 +973,27 @@ func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Blo
 	return ret0, ret1
 }
 
-// AddDeserializedBlock indicates an expected call of AddDeserializedBlock.
+// AddDeserializedBlock indicates an expected call of AddDeserializedBlock
 func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlock), block)
 }
 
-// AddDeserializedBlocks mocks base method.
+// AddBlocks mocks base method
+func (m *MockStateModifier) AddBlocks(blocks [][]byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocks", blocks)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocks indicates an expected call of AddBlocks
+func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
+}
+
+// AddDeserializedBlocks mocks base method
 func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
@@ -1003,81 +1002,13 @@ func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto
 	return ret0, ret1
 }
 
-// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
+// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks
 func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
 }
 
-// Close mocks base method.
-func (m *MockStateModifier) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockStateModifierMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStateModifier)(nil).Close))
-}
-
-// Map mocks base method.
-func (m *MockStateModifier) Map(arg0 func(state.NonThreadSafeState) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Map", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Map indicates an expected call of Map.
-func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
-}
-
-// PersistAddressTransactions mocks base method.
-func (m *MockStateModifier) PersistAddressTransactions() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PersistAddressTransactions")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PersistAddressTransactions indicates an expected call of PersistAddressTransactions.
-func (mr *MockStateModifierMockRecorder) PersistAddressTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockStateModifier)(nil).PersistAddressTransactions))
-}
-
-// ResetValidationList mocks base method.
-func (m *MockStateModifier) ResetValidationList() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ResetValidationList")
-}
-
-// ResetValidationList indicates an expected call of ResetValidationList.
-func (mr *MockStateModifierMockRecorder) ResetValidationList() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockStateModifier)(nil).ResetValidationList))
-}
-
-// RollbackTo mocks base method.
-func (m *MockStateModifier) RollbackTo(removalEdge proto.BlockID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RollbackTo indicates an expected call of RollbackTo.
-func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockStateModifier)(nil).RollbackTo), removalEdge)
-}
-
-// RollbackToHeight mocks base method.
+// RollbackToHeight mocks base method
 func (m *MockStateModifier) RollbackToHeight(height proto.Height) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RollbackToHeight", height)
@@ -1085,41 +1016,27 @@ func (m *MockStateModifier) RollbackToHeight(height proto.Height) error {
 	return ret0
 }
 
-// RollbackToHeight indicates an expected call of RollbackToHeight.
+// RollbackToHeight indicates an expected call of RollbackToHeight
 func (mr *MockStateModifierMockRecorder) RollbackToHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockStateModifier)(nil).RollbackToHeight), height)
 }
 
-// StartProvidingExtendedApi mocks base method.
-func (m *MockStateModifier) StartProvidingExtendedApi() error {
+// RollbackTo mocks base method
+func (m *MockStateModifier) RollbackTo(removalEdge proto.BlockID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
+	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
-func (mr *MockStateModifierMockRecorder) StartProvidingExtendedApi() *gomock.Call {
+// RollbackTo indicates an expected call of RollbackTo
+func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedApi))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockStateModifier)(nil).RollbackTo), removalEdge)
 }
 
-// TxValidation mocks base method.
-func (m *MockStateModifier) TxValidation(arg0 func(state.TxValidation) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TxValidation", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// TxValidation indicates an expected call of TxValidation.
-func (mr *MockStateModifierMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockStateModifier)(nil).TxValidation), arg0)
-}
-
-// ValidateNextTx mocks base method.
+// ValidateNextTx mocks base method
 func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
@@ -1127,36 +1044,118 @@ func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestam
 	return ret0
 }
 
-// ValidateNextTx indicates an expected call of ValidateNextTx.
+// ValidateNextTx indicates an expected call of ValidateNextTx
 func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
-// MockTxValidation is a mock of TxValidation interface.
+// ResetValidationList mocks base method
+func (m *MockStateModifier) ResetValidationList() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ResetValidationList")
+}
+
+// ResetValidationList indicates an expected call of ResetValidationList
+func (mr *MockStateModifierMockRecorder) ResetValidationList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockStateModifier)(nil).ResetValidationList))
+}
+
+// TxValidation mocks base method
+func (m *MockStateModifier) TxValidation(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TxValidation", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TxValidation indicates an expected call of TxValidation
+func (mr *MockStateModifierMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockStateModifier)(nil).TxValidation), arg0)
+}
+
+// Map mocks base method
+func (m *MockStateModifier) Map(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Map", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Map indicates an expected call of Map
+func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
+}
+
+// StartProvidingExtendedApi mocks base method
+func (m *MockStateModifier) StartProvidingExtendedApi() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi
+func (mr *MockStateModifierMockRecorder) StartProvidingExtendedApi() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedApi))
+}
+
+// PersistAddressTransactions mocks base method
+func (m *MockStateModifier) PersistAddressTransactions() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PersistAddressTransactions")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PersistAddressTransactions indicates an expected call of PersistAddressTransactions
+func (mr *MockStateModifierMockRecorder) PersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockStateModifier)(nil).PersistAddressTransactions))
+}
+
+// Close mocks base method
+func (m *MockStateModifier) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *MockStateModifierMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStateModifier)(nil).Close))
+}
+
+// MockTxValidation is a mock of TxValidation interface
 type MockTxValidation struct {
 	ctrl     *gomock.Controller
 	recorder *MockTxValidationMockRecorder
 }
 
-// MockTxValidationMockRecorder is the mock recorder for MockTxValidation.
+// MockTxValidationMockRecorder is the mock recorder for MockTxValidation
 type MockTxValidationMockRecorder struct {
 	mock *MockTxValidation
 }
 
-// NewMockTxValidation creates a new mock instance.
+// NewMockTxValidation creates a new mock instance
 func NewMockTxValidation(ctrl *gomock.Controller) *MockTxValidation {
 	mock := &MockTxValidation{ctrl: ctrl}
 	mock.recorder = &MockTxValidationMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 	return m.recorder
 }
 
-// ValidateNextTx mocks base method.
+// ValidateNextTx mocks base method
 func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
@@ -1164,200 +1163,64 @@ func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp
 	return ret0
 }
 
-// ValidateNextTx indicates an expected call of ValidateNextTx.
+// ValidateNextTx indicates an expected call of ValidateNextTx
 func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
-// MockState is a mock of State interface.
+// MockState is a mock of State interface
 type MockState struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateMockRecorder
 }
 
-// MockStateMockRecorder is the mock recorder for MockState.
+// MockStateMockRecorder is the mock recorder for MockState
 type MockStateMockRecorder struct {
 	mock *MockState
 }
 
-// NewMockState creates a new mock instance.
+// NewMockState creates a new mock instance
 func NewMockState(ctrl *gomock.Controller) *MockState {
 	mock := &MockState{ctrl: ctrl}
 	mock.recorder = &MockStateMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockState) EXPECT() *MockStateMockRecorder {
 	return m.recorder
 }
 
-// ActivationHeight mocks base method.
-func (m *MockState) ActivationHeight(featureID int16) (proto.Height, error) {
+// Filter mocks base method
+func (m *MockState) Filter() bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivationHeight", featureID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ActivationHeight indicates an expected call of ActivationHeight.
-func (mr *MockStateMockRecorder) ActivationHeight(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivationHeight", reflect.TypeOf((*MockState)(nil).ActivationHeight), featureID)
-}
-
-// AddBlock mocks base method.
-func (m *MockState) AddBlock(block []byte) (*proto.Block, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlock", block)
-	ret0, _ := ret[0].(*proto.Block)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddBlock indicates an expected call of AddBlock.
-func (mr *MockStateMockRecorder) AddBlock(block interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlock", reflect.TypeOf((*MockState)(nil).AddBlock), block)
-}
-
-// AddBlocks mocks base method.
-func (m *MockState) AddBlocks(blocks [][]byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlocks", blocks)
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "Filter")
+	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// AddBlocks indicates an expected call of AddBlocks.
-func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+// Filter indicates an expected call of Filter
+func (mr *MockStateMockRecorder) Filter() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockState)(nil).Filter))
 }
 
-// AddDeserializedBlock mocks base method.
-func (m *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+// TopBlock mocks base method
+func (m *MockState) TopBlock() *proto.Block {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlock", block)
+	ret := m.ctrl.Call(m, "TopBlock")
 	ret0, _ := ret[0].(*proto.Block)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
-// AddDeserializedBlock indicates an expected call of AddDeserializedBlock.
-func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock.Call {
+// TopBlock indicates an expected call of TopBlock
+func (mr *MockStateMockRecorder) TopBlock() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockState)(nil).AddDeserializedBlock), block)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockState)(nil).TopBlock))
 }
 
-// AddDeserializedBlocks mocks base method.
-func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
-	ret0, _ := ret[0].(*proto.Block)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
-}
-
-// AddrByAlias mocks base method.
-func (m *MockState) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddrByAlias", alias)
-	ret0, _ := ret[0].(proto.WavesAddress)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddrByAlias indicates an expected call of AddrByAlias.
-func (mr *MockStateMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockState)(nil).AddrByAlias), alias)
-}
-
-// AllFeatures mocks base method.
-func (m *MockState) AllFeatures() ([]int16, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AllFeatures")
-	ret0, _ := ret[0].([]int16)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AllFeatures indicates an expected call of AllFeatures.
-func (mr *MockStateMockRecorder) AllFeatures() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockState)(nil).AllFeatures))
-}
-
-// ApprovalHeight mocks base method.
-func (m *MockState) ApprovalHeight(featureID int16) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApprovalHeight", featureID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ApprovalHeight indicates an expected call of ApprovalHeight.
-func (mr *MockStateMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockState)(nil).ApprovalHeight), featureID)
-}
-
-// AssetBalance mocks base method.
-func (m *MockState) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AssetBalance indicates an expected call of AssetBalance.
-func (mr *MockStateMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockState)(nil).AssetBalance), account, assetID)
-}
-
-// AssetInfo mocks base method.
-func (m *MockState) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetInfo", assetID)
-	ret0, _ := ret[0].(*proto.AssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AssetInfo indicates an expected call of AssetInfo.
-func (mr *MockStateMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockState)(nil).AssetInfo), assetID)
-}
-
-// AssetIsSponsored mocks base method.
-func (m *MockState) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AssetIsSponsored indicates an expected call of AssetIsSponsored.
-func (mr *MockStateMockRecorder) AssetIsSponsored(assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetIsSponsored", reflect.TypeOf((*MockState)(nil).AssetIsSponsored), assetID)
-}
-
-// Block mocks base method.
+// Block mocks base method
 func (m *MockState) Block(blockID proto.BlockID) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Block", blockID)
@@ -1366,13 +1229,13 @@ func (m *MockState) Block(blockID proto.BlockID) (*proto.Block, error) {
 	return ret0, ret1
 }
 
-// Block indicates an expected call of Block.
+// Block indicates an expected call of Block
 func (mr *MockStateMockRecorder) Block(blockID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Block", reflect.TypeOf((*MockState)(nil).Block), blockID)
 }
 
-// BlockByHeight mocks base method.
+// BlockByHeight mocks base method
 func (m *MockState) BlockByHeight(height proto.Height) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BlockByHeight", height)
@@ -1381,146 +1244,13 @@ func (m *MockState) BlockByHeight(height proto.Height) (*proto.Block, error) {
 	return ret0, ret1
 }
 
-// BlockByHeight indicates an expected call of BlockByHeight.
+// BlockByHeight indicates an expected call of BlockByHeight
 func (mr *MockStateMockRecorder) BlockByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockByHeight", reflect.TypeOf((*MockState)(nil).BlockByHeight), height)
 }
 
-// BlockIDToHeight mocks base method.
-func (m *MockState) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockIDToHeight indicates an expected call of BlockIDToHeight.
-func (mr *MockStateMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockState)(nil).BlockIDToHeight), blockID)
-}
-
-// BlockchainSettings mocks base method.
-func (m *MockState) BlockchainSettings() (*settings.BlockchainSettings, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockchainSettings")
-	ret0, _ := ret[0].(*settings.BlockchainSettings)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockchainSettings indicates an expected call of BlockchainSettings.
-func (mr *MockStateMockRecorder) BlockchainSettings() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockState)(nil).BlockchainSettings))
-}
-
-// Close mocks base method.
-func (m *MockState) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockStateMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockState)(nil).Close))
-}
-
-// CurrentScore mocks base method.
-func (m *MockState) CurrentScore() (*big.Int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CurrentScore")
-	ret0, _ := ret[0].(*big.Int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CurrentScore indicates an expected call of CurrentScore.
-func (mr *MockStateMockRecorder) CurrentScore() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockState)(nil).CurrentScore))
-}
-
-// EffectiveBalance mocks base method.
-func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EffectiveBalance indicates an expected call of EffectiveBalance.
-func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
-}
-
-// EstimatorVersion mocks base method.
-func (m *MockState) EstimatorVersion() (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EstimatorVersion")
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EstimatorVersion indicates an expected call of EstimatorVersion.
-func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
-}
-
-// Filter mocks base method.
-func (m *MockState) Filter() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Filter")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// Filter indicates an expected call of Filter.
-func (mr *MockStateMockRecorder) Filter() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Filter", reflect.TypeOf((*MockState)(nil).Filter))
-}
-
-// FullAssetInfo mocks base method.
-func (m *MockState) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
-	ret0, _ := ret[0].(*proto.FullAssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FullAssetInfo indicates an expected call of FullAssetInfo.
-func (mr *MockStateMockRecorder) FullAssetInfo(assetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockState)(nil).FullAssetInfo), assetID)
-}
-
-// FullWavesBalance mocks base method.
-func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FullWavesBalance", account)
-	ret0, _ := ret[0].(*proto.FullWavesBalance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FullWavesBalance indicates an expected call of FullWavesBalance.
-func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
-}
-
-// Header mocks base method.
+// Header mocks base method
 func (m *MockState) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Header", blockID)
@@ -1529,13 +1259,13 @@ func (m *MockState) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	return ret0, ret1
 }
 
-// Header indicates an expected call of Header.
+// Header indicates an expected call of Header
 func (mr *MockStateMockRecorder) Header(blockID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockState)(nil).Header), blockID)
 }
 
-// HeaderByHeight mocks base method.
+// HeaderByHeight mocks base method
 func (m *MockState) HeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeaderByHeight", height)
@@ -1544,13 +1274,13 @@ func (m *MockState) HeaderByHeight(height proto.Height) (*proto.BlockHeader, err
 	return ret0, ret1
 }
 
-// HeaderByHeight indicates an expected call of HeaderByHeight.
+// HeaderByHeight indicates an expected call of HeaderByHeight
 func (mr *MockStateMockRecorder) HeaderByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderByHeight", reflect.TypeOf((*MockState)(nil).HeaderByHeight), height)
 }
 
-// Height mocks base method.
+// Height mocks base method
 func (m *MockState) Height() (proto.Height, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Height")
@@ -1559,13 +1289,28 @@ func (m *MockState) Height() (proto.Height, error) {
 	return ret0, ret1
 }
 
-// Height indicates an expected call of Height.
+// Height indicates an expected call of Height
 func (mr *MockStateMockRecorder) Height() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Height", reflect.TypeOf((*MockState)(nil).Height))
 }
 
-// HeightToBlockID mocks base method.
+// BlockIDToHeight mocks base method
+func (m *MockState) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockIDToHeight indicates an expected call of BlockIDToHeight
+func (mr *MockStateMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockState)(nil).BlockIDToHeight), blockID)
+}
+
+// HeightToBlockID mocks base method
 func (m *MockState) HeightToBlockID(height proto.Height) (proto.BlockID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeightToBlockID", height)
@@ -1574,381 +1319,88 @@ func (m *MockState) HeightToBlockID(height proto.Height) (proto.BlockID, error) 
 	return ret0, ret1
 }
 
-// HeightToBlockID indicates an expected call of HeightToBlockID.
+// HeightToBlockID indicates an expected call of HeightToBlockID
 func (mr *MockStateMockRecorder) HeightToBlockID(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeightToBlockID", reflect.TypeOf((*MockState)(nil).HeightToBlockID), height)
 }
 
-// HitSourceAtHeight mocks base method.
-func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+// WavesBalance mocks base method
+func (m *MockState) WavesBalance(account proto.Recipient) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
-	ret0, _ := ret[0].([]byte)
+	ret := m.ctrl.Call(m, "WavesBalance", account)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// HitSourceAtHeight indicates an expected call of HitSourceAtHeight.
-func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+// WavesBalance indicates an expected call of WavesBalance
+func (mr *MockStateMockRecorder) WavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesBalance", reflect.TypeOf((*MockState)(nil).WavesBalance), account)
 }
 
-// InvokeResultByID mocks base method.
-func (m *MockState) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+// FullWavesBalance mocks base method
+func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InvokeResultByID", invokeID)
-	ret0, _ := ret[0].(*proto.ScriptResult)
+	ret := m.ctrl.Call(m, "FullWavesBalance", account)
+	ret0, _ := ret[0].(*proto.FullWavesBalance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InvokeResultByID indicates an expected call of InvokeResultByID.
-func (mr *MockStateMockRecorder) InvokeResultByID(invokeID interface{}) *gomock.Call {
+// FullWavesBalance indicates an expected call of FullWavesBalance
+func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvokeResultByID", reflect.TypeOf((*MockState)(nil).InvokeResultByID), invokeID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
 }
 
-// IsActivated mocks base method.
-func (m *MockState) IsActivated(featureID int16) (bool, error) {
+// EffectiveBalance mocks base method
+func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActivated", featureID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActivated indicates an expected call of IsActivated.
-func (mr *MockStateMockRecorder) IsActivated(featureID interface{}) *gomock.Call {
+// EffectiveBalance indicates an expected call of EffectiveBalance
+func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActivated", reflect.TypeOf((*MockState)(nil).IsActivated), featureID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
 }
 
-// IsActiveAtHeight mocks base method.
-func (m *MockState) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+// AssetBalance mocks base method
+func (m *MockState) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveAtHeight", featureID, height)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActiveAtHeight indicates an expected call of IsActiveAtHeight.
-func (mr *MockStateMockRecorder) IsActiveAtHeight(featureID, height interface{}) *gomock.Call {
+// AssetBalance indicates an expected call of AssetBalance
+func (mr *MockStateMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveAtHeight", reflect.TypeOf((*MockState)(nil).IsActiveAtHeight), featureID, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockState)(nil).AssetBalance), account, assetID)
 }
 
-// IsActiveLeasing mocks base method.
-func (m *MockState) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+// WavesAddressesNumber mocks base method
+func (m *MockState) WavesAddressesNumber() (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveLeasing", leaseID)
-	ret0, _ := ret[0].(bool)
+	ret := m.ctrl.Call(m, "WavesAddressesNumber")
+	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// IsActiveLeasing indicates an expected call of IsActiveLeasing.
-func (mr *MockStateMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
+// WavesAddressesNumber indicates an expected call of WavesAddressesNumber
+func (mr *MockStateMockRecorder) WavesAddressesNumber() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockState)(nil).IsActiveLeasing), leaseID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesAddressesNumber", reflect.TypeOf((*MockState)(nil).WavesAddressesNumber))
 }
 
-// IsApproved mocks base method.
-func (m *MockState) IsApproved(featureID int16) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsApproved", featureID)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsApproved indicates an expected call of IsApproved.
-func (mr *MockStateMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockState)(nil).IsApproved), featureID)
-}
-
-// IsApprovedAtHeight mocks base method.
-func (m *MockState) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight.
-func (mr *MockStateMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockState)(nil).IsApprovedAtHeight), featureID, height)
-}
-
-// Map mocks base method.
-func (m *MockState) Map(arg0 func(state.NonThreadSafeState) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Map", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Map indicates an expected call of Map.
-func (mr *MockStateMockRecorder) Map(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockState)(nil).Map), arg0)
-}
-
-// MapR mocks base method.
-func (m *MockState) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MapR", arg0)
-	ret0, _ := ret[0].(interface{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// MapR indicates an expected call of MapR.
-func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
-}
-
-// NFTList mocks base method.
-func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
-	ret0, _ := ret[0].([]*proto.FullAssetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NFTList indicates an expected call of NFTList.
-func (mr *MockStateMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockState)(nil).NFTList), account, limit, afterAssetID)
-}
-
-// NewAddrTransactionsIterator mocks base method.
-func (m *MockState) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewAddrTransactionsIterator", addr)
-	ret0, _ := ret[0].(state.TransactionIterator)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewAddrTransactionsIterator indicates an expected call of NewAddrTransactionsIterator.
-func (mr *MockStateMockRecorder) NewAddrTransactionsIterator(addr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockState)(nil).NewAddrTransactionsIterator), addr)
-}
-
-// NewestScriptByAccount mocks base method.
-func (m *MockState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
-	ret0, _ := ret[0].(*ast.Tree)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestScriptByAccount indicates an expected call of NewestScriptByAccount.
-func (mr *MockStateMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptByAccount), account)
-}
-
-// NewestScriptBytesByAccount mocks base method.
-func (m *MockState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
-	ret0, _ := ret[0].(proto.Script)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount.
-func (mr *MockStateMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptBytesByAccount), account)
-}
-
-// PersistAddressTransactions mocks base method.
-func (m *MockState) PersistAddressTransactions() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PersistAddressTransactions")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PersistAddressTransactions indicates an expected call of PersistAddressTransactions.
-func (mr *MockStateMockRecorder) PersistAddressTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockState)(nil).PersistAddressTransactions))
-}
-
-// ProvidesExtendedApi mocks base method.
-func (m *MockState) ProvidesExtendedApi() (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProvidesExtendedApi")
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ProvidesExtendedApi indicates an expected call of ProvidesExtendedApi.
-func (mr *MockStateMockRecorder) ProvidesExtendedApi() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockState)(nil).ProvidesExtendedApi))
-}
-
-// ProvidesStateHashes mocks base method.
-func (m *MockState) ProvidesStateHashes() (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProvidesStateHashes")
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ProvidesStateHashes indicates an expected call of ProvidesStateHashes.
-func (mr *MockStateMockRecorder) ProvidesStateHashes() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockState)(nil).ProvidesStateHashes))
-}
-
-// ResetValidationList mocks base method.
-func (m *MockState) ResetValidationList() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ResetValidationList")
-}
-
-// ResetValidationList indicates an expected call of ResetValidationList.
-func (mr *MockStateMockRecorder) ResetValidationList() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockState)(nil).ResetValidationList))
-}
-
-// RetrieveBinaryEntry mocks base method.
-func (m *MockState) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveBinaryEntry", account, key)
-	ret0, _ := ret[0].(*proto.BinaryDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveBinaryEntry indicates an expected call of RetrieveBinaryEntry.
-func (mr *MockStateMockRecorder) RetrieveBinaryEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBinaryEntry", reflect.TypeOf((*MockState)(nil).RetrieveBinaryEntry), account, key)
-}
-
-// RetrieveBooleanEntry mocks base method.
-func (m *MockState) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveBooleanEntry", account, key)
-	ret0, _ := ret[0].(*proto.BooleanDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveBooleanEntry indicates an expected call of RetrieveBooleanEntry.
-func (mr *MockStateMockRecorder) RetrieveBooleanEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBooleanEntry", reflect.TypeOf((*MockState)(nil).RetrieveBooleanEntry), account, key)
-}
-
-// RetrieveEntries mocks base method.
-func (m *MockState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntries", account)
-	ret0, _ := ret[0].([]proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntries indicates an expected call of RetrieveEntries.
-func (mr *MockStateMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockState)(nil).RetrieveEntries), account)
-}
-
-// RetrieveEntry mocks base method.
-func (m *MockState) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntry", account, key)
-	ret0, _ := ret[0].(proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntry indicates an expected call of RetrieveEntry.
-func (mr *MockStateMockRecorder) RetrieveEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntry", reflect.TypeOf((*MockState)(nil).RetrieveEntry), account, key)
-}
-
-// RetrieveIntegerEntry mocks base method.
-func (m *MockState) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveIntegerEntry", account, key)
-	ret0, _ := ret[0].(*proto.IntegerDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveIntegerEntry indicates an expected call of RetrieveIntegerEntry.
-func (mr *MockStateMockRecorder) RetrieveIntegerEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveIntegerEntry", reflect.TypeOf((*MockState)(nil).RetrieveIntegerEntry), account, key)
-}
-
-// RetrieveStringEntry mocks base method.
-func (m *MockState) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveStringEntry", account, key)
-	ret0, _ := ret[0].(*proto.StringDataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveStringEntry indicates an expected call of RetrieveStringEntry.
-func (mr *MockStateMockRecorder) RetrieveStringEntry(account, key interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockState)(nil).RetrieveStringEntry), account, key)
-}
-
-// RollbackTo mocks base method.
-func (m *MockState) RollbackTo(removalEdge proto.BlockID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RollbackTo indicates an expected call of RollbackTo.
-func (mr *MockStateMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockState)(nil).RollbackTo), removalEdge)
-}
-
-// RollbackToHeight mocks base method.
-func (m *MockState) RollbackToHeight(height proto.Height) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackToHeight", height)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RollbackToHeight indicates an expected call of RollbackToHeight.
-func (mr *MockStateMockRecorder) RollbackToHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockState)(nil).RollbackToHeight), height)
-}
-
-// ScoreAtHeight mocks base method.
+// ScoreAtHeight mocks base method
 func (m *MockState) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ScoreAtHeight", height)
@@ -1957,101 +1409,298 @@ func (m *MockState) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 	return ret0, ret1
 }
 
-// ScoreAtHeight indicates an expected call of ScoreAtHeight.
+// ScoreAtHeight indicates an expected call of ScoreAtHeight
 func (mr *MockStateMockRecorder) ScoreAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScoreAtHeight", reflect.TypeOf((*MockState)(nil).ScoreAtHeight), height)
 }
 
-// ScriptInfoByAccount mocks base method.
-func (m *MockState) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+// CurrentScore mocks base method
+func (m *MockState) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScriptInfoByAccount", account)
-	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret := m.ctrl.Call(m, "CurrentScore")
+	ret0, _ := ret[0].(*big.Int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ScriptInfoByAccount indicates an expected call of ScriptInfoByAccount.
-func (mr *MockStateMockRecorder) ScriptInfoByAccount(account interface{}) *gomock.Call {
+// CurrentScore indicates an expected call of CurrentScore
+func (mr *MockStateMockRecorder) CurrentScore() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAccount", reflect.TypeOf((*MockState)(nil).ScriptInfoByAccount), account)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockState)(nil).CurrentScore))
 }
 
-// ScriptInfoByAsset mocks base method.
-func (m *MockState) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
+// BlockchainSettings mocks base method
+func (m *MockState) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
-	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret := m.ctrl.Call(m, "BlockchainSettings")
+	ret0, _ := ret[0].(*settings.BlockchainSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ScriptInfoByAsset indicates an expected call of ScriptInfoByAsset.
-func (mr *MockStateMockRecorder) ScriptInfoByAsset(assetID interface{}) *gomock.Call {
+// BlockchainSettings indicates an expected call of BlockchainSettings
+func (mr *MockStateMockRecorder) BlockchainSettings() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockState)(nil).ScriptInfoByAsset), assetID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockState)(nil).BlockchainSettings))
 }
 
-// ShouldPersistAddressTransactions mocks base method.
-func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
+// VotesNum mocks base method
+func (m *MockState) VotesNum(featureID int16) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
+	ret := m.ctrl.Call(m, "VotesNum", featureID)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNum indicates an expected call of VotesNum
+func (mr *MockStateMockRecorder) VotesNum(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockState)(nil).VotesNum), featureID)
+}
+
+// VotesNumAtHeight mocks base method
+func (m *MockState) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNumAtHeight indicates an expected call of VotesNumAtHeight
+func (mr *MockStateMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockState)(nil).VotesNumAtHeight), featureID, height)
+}
+
+// IsActivated mocks base method
+func (m *MockState) IsActivated(featureID int16) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActivated", featureID)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions.
-func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
+// IsActivated indicates an expected call of IsActivated
+func (mr *MockStateMockRecorder) IsActivated(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActivated", reflect.TypeOf((*MockState)(nil).IsActivated), featureID)
 }
 
-// StartProvidingExtendedApi mocks base method.
-func (m *MockState) StartProvidingExtendedApi() error {
+// IsActiveAtHeight mocks base method
+func (m *MockState) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
-func (mr *MockStateMockRecorder) StartProvidingExtendedApi() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedApi))
-}
-
-// StateHashAtHeight mocks base method.
-func (m *MockState) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
+	ret := m.ctrl.Call(m, "IsActiveAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// StateHashAtHeight indicates an expected call of StateHashAtHeight.
-func (mr *MockStateMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+// IsActiveAtHeight indicates an expected call of IsActiveAtHeight
+func (mr *MockStateMockRecorder) IsActiveAtHeight(featureID, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockState)(nil).StateHashAtHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveAtHeight", reflect.TypeOf((*MockState)(nil).IsActiveAtHeight), featureID, height)
 }
 
-// TopBlock mocks base method.
-func (m *MockState) TopBlock() *proto.Block {
+// ActivationHeight mocks base method
+func (m *MockState) ActivationHeight(featureID int16) (proto.Height, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TopBlock")
-	ret0, _ := ret[0].(*proto.Block)
-	return ret0
+	ret := m.ctrl.Call(m, "ActivationHeight", featureID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// TopBlock indicates an expected call of TopBlock.
-func (mr *MockStateMockRecorder) TopBlock() *gomock.Call {
+// ActivationHeight indicates an expected call of ActivationHeight
+func (mr *MockStateMockRecorder) ActivationHeight(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockState)(nil).TopBlock))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivationHeight", reflect.TypeOf((*MockState)(nil).ActivationHeight), featureID)
 }
 
-// TransactionByID mocks base method.
+// IsApproved mocks base method
+func (m *MockState) IsApproved(featureID int16) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApproved", featureID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApproved indicates an expected call of IsApproved
+func (mr *MockStateMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockState)(nil).IsApproved), featureID)
+}
+
+// IsApprovedAtHeight mocks base method
+func (m *MockState) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight
+func (mr *MockStateMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockState)(nil).IsApprovedAtHeight), featureID, height)
+}
+
+// ApprovalHeight mocks base method
+func (m *MockState) ApprovalHeight(featureID int16) (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ApprovalHeight", featureID)
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ApprovalHeight indicates an expected call of ApprovalHeight
+func (mr *MockStateMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockState)(nil).ApprovalHeight), featureID)
+}
+
+// AllFeatures mocks base method
+func (m *MockState) AllFeatures() ([]int16, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllFeatures")
+	ret0, _ := ret[0].([]int16)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AllFeatures indicates an expected call of AllFeatures
+func (mr *MockStateMockRecorder) AllFeatures() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockState)(nil).AllFeatures))
+}
+
+// EstimatorVersion mocks base method
+func (m *MockState) EstimatorVersion() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EstimatorVersion")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EstimatorVersion indicates an expected call of EstimatorVersion
+func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
+}
+
+// AddrByAlias mocks base method
+func (m *MockState) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddrByAlias", alias)
+	ret0, _ := ret[0].(proto.WavesAddress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddrByAlias indicates an expected call of AddrByAlias
+func (mr *MockStateMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockState)(nil).AddrByAlias), alias)
+}
+
+// RetrieveEntries mocks base method
+func (m *MockState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveEntries", account)
+	ret0, _ := ret[0].([]proto.DataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveEntries indicates an expected call of RetrieveEntries
+func (mr *MockStateMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockState)(nil).RetrieveEntries), account)
+}
+
+// RetrieveEntry mocks base method
+func (m *MockState) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveEntry", account, key)
+	ret0, _ := ret[0].(proto.DataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveEntry indicates an expected call of RetrieveEntry
+func (mr *MockStateMockRecorder) RetrieveEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntry", reflect.TypeOf((*MockState)(nil).RetrieveEntry), account, key)
+}
+
+// RetrieveIntegerEntry mocks base method
+func (m *MockState) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveIntegerEntry", account, key)
+	ret0, _ := ret[0].(*proto.IntegerDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveIntegerEntry indicates an expected call of RetrieveIntegerEntry
+func (mr *MockStateMockRecorder) RetrieveIntegerEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveIntegerEntry", reflect.TypeOf((*MockState)(nil).RetrieveIntegerEntry), account, key)
+}
+
+// RetrieveBooleanEntry mocks base method
+func (m *MockState) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveBooleanEntry", account, key)
+	ret0, _ := ret[0].(*proto.BooleanDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveBooleanEntry indicates an expected call of RetrieveBooleanEntry
+func (mr *MockStateMockRecorder) RetrieveBooleanEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBooleanEntry", reflect.TypeOf((*MockState)(nil).RetrieveBooleanEntry), account, key)
+}
+
+// RetrieveStringEntry mocks base method
+func (m *MockState) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveStringEntry", account, key)
+	ret0, _ := ret[0].(*proto.StringDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveStringEntry indicates an expected call of RetrieveStringEntry
+func (mr *MockStateMockRecorder) RetrieveStringEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockState)(nil).RetrieveStringEntry), account, key)
+}
+
+// RetrieveBinaryEntry mocks base method
+func (m *MockState) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RetrieveBinaryEntry", account, key)
+	ret0, _ := ret[0].(*proto.BinaryDataEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RetrieveBinaryEntry indicates an expected call of RetrieveBinaryEntry
+func (mr *MockStateMockRecorder) RetrieveBinaryEntry(account, key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveBinaryEntry", reflect.TypeOf((*MockState)(nil).RetrieveBinaryEntry), account, key)
+}
+
+// TransactionByID mocks base method
 func (m *MockState) TransactionByID(id []byte) (proto.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByID", id)
@@ -2060,13 +1709,13 @@ func (m *MockState) TransactionByID(id []byte) (proto.Transaction, error) {
 	return ret0, ret1
 }
 
-// TransactionByID indicates an expected call of TransactionByID.
+// TransactionByID indicates an expected call of TransactionByID
 func (mr *MockStateMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockState)(nil).TransactionByID), id)
 }
 
-// TransactionByIDWithStatus mocks base method.
+// TransactionByIDWithStatus mocks base method
 func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
@@ -2076,13 +1725,13 @@ func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, boo
 	return ret0, ret1, ret2
 }
 
-// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus.
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
 func (mr *MockStateMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockState)(nil).TransactionByIDWithStatus), id)
 }
 
-// TransactionHeightByID mocks base method.
+// TransactionHeightByID mocks base method
 func (m *MockState) TransactionHeightByID(id []byte) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionHeightByID", id)
@@ -2091,27 +1740,355 @@ func (m *MockState) TransactionHeightByID(id []byte) (uint64, error) {
 	return ret0, ret1
 }
 
-// TransactionHeightByID indicates an expected call of TransactionHeightByID.
+// TransactionHeightByID indicates an expected call of TransactionHeightByID
 func (mr *MockStateMockRecorder) TransactionHeightByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionHeightByID", reflect.TypeOf((*MockState)(nil).TransactionHeightByID), id)
 }
 
-// TxValidation mocks base method.
-func (m *MockState) TxValidation(arg0 func(state.TxValidation) error) error {
+// NewAddrTransactionsIterator mocks base method
+func (m *MockState) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TxValidation", arg0)
+	ret := m.ctrl.Call(m, "NewAddrTransactionsIterator", addr)
+	ret0, _ := ret[0].(state.TransactionIterator)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewAddrTransactionsIterator indicates an expected call of NewAddrTransactionsIterator
+func (mr *MockStateMockRecorder) NewAddrTransactionsIterator(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockState)(nil).NewAddrTransactionsIterator), addr)
+}
+
+// AssetIsSponsored mocks base method
+func (m *MockState) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetIsSponsored indicates an expected call of AssetIsSponsored
+func (mr *MockStateMockRecorder) AssetIsSponsored(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetIsSponsored", reflect.TypeOf((*MockState)(nil).AssetIsSponsored), assetID)
+}
+
+// AssetInfo mocks base method
+func (m *MockState) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.AssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetInfo indicates an expected call of AssetInfo
+func (mr *MockStateMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockState)(nil).AssetInfo), assetID)
+}
+
+// FullAssetInfo mocks base method
+func (m *MockState) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.FullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FullAssetInfo indicates an expected call of FullAssetInfo
+func (mr *MockStateMockRecorder) FullAssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockState)(nil).FullAssetInfo), assetID)
+}
+
+// NFTList mocks base method
+func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
+	ret0, _ := ret[0].([]*proto.FullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NFTList indicates an expected call of NFTList
+func (mr *MockStateMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockState)(nil).NFTList), account, limit, afterAssetID)
+}
+
+// ScriptInfoByAccount mocks base method
+func (m *MockState) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptInfoByAccount", account)
+	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptInfoByAccount indicates an expected call of ScriptInfoByAccount
+func (mr *MockStateMockRecorder) ScriptInfoByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAccount", reflect.TypeOf((*MockState)(nil).ScriptInfoByAccount), account)
+}
+
+// ScriptInfoByAsset mocks base method
+func (m *MockState) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
+	ret0, _ := ret[0].(*proto.ScriptInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptInfoByAsset indicates an expected call of ScriptInfoByAsset
+func (mr *MockStateMockRecorder) ScriptInfoByAsset(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptInfoByAsset", reflect.TypeOf((*MockState)(nil).ScriptInfoByAsset), assetID)
+}
+
+// NewestScriptByAccount mocks base method
+func (m *MockState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptByAccount", account)
+	ret0, _ := ret[0].(*ast.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptByAccount indicates an expected call of NewestScriptByAccount
+func (mr *MockStateMockRecorder) NewestScriptByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptByAccount), account)
+}
+
+// NewestScriptBytesByAccount mocks base method
+func (m *MockState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestScriptBytesByAccount", account)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestScriptBytesByAccount indicates an expected call of NewestScriptBytesByAccount
+func (mr *MockStateMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptBytesByAccount), account)
+}
+
+// IsActiveLeasing mocks base method
+func (m *MockState) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLeasing", leaseID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLeasing indicates an expected call of IsActiveLeasing
+func (mr *MockStateMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockState)(nil).IsActiveLeasing), leaseID)
+}
+
+// InvokeResultByID mocks base method
+func (m *MockState) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InvokeResultByID", invokeID)
+	ret0, _ := ret[0].(*proto.ScriptResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InvokeResultByID indicates an expected call of InvokeResultByID
+func (mr *MockStateMockRecorder) InvokeResultByID(invokeID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvokeResultByID", reflect.TypeOf((*MockState)(nil).InvokeResultByID), invokeID)
+}
+
+// ProvidesExtendedApi mocks base method
+func (m *MockState) ProvidesExtendedApi() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesExtendedApi")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesExtendedApi indicates an expected call of ProvidesExtendedApi
+func (mr *MockStateMockRecorder) ProvidesExtendedApi() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockState)(nil).ProvidesExtendedApi))
+}
+
+// ProvidesStateHashes mocks base method
+func (m *MockState) ProvidesStateHashes() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesStateHashes")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesStateHashes indicates an expected call of ProvidesStateHashes
+func (mr *MockStateMockRecorder) ProvidesStateHashes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockState)(nil).ProvidesStateHashes))
+}
+
+// StateHashAtHeight mocks base method
+func (m *MockState) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StateHashAtHeight indicates an expected call of StateHashAtHeight
+func (mr *MockStateMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockState)(nil).StateHashAtHeight), height)
+}
+
+// MapR mocks base method
+func (m *MockState) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapR", arg0)
+	ret0, _ := ret[0].(interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MapR indicates an expected call of MapR
+func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
+}
+
+// HitSourceAtHeight mocks base method
+func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HitSourceAtHeight indicates an expected call of HitSourceAtHeight
+func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
+}
+
+// ShouldPersistAddressTransactions mocks base method
+func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions
+func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
+}
+
+// AddBlock mocks base method
+func (m *MockState) AddBlock(block []byte) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlock", block)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddBlock indicates an expected call of AddBlock
+func (mr *MockStateMockRecorder) AddBlock(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlock", reflect.TypeOf((*MockState)(nil).AddBlock), block)
+}
+
+// AddDeserializedBlock mocks base method
+func (m *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlock", block)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlock indicates an expected call of AddDeserializedBlock
+func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockState)(nil).AddDeserializedBlock), block)
+}
+
+// AddBlocks mocks base method
+func (m *MockState) AddBlocks(blocks [][]byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocks", blocks)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// TxValidation indicates an expected call of TxValidation.
-func (mr *MockStateMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
+// AddBlocks indicates an expected call of AddBlocks
+func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockState)(nil).TxValidation), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
 }
 
-// ValidateNextTx mocks base method.
+// AddDeserializedBlocks mocks base method
+func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks
+func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
+}
+
+// RollbackToHeight mocks base method
+func (m *MockState) RollbackToHeight(height proto.Height) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackToHeight", height)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RollbackToHeight indicates an expected call of RollbackToHeight
+func (mr *MockStateMockRecorder) RollbackToHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockState)(nil).RollbackToHeight), height)
+}
+
+// RollbackTo mocks base method
+func (m *MockState) RollbackTo(removalEdge proto.BlockID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RollbackTo indicates an expected call of RollbackTo
+func (mr *MockStateMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockState)(nil).RollbackTo), removalEdge)
+}
+
+// ValidateNextTx mocks base method
 func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
@@ -2119,68 +2096,90 @@ func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, paren
 	return ret0
 }
 
-// ValidateNextTx indicates an expected call of ValidateNextTx.
+// ValidateNextTx indicates an expected call of ValidateNextTx
 func (mr *MockStateMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockState)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
-// VotesNum mocks base method.
-func (m *MockState) VotesNum(featureID int16) (uint64, error) {
+// ResetValidationList mocks base method
+func (m *MockState) ResetValidationList() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VotesNum", featureID)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	m.ctrl.Call(m, "ResetValidationList")
 }
 
-// VotesNum indicates an expected call of VotesNum.
-func (mr *MockStateMockRecorder) VotesNum(featureID interface{}) *gomock.Call {
+// ResetValidationList indicates an expected call of ResetValidationList
+func (mr *MockStateMockRecorder) ResetValidationList() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockState)(nil).VotesNum), featureID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockState)(nil).ResetValidationList))
 }
 
-// VotesNumAtHeight mocks base method.
-func (m *MockState) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+// TxValidation mocks base method
+func (m *MockState) TxValidation(arg0 func(state.TxValidation) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "TxValidation", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// VotesNumAtHeight indicates an expected call of VotesNumAtHeight.
-func (mr *MockStateMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+// TxValidation indicates an expected call of TxValidation
+func (mr *MockStateMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockState)(nil).VotesNumAtHeight), featureID, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockState)(nil).TxValidation), arg0)
 }
 
-// WavesAddressesNumber mocks base method.
-func (m *MockState) WavesAddressesNumber() (uint64, error) {
+// Map mocks base method
+func (m *MockState) Map(arg0 func(state.NonThreadSafeState) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WavesAddressesNumber")
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "Map", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// WavesAddressesNumber indicates an expected call of WavesAddressesNumber.
-func (mr *MockStateMockRecorder) WavesAddressesNumber() *gomock.Call {
+// Map indicates an expected call of Map
+func (mr *MockStateMockRecorder) Map(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesAddressesNumber", reflect.TypeOf((*MockState)(nil).WavesAddressesNumber))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockState)(nil).Map), arg0)
 }
 
-// WavesBalance mocks base method.
-func (m *MockState) WavesBalance(account proto.Recipient) (uint64, error) {
+// StartProvidingExtendedApi mocks base method
+func (m *MockState) StartProvidingExtendedApi() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WavesBalance", account)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// WavesBalance indicates an expected call of WavesBalance.
-func (mr *MockStateMockRecorder) WavesBalance(account interface{}) *gomock.Call {
+// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi
+func (mr *MockStateMockRecorder) StartProvidingExtendedApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WavesBalance", reflect.TypeOf((*MockState)(nil).WavesBalance), account)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedApi))
+}
+
+// PersistAddressTransactions mocks base method
+func (m *MockState) PersistAddressTransactions() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PersistAddressTransactions")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PersistAddressTransactions indicates an expected call of PersistAddressTransactions
+func (mr *MockStateMockRecorder) PersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockState)(nil).PersistAddressTransactions))
+}
+
+// Close mocks base method
+func (m *MockState) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *MockStateMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockState)(nil).Close))
 }

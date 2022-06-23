@@ -11,6 +11,7 @@ import (
 
 type Blocks []*proto.Block
 type Eof = bool
+type ChangePeerNeeded = bool
 type BlockApplied bool
 
 var NoSignaturesExpectedErr = proto.NewInfoMsg(errors.New("no signatures expected"))
@@ -74,18 +75,22 @@ type peerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 }
 
-func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
+func (a Internal) Blocks(p peerExtension, needToChangePeerSyncWithFunc func() bool) (Internal, Blocks, Eof, ChangePeerNeeded) {
 	if a.waitingForSignatures {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false, false
 	}
 	if a.orderedBlocks.RequestedCount() > a.orderedBlocks.ReceivedCount() {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false, false
 	}
 	if a.orderedBlocks.RequestedCount() < 100 {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true, false
 	}
+	if needToChangePeerSyncWithFunc != nil && needToChangePeerSyncWithFunc() {
+		return a, nil, false, true
+	}
+
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
-	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false
+	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false, false
 }
 
 func (a Internal) AvailableCount() int {

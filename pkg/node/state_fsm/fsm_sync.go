@@ -102,7 +102,7 @@ func (a *SyncFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 func (a *SyncFsm) PeerError(p peer.Peer, _ error) (FSM, Async, error) {
 	a.baseInfo.peers.Disconnect(p)
 	if a.conf.peerSyncWith == p {
-		_, blocks, _ := a.internal.Blocks(noopWrapper{})
+		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
@@ -147,26 +147,6 @@ func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, proto.NewInfoMsg(err)
 	}
-	//TODO: Handle new higher score
-	/*
-		nodeScore, err := a.baseInfo.storage.CurrentScore()
-		if err != nil {
-			return a, nil, err
-		}
-		if score.Cmp(nodeScore) == 1 {
-			lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
-			if err != nil {
-				return a, nil, err
-			}
-			internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
-			c := conf{
-				peerSyncWith: p,
-				timeout:      30 * time.Second,
-			}
-			zap.S().Debugf("[Sync] Higher score received, starting synchronisation with peer '%s'", p.ID())
-			return NewSyncFsm(a.baseInfo, c.Now(), internal)
-		}
-	*/
 	return noop(a)
 }
 
@@ -203,9 +183,48 @@ func (a *SyncFsm) Halt() (FSM, Async, error) {
 	return HaltTransition(a.baseInfo)
 }
 
+func (a *SyncFsm) getPeerWithMaxScore() (peer.Peer, error) {
+	maxScorePeer, err := a.baseInfo.peers.GetPeerWithMaxScore()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get peer with max score")
+	}
+	maxScore, err := a.baseInfo.peers.Score(maxScorePeer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get score of peer '%s'", maxScorePeer.ID())
+	}
+
+	syncWithPeer := a.conf.peerSyncWith
+	peerSyncWithScore, err := a.baseInfo.peers.Score(syncWithPeer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get score of peer synced with '%s'", maxScorePeer.ID())
+	}
+
+	if maxScorePeer != syncWithPeer && maxScore == peerSyncWithScore {
+		return syncWithPeer, nil
+	}
+	return maxScorePeer, nil
+}
+
+func (a *SyncFsm) changePeerSyncWith() (FSM, Async, error) {
+	peer, err := a.getPeerWithMaxScore()
+	if err != nil {
+		return NewIdleFsm(a.baseInfo), nil, errors.Wrapf(err, "Failed to change peer for sync")
+	}
+	return syncWithNewPeer(a, a.baseInfo, peer)
+}
+
 // TODO suspend peer on state error
 func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
-	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(conf.peerSyncWith, a.baseInfo.scheme))
+	internal, blocks, eof, needToChangePeer := internal.Blocks(
+		extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme),
+		func() bool {
+			peer, err := a.getPeerWithMaxScore()
+			return err == nil && peer != a.conf.peerSyncWith
+		},
+	)
+	if needToChangePeer {
+		return a.changePeerSyncWith()
+	}
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}

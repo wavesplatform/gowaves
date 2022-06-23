@@ -8,6 +8,18 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type peerID struct {
+	Addr string
+}
+
+func newPeerID(addr string) peer.ID {
+	return peerID{Addr: addr}
+}
+
+func (id peerID) String() string {
+	return id.Addr
+}
+
 type Peer struct {
 	Addr                  string
 	SendMessageCalledWith []proto.Message
@@ -47,8 +59,8 @@ func (a *Peer) SendMessage(m proto.Message) {
 	a.mu.Unlock()
 }
 
-func (a *Peer) ID() string {
-	return a.Addr
+func (a *Peer) ID() peer.ID {
+	return newPeerID(a.Addr)
 }
 
 func (a *Peer) Handshake() proto.Handshake {
