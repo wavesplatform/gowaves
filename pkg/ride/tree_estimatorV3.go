@@ -6,43 +6,43 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-type fd struct {
-	cost   int
-	usages []string
-	dirty  bool
+type functionDescriptor struct {
+	cost            int
+	usages          []string
+	callsInvocation bool
 }
 type fsV3 struct {
 	parent    *fsV3
-	functions map[string]fd
+	functions map[string]functionDescriptor
 }
 
 func newFsV3() *fsV3 {
-	return &fsV3{parent: nil, functions: make(map[string]fd)}
+	return &fsV3{parent: nil, functions: make(map[string]functionDescriptor)}
 }
 
 func (f *fsV3) spawn() *fsV3 {
 	return &fsV3{
 		parent:    f,
-		functions: make(map[string]fd),
+		functions: make(map[string]functionDescriptor),
 	}
 }
 
 // set adds new function descriptor to context, returns true if new function overwrite old one.
-func (f *fsV3) set(key string, cost int, usages []string, invocation bool) bool {
+func (f *fsV3) set(key string, cost int, usages []string, callsInvocation bool) bool {
 	_, ok := f.functions[key]
-	f.functions[key] = fd{cost: cost, usages: usages, dirty: invocation}
+	f.functions[key] = functionDescriptor{cost: cost, usages: usages, callsInvocation: callsInvocation}
 	return ok
 }
 
-func (f *fsV3) get(key string) (int, []string, bool, bool) {
+func (f *fsV3) get(key string) (functionDescriptor, bool) {
 	fd, ok := f.functions[key]
 	if !ok {
 		if f.parent == nil {
-			return 0, nil, false, false
+			return functionDescriptor{}, false
 		}
 		return f.parent.get(key)
 	}
-	return fd.cost, fd.usages, fd.dirty, true
+	return fd, true
 }
 
 type estimationScopeV3 struct {
@@ -77,27 +77,25 @@ func (s *estimationScopeV3) resetFunctions() {
 	s.functions = newFsV3()
 }
 
-func (s *estimationScopeV3) nativeFunction(ut, id string) (int, []string, bool, error) {
+func (s *estimationScopeV3) nativeFunction(ut, id string) (functionDescriptor, error) {
 	if c, ok := s.builtin[id]; ok {
-		inv := id == "1020" || id == "1021"
-		return c, nil, inv, nil
+		return functionDescriptor{cost: c, callsInvocation: id == "1020" || id == "1021"}, nil
 	}
-	return 0, nil, false, errors.Errorf("%s function '%s' not found", ut, id)
+	return functionDescriptor{}, errors.Errorf("%s function '%s' not found", ut, id)
 }
 
-func (s *estimationScopeV3) function(function ast.Function) (int, []string, bool, error) {
+func (s *estimationScopeV3) function(function ast.Function) (functionDescriptor, error) {
 	id := function.Name()
 	switch function.(type) {
 	case ast.UserFunction:
-		cost, usages, inv, found := s.functions.get(id)
-		if found {
-			return cost, usages, inv, nil
+		if fd, ok := s.functions.get(id); ok {
+			return fd, nil
 		}
 		return s.nativeFunction("user", id)
 	case ast.NativeFunction:
 		return s.nativeFunction("native", id)
 	default:
-		return 0, nil, false, errors.Errorf("unknown type of function '%s'", id)
+		return functionDescriptor{}, errors.Errorf("unknown type of function '%s'", id)
 	}
 }
 
@@ -235,6 +233,9 @@ func (e *treeEstimatorV3) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	return block
 }
 
+// walk function iterates over AST and calculates an estimation of every node.
+// Function returns the cumulative cost of a node's subtree,
+// the bool indicator of invocation function usage in the node's subtree and error if any.
 func (e *treeEstimatorV3) walk(node ast.Node) (int, bool, error) {
 	switch n := node.(type) {
 	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
@@ -329,14 +330,15 @@ func (e *treeEstimatorV3) walk(node ast.Node) (int, bool, error) {
 
 	case *ast.FunctionCallNode:
 		name := n.Function.Name()
-		fc, bu, inv, err := e.scope.function(n.Function)
+		fd, err := e.scope.function(n.Function)
 		if err != nil {
 			return 0, false, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
 		}
-		for _, u := range bu {
+		for _, u := range fd.usages {
 			e.scope.use(u)
 		}
 		ac := 0
+		inv := fd.callsInvocation
 		for i, a := range n.Arguments {
 			tmp := e.scope.save()
 			c, ai, err := e.walk(a)
@@ -350,7 +352,7 @@ func (e *treeEstimatorV3) walk(node ast.Node) (int, bool, error) {
 				return 0, false, err
 			}
 		}
-		res, err := common.AddInt(fc, ac)
+		res, err := common.AddInt(fd.cost, ac)
 		if err != nil {
 			return 0, false, err
 		}

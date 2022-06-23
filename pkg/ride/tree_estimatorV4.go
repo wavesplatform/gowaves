@@ -102,6 +102,9 @@ func (e *treeEstimatorV4) wrapFunction(node *ast.FunctionDeclarationNode) ast.No
 	return block
 }
 
+// walk function iterates over AST and calculates an estimation of every node.
+// Function returns the cumulative cost of a node's subtree,
+// the bool indicator of invocation function usage in the node's subtree and error if any.
 func (e *treeEstimatorV4) walk(node ast.Node) (int, bool, error) {
 	switch n := node.(type) {
 	case *ast.LongNode, *ast.BytesNode, *ast.BooleanNode, *ast.StringNode:
@@ -190,14 +193,15 @@ func (e *treeEstimatorV4) walk(node ast.Node) (int, bool, error) {
 
 	case *ast.FunctionCallNode:
 		name := n.Function.Name()
-		fc, bu, inv, err := e.scope.function(n.Function)
+		fd, err := e.scope.function(n.Function)
 		if err != nil {
 			return 0, false, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
 		}
-		for _, u := range bu {
+		for _, u := range fd.usages {
 			e.scope.use(u)
 		}
 		ac := 0
+		inv := fd.callsInvocation
 		for i, a := range n.Arguments {
 			tmp := e.scope.save()
 			c, ai, err := e.walk(a)
@@ -211,6 +215,7 @@ func (e *treeEstimatorV4) walk(node ast.Node) (int, bool, error) {
 				return 0, false, err
 			}
 		}
+		fc := fd.cost
 		if fc == 0 {
 			fc = 1
 		}
