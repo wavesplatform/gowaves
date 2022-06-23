@@ -1,8 +1,9 @@
 package mock
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"testing"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 )
 
 func TestCompile(t *testing.T) {

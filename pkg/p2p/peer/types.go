@@ -1,6 +1,8 @@
 package peer
 
 import (
+	"fmt"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -32,4 +34,8 @@ func (a Direction) String() string {
 	default:
 		return "Unknown"
 	}
+}
+
+type ID interface {
+	fmt.Stringer
 }

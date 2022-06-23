@@ -61,7 +61,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	return peer.Handle(peer.HandlerParams{
 		Ctx:              ctx,
-		ID:               peerImpl.ID(),
+		ID:               peerImpl.ID().String(),
 		Connection:       p.connection,
 		Remote:           remote,
 		Parent:           params.Parent,
