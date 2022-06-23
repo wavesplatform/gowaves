@@ -46,7 +46,7 @@ func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo c
 
 type HandlerParams struct {
 	Ctx              context.Context
-	ID               PeerID
+	ID               string
 	Connection       conn.Connection
 	Remote           Remote
 	Parent           Parent

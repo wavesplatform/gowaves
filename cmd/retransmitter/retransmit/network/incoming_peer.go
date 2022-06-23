@@ -17,9 +17,22 @@ type IncomingPeer struct {
 	params    IncomingPeerParams
 	conn      conn.Connection
 	remote    peer.Remote
-	uniqueID  peer.PeerID
+	uniqueID  incomingPeerID
 	cancel    context.CancelFunc
 	handshake proto.Handshake
+}
+
+type incomingPeerID struct {
+	remoteAddr net.Addr
+	localAddr  net.Addr
+}
+
+func newPeerID(remoteAddr net.Addr, localAddr net.Addr) incomingPeerID {
+	return incomingPeerID{remoteAddr: remoteAddr, localAddr: localAddr}
+}
+
+func (id incomingPeerID) String() string {
+	return fmt.Sprintf("incoming Connection %s -> %s", id.remoteAddr.String(), id.localAddr.String())
 }
 
 type IncomingPeerParams struct {
@@ -82,7 +95,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 		params:    params,
 		conn:      connection,
 		remote:    remote,
-		uniqueID:  peer.PeerID(fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())),
+		uniqueID:  newPeerID(c.RemoteAddr(), c.LocalAddr()),
 		cancel:    cancel,
 		handshake: readHandshake,
 	}
@@ -106,7 +119,7 @@ func (a *IncomingPeer) run(ctx context.Context) error {
 		Connection: a.conn,
 		Ctx:        ctx,
 		Remote:     a.remote,
-		ID:         a.uniqueID,
+		ID:         a.ID().String(),
 		Parent:     a.params.Parent,
 		Peer:       a,
 	}

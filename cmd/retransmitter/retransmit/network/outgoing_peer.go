@@ -26,6 +26,19 @@ type OutgoingPeer struct {
 	remote     peer.Remote
 	connection conn.Connection
 	handshake  proto.Handshake
+	id         outgoingPeerID
+}
+
+type outgoingPeerID struct {
+	addr string
+}
+
+func newOutgoingPeerID(addr string) outgoingPeerID {
+	return outgoingPeerID{addr: addr}
+}
+
+func (id outgoingPeerID) String() string {
+	return id.addr
 }
 
 func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
@@ -40,6 +53,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		params: params,
 		cancel: cancel,
 		remote: remote,
+		id:     newOutgoingPeerID(params.Address),
 	}
 
 	connection, handshake, err := p.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
@@ -61,7 +75,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 
 	if err := peer.Handle(peer.HandlerParams{
 		Ctx:        ctx,
-		ID:         peer.PeerID(params.Address),
+		ID:         params.Address,
 		Connection: p.connection,
 		Remote:     remote,
 		Parent:     params.Parent,
@@ -154,7 +168,7 @@ func (a *OutgoingPeer) Close() error {
 }
 
 func (a *OutgoingPeer) ID() peer.PeerID {
-	return peer.PeerID(a.params.Address)
+	return a.id
 }
 
 func (a *OutgoingPeer) Connection() conn.Connection {

@@ -1,6 +1,8 @@
 package peer
 
 import (
+	"fmt"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -34,4 +36,6 @@ func (a Direction) String() string {
 	}
 }
 
-type PeerID string
+type PeerID interface {
+	fmt.Stringer
+}

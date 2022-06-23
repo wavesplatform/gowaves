@@ -7,7 +7,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -21,10 +20,10 @@ func TestPeerManagerImpl_Suspend(t *testing.T) {
 
 	p := mock.NewMockPeer(ctrl)
 	gomock.InOrder(
-		p.EXPECT().ID().Return(peer.PeerID("some-id")),
+		p.EXPECT().ID(),
 		p.EXPECT().Close(),
 		p.EXPECT().RemoteAddr().Return(tcpAddr),
-		p.EXPECT().ID().Return(peer.PeerID("some-id")),
+		p.EXPECT().ID(),
 	)
 
 	peerStorage := mock.NewMockPeerStorage(ctrl)
