@@ -101,7 +101,7 @@ func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
 		b.Fatalf("crypto.GenerateKeyPair(): %v", err)
 	}
 	for n := 0; n < b.N; n++ {
-		_, _ = NewAddressFromPublicKey(MainNetScheme, pk)
+		_, _ = NewAddressFromPublicKey(TestNetScheme, pk)
 	}
 }
 
@@ -126,7 +126,7 @@ func TestAliasFromString(t *testing.T) {
 func TestIncorrectAlias(t *testing.T) {
 	aliases := []string{"xxx", "xxxl-very-very-very-long-alias-that-is-incorrect", "asd=asd", "QazWsxEdc"}
 	for _, alias := range aliases {
-		a := NewAlias(MainNetScheme, alias)
+		a := NewAlias(TestNetScheme, alias)
 		v, err := a.Valid()
 		assert.False(t, v)
 		assert.Error(t, err)

@@ -34,12 +34,12 @@ func TestMineMicroblock(t *testing.T) {
 		proto.TestNetScheme,
 	)
 	require.NoError(t, err)
-	err = keyBlock.Sign(proto.MainNetScheme, keyPair.Secret)
+	err = keyBlock.Sign(proto.TestNetScheme, keyPair.Secret)
 	require.NoError(t, err)
 
 	transferWithSig := byte_helpers.TransferWithSig.Transaction.Clone()
 
-	_, err = createMicroBlock(keyBlock, []proto.Transaction{transferWithSig}, keyPair, proto.MainNetScheme)
+	_, err = createMicroBlock(keyBlock, []proto.Transaction{transferWithSig}, keyPair, proto.TestNetScheme)
 	require.NoError(t, err)
 }
 
@@ -63,7 +63,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 	}
 
 	sk := keyPair.Secret
-	err = newBlock.Sign(proto.MainNetScheme, keyPair.Secret)
+	err = newBlock.Sign(proto.TestNetScheme, keyPair.Secret)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 
-	err = micro.Sign(proto.MainNetScheme, sk)
+	err = micro.Sign(proto.TestNetScheme, sk)
 	if err != nil {
 		return nil, err
 	}
