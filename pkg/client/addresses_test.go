@@ -275,3 +275,79 @@ func TestAddresses_BalanceAfterConfirmations(t *testing.T) {
 	assert.EqualValues(t, 37983102983592, body.Balance)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/balance/3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8/1", resp.Request.URL.String())
 }
+
+var addressData = `
+[
+  {
+    "key": "test1",
+    "type": "integer",
+    "value": 950000
+  },
+  {
+    "key": "test2",
+    "type": "string",
+    "value": "fdsafdsasdfasd"
+  },
+  {
+    "key": "test3",
+    "type": "string",
+    "value": "Aqy7PRU"
+  }
+]`
+
+var addressDataKey = `
+{
+	"key": "test3",
+	"type": "string",
+	"value": "Aqy7PRU"
+}`
+
+func TestAddresses_Data(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressData, 200),
+	})
+	require.NoError(t, err)
+	body, resp, err :=
+		client.Addresses.AddressesData(context.Background(), address)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, len(*body), 3)
+	bValue := *body
+	assert.Equal(t, bValue[1].Value, "fdsafdsasdfasd")
+}
+
+func TestAddresses_DataKey(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressDataKey, 200),
+	})
+	require.NoError(t, err)
+	body, resp, err :=
+		client.Addresses.AddressesDataKey(context.Background(), address, "test3")
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, body.Value, "Aqy7PRU")
+}
+
+func TestAddresses_DataKeys(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressData, 200),
+	})
+	require.NoError(t, err)
+
+	keys := &AddressesDataKeys{}
+	keys.Keys = append(keys.Keys, "test1", "test2", "test3")
+
+	body, resp, err :=
+		client.Addresses.AddressesDataKeys(context.Background(), address, keys)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, len(*body), 3)
+	bValue := *body
+	assert.Equal(t, bValue[1].Value, "fdsafdsasdfasd")
+}
