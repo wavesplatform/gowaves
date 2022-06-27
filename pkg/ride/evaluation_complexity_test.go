@@ -146,23 +146,23 @@ func parseArguments(t *testing.T, arguments string) proto.Arguments {
 		sp := strings.Split(strings.TrimSpace(a), "'")
 		switch sp[0] {
 		case "s":
-			r[i] = proto.StringArgument{Value: sp[1]}
+			r[i] = &proto.StringArgument{Value: sp[1]}
 		case "i":
 			v, err := strconv.ParseInt(sp[1], 10, 64)
 			require.NoError(t, err)
-			r[i] = proto.IntegerArgument{Value: v}
+			r[i] = &proto.IntegerArgument{Value: v}
 		case "b":
 			v, err := strconv.ParseBool(sp[1])
 			require.NoError(t, err)
-			r[i] = proto.BooleanArgument{Value: v}
+			r[i] = &proto.BooleanArgument{Value: v}
 		case "b64":
 			v, err := base64.StdEncoding.DecodeString(sp[1])
 			require.NoError(t, err)
-			r[i] = proto.BinaryArgument{Value: v}
+			r[i] = &proto.BinaryArgument{Value: v}
 		case "b58":
 			v, err := base58.Decode(sp[1])
 			require.NoError(t, err)
-			r[i] = proto.BinaryArgument{Value: v}
+			r[i] = &proto.BinaryArgument{Value: v}
 		default:
 			t.Fatalf("unsupported argument prefix '%s'", sp[0])
 		}
