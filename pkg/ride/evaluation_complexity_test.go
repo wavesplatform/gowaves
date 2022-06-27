@@ -193,6 +193,7 @@ func makeInvokeTransactionTestObjects(t *testing.T, senderPK crypto.PublicKey, d
 	invObj, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	txObj, err := transactionToObject(proto.TestNetScheme, tx)
+	require.NoError(t, err)
 	return invObj, txObj
 }
 
