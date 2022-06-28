@@ -1002,6 +1002,30 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestNewDataEntryFromJSON(t *testing.T) {
+	tests := []struct {
+		json     string
+		expected DataEntry
+	}{
+		{`{"key":"k1","type":"integer","value":12345}`, &IntegerDataEntry{Key: "k1", Value: 12345}},
+		{`{"key":"k2","type":"string","value":"test-string"}`, &StringDataEntry{Key: "k2", Value: "test-string"}},
+		{`{"key":"k3","type":"boolean","value":true}`, &BooleanDataEntry{Key: "k3", Value: true}},
+		{`{"key":"k4","value":null}`, &DeleteDataEntry{Key: "k4"}},
+		{
+			`{"key":"k5","type":"binary","value":"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc="}`,
+			&BinaryDataEntry{Key: "k5", Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}},
+		},
+	}
+	for _, tc := range tests {
+		actual, err := NewDataEntryFromJSON([]byte(tc.json))
+		require.NoError(t, err)
+		assert.Equal(t, tc.expected, actual)
+		js, err := json.Marshal(actual)
+		require.NoError(t, err)
+		assert.JSONEq(t, tc.json, string(js))
+	}
+}
+
 func TestDataEntries_Valid(t *testing.T) {
 	ieFail := &IntegerDataEntry{Key: "", Value: 1234567890}
 	beFail := &BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
