@@ -69,7 +69,7 @@ func TestCreateDiffGenesis(t *testing.T) {
 
 func createPayment(t *testing.T) *proto.Payment {
 	tx := proto.NewUnsignedPayment(testGlobal.senderInfo.pk, testGlobal.recipientInfo.addr, defaultAmount, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -103,7 +103,7 @@ func TestCreateDiffPayment(t *testing.T) {
 
 func createTransferWithSig(t *testing.T) *proto.TransferWithSig {
 	tx := proto.NewUnsignedTransferWithSig(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), []byte("attachment"))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -167,7 +167,7 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 
 func createTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
 	tx := proto.NewUnsignedTransferWithProofs(2, testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), []byte("attachment"))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -231,14 +231,14 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 
 func createIssueWithSig(t *testing.T, feeUnits int) *proto.IssueWithSig {
 	tx := proto.NewUnsignedIssueWithSig(testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, uint64(feeUnits*FeeUnit))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
 
 func createNFTIssueWithSig(t *testing.T) *proto.IssueWithSig {
 	tx := proto.NewUnsignedIssueWithSig(testGlobal.senderInfo.pk, "nft", "nft asset", 1, 0, false, defaultTimestamp, defaultFee)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -272,14 +272,14 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 
 func createIssueWithProofs(t *testing.T, feeUnits int) *proto.IssueWithProofs {
 	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
 
 func createNFTIssueWithProofs(t *testing.T) *proto.IssueWithProofs {
 	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -313,7 +313,7 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 
 func createReissueWithSig(t *testing.T, feeUnits int) *proto.ReissueWithSig {
 	tx := proto.NewUnsignedReissueWithSig(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -346,7 +346,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 
 func createReissueWithProofs(t *testing.T, feeUnits int) *proto.ReissueWithProofs {
 	tx := proto.NewUnsignedReissueWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -379,7 +379,7 @@ func TestCreateDiffReissueWithProofs(t *testing.T) {
 
 func createBurnWithSig(t *testing.T) *proto.BurnWithSig {
 	tx := proto.NewUnsignedBurnWithSig(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -412,7 +412,7 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 
 func createBurnWithProofs(t *testing.T) *proto.BurnWithProofs {
 	tx := proto.NewUnsignedBurnWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -445,13 +445,13 @@ func TestCreateDiffBurnWithProofs(t *testing.T) {
 
 func createExchangeWithSig(t *testing.T) *proto.ExchangeWithSig {
 	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3)
-	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := bo.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "bo.Sign() failed")
 	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3)
-	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	err = so.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 	assert.NoError(t, err, "so.Sign() failed")
 	tx := proto.NewUnsignedExchangeWithSig(bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -459,13 +459,13 @@ func createExchangeWithSig(t *testing.T) *proto.ExchangeWithSig {
 //TODO: this function is used in test that is commented for now
 //func createExchangeWithSigParams(t *testing.T, price, amount uint64) *proto.ExchangeWithSig {
 //	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3)
-//	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+//	err := bo.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 //	assert.NoError(t, err, "bo.Sign() failed")
 //	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3)
-//	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+//	err = so.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 //	assert.NoError(t, err, "so.Sign() failed")
 //	tx := proto.NewUnsignedExchangeWithSig(bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-//	err = tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+//	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 //	assert.NoError(t, err, "tx.Sign() failed")
 //	return tx
 //}
@@ -506,26 +506,26 @@ func TestCreateDiffExchangeWithSig(t *testing.T) {
 
 func createExchangeWithProofs(t *testing.T) *proto.ExchangeWithProofs {
 	bo := proto.NewUnsignedOrderV2(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3)
-	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := bo.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "bo.Sign() failed")
 	so := proto.NewUnsignedOrderV2(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3)
-	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	err = so.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 	assert.NoError(t, err, "so.Sign() failed")
 	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.matcherInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
 
 func createUnorderedExchangeWithProofs(t *testing.T, v int) *proto.ExchangeWithProofs {
 	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
-	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := bo.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "bo.Sign() failed")
 	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
-	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	err = so.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 	assert.NoError(t, err, "so.Sign() failed")
 	tx := proto.NewUnsignedExchangeWithProofs(byte(v), so, bo, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.matcherInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -583,17 +583,17 @@ func createExchangeWithProofsWithMixedOrders(t *testing.T, txVersion byte, buyIn
 	switch buyInfo.orderBuildTypeID {
 	case orderV3:
 		boV3 := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
-		err := boV3.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+		err := boV3.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 		require.NoError(t, err, "boV3.Sign() failed")
 		bo = boV3
 	case orderV4:
 		boV4 := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
-		err := boV4.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+		err := boV4.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 		require.NoError(t, err, "boV4.Sign() failed")
 		bo = boV4
 	case ethereumOrderV4:
 		eboV4 := proto.NewUnsignedEthereumOrderV4(&testGlobal.senderEthInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
-		err := eboV4.EthereumSign(proto.MainNetScheme, &testGlobal.senderEthInfo.sk)
+		err := eboV4.EthereumSign(proto.TestNetScheme, &testGlobal.senderEthInfo.sk)
 		require.NoError(t, err, "eboV4.EthereumSign() failed")
 		bo = eboV4
 	default:
@@ -605,17 +605,17 @@ func createExchangeWithProofsWithMixedOrders(t *testing.T, txVersion byte, buyIn
 	switch sellInfo.orderBuildTypeID {
 	case orderV3:
 		soV3 := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
-		err := soV3.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+		err := soV3.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 		require.NoError(t, err, "soV3.Sign() failed")
 		so = soV3
 	case orderV4:
 		soV4 := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
-		err := soV4.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+		err := soV4.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 		require.NoError(t, err, "soV4.Sign() failed")
 		so = soV4
 	case ethereumOrderV4:
 		esoV4 := proto.NewUnsignedEthereumOrderV4(&testGlobal.recipientEthInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
-		err := esoV4.EthereumSign(proto.MainNetScheme, &testGlobal.recipientEthInfo.sk)
+		err := esoV4.EthereumSign(proto.TestNetScheme, &testGlobal.recipientEthInfo.sk)
 		require.NoError(t, err, "esoV4.EthereumSign() failed")
 		so = esoV4
 	default:
@@ -624,7 +624,7 @@ func createExchangeWithProofsWithMixedOrders(t *testing.T, txVersion byte, buyIn
 	}
 
 	tx := proto.NewUnsignedExchangeWithProofs(txVersion, bo, so, sellInfo.price, bo.GetAmount(), 1, 2, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -910,7 +910,7 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 
 func createLeaseWithSig(t *testing.T) *proto.LeaseWithSig {
 	tx := proto.NewUnsignedLeaseWithSig(testGlobal.senderInfo.pk, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), defaultAmount, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -944,7 +944,7 @@ func TestCreateDiffLeaseWithSig(t *testing.T) {
 
 func createLeaseWithProofs(t *testing.T) *proto.LeaseWithProofs {
 	tx := proto.NewUnsignedLeaseWithProofs(2, testGlobal.senderInfo.pk, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), defaultAmount, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -978,7 +978,7 @@ func TestCreateDiffLeaseWithProofs(t *testing.T) {
 
 func createLeaseCancelWithSig(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelWithSig {
 	tx := proto.NewUnsignedLeaseCancelWithSig(testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1018,7 +1018,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 
 func createLeaseCancelWithProofs(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelWithProofs {
 	tx := proto.NewUnsignedLeaseCancelWithProofs(2, 'W', testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1062,7 +1062,7 @@ func createCreateAliasWithSig(t *testing.T) *proto.CreateAliasWithSig {
 	alias, err := proto.NewAliasFromString(aliasFull)
 	assert.NoError(t, err, "NewAliasFromString() failed")
 	tx := proto.NewUnsignedCreateAliasWithSig(testGlobal.senderInfo.pk, *alias, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1098,7 +1098,7 @@ func createCreateAliasWithProofs(t *testing.T) *proto.CreateAliasWithProofs {
 	alias, err := proto.NewAliasFromString(aliasFull)
 	assert.NoError(t, err, "NewAliasFromString() failed")
 	tx := proto.NewUnsignedCreateAliasWithProofs(2, testGlobal.senderInfo.pk, *alias, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1141,7 +1141,7 @@ func generateMassTransferEntries(t *testing.T, entriesNum int) []proto.MassTrans
 
 func createMassTransferWithProofs(t *testing.T, transfers []proto.MassTransferEntry) *proto.MassTransferWithProofs {
 	tx := proto.NewUnsignedMassTransferWithProofs(1, testGlobal.senderInfo.pk, *testGlobal.asset0.asset, transfers, defaultFee, defaultTimestamp, []byte("attachment"))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1188,7 +1188,7 @@ func createDataWithProofs(t *testing.T, entriesNum int) *proto.DataWithProofs {
 		entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 		tx.Entries = append(tx.Entries, entry)
 	}
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
@@ -1220,7 +1220,7 @@ func TestCreateDiffDataWithProofs(t *testing.T) {
 
 func createSponsorshipWithProofs(t *testing.T, fee uint64) *proto.SponsorshipWithProofs {
 	tx := proto.NewUnsignedSponsorshipWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, FeeUnit*fee, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1254,7 +1254,7 @@ func createSetScriptWithProofs(t *testing.T) *proto.SetScriptWithProofs {
 	feeConst, ok := feeConstants[proto.SetScriptTransaction]
 	assert.Equal(t, ok, true)
 	tx := proto.NewUnsignedSetScriptWithProofs(1, 'W', testGlobal.senderInfo.pk, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1288,7 +1288,7 @@ func createSetAssetScriptWithProofs(t *testing.T) *proto.SetAssetScriptWithProof
 	feeConst, ok := feeConstants[proto.SetAssetScriptTransaction]
 	assert.Equal(t, ok, true)
 	tx := proto.NewUnsignedSetAssetScriptWithProofs(1, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1329,7 +1329,7 @@ func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc pr
 		fee,
 		defaultTimestamp,
 	)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1398,7 +1398,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 
 func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithProofs {
 	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, 'W', testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
@@ -1437,7 +1437,7 @@ func createInvokeExpressionWithProofs(t *testing.T, expression proto.B64Bytes, f
 		fee,
 		defaultTimestamp,
 	)
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
