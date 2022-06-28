@@ -18,7 +18,7 @@ import (
 func TestClientRecvTransaction(t *testing.T) {
 	knownPeers, _ := utils.NewKnownPeers(utils.NoOnStorage{})
 
-	behaviour := retransmit.NewBehaviour(knownPeers, nil, proto.MainNetScheme)
+	behaviour := retransmit.NewBehaviour(knownPeers, nil, proto.TestNetScheme)
 
 	peer1 := &mock.Peer{
 		Addr:          "peer1",
