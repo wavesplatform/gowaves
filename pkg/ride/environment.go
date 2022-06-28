@@ -104,7 +104,7 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.balance)
 		if err != nil {
 			return 0, err
 		}
@@ -126,7 +126,7 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.balance)
 		if err != nil {
 			return 0, err
 		}
@@ -134,89 +134,38 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 			return 0, errors.Errorf("balance value %d is not valid", resBalance)
 		}
 		return uint64(resBalance), nil
-
 	}
 	return balance, nil
-}
-
-// diff.regular - diff.leaseOut + available
-func availableBalance(diffRegular int64, diffLeaseOut int64, available int64) (int64, error) {
-	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
-	if err != nil {
-		return 0, err
-	}
-
-	return common.AddInt64(tmp, available)
-}
-
-// diff.regular - diff.leaseOut + diff.leaseIn + effective
-func effectiveBalance(diffRegular int64, diffLeaseOut int64, diffLeaseIn int64, available int64) (int64, error) {
-	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
-	if err != nil {
-		return 0, err
-	}
-
-	res, err := common.AddInt64(tmp, diffLeaseIn)
-	if err != nil {
-		return 0, err
-	}
-
-	return common.AddInt64(res, available)
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	balance, err := ws.diff.state.NewestFullWavesBalance(account)
+	// TODO: retrieve balance from state only once
+	// Get full Waves balance from state
+	stateFullBalance, err := ws.diff.state.NewestFullWavesBalance(account)
 	if err != nil {
 		return nil, err
 	}
-	wavesBalanceDiff, searchAddress, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
+	// Look up for local diff for the same account and asset (Waves in this case)
+	localBalanceDiff, key, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
 	if err != nil {
 		return nil, err
 	}
-	if wavesBalanceDiff != nil {
-		resRegular, err := common.AddInt64(wavesBalanceDiff.regular, int64(balance.Regular))
-		if err != nil {
+	if localBalanceDiff != nil { // We found some changes, let's combine them with balance from state
+		diff := *localBalanceDiff // Make a copy of found balance diff
+		if err := diff.addBalance(int64(stateFullBalance.Regular)); err != nil {
 			return nil, errors.Wrap(err, "failed to calculate regular balance")
 		}
-		resAvailable, err := availableBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, int64(balance.Available))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to calculate available balance")
+		if err := diff.addLeaseIn(int64(stateFullBalance.LeaseIn)); err != nil {
+			return nil, errors.Wrap(err, "failed to calculate regular balance")
 		}
-		resEffective, err := effectiveBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, wavesBalanceDiff.leaseIn, int64(balance.Effective))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to calculate effective balance")
+		if err := diff.addLeaseOut(int64(stateFullBalance.LeaseOut)); err != nil {
+			return nil, errors.Wrap(err, "failed to calculate regular balance")
 		}
-		resLeaseIn, err := common.AddInt64(wavesBalanceDiff.leaseIn, int64(balance.LeaseIn))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to calculate lease in balance")
-		}
-		resLeaseOut, err := common.AddInt64(wavesBalanceDiff.leaseOut, int64(balance.LeaseOut))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to calculate lease out balance")
-		}
-
-		err = ws.diff.addEffectiveToHistory(searchAddress, resEffective)
-		if err != nil {
-			return nil, err
-		}
-
-		resGenerating := ws.diff.findMinGenerating(ws.diff.balances[searchAddress].effectiveHistory, int64(balance.Generating))
-
-		return &proto.FullWavesBalance{
-			Regular:    uint64(resRegular),
-			Generating: uint64(resGenerating),
-			Available:  uint64(resAvailable),
-			Effective:  uint64(resEffective),
-			LeaseIn:    uint64(resLeaseIn),
-			LeaseOut:   uint64(resLeaseOut)}, nil
-
+		diff.stateGenerating = int64(stateFullBalance.Generating)
+		return diff.toFullWavesBalance() // Convert local combined diff back to WavesFullBalance
 	}
-	_, searchAddr := ws.diff.createNewWavesBalance(account)
-	err = ws.diff.addEffectiveToHistory(searchAddr, int64(balance.Effective))
-	if err != nil {
-		return nil, err
-	}
-	return balance, nil
+	ws.diff.putBalanceDiff(key, diffBalance{stateGenerating: int64(stateFullBalance.Generating)})
+	return stateFullBalance, nil
 }
 
 func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
@@ -706,20 +655,19 @@ func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
 			balance, err = ws.diff.state.NewestAssetBalance(address, key.asset.ID)
 		} else {
 			if rideV6Activated {
-				allBalance, err := ws.diff.state.NewestFullWavesBalance(address)
+				fullWavesBalance, err := ws.diff.state.NewestFullWavesBalance(address)
 				if err != nil {
 					return err
 				}
-				balance = allBalance.Available
+				balance = fullWavesBalance.Available
 			} else {
-
 				balance, err = ws.diff.state.NewestWavesBalance(address)
 			}
 		}
 		if err != nil {
 			return err
 		}
-		res, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		res, err := common.AddInt64(int64(balance), balanceDiff.balance)
 		if err != nil {
 			return err
 		}

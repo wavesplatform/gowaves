@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type dataEntryKey struct {
@@ -24,11 +25,80 @@ type lease struct {
 }
 
 type diffBalance struct {
-	asset            proto.OptionalAsset
-	regular          int64
-	leaseIn          int64
-	leaseOut         int64
-	effectiveHistory []int64
+	balance         int64
+	leaseIn         int64
+	leaseOut        int64
+	stateGenerating int64
+}
+
+func (db *diffBalance) addBalance(amount int64) error {
+	b, err := common.AddInt64(db.balance, amount)
+	if err != nil {
+		return err
+	}
+	db.balance = b
+	return nil
+}
+
+func (db *diffBalance) addLeaseIn(amount int64) error {
+	b, err := common.AddInt64(db.leaseIn, amount)
+	if err != nil {
+		return err
+	}
+	db.leaseIn = b
+	return nil
+}
+
+func (db *diffBalance) addLeaseOut(amount int64) error {
+	b, err := common.AddInt64(db.leaseOut, amount)
+	if err != nil {
+		return err
+	}
+	db.leaseOut = b
+	return nil
+}
+
+func (db *diffBalance) spendableBalance() (int64, error) {
+	b, err := common.AddInt64(db.balance, -db.leaseOut)
+	if err != nil {
+		return 0, err
+	}
+	return b, nil
+}
+
+func (db *diffBalance) effectiveBalance() (int64, error) {
+	v1, err := common.AddInt64(db.balance, db.leaseIn)
+	if err != nil {
+		return 0, err
+	}
+	v2, err := common.AddInt64(v1, -db.leaseOut)
+	if err != nil {
+		return 0, err
+	}
+	return v2, nil
+}
+
+func (db *diffBalance) toFullWavesBalance() (*proto.FullWavesBalance, error) {
+	eff, err := db.effectiveBalance()
+	if err != nil {
+		return nil, err
+	}
+	spb, err := db.spendableBalance()
+	if err != nil {
+		return nil, err
+	}
+	gen := eff
+	if db.stateGenerating < gen {
+		gen = db.stateGenerating
+	}
+	return &proto.FullWavesBalance{
+		Regular:    uint64(db.balance),
+		Generating: uint64(gen),
+		Available:  uint64(spb),
+		Effective:  uint64(eff),
+		LeaseIn:    uint64(db.leaseIn),
+		LeaseOut:   uint64(db.leaseOut),
+	}, nil
 }
 
 type diffSponsorship struct {
@@ -81,10 +151,13 @@ func newDiffState(state types.SmartState) diffState {
 	}
 }
 
-func (diffSt *diffState) addBalanceTo(balanceKey balanceDiffKey, amount int64) {
-	oldDiffBalance := diffSt.balances[balanceKey]
-	oldDiffBalance.regular += amount
-	diffSt.balances[balanceKey] = oldDiffBalance
+func (diffSt *diffState) addBalanceTo(balanceKey balanceDiffKey, amount int64) error {
+	diff := diffSt.balances[balanceKey]
+	if err := diff.addBalance(amount); err != nil {
+		return err
+	}
+	diffSt.balances[balanceKey] = diff
+	return nil
 }
 
 func (diffSt *diffState) reissueNewAsset(assetID crypto.Digest, quantity int64, reissuable bool) {
@@ -101,10 +174,14 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 }
 
 func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, balanceDiffKey) {
-	balance := diffBalance{asset: proto.NewOptionalAssetWaves()}
-	key := balanceDiffKey{*account.Address, balance.asset}
+	balance := diffBalance{}
+	key := balanceDiffKey{*account.Address, proto.NewOptionalAssetWaves()}
 	diffSt.balances[key] = balance
 	return &balance, key
+}
+
+func (diffSt *diffState) putBalanceDiff(key balanceDiffKey, diff diffBalance) {
+	diffSt.balances[key] = diff
 }
 
 func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchBalanceKey balanceDiffKey) {
@@ -115,26 +192,6 @@ func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, rec
 	oldDiffBalanceSender := diffSt.balances[senderSearchAddress]
 	oldDiffBalanceSender.leaseOut -= searchLease.leasedAmount
 	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
-}
-
-func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingFromState int64) int64 {
-	min := generatingFromState
-	for _, value := range effectiveHistory {
-		if value < min {
-			min = value
-		}
-	}
-	return min
-}
-
-func (diffSt *diffState) addEffectiveToHistory(searchBalanceKey balanceDiffKey, effective int64) error {
-	oldDiffBalance, ok := diffSt.balances[searchBalanceKey]
-	if !ok {
-		return EvaluationFailure.Errorf("cannot find balance to add effective to history, key %q", searchBalanceKey.String())
-	}
-	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
-	diffSt.balances[searchBalanceKey] = oldDiffBalance
-	return nil
 }
 
 func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
@@ -158,13 +215,10 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchBalance
 	if err != nil {
 		return err
 	}
-
 	balance := diffBalance{
-		asset:   proto.NewOptionalAssetWaves(),
 		leaseIn: leasedAmount,
 	}
-	key := balanceDiffKey{*address, balance.asset}
-
+	key := balanceDiffKey{*address, proto.NewOptionalAssetWaves()}
 	diffSt.balances[key] = balance
 	return nil
 }
@@ -180,39 +234,30 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchBalanc
 		diffSt.addLeaseOutTo(searchBalanceKey, leasedAmount)
 		return nil
 	}
-
 	address, err := diffSt.state.NewestRecipientToAddress(account)
 	if err != nil {
 		return err
 	}
-
 	balance := diffBalance{
-		asset:    proto.NewOptionalAssetWaves(),
 		leaseOut: leasedAmount,
 	}
-	key := balanceDiffKey{*address, balance.asset}
-
+	key := balanceDiffKey{*address, proto.NewOptionalAssetWaves()}
 	diffSt.balances[key] = balance
 	return nil
 }
 
 func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey balanceDiffKey, amount int64, asset proto.OptionalAsset, account proto.Recipient) error {
 	if searchBalance != nil {
-		diffSt.addBalanceTo(balanceKey, amount)
-		return nil
+		return diffSt.addBalanceTo(balanceKey, amount)
 	}
-
 	address, err := diffSt.state.NewestRecipientToAddress(account)
 	if err != nil {
 		return err
 	}
-
 	balance := diffBalance{
-		asset:   asset,
-		regular: amount,
+		balance: amount,
 	}
-	key := balanceDiffKey{*address, balance.asset}
-
+	key := balanceDiffKey{*address, asset}
 	diffSt.balances[key] = balance
 	return nil
 }
@@ -303,7 +348,7 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.Opti
 	if balance, ok := diffSt.balances[key]; ok {
 		return &balance, key, nil
 	}
-	return nil, balanceDiffKey{}, nil
+	return nil, key, nil
 }
 
 func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {

@@ -1373,7 +1373,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	fullBalance, err := wrappedSt.NewestFullWavesBalance(recipient)
 
 	require.NoError(t, err)
-	assert.Equal(t, fullBalance, fullBalanceExpected)
+	assert.Equal(t, fullBalanceExpected, fullBalance)
 
 	fullBalanceCallableExpected := &proto.FullWavesBalance{
 		Regular:    2467,
@@ -1385,20 +1385,19 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	}
 	fullBalanceCallable, err := wrappedSt.NewestFullWavesBalance(recipientCallable)
 	require.NoError(t, err)
-	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
+	assert.Equal(t, fullBalanceCallableExpected, fullBalanceCallable)
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
-	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
-	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balance
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = diffBalance{balance: 7533, leaseIn: 10, stateGenerating: 0}
 
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	balanceSender := diffBalance{balance: 0, leaseOut: 0}
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
-	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
+	balanceCallable := diffBalance{balance: 2467, leaseOut: 10, stateGenerating: 0}
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
-	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
+	balanceCallableAsset := diffBalance{balance: 6, leaseOut: 0} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetFromIssue}] = balanceCallableAsset
 
 	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
@@ -2020,9 +2019,9 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: assetExp, regular: 9986, effectiveHistory: []int64{10000, 9986}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
-	balanceCallable := diffBalance{asset: assetExp, regular: 14, effectiveHistory: []int64{0, 14}}
+	balanceMain := diffBalance{balance: 9986, stateGenerating: 0}
+	balanceSender := diffBalance{balance: 0, leaseOut: 0}
+	balanceCallable := diffBalance{balance: 14, stateGenerating: 0}
 	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
@@ -2208,9 +2207,9 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: assetExp, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
-	balanceCallable := diffBalance{asset: assetExp, regular: 29, effectiveHistory: []int64{0, 14, 29}}
+	balanceMain := diffBalance{balance: 9971, stateGenerating: 0}
+	balanceSender := diffBalance{balance: 0, leaseOut: 0}
+	balanceCallable := diffBalance{balance: 29, stateGenerating: 0}
 	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
@@ -2529,9 +2528,9 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: assetExp, regular: 9987, effectiveHistory: []int64{10000, 9987}}
-	balanceSender := diffBalance{asset: assetExp, regular: 0}
-	balanceCallable := diffBalance{asset: assetExp, regular: 13, effectiveHistory: []int64{0, 13}}
+	balanceMain := diffBalance{balance: 9987, stateGenerating: 0}
+	balanceSender := diffBalance{balance: 0}
+	balanceCallable := diffBalance{balance: 13, stateGenerating: 0}
 	intEntry := &proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.data[dataEntryKey{"bar", addressCallable}] = intEntry
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
@@ -2981,8 +2980,8 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	intEntry := &proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.data[dataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	balanceMain := diffBalance{asset: assetExp, regular: 10000}
-	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceMain := diffBalance{balance: 10000}
+	balanceSender := diffBalance{balance: 0}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
@@ -3131,9 +3130,9 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: assetExp, regular: 9999}
-	balanceSender := diffBalance{asset: assetExp, regular: 0}
-	balanceCallable := diffBalance{asset: assetExp, regular: 1}
+	balanceMain := diffBalance{balance: 9999}
+	balanceSender := diffBalance{balance: 0}
+	balanceCallable := diffBalance{balance: 1}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
@@ -3304,10 +3303,10 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
-	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
+	balance := diffBalance{balance: 1, leaseIn: 0}
 	expectedDiffResult.balances[balanceDiffKey{addr, *assetCat}] = balance
 
-	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, asset: *assetCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
+	balanceCallable := diffBalance{balance: 10049, leaseOut: 0} // the balance was 9999. reissue + 100. burn - 50. = 10049
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, *assetCat}] = balanceCallable
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}
@@ -3473,9 +3472,9 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: assetExp, regular: 9984}
-	balanceSender := diffBalance{asset: assetExp, regular: 0}
-	balanceCallable := diffBalance{asset: assetExp, regular: 16}
+	balanceMain := diffBalance{balance: 9984}
+	balanceSender := diffBalance{balance: 0}
+	balanceCallable := diffBalance{balance: 16}
 	intEntry1 := &proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := &proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.data[dataEntryKey{intEntry1.Key, addr}] = intEntry1
@@ -10200,7 +10199,14 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 			return 5000000000, nil
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-			return &proto.FullWavesBalance{Available: 5000000000}, nil
+			return &proto.FullWavesBalance{
+				Regular:    5000000000,
+				Generating: 5000000000,
+				//Available:  5000000000,
+				Effective: 5000000000,
+				LeaseIn:   0,
+				LeaseOut:  0,
+			}, nil
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
