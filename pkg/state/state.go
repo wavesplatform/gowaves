@@ -1445,6 +1445,10 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
+	// Clear scripts cache before rollback because it may contain invalid data.
+	if err := s.stor.scriptsStorage.clearCache(); err != nil {
+		zap.S().Fatalf("Failed to clearCache scripts cache after rollback: %v", err)
+	}
 	// The database part of rollback.
 	if err := s.stateDB.rollback(removalEdge); err != nil {
 		return wrapErr(RollbackError, err)
@@ -1455,9 +1459,9 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.rw.syncWithDb(); err != nil {
 		zap.S().Fatalf("Failed to sync block storage with db: %v", err)
 	}
-	// Clear scripts cache.
-	if err := s.stor.scriptsStorage.clear(); err != nil {
-		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
+	// Clear scripts cache after rollback.
+	if err := s.stor.scriptsStorage.clearCache(); err != nil {
+		zap.S().Fatalf("Failed to clearCache scripts cache after rollback: %v", err)
 	}
 	if err := s.loadLastBlock(); err != nil {
 		zap.S().Fatalf("Failed to load last block after rollback: %v", err)
@@ -1568,8 +1572,8 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 
 func (s *stateManager) ResetValidationList() {
 	s.reset()
-	if err := s.stor.scriptsStorage.clear(); err != nil {
-		zap.S().Fatalf("Failed to clear scripts cache after UTX validation: %v", err)
+	if err := s.stor.scriptsStorage.clearCache(); err != nil {
+		zap.S().Fatalf("Failed to clearCache scripts cache after UTX validation: %v", err)
 	}
 }
 

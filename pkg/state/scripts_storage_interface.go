@@ -28,7 +28,7 @@ type scriptStorageState interface {
 	newestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error)
 	scriptByAddr(addr proto.WavesAddress, filter bool) (*ast.Tree, error)
 	scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error)
-	clear() error
+	clearCache() error
 	prepareHashes() error
 	reset()
 	getAccountScriptsHasher() *stateHasher
