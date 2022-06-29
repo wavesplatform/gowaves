@@ -324,7 +324,6 @@ func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string
 	if err != nil {
 		return nil, err
 	}
-	//TODO: Check that this is correct
 	if entry.GetValueType() == proto.DataDelete {
 		return nil, errors.Errorf("entry '%s' was removed", key)
 	}
@@ -341,7 +340,6 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string, filt
 	if err != nil {
 		return nil, err
 	}
-	//TODO: Check that this is correct
 	if entry.GetValueType() == proto.DataDelete {
 		return nil, errors.Errorf("entry '%s' was removed", key)
 	}
