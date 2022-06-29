@@ -2134,28 +2134,7 @@ var bytesToDataEntry = map[DataValueType]reflect.Type{
 	DataBoolean: reflect.TypeOf(BooleanDataEntry{}),
 	DataString:  reflect.TypeOf(StringDataEntry{}),
 	DataBinary:  reflect.TypeOf(BinaryDataEntry{}),
-}
-
-func NewDataEntryFromBytes(data []byte) (DataEntry, error) {
-	if len(data) < 1 {
-		return nil, errors.New("invalid data size")
-	}
-	valueType, err := extractValueType(data)
-	if err != nil {
-		return nil, errors.New("failed to extract type of data entry")
-	}
-	entryType, ok := bytesToDataEntry[valueType]
-	if !ok {
-		return nil, errors.New("bad value type byte")
-	}
-	entry, ok := reflect.New(entryType).Interface().(DataEntry)
-	if !ok {
-		panic("This entry type does not implement DataEntry interface")
-	}
-	if err := entry.UnmarshalBinary(data); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal entry")
-	}
-	return entry, nil
+	DataDelete:  reflect.TypeOf(DeleteDataEntry{}),
 }
 
 func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
