@@ -30,6 +30,10 @@ type testStage struct {
 
 func makeTestStage(inv, tx rideObject, this proto.WavesAddress, rideV5, rideV6 bool, libVersion ast.LibraryVersion,
 	trees map[proto.WavesAddress]*ast.Tree, publicKeys map[proto.WavesAddress]crypto.PublicKey) *testStage {
+	const (
+		dAppBalance    = 10_00000000 - 1000000 // 9.99 WAVES
+		accountBalance = 10_00000000           // 10 WAVES
+	)
 	r := &testStage{
 		inv:             inv,
 		this:            this,
@@ -91,21 +95,37 @@ func makeTestStage(inv, tx rideObject, this proto.WavesAddress, rideV5, rideV6 b
 			if _, ok := r.trees[*recipient.Address]; ok {
 				return recipient.Address, nil
 			}
+			if _, ok := r.publicKeys[*recipient.Address]; ok {
+				return recipient.Address, nil
+			}
 			return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 		},
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			if _, ok := r.trees[*account.Address]; ok {
-				return 10_00000000, nil
+				return dAppBalance, nil
+			}
+			if _, ok := r.publicKeys[*account.Address]; ok {
+				return accountBalance, nil
 			}
 			return 0, errors.Errorf("unxepected account '%s'", account.String())
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 			if _, ok := r.trees[*account.Address]; ok {
 				return &proto.FullWavesBalance{
-					Regular:    10_00000000,
-					Generating: 10_00000000,
-					Available:  10_00000000,
-					Effective:  10_00000000,
+					Regular:    dAppBalance,
+					Generating: dAppBalance,
+					Available:  dAppBalance,
+					Effective:  dAppBalance,
+					LeaseIn:    0,
+					LeaseOut:   0,
+				}, nil
+			}
+			if _, ok := r.publicKeys[*account.Address]; ok {
+				return &proto.FullWavesBalance{
+					Regular:    accountBalance,
+					Generating: accountBalance,
+					Available:  accountBalance,
+					Effective:  accountBalance,
 					LeaseIn:    0,
 					LeaseOut:   0,
 				}, nil
@@ -385,12 +405,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err := CallFunction(tst.env, tree1, "case1", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 797+130, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 797+130, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case1", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1105, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1105, EvaluationErrorSpentComplexity(err), err.Error())
 
 	invObj, txObj = makeInvokeTransactionTestObjects(t, senderPK, dApp1, "case2", "")
 	tst = makeTestStage(invObj, txObj, dApp1, true, false, ast.LibV5,
@@ -398,12 +418,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err = CallFunction(tst.env, tree1, "case2", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 797+214, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 797+214, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case2", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 985, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 985, EvaluationErrorSpentComplexity(err), err.Error())
 
 	invObj, txObj = makeInvokeTransactionTestObjects(t, senderPK, dApp1, "case3", "")
 	tst = makeTestStage(invObj, txObj, dApp1, true, false, ast.LibV5,
@@ -411,12 +431,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err = CallFunction(tst.env, tree1, "case3", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 797+487, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 797+487, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case3", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1258, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1258, EvaluationErrorSpentComplexity(err), err.Error())
 
 	invObj, txObj = makeInvokeTransactionTestObjects(t, senderPK, dApp1, "case4", "")
 	tst = makeTestStage(invObj, txObj, dApp1, true, false, ast.LibV5,
@@ -424,12 +444,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err = CallFunction(tst.env, tree1, "case4", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1516, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1516, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case4", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1884, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1884, EvaluationErrorSpentComplexity(err), err.Error())
 
 	invObj, txObj = makeInvokeTransactionTestObjects(t, senderPK, dApp1, "case5", "")
 	tst = makeTestStage(invObj, txObj, dApp1, true, false, ast.LibV5,
@@ -437,12 +457,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err = CallFunction(tst.env, tree1, "case5", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 765+181+191, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 765+181+191, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case5", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1101, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1101, EvaluationErrorSpentComplexity(err), err.Error())
 
 	invObj, txObj = makeInvokeTransactionTestObjects(t, senderPK, dApp1, "case6", "")
 	tst = makeTestStage(invObj, txObj, dApp1, true, false, ast.LibV5,
@@ -450,12 +470,12 @@ func TestComplexitiesV5V6(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, dApp2: dApp2PK, dApp3: dApp3PK, dApp4: dApp4PK, sender: senderPK})
 	_, err = CallFunction(tst.env, tree1, "case6", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 765+259+191, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 765+259+191, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree1, "case6", parseArguments(t, ""))
 	require.Error(t, err)
-	assert.Equal(t, 1179, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1179, EvaluationErrorSpentComplexity(err), err.Error())
 }
 
 func TestSelfInvokeComplexities(t *testing.T) {
@@ -484,21 +504,21 @@ func TestSelfInvokeComplexities(t *testing.T) {
 		map[proto.WavesAddress]crypto.PublicKey{dApp1: dApp1PK, sender: senderPK})
 	_, err := CallFunction(tst.env, tree, "call", parseArguments(t, "i'9'"))
 	require.Error(t, err)
-	assert.Equal(t, 904, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 904, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree, "call", parseArguments(t, "i'9'"))
 	require.Error(t, err)
-	assert.Equal(t, 958, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 958, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = false
 	_, err = CallFunction(tst.env, tree, "call", parseArguments(t, "i'10'"))
 	require.Error(t, err)
-	assert.Equal(t, 1017, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1017, EvaluationErrorSpentComplexity(err), err.Error())
 
 	tst.rideV6Activated = true
 	_, err = CallFunction(tst.env, tree, "call", parseArguments(t, "i'10'"))
 	require.Error(t, err)
-	assert.Equal(t, 1064, EvaluationErrorSpentComplexity(err))
+	assert.Equal(t, 1064, EvaluationErrorSpentComplexity(err), err.Error())
 
 }
