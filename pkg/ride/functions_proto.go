@@ -111,7 +111,7 @@ func (i *reentrantInvocation) blocklist() bool {
 	return false
 }
 
-func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
+func performInvoke(invocation invocation, env environment, args ...rideType) (out rideType, err error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
@@ -214,6 +214,12 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
+	defer func() {
+		if err != nil {
+			// Evaluation checks failed, but we have to add spent execution complexity to an error
+			err = EvaluationErrorPushComplexity(err, res.Complexity())
+		}
+	}()
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
@@ -223,9 +229,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	if env.validateInternalPayments() && !env.rideV6Activated() {
-		err = ws.validateBalances(env.rideV6Activated())
-	} else if env.rideV6Activated() {
+	if env.validateInternalPayments() && !env.rideV6Activated() || env.rideV6Activated() {
 		err = ws.validateBalances(env.rideV6Activated())
 	}
 	if err != nil {
@@ -238,9 +242,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 	env.setInvocation(oldInvocationParam)
 
+	// after this line no error should be returned because it can lead to complexity doubling (see defer above)
 	ws.totalComplexity += res.Complexity()
-	// need to reproduce scala's node buggy behaviour in complexity calculations after RideV5 and before RideV6
-	ws.lastTwoInvokeComplexities.pushComplexity(res.Complexity())
 
 	if res.userResult() == nil {
 		return rideUnit{}, nil

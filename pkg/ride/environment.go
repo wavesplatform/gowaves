@@ -20,16 +20,6 @@ var (
 	}
 )
 
-type lastTwoInvokeComplexities [2]int
-
-func (l *lastTwoInvokeComplexities) pushComplexity(complexity int) {
-	l[0], l[1] = l[1], complexity
-}
-
-func (l *lastTwoInvokeComplexities) sum() int {
-	return l[0] + l[1]
-}
-
 type WrappedState struct {
 	diff                      diffState
 	cle                       rideAddress
@@ -41,7 +31,6 @@ type WrappedState struct {
 	dataEntriesSize           int
 	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
-	lastTwoInvokeComplexities lastTwoInvokeComplexities
 }
 
 func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {

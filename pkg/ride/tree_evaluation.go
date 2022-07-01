@@ -98,7 +98,7 @@ func handleComplexityInCaseOfEvaluationError(err error, e *treeEvaluator, env en
 	switch et := GetEvaluationErrorType(err); et {
 	case Undefined:
 		return evaluationErrorSetComplexity(et.Wrap(err, "unhandled error"), totalComplexity)
-	case InternalInvocationError:
+	case InternalInvocationError: //, RuntimeError: // TODO: ask about RuntimeError
 		// reproduce scala's node buggy behaviour
 		if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() {
 			// if invoke script tx depth level is 2 or less ==> complexity should be set to 0
@@ -108,7 +108,14 @@ func handleComplexityInCaseOfEvaluationError(err error, e *treeEvaluator, env en
 			} else {
 				// if depth level is 3 or greater, then we should sub last two invoke complexities plus
 				// cost of the last invoke() or reentrantInvoke() function call
-				totalComplexity -= ws.lastTwoInvokeComplexities.sum() + invokeCallComplexityV5
+				reverseComplexitiesList := EvaluationErrorReverseComplexitiesList(err)
+				if l := len(reverseComplexitiesList); l < 2 {
+					return evaluationErrorSetComplexity(Undefined.Wrapf(err,
+						"reverseComplexitiesStack size=%d must be greater than 2", l,
+					), totalComplexity)
+				}
+				lastTwoInvokesCost := reverseComplexitiesList[0] + reverseComplexitiesList[1] + invokeCallComplexityV5
+				totalComplexity -= lastTwoInvokesCost
 			}
 		}
 		return evaluationErrorSetComplexity(err, totalComplexity)
