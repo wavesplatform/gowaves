@@ -902,60 +902,49 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 }
 
 func (ia *invokeApplier) handleInvokeScriptInvocationError(
-	err error,
+	invErr error,
 	txID crypto.Digest,
 	failedChanges txBalanceChanges,
 	info *fallibleValidationParams,
 ) (*applicationResult, error) {
-	// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
-	// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
-	isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
-	if info.rideV6Activated {
-		if !info.acceptFailed || isCheap {
+	handleError := func(rejectTx bool) (*applicationResult, error) {
+		if rejectTx {
 			return nil, errors.Wrapf(
-				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-				ride.EvaluationErrorSpentComplexity(err),
-				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+				invErr, "transaction rejected with spent complexity %d and following call stack:\n%s",
+				ride.EvaluationErrorSpentComplexity(invErr),
+				strings.Join(ride.EvaluationErrorCallStack(invErr), "\n"),
 			)
 		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
+		res := &invocationResult{failed: true, code: proto.DAppError, text: invErr.Error(), changes: failedChanges}
 		return ia.handleInvocationResult(txID, info, res)
+	}
+	// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
+	// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
+	var (
+		isCheap  = int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
+		rejectTx = !info.acceptFailed || isCheap // Reject transaction if no failed transactions or the transaction is cheap
+	)
+	if info.rideV6Activated {
+		return handleError(rejectTx)
 	}
 	// Before RideV6 activation in the following cases the transaction is rejected:
 	// 1) Failing of transactions is not activated yet, reject everything
 	// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
 	// 3) The spent complexity is less than limit
-	switch ride.GetEvaluationErrorType(err) {
+	switch et := ride.GetEvaluationErrorType(invErr); et {
 	case ride.UserError, ride.RuntimeError:
 		// Usual script error produced by user code or system functions.
 		// We reject transaction if spent complexity is less than limit.
-		if !info.acceptFailed || isCheap { // Reject transaction if no failed transactions or the transaction is cheap
-			return nil, errors.Wrapf(
-				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-				ride.EvaluationErrorSpentComplexity(err),
-				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
-			)
-		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
-		return ia.handleInvocationResult(txID, info, res)
 	case ride.InternalInvocationError:
 		// Special script error produced by internal script invocation or application of results.
 		// Reject transaction after certain height
-		rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
-		if !info.acceptFailed || rejectOnInvocationError || isCheap {
-			return nil, errors.Wrapf(
-				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-				ride.EvaluationErrorSpentComplexity(err),
-				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
-			)
-		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
-		return ia.handleInvocationResult(txID, info, res)
+		rejectTx = rejectTx || info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
 	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with error type (%T)", txID.String(), et)
 	default:
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with unknown error type (%T)", txID.String(), et)
 	}
+	return handleError(rejectTx)
 }
 
 type invocationResult struct {
