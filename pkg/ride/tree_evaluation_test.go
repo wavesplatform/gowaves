@@ -503,7 +503,7 @@ func TestDataFunctions(t *testing.T) {
 		Key:   "string",
 		Value: "world",
 	}))
-	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
+	require.NoError(t, data.Sign(proto.TestNetScheme, secret))
 	txObj, err := transactionToObject('W', data)
 	require.NoError(t, err)
 	env := &mockRideEnvironment{
@@ -543,7 +543,7 @@ func TestDataFunctions(t *testing.T) {
 
 func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
-	txo, err := transactionToObject(proto.MainNetScheme, tx)
+	txo, err := transactionToObject(proto.TestNetScheme, tx)
 	if err != nil {
 		panic(err)
 	}
@@ -551,7 +551,7 @@ func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	env := &mockRideEnvironment{
 		invocationFunc: func() rideObject {
 			if !verifier {
-				obj, err := invocationToObject(3, proto.MainNetScheme, tx)
+				obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 				if err != nil {
 					panic(err)
 				}
@@ -560,7 +560,7 @@ func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 			return txo
 		},
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
@@ -659,7 +659,7 @@ func TestDappDefaultFunc(t *testing.T) {
 	   }
 	*/
 	env, tx := testInvokeEnv(false)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, tx.SenderPK)
 	require.NoError(t, err)
 
 	code := "AAIDAAAAAAAAAAAAAAABAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwUAAAAHYWRkcmVzcwAAAAIAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAhxdWVzdGlvbgQAAAAGYW5zd2VyCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAABBQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9xBQAAAAhxdWVzdGlvbgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAAppbnZvY2F0aW9uAQAAAAdkZWZhdWx0AAAAAAQAAAAHc2VuZGVyMAgIBQAAAAppbnZvY2F0aW9uAAAABmNhbGxlcgAAAAVieXRlcwkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQIAAAABYgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAAGc2VuZGVyBQAAAAdzZW5kZXIwBQAAAANuaWwAAAABAAAAAnR4AQAAAAZ2ZXJpZnkAAAAACQAAAAAAAAIJAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEJAAQlAAAAAQgFAAAAAnR4AAAABnNlbmRlcgIAAAABMcP91gY="
@@ -772,7 +772,7 @@ func TestTransferSet(t *testing.T) {
 	   }
 	*/
 	env, tx := testInvokeEnv(false)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, tx.SenderPK)
 	require.NoError(t, err)
 	code := "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAALVHJhbnNmZXJTZXQAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAZAUAAAAEdW5pdAUAAAADbmlsAAAAAH5a2L0="
 	_, tree := parseBase64Script(t, code)
@@ -821,7 +821,7 @@ func TestScriptResult(t *testing.T) {
 	   }
 	*/
 	env, tx := testInvokeEnv(false)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, tx.SenderPK)
 	require.NoError(t, err)
 	code := "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAABkBQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAYiUBQAAAAR1bml0BQAAAANuaWwAAAAARKRntw=="
 	_, tree := parseBase64Script(t, code)
@@ -1765,7 +1765,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -1775,7 +1775,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 		Timestamp:       1564703444249,
 	}
 
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(4, proto.TestNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAANiYXIAAAAACQAFFAAAAAIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2JhcgAAAAAAAAAAAQUAAAADbmlsAgAAAAZyZXR1cm4AAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/wAAAAEBQAAAAR0aGlzAgAAAANiYXIFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyAgAAAAZyZXR1cm4EAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIFAAAABHRoaXMCAAAAA2JhcgMJAAAAAAAAAgUAAAAEZGF0YQAAAAAAAAAAAQkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAADz23Fz"
 
@@ -2542,7 +2542,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -2551,7 +2551,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(4, proto.TestNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/wAAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAAWzLtA="
 
@@ -2647,7 +2647,7 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -2656,7 +2656,7 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(4, proto.TestNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/wAAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAAWzLtA="
 
@@ -2734,7 +2734,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -2743,7 +2743,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(4, proto.TestNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/0AAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAALQe43c=\n"
 
@@ -3175,7 +3175,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -3184,7 +3184,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	inv, _ = invocationToObject(5, proto.MainNetScheme, tx)
+	inv, _ = invocationToObject(5, proto.TestNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAHYXNzZXRJZAEAAAAgAKdAj/iZUd+zAOo6DTO6IvheatMyaLi7as+C+lV4EDMAAAABAAAAAWkBAAAABHRlc3QAAAAABAAAAANyZXMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAAAnQdRv"
 	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAHYXNzZXRJZAEAAAAgAKdAj/iZUd+zAOo6DTO6IvheatMyaLi7as+C+lV4EDMAAAABAAAAAWkBAAAABGNhbGwAAAAACQAFFAAAAAIJAARMAAAAAgkBAAAAB1JlaXNzdWUAAAADBQAAAAdhc3NldElkAAAAAAAAAABkBwkABEwAAAACCQEAAAAEQnVybgAAAAIFAAAAB2Fzc2V0SWQAAAAAAAAAADIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAABBQAAAAdhc3NldElkBQAAAANuaWwAAAAAAAAAABEAAAAA4X8UHg=="
@@ -4076,7 +4076,7 @@ func TestHashScriptFunc(t *testing.T) {
 	require.NoError(t, err)
 	addrPK, err := crypto.NewPublicKeyFromBase58("2zb2orX2g58YZgXAvdn5ojTuPP8vAU2rsqYQ5L6KCXqz")
 	require.NoError(t, err)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, addrPK)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, addrPK)
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
 
@@ -4092,7 +4092,7 @@ func TestHashScriptFunc(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        senderPK,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -4101,7 +4101,7 @@ func TestHashScriptFunc(t *testing.T) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	inv, _ := invocationToObject(5, proto.MainNetScheme, tx)
+	inv, _ := invocationToObject(5, proto.TestNetScheme, tx)
 
 	var script string
 	var wrappedSt WrappedState
@@ -4121,7 +4121,7 @@ func TestHashScriptFunc(t *testing.T) {
 	}
 	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -4136,7 +4136,7 @@ func TestHashScriptFunc(t *testing.T) {
 			return 1564703444249
 		},
 		transactionFunc: func() rideObject {
-			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			obj, _ := transactionToObject(proto.TestNetScheme, tx)
 			return obj
 		},
 		stateFunc: func() types.SmartState {
@@ -4201,7 +4201,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 
 	addrPK, err := crypto.NewPublicKeyFromBase58("2zb2orX2g58YZgXAvdn5ojTuPP8vAU2rsqYQ5L6KCXqz")
 	require.NoError(t, err)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, addrPK)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, addrPK)
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
 
@@ -4217,7 +4217,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        senderPK,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -4226,7 +4226,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		Fee:             900000,
 		Timestamp:       1564703444249,
 	}
-	//inv, _ := invocationToObject(5, proto.MainNetScheme, tx)
+	//inv, _ := invocationToObject(5, proto.TestNetScheme, tx)
 
 	var script string
 	var wrappedSt WrappedState
@@ -4244,7 +4244,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	}
 	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -4256,7 +4256,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			return 1564703444249
 		},
 		transactionFunc: func() rideObject {
-			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			obj, _ := transactionToObject(proto.TestNetScheme, tx)
 			return obj
 		},
 		stateFunc: func() types.SmartState {
@@ -4333,7 +4333,7 @@ func TestMatchOverwrite(t *testing.T) {
 
 	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -4485,12 +4485,12 @@ func TestFailSript2(t *testing.T) {
 	err := json.Unmarshal([]byte(transaction), tx)
 	require.NoError(t, err)
 
-	tv, err := transactionToObject(proto.MainNetScheme, tx)
+	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
 	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -6420,7 +6420,7 @@ func TestZeroReissue(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -6671,7 +6671,7 @@ func TestStageNet2(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -7005,7 +7005,7 @@ func TestOriginCaller(t *testing.T) {
 	proofs := proto.NewProofs()
 	senderPK, err := crypto.NewPublicKeyFromBase58("EY3etWLNnrLg4znKsncuJFXVUHiP61PYpuZTAED98QUS")
 	require.NoError(t, err)
-	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, senderPK)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, senderPK)
 	require.NoError(t, err)
 	dApp1, err := proto.NewAddressFromString("3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA")
 	require.NoError(t, err)
@@ -7023,7 +7023,7 @@ func TestOriginCaller(t *testing.T) {
 		Version:         1,
 		ID:              &txID,
 		Proofs:          proofs,
-		ChainID:         proto.MainNetScheme,
+		ChainID:         proto.TestNetScheme,
 		SenderPK:        senderPK,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
@@ -7032,19 +7032,19 @@ func TestOriginCaller(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1624967106278,
 	}
-	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
 	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.MainNetScheme
+			return proto.TestNetScheme
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		rideV6ActivatedFunc: noRideV6,
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},

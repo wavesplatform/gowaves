@@ -119,7 +119,7 @@ func newDataTransaction() *proto.DataWithProofs {
 	tx.Entries = append(tx.Entries, &proto.BinaryDataEntry{Key: "binary", Value: []byte{0xCA, 0xFE, 0xBE, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "string", Value: "Hello, World!"})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "someKey", Value: 12345})
-	err = tx.Sign(proto.MainNetScheme, sk)
+	err = tx.Sign(proto.TestNetScheme, sk)
 	if err != nil {
 		panic(err)
 	}

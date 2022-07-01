@@ -24,7 +24,7 @@ func TestEmbeddedWalletImpl_SignTransactionWith(t *testing.T) {
 		tx := byte_helpers.TransferWithSig.Transaction.Clone()
 		tx.SenderPK = pub
 
-		w := NewEmbeddedWallet(nil, seederTest("test"), proto.MainNetScheme)
+		w := NewEmbeddedWallet(nil, seederTest("test"), proto.TestNetScheme)
 		err = w.SignTransactionWith(pub, tx)
 		require.NoError(t, err)
 	})
@@ -33,7 +33,7 @@ func TestEmbeddedWalletImpl_SignTransactionWith(t *testing.T) {
 		tx := byte_helpers.TransferWithSig.Transaction.Clone()
 		tx.SenderPK = pub
 
-		w := NewEmbeddedWallet(nil, seederTest("test"), proto.MainNetScheme)
+		w := NewEmbeddedWallet(nil, seederTest("test"), proto.TestNetScheme)
 		err = w.SignTransactionWith(crypto.PublicKey{}, tx)
 		require.Equal(t, PublicKeyNotFound, err)
 	})
@@ -55,18 +55,18 @@ func TestEmbeddedWalletImpl_Load(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("successful", func(t *testing.T) {
-		w := NewEmbeddedWallet(testLoader{bts: bts}, nil, proto.MainNetScheme)
+		w := NewEmbeddedWallet(testLoader{bts: bts}, nil, proto.TestNetScheme)
 		require.NoError(t, w.Load([]byte("pass")))
 		require.Equal(t, [][]byte{[]byte("seed")}, w.Seeds())
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		w := NewEmbeddedWallet(testLoader{bts: bts}, nil, proto.MainNetScheme)
+		w := NewEmbeddedWallet(testLoader{bts: bts}, nil, proto.TestNetScheme)
 		require.Errorf(t, w.Load([]byte("incorrect")), "invalid password")
 	})
 
 	t.Run("load error", func(t *testing.T) {
-		w := NewEmbeddedWallet(testLoader{bts: nil, err: errors.New("loaderr")}, nil, proto.MainNetScheme)
+		w := NewEmbeddedWallet(testLoader{bts: nil, err: errors.New("loaderr")}, nil, proto.TestNetScheme)
 		require.Errorf(t, w.Load(nil), "loaderr")
 	})
 }

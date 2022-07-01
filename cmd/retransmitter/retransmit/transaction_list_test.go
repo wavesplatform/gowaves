@@ -1,10 +1,11 @@
 package retransmit
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestTransactionList(t *testing.T) {
@@ -13,7 +14,7 @@ func TestTransactionList(t *testing.T) {
 	d3, _ := crypto.FastHash([]byte("3"))
 	d4, _ := crypto.FastHash([]byte("4"))
 
-	lst := NewTransactionList(2, proto.MainNetScheme)
+	lst := NewTransactionList(2, proto.TestNetScheme)
 	assert.Equal(t, 0, lst.Len())
 
 	t1 := proto.TransferWithProofs{ID: &d1}
