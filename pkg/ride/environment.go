@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 var (
@@ -95,77 +94,40 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 }
 
 func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
-	balance, err := ws.diff.state.NewestWavesBalance(account)
+	id, err := ws.recipientToAddressID(account)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
+	}
+	b, err := ws.diff.loadWavesBalance(id)
 	if err != nil {
 		return 0, err
 	}
-	balanceDiff, _, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
-	if err != nil {
-		return 0, err
-	}
-	if balanceDiff != nil {
-		resBalance, err := common.AddInt64(int64(balance), balanceDiff.balance)
-		if err != nil {
-			return 0, err
-		}
-		if resBalance < 0 {
-			return 0, errors.Errorf("balance value %d is not valid", resBalance)
-		}
-		return uint64(resBalance), nil
-	}
-	return balance, nil
+	return b.checkedSpendableBalance()
 }
 
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-	balance, err := ws.diff.state.NewestAssetBalance(account, assetID)
+	id, err := ws.recipientToAddressID(account)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get asset balance from wrapped state")
+	}
+	key := assetBalanceKey{id: id, asset: assetID}
+	b, err := ws.diff.loadAssetBalance(key)
 	if err != nil {
 		return 0, err
 	}
-	balanceDiff, _, err := ws.diff.findBalance(account, *proto.NewOptionalAssetFromDigest(assetID))
-	if err != nil {
-		return 0, err
-	}
-	if balanceDiff != nil {
-		resBalance, err := common.AddInt64(int64(balance), balanceDiff.balance)
-		if err != nil {
-			return 0, err
-		}
-		if resBalance < 0 {
-			return 0, errors.Errorf("balance value %d is not valid", resBalance)
-		}
-		return uint64(resBalance), nil
-	}
-	return balance, nil
+	return b.checked()
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	// TODO: retrieve balance from state only once
-	// Get full Waves balance from state
-	stateFullBalance, err := ws.diff.state.NewestFullWavesBalance(account)
+	id, err := ws.recipientToAddressID(account)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
+	}
+	b, err := ws.diff.loadWavesBalance(id)
 	if err != nil {
 		return nil, err
 	}
-	// Look up for local diff for the same account and asset (Waves in this case)
-	localBalanceDiff, key, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
-	if err != nil {
-		return nil, err
-	}
-	if localBalanceDiff != nil { // We found some changes, let's combine them with balance from state
-		diff := *localBalanceDiff // Make a copy of found balance diff
-		if err := diff.addBalance(int64(stateFullBalance.Regular)); err != nil {
-			return nil, errors.Wrap(err, "failed to calculate regular balance")
-		}
-		if err := diff.addLeaseIn(int64(stateFullBalance.LeaseIn)); err != nil {
-			return nil, errors.Wrap(err, "failed to calculate regular balance")
-		}
-		if err := diff.addLeaseOut(int64(stateFullBalance.LeaseOut)); err != nil {
-			return nil, errors.Wrap(err, "failed to calculate regular balance")
-		}
-		diff.stateGenerating = int64(stateFullBalance.Generating)
-		return diff.toFullWavesBalance() // Convert local combined diff back to WavesFullBalance
-	}
-	ws.diff.putBalanceDiff(key, diffBalance{stateGenerating: int64(stateFullBalance.Generating)})
-	return stateFullBalance, nil
+	return b.toFullWavesBalance()
 }
 
 func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
@@ -369,6 +331,14 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 
 func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
+}
+
+func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+	return ws.diff.state.WavesBalanceProfile(id)
+}
+
+func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
+	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
 }
 
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
@@ -645,35 +615,37 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction, isRideV6Acti
 }
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
-	for key, balanceDiff := range ws.diff.balances {
-		address := proto.NewRecipientFromAddress(key.address)
-		var (
-			balance uint64
-			err     error
-		)
-		if key.asset.Present {
-			balance, err = ws.diff.state.NewestAssetBalance(address, key.asset.ID)
-		} else {
-			if rideV6Activated {
-				fullWavesBalance, err := ws.diff.state.NewestFullWavesBalance(address)
+	for id, diff := range ws.diff.wavesBalances {
+		if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
+			b, err := diff.spendableBalance()
+			if err != nil {
+				return err
+			}
+			if diff.balance < 0 || b < 0 {
+				addr, err := id.ToWavesAddress(ws.scheme)
 				if err != nil {
-					return err
+					return errors.Wrap(err, "failed to validate balances")
 				}
-				balance = fullWavesBalance.Available
-			} else {
-				balance, err = ws.diff.state.NewestWavesBalance(address)
+				return errors.Errorf("spendable Waves balance of address %s is %d which is negative", addr.String(), b)
+			}
+		} else {
+			if diff.balance < 0 {
+				addr, err := id.ToWavesAddress(ws.scheme)
+				if err != nil {
+					return errors.Wrap(err, "failed to validate balances")
+				}
+				return errors.Errorf("the Waves balance of address %s is %d which is negative", addr.String(), diff.balance)
 			}
 		}
-		if err != nil {
-			return err
-		}
-		res, err := common.AddInt64(int64(balance), balanceDiff.balance)
-		if err != nil {
-			return err
-		}
-		if res < 0 {
-			return errors.Errorf("the balance of address %s of asset %s is %d which is negative",
-				address.String(), key.asset.String(), res)
+	}
+	for k, b := range ws.diff.assetBalances {
+		if b < 0 {
+			addr, err := k.id.ToWavesAddress(ws.scheme)
+			if err != nil {
+				return errors.Wrap(err, "failed to validate balances")
+			}
+			return errors.Errorf("asset balance of address %s of asset %s is %d which is negative",
+				addr.String(), k.asset.String(), b)
 		}
 	}
 	return nil
@@ -689,10 +661,9 @@ func (ws *WrappedState) ApplyToState(
 		return nil, err
 	}
 	disableSelfTransfers := currentLibVersion >= ast.LibV4 // it's OK, this flag depends on library version, not feature
-	isUTF16KeyLen := !env.blockV5Activated()               // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:  disableSelfTransfers,
-		IsUTF16KeyLen:         isUTF16KeyLen,
+		IsUTF16KeyLen:         !env.blockV5Activated(), // if RideV4 isn't activated,
 		IsProtobufTransaction: env.isProtobufTx(),
 		MaxDataEntriesSize:    env.maxDataEntriesSize(),
 	}
@@ -703,10 +674,9 @@ func (ws *WrappedState) ApplyToState(
 		if err := ws.countActionTotal(action, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
-		switch res := action.(type) {
-
+		switch a := action.(type) {
 		case *proto.DataEntryScriptAction:
-			err := ws.validateDataEntryAction(res, restrictions, env.rideV6Activated())
+			err := ws.validateDataEntryAction(a, restrictions, env.rideV6Activated())
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
 			}
@@ -715,77 +685,95 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &senderPK
-			ws.diff.putDataEntry(res.Entry, addr)
+			a.Sender = &senderPK
+			ws.diff.putDataEntry(a.Entry, addr)
 
 		case *proto.AttachedPaymentScriptAction:
-			var senderAddress proto.WavesAddress
-			var senderPK crypto.PublicKey
-			senderPK = *res.Sender
-			var err error
-			senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
+			senderAddress, err := proto.NewAddressFromPublicKey(ws.scheme, *a.Sender)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to get address  by public key")
+				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+			err = ws.validatePaymentAction(a, senderAddress, env, restrictions) // TODO: Optimize
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
+				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
+			recipientID, err := ws.recipientToAddressID(a.Recipient)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
-			if err != nil {
-				return nil, err
-			}
-
-			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderRecipient, res.Asset)
-			if err != nil {
-				return nil, err
-			}
-
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
-			if err != nil {
-				return nil, err
+			if a.Asset.Present { // Update asset balance
+				senderBalanceKey := assetBalanceKey{id: senderAddress.ID(), asset: a.Asset.ID}
+				if _, err := ws.diff.loadAssetBalance(senderBalanceKey); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addAssetBalance(senderBalanceKey, -a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				recipientBalanceKey := assetBalanceKey{id: recipientID, asset: a.Asset.ID}
+				if _, err := ws.diff.loadAssetBalance(recipientBalanceKey); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addAssetBalance(recipientBalanceKey, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+			} else { // Update Waves balance
+				if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addWavesBalance(senderAddress.ID(), -a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if _, err := ws.diff.loadWavesBalance(recipientID); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addWavesBalance(recipientID, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
 			}
 
 		case *proto.TransferScriptAction:
-			var senderAddress proto.WavesAddress
-			var senderPK crypto.PublicKey
-
-			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			// Update sender's Public Key in the action
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			senderPK = pk
-			senderAddress = ws.callee()
-
-			res.Sender = &senderPK
-
-			err = ws.validateTransferAction(res, restrictions, senderAddress, env)
-			if err != nil {
+			a.Sender = &senderPK
+			senderAddress := ws.callee()
+			if err = ws.validateTransferAction(a, restrictions, senderAddress, env); err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
 			}
-
-			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
+			recipientID, err := ws.recipientToAddressID(a.Recipient)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
-			if err != nil {
-				return nil, err
-			}
-
-			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderRecipient, res.Asset)
-			if err != nil {
-				return nil, err
-			}
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
-			if err != nil {
-				return nil, err
+			if a.Asset.Present { // Update asset balance
+				senderBalanceKey := assetBalanceKey{id: senderAddress.ID(), asset: a.Asset.ID}
+				if _, err := ws.diff.loadAssetBalance(senderBalanceKey); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addAssetBalance(senderBalanceKey, -a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				recipientBalanceKey := assetBalanceKey{id: recipientID, asset: a.Asset.ID}
+				if _, err := ws.diff.loadAssetBalance(recipientBalanceKey); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addAssetBalance(recipientBalanceKey, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+			} else { // Update Waves balance
+				if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addWavesBalance(senderAddress.ID(), -a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if _, err := ws.diff.loadWavesBalance(recipientID); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				if err := ws.diff.addWavesBalance(recipientID, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
 			}
 
 		case *proto.SponsorshipScriptAction:
@@ -793,145 +781,119 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &senderPK
+			a.Sender = &senderPK
 
-			err = ws.validateSponsorshipAction(res)
+			err = ws.validateSponsorshipAction(a)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
 			sponsorship := diffSponsorship{
-				minFee: res.MinFee,
+				minFee: a.MinFee,
 			}
-			ws.diff.sponsorships[res.AssetID] = sponsorship
+			ws.diff.sponsorships[a.AssetID] = sponsorship
 
 		case *proto.IssueScriptAction:
-			err := ws.validateIssueAction(res)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+			if err := ws.validateIssueAction(a); err != nil {
+				return nil, errors.Wrapf(err, "failed to validate Issue action before application")
 			}
 
 			assetInfo := diffNewAssetInfo{
 				dAppIssuer:  ws.callee(),
-				name:        res.Name,
-				description: res.Description,
-				quantity:    res.Quantity,
-				decimals:    res.Decimals,
-				reissuable:  res.Reissuable,
-				script:      res.Script,
-				nonce:       res.Nonce,
+				name:        a.Name,
+				description: a.Description,
+				quantity:    a.Quantity,
+				decimals:    a.Decimals,
+				reissuable:  a.Reissuable,
+				script:      a.Script,
+				nonce:       a.Nonce,
 			}
-			ws.diff.newAssetsInfo[res.ID] = assetInfo
+			ws.diff.newAssetsInfo[a.ID] = assetInfo
 
+			// Update sender's Public Key in the action
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &senderPK
+			a.Sender = &senderPK
 
-			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := *proto.NewOptionalAssetFromDigest(res.ID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
-			if err != nil {
-				return nil, err
+			key := assetBalanceKey{id: ws.callee().ID(), asset: a.ID}
+			if _, err := ws.diff.loadAssetBalance(key); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Issue action")
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
-			if err != nil {
-				return nil, err
+			if err = ws.diff.addAssetBalance(key, a.Quantity); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Issue action")
 			}
 
 		case *proto.ReissueScriptAction:
+			// Update sender's Public Key in the action
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &senderPK
+			a.Sender = &senderPK
 
-			err = ws.validateReissueAction(res, env)
+			err = ws.validateReissueAction(a, env)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
 			}
 
-			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
-			if err != nil {
-				return nil, err
+			key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
+			if _, err := ws.diff.loadAssetBalance(key); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Reissue action")
+			}
+			if err := ws.diff.addAssetBalance(key, a.Quantity); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Reissue action")
 			}
 
-			searchNewAsset := ws.diff.findNewAsset(asset.ID)
-			if searchNewAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(asset.ID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity += res.Quantity
-
-					ws.diff.oldAssetsInfo[asset.ID] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
-					if err != nil {
-						return nil, err
-					}
+			// Update asset info
+			// TODO: Simplify following logic, get rid of separate local storages for two kinds of asset info (old and new)
+			if searchNewAsset := ws.diff.findNewAsset(a.AssetID); searchNewAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(a.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity += a.Quantity
+					ws.diff.oldAssetsInfo[a.AssetID] = *oldAssetFromDiff
 					break
 				}
 				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity += res.Quantity
-				ws.diff.oldAssetsInfo[asset.ID] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
-				if err != nil {
-					return nil, err
-				}
+				assetInfo.diffQuantity += a.Quantity
+				ws.diff.oldAssetsInfo[a.AssetID] = assetInfo
 				break
 			}
-			ws.diff.reissueNewAsset(asset.ID, res.Quantity, res.Reissuable)
+			ws.diff.reissueNewAsset(a.AssetID, a.Quantity, a.Reissuable)
 
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
-			if err != nil {
-				return nil, err
-			}
 		case *proto.BurnScriptAction:
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &senderPK
+			a.Sender = &senderPK
 
-			err = ws.validateBurnAction(res, env)
-			if err != nil {
+			if err = ws.validateBurnAction(a, env); err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of burn action")
 			}
 
-			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
-			if err != nil {
-				return nil, err
+			key := assetBalanceKey{id: ws.callee().ID(), asset: a.AssetID}
+			if _, err := ws.diff.loadAssetBalance(key); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Burn action")
+			}
+			if err := ws.diff.addAssetBalance(key, -a.Quantity); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Burn action")
 			}
 
-			searchAsset := ws.diff.findNewAsset(res.AssetID)
-			if searchAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity -= res.Quantity
-
-					ws.diff.oldAssetsInfo[asset.ID] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
-					if err != nil {
-						return nil, err
-					}
+			// Update asset's info
+			// TODO: Simplify following logic, get rid of two separate storages of asset infos
+			if searchAsset := ws.diff.findNewAsset(a.AssetID); searchAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(a.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity -= a.Quantity
+					ws.diff.oldAssetsInfo[a.AssetID] = *oldAssetFromDiff
 					break
 				}
 				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity -= res.Quantity
-				ws.diff.oldAssetsInfo[asset.ID] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
-				if err != nil {
-					return nil, err
-				}
+				assetInfo.diffQuantity -= a.Quantity
+				ws.diff.oldAssetsInfo[a.AssetID] = assetInfo
 				break
 			}
-			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
-
-			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
-			if err != nil {
-				return nil, err
-			}
+			ws.diff.burnNewAsset(a.AssetID, a.Quantity)
 
 		case *proto.LeaseScriptAction:
 			senderAddress := ws.callee()
@@ -939,46 +901,37 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
+			a.Sender = &pk
 
-			res.Sender = &pk
-
-			err = ws.validateLeaseAction(res, restrictions)
-			if err != nil {
+			if err = ws.validateLeaseAction(a, restrictions); err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
-			waves := proto.NewOptionalAssetWaves()
-
-			recipientSearchBalance, recipientSearchAddress, err := ws.diff.findBalance(res.Recipient, waves)
+			senderID := senderAddress.ID()
+			receiverID, err := ws.recipientToAddressID(a.Recipient)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-			err = ws.diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
-			if err != nil {
-				return nil, err
+			if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-
-			senderAccount := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderAccount, waves)
-			if err != nil {
-				return nil, err
+			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Lease action")
+			}
+			if err := ws.diff.lease(senderID, receiverID, a.Amount); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
-			err = ws.diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
-			if err != nil {
-				return nil, err
-			}
-
-			ws.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
+			ws.diff.addNewLease(a.Recipient, proto.NewRecipientFromAddress(senderAddress), a.Amount, a.ID)
 
 		case *proto.LeaseCancelScriptAction:
 			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = &pk
+			a.Sender = &pk
 
-			searchLease, err := ws.diff.findLeaseByIDForCancel(res.LeaseID)
+			searchLease, err := ws.diff.findLeaseByIDForCancel(a.LeaseID)
 			if err != nil {
 				return nil, errors.Errorf("failed to find lease by leaseID")
 			}
@@ -986,32 +939,38 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
 
-			waves := proto.NewOptionalAssetWaves()
-
-			recipientBalance, recipientSearchAddress, err := ws.diff.findBalance(searchLease.Recipient, waves)
+			senderID, err := ws.recipientToAddressID(searchLease.Sender)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			if recipientBalance == nil {
-				_, recipientSearchAddress = ws.diff.createNewWavesBalance(searchLease.Recipient)
-			}
-
-			senderBalance, senderSearchAddress, err := ws.diff.findBalance(searchLease.Sender, waves)
+			receiverID, err := ws.recipientToAddressID(searchLease.Recipient)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			if senderBalance == nil {
-				_, senderSearchAddress = ws.diff.createNewWavesBalance(searchLease.Sender)
+			if _, err := ws.diff.loadWavesBalance(senderID); err != nil {
+				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-
-			ws.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
+			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
+				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
+			}
+			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount); err != nil {
+				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
+			}
 
 		default:
-			return nil, errors.Errorf("unknown script action type %T", res)
+			return nil, errors.Errorf("unknown script action type %T", a)
 		}
 	}
 
 	return actions, nil
+}
+
+func (ws *WrappedState) recipientToAddressID(recipient proto.Recipient) (proto.AddressID, error) {
+	addr, err := ws.diff.state.NewestRecipientToAddress(recipient)
+	if err != nil {
+		return proto.AddressID{}, err
+	}
+	return addr.ID(), nil
 }
 
 type EvaluationEnvironment struct {
@@ -1058,15 +1017,15 @@ func NewEnvironmentWithWrappedState(
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 ) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
-
+	recipient := proto.WavesAddress(env.th.(rideAddress))
 	st := newWrappedState(env, rootScriptLibVersion)
-	for _, payment := range payments {
+	for i, payment := range payments {
 		var (
 			senderBalance uint64
 			err           error
 			callerRcp     = proto.NewRecipientFromAddress(sender)
 		)
+		// TODO: Move validation after application
 		if payment.Asset.Present {
 			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
 		} else {
@@ -1084,25 +1043,31 @@ func NewEnvironmentWithWrappedState(
 			return nil, err
 		}
 		if senderBalance < payment.Amount {
-			return nil, errors.New("not enough money for tx attached payments")
+			return nil, errors.Errorf("not enough money for tx attached payment #%d of asset '%s' with amount %d",
+				i+1, payment.Asset.String(), payment.Amount)
 		}
-		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-
-		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-
-		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		if payment.Asset.Present {
+			senderKey := assetBalanceKey{id: sender.ID(), asset: payment.Asset.ID}
+			if err := st.diff.addAssetBalance(senderKey, -int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
+			recipientKey := assetBalanceKey{id: recipient.ID(), asset: payment.Asset.ID}
+			if _, err := st.diff.loadAssetBalance(recipientKey); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
+			if err := st.diff.addAssetBalance(recipientKey, int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
+		} else {
+			if err := st.diff.addWavesBalance(sender.ID(), -int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
+			if _, err := st.diff.loadWavesBalance(recipient.ID()); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
+			if err := st.diff.addWavesBalance(recipient.ID(), int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+			}
 		}
 	}
 

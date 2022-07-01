@@ -36,6 +36,15 @@ type TransactionWithBytes struct {
 
 //go:generate moq -out ../state/smart_state_moq_test.go -pkg state . SmartState:AnotherMockSmartState
 
+// WavesBalanceProfile contains essential parts of Waves balance and
+// must be used to pass this information if SmartState only.
+type WavesBalanceProfile struct {
+	Balance    uint64
+	LeaseIn    int64
+	LeaseOut   int64
+	Generating uint64
+}
+
 // SmartState is a part of state used by smart contracts.
 
 type SmartState interface {
@@ -65,6 +74,16 @@ type SmartState interface {
 
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool
+
+	// WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
+	// This function always returns the newest available state of Waves balance of account.
+	WavesBalanceProfile(id proto.AddressID) (*WavesBalanceProfile, error)
+
+	// NewestAssetBalanceByAddressID returns the most actual asset balance by given proto.AddressID and
+	// assets crypto.Digest.
+	NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error)
+
+	//TODO: The last two functions intended to be used only in wrapped state. Extract separate interface for such functions.
 }
 
 type ID interface {
