@@ -358,6 +358,12 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	ip := net.ParseIP(host)
+	if ip == nil {
+		ips, err := net.LookupIP(host)
+		if err == nil {
+			ip = ips[0]
+		}
+	}
 	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return TCPAddr{}

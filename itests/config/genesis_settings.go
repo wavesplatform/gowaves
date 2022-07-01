@@ -62,23 +62,23 @@ func parseGenesisSettings() (GenesisSettings, error) {
 	return s, nil
 }
 
-func NewBlockchainConfig() (*settings.BlockchainSettings, error) {
+func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ts := time.Now().UnixMilli()
 	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	bt, err := calcInitialBaseTarget(acc, genSettings.AverageBlockDelay)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	b, err := genesis_generator.GenerateGenesisBlock(genSettings.Scheme, txs, bt, uint64(ts))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cfg := settings.DefaultCustomSettings
 	cfg.Genesis = *b
@@ -86,13 +86,14 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, error) {
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.PreactivatedFeatures = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
-	return cfg, nil
+	return cfg, acc, nil
 }
 
 type AccountInfo struct {
 	PublicKey crypto.PublicKey
 	SecretKey crypto.SecretKey
 	Amount    uint64
+	Address   proto.WavesAddress
 }
 
 func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
@@ -116,7 +117,7 @@ func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]g
 			return nil, nil, fmt.Errorf("failed to generate address from seed '%s': %s", string(seed), err)
 		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
-		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount})
+		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount, Address: addr})
 	}
 	return r, accounts, nil
 }

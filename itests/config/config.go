@@ -18,6 +18,10 @@ const (
 	tmpDir = "../build"
 )
 
+type TestConfig struct {
+	Accounts []AccountInfo
+}
+
 func CreateScalaNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -66,18 +70,18 @@ type ConfigPaths struct {
 	ScalaConfigPath string
 }
 
-func CreateFileConfigs() (ConfigPaths, error) {
-	cfg, err := NewBlockchainConfig()
+func CreateFileConfigs() (ConfigPaths, TestConfig, error) {
+	cfg, acc, err := NewBlockchainConfig()
 	if err != nil {
-		return ConfigPaths{}, fmt.Errorf("failed to create blockchain config: %s", err)
+		return ConfigPaths{}, TestConfig{}, fmt.Errorf("failed to create blockchain config: %s", err)
 	}
 	scalaPath, err := CreateScalaNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, err
+		return ConfigPaths{}, TestConfig{}, err
 	}
 	goPath, err := CreateGoNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, err
+		return ConfigPaths{}, TestConfig{}, err
 	}
-	return ConfigPaths{ScalaConfigPath: scalaPath, GoConfigPath: goPath}, nil
+	return ConfigPaths{ScalaConfigPath: scalaPath, GoConfigPath: goPath}, TestConfig{Accounts: acc}, nil
 }
