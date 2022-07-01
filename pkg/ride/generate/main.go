@@ -885,6 +885,10 @@ func functionsV6() map[string]string {
 	delete(m, "fraction")
 	m["3"] = "getType"
 	m["110"] = "fractionIntRounds"
+	m["204"] = "takeRightBytes"
+	m["205"] = "dropRightBytes"
+	m["306"] = "takeRightString"
+	m["307"] = "dropRightString"
 	m["1350"] = "sizeTuple"
 	m["sqrt"] = "sqrt"
 	m["sqrtBigInt"] = "sqrtBigInt"
@@ -902,6 +906,10 @@ func catalogueV6() map[string]int {
 	m["fraction"] = 4
 	m["3"] = 1
 	m["110"] = 1
+	m["204"] = 6
+	m["205"] = 6
+	m["306"] = 20
+	m["307"] = 20
 	m["1350"] = 1
 	m["sqrt"] = 2
 	m["sqrtBigInt"] = 5
