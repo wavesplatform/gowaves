@@ -18,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"go.uber.org/zap"
 )
 
 const (
@@ -417,6 +418,18 @@ func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) 
 	s.flush(t)
 	err = s.rw.syncWithDb()
 	assert.NoError(t, err)
+}
+
+func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID proto.BlockID) {
+	err := s.stateDB.rollbackBlock(blockID)
+	assert.NoError(t, err, "rollbackBlock() failed")
+	s.flush(t)
+	err = s.rw.syncWithDb()
+	assert.NoError(t, err)
+	if err := s.entities.scriptsStorage.clearCache(); err != nil {
+		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
+	}
+
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {

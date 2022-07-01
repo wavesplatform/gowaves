@@ -52,6 +52,47 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 }
 
+// the account script is set on blockID2, then rollback returns storage to the blockID1.
+// This test is trying to catch invalid cache problem with setting an account script
+func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+	defer func() {
+		to.stor.close(t)
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptWithProofs(t)
+	info := defaultCheckerInfo()
+
+	to.stor.addBlock(t, blockID0)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	to.stor.addBlock(t, blockID1)
+	to.stor.addBlock(t, blockID2)
+	_, err := to.tc.checkSetScriptWithProofs(tx, info)
+	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
+
+	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	assert.NoError(t, err, "failed to receive an address from public key")
+
+	txPerformerInfo := &performerInfo{blockID: blockID2}
+	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
+
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false)
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
+
+	to.stor.fullRollbackBlockClearCache(t, blockID2)
+
+	assert.NoError(t, err, "failed to get address from public key")
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false) // if cache is cleared, the script must have not be found
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
+}
+
 func TestAccountScriptExtraFee(t *testing.T) {
 	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")

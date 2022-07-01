@@ -1445,10 +1445,6 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
-	// Clear scripts cache before rollback because it may contain invalid data.
-	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		zap.S().Fatalf("Failed to clearCache scripts cache after rollback: %v", err)
-	}
 	// The database part of rollback.
 	if err := s.stateDB.rollback(removalEdge); err != nil {
 		return wrapErr(RollbackError, err)
@@ -1461,7 +1457,7 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	}
 	// Clear scripts cache after rollback.
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		zap.S().Fatalf("Failed to clearCache scripts cache after rollback: %v", err)
+		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
 	}
 	if err := s.loadLastBlock(); err != nil {
 		zap.S().Fatalf("Failed to load last block after rollback: %v", err)
