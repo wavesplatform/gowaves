@@ -36,8 +36,6 @@ func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wa
 		return OutgoingPeer{}, fmt.Errorf("failed to read handshake from %s: %s", address, err)
 	}
 
-	fmt.Printf("handshake: %+v\n", handshake)
-
 	return OutgoingPeer{conn: c}, nil
 }
 

@@ -15,7 +15,7 @@ const (
 	goConfigFilename         = "gowaves-it.json"
 	templateScalaCfgFilename = "template.conf"
 
-	tmpDir = "../build"
+	tmpDir = "../build/config"
 )
 
 type TestConfig struct {

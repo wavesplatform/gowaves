@@ -81,5 +81,18 @@ jobs:
 
       - name: Tests
         run: |
-          mkdir build
+          mkdir -p build/config
+          mkdir -p build/logs
           make itest
+
+      - name: Upload itest logs
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: itest_logs
+          path: |
+            build/logs/go-node.log
+            build/logs/scala-node.log
+          if-no-files-found: warn
+          retention-days: 5
+

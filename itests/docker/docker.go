@@ -2,6 +2,7 @@ package docker
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
@@ -31,13 +32,19 @@ const (
 
 const (
 	dockerfilePath = "/../Dockerfile.gowaves-it"
+
+	goNodeLogFileName    = "go-node.log"
+	scalaNodeLogFileName = "scala-node.log"
+	logDir               = "../build/logs"
 )
 
 type Docker struct {
-	pool      *dockertest.Pool
-	network   *dockertest.Network
-	goNode    *dockertest.Resource
-	scalaNode *dockertest.Resource
+	pool         *dockertest.Pool
+	network      *dockertest.Network
+	goNode       *dockertest.Resource
+	goLogFile    *os.File
+	scalaNode    *dockertest.Resource
+	scalaLogFile *os.File
 }
 
 func NewDocker() (Docker, error) {
@@ -67,6 +74,10 @@ func (d *Docker) RunContainers(paths config.ConfigPaths) error {
 }
 
 func (d *Docker) Purge() error {
+	defer func() {
+		_ = d.goLogFile.Close()
+		_ = d.scalaLogFile.Close()
+	}()
 	if err := d.pool.Purge(d.scalaNode); err != nil {
 		return err
 	}
@@ -105,12 +116,31 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 		return nil, err
 	}
 	res, err := d.pool.BuildAndRunWithOptions(pwd+dockerfilePath, opt, func(hc *dc.HostConfig) {
-		//hc.AutoRemove = true
+		hc.AutoRemove = true
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, goNodeLogFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		_ = d.pool.Client.Logs(dc.LogsOptions{
+			Stderr:      true,
+			Stdout:      true,
+			Follow:      true,
+			Timestamps:  false,
+			RawTerminal: false,
+
+			Container: res.Container.ID,
+
+			OutputStream: logfile,
+		})
+	}()
+	d.goLogFile = logfile
 	err = d.pool.Retry(func() error {
 		_, err := GoNodeClient.GetBlocksHeight()
 		return err
@@ -138,16 +168,42 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 		Env: []string{
 			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
-			"JAVA_OPTS=-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + GoNodeBindPort,
+			"JAVA_OPTS=" +
+				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + GoNodeBindPort + " " +
+				"-Dwaves.db.store-state-hashes=true",
 		},
 		Networks: []*dockertest.Network{d.network},
 	}
 	res, err := d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
-		//hc.AutoRemove = true
+		hc.AutoRemove = true
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, scalaNodeLogFileName)))
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		_ = d.pool.Client.Logs(dc.LogsOptions{
+			Stderr:      true,
+			Stdout:      true,
+			Follow:      true,
+			Timestamps:  false,
+			RawTerminal: false,
+
+			Container: res.Container.ID,
+
+			OutputStream: logfile,
+		})
+	}()
+	d.scalaLogFile = logfile
 
 	err = d.pool.Retry(func() error {
 		_, err := ScalaNodeClient.GetBlocksHeight()
