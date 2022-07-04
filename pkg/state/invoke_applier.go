@@ -940,9 +940,9 @@ func (ia *invokeApplier) handleInvokeScriptInvocationError(
 		// Reject transaction after certain height
 		rejectTx = rejectTx || info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
 	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
-		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with error type (%T)", txID.String(), et)
+		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with error type value (%v)", txID.String(), et)
 	default:
-		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with unknown error type (%T)", txID.String(), et)
+		return nil, errors.Wrapf(invErr, "invocation of transaction '%s' failed with unknown error type value (%v)", txID.String(), et)
 	}
 	return handleError(rejectTx)
 }
