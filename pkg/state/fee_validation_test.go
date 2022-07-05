@@ -65,8 +65,6 @@ func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
 	tx := createSetScriptWithProofs(t)
 	info := defaultCheckerInfo()
 
-	to.stor.addBlock(t, blockID0)
-
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	to.stor.addBlock(t, blockID1)
@@ -81,14 +79,13 @@ func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
 	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false)
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
-	to.stor.fullRollbackBlockClearCache(t, blockID2)
+	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	assert.NoError(t, err, "failed to get address from public key")
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false) // if cache is cleared, the script must have not be found
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true) // if cache is cleared, the script must have not be found
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }
@@ -249,7 +246,7 @@ func TestNFTMinFee(t *testing.T) {
 	require.Error(t, checkMinFeeWaves(nftA1, params))
 	require.Error(t, checkMinFeeWaves(nftA2, params))
 
-	storage.activateFeature(t, int16(settings.ReduceNFTFee))
+	storage.activateFeatureWithFlush(t, int16(settings.ReduceNFTFee))
 
 	require.Error(t, checkMinFeeWaves(issueA1, params))
 	require.Error(t, checkMinFeeWaves(issueA2, params))
@@ -289,7 +286,7 @@ func TestReissueFeeReduction(t *testing.T) {
 	require.NoError(t, checkMinFeeWaves(reissueB1, params))
 	require.NoError(t, checkMinFeeWaves(reissueB2, params))
 
-	storage.activateFeature(t, int16(settings.BlockV5))
+	storage.activateFeatureWithFlush(t, int16(settings.BlockV5))
 
 	require.NoError(t, checkMinFeeWaves(reissueA1, params))
 	require.NoError(t, checkMinFeeWaves(reissueA2, params))
@@ -322,7 +319,7 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 	require.Error(t, checkMinFeeWaves(sponsorshipA, params))
 	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
 
-	storage.activateFeature(t, int16(settings.BlockV5))
+	storage.activateFeatureWithFlush(t, int16(settings.BlockV5))
 
 	require.NoError(t, checkMinFeeWaves(sponsorshipA, params))
 	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
@@ -340,7 +337,7 @@ func randomScript(size uint64) (proto.Script, error) {
 func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
-	to.stor.activateFeature(t, int16(settings.RideV6))
+	to.stor.activateFeatureWithFlush(t, int16(settings.RideV6))
 	defer func() {
 		to.stor.close(t)
 

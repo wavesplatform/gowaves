@@ -101,7 +101,7 @@ func TestActivateFeature(t *testing.T) {
 	assert.Equal(t, false, activated)
 	r := &activatedFeaturesRecord{1}
 	err = to.features.activateFeature(featureID, r, blockID0)
-	assert.NoError(t, err, "activateFeature() failed")
+	assert.NoError(t, err, "activateFeatureWithFlush() failed")
 	to.stor.flush(t)
 	activated, err = to.features.isActivated(featureID)
 	assert.NoError(t, err, "isActivated failed")

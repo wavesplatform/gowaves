@@ -79,7 +79,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 
 	parent, child := genBlocks(t, to)
 	// Activate NG first of all.
-	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeatureWithFlush(t, int16(settings.NG))
 	to.stor.addBlock(t, parent.BlockID())
 	to.stor.addBlock(t, child.BlockID())
 
@@ -122,7 +122,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	// Activate NG and FeeSponsorship first of all.
-	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeatureWithFlush(t, int16(settings.NG))
 	to.stor.activateSponsorship(t)
 
 	// Sponsor asset.
@@ -189,8 +189,8 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	}()
 
 	// Activate NG and BlockReward
-	to.stor.activateFeature(t, int16(settings.NG))
-	to.stor.activateFeature(t, int16(settings.BlockReward))
+	to.stor.activateFeatureWithFlush(t, int16(settings.NG))
+	to.stor.activateFeatureWithFlush(t, int16(settings.BlockReward))
 
 	sig := genRandBlockIds(t, 1)[0]
 	gs := crypto.MustBytesFromBase58(defaultGenSig)

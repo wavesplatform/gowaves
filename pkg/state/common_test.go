@@ -429,7 +429,8 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	if err := s.entities.scriptsStorage.clearCache(); err != nil {
 		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
 	}
-
+	err = s.stateDB.flushBatch()
+	assert.NoError(t, err)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
@@ -491,16 +492,23 @@ func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Diges
 	s.flush(t)
 }
 
+func (s *testStorageObjects) activateFeatureWithFlush(t *testing.T, featureID int16) {
+	s.addBlock(t, blockID0)
+	activationReq := &activatedFeaturesRecord{1}
+	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
+	assert.NoError(t, err, "activateFeatureWithFlush() failed")
+	s.flush(t)
+}
+
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
 	activationReq := &activatedFeaturesRecord{1}
 	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
-	assert.NoError(t, err, "activateFeature() failed")
-	s.flush(t)
+	assert.NoError(t, err, "activateFeatureWithFlush() failed")
 }
 
 func (s *testStorageObjects) activateSponsorship(t *testing.T) {
-	s.activateFeature(t, int16(settings.FeeSponsorship))
+	s.activateFeatureWithFlush(t, int16(settings.FeeSponsorship))
 	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
 	s.addBlocks(t, int(windowSize))
 }
