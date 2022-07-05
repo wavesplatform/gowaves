@@ -52,6 +52,8 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 }
 
+// первый блок, второй блок там скрипт, добавить третий блок, откатить третий и второй блок.
+
 // the account script is set on blockID2, then rollback returns storage to the blockID1.
 // This test is trying to catch invalid cache problem with setting an account script
 func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
@@ -63,14 +65,14 @@ func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
 	}()
 
 	tx := createSetScriptWithProofs(t)
-	info := defaultCheckerInfo()
+	//info := defaultCheckerInfo()
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	to.stor.addBlock(t, blockID1)
 	to.stor.addBlock(t, blockID2)
-	_, err := to.tc.checkSetScriptWithProofs(tx, info)
-	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
+	//_, err := to.tc.checkSetScriptWithProofs(tx, info)
+	//assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")

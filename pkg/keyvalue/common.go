@@ -14,6 +14,7 @@ type KeyValue interface {
 	Delete(key []byte) error
 	Flush(batch Batch) error
 	Close() error
+	ClearCache()
 }
 
 type Batch interface {

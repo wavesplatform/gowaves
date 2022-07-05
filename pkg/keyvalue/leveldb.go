@@ -71,6 +71,7 @@ func (b *batch) addToCache(cache *freecache.Cache) {
 
 func (b *batch) leveldbBatch() *leveldb.Batch {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	leveldbBatch := new(leveldb.Batch)
 	for _, pair := range b.pairs {
 		if pair.deletion {
@@ -79,7 +80,6 @@ func (b *batch) leveldbBatch() *leveldb.Batch {
 			leveldbBatch.Put(pair.key, pair.value)
 		}
 	}
-	b.mu.Unlock()
 	return leveldbBatch
 }
 
@@ -90,10 +90,11 @@ func (b *batch) Reset() {
 }
 
 type KeyVal struct {
-	db     *leveldb.DB
-	filter BloomFilter
-	cache  *freecache.Cache
-	mu     *sync.RWMutex
+	db        *leveldb.DB
+	filter    BloomFilter
+	cache     *freecache.Cache
+	cacheSize int
+	mu        *sync.RWMutex
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
@@ -163,7 +164,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		return nil, err
 	}
 	cache := freecache.NewCache(params.CacheParams.Size)
-	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
+	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}, cacheSize: params.CacheParams.Size}
 	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
 		return nil, err
 	}
@@ -179,6 +180,11 @@ func (k *KeyVal) addToCache(key, val []byte) {
 		// If we can not set the value for some reason, at least make sure the old one is gone.
 		k.cache.Del(key)
 	}
+}
+
+// ClearCache may not be called after initializing KeyVal only
+func (k *KeyVal) ClearCache() {
+	k.cache = freecache.NewCache(k.cacheSize)
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
