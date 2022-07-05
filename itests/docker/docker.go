@@ -36,6 +36,8 @@ const (
 	goNodeLogFileName    = "go-node.log"
 	scalaNodeLogFileName = "scala-node.log"
 	logDir               = "../build/logs"
+
+	walletPath = "wallet"
 )
 
 type Docker struct {
@@ -91,6 +93,10 @@ func (d *Docker) Purge() error {
 }
 
 func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
 	opt := &dockertest.RunOptions{
 		Name:     "go-node",
 		User:     "gowaves",
@@ -100,6 +106,7 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 			"GRPC_ADDR=" + Localhost + ":" + GoNodeGrpsApiPort,
 			"API_ADDR=" + Localhost + ":" + GoNodeRESTApiPort,
 			"PEERS=",
+			"WALLET_PASSWORD=itest",
 		},
 		PortBindings: map[dc.Port][]dc.PortBinding{
 			GoNodeGrpsApiPort + tcp: {{HostIP: "localhost", HostPort: GoNodeGrpsApiPort}},
@@ -108,12 +115,9 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 		},
 		Mounts: []string{
 			cfgPath + ":/home/gowaves/config",
+			filepath.Clean(filepath.Join(pwd, walletPath)) + ":/home/gowaves/wallet",
 		},
 		Networks: []*dockertest.Network{d.network},
-	}
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
 	}
 	res, err := d.pool.BuildAndRunWithOptions(pwd+dockerfilePath, opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
@@ -169,11 +173,15 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
-				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + GoNodeBindPort + " " +
-				"-Dwaves.db.store-state-hashes=true",
+				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + GoNodeBindPort,
 		},
 		Networks: []*dockertest.Network{d.network},
 	}
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
 	})
@@ -181,10 +189,6 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 		return nil, err
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
 	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, scalaNodeLogFileName)))
 	if err != nil {
 		return nil, err

@@ -55,7 +55,8 @@ func TestSendTransaction(t *testing.T) {
 
 	a := proto.NewOptionalAssetWaves()
 	ts := uint64(time.Now().UnixNano() / 1000000)
-	tx := proto.NewUnsignedTransferWithSig(testCfg.Accounts[0].PublicKey, a, a, ts, 10000000, 10000, proto.NewRecipientFromAddress(testCfg.Accounts[1].Address), proto.Attachment{})
+	tx := proto.NewUnsignedTransferWithSig(testCfg.Accounts[0].PublicKey, a, a, ts, 1000000000, 10000000,
+		proto.NewRecipientFromAddress(testCfg.Accounts[1].Address), proto.Attachment{})
 	err = tx.Sign('L', testCfg.Accounts[0].SecretKey)
 	assert.NoError(t, err, "failed to create proofs frm signature")
 

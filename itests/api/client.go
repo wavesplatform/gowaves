@@ -63,3 +63,8 @@ func (c *NodeClient) GetNodeVersion() (NodeVersionResponse, error) {
 	}
 	return resp, nil
 }
+
+type DebugStateResponse struct {
+}
+
+//func (c *NodeClient) GetDebugStateHash()

@@ -26,10 +26,11 @@ RUN apk add --no-cache bind-tools
 RUN addgroup -S $APP_USER \
     && adduser -S $APP_USER -G $APP_USER
 
-RUN mkdir -p /home/gowaves/config
+RUN mkdir -p /home/gowaves/config /home/gowaves/wallet
 
 ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
-    STATE_PATH=/home/gowaves/
+    STATE_PATH=/home/gowaves/  \
+    WALLET_PATH=/home/gowaves/wallet/go.wallet
 
 EXPOSE 6871
 EXPOSE 6872
@@ -37,7 +38,7 @@ EXPOSE 6873
 
 USER $APP_USER
 
-COPY --from=builder /app/build/bin/linux-amd64/node        /app/node
+COPY --from=builder /app/build/bin/linux-amd64/node /app/node
 
 ENV DECLARED_ADDR="go-node:6873"
 
@@ -45,10 +46,13 @@ CMD sleep 5 && /app/node \
     -cfg-path=$CONFIG_PATH \
     -peers=$PEERS \
     -state-path=$STATE_PATH \
+    -wallet-path=$WALLET_PATH \
+    -wallet-password=$WALLET_PASSWORD \
     -blockchain-type=custom \
     -enable-grpc-api=true \
     -grpc-address=$GRPC_ADDR \
     -api-address=$API_ADDR \
+    -api-key=itest-api-key \
     -declared-address=$DECLARED_ADDR \
     -bind-address=0.0.0.0:6873 \
     -build-extended-api \

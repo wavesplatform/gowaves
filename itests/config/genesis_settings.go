@@ -31,9 +31,7 @@ type GenesisConfig struct {
 
 type DistributionItem struct {
 	SeedText string `json:"seed_text"`
-	Nonce    int    `json:"nonce"`
 	Amount   uint64 `json:"amount"`
-	Miner    bool   `json:"miner"`
 }
 
 type GenesisSettings struct {
@@ -80,6 +78,7 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	if err != nil {
 		return nil, nil, err
 	}
+
 	cfg := settings.DefaultCustomSettings
 	cfg.Genesis = *b
 	cfg.AddressSchemeCharacter = genSettings.Scheme
@@ -99,10 +98,10 @@ type AccountInfo struct {
 func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
 	r := make([]genesis_generator.GenesisTransactionInfo, 0, len(settings.Distributions))
 	accounts := make([]AccountInfo, 0, len(settings.Distributions))
-	for i, dist := range settings.Distributions {
+	for _, dist := range settings.Distributions {
 		seed := []byte(dist.SeedText)
 		iv := [4]byte{}
-		binary.BigEndian.PutUint32(iv[:], uint32(i))
+		binary.BigEndian.PutUint32(iv[:], uint32(0))
 		s := append(iv[:], seed...)
 		h, err := crypto.SecureHash(s)
 		if err != nil {
