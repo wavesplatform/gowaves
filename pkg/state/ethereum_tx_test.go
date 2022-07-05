@@ -68,7 +68,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 	return txAppender
 }
 func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []byte, gas uint64, scheme proto.Scheme) *proto.EthereumLegacyTx {
-	v := big.NewInt(int64(scheme)) // MainNet byte
+	v := big.NewInt(int64(scheme)) // TestNet byte
 	v.Mul(v, big.NewInt(2))
 	v.Add(v, big.NewInt(35))
 
@@ -85,14 +85,14 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
 	//assetsUncertain := newAssets
-	txAppender := defaultTxAppender(t, nil, nil, nil, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, nil, nil, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000, proto.TestNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 
@@ -101,12 +101,12 @@ func TestEthereumTransferWaves(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
 
-	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
+	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderKey := byteKey(sender.ID(), wavesAsset)
-	recipient, err := recipientEth.ToWavesAddress(proto.MainNetScheme)
+	recipient, err := recipientEth.ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 	recipientKey := byteKey(recipient.ID(), wavesAsset)
 	senderBalance := applRes.changes.diff[string(senderKey)].balance
@@ -141,7 +141,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	assetsUncertain := map[proto.AssetID]assetInfo{
 		proto.AssetID(recipientEth): {},
 	}
-	txAppender := defaultTxAppender(t, storage, &AnotherMockSmartState{}, assetsUncertain, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, storage, &AnotherMockSmartState{}, assetsUncertain, proto.TestNetScheme)
 	/*
 		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 		transfer(address,uint256)
@@ -153,7 +153,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	require.NoError(t, err)
 
 	//0x989393922c92e07c209f67636731bf1f04871d8b
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000, proto.TestNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 
 	db := ethabi.NewErc20MethodsMap()
@@ -175,7 +175,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
 
-	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
+	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 
 	wavesAsset := proto.NewOptionalAssetWaves()
@@ -185,7 +185,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ethabi.Bytes)
 	assert.True(t, ok)
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-	recipient, err := ethRecipientAddress.ToWavesAddress(proto.MainNetScheme)
+	recipient, err := ethRecipientAddress.ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 	recipientKey := byteKey(recipient.ID(), *proto.NewOptionalAssetFromDigest(fullAssetID))
 	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance
@@ -261,9 +261,9 @@ func TestEthereumInvoke(t *testing.T) {
 	assetsUncertain := map[proto.AssetID]assetInfo{
 		proto.AssetID(recipientEth): {},
 	}
-	txAppender := defaultTxAppender(t, storage, state, assetsUncertain, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, storage, state, assetsUncertain, proto.TestNetScheme)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.TestNetScheme)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
 	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData)
 	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
@@ -283,7 +283,7 @@ func TestEthereumInvoke(t *testing.T) {
 	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 	// fee test
-	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.MainNetScheme)
+	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.TestNetScheme)
 	tx = proto.NewEthereumTransaction(txDataForFeeCheck, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
@@ -292,14 +292,14 @@ func TestEthereumInvoke(t *testing.T) {
 
 func TestTransferZeroAmount(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t, nil, nil, nil, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, nil, nil, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000, proto.TestNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
@@ -308,7 +308,7 @@ func TestTransferZeroAmount(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestTransferMainNetTestnet(t *testing.T) {
+func TestTransferTestNetTestnet(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
 	txAppender := defaultTxAppender(t, nil, nil, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
@@ -317,7 +317,7 @@ func TestTransferMainNetTestnet(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000, proto.TestNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
@@ -335,7 +335,7 @@ func TestTransferCheckFee(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100, proto.TestNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
@@ -383,7 +383,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 			return 3, nil
 		},
 	}
-	txAppender := defaultTxAppender(t, storage, state, nil, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, storage, state, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	sender, err := senderPK.EthereumAddress().ToWavesAddress(0)
@@ -392,7 +392,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.TestNetScheme)
 	decodedData := defaultDecodedData("call", nil, nil)
 	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
 
@@ -451,7 +451,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 			return 3, nil
 		},
 	}
-	txAppender := defaultTxAppender(t, storage, state, nil, proto.MainNetScheme)
+	txAppender := defaultTxAppender(t, storage, state, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	sender, err := senderPK.EthereumAddress().ToWavesAddress(0)
@@ -460,7 +460,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.TestNetScheme)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{
 		{Value: ethabi.Int(1)},
 		{Value: ethabi.Bool(true)},

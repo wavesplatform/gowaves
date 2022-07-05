@@ -72,9 +72,9 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	sets := settings.DefaultCustomSettings
 	signBlock(t, genesis, sets.AddressSchemeCharacter)
 	sets.Genesis = *genesis
-	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.
-	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.
-	sets.AddressSchemeCharacter = settings.MainNetSettings.AddressSchemeCharacter
+	// For compatibility with TestNet addresses we use the same AddressSchemeCharacter.
+	// This is needed because transactions from TestNet blockchain are used in tests' genesis blocks.
+	sets.AddressSchemeCharacter = settings.TestNetSettings.AddressSchemeCharacter
 	sets.BlockRewardTerm = 100000
 	return sets
 }
@@ -100,7 +100,7 @@ func createWallet(ctx context.Context, st state.State, settings *settings.Blockc
 	w := wallet.NewWallet()
 	decoded, _ := base58.Decode(seed)
 	_ = w.AddSeed(decoded)
-	return wallet.NewEmbeddedWallet(nil, w, proto.MainNetScheme)
+	return wallet.NewEmbeddedWallet(nil, w, proto.TestNetScheme)
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {

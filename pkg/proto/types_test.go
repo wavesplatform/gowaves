@@ -152,7 +152,7 @@ func TestOrderV1BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		err = o.Sign(MainNetScheme, sk)
+		err = o.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -185,8 +185,8 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
+		if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(TestNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -253,7 +253,7 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
 	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-	err := o.Sign(MainNetScheme, sk)
+	err := o.Sign(TestNetScheme, sk)
 	require.NoError(t, err)
 
 	t.Run("serialize", func(b *testing.B) {
@@ -321,7 +321,7 @@ func TestOrderV1ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
-			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -405,7 +405,7 @@ func TestOrderV2BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		err = o.Sign(MainNetScheme, sk)
+		err = o.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -438,8 +438,8 @@ func TestOrderV2SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
+		if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(TestNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -499,7 +499,7 @@ func TestOrderV2ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
-			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -594,7 +594,7 @@ func TestOrderV3BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
-		err = o.Sign(MainNetScheme, sk)
+		err = o.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -635,8 +635,8 @@ func TestOrderV3SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
-		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
+		if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(TestNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -707,7 +707,7 @@ func TestOrderV3ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
-			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if err := o.Sign(TestNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -999,6 +999,30 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 			}
 			assert.ElementsMatch(t, tc.expected, entries)
 		}
+	}
+}
+
+func TestNewDataEntryFromJSON(t *testing.T) {
+	tests := []struct {
+		json     string
+		expected DataEntry
+	}{
+		{`{"key":"k1","type":"integer","value":12345}`, &IntegerDataEntry{Key: "k1", Value: 12345}},
+		{`{"key":"k2","type":"string","value":"test-string"}`, &StringDataEntry{Key: "k2", Value: "test-string"}},
+		{`{"key":"k3","type":"boolean","value":true}`, &BooleanDataEntry{Key: "k3", Value: true}},
+		{`{"key":"k4","value":null}`, &DeleteDataEntry{Key: "k4"}},
+		{
+			`{"key":"k5","type":"binary","value":"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc="}`,
+			&BinaryDataEntry{Key: "k5", Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}},
+		},
+	}
+	for _, tc := range tests {
+		actual, err := NewDataEntryFromJSON([]byte(tc.json))
+		require.NoError(t, err)
+		assert.Equal(t, tc.expected, actual)
+		js, err := json.Marshal(actual)
+		require.NoError(t, err)
+		assert.JSONEq(t, tc.json, string(js))
 	}
 }
 

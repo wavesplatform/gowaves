@@ -19,7 +19,7 @@ type blockDifferTestObjects struct {
 }
 
 func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
-	sets := settings.MainNetSettings
+	sets := settings.TestNetSettings
 	stor, path, err := createStorageObjects()
 	require.NoError(t, err, "createStorageObjects() failed")
 	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
@@ -34,18 +34,18 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	txs := proto.Transactions{createTransferWithSig(t)}
 	randSig := genRandBlockIds(t, 1)[0]
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
-	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.MainNetScheme)
+	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.TestNetScheme)
 	require.NoError(t, err, "CreateBlock() failed")
-	err = parent.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	err = parent.Sign(proto.TestNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
 	txs = []proto.Transaction{createIssueWithSig(t, 1000)}
 	genSig, err = to.gsp.GenerationSignature(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
-	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockID(), testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.MainNetScheme)
+	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockID(), testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.TestNetScheme)
 	require.NoError(t, err, "CreateBlock() failed")
-	err = child.Sign(proto.MainNetScheme, testGlobal.minerInfo.sk)
+	err = child.Sign(proto.TestNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
 	return parent, child
 }
@@ -162,7 +162,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 func genTransferWithWavesFee(t *testing.T) *proto.TransferWithProofs {
 	waves := proto.NewOptionalAssetWaves()
 	tx := proto.NewUnsignedTransferWithProofs(2, testGlobal.senderInfo.pk, waves, waves, defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), []byte("attachment"))
-	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err)
 	return tx
 }
@@ -171,11 +171,11 @@ func genBlockWithSingleTransaction(t *testing.T, prevID proto.BlockID, prevGenSi
 	txs := proto.Transactions{genTransferWithWavesFee(t)}
 	genSig, err := to.gsp.GenerationSignature(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
-	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1, proto.MainNetScheme)
+	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1, proto.TestNetScheme)
 	require.NoError(t, err)
 	block.BlockHeader.Version = proto.RewardBlockVersion
 	block.BlockHeader.RewardVote = 700000000
-	err = block.Sign(proto.MainNetScheme, testGlobal.minerInfo.sk)
+	err = block.Sign(proto.TestNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err)
 	return block
 }
