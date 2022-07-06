@@ -616,36 +616,31 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction, isRideV6Acti
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
 	for id, diff := range ws.diff.wavesBalances {
-		if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
-			b, err := diff.spendableBalance()
+		if diff.balance < 0 {
+			addr, err := id.ToWavesAddress(ws.scheme)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to validate balances")
 			}
-			if diff.balance < 0 || b < 0 {
-				addr, err := id.ToWavesAddress(ws.scheme)
-				if err != nil {
+			return errors.Errorf("the Waves balance of address %s is %d which is negative", addr.String(), diff.balance)
+		}
+		if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
+			_, err := diff.checkedSpendableBalance()
+			if err != nil {
+				addr, err2 := id.ToWavesAddress(ws.scheme)
+				if err2 != nil {
 					return errors.Wrap(err, "failed to validate balances")
 				}
-				return errors.Errorf("spendable Waves balance of address %s is %d which is negative", addr.String(), b)
-			}
-		} else {
-			if diff.balance < 0 {
-				addr, err := id.ToWavesAddress(ws.scheme)
-				if err != nil {
-					return errors.Wrap(err, "failed to validate balances")
-				}
-				return errors.Errorf("the Waves balance of address %s is %d which is negative", addr.String(), diff.balance)
+				return errors.Wrapf(err, "failed validation of address %s", addr.String())
 			}
 		}
 	}
 	for k, b := range ws.diff.assetBalances {
-		if b < 0 {
-			addr, err := k.id.ToWavesAddress(ws.scheme)
-			if err != nil {
+		if _, err := b.checked(); err != nil {
+			addr, err2 := k.id.ToWavesAddress(ws.scheme)
+			if err2 != nil {
 				return errors.Wrap(err, "failed to validate balances")
 			}
-			return errors.Errorf("asset balance of address %s of asset %s is %d which is negative",
-				addr.String(), k.asset.String(), b)
+			return errors.Wrapf(err, "failed validation of address %s of asset %s", addr.String(), k.asset.String())
 		}
 	}
 	return nil
@@ -693,7 +688,7 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			err = ws.validatePaymentAction(a, senderAddress, env, restrictions) // TODO: Optimize
+			err = ws.validatePaymentAction(a, senderAddress, env, restrictions) // TODO: Optimize double balance check inside this function and outside
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
@@ -702,31 +697,11 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
 			if a.Asset.Present { // Update asset balance
-				senderBalanceKey := assetBalanceKey{id: senderAddress.ID(), asset: a.Asset.ID}
-				if _, err := ws.diff.loadAssetBalance(senderBalanceKey); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addAssetBalance(senderBalanceKey, -a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				recipientBalanceKey := assetBalanceKey{id: recipientID, asset: a.Asset.ID}
-				if _, err := ws.diff.loadAssetBalance(recipientBalanceKey); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addAssetBalance(recipientBalanceKey, a.Amount); err != nil {
+				if err := ws.diff.assetTransfer(senderAddress.ID(), recipientID, a.Asset.ID, a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply attached payment")
 				}
 			} else { // Update Waves balance
-				if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addWavesBalance(senderAddress.ID(), -a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if _, err := ws.diff.loadWavesBalance(recipientID); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addWavesBalance(recipientID, a.Amount); err != nil {
+				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipientID, a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply attached payment")
 				}
 			}
@@ -744,35 +719,15 @@ func (ws *WrappedState) ApplyToState(
 			}
 			recipientID, err := ws.recipientToAddressID(a.Recipient)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply attached payment")
+				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
 			if a.Asset.Present { // Update asset balance
-				senderBalanceKey := assetBalanceKey{id: senderAddress.ID(), asset: a.Asset.ID}
-				if _, err := ws.diff.loadAssetBalance(senderBalanceKey); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addAssetBalance(senderBalanceKey, -a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				recipientBalanceKey := assetBalanceKey{id: recipientID, asset: a.Asset.ID}
-				if _, err := ws.diff.loadAssetBalance(recipientBalanceKey); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addAssetBalance(recipientBalanceKey, a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
+				if err := ws.diff.assetTransfer(senderAddress.ID(), recipientID, a.Asset.ID, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply transfer action")
 				}
 			} else { // Update Waves balance
-				if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addWavesBalance(senderAddress.ID(), -a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if _, err := ws.diff.loadWavesBalance(recipientID); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
-				}
-				if err := ws.diff.addWavesBalance(recipientID, a.Amount); err != nil {
-					return nil, errors.Wrap(err, "failed to apply attached payment")
+				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipientID, a.Amount); err != nil {
+					return nil, errors.Wrap(err, "failed to apply transfer action")
 				}
 			}
 

@@ -253,20 +253,24 @@ func (ds *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 }
 
 func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error {
-	if senderDiff, ok := ds.wavesBalances[sender]; ok {
-		err := senderDiff.addLeaseOut(amount) // Increase sender's leaseOut by leasing amount
-		if err != nil {
-			return err
-		}
-		ds.wavesBalances[sender] = senderDiff
+	senderDiff, err := ds.loadWavesBalance(sender)
+	if err != nil {
+		return err
 	}
-	if receiverDiff, ok := ds.wavesBalances[receiver]; ok {
-		err := receiverDiff.addLeaseIn(amount) // Increase receiver's leaseIn by leasing amount
-		if err != nil {
-			return err
-		}
-		ds.wavesBalances[receiver] = receiverDiff
+	// Increase sender's leaseOut by leasing amount
+	if err := senderDiff.addLeaseOut(amount); err != nil {
+		return err
 	}
+	ds.wavesBalances[sender] = senderDiff
+	receiverDiff, err := ds.loadWavesBalance(receiver)
+	if err != nil {
+		return err
+	}
+	// Increase receiver's leaseIn by leasing amount
+	if err := receiverDiff.addLeaseIn(amount); err != nil {
+		return err
+	}
+	ds.wavesBalances[receiver] = receiverDiff
 	return nil
 }
 
@@ -301,18 +305,15 @@ func (ds *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, erro
 	if err != nil {
 		return nil, err
 	}
-	if leaseFromStore != nil {
-		if !leaseFromStore.IsActive {
-			return nil, nil
-		}
-		lease := lease{
-			Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
-			Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
-			leasedAmount: int64(leaseFromStore.LeaseAmount),
-		}
-		return &lease, nil
+	if !leaseFromStore.IsActive {
+		return nil, nil // TODO: (nil, nil) semantic is unclear, refactor this
 	}
-	return nil, nil
+	lease := lease{
+		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
+		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
+		leasedAmount: int64(leaseFromStore.LeaseAmount),
+	}
+	return &lease, nil
 }
 
 func (ds *diffState) findIntFromDataEntryByKey(key string, address proto.WavesAddress) *proto.IntegerDataEntry {
@@ -387,6 +388,40 @@ func (ds *diffState) findNewAsset(assetID crypto.Digest) *diffNewAssetInfo {
 func (ds *diffState) findOldAsset(assetID crypto.Digest) *diffOldAssetInfo {
 	if oldAsset, ok := ds.oldAssetsInfo[assetID]; ok {
 		return &oldAsset
+	}
+	return nil
+}
+
+func (ds *diffState) wavesTransfer(sender, recipient proto.AddressID, amount int64) error {
+	if _, err := ds.loadWavesBalance(sender); err != nil {
+		return err
+	}
+	if err := ds.addWavesBalance(sender, -amount); err != nil {
+		return err
+	}
+	if _, err := ds.loadWavesBalance(recipient); err != nil {
+		return err
+	}
+	if err := ds.addWavesBalance(recipient, amount); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ds *diffState) assetTransfer(sender, recipient proto.AddressID, asset crypto.Digest, amount int64) error {
+	senderBalanceKey := assetBalanceKey{id: sender, asset: asset}
+	if _, err := ds.loadAssetBalance(senderBalanceKey); err != nil {
+		return err
+	}
+	if err := ds.addAssetBalance(senderBalanceKey, -amount); err != nil {
+		return err
+	}
+	recipientBalanceKey := assetBalanceKey{id: recipient, asset: asset}
+	if _, err := ds.loadAssetBalance(recipientBalanceKey); err != nil {
+		return err
+	}
+	if err := ds.addAssetBalance(recipientBalanceKey, amount); err != nil {
+		return err
 	}
 	return nil
 }
