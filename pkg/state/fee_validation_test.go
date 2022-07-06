@@ -53,8 +53,8 @@ func TestAssetScriptExtraFee(t *testing.T) {
 }
 
 // the account script is set on blockID2, then rollback returns storage to the blockID1.
-// This test is trying to catch invalid cache problem with setting an account script
-func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
+// Then it is checked whether the account has a verifier.
+func TestAccountDoesNotScriptAfterOneRollback(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 	defer func() {
 		to.stor.close(t)
@@ -88,6 +88,77 @@ func TestCacheClearedRollbackSetScriptTransaction(t *testing.T) {
 	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true) // if cache is cleared, the script must have not be found
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
+}
+
+func TestAccountDoesNotHaveScriptAfterFewRollbacks(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+	defer func() {
+		to.stor.close(t)
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptWithProofs(t)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	to.stor.addBlock(t, blockID1)
+	to.stor.addBlock(t, blockID2)
+
+	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	assert.NoError(t, err, "failed to receive an address from public key")
+
+	txPerformerInfo := &performerInfo{blockID: blockID2}
+	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
+
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true)
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
+
+	to.stor.addBlock(t, blockID3)
+
+	to.stor.fullRollbackBlockClearCache(t, blockID1)
+
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true) // if cache is cleared, the script must have not be found
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
+}
+
+func TestAccountHasScriptAfterLittleRollback(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+	defer func() {
+		to.stor.close(t)
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptWithProofs(t)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	to.stor.addBlock(t, blockID1)
+	to.stor.addBlock(t, blockID2)
+
+	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	assert.NoError(t, err, "failed to receive an address from public key")
+
+	txPerformerInfo := &performerInfo{blockID: blockID2}
+	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
+
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true)
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
+
+	to.stor.addBlock(t, blockID3)
+	to.stor.addBlock(t, blockID4)
+
+	to.stor.fullRollbackBlockClearCache(t, blockID3)
+
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true) // if cache is cleared, the script must have not be found
+	assert.NoError(t, err, "failed to check whether script has a verifier")
+	assert.True(t, hasVerifier, "a script must have not a verifier after rollback")
 }
 
 func TestAccountScriptExtraFee(t *testing.T) {
