@@ -715,6 +715,7 @@ type environment interface {
 	libVersion() ast.LibraryVersion
 	validateInternalPayments() bool
 	blockV5Activated() bool
+	rideV5Activated() bool
 	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int

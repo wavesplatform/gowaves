@@ -2,6 +2,7 @@ package ride
 
 import (
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,5 +50,21 @@ func BenchmarkCheckFunctionMap(b *testing.B) {
 		name := functionNameV4(id)
 		_, ok := CatalogueV4[name]
 		assert.True(b, ok)
+	}
+}
+
+func TestInvokeCallComplexityV5Constant(t *testing.T) {
+	const (
+		invokeFunctionID          = 1020
+		reentrantInvokeFunctionID = 1021
+	)
+	catalogues := &[...]map[string]int{
+		CatalogueV5,
+		EvaluationCatalogueV5EvaluatorV1,
+		EvaluationCatalogueV5EvaluatorV2,
+	}
+	for _, catalogue := range catalogues {
+		assert.Equal(t, catalogue[strconv.Itoa(invokeFunctionID)], invokeCallComplexityV5)
+		assert.Equal(t, catalogue[strconv.Itoa(reentrantInvokeFunctionID)], invokeCallComplexityV5)
 	}
 }

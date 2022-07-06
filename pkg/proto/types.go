@@ -3189,16 +3189,16 @@ func NewIntegerArgument(i int64) *IntegerArgument {
 }
 
 //GetValueType returns the value type of the entry.
-func (a IntegerArgument) GetValueType() ArgumentValueType {
+func (a *IntegerArgument) GetValueType() ArgumentValueType {
 	return ArgumentInteger
 }
 
-func (a IntegerArgument) BinarySize() int {
+func (a *IntegerArgument) BinarySize() int {
 	return integerArgumentLen
 }
 
 //MarshalBinary marshals the integer argument in its bytes representation.
-func (a IntegerArgument) MarshalBinary() ([]byte, error) {
+func (a *IntegerArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentInteger)
@@ -3208,7 +3208,7 @@ func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize the integer argument in its bytes representation.
-func (a IntegerArgument) Serialize(s *serializer.Serializer) error {
+func (a *IntegerArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentInteger))
 	if err != nil {
 		return err
@@ -3255,16 +3255,16 @@ type BooleanArgument struct {
 }
 
 //GetValueType returns the data type (Boolean) of the argument.
-func (a BooleanArgument) GetValueType() ArgumentValueType {
+func (a *BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
 }
 
-func (a BooleanArgument) BinarySize() int {
+func (a *BooleanArgument) BinarySize() int {
 	return booleanArgumentLen
 }
 
 //MarshalBinary writes a byte representation of the boolean data entry.
-func (a BooleanArgument) MarshalBinary() ([]byte, error) {
+func (a *BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	if a.Value {
 		buf[0] = byte(ArgumentValueTrue)
@@ -3275,7 +3275,7 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize argument to its byte representation.
-func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
+func (a *BooleanArgument) Serialize(s *serializer.Serializer) error {
 	buf := byte(0)
 	if a.Value {
 		buf = byte(ArgumentValueTrue)
@@ -3328,16 +3328,16 @@ type BinaryArgument struct {
 }
 
 //GetValueType returns the type of value (Binary) stored in an argument.
-func (a BinaryArgument) GetValueType() ArgumentValueType {
+func (a *BinaryArgument) GetValueType() ArgumentValueType {
 	return ArgumentBinary
 }
 
-func (a BinaryArgument) BinarySize() int {
+func (a *BinaryArgument) BinarySize() int {
 	return binaryArgumentMinLen + len(a.Value)
 }
 
 //MarshalBinary writes an argument to its byte representation.
-func (a BinaryArgument) MarshalBinary() ([]byte, error) {
+func (a *BinaryArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentBinary)
@@ -3347,7 +3347,7 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize argument to its byte representation.
-func (a BinaryArgument) Serialize(s *serializer.Serializer) error {
+func (a *BinaryArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentBinary))
 	if err != nil {
 		return err
@@ -3402,16 +3402,16 @@ func NewStringArgument(s string) *StringArgument {
 }
 
 //GetValueType returns the type of value of the argument.
-func (a StringArgument) GetValueType() ArgumentValueType {
+func (a *StringArgument) GetValueType() ArgumentValueType {
 	return ArgumentString
 }
 
-func (a StringArgument) BinarySize() int {
+func (a *StringArgument) BinarySize() int {
 	return stringArgumentMinLen + len(a.Value)
 }
 
 //MarshalBinary converts the argument to its byte representation.
-func (a StringArgument) MarshalBinary() ([]byte, error) {
+func (a *StringArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentString)
@@ -3421,7 +3421,7 @@ func (a StringArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize argument to its byte representation.
-func (a StringArgument) Serialize(s *serializer.Serializer) error {
+func (a *StringArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentString))
 	if err != nil {
 		return err
@@ -3471,16 +3471,16 @@ type ListArgument struct {
 }
 
 //GetValueType returns the type of value of the argument.
-func (a ListArgument) GetValueType() ArgumentValueType {
+func (a *ListArgument) GetValueType() ArgumentValueType {
 	return ArgumentList
 }
 
-func (a ListArgument) BinarySize() int {
+func (a *ListArgument) BinarySize() int {
 	return 1 + a.Items.BinarySize()
 }
 
 //MarshalBinary converts the argument to its byte representation.
-func (a ListArgument) MarshalBinary() ([]byte, error) {
+func (a *ListArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentList)
@@ -3494,7 +3494,7 @@ func (a ListArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize argument to its byte representation.
-func (a ListArgument) Serialize(s *serializer.Serializer) error {
+func (a *ListArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentList))
 	if err != nil {
 		return err

@@ -6,6 +6,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+// invokeCallComplexityV5 is invoke() or reentrantInvoke() functions cost for RideV5
+const invokeCallComplexityV5 = 75
+
 func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
@@ -32,29 +35,20 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	if err != nil {
 		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
 		// Produced actions are not stored for failed transactions, no need to return them here
-		et := GetEvaluationErrorType(err)
-		if et == Undefined {
-			return nil, EvaluationErrorAddComplexity(
-				et.Wrap(err, "unhandled error"),
-				// Error was not handled in wrapped state properly,
-				// so we need to add both complexity from current evaluation and from internal invokes
-				e.complexity()+wrappedStateComplexity(env.state()),
-			)
-		}
-		return nil, EvaluationErrorAddComplexity(err, e.complexity()+wrappedStateComplexity(env.state()))
+		return nil, handleComplexityInCaseOfEvaluationError(err, e, env)
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
 		return nil, EvaluationErrorAddComplexity(
 			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
-			// New error, both complexities should be added
+			// New error, both complexities should be added (also see comment in complexityInCaseOfEvaluationError)
 			e.complexity()+wrappedStateComplexity(env.state()),
 		)
 	}
 	if tree.LibVersion < ast.LibV5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
-	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(ast.LibraryVersion(tree.LibVersion))
+	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(tree.LibVersion)
 	if err != nil {
 		return nil, EvaluationFailure.Errorf("failed to get max chain invoke complexity: %v", err)
 	}
@@ -87,4 +81,45 @@ func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
 		return nil
 	}
 	return ws.act
+}
+
+func evaluationErrorSetComplexity(err error, complexity int) error {
+	if ee, ok := err.(evaluationError); ok {
+		ee.spentComplexity = complexity
+		return ee
+	}
+	return err
+}
+
+func handleComplexityInCaseOfEvaluationError(err error, e *treeEvaluator, env environment) error {
+	// Error was not handled in wrapped state properly,
+	// so we need to add complexities from current evaluation, from internal invokes and from internal failed invoke
+	totalComplexity := e.complexity() + wrappedStateComplexity(env.state()) + EvaluationErrorSpentComplexity(err)
+	switch et := GetEvaluationErrorType(err); et {
+	case Undefined:
+		return evaluationErrorSetComplexity(et.Wrap(err, "unhandled error"), totalComplexity)
+	case InternalInvocationError: //, RuntimeError: // TODO: ask about RuntimeError
+		// reproduce scala's node buggy behaviour
+		if ws, ok := env.state().(*WrappedState); ok && env.rideV5Activated() && !env.rideV6Activated() {
+			// if invoke script tx depth level is 2 or less ==> complexity should be set to 0
+			// invCount() is calls count of invoke() or reentrantInvoke() functions ==> txDepthLevel = 1 + invCount()
+			if txDepthLevel := 1 + ws.invCount(); txDepthLevel <= 2 {
+				totalComplexity = 0
+			} else {
+				// if depth level is 3 or greater, then we should sub last two invoke complexities plus
+				// cost of the last invoke() or reentrantInvoke() function call
+				reverseComplexitiesList := EvaluationErrorReverseComplexitiesList(err)
+				if l := len(reverseComplexitiesList); l < 2 {
+					return evaluationErrorSetComplexity(Undefined.Wrapf(err,
+						"reverseComplexitiesStack size=%d must be greater than 2", l,
+					), totalComplexity)
+				}
+				lastTwoInvokesCost := reverseComplexitiesList[0] + reverseComplexitiesList[1] + invokeCallComplexityV5
+				totalComplexity -= lastTwoInvokesCost
+			}
+		}
+		return evaluationErrorSetComplexity(err, totalComplexity)
+	default:
+		return evaluationErrorSetComplexity(err, totalComplexity)
+	}
 }

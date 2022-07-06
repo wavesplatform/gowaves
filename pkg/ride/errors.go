@@ -21,15 +21,11 @@ type evaluationError struct {
 	originalError   error
 	callStack       []string
 	spentComplexity int
+	complexities    []int
 }
 
 func (e evaluationError) Error() string {
 	return e.originalError.Error()
-}
-
-func (e evaluationError) AddComplexity(complexity int) error {
-	e.spentComplexity += complexity
-	return e
 }
 
 func (e EvaluationError) New(msg string) error {
@@ -62,6 +58,13 @@ func EvaluationErrorCallStack(err error) []string {
 	return nil
 }
 
+func EvaluationErrorReverseComplexitiesList(err error) []int {
+	if ee, ok := err.(evaluationError); ok {
+		return ee.complexities
+	}
+	return nil
+}
+
 func EvaluationErrorSpentComplexity(err error) int {
 	if ee, ok := err.(evaluationError); ok {
 		return ee.spentComplexity
@@ -71,10 +74,25 @@ func EvaluationErrorSpentComplexity(err error) int {
 
 func EvaluationErrorPush(err error, format string, args ...interface{}) error {
 	if ee, ok := err.(evaluationError); ok {
-		ee.callStack = append([]string{fmt.Sprintf(format, args...)}, ee.callStack...)
+		elem := fmt.Sprintf(format, args...)
+		if cap(ee.callStack) > len(ee.callStack) { // reusing the same memory area
+			ee.callStack = append(ee.callStack[:1], ee.callStack...)
+			ee.callStack[0] = elem
+		} else { // allocating memory
+			ee.callStack = append([]string{elem}, ee.callStack...)
+		}
 		return ee
 	}
 	return errors.Wrapf(err, format, args...)
+}
+
+func EvaluationErrorPushComplexity(err error, complexity int) error {
+	if ee, ok := err.(evaluationError); ok {
+		ee.complexities = append(ee.complexities, complexity)
+		ee.spentComplexity += complexity
+		return ee
+	}
+	return err
 }
 
 func EvaluationErrorAddComplexity(err error, complexity int) error {

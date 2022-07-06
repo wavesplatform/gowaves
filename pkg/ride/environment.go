@@ -13,6 +13,13 @@ var (
 	errDeletedEntry = errors.New("entry has been deleted")
 )
 
+var (
+	libV2CheckMessageLength = func(int) bool { return true }
+	libV3CheckMessageLength = func(l int) bool {
+		return l <= maxMessageLength
+	}
+)
+
 type WrappedState struct {
 	diff                      diffState
 	cle                       rideAddress
@@ -943,6 +950,7 @@ type EvaluationEnvironment struct {
 	ver                   ast.LibraryVersion
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
+	isRiveV5Activated     bool
 	isRiveV6Activated     bool
 	isProtobufTransaction bool
 	mds                   int
@@ -957,7 +965,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		sch:                   scheme,
 		st:                    state,
 		h:                     rideInt(height),
-		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		check:                 libV2CheckMessageLength, // By default, for versions below 2 there was no check, always ok.
 		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter: internalPaymentsValidationHeight,
 	}, nil
@@ -968,6 +976,7 @@ func NewEnvironmentWithWrappedState(
 	payments proto.ScriptPayments,
 	sender proto.WavesAddress,
 	isBlockV5Activated bool,
+	isRideV5Activated bool,
 	isRideV6Activated bool,
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
@@ -1040,6 +1049,7 @@ func NewEnvironmentWithWrappedState(
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
 		isBlockV5Activated:    isBlockV5Activated,
+		isRiveV5Activated:     isRideV5Activated,
 		isRiveV6Activated:     isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,
 	}, nil
@@ -1047,6 +1057,10 @@ func NewEnvironmentWithWrappedState(
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {
 	return e.isRiveV6Activated
+}
+
+func (e *EvaluationEnvironment) rideV5Activated() bool {
+	return e.isRiveV5Activated
 }
 
 func (e *EvaluationEnvironment) blockV5Activated() bool {
@@ -1063,9 +1077,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
 	e.ver = v
 	if v > ast.LibV2 {
-		e.check = func(l int) bool {
-			return l <= maxMessageLength
-		}
+		e.check = libV3CheckMessageLength
 	}
 }
 
