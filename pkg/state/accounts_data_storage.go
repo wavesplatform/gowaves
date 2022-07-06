@@ -272,6 +272,10 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 		if err != nil {
 			return nil, err
 		}
+		// Skip Delete entries, they are not returned by APIs.
+		if entry.GetValueType() == proto.DataDelete {
+			continue
+		}
 		entry.SetKey(entryKey.entryKey)
 		entries = append(entries, entry)
 	}
@@ -320,6 +324,9 @@ func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string
 	if err != nil {
 		return nil, err
 	}
+	if entry.GetValueType() == proto.DataDelete {
+		return nil, errors.Errorf("entry '%s' was removed", key)
+	}
 	entry.SetKey(key)
 	return entry, nil
 }
@@ -332,6 +339,9 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string, filt
 	entry, err := proto.NewDataEntryFromValueBytes(entryBytes)
 	if err != nil {
 		return nil, err
+	}
+	if entry.GetValueType() == proto.DataDelete {
+		return nil, errors.Errorf("entry '%s' was removed", key)
 	}
 	entry.SetKey(key)
 	return entry, nil
