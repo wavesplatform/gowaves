@@ -321,7 +321,7 @@ func TestNFTMinFee(t *testing.T) {
 	require.Error(t, checkMinFeeWaves(nftA1, params))
 	require.Error(t, checkMinFeeWaves(nftA2, params))
 
-	storage.activateFeatureWithFlush(t, int16(settings.ReduceNFTFee))
+	storage.activateFeature(t, int16(settings.ReduceNFTFee))
 
 	require.Error(t, checkMinFeeWaves(issueA1, params))
 	require.Error(t, checkMinFeeWaves(issueA2, params))
@@ -361,7 +361,7 @@ func TestReissueFeeReduction(t *testing.T) {
 	require.NoError(t, checkMinFeeWaves(reissueB1, params))
 	require.NoError(t, checkMinFeeWaves(reissueB2, params))
 
-	storage.activateFeatureWithFlush(t, int16(settings.BlockV5))
+	storage.activateFeature(t, int16(settings.BlockV5))
 
 	require.NoError(t, checkMinFeeWaves(reissueA1, params))
 	require.NoError(t, checkMinFeeWaves(reissueA2, params))
@@ -394,7 +394,7 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 	require.Error(t, checkMinFeeWaves(sponsorshipA, params))
 	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
 
-	storage.activateFeatureWithFlush(t, int16(settings.BlockV5))
+	storage.activateFeature(t, int16(settings.BlockV5))
 
 	require.NoError(t, checkMinFeeWaves(sponsorshipA, params))
 	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
@@ -412,7 +412,7 @@ func randomScript(size uint64) (proto.Script, error) {
 func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
-	to.stor.activateFeatureWithFlush(t, int16(settings.RideV6))
+	to.stor.activateFeature(t, int16(settings.RideV6))
 	defer func() {
 		to.stor.close(t)
 

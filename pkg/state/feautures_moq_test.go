@@ -19,7 +19,7 @@ var _ featuresState = &mockFeaturesState{}
 // 		// make and configure a mocked featuresState
 // 		mockedfeaturesState := &mockFeaturesState{
 // 			activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
-// 				panic("mock out the activateFeatureWithFlush method")
+// 				panic("mock out the activateFeature method")
 // 			},
 // 			activationHeightFunc: func(featureID int16) (uint64, error) {
 // 				panic("mock out the activationHeight method")
@@ -82,7 +82,7 @@ var _ featuresState = &mockFeaturesState{}
 //
 // 	}
 type mockFeaturesState struct {
-	// activateFeatureFunc mocks the activateFeatureWithFlush method.
+	// activateFeatureFunc mocks the activateFeature method.
 	activateFeatureFunc func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error
 
 	// activationHeightFunc mocks the activationHeight method.
@@ -141,7 +141,7 @@ type mockFeaturesState struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// activateFeatureWithFlush holds details about calls to the activateFeatureWithFlush method.
+		// activateFeature holds details about calls to the activateFeature method.
 		activateFeature []struct {
 			// FeatureID is the featureID argument value.
 			FeatureID int16
@@ -278,10 +278,10 @@ type mockFeaturesState struct {
 	lockresetVotes                  sync.RWMutex
 }
 
-// activateFeatureWithFlush calls activateFeatureFunc.
+// activateFeature calls activateFeatureFunc.
 func (mock *mockFeaturesState) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
 	if mock.activateFeatureFunc == nil {
-		panic("mockFeaturesState.activateFeatureFunc: method is nil but featuresState.activateFeatureWithFlush was just called")
+		panic("mockFeaturesState.activateFeatureFunc: method is nil but featuresState.activateFeature was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -298,7 +298,7 @@ func (mock *mockFeaturesState) activateFeature(featureID int16, r *activatedFeat
 	return mock.activateFeatureFunc(featureID, r, blockID)
 }
 
-// activateFeatureCalls gets all the calls that were made to activateFeatureWithFlush.
+// activateFeatureCalls gets all the calls that were made to activateFeature.
 // Check the length with:
 //     len(mockedfeaturesState.activateFeatureCalls())
 func (mock *mockFeaturesState) activateFeatureCalls() []struct {

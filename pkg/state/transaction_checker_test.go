@@ -161,7 +161,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	_, err = to.tc.checkTransferWithProofs(tx, info)
 	assert.Error(t, err, "checkTransferWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	to.stor.createAsset(t, assetId)
 	_, err = to.tc.checkTransferWithProofs(tx, info)
@@ -324,7 +324,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	_, err := to.tc.checkReissueWithProofs(tx, info)
 	assert.Error(t, err, "checkReissueWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	_, err = to.tc.checkReissueWithProofs(tx, info)
 	assert.NoError(t, err, "checkReissueWithProofs failed with valid reissue tx")
@@ -389,7 +389,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 	assert.Error(t, err, "checkBurnWithSig did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	to.stor.activateFeatureWithFlush(t, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	_, err = to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -416,7 +416,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 	_, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.Error(t, err, "checkBurnWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	_, err = to.tc.checkBurnWithProofs(tx, info)
 	assert.NoError(t, err, "checkBurnWithProofs failed with valid burn tx")
@@ -434,7 +434,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkBurnWithSig did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	to.stor.activateFeatureWithFlush(t, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	_, err = to.tc.checkBurnWithProofs(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -472,7 +472,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange with smart account before SmartAccountTrading activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.NoError(t, err, "checkExchangeWithSig failed with valid exchange")
 
@@ -483,7 +483,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange with smart assets before SmartAssets activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.NoError(t, err, "checkExchangeWithSig failed with valid exchange")
 
@@ -540,7 +540,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail prior to SmartAccountTrading activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
 
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
@@ -552,7 +552,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange with smart assets before SmartAssets activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
@@ -563,7 +563,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.Equal(t, smartAsset, smartAssets[0])
 
 	// Check validation of ExchangeWithProofs with Orders version 3
-	to.stor.activateFeatureWithFlush(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
 
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
@@ -631,10 +631,10 @@ func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccountTrading))
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAssets))
-	to.stor.activateFeatureWithFlush(t, int16(settings.OrderV3))
-	to.stor.activateFeatureWithFlush(t, int16(settings.BlockV5))
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
 
 	_, err := to.tc.checkExchangeWithProofs(tx, info)
 	assert.Errorf(t, err, "have to fail on incorrect order of orders after activation of BlockV5")
@@ -657,10 +657,10 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccountTrading))
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAssets))
-	to.stor.activateFeatureWithFlush(t, int16(settings.OrderV3))
-	to.stor.activateFeatureWithFlush(t, int16(settings.BlockV5))
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
 
 	_, err := to.tc.checkExchangeWithProofs(tx, info)
 	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
@@ -708,7 +708,7 @@ func TestCheckLeaseWithProofs(t *testing.T) {
 	_, err = to.tc.checkLeaseWithProofs(tx, info)
 	assert.Error(t, err, "checkLeaseWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	_, err = to.tc.checkLeaseWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseWithProofs failed with valid lease tx")
@@ -780,7 +780,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.Error(t, err, "checkLeaseCancelWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelWithProofs failed with valid leaseCancel tx")
@@ -837,7 +837,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	_, err := to.tc.checkCreateAliasWithProofs(tx, info)
 	assert.Error(t, err, "checkCreateAliasWithProofs did not fail prior to SmartAccounts activation")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	_, err = to.tc.checkCreateAliasWithProofs(tx, info)
 	assert.NoError(t, err, "checkCreateAliasWithProofs failed with valid createAlias tx")
@@ -876,7 +876,7 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
 	// Activate MassTransfer.
-	to.stor.activateFeatureWithFlush(t, int16(settings.MassTransfer))
+	to.stor.activateFeature(t, int16(settings.MassTransfer))
 	_, err = to.tc.checkMassTransferWithProofs(tx, info)
 	assert.Error(t, err, "checkMassTransferWithProofs did not fail with unissued asset")
 	assert.EqualError(t, err, fmt.Sprintf("unknown asset %s", tx.Asset.ID.String()))
@@ -911,7 +911,7 @@ func TestCheckDataWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "Data transaction has not been activated yet")
 
 	// Activate Data transactions.
-	to.stor.activateFeatureWithFlush(t, int16(settings.DataTransaction))
+	to.stor.activateFeature(t, int16(settings.DataTransaction))
 	_, err = to.tc.checkDataWithProofs(tx, info)
 	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
 
@@ -939,7 +939,7 @@ func TestCheckDataWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "data tx binary size limit exceeded, limit=153600, actual size=164299")
 	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.RideV6))
+	to.stor.activateFeature(t, int16(settings.RideV6))
 	tx.Entries = append(tx.Entries, bigEntries...)
 	_, err = to.tc.checkDataWithProofs(tx, info)
 	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
@@ -966,7 +966,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "sponsorship has not been activated yet")
 
 	// Activate sponsorship.
-	to.stor.activateFeatureWithFlush(t, int16(settings.FeeSponsorship))
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.NoError(t, err, "checkSponsorshipWithProofs failed with valid Sponsorship tx")
 	to.stor.activateSponsorship(t)
@@ -1013,7 +1013,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	to.stor.activateSponsorship(t)
 
 	// Activate SmartAccounts.
-	to.stor.activateFeatureWithFlush(t, int16(settings.SmartAccounts))
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 	_, err := to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
@@ -1049,7 +1049,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	// Check script that exceeds 32kb in size
-	to.stor.activateFeatureWithFlush(t, int16(settings.RideV5))
+	to.stor.activateFeature(t, int16(settings.RideV5))
 	scriptBytes, err = readTestScript("ride5_dapp_exceeds_32kb.base64")
 	require.NoError(t, err)
 	tx.Script = scriptBytes
@@ -1057,7 +1057,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.EqualError(t, err, "checkScript() tx CHkPmr2rRLoj8CBuK1fMah2Z8pboMQZRtPsvXvHBFur8: script size 32857 is greater than limit of 32768")
 	// RideV6 feature is active, but fee is not enough
-	to.stor.activateFeatureWithFlush(t, int16(settings.RideV6))
+	to.stor.activateFeature(t, int16(settings.RideV6))
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.EqualError(t, err, "Fee 1000000 does not exceed minimal value of 3300000 WAVES. ") // Scala error text, note the space at the end
 	// Everything fine now
@@ -1565,7 +1565,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 	// Check activation.
 	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkInvokeScriptWithProofs did not fail prior to Ride4DApps activation")
-	to.stor.activateFeatureWithFlush(t, int16(settings.Ride4DApps))
+	to.stor.activateFeature(t, int16(settings.Ride4DApps))
 	_, err = to.tc.checkInvokeScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkInvokeScriptWithProofs failed with valid tx")
 
@@ -1612,7 +1612,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	_, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
 	assert.EqualError(t, err, "BlockV5 must be activated for UpdateAssetInfo transaction")
 
-	to.stor.activateFeatureWithFlush(t, int16(settings.BlockV5))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
 
 	// Check valid.
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)

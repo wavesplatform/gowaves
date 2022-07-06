@@ -210,7 +210,7 @@ func TestIsSponsorshipActivated_Double(t *testing.T) {
 	assert.Equal(t, false, isSponsorshipActivated)
 
 	// False after activation.
-	to.stor.activateFeatureWithFlush(t, int16(settings.FeeSponsorship))
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, false, isSponsorshipActivated)
@@ -239,7 +239,7 @@ func TestIsSponsorshipActivated_Single(t *testing.T) {
 	assert.Equal(t, false, isSponsorshipActivated)
 
 	// True after activation.
-	to.stor.activateFeatureWithFlush(t, int16(settings.FeeSponsorship))
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, true, isSponsorshipActivated)
