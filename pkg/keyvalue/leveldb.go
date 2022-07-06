@@ -90,11 +90,10 @@ func (b *batch) Reset() {
 }
 
 type KeyVal struct {
-	db        *leveldb.DB
-	filter    BloomFilter
-	cache     *freecache.Cache
-	cacheSize int
-	mu        *sync.RWMutex
+	db     *leveldb.DB
+	filter BloomFilter
+	cache  *freecache.Cache
+	mu     *sync.RWMutex
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
@@ -164,7 +163,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		return nil, err
 	}
 	cache := freecache.NewCache(params.CacheParams.Size)
-	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}, cacheSize: params.CacheParams.Size}
+	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
 	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
 		return nil, err
 	}
