@@ -182,10 +182,6 @@ func (k *KeyVal) addToCache(key, val []byte) {
 	}
 }
 
-func (k *KeyVal) ClearCache() {
-	k.cache = freecache.NewCache(k.cacheSize)
-}
-
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
@@ -262,7 +258,6 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	if err := b.addToFilter(k.filter); err != nil {
 		return err
 	}
-	//k.ClearCache()
 	b.Reset()
 	return nil
 }

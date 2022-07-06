@@ -53,8 +53,8 @@ func TestAssetScriptExtraFee(t *testing.T) {
 }
 
 // the account script is set on blockID2, then rollback returns storage to the blockID1.
-// Then it is checked whether the account has a verifier.
-func TestAccountDoesNotScriptAfterOneRollback(t *testing.T) {
+// The account must not have a verifier anymore.
+func TestAccountDoesNotScriptAfterRollbackOneBlock(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 	defer func() {
 		to.stor.close(t)
@@ -90,7 +90,9 @@ func TestAccountDoesNotScriptAfterOneRollback(t *testing.T) {
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }
 
-func TestAccountDoesNotHaveScriptAfterFewRollbacks(t *testing.T) {
+// the account script is set on blockID2, then blockID3 is added, then rollback returns storage to the blockID1.
+// The account must not have a verifier anymore.
+func TestAccountDoesNotHaveScriptAfterRollbackFewBlocks(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 	defer func() {
 		to.stor.close(t)
@@ -125,7 +127,9 @@ func TestAccountDoesNotHaveScriptAfterFewRollbacks(t *testing.T) {
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }
 
-func TestAccountHasScriptAfterLittleRollback(t *testing.T) {
+// the account script is set on blockID2, then blockID3 and blockID4 are added, then rollback returns storage to the blockID3.
+// The account must have a verifier.
+func TestAccountHasScriptAfterRollbackOneBlock(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 	defer func() {
 		to.stor.close(t)

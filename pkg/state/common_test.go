@@ -431,8 +431,6 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	if err := s.entities.scriptsStorage.clearCache(); err != nil {
 		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
 	}
-	err = s.stateDB.flushBatch()
-	assert.NoError(t, err)
 	s.flush(t)
 }
 
