@@ -68,17 +68,13 @@ func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
 	}
 	changed := false
 	firstNeeded := 0
-	//minAcceptableBlockNum, err := hfmt.calculateMinAcceptableBlockNum()
-	//if err != nil {
-	//	return false, err
-	//}
-	currentBlockNum, err := hfmt.db.getLastBlockNum()
+	minAcceptableBlockNum, err := hfmt.calculateMinAcceptableBlockNum()
 	if err != nil {
 		return false, err
 	}
 
 	for i, entry := range history.entries {
-		if currentBlockNum < entry.blockNum {
+		if entry.blockNum < minAcceptableBlockNum {
 			// 1 entry BEFORE minAcceptableHeight is needed.
 			firstNeeded = i
 			changed = true

@@ -421,9 +421,9 @@ func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) 
 }
 
 func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID proto.BlockID) {
-	err := s.stateDB.rollbackBlock(blockID)
-	assert.NoError(t, err, "rollbackBlock() failed")
 	s.flush(t)
+	err := s.stateDB.rollback(blockID)
+	assert.NoError(t, err, "rollbackBlock() failed")
 	err = s.rw.syncWithDb()
 	assert.NoError(t, err)
 	if err := s.entities.scriptsStorage.clearCache(); err != nil {
@@ -431,6 +431,7 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	}
 	err = s.stateDB.flushBatch()
 	assert.NoError(t, err)
+	s.flush(t)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {

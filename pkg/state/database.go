@@ -158,11 +158,6 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	idBytes := blockID.Bytes()
 	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
 
-	// we should put the record into db, because if the block is not in the cache, it is going to be not found
-	err = s.db.Put(idToNumKey.bytes(), newBlockNumBytes)
-	if err != nil {
-		return errors.Errorf("failed to put block %d into db, %v", newBlockNum, err)
-	}
 	// Increase blocks counter.
 	s.blocksNum++
 	return nil
@@ -245,7 +240,6 @@ func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
 	s.dbBatch.Delete(numKey.bytes())
 	idKey := blockNumToIdKey{blockNum}
 	s.dbBatch.Delete(idKey.bytes())
-	s.dbBatch.Reset()
 	return nil
 }
 
