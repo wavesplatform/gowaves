@@ -2569,7 +2569,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	wrappedSt = *NewWrappedSt
 
 	_, err = CallFunction(env, tree, "foo", proto.Arguments{})
-	require.Error(t, err)
+	assert.EqualError(t, err, "invoke: too many internal invocations")
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
@@ -2741,7 +2741,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	wrappedSt = *NewWrappedSt
 
 	_, err = CallFunction(env, tree, "foo", proto.Arguments{})
-	require.Error(t, err)
+	assert.EqualError(t, err, "reentrantInvoke: too many internal invocations")
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)

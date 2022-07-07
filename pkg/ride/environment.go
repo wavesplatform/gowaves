@@ -943,7 +943,7 @@ type EvaluationEnvironment struct {
 	ver                   ast.LibraryVersion
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
-	isRiveV6Activated     bool
+	isRideV6Activated     bool
 	isProtobufTransaction bool
 	mds                   int
 }
@@ -961,7 +961,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter: internalPaymentsValidationHeight,
 		isBlockV5Activated:    blockV5,
-		isRiveV6Activated:     rideV6,
+		isRideV6Activated:     rideV6,
 	}, nil
 }
 
@@ -969,8 +969,6 @@ func NewEnvironmentWithWrappedState(
 	env *EvaluationEnvironment,
 	payments proto.ScriptPayments,
 	sender proto.WavesAddress,
-	isBlockV5Activated bool,
-	isRideV6Activated bool,
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 ) (*EvaluationEnvironment, error) {
@@ -986,7 +984,7 @@ func NewEnvironmentWithWrappedState(
 		if payment.Asset.Present {
 			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
 		} else {
-			if isRideV6Activated {
+			if env.isRideV6Activated {
 				allBalance, err := st.NewestFullWavesBalance(callerRcp)
 				if err != nil {
 					return nil, err
@@ -1041,14 +1039,14 @@ func NewEnvironmentWithWrappedState(
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
-		isBlockV5Activated:    isBlockV5Activated,
-		isRiveV6Activated:     isRideV6Activated,
+		isBlockV5Activated:    env.isBlockV5Activated,
+		isRideV6Activated:     env.isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,
 	}, nil
 }
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {
-	return e.isRiveV6Activated
+	return e.isRideV6Activated
 }
 
 func (e *EvaluationEnvironment) blockV5Activated() bool {
