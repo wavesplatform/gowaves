@@ -893,44 +893,43 @@ func functionsV6() map[string]string {
 	m["sqrt"] = "sqrt"
 	m["sqrtBigInt"] = "sqrtBigInt"
 	m["1063"] = "addressFromPublicKeyStrict"
+	m["1205"] = "splitStringV6"
 	m["1209"] = "makeStringV6"
-	m["1210"] = "makeString1C"
-	m["1211"] = "makeString2C"
-	m["1212"] = "splitString1C"
-	m["1213"] = "splitString4C"
+	m["1210"] = "makeString2C"
+	m["1211"] = "makeString11C"
+	m["1212"] = "splitString4C"
+	m["1213"] = "splitString51C"
 	return m
 }
 
 func catalogueV6() map[string]int {
 	m := catalogueV5()
-	m["fraction"] = 4
 	m["3"] = 1
+	m["107"] = 1
+	m["108"] = 28
 	m["110"] = 1
+	m["118"] = 270
 	m["204"] = 6
 	m["205"] = 6
+	m["300"] = 1
 	m["306"] = 20
 	m["307"] = 20
-	m["1350"] = 1
-	m["sqrt"] = 2
-	m["sqrtBigInt"] = 5
-	m["1063"] = 1
-	m["1210"] = 1
-	m["1211"] = 2
-	m["1212"] = 1
-	m["1213"] = 4
-	m["1061"] = 1
-	m["300"] = 1
-	m["422"] = 1
-	m["107"] = 1
 	m["316"] = 1
 	m["317"] = 1
-	m["1205"] = 51
-	m["108"] = 28
-	m["118"] = 270
+	m["422"] = 1
 	m["500"] = 180
 	m["501"] = 195
 	m["502"] = 136
 	m["503"] = 118
+	m["1061"] = 1
+	m["1063"] = 1
+	m["1205"] = 1
+	m["1209"] = 1
+	m["1210"] = 2
+	m["1211"] = 11
+	m["1212"] = 4
+	m["1213"] = 51
+	m["1350"] = 1
 	for i, c := range []int{43, 50, 64, 93, 150} {
 		m[strconv.Itoa(2500+i)] = c
 	}
@@ -943,6 +942,9 @@ func catalogueV6() map[string]int {
 	for i, c := range []int{12, 23, 47, 93} {
 		m[strconv.Itoa(2900+i)] = c
 	}
+	m["fraction"] = 4
+	m["sqrt"] = 2
+	m["sqrtBigInt"] = 5
 	return m
 }
 

@@ -211,14 +211,14 @@ func splitString(_ environment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
-func splitString1C(_ environment, args ...rideType) (rideType, error) {
+func splitStringV6(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "splitString1C")
+		return nil, errors.Wrap(err, "splitStringV6")
 	}
 	r, err := split(s1, s2, 500, 20)
 	if err != nil {
-		return nil, errors.Wrap(err, "splitString1C")
+		return nil, errors.Wrap(err, "splitStringV6")
 	}
 	return r, nil
 }
@@ -231,6 +231,18 @@ func splitString4C(_ environment, args ...rideType) (rideType, error) {
 	r, err := split(s1, s2, 6000, 100)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString4C")
+	}
+	return r, nil
+}
+
+func splitString51C(_ environment, args ...rideType) (rideType, error) {
+	s1, s2, err := twoStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString51C")
+	}
+	r, err := split(s1, s2, maxMessageLength, maxListSize)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString51C")
 	}
 	return r, nil
 }
@@ -355,21 +367,9 @@ func makeStringV6(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "makeStringV6")
 	}
-	r, err := mkString(list, string(sep), maxListSize, maxMessageLength, strictStringList)
-	if err != nil {
-		return nil, errors.Wrap(err, "makeStringV6")
-	}
-	return rideString(r), nil
-}
-
-func makeString1C(_ environment, args ...rideType) (rideType, error) {
-	list, sep, err := listAndStringArgs(args)
-	if err != nil {
-		return nil, errors.Wrap(err, "makeString")
-	}
 	r, err := mkString(list, string(sep), 70, 500, strictStringList)
 	if err != nil {
-		return nil, errors.Wrap(err, "makeString")
+		return nil, errors.Wrap(err, "makeStringV6")
 	}
 	return rideString(r), nil
 }
@@ -380,6 +380,18 @@ func makeString2C(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "makeString")
 	}
 	r, err := mkString(list, string(sep), 100, 6000, strictStringList)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	return rideString(r), nil
+}
+
+func makeString11C(_ environment, args ...rideType) (rideType, error) {
+	list, sep, err := listAndStringArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	r, err := mkString(list, string(sep), 1000, 32767, strictStringList)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
