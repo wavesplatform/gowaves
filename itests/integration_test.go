@@ -90,18 +90,19 @@ func TestSendTransaction(t *testing.T) {
 	tx := proto.NewUnsignedTransferWithSig(testCfg.Accounts[0].PublicKey, a, a, ts, 1000000000, 10000000,
 		proto.NewRecipientFromAddress(testCfg.Accounts[1].Address), proto.Attachment{})
 	err = tx.Sign('L', testCfg.Accounts[0].SecretKey)
-	assert.NoError(t, err, "failed to create proofs frm signature")
+	assert.NoError(t, err, "failed to create proofs from signature")
 
 	bts, err := tx.MarshalBinary()
 	assert.NoError(t, err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
 	heightBefore, err := d.GoNodeClient.GetBlocksHeight()
-
-	err = scalaCon.SendMessage(&txMsg)
-	assert.NoError(t, err, "failed to send message GetPeersMessage")
+	assert.NoError(t, err, "failed to get height from go node")
 
 	err = goCon.SendMessage(&txMsg)
+	assert.NoError(t, err, "failed to send message GetPeersMessage")
+
+	err = scalaCon.SendMessage(&txMsg)
 	assert.NoError(t, err, "failed to send message GetPeersMessage")
 
 	newHeight := WaitForNewHeight(t, *heightBefore)
