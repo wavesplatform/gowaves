@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const DefaultTimeout = 15 * time.Second
@@ -18,53 +22,63 @@ func NewNodeClient(url string, timeout time.Duration) *NodeClient {
 	return &NodeClient{cl: &http.Client{Timeout: timeout}, BaseUrl: url}
 }
 
-type BlockHeightResponse struct {
-	Height uint64 `json:"height"`
-}
-
-func (c *NodeClient) GetBlocksHeight() (BlockHeightResponse, error) {
+func (c *NodeClient) GetBlocksHeight() (*client.BlocksHeight, error) {
 	req, err := http.NewRequest("GET", c.BaseUrl+"blocks/height", nil)
 	if err != nil {
-		return BlockHeightResponse{}, fmt.Errorf("failed to create request: %s", err)
+		return nil, fmt.Errorf("failed to create request: %s", err)
 	}
 	req.Header.Add("Accept", "application/json")
 
 	respRaw, err := c.cl.Do(req)
 	if err != nil {
-		return BlockHeightResponse{}, err
+		return nil, err
 	}
 
-	var resp BlockHeightResponse
-	if err = json.NewDecoder(respRaw.Body).Decode(&resp); err != nil {
-		return BlockHeightResponse{}, fmt.Errorf("parse error: %s", err)
+	resp := &client.BlocksHeight{}
+	if err = json.NewDecoder(respRaw.Body).Decode(resp); err != nil {
+		return nil, fmt.Errorf("parse error: %s", err)
 	}
 	return resp, nil
 }
 
 type NodeVersionResponse struct {
-	Version string `json:"height"`
+	Version string `json:"version"`
 }
 
-func (c *NodeClient) GetNodeVersion() (NodeVersionResponse, error) {
+func (c *NodeClient) GetNodeVersion() (*NodeVersionResponse, error) {
 	req, err := http.NewRequest("GET", c.BaseUrl+"node/version", nil)
 	if err != nil {
-		return NodeVersionResponse{}, fmt.Errorf("failed to create request: %s", err)
+		return nil, fmt.Errorf("failed to create request: %s", err)
 	}
 	req.Header.Add("Accept", "application/json")
 
 	respRaw, err := c.cl.Do(req)
 	if err != nil {
-		return NodeVersionResponse{}, err
+		return nil, err
 	}
 
-	var resp NodeVersionResponse
-	if err = json.NewDecoder(respRaw.Body).Decode(&resp); err != nil {
-		return NodeVersionResponse{}, fmt.Errorf("parse error: %s", err)
+	resp := &NodeVersionResponse{}
+	if err = json.NewDecoder(respRaw.Body).Decode(resp); err != nil {
+		return nil, fmt.Errorf("parse error: %s", err)
 	}
 	return resp, nil
 }
 
-type DebugStateResponse struct {
-}
+func (c *NodeClient) GetStateHash(height uint64) (*proto.StateHash, error) {
+	req, err := http.NewRequest("GET", c.BaseUrl+"debug/stateHash/"+strconv.FormatUint(height, 10), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %s", err)
+	}
+	req.Header.Add("Accept", "application/json")
 
-//func (c *NodeClient) GetDebugStateHash()
+	respRaw, err := c.cl.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &proto.StateHash{}
+	if err = json.NewDecoder(respRaw.Body).Decode(resp); err != nil {
+		return nil, fmt.Errorf("parse error: %s", err)
+	}
+	return resp, nil
+}

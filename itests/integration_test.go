@@ -1,16 +1,18 @@
 package integration_test
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/itests/net"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
+	"github.com/wavesplatform/gowaves/itests/net"
+	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var (
@@ -39,18 +41,48 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestCheckHeight(t *testing.T) {
-	goHeight, err := d.GoNodeClient.GetBlocksHeight()
-	assert.NoError(t, err, "failed to get height from go node")
+func StateHashCmp(t *testing.T, height uint64) {
+	goStateHash, err := d.GoNodeClient.GetStateHash(height)
+	assert.NoError(t, err, "failed to get stateHash from scala node")
 
-	scalaHeight, err := d.ScalaNodeClient.GetBlocksHeight()
-	assert.NoError(t, err, "failed to get height from scala node")
+	scalaStateHash, err := d.ScalaNodeClient.GetStateHash(height)
+	assert.NoError(t, err, "failed to get stateHash from scala node")
 
-	assert.Equal(t, goHeight, scalaHeight)
+	assert.Equal(t, scalaStateHash, goStateHash)
+}
+
+func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
+	var scalaHeight, goHeight uint64
+	for {
+		h, err := d.GoNodeClient.GetBlocksHeight()
+		assert.NoError(t, err, "failed to get height from go node")
+		if h.Height > beforeHeight.Height+1 {
+			goHeight = h.Height
+			break
+		}
+		time.Sleep(time.Second * 1)
+	}
+	for {
+		h, err := d.ScalaNodeClient.GetBlocksHeight()
+		assert.NoError(t, err, "failed to get height from scala node")
+		if h.Height > beforeHeight.Height+1 {
+			scalaHeight = h.Height
+			break
+		}
+		time.Sleep(time.Second * 1)
+	}
+	if scalaHeight < goHeight {
+		return scalaHeight - 1
+	} else {
+		return goHeight - 1
+	}
 }
 
 func TestSendTransaction(t *testing.T) {
-	c, err := net.NewConnection(proto.TCPAddr{}, "127.0.0.1"+":"+d.ScalaNodeBindPort, proto.Version{Major: 1, Minor: 4, Patch: 0}, "wavesL")
+	scalaCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, net.NodeVersion, "wavesL")
+	assert.NoError(t, err, "failed to create connection to scala node")
+
+	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, net.NodeVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
 	a := proto.NewOptionalAssetWaves()
@@ -62,8 +94,17 @@ func TestSendTransaction(t *testing.T) {
 
 	bts, err := tx.MarshalBinary()
 	assert.NoError(t, err, "failed to marshal tx")
-
 	txMsg := proto.TransactionMessage{Transaction: bts}
-	err = c.SendMessage(&txMsg)
+
+	heightBefore, err := d.GoNodeClient.GetBlocksHeight()
+
+	err = scalaCon.SendMessage(&txMsg)
 	assert.NoError(t, err, "failed to send message GetPeersMessage")
+
+	err = goCon.SendMessage(&txMsg)
+	assert.NoError(t, err, "failed to send message GetPeersMessage")
+
+	newHeight := WaitForNewHeight(t, *heightBefore)
+
+	StateHashCmp(t, newHeight)
 }

@@ -1,6 +1,6 @@
 {
   "scheme": "L",
-  "average_block_delay": 10,
+  "average_block_delay": 15,
   "distributions": [
     {
       "seed_text": "node01",
