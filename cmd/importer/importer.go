@@ -35,6 +35,8 @@ var (
 	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
 	buildDataForExtendedApi   = flag.Bool("build-extended-api", false, "Build and store additional data required for extended API in state. WARNING: this slows down the import, use only if you do really need extended API.")
 	buildStateHashes          = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
+	filter                    = flag.Bool("filter", false, "Must be true after using rollback utility because it allows to check the validity of the records")
+
 	// Debug.
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
@@ -108,7 +110,12 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
-	st, err := state.NewState(dataDir, false, params, ss)
+
+	if filter == nil {
+		zap.S().Fatalf("You must define filter flag")
+	}
+
+	st, err := state.NewState(dataDir, *filter, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}
