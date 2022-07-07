@@ -2568,29 +2568,10 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
 	wrappedSt = *NewWrappedSt
 
-	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-
-	require.NoError(t, err)
-	r, ok := res.(DAppResult)
-	require.True(t, ok)
-
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(ap))
-	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    make([]*proto.TransferScriptAction, 0),
-		Issues:       make([]*proto.IssueScriptAction, 0),
-		Reissues:     make([]*proto.ReissueScriptAction, 0),
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-	}
-	assert.Equal(t, expectedActionsResult, sr)
+	_, err = CallFunction(env, tree, "foo", proto.Arguments{})
+	assert.EqualError(t, err, "invoke: too many internal invocations")
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
-
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
 	tearDownDappFromDapp()
@@ -2692,7 +2673,6 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 }
 
 func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
-
 	/* script 1
 	{-# STDLIB_VERSION 5 #-}
 	{-# CONTENT_TYPE DAPP #-}
@@ -2760,29 +2740,10 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
 	wrappedSt = *NewWrappedSt
 
-	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-
-	require.NoError(t, err)
-	r, ok := res.(DAppResult)
-	require.True(t, ok)
-
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(ap))
-	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    make([]*proto.TransferScriptAction, 0),
-		Issues:       make([]*proto.IssueScriptAction, 0),
-		Reissues:     make([]*proto.ReissueScriptAction, 0),
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-	}
-	assert.Equal(t, expectedActionsResult, sr)
+	_, err = CallFunction(env, tree, "foo", proto.Arguments{})
+	assert.EqualError(t, err, "reentrantInvoke: too many internal invocations")
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
-
 	assert.Equal(t, expectedDiffResult.data, wrappedSt.diff.data)
 
 	tearDownDappFromDapp()

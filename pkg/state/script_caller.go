@@ -35,7 +35,7 @@ func newScriptCaller(
 }
 
 // callAccountScriptWithOrder calls account script. This method must not be called for proto.EthereumAddress.
-func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, isRideV5 bool, initialisation bool) error {
+func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, info *fallibleValidationParams) error {
 	senderAddr, err := order.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
@@ -48,19 +48,19 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !info.initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight, info.blockV5Activated, info.rideV6Activated)
 	if err != nil {
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
-	env.ChooseTakeString(isRideV5)
-	env.ChooseMaxDataEntriesSize(isRideV5)
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -73,11 +73,11 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
 	}
 	// Increase complexity.
-	if isRideV5 { // After activation of RideV5
+	if info.rideV5Activated { // After activation of RideV5
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !info.initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 		}
@@ -104,7 +104,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if err != nil {
 		return err
 	}
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight, params.blockV5Activated, params.rideV6Activated)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -186,7 +186,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 }
 
 func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight, params.blockV5Activated, params.rideV6Activated)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 }
 
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight, params.blockV5Activated, params.rideV6Activated)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 }
 
 func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight, info.blockV5Activated, info.rideV6Activated)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
@@ -247,15 +247,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(
-				env,
-				payments,
-				sender,
-				info.blockV5Activated,
-				info.rideV6Activated,
-				proto.IsProtobufTx(tx),
-				tree.LibVersion,
-			)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -281,15 +273,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(
-				env,
-				payments,
-				sender,
-				info.blockV5Activated,
-				info.rideV6Activated,
-				proto.IsProtobufTx(tx),
-				tree.LibVersion,
-			)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -331,15 +315,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		defaultFunction = true
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(
-				env,
-				payments,
-				sender,
-				info.blockV5Activated,
-				info.rideV6Activated,
-				proto.IsProtobufTx(tx),
-				tree.LibVersion,
-			)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
