@@ -79,9 +79,6 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 }
 
 func TestSendTransaction(t *testing.T) {
-	scalaCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, net.NodeVersion, "wavesL")
-	assert.NoError(t, err, "failed to create connection to scala node")
-
 	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, net.NodeVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
@@ -100,9 +97,6 @@ func TestSendTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to get height from go node")
 
 	err = goCon.SendMessage(&txMsg)
-	assert.NoError(t, err, "failed to send message GetPeersMessage")
-
-	err = scalaCon.SendMessage(&txMsg)
 	assert.NoError(t, err, "failed to send message GetPeersMessage")
 
 	newHeight := WaitForNewHeight(t, *heightBefore)
