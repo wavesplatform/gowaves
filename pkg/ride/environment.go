@@ -359,7 +359,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	timestamp := env.timestamp()
 
-	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight())
+	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight(), env.blockV5Activated(), env.rideV6Activated())
 	if err != nil {
 		return false, err
 	}
@@ -948,7 +948,7 @@ type EvaluationEnvironment struct {
 	mds                   int
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64) (*EvaluationEnvironment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64, blockV5, rideV6 bool) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
@@ -960,6 +960,8 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
 		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter: internalPaymentsValidationHeight,
+		isBlockV5Activated:    blockV5,
+		isRiveV6Activated:     rideV6,
 	}, nil
 }
 
