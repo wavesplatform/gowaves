@@ -57,7 +57,6 @@ var (
 	blockID1 = genBlockId(2)
 	blockID2 = genBlockId(3)
 	blockID3 = genBlockId(4)
-	blockID4 = genBlockId(5)
 )
 
 type testWavesAddr interface {
