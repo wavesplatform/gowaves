@@ -8488,8 +8488,7 @@ func TestNegativePayments(t *testing.T) {
 
 	flag = true
 	_, err = CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	assert.Equal(t, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount", err.Error())
+	assert.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount")
 }
 
 func TestComplexityOverflow(t *testing.T) {
@@ -8668,8 +8667,7 @@ func TestComplexityOverflow(t *testing.T) {
 	}
 
 	_, err = CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit for library version 5", err.Error())
+	require.EqualError(t, err, "evaluation complexity 28113 exceeds 26000 limit for library version 5")
 }
 
 func TestDateEntryPutAfterRemoval(t *testing.T) {
@@ -9127,9 +9125,8 @@ func TestInvokeFailForRideV4(t *testing.T) {
 	}
 
 	res, err := CallFunction(env, tree1, "call", arguments)
-	require.Nil(t, res)
-	require.Error(t, err)
-	require.Equal(t, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'", err.Error())
+	assert.Nil(t, res)
+	require.EqualError(t, err, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
@@ -9808,9 +9805,8 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 	}
 
 	res, err := CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	require.Equal(t, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30", err.Error())
 	assert.Nil(t, res)
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
@@ -10034,8 +10030,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
 
 	res, err := CallFunction(env, tree1, "call", arguments)
 	assert.Nil(t, res)
-	require.Error(t, err)
-	require.Equal(t, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30", err.Error())
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
 func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
@@ -10211,9 +10206,8 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 
 	rideV6Activated = true
 	res, err := CallFunction(env, tree, "test", arguments)
-	require.Error(t, err)
-	require.Equal(t, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100", err.Error())
-	require.Nil(t, res)
+	assert.Nil(t, res)
+	require.EqualError(t, err, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100")
 
 	rideV6Activated = false
 	res, err = CallFunction(env, tree, "test", arguments)
