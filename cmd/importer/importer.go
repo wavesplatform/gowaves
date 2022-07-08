@@ -111,10 +111,6 @@ func main() {
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
 
-	if filter == nil {
-		zap.S().Fatalf("You must define filter flag")
-	}
-
 	st, err := state.NewState(dataDir, *filter, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
