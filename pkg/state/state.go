@@ -19,6 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -810,6 +811,19 @@ func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64,
 	return s.NewestEffectiveBalance(account, start, end)
 }
 
+func (s *stateManager) newestGeneratingBalance(id proto.AddressID) (uint64, error) {
+	height, err := s.NewestHeight()
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(id, start, end)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return effectiveBalance, nil
+}
+
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
@@ -866,6 +880,23 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
+func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+	profile, err := s.newestWavesBalanceProfile(id)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	var generating uint64 = 0
+	if gb, err := s.newestGeneratingBalance(id); err == nil {
+		generating = gb
+	}
+	return &types.WavesBalanceProfile{
+		Balance:    profile.balance,
+		LeaseIn:    profile.leaseIn,
+		LeaseOut:   profile.leaseOut,
+		Generating: generating,
+	}, nil
+}
+
 func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
@@ -884,6 +915,14 @@ func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.
 		return 0, wrapErr(RetrievalError, err)
 	}
 	balance, err := s.newestAssetBalance(addr.ID(), proto.AssetIDFromDigest(asset))
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return balance, nil
+}
+
+func (s *stateManager) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
+	balance, err := s.newestAssetBalance(id, proto.AssetIDFromDigest(asset))
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

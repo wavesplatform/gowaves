@@ -117,8 +117,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
 	}
 	ws.incrementInvCount()
-	if ws.invCount() > 100 {
-		return rideUnit{}, nil
+	if ws.invCount() > 200 {
+		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
 
 	callerAddress, ok := env.this().(rideAddress)

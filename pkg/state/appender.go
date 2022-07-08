@@ -721,13 +721,13 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 			return nil, err
 		}
 		if o1Scripted {
-			if err := a.sc.callAccountScriptWithOrder(o1, info.blockInfo, info.rideV5Activated, info.initialisation); err != nil {
+			if err := a.sc.callAccountScriptWithOrder(o1, info.blockInfo, info); err != nil {
 				return nil, errors.Wrap(err, "script failure on first order")
 			}
 			scriptsRuns++
 		}
 		if o2Scripted {
-			if err := a.sc.callAccountScriptWithOrder(o2, info.blockInfo, info.rideV5Activated, info.initialisation); err != nil {
+			if err := a.sc.callAccountScriptWithOrder(o2, info.blockInfo, info); err != nil {
 				return nil, errors.Wrap(err, "script failure on second order")
 			}
 			scriptsRuns++
