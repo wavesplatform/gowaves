@@ -83,7 +83,9 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	cfg.Genesis = *b
 	cfg.AddressSchemeCharacter = genSettings.Scheme
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
-	cfg.PreactivatedFeatures = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17}
+	cfg.BlockRewardIncrement = 100000
+	cfg.BlockRewardVotingPeriod = 1000
+	cfg.PreactivatedFeatures = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
 
 	return cfg, acc, nil
 }

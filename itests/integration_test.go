@@ -97,7 +97,7 @@ func TestSendTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to get height from go node")
 
 	err = goCon.SendMessage(&txMsg)
-	assert.NoError(t, err, "failed to send message GetPeersMessage")
+	assert.NoError(t, err, "failed to send TransactionMessage")
 
 	newHeight := WaitForNewHeight(t, *heightBefore)
 

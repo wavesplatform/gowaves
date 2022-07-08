@@ -59,4 +59,6 @@ CMD sleep 5 && /app/node \
     -build-state-hashes \
     -serve-extended-api \
     -log-level=debug \
+    -outdate=1h \
+    -reward=600000000 \
     -bloom=true
