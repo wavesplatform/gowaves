@@ -119,7 +119,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
 	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
-	err = manager.flush(false)
+	err = manager.flush()
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
 	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp, 3, true)

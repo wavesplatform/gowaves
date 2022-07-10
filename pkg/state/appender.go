@@ -155,8 +155,8 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bool, error) {
-	return a.txHandler.tc.orderScriptedAccount(order, initialisation)
+func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
+	return a.txHandler.tc.orderScriptedAccount(order)
 }
 
 // For UTX validation, this returns the last stable block, which is in fact current block.
@@ -222,7 +222,7 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
-	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor, !info.initialisation)
+	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor)
 }
 
 // This function is used for script validation of transaction that can't fail.
@@ -287,25 +287,25 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockI
 	return nil
 }
 
-func (a *txAppender) needToCheckOrdersSignatures(transaction proto.Transaction, initialisation bool) (bool, bool, error) {
+func (a *txAppender) needToCheckOrdersSignatures(transaction proto.Transaction) (bool, bool, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return false, false, nil
 	}
-	o1Scripted, err := a.orderIsScripted(tx.GetOrder1(), initialisation)
+	o1Scripted, err := a.orderIsScripted(tx.GetOrder1())
 	if err != nil {
 		return false, false, err
 	}
-	o2Scripted, err := a.orderIsScripted(tx.GetOrder2(), initialisation)
+	o2Scripted, err := a.orderIsScripted(tx.GetOrder2())
 	if err != nil {
 		return false, false, err
 	}
 	return !o1Scripted, !o2Scripted, nil
 }
 
-func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress, txID []byte, blockID proto.BlockID, filter bool) error {
+func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress, txID []byte, blockID proto.BlockID) error {
 	for _, addr := range addresses {
-		if err := a.atx.saveTxIdByAddress(addr, txID, blockID, filter); err != nil {
+		if err := a.atx.saveTxIdByAddress(addr, txID, blockID); err != nil {
 			return err
 		}
 	}
@@ -361,7 +361,7 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 	// Detect what signatures must be checked for this transaction.
 	// For transaction with SmartAccount we don't check signature.
 	checkTxSig := !accountHasVerifierScript
-	checkOrder1, checkOrder2, err := a.needToCheckOrdersSignatures(tx, params.initialisation)
+	checkOrder1, checkOrder2, err := a.needToCheckOrdersSignatures(tx)
 	if err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	if err != nil {
 		return errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
-	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
+	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 	if err != nil {
 		return errs.Extend(err, "account has verifier")
 	}
@@ -526,7 +526,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	}
 	if needToValidateBalanceDiff {
 		// Validate balance diff for negative balances.
-		if err := a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor, !params.initialisation); err != nil {
+		if err := a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor); err != nil {
 			return errs.Extend(err, "validate transaction diff")
 		}
 	}
@@ -545,7 +545,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	}
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
-		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID, !params.initialisation); err != nil {
+		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
 			return errs.Extend(err, "save transaction id by addresses")
 		}
 	}
@@ -583,7 +583,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.initialisation)
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent)
 	if err != nil {
 		return err
 	}
@@ -625,15 +625,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	return nil
 }
 
-func (a *txAppender) applyAllDiffs(initialisation bool) error {
+func (a *txAppender) applyAllDiffs() error {
 	a.recentTxIds = make(map[string]struct{})
-	return a.moveChangesToHistoryStorage(initialisation)
+	return a.moveChangesToHistoryStorage()
 }
 
-func (a *txAppender) moveChangesToHistoryStorage(initialisation bool) error {
+func (a *txAppender) moveChangesToHistoryStorage() error {
 	changes := a.diffStor.allChanges()
 	a.diffStor.reset()
-	return a.diffApplier.applyBalancesChanges(changes, !initialisation)
+	return a.diffApplier.applyBalancesChanges(changes)
 }
 
 type fallibleValidationParams struct {
@@ -712,11 +712,11 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		// Check orders scripts.
 		o1 := exchange.GetOrder1()
 		o2 := exchange.GetOrder2()
-		o1Scripted, err := a.orderIsScripted(o1, info.initialisation)
+		o1Scripted, err := a.orderIsScripted(o1)
 		if err != nil {
 			return nil, err
 		}
-		o2Scripted, err := a.orderIsScripted(o2, info.initialisation)
+		o2Scripted, err := a.orderIsScripted(o2)
 		if err != nil {
 			return nil, err
 		}
@@ -767,8 +767,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	}
 	if info.acceptFailed {
 		// If accepting failed, we must also check resulting balances.
-		filter := !info.initialisation
-		if err := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor, filter); err != nil {
+		if err := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor); err != nil {
 			// Not enough balance for successful diff = fail, return failed diff.
 			// We only check successful diff for negative balances, because failed diff is already checked in checkTxFees().
 			return &applicationResult{false, scriptsRuns, failedChanges}, nil

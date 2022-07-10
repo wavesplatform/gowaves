@@ -41,7 +41,7 @@ func TestSaveEmptyInvokeResult(t *testing.T) {
 	require.NoError(t, err)
 	// Flush.
 	to.stor.flush(t)
-	res, err := to.invokeResults.invokeResult('W', invokeID, true)
+	res, err := to.invokeResults.invokeResult('W', invokeID)
 	require.NoError(t, err)
 	assert.EqualValues(t, savedRes, res)
 }
@@ -105,7 +105,7 @@ func TestSaveResult(t *testing.T) {
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)
 	to.stor.flush(t)
-	res, err := to.invokeResults.invokeResult('W', invokeID, true)
+	res, err := to.invokeResults.invokeResult('W', invokeID)
 	require.NoError(t, err)
 	assert.EqualValues(t, savedRes, res)
 }

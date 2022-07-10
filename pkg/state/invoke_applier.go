@@ -196,14 +196,14 @@ func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisa
 	for i, a := range actions {
 		switch ta := a.(type) {
 		case *proto.TransferScriptAction:
-			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases)
 			if err != nil {
 				return err
 			}
 			ta.Recipient = proto.NewRecipientFromAddress(*addr)
 			actions[i] = ta
 		case *proto.LeaseScriptAction:
-			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases)
 			if err != nil {
 				return err
 			}
@@ -262,7 +262,7 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 		default:
 			continue
 		}
-		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, initialisation)
+		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 		if err != nil {
 			return 0, errors.Errorf("failed to count actions: failed to check whether the asset was smart")
 		}
@@ -390,13 +390,13 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Perform transfers.
 			recipientAddress := a.Recipient.Address
 			totalChanges.appendAddr(*recipientAddress)
-			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
 			var isSmartAsset bool
 			if a.Asset.Present {
-				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Errorf("transfer script actions: failed to check whether the asset was smart")
 				}
@@ -434,13 +434,13 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Perform transfers.
 			recipientAddress := a.Recipient.Address
 			totalChanges.appendAddr(*recipientAddress)
-			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
 			var isSmartAsset bool
 			if a.Asset.Present {
-				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Errorf("attached payment script actions: failed to check whether the asset was smart")
 				}
@@ -519,7 +519,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		case *proto.ReissueScriptAction:
 			// Check validity of reissue.
 			id := proto.AssetIDFromDigest(a.AssetID)
-			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -566,7 +566,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		case *proto.BurnScriptAction:
 			// Check burn.
 			id := proto.AssetIDFromDigest(a.AssetID)
-			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -593,7 +593,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			change := &assetBurnChange{
 				diff: a.Quantity,
 			}
-			if err := ia.stor.assets.burnAssetUncertain(id, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.burnAssetUncertain(id, change); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
 			}
 			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress.ID(), a)
@@ -614,7 +614,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.SponsorshipScriptAction:
 			assetID := proto.AssetIDFromDigest(a.AssetID)
-			assetInfo, err := ia.stor.assets.newestAssetInfo(assetID, !info.initialisation)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(assetID)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -629,7 +629,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
 
-			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, !info.initialisation)
+			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, errors.Errorf("sponsorships: failed to check whether the asset was smart")
 			}
@@ -677,7 +677,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 
 		case *proto.LeaseCancelScriptAction:
-			li, err := ia.stor.leases.newestLeasingInfo(a.LeaseID, !info.initialisation)
+			li, err := ia.stor.leases.newestLeasingInfo(a.LeaseID)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -685,7 +685,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
 			}
 			// Update leasing info
-			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, &txID, !info.initialisation); err != nil {
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, &txID); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
 			}
 
@@ -710,7 +710,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	}
 	if info.acceptFailed {
 		// Validate total balance changes.
-		if err := ia.diffApplier.validateTxDiff(totalChanges.diff, ia.invokeDiffStor.diffStorage, !info.initialisation); err != nil {
+		if err := ia.diffApplier.validateTxDiff(totalChanges.diff, ia.invokeDiffStor.diffStorage); err != nil {
 			// Total balance changes lead to negative balance, hence invoke has failed.
 			// TODO: use different code for negative balances after it is introduced; use better error text here (addr + amount + asset).
 			return proto.DAppError, info.failedChanges, err
@@ -742,7 +742,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
 		var err error
-		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases)
 		if err != nil {
 			return nil, errors.Wrap(err, "recipientToAddress() failed")
 		}
@@ -752,11 +752,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
 		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
@@ -788,11 +788,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
 		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
@@ -901,7 +901,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	if info.senderScripted {
 		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
 		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion(), !info.initialisation)
+			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
 			if err != nil {
 				return nil, errors.Wrap(err, "invoke failed to get verifier complexity")
 			}
@@ -1030,7 +1030,7 @@ func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAs
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
 	txID crypto.Digest, txTimestamp uint64, params *appendTxParams) (bool, error) {
-	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset), !params.initialisation)
+	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset))
 	if err != nil {
 		return false, err
 	}

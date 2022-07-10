@@ -287,8 +287,8 @@ func newBatchedStorage(
 	}, nil
 }
 
-func (s *batchedStorage) lastRecordByKey(key []byte, filter bool) ([]byte, error) {
-	last, err := s.readLastBatch(key, filter)
+func (s *batchedStorage) lastRecordByKey(key []byte) ([]byte, error) {
+	last, err := s.readLastBatch(key)
 	if err != nil {
 		return nil, err
 	}
@@ -299,10 +299,10 @@ func (s *batchedStorage) lastRecordByKey(key []byte, filter bool) ([]byte, error
 	return record.recordBytes(), nil
 }
 
-func (s *batchedStorage) newestLastRecordByKey(key []byte, filter bool) ([]byte, error) {
+func (s *batchedStorage) newestLastRecordByKey(key []byte) ([]byte, error) {
 	bg, ok := s.localStor[string(key)]
 	if !ok {
-		return s.lastRecordByKey(key, filter)
+		return s.lastRecordByKey(key)
 	}
 	record, err := bg.lastRecord()
 	if err != nil {
@@ -311,12 +311,12 @@ func (s *batchedStorage) newestLastRecordByKey(key []byte, filter bool) ([]byte,
 	return record.recordBytes(), nil
 }
 
-func (s *batchedStorage) newBatchGroupForKey(key []byte, filter bool) (*batchesGroup, error) {
+func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) {
 	bg, err := newBatchesGroup(s.params.maxBatchSize, s.params.recordSize)
 	if err != nil {
 		return nil, err
 	}
-	last, err := s.readLastBatch(key, filter)
+	last, err := s.readLastBatch(key)
 	if err == errNotFound {
 		return bg, nil
 	} else if err != nil {
@@ -326,7 +326,7 @@ func (s *batchedStorage) newBatchGroupForKey(key []byte, filter bool) (*batchesG
 	return bg, nil
 }
 
-func (s *batchedStorage) addRecordBytes(key, record []byte, filter bool) error {
+func (s *batchedStorage) addRecordBytes(key, record []byte) error {
 	keyStr := string(key)
 	bg, ok := s.localStor[keyStr]
 	if ok {
@@ -335,7 +335,7 @@ func (s *batchedStorage) addRecordBytes(key, record []byte, filter bool) error {
 		}
 		s.memSize += len(record)
 	} else {
-		newGroup, err := s.newBatchGroupForKey(key, filter)
+		newGroup, err := s.newBatchGroupForKey(key)
 		if err != nil {
 			return err
 		}
@@ -355,10 +355,10 @@ func (s *batchedStorage) addRecordBytes(key, record []byte, filter bool) error {
 }
 
 // Appends one more record (at the end) for specified key.
-func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32, filter bool) error {
+func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) error {
 	r := &record{data: data, blockNum: blockNum}
 	recordBytes := r.marshalBinary()
-	return s.addRecordBytes(key, recordBytes, filter)
+	return s.addRecordBytes(key, recordBytes)
 }
 
 func (s *batchedStorage) batchByNum(key []byte, num uint32) (*batch, error) {
@@ -439,7 +439,9 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 	}
 }
 
-func (s *batchedStorage) readLastBatch(key []byte, filter bool) (*batch, error) {
+func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
+	// TODO here we should also add filter
+	filter := true
 	if filter {
 		if err := s.normalizeBatches(key); err != nil {
 			return nil, errors.Wrap(err, "failed to normalize")

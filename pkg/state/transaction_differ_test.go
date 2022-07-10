@@ -1170,7 +1170,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 		testGlobal.senderInfo.addr: empty,
 	}
 	for _, entry := range entries {
-		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases, true)
+		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases)
 		assert.NoError(t, err, "recipientToAddress() failed")
 		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset), newBalanceDiff(int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")

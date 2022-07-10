@@ -42,12 +42,12 @@ func newWavesValue(prevProf, newProf balanceProfile) *wavesValue {
 	return val
 }
 
-func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, validateOnly bool) error {
+func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, validateOnly bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal waves balance key: %v\n", err)
 	}
-	profile, err := a.balances.newestWavesBalance(k.address, filter)
+	profile, err := a.balances.newestWavesBalance(k.address)
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
@@ -78,12 +78,12 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 	return nil
 }
 
-func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, validateOnly bool) error {
+func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, validateOnly bool) error {
 	var k assetBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal asset balance key: %v\n", err)
 	}
-	balance, err := a.balances.newestAssetBalance(k.address, k.asset, filter)
+	balance, err := a.balances.newestAssetBalance(k.address, k.asset)
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
@@ -108,15 +108,15 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	return nil
 }
 
-func (a *diffApplier) applyBalanceChanges(changes *balanceChanges, filter, validateOnly bool) error {
+func (a *diffApplier) applyBalanceChanges(changes *balanceChanges, validateOnly bool) error {
 	if len(changes.key) > wavesBalanceKeySize {
 		// Is asset change.
-		if err := a.applyAssetBalanceChanges(changes, filter, validateOnly); err != nil {
+		if err := a.applyAssetBalanceChanges(changes, validateOnly); err != nil {
 			return err
 		}
 	} else {
 		// Is Waves change, need to take leasing into account.
-		if err := a.applyWavesBalanceChanges(changes, filter, validateOnly); err != nil {
+		if err := a.applyWavesBalanceChanges(changes, validateOnly); err != nil {
 			return err
 		}
 	}
@@ -135,7 +135,7 @@ func (k changesByKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
-func (a *diffApplier) applyBalancesChangesImpl(changesPack []balanceChanges, filter, validateOnly bool) error {
+func (a *diffApplier) applyBalancesChangesImpl(changesPack []balanceChanges, validateOnly bool) error {
 	// Sort all changes by addresses they do modify.
 	// LevelDB stores data sorted by keys, and the idea is to read in sorted order.
 	// We save a lot of time on disk's seek time for hdd, and some time for ssd too (by reducing amount of reads).
@@ -143,25 +143,25 @@ func (a *diffApplier) applyBalancesChangesImpl(changesPack []balanceChanges, fil
 	sort.Sort(changesByKey(changesPack))
 	for i := range changesPack {
 		changes := &changesPack[i] // prevent implicit memory aliasing in for loop
-		if err := a.applyBalanceChanges(changes, filter, validateOnly); err != nil {
+		if err := a.applyBalanceChanges(changes, validateOnly); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (a *diffApplier) applyBalancesChanges(changes []balanceChanges, filter bool) error {
-	return a.applyBalancesChangesImpl(changes, filter, false)
+func (a *diffApplier) applyBalancesChanges(changes []balanceChanges) error {
+	return a.applyBalancesChangesImpl(changes, false)
 }
 
-func (a *diffApplier) validateBalancesChanges(changes []balanceChanges, filter bool) error {
-	return a.applyBalancesChangesImpl(changes, filter, true)
+func (a *diffApplier) validateBalancesChanges(changes []balanceChanges) error {
+	return a.applyBalancesChangesImpl(changes, true)
 }
 
-func (a *diffApplier) validateTxDiff(diff txDiff, stor *diffStorage, filter bool) error {
+func (a *diffApplier) validateTxDiff(diff txDiff, stor *diffStorage) error {
 	changes, err := stor.changesByTxDiff(diff)
 	if err != nil {
 		return err
 	}
-	return a.validateBalancesChanges(changes, filter)
+	return a.validateBalancesChanges(changes)
 }

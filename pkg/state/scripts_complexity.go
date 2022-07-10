@@ -22,9 +22,9 @@ func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
 	return &scriptsComplexity{hs: hs}
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int) (*ride.TreeEstimation, error) {
 	key := accountScriptComplexityKey{ev, addr.ID()}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +35,9 @@ func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev
 	return record, nil
 }
 
-func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address, filter bool) (int, error) {
+func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address) (int, error) {
 	key := accountOriginalEstimatorVersionKey{addr.ID()}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -48,17 +48,17 @@ func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address, filter
 	return int(record.Version), nil
 }
 
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.WavesAddress, filter bool) (*ride.TreeEstimation, error) {
-	ev, err := sc.originalEstimatorVersion(addr, filter)
+func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.WavesAddress) (*ride.TreeEstimation, error) {
+	ev, err := sc.originalEstimatorVersion(addr)
 	if err != nil {
 		return nil, err
 	}
-	return sc.newestScriptComplexityByAddr(addr, ev, filter)
+	return sc.newestScriptComplexityByAddr(addr, ev)
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{asset}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID, 
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{asset}
-	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +82,9 @@ func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID, filter
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int) (*ride.TreeEstimation, error) {
 	key := accountScriptComplexityKey{ev, addr.ID()}
-	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}

@@ -383,7 +383,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 		return nil, res, err
 	}
 	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, true)
 	if err != nil {
 		return nil, res, err
 	}
@@ -496,7 +496,7 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	err := s.rw.flush()
 	assert.NoError(t, err, "rw.flush() failed")
 	s.rw.reset()
-	err = s.entities.flush(true)
+	err = s.entities.flush()
 	assert.NoError(t, err, "entities.flush() failed")
 	s.entities.reset()
 	err = s.stateDB.flush()

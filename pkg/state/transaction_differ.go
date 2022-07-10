@@ -352,11 +352,11 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	return changes, nil
 }
 
-func recipientToAddress(recipient proto.Recipient, aliases *aliases, filter bool) (*proto.WavesAddress, error) {
+func recipientToAddress(recipient proto.Recipient, aliases *aliases) (*proto.WavesAddress, error) {
 	if recipient.Address != nil {
 		return recipient.Address, nil
 	}
-	addr, err := aliases.newestAddrByAlias(recipient.Alias.Alias, filter)
+	addr, err := aliases.newestAddrByAlias(recipient.Alias.Alias)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid alias")
 	}
@@ -384,7 +384,7 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 		updateMinIntermediateBalance = true
 	}
 	shortAssetID := proto.AssetIDFromDigest(feeAsset.ID)
-	assetInfo, err := td.stor.assets.newestAssetInfo(shortAssetID, !info.initialisation)
+	assetInfo, err := td.stor.assets.newestAssetInfo(shortAssetID)
 	if err != nil {
 		return err
 	}
@@ -445,7 +445,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 		return txBalanceChanges{}, err
 	}
 	// Append receiver diff.
-	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases, !info.initialisation)
+	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -789,7 +789,7 @@ func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, p
 			asset = buy.GetAssetPair().PriceAsset
 		}
 		if asset.Present {
-			info, err := td.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(asset.ID), filter)
+			info, err := td.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(asset.ID))
 			if err != nil {
 				return 0, err
 			}
@@ -1100,7 +1100,7 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 		return txBalanceChanges{}, err
 	}
 	// Append receiver diff.
-	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases, !info.initialisation)
+	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1137,7 +1137,7 @@ func (td *transactionDiffer) createDiffLeaseWithProofs(transaction proto.Transac
 
 func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
-	l, err := td.stor.leases.newestLeasingInfo(tx.LeaseID, !info.initialisation)
+	l, err := td.stor.leases.newestLeasingInfo(tx.LeaseID)
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "no leasing info found for this leaseID")
 	}
@@ -1258,7 +1258,7 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 			return txBalanceChanges{}, err
 		}
 		// Recipient.
-		recipientAddr, err := recipientToAddress(entry.Recipient, td.stor.aliases, !info.initialisation)
+		recipientAddr, err := recipientToAddress(entry.Recipient, td.stor.aliases)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
@@ -1405,7 +1405,7 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases, !info.initialisation)
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1450,7 +1450,7 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	scriptAddr, err := recipientToAddress(proto.NewRecipientFromAddress(senderAddr), td.stor.aliases, !info.initialisation)
+	scriptAddr, err := recipientToAddress(proto.NewRecipientFromAddress(senderAddr), td.stor.aliases)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1558,7 +1558,7 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases, !info.initialisation)
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}

@@ -123,8 +123,8 @@ func (s *sponsoredAssets) sponsorAssetUncertain(assetID crypto.Digest, assetCost
 	}
 }
 
-func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID, filter bool) (bool, error) {
-	cost, err := s.newestAssetCost(assetID, filter)
+func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID) (bool, error) {
+	cost, err := s.newestAssetCost(assetID)
 	if err != nil {
 		return false, nil
 	}
@@ -135,13 +135,13 @@ func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID, filter bool) 
 	return true, nil
 }
 
-func (s *sponsoredAssets) isSponsored(assetID proto.AssetID, filter bool) (bool, error) {
+func (s *sponsoredAssets) isSponsored(assetID proto.AssetID) (bool, error) {
 	key := sponsorshipKey{assetID: assetID}
-	if _, err := s.hs.topEntryData(key.bytes(), filter); err != nil {
+	if _, err := s.hs.topEntryData(key.bytes()); err != nil {
 		// No sponsorship info for this asset at all.
 		return false, nil
 	}
-	cost, err := s.assetCost(assetID, filter)
+	cost, err := s.assetCost(assetID)
 	if err != nil {
 		return false, err
 	}
@@ -152,12 +152,12 @@ func (s *sponsoredAssets) isSponsored(assetID proto.AssetID, filter bool) (bool,
 	return true, nil
 }
 
-func (s *sponsoredAssets) newestAssetCost(assetID proto.AssetID, filter bool) (uint64, error) {
+func (s *sponsoredAssets) newestAssetCost(assetID proto.AssetID) (uint64, error) {
 	if sponsored, ok := s.uncertainSponsoredAssets[assetID]; ok {
 		return sponsored.assetCost, nil
 	}
 	key := sponsorshipKey{assetID: assetID}
-	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -168,9 +168,9 @@ func (s *sponsoredAssets) newestAssetCost(assetID proto.AssetID, filter bool) (u
 	return record.assetCost, nil
 }
 
-func (s *sponsoredAssets) assetCost(assetID proto.AssetID, filter bool) (uint64, error) {
+func (s *sponsoredAssets) assetCost(assetID proto.AssetID) (uint64, error) {
 	key := sponsorshipKey{assetID: assetID}
-	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.topEntryData(key.bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -182,7 +182,7 @@ func (s *sponsoredAssets) assetCost(assetID proto.AssetID, filter bool) (uint64,
 }
 
 func (s *sponsoredAssets) sponsoredAssetToWaves(assetID proto.AssetID, assetAmount uint64) (uint64, error) {
-	cost, err := s.newestAssetCost(assetID, true)
+	cost, err := s.newestAssetCost(assetID)
 	if err != nil {
 		return 0, err
 	}
@@ -204,7 +204,7 @@ func (s *sponsoredAssets) sponsoredAssetToWaves(assetID proto.AssetID, assetAmou
 }
 
 func (s *sponsoredAssets) wavesToSponsoredAsset(assetID proto.AssetID, wavesAmount uint64) (uint64, error) {
-	cost, err := s.newestAssetCost(assetID, true)
+	cost, err := s.newestAssetCost(assetID)
 	if err != nil {
 		return 0, err
 	}
