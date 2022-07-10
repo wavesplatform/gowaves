@@ -100,6 +100,12 @@ func run() error {
 	params.StoreExtendedApiData = extendedAPI
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
+
+	err = state.AddGenesisBlock(statePath, true, params, ss) // filter is always true for genesis block
+	if err != nil {
+		zap.S().Error(err)
+		return err
+	}
 	st, err := state.NewState(statePath, false, params, ss)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)

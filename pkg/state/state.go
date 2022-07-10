@@ -338,7 +338,7 @@ type stateManager struct {
 	// Last added block.
 	lastBlock atomic.Value
 
-	genesis proto.Block
+	genesis *proto.Block
 	stateDB *stateDB
 
 	stor *blockchainEntitiesStorage
@@ -448,19 +448,53 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
-	// Handle genesis block.
-	if err := state.handleGenesisBlock(settings.Genesis); err != nil {
-		return nil, wrapErr(Other, err)
+
+	if state.genesis != nil {
+		if err := state.loadLastBlock(); err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		h, err := state.Height()
+		if err != nil {
+			return nil, wrapErr(Other, err)
+		}
+		state.checkProtobufActivation(h + 1)
 	}
-	if err := state.loadLastBlock(); err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	h, err := state.Height()
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	state.checkProtobufActivation(h + 1)
 	return state, nil
+}
+
+func AddGenesisBlock(path string, filter bool, params StateParams, settings *settings.BlockchainSettings) error {
+	s, err := newStateManager(path, filter, params, settings)
+	if err != nil {
+		return err
+	}
+	if err := s.setGenesisBlock(settings.Genesis); err != nil {
+		return err
+	}
+	height, err := s.Height()
+	if err != nil {
+		return err
+	}
+	if height == 0 {
+		if err := s.setGenesisBlock(settings.Genesis); err != nil {
+			return err
+		}
+		// Assign unique block number for this block ID, add this number to the list of valid blocks.
+		if err := s.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
+			return err
+		}
+		if err := s.addGenesisBlock(); err != nil {
+			return errors.Errorf("failed to apply/save genesis: %v", err)
+		}
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
+		if err := s.applyPreActivatedFeatures(s.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return errors.Errorf("failed to apply pre-activated features: %v\n", err)
+		}
+	}
+	err = s.Close()
+	if err != nil {
+		return errors.Errorf("failed to close state after handling genesis block %v\n", err)
+	}
+	return nil
 }
 
 func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
@@ -497,7 +531,7 @@ func (s *stateManager) Mutex() *lock.RwMutex {
 }
 
 func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
-	s.genesis = genesisBlock
+	s.genesis = &genesisBlock
 	return nil
 }
 
@@ -519,10 +553,10 @@ func (s *stateManager) addGenesisBlock() error {
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 	// initialization should be always true because we're adding first block
-	if err := s.addNewBlock(&s.genesis, nil, chans, 0); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
 	}
-	if err := s.stor.hitSources.appendBlockHitSource(&s.genesis, 1, s.genesis.GenSignature); err != nil {
+	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
 	close(chans.tasksChan)
@@ -564,32 +598,6 @@ func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto
 		return err
 	}
 	s.reset()
-	return nil
-}
-
-func (s *stateManager) handleGenesisBlock(block proto.Block) error {
-	height, err := s.Height()
-	if err != nil {
-		return err
-	}
-
-	if err := s.setGenesisBlock(block); err != nil {
-		return err
-	}
-	// If the storage is new (data dir does not contain any data), genesis block must be applied.
-	if height == 0 {
-		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
-			return err
-		}
-		if err := s.addGenesisBlock(); err != nil {
-			return errors.Errorf("failed to apply/save genesis: %v", err)
-		}
-		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
-		if err := s.applyPreActivatedFeatures(s.settings.PreactivatedFeatures, block.BlockID()); err != nil {
-			return errors.Errorf("failed to apply pre-activated features: %v\n", err)
-		}
-	}
 	return nil
 }
 

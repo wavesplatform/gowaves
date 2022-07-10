@@ -16,6 +16,7 @@ import (
 	"github.com/phayes/freeport"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -86,6 +87,8 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
+	err = state.AddGenesisBlock(dataDir, true, params, sets) // filter is always true for genesis block
+	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, params, sets)
 	assert.NoError(t, err)
 	return st, func() {

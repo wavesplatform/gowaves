@@ -88,6 +88,10 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
+	err = AddGenesisBlock(dataDir, true, stateParams(), settings.MainNetSettings) // filter is always true for genesis block
+	if err != nil {
+		t.Fatalf("NewState(): %v\n", err)
+	}
 	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)

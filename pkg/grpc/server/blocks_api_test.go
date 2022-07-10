@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -38,6 +39,8 @@ func TestGetBlock(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
+	err = state.AddGenesisBlock(dataDir, true, params, settings.MainNetSettings) // filter is always true for genesis block
+	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -96,6 +99,8 @@ func TestGetBlockRange(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
+	err = state.AddGenesisBlock(dataDir, true, params, settings.MainNetSettings) // filter is always true for genesis block
+	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -177,6 +182,8 @@ func TestGetCurrentHeight(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
+	err = state.AddGenesisBlock(dataDir, true, params, settings.MainNetSettings) // filter is always true for genesis block
+	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())

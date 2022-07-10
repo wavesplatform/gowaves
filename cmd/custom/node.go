@@ -163,6 +163,13 @@ func main() {
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntpTime
+
+	err = state.AddGenesisBlock(path, true, params, custom) // filter is always true for genesis block
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
 	nodeState, err := state.NewState(path, true, params, custom)
 	if err != nil {
 		zap.S().Error(err)
