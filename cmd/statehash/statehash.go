@@ -101,12 +101,12 @@ func run() error {
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
 
-	err = state.AddGenesisBlock(statePath, true, params, ss) // filter is always true for genesis block
+	err = state.AddGenesisBlock(statePath, false, params, ss) // filter is always false for genesis block
 	if err != nil {
 		zap.S().Error(err)
 		return err
 	}
-	st, err := state.NewState(statePath, false, params, ss)
+	st, err := state.NewState(statePath, false, false, params, ss)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
 		return err

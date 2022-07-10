@@ -280,13 +280,13 @@ func main() {
 	if !*bloomFilter {
 		params.DbParams.BloomFilterParams.Disable = true
 	}
-	err = state.AddGenesisBlock(path, true, params, cfg) // filter is always true for genesis block
+	err = state.AddGenesisBlock(path, false, params, cfg) // filter is always false for genesis block
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
-	st, err := state.NewState(path, true, params, cfg)
+	st, err := state.NewState(path, true, false, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

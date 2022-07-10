@@ -358,7 +358,8 @@ type stateManager struct {
 	newBlocks *newBlocks
 }
 
-func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+// Should be called after adding genesis block only
+func newStateManager(dataDir string, amend bool, genesis bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -449,7 +450,13 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
 
-	if state.genesis != nil {
+	if !genesis {
+		if err := state.setGenesisBlock(settings.Genesis); err != nil {
+			return nil, err
+		}
+		if err := state.applyPreActivatedFeatures(state.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return nil, errors.Errorf("failed to apply pre-activated features: %v\n", err)
+		}
 		if err := state.loadLastBlock(); err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -459,11 +466,12 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		}
 		state.checkProtobufActivation(h + 1)
 	}
+
 	return state, nil
 }
 
 func AddGenesisBlock(path string, filter bool, params StateParams, settings *settings.BlockchainSettings) error {
-	s, err := newStateManager(path, filter, params, settings)
+	s, err := newStateManager(path, filter, true, params, settings)
 	if err != nil {
 		return err
 	}
@@ -475,9 +483,6 @@ func AddGenesisBlock(path string, filter bool, params StateParams, settings *set
 		return err
 	}
 	if height == 0 {
-		if err := s.setGenesisBlock(settings.Genesis); err != nil {
-			return err
-		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
 			return err
@@ -485,10 +490,7 @@ func AddGenesisBlock(path string, filter bool, params StateParams, settings *set
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v", err)
 		}
-		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
-		if err := s.applyPreActivatedFeatures(s.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
-			return errors.Errorf("failed to apply pre-activated features: %v\n", err)
-		}
+
 	}
 	err = s.Close()
 	if err != nil {
@@ -1018,11 +1020,12 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions: transactions,
-		chans:        chans,
-		block:        &block.BlockHeader,
-		parent:       parentHeader,
-		height:       height,
+		transactions:   transactions,
+		chans:          chans,
+		block:          &block.BlockHeader,
+		parent:         parentHeader,
+		height:         height,
+		initialisation: !s.stor.hs.amend,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
