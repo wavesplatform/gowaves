@@ -35,10 +35,11 @@ type DistributionItem struct {
 }
 
 type GenesisSettings struct {
-	Scheme            proto.Scheme
-	SchemeRaw         string             `json:"scheme"`
-	AverageBlockDelay uint64             `json:"average_block_delay"`
-	Distributions     []DistributionItem `json:"distributions"`
+	Scheme               proto.Scheme
+	SchemeRaw            string             `json:"scheme"`
+	AverageBlockDelay    uint64             `json:"average_block_delay"`
+	Distributions        []DistributionItem `json:"distributions"`
+	PreactivatedFeatures []int16            `json:"preactivated_features"`
 }
 
 func parseGenesisSettings() (GenesisSettings, error) {
@@ -85,7 +86,7 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.BlockRewardIncrement = 100000
 	cfg.BlockRewardVotingPeriod = 1000
-	cfg.PreactivatedFeatures = []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
+	cfg.PreactivatedFeatures = genSettings.PreactivatedFeatures
 
 	return cfg, acc, nil
 }

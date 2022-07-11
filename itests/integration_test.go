@@ -56,7 +56,7 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	for {
 		h, err := d.GoNodeClient.GetBlocksHeight()
 		assert.NoError(t, err, "failed to get height from go node")
-		if h.Height > beforeHeight.Height+1 {
+		if h.Height > beforeHeight.Height+3 {
 			goHeight = h.Height
 			break
 		}
@@ -65,7 +65,7 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	for {
 		h, err := d.ScalaNodeClient.GetBlocksHeight()
 		assert.NoError(t, err, "failed to get height from scala node")
-		if h.Height > beforeHeight.Height+1 {
+		if h.Height > beforeHeight.Height+3 {
 			scalaHeight = h.Height
 			break
 		}
@@ -79,7 +79,11 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 }
 
 func TestSendTransaction(t *testing.T) {
+
 	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, net.NodeVersion, "wavesL")
+	assert.NoError(t, err, "failed to create connection to go node")
+
+	scalaCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, net.NodeVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
 	a := proto.NewOptionalAssetWaves()
@@ -97,6 +101,8 @@ func TestSendTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to get height from go node")
 
 	err = goCon.SendMessage(&txMsg)
+	assert.NoError(t, err, "failed to send TransactionMessage")
+	err = scalaCon.SendMessage(&txMsg)
 	assert.NoError(t, err, "failed to send TransactionMessage")
 
 	newHeight := WaitForNewHeight(t, *heightBefore)
