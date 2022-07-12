@@ -380,19 +380,35 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (boo
 	if script, has := ss.cache.get(keyBytes); has {
 		return script.HasVerifier(), nil
 	}
-	script, err := ss.newestScriptAstByKey(keyBytes)
+	infoKey := scriptBasicInfoKey{scriptKey: &key}
+	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
-	return script.HasVerifier(), nil
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account also doesn't have verifier
+		return false, nil
+	}
+	return info.HasVerifier, nil
 }
 
 func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress) (bool, error) {
-	script, err := ss.scriptByAddr(addr)
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
-	return script.HasVerifier(), nil
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account also doesn't have verifier
+		return false, nil
+	}
+	return info.HasVerifier, nil
 }
 
 func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress) (bool, error) {
