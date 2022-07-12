@@ -78,14 +78,14 @@ type scriptBasicInfoRecord struct {
 	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
 }
 
-func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, error) {
+func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
 	scriptLen := uint32(len(script))
 	if scriptLen == 0 {
-		return scriptBasicInfoRecord{PK: pk, ScriptLen: scriptLen}, nil
+		return scriptBasicInfoRecord{PK: pk, ScriptLen: scriptLen}, nil, nil
 	}
 	tree, err := scriptBytesToTree(script)
 	if err != nil {
-		return scriptBasicInfoRecord{}, errors.Wrapf(err, "failed to parse script bytes to tree for pk %q", pk.String())
+		return scriptBasicInfoRecord{}, nil, errors.Wrapf(err, "failed to parse script bytes to tree for pk %q", pk.String())
 	}
 	info := scriptBasicInfoRecord{
 		PK:             pk,
@@ -93,7 +93,7 @@ func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptB
 		LibraryVersion: tree.LibVersion,
 		HasVerifier:    tree.HasVerifier(),
 	}
-	return info, nil
+	return info, tree, nil
 }
 
 func (r *scriptBasicInfoRecord) scriptExists() bool {
@@ -110,16 +110,18 @@ func (r *scriptBasicInfoRecord) unmarshalBinary(data []byte) error {
 
 type scriptDBItem struct {
 	script proto.Script
+	tree   *ast.Tree
 	info   scriptBasicInfoRecord
 }
 
 func newScriptDBItem(pk crypto.PublicKey, script proto.Script) (scriptDBItem, error) {
-	info, err := newScriptBasicInfoRecord(pk, script)
+	info, tree, err := newScriptBasicInfoRecord(pk, script)
 	if err != nil {
 		return scriptDBItem{}, errors.Wrap(err, "failed to create new script basic info record")
 	}
 	dbItem := scriptDBItem{
 		script: script,
+		tree:   tree,
 		info:   info,
 	}
 	return dbItem, nil
@@ -180,11 +182,7 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, 
 		ss.cache.deleteIfExists(scriptKeyBytes)
 		return nil
 	}
-	tree, err := scriptBytesToTree(dbItem.script)
-	if err != nil {
-		return err
-	}
-	ss.cache.set(scriptKeyBytes, *tree, scriptSize)
+	ss.cache.set(scriptKeyBytes, *dbItem.tree, scriptSize)
 	return nil
 }
 
