@@ -10,13 +10,34 @@ import (
 )
 
 func TestAddInt64(t *testing.T) {
-	a0 := int64(math.MaxInt64)
-	a1 := int64(0)
-	_, err := AddInt64(a0, a1)
-	assert.NoError(t, err, "AddInt64 failed with arguments not causing an overflow")
-	a1 = 1
-	_, err = AddInt64(a0, a1)
-	assert.Error(t, err, "AddInt64 did not fail with arguments causing an overflow")
+	zero := int64(0)
+	max := int64(math.MaxInt64)
+	min := int64(math.MinInt64)
+	one := int64(1)
+	for _, test := range []struct {
+		x, y int64
+		err  bool
+		r    int64
+	}{
+		{zero, max, false, max},
+		{one, max, true, zero},
+		{-one, -min, true, zero},
+		{zero, min, false, min},
+		{one, -max, false, -int64(math.MaxInt64 - 1)},
+		{-one, -max, false, min},
+		{-(one * 2), -max, true, zero},
+		{one, one, false, int64(2)},
+		{one, -one, false, zero},
+		{-one, -one, false, int64(-2)},
+	} {
+		r, err := AddInt64(test.x, test.y)
+		if test.err {
+			assert.Error(t, err, "AddInt64 did not fail with arguments causing an overflow")
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestAddUint64(t *testing.T) {

@@ -380,7 +380,7 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-func BenchmarkSplitString1C(b *testing.B) {
+func BenchmarkSplitStringV6(b *testing.B) {
 	item := strings.Repeat("x", 24)
 	list := make([]string, 20)
 	for i := 0; i < 20; i++ {
@@ -390,7 +390,7 @@ func BenchmarkSplitString1C(b *testing.B) {
 	args := []rideType{rideString(s), rideString(",")}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r, err := splitString1C(nil, args...)
+		r, err := splitStringV6(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
 	}
@@ -586,7 +586,7 @@ func TestMkStringStrict(t *testing.T) {
 	}
 }
 
-func BenchmarkMakeString1C(b *testing.B) {
+func BenchmarkMakeStringV6(b *testing.B) {
 	item := "123456"
 	list := make([]rideType, 70)
 	for i := 0; i < 70; i++ {
@@ -595,7 +595,7 @@ func BenchmarkMakeString1C(b *testing.B) {
 	b.ResetTimer()
 	args := []rideType{rideList(list), rideString(",")}
 	for i := 0; i < b.N; i++ {
-		r, err := makeString1C(nil, args...)
+		r, err := makeStringV6(nil, args...)
 		require.NoError(b, err)
 		require.NotEmpty(b, r)
 	}
