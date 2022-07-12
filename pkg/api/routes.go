@@ -126,6 +126,10 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
+
+			rAuth := r.With(checkAuthMiddleware)
+			rAuth.Post("/print", wrapper(a.debugPrint))
+
 		})
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))

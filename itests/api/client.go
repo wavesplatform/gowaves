@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -81,4 +82,27 @@ func (c *NodeClient) GetStateHash(height uint64) (*proto.StateHash, error) {
 		return nil, fmt.Errorf("parse error: %s", err)
 	}
 	return resp, nil
+}
+
+func (c *NodeClient) PostDebugPrint(msg string) error {
+	bts, err := json.Marshal(map[string]interface{}{"message": msg})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", c.BaseUrl+"debug/print", bytes.NewBuffer(bts))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %s", err)
+	}
+	req.Header.Add("Accept", "*/*")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("X-Api-Key", "itest-api-key")
+	respRaw, err := c.cl.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if respRaw.StatusCode != http.StatusOK {
+		return fmt.Errorf("request failed: %s", respRaw.Status)
+	}
+	return nil
 }

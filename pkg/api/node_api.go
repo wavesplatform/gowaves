@@ -507,3 +507,16 @@ func trySendJson(w io.Writer, v interface{}) error {
 	}
 	return nil
 }
+
+type debugPrintRequest struct {
+	Message string `json:"message"`
+}
+
+func (a *NodeApi) debugPrint(_ http.ResponseWriter, r *http.Request) error {
+	req := &debugPrintRequest{}
+	if err := tryParseJson(r.Body, req); err != nil {
+		return errors.Wrap(err, "failed to parse DebugPrint request body as JSON")
+	}
+	zap.S().Debug(req.Message)
+	return nil
+}

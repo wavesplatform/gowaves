@@ -78,8 +78,24 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	}
 }
 
-func TestSendTransaction(t *testing.T) {
+func SendStartMessage(t *testing.T) {
+	err := d.ScalaNodeClient.PostDebugPrint("------------- Start test: " + t.Name() + " -------------")
+	assert.NoError(t, err, "failed to send StartMessage to go node")
 
+	err = d.GoNodeClient.PostDebugPrint("------------- Start test: " + t.Name() + " -------------")
+	assert.NoError(t, err, "failed to send StartMessage to scala node")
+}
+
+func SendEndMessage(t *testing.T) {
+	err := d.ScalaNodeClient.PostDebugPrint("------------- End test: " + t.Name() + " -------------")
+	assert.NoError(t, err, "failed to send StartMessage to go node")
+
+	err = d.GoNodeClient.PostDebugPrint("------------- End test: " + t.Name() + " -------------")
+	assert.NoError(t, err, "failed to send StartMessage to scala node")
+}
+
+func TestSendTransaction(t *testing.T) {
+	SendStartMessage(t)
 	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, net.NodeVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
@@ -108,4 +124,5 @@ func TestSendTransaction(t *testing.T) {
 	newHeight := WaitForNewHeight(t, *heightBefore)
 
 	StateHashCmp(t, newHeight)
+	SendEndMessage(t)
 }
