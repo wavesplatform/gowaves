@@ -215,7 +215,7 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte) (*ast.Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ss.scriptAstFromRecordBytes(script)
+	return ss.scriptAstFromRecordBytes(script) // Possible errors `proto.ErrNotFound` and parsing errors.
 }
 
 func (ss *scriptsStorage) scriptTreeByKey(key []byte) (*ast.Tree, error) {
@@ -316,10 +316,7 @@ func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID) (bool, error) {
 
 func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID) (*ast.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		if r.scriptDBItem.script.IsEmpty() {
-			return nil, proto.ErrNotFound
-		}
-		return scriptBytesToTree(r.scriptDBItem.script)
+		return ss.scriptAstFromRecordBytes(r.scriptDBItem.script) // Possible errors `proto.ErrNotFound` and parsing errors.
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
