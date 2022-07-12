@@ -500,7 +500,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
-			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK)
+			if err := ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
 			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err

@@ -92,7 +92,7 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 // 				panic("mock out the setAssetScript method")
 // 			},
-// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)  {
+// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 // 				panic("mock out the setAssetScriptUncertain method")
 // 			},
 // 		}
@@ -175,7 +175,7 @@ type mockScriptStorageState struct {
 	setAssetScriptFunc func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 
 	// setAssetScriptUncertainFunc mocks the setAssetScriptUncertain method.
-	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
+	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -1075,7 +1075,7 @@ func (mock *mockScriptStorageState) setAssetScriptCalls() []struct {
 }
 
 // setAssetScriptUncertain calls setAssetScriptUncertainFunc.
-func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 	if mock.setAssetScriptUncertainFunc == nil {
 		panic("mockScriptStorageState.setAssetScriptUncertainFunc: method is nil but scriptStorageState.setAssetScriptUncertain was just called")
 	}
@@ -1091,7 +1091,7 @@ func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.D
 	mock.locksetAssetScriptUncertain.Lock()
 	mock.calls.setAssetScriptUncertain = append(mock.calls.setAssetScriptUncertain, callInfo)
 	mock.locksetAssetScriptUncertain.Unlock()
-	mock.setAssetScriptUncertainFunc(fullAssetID, script, pk)
+	return mock.setAssetScriptUncertainFunc(fullAssetID, script, pk)
 }
 
 // setAssetScriptUncertainCalls gets all the calls that were made to setAssetScriptUncertain.

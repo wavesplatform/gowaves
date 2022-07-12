@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -71,15 +72,28 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 }
 
 type scriptBasicInfoRecord struct {
-	PK        crypto.PublicKey `cbor:"0,keyasint,omitemtpy"`
-	ScriptLen uint32           `cbor:"1,keyasint,omitemtpy"`
+	PK             crypto.PublicKey   `cbor:"0,keyasint,omitemtpy"`
+	ScriptLen      uint32             `cbor:"1,keyasint,omitemtpy"`
+	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitemtpy"`
+	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
 }
 
-func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) scriptBasicInfoRecord {
-	return scriptBasicInfoRecord{
-		PK:        pk,
-		ScriptLen: uint32(len(script)),
+func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, error) {
+	scriptLen := uint32(len(script))
+	if scriptLen == 0 {
+		return scriptBasicInfoRecord{PK: pk, ScriptLen: scriptLen}, nil
 	}
+	tree, err := scriptBytesToTree(script)
+	if err != nil {
+		return scriptBasicInfoRecord{}, errors.Wrapf(err, "failed to parse script bytes to tree for pk %q", pk.String())
+	}
+	info := scriptBasicInfoRecord{
+		PK:             pk,
+		ScriptLen:      scriptLen,
+		LibraryVersion: tree.LibVersion,
+		HasVerifier:    tree.HasVerifier(),
+	}
+	return info, nil
 }
 
 func (r *scriptBasicInfoRecord) scriptExists() bool {
@@ -99,16 +113,21 @@ type scriptDBItem struct {
 	info   scriptBasicInfoRecord
 }
 
-func newScriptDBItem(pk crypto.PublicKey, script proto.Script) scriptDBItem {
-	return scriptDBItem{
-		script: script,
-		info:   newScriptBasicInfoRecord(pk, script),
+func newScriptDBItem(pk crypto.PublicKey, script proto.Script) (scriptDBItem, error) {
+	info, err := newScriptBasicInfoRecord(pk, script)
+	if err != nil {
+		return scriptDBItem{}, errors.Wrap(err, "failed to create new script basic info record")
 	}
+	dbItem := scriptDBItem{
+		script: script,
+		info:   info,
+	}
+	return dbItem, nil
 }
 
 type assetScriptRecordWithAssetIDTail struct {
 	scriptDBItem scriptDBItem
-	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't stored to db, because it is used only for state hash calculation
+	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't have to be stored to db, because it is used only for state hash calculation
 }
 
 // TODO: LRU cache for script ASTs here only makes sense at the import stage.
@@ -223,16 +242,23 @@ func (ss *scriptsStorage) dropUncertain() {
 	ss.uncertainAssetScripts = make(map[proto.AssetID]assetScriptRecordWithAssetIDTail)
 }
 
-func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 	// NOTE: we use fullAssetID (crypto.Digest) only for state hashes compatibility
 	var (
 		assetID     = proto.AssetIDFromDigest(fullAssetID)
 		assetIDTail = proto.DigestTail(fullAssetID)
 	)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set uncertain asset script for asset %q with pk %q",
+			fullAssetID.String(), pk.String(),
+		)
+	}
 	ss.uncertainAssetScripts[assetID] = assetScriptRecordWithAssetIDTail{
 		assetIDTail:  assetIDTail,
-		scriptDBItem: newScriptDBItem(pk, script),
+		scriptDBItem: dbItem,
 	}
+	return nil
 }
 
 func (ss *scriptsStorage) setAssetScript(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
@@ -248,7 +274,12 @@ func (ss *scriptsStorage) setAssetScript(fullAssetID crypto.Digest, script proto
 			return err
 		}
 	}
-	dbItem := newScriptDBItem(pk, script)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set asset script for asset %q with pk %q on block %q",
+			fullAssetID.String(), pk.String(), blockID.String(),
+		)
+	}
 	return ss.setScript(assetScript, &key, dbItem, blockID)
 }
 
@@ -337,7 +368,12 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 			return err
 		}
 	}
-	dbItem := newScriptDBItem(pk, script)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set account script for account %q with pk %q on block %q",
+			addr.String(), pk.String(), blockID.String(),
+		)
+	}
 	return ss.setScript(accountScript, &key, dbItem, blockID)
 }
 
