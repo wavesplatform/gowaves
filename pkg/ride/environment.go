@@ -94,11 +94,11 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 }
 
 func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
-	id, err := ws.recipientToAddressID(account)
+	addr, err := ws.recipientToAddress(account)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
 	}
-	b, err := ws.diff.loadWavesBalance(id)
+	b, err := ws.diff.loadWavesBalance(addr.ID())
 	if err != nil {
 		return 0, err
 	}
@@ -106,11 +106,11 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 }
 
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-	id, err := ws.recipientToAddressID(account)
+	addr, err := ws.recipientToAddress(account)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get asset balance from wrapped state")
 	}
-	key := assetBalanceKey{id: id, asset: assetID}
+	key := assetBalanceKey{id: addr.ID(), asset: assetID}
 	b, err := ws.diff.loadAssetBalance(key)
 	if err != nil {
 		return 0, err
@@ -119,11 +119,11 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	id, err := ws.recipientToAddressID(account)
+	addr, err := ws.recipientToAddress(account)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
 	}
-	b, err := ws.diff.loadWavesBalance(id)
+	b, err := ws.diff.loadWavesBalance(addr.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -692,16 +692,16 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			recipientID, err := ws.recipientToAddressID(a.Recipient)
+			recipient, err := ws.recipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
 			if a.Asset.Present { // Update asset balance
-				if err := ws.diff.assetTransfer(senderAddress.ID(), recipientID, a.Asset.ID, a.Amount); err != nil {
+				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply attached payment")
 				}
 			} else { // Update Waves balance
-				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipientID, a.Amount); err != nil {
+				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply attached payment")
 				}
 			}
@@ -717,16 +717,16 @@ func (ws *WrappedState) ApplyToState(
 			if err = ws.validateTransferAction(a, restrictions, senderAddress, env); err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
 			}
-			recipientID, err := ws.recipientToAddressID(a.Recipient)
+			recipient, err := ws.recipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
 			if a.Asset.Present { // Update asset balance
-				if err := ws.diff.assetTransfer(senderAddress.ID(), recipientID, a.Asset.ID, a.Amount); err != nil {
+				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply transfer action")
 				}
 			} else { // Update Waves balance
-				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipientID, a.Amount); err != nil {
+				if err := ws.diff.wavesTransfer(senderAddress.ID(), recipient.ID(), a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply transfer action")
 				}
 			}
@@ -862,16 +862,14 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
-			senderID := senderAddress.ID()
-			receiverID, err := ws.recipientToAddressID(a.Recipient)
+			recipient, err := ws.recipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
-			if err := ws.diff.lease(senderID, receiverID, a.Amount); err != nil {
+			if err := ws.diff.lease(senderAddress, *recipient, a.Amount, a.ID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-			ws.diff.addNewLease(a.Recipient, proto.NewRecipientFromAddress(senderAddress), a.Amount, a.ID)
 
 		case *proto.LeaseCancelScriptAction:
 			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
@@ -880,27 +878,26 @@ func (ws *WrappedState) ApplyToState(
 			}
 			a.Sender = &pk
 
-			searchLease, err := ws.diff.findLeaseByIDForCancel(a.LeaseID)
+			searchLease, err := ws.diff.loadLease(a.LeaseID)
 			if err != nil {
-				return nil, errors.Errorf("failed to find lease by leaseID")
+				return nil, errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
 			}
-			if searchLease == nil { // TODO: semantic is unclear, refactor this
-				return nil, errors.Errorf("there is no lease to cancel")
+			if !searchLease.IsActive {
+				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not actve", a.LeaseID.String())
 			}
 
-			senderID, err := ws.recipientToAddressID(searchLease.Sender)
+			senderID, err := ws.recipientToAddress(searchLease.Sender)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			receiverID, err := ws.recipientToAddressID(searchLease.Recipient)
+			recipientID, err := ws.recipientToAddress(searchLease.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
-			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount); err != nil {
+			if err := ws.diff.cancelLease(*senderID, *recipientID, searchLease.leasedAmount, a.LeaseID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			ws.diff.dropLeaseIfNew(a.LeaseID)
 
 		default:
 			return nil, errors.Errorf("unknown script action type %T", a)
@@ -910,12 +907,12 @@ func (ws *WrappedState) ApplyToState(
 	return actions, nil
 }
 
-func (ws *WrappedState) recipientToAddressID(recipient proto.Recipient) (proto.AddressID, error) {
+func (ws *WrappedState) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	addr, err := ws.diff.state.NewestRecipientToAddress(recipient)
 	if err != nil {
-		return proto.AddressID{}, err
+		return nil, err
 	}
-	return addr.ID(), nil
+	return addr, nil
 }
 
 type EvaluationEnvironment struct {

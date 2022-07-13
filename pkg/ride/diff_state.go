@@ -20,6 +20,7 @@ func (d *dataEntryKey) String() string {
 }
 
 type lease struct {
+	IsActive     bool
 	Recipient    proto.Recipient
 	leasedAmount int64
 	Sender       proto.Recipient
@@ -252,13 +253,33 @@ func (ds *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	ds.newAssetsInfo[assetID] = assetInfo
 }
 
-// lease increases sender's leaseOut and receiver's leaseIn by leasing amount
-func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error {
+func (ds *diffState) loadLease(leaseID crypto.Digest) (lease, error) {
+	// Look up for local lease for the account
+	if l, ok := ds.leases[leaseID]; ok {
+		return l, nil
+	}
+	// In case of no lease found load it from state
+	leaseFromStore, err := ds.state.NewestLeasingInfo(leaseID)
+	if err != nil {
+		return lease{}, err
+	}
+	l := lease{
+		IsActive:     leaseFromStore.IsActive,
+		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
+		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
+		leasedAmount: int64(leaseFromStore.LeaseAmount),
+	}
+	ds.leases[leaseID] = l
+	return l, nil
+}
+
+// changeLeaseBalances changes sender's leaseOut and receiver's leaseIn by leasing amount
+func (ds *diffState) changeLeaseBalances(sender, receiver proto.AddressID, amount int64) error {
 	senderDiff, err := ds.loadWavesBalance(sender)
 	if err != nil {
 		return err
 	}
-	// adds amount to sender's leaseOut
+	// changes sender's leaseOut by amount
 	if err := senderDiff.addLeaseOut(amount); err != nil {
 		return err
 	}
@@ -267,7 +288,7 @@ func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error
 	if err != nil {
 		return err
 	}
-	// adds amount to receiver's leaseIn
+	// changes receiver's leaseIn by amount
 	if err := receiverDiff.addLeaseIn(amount); err != nil {
 		return err
 	}
@@ -275,37 +296,35 @@ func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error
 	return nil
 }
 
-// cancelLease decreases sender's leaseOut and receiver's leaseIn by cancelled leasing amount
-func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64) error {
-	return ds.lease(sender, receiver, -amount)
-}
-
-func (ds *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
-	l := lease{Recipient: recipient, Sender: sender, leasedAmount: leasedAmount}
+// lease increases sender's leaseOut and receiver's leaseIn by leasing amount
+func (ds *diffState) lease(sender, receiver proto.WavesAddress, amount int64, leaseID crypto.Digest) error {
+	if err := ds.changeLeaseBalances(sender.ID(), receiver.ID(), amount); err != nil {
+		return errors.Wrapf(err, "failed to change lease balances for lease '%s'", leaseID.String())
+	}
+	// add new lease
+	l := lease{
+		IsActive:     true,
+		Recipient:    proto.NewRecipientFromAddress(receiver),
+		Sender:       proto.NewRecipientFromAddress(sender),
+		leasedAmount: amount,
+	}
 	ds.leases[leaseID] = l
+	return nil
 }
 
-func (ds *diffState) dropLeaseIfNew(leaseID crypto.Digest) {
-	delete(ds.leases, leaseID) // if lease doesn't exist == no-op
-}
-
-func (ds *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, error) {
-	if lease, ok := ds.leases[leaseID]; ok {
-		return &lease, nil
+// cancelLease decreases sender's leaseOut and receiver's leaseIn by cancelled leasing amount
+func (ds *diffState) cancelLease(sender, receiver proto.WavesAddress, amount int64, leaseID crypto.Digest) error {
+	if err := ds.changeLeaseBalances(sender.ID(), receiver.ID(), -amount); err != nil {
+		return errors.Wrapf(err, "failed to change lease balances for lease '%s'", leaseID.String())
 	}
-	leaseFromStore, err := ds.state.NewestLeasingInfo(leaseID)
+	// deactivate lease
+	l, err := ds.loadLease(leaseID)
 	if err != nil {
-		return nil, err
+		return errors.Wrapf(err, "failed to load lease by leaseID '%s' for cancel", leaseID.String())
 	}
-	if !leaseFromStore.IsActive {
-		return nil, nil // TODO: (nil, nil) semantic is unclear, refactor this
-	}
-	lease := lease{
-		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
-		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
-		leasedAmount: int64(leaseFromStore.LeaseAmount),
-	}
-	return &lease, nil
+	l.IsActive = false
+	ds.leases[leaseID] = l
+	return nil
 }
 
 func (ds *diffState) findIntFromDataEntryByKey(key string, address proto.WavesAddress) *proto.IntegerDataEntry {
