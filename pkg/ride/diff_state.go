@@ -274,21 +274,29 @@ func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error
 	return nil
 }
 
-func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64) error {
-	if senderDiff, ok := ds.wavesBalances[sender]; ok {
-		err := senderDiff.addLeaseOut(-amount) // Decrease sender's leaseOut by cancelled leasing amount
-		if err != nil {
-			return err
-		}
-		ds.wavesBalances[sender] = senderDiff
+func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64, leaseId crypto.Digest) error {
+	senderDiff, err := ds.loadWavesBalance(sender)
+	if err != nil {
+		return err
 	}
-	if receiverDiff, ok := ds.wavesBalances[receiver]; ok {
-		err := receiverDiff.addLeaseIn(-amount) // Decrease receiver's leaseIn by cancelled leasing amount
-		if err != nil {
-			return err
-		}
-		ds.wavesBalances[receiver] = receiverDiff
+	err = senderDiff.addLeaseOut(-amount) // Decrease sender's leaseOut by cancelled leasing amount
+	if err != nil {
+		return err
 	}
+	ds.wavesBalances[sender] = senderDiff
+
+	receiverDiff, err := ds.loadWavesBalance(receiver)
+	if err != nil {
+		return err
+	}
+
+	err = receiverDiff.addLeaseIn(-amount) // Decrease receiver's leaseIn by cancelled leasing amount
+	if err != nil {
+		return err
+	}
+	ds.wavesBalances[receiver] = receiverDiff
+
+	delete(ds.leases, leaseId)
 	return nil
 }
 

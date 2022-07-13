@@ -867,12 +867,6 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-			if _, err := ws.diff.loadWavesBalance(senderAddress.ID()); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
-			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
 			if err := ws.diff.lease(senderID, receiverID, a.Amount); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
@@ -902,13 +896,8 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			if _, err := ws.diff.loadWavesBalance(senderID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount); err != nil {
+
+			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount, a.LeaseID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
