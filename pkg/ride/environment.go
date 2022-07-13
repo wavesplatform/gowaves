@@ -988,27 +988,13 @@ func NewEnvironmentWithWrappedState(
 			return nil, errors.Errorf("not enough money for tx attached payment #%d of asset '%s' with amount %d",
 				i+1, payment.Asset.String(), payment.Amount)
 		}
-		if payment.Asset.Present {
-			senderKey := assetBalanceKey{id: sender.ID(), asset: payment.Asset.ID}
-			if err := st.diff.addAssetBalance(senderKey, -int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		if payment.Asset.Present { // Update asset balance
+			if err := st.diff.assetTransfer(sender.ID(), recipient.ID(), payment.Asset.ID, int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
-			recipientKey := assetBalanceKey{id: recipient.ID(), asset: payment.Asset.ID}
-			if _, err := st.diff.loadAssetBalance(recipientKey); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if err := st.diff.addAssetBalance(recipientKey, int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-		} else {
-			if err := st.diff.addWavesBalance(sender.ID(), -int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if _, err := st.diff.loadWavesBalance(recipient.ID()); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if err := st.diff.addWavesBalance(recipient.ID(), int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		} else { // Update Waves balance
+			if err := st.diff.wavesTransfer(sender.ID(), recipient.ID(), int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
 		}
 	}
