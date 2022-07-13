@@ -275,8 +275,18 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockI
 		}
 		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
 		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
-			// TODO this is definitely an error, should return it
-			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d", a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity)
+			rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+			if err != nil {
+				return errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV6)
+			}
+			if rideV6Activated {
+				return errors.Errorf("complexity of scripts (%d) in block '%s' exceeds limit of %d",
+					a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
+				)
+			}
+			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d",
+				a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
+			)
 		}
 		return nil
 	} else if smartAccountsActivated {

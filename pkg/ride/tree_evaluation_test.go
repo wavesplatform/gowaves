@@ -8488,8 +8488,7 @@ func TestNegativePayments(t *testing.T) {
 
 	flag = true
 	_, err = CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	assert.Equal(t, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount", err.Error())
+	assert.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount")
 }
 
 func TestComplexityOverflow(t *testing.T) {
@@ -8668,8 +8667,7 @@ func TestComplexityOverflow(t *testing.T) {
 	}
 
 	_, err = CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	assert.Equal(t, "evaluation complexity 28113 exceeds 26000 limit for library version 5", err.Error())
+	require.EqualError(t, err, "evaluation complexity 28113 exceeds 26000 limit for library version 5")
 }
 
 func TestDateEntryPutAfterRemoval(t *testing.T) {
@@ -9127,9 +9125,8 @@ func TestInvokeFailForRideV4(t *testing.T) {
 	}
 
 	res, err := CallFunction(env, tree1, "call", arguments)
-	require.Nil(t, res)
-	require.Error(t, err)
-	require.Equal(t, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'", err.Error())
+	assert.Nil(t, res)
+	require.EqualError(t, err, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
@@ -9148,20 +9145,41 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 
 	@Callable(i)
 	func call() = {
-	    strict res = invoke(callee,  "call", [], [])
-	    match (res) {
-	        case b:Boolean => if b then {
-	            strict res1 = invoke(callee,  "call", [], [])
-	            match (res1) {
-	                case bb:Boolean => if b then ([], res1) else throw("fail!!!")
-	                case _ => throw("not a boolean")
-			    }
-	        }else throw("fail!!!")
-	        case _ => throw("not a boolean")
-	    }
+	  strict res = invoke(callee,  "call", [], [])
+		match (res) {
+		  case b: Boolean => if b then {
+		    strict res1 = invoke(callee,  "call", [], [])
+		    match (res1) {
+		      case bb:Boolean => if b then ([
+	          ScriptTransfer(i.caller, 1, unit),
+				    ScriptTransfer(i.caller, 2, unit),
+				    ScriptTransfer(i.caller, 3, unit),
+				    ScriptTransfer(i.caller, 4, unit),
+				    ScriptTransfer(i.caller, 5, unit),
+				    ScriptTransfer(i.caller, 6, unit),
+				    ScriptTransfer(i.caller, 7, unit),
+				    ScriptTransfer(i.caller, 8, unit),
+				    ScriptTransfer(i.caller, 9, unit),
+				    ScriptTransfer(i.caller, 10, unit),
+				    ScriptTransfer(i.caller, 11, unit),
+				    ScriptTransfer(i.caller, 12, unit),
+				    ScriptTransfer(i.caller, 13, unit),
+				    ScriptTransfer(i.caller, 14, unit),
+				    ScriptTransfer(i.caller, 15, unit),
+				    ScriptTransfer(i.caller, 16, unit),
+				    ScriptTransfer(i.caller, 17, unit),
+				    ScriptTransfer(i.caller, 18, unit),
+				    ScriptTransfer(i.caller, 19, unit),
+				    ScriptTransfer(i.caller, 20, unit)
+	        ], res1) else throw("fail!!!")
+		      case _ => throw("not a boolean")
+				}
+		  } else throw("fail!!!")
+		  case _ => throw("not a boolean")
+		}
 	}
 	*/
-	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCBQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAOehhyY="
+	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCCQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgALBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAMBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgANBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAOBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAPBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAQBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgARBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgASBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgATBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAUBQR1bml0BQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAM/iuCw="
 	_, tree1 := parseBase64Script(t, code1)
 
 	/* On dApp2 address
@@ -9186,21 +9204,11 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 			ScriptTransfer(i.caller, 12, unit),
 			ScriptTransfer(i.caller, 13, unit),
 			ScriptTransfer(i.caller, 14, unit),
-			ScriptTransfer(i.caller, 15, unit),
-			ScriptTransfer(i.caller, 16, unit),
-			ScriptTransfer(i.caller, 17, unit),
-			ScriptTransfer(i.caller, 18, unit),
-			ScriptTransfer(i.caller, 19, unit),
-			ScriptTransfer(i.caller, 20, unit),
-			ScriptTransfer(i.caller, 21, unit),
-			ScriptTransfer(i.caller, 22, unit),
-			ScriptTransfer(i.caller, 23, unit),
-			ScriptTransfer(i.caller, 24, unit),
-			ScriptTransfer(i.caller, 25, unit)
+			ScriptTransfer(i.caller, 15, unit)
 		], true)
 	}
 	*/
-	code2 := "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"
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAACBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAQFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAFBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAcFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAIBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAoFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAALBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA0FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAOBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADwUAAAAEdW5pdAUAAAADbmlsBgAAAAB1/ySn"
 	_, tree2 := parseBase64Script(t, code2)
 
 	recipient := proto.NewRecipientFromAlias(*caller)
@@ -9359,61 +9367,47 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 
 	@Callable(i)
 	func call() = {
-	    strict res = reentrantInvoke(callee,  "call", [], [])
-	    match (res) {
-	        case b:Boolean => if b then {
-	            strict res1 = reentrantInvoke(callee,  "callReentrant", [], [])
-	            match (res1) {
-	                case bb:Boolean => if b then ([], res1) else throw("fail!!!")
-	                case _ => throw("not a boolean")
-	            }
-	        }else throw("fail!!!")
-	        case _ => throw("not a boolean")
-	    }
+		strict res = reentrantInvoke(callee,  "call", [], [])
+		match (res) {
+		  case b:Boolean => if b then {
+		    strict res1 = reentrantInvoke(callee,  "callReentrant", [], [])
+		    match (res1) {
+		      case bb:Boolean => if b then ([
+	          ScriptTransfer(i.caller, 1, unit),
+	          ScriptTransfer(i.caller, 2, unit),
+	          ScriptTransfer(i.caller, 3, unit),
+	          ScriptTransfer(i.caller, 4, unit),
+	          ScriptTransfer(i.caller, 5, unit),
+	          ScriptTransfer(i.caller, 6, unit),
+	          ScriptTransfer(i.caller, 7, unit),
+	          ScriptTransfer(i.caller, 8, unit),
+	          ScriptTransfer(i.caller, 9, unit),
+	          ScriptTransfer(i.caller, 10, unit)
+	        ], res1) else throw("fail!!!")
+		      case _ => throw("not a boolean")
+		    }
+		  } else throw("fail!!!")
+		  case _ => throw("not a boolean")
+		}
 	}
 
 	@Callable(i)
 	func callReentrant() = {
-		([
-			ScriptTransfer(i.caller, 1, unit),
-			ScriptTransfer(i.caller, 2, unit),
-			ScriptTransfer(i.caller, 3, unit),
-			ScriptTransfer(i.caller, 4, unit),
-			ScriptTransfer(i.caller, 5, unit),
-			ScriptTransfer(i.caller, 6, unit),
-			ScriptTransfer(i.caller, 7, unit),
-			ScriptTransfer(i.caller, 8, unit),
-			ScriptTransfer(i.caller, 9, unit),
-			ScriptTransfer(i.caller, 10, unit),
-			ScriptTransfer(i.caller, 11, unit),
-			ScriptTransfer(i.caller, 12, unit),
-			ScriptTransfer(i.caller, 13, unit),
-			ScriptTransfer(i.caller, 14, unit),
-			ScriptTransfer(i.caller, 15, unit),
-			ScriptTransfer(i.caller, 16, unit),
-			ScriptTransfer(i.caller, 17, unit),
-			ScriptTransfer(i.caller, 18, unit),
-			ScriptTransfer(i.caller, 19, unit),
-			ScriptTransfer(i.caller, 20, unit),
-			ScriptTransfer(i.caller, 21, unit),
-			ScriptTransfer(i.caller, 22, unit),
-			ScriptTransfer(i.caller, 23, unit),
-			ScriptTransfer(i.caller, 24, unit),
-			ScriptTransfer(i.caller, 25, unit),
-			ScriptTransfer(i.caller, 26, unit),
-			ScriptTransfer(i.caller, 27, unit),
-			ScriptTransfer(i.caller, 28, unit),
-			ScriptTransfer(i.caller, 29, unit),
-			ScriptTransfer(i.caller, 30, unit),
-			ScriptTransfer(i.caller, 31, unit),
-	        ScriptTransfer(i.caller, 32, unit),
-			ScriptTransfer(i.caller, 33, unit),
-	        ScriptTransfer(i.caller, 34, unit),
-	        ScriptTransfer(i.caller, 35, unit)
-		], true)
+	  ([
+	    ScriptTransfer(i.caller, 1, unit),
+	    ScriptTransfer(i.caller, 2, unit),
+	    ScriptTransfer(i.caller, 3, unit),
+	    ScriptTransfer(i.caller, 4, unit),
+	    ScriptTransfer(i.caller, 5, unit),
+	    ScriptTransfer(i.caller, 6, unit),
+	    ScriptTransfer(i.caller, 7, unit),
+	    ScriptTransfer(i.caller, 8, unit),
+	    ScriptTransfer(i.caller, 9, unit),
+	    ScriptTransfer(i.caller, 10, unit)
+	  ], true)
 	}
 	*/
-	code1 := "BgIGCAISABIAAQAGY2FsbGVlCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgFpAQRjYWxsAAQDcmVzCQD9BwQFBmNhbGxlZQIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMEByRtYXRjaDAFA3JlcwMJAAECBQckbWF0Y2gwAgdCb29sZWFuBAFiBQckbWF0Y2gwAwUBYgQEcmVzMQkA/QcEBQZjYWxsZWUCDWNhbGxSZWVudHJhbnQFA25pbAUDbmlsAwkAAAIFBHJlczEFBHJlczEEByRtYXRjaDEFBHJlczEDCQABAgUHJG1hdGNoMQIHQm9vbGVhbgQCYmIFByRtYXRjaDEDBQFiCQCUCgIFA25pbAUEcmVzMQkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQENY2FsbFJlZW50cmFudAAJAJQKAgkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIADwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAEwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAFwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAGwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAHwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAIwUEdW5pdAUDbmlsBgDdu1FP"
+	code1 := "BgIGCAISABIAAQAGY2FsbGVlCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgFpAQRjYWxsAAQDcmVzCQD9BwQFBmNhbGxlZQIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMEByRtYXRjaDAFA3JlcwMJAAECBQckbWF0Y2gwAgdCb29sZWFuBAFiBQckbWF0Y2gwAwUBYgQEcmVzMQkA/QcEBQZjYWxsZWUCDWNhbGxSZWVudHJhbnQFA25pbAUDbmlsAwkAAAIFBHJlczEFBHJlczEEByRtYXRjaDEFBHJlczEDCQABAgUHJG1hdGNoMQIHQm9vbGVhbgQCYmIFByRtYXRjaDEDBQFiCQCUCgIJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAEFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAIFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAMFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAQFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAUFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAYFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAcFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAgFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAkFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAoFBHVuaXQFA25pbAUEcmVzMQkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQENY2FsbFJlZW50cmFudAAJAJQKAgkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACgUEdW5pdAUDbmlsBgDKeoEl"
 	_, tree1 := parseBase64Script(t, code1)
 
 	/* On dApp2 address
@@ -9596,7 +9590,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 	res, err := CallFunction(env, tree1, "call", arguments)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
-	assert.Equal(t, 55, len(res.ScriptActions()))
+	assert.Equal(t, 40, len(res.ScriptActions()))
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
@@ -9811,9 +9805,8 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 	}
 
 	res, err := CallFunction(env, tree1, "call", arguments)
-	require.Error(t, err)
-	require.Equal(t, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30", err.Error())
 	assert.Nil(t, res)
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
@@ -10037,8 +10030,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
 
 	res, err := CallFunction(env, tree1, "call", arguments)
 	assert.Nil(t, res)
-	require.Error(t, err)
-	require.Equal(t, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100", err.Error())
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
 func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
@@ -10214,9 +10206,8 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 
 	rideV6Activated = true
 	res, err := CallFunction(env, tree, "test", arguments)
-	require.Error(t, err)
-	require.Equal(t, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100", err.Error())
-	require.Nil(t, res)
+	assert.Nil(t, res)
+	require.EqualError(t, err, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100")
 
 	rideV6Activated = false
 	res, err = CallFunction(env, tree, "test", arguments)
