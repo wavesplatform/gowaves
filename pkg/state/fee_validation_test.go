@@ -63,6 +63,7 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
+	filter := false
 
 	tx := createSetScriptWithProofs(t)
 	info := defaultCheckerInfo()
@@ -81,13 +82,13 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false)
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, false)
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have not a verifier after rollback") // the filter is false, so the script will be returned
 }
@@ -103,6 +104,8 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	filter := true
+
 	tx := createSetScriptWithProofs(t)
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
@@ -117,7 +120,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true)
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
@@ -125,7 +128,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, true) // if cache is cleared, the script must have not be found
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter) // if cache is cleared, the script must have not be found
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }

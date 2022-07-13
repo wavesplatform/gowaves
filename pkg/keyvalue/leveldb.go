@@ -71,7 +71,6 @@ func (b *batch) addToCache(cache *freecache.Cache) {
 
 func (b *batch) leveldbBatch() *leveldb.Batch {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	leveldbBatch := new(leveldb.Batch)
 	for _, pair := range b.pairs {
 		if pair.deletion {
@@ -80,6 +79,7 @@ func (b *batch) leveldbBatch() *leveldb.Batch {
 			leveldbBatch.Put(pair.key, pair.value)
 		}
 	}
+	b.mu.Unlock()
 	return leveldbBatch
 }
 

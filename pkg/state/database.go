@@ -230,7 +230,7 @@ func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
 }
 
 func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
-	blockNum, err := s.blockIdToNum(blockID) // TODO I suggest using newestBlockIdToNum
+	blockNum, err := s.blockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
