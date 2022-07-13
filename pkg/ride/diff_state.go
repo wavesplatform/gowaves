@@ -252,12 +252,13 @@ func (ds *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	ds.newAssetsInfo[assetID] = assetInfo
 }
 
+// lease increases sender's leaseOut and receiver's leaseIn by leasing amount
 func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error {
 	senderDiff, err := ds.loadWavesBalance(sender)
 	if err != nil {
 		return err
 	}
-	// Increase sender's leaseOut by leasing amount
+	// adds amount to sender's leaseOut
 	if err := senderDiff.addLeaseOut(amount); err != nil {
 		return err
 	}
@@ -266,45 +267,26 @@ func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error
 	if err != nil {
 		return err
 	}
-	// Increase receiver's leaseIn by leasing amount
+	// adds amount to receiver's leaseIn
 	if err := receiverDiff.addLeaseIn(amount); err != nil {
 		return err
 	}
 	ds.wavesBalances[receiver] = receiverDiff
-
 	return nil
 }
 
-func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64, leaseId crypto.Digest) error {
-	senderDiff, err := ds.loadWavesBalance(sender)
-	if err != nil {
-		return err
-	}
-	err = senderDiff.addLeaseOut(-amount) // Decrease sender's leaseOut by cancelled leasing amount
-	if err != nil {
-		return err
-	}
-	ds.wavesBalances[sender] = senderDiff
-
-	receiverDiff, err := ds.loadWavesBalance(receiver)
-	if err != nil {
-		return err
-	}
-
-	err = receiverDiff.addLeaseIn(-amount) // Decrease receiver's leaseIn by cancelled leasing amount
-	if err != nil {
-		return err
-	}
-	ds.wavesBalances[receiver] = receiverDiff
-
-	delete(ds.leases, leaseId)
-
-	return nil
+// cancelLease decreases sender's leaseOut and receiver's leaseIn by cancelled leasing amount
+func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64) error {
+	return ds.lease(sender, receiver, -amount)
 }
 
 func (ds *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
-	lease := lease{Recipient: recipient, Sender: sender, leasedAmount: leasedAmount}
-	ds.leases[leaseID] = lease
+	l := lease{Recipient: recipient, Sender: sender, leasedAmount: leasedAmount}
+	ds.leases[leaseID] = l
+}
+
+func (ds *diffState) dropLeaseIfNew(leaseID crypto.Digest) {
+	delete(ds.leases, leaseID) // if lease doesn't exist == no-op
 }
 
 func (ds *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, error) {

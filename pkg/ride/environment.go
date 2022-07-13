@@ -867,10 +867,10 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
+
 			if err := ws.diff.lease(senderID, receiverID, a.Amount); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-
 			ws.diff.addNewLease(a.Recipient, proto.NewRecipientFromAddress(senderAddress), a.Amount, a.ID)
 
 		case *proto.LeaseCancelScriptAction:
@@ -884,7 +884,7 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Errorf("failed to find lease by leaseID")
 			}
-			if searchLease == nil {
+			if searchLease == nil { // TODO: semantic is unclear, refactor this
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
 
@@ -897,9 +897,10 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
-			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount, a.LeaseID); err != nil {
+			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
+			ws.diff.dropLeaseIfNew(a.LeaseID)
 
 		default:
 			return nil, errors.Errorf("unknown script action type %T", a)
