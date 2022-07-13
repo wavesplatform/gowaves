@@ -88,9 +88,9 @@ func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
 			return nil, err
 		}
 		if blockV5 {
-			return &FairPosCalculatorV2{}, nil
+			return NewFairPosCalculator(cv.settings.DelayDelta, cv.settings.MinBlockTime), nil
 		}
-		return &FairPosCalculatorV1{}, nil
+		return FairPosCalculatorV1, nil
 	}
 	return &NxtPosCalculator{}, nil
 }

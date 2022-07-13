@@ -208,24 +208,41 @@ func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTa
 	return delay, nil
 }
 
-func heightForHit(height uint64) uint64 {
-	if fairPosHeightDiffForHit >= height {
-		return height
-	}
-	return height - fairPosHeightDiffForHit
+var (
+	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
+	FairPosCalculatorV2 = NewFairPosCalculator(delayDeltaV2, tMinV2)
+)
+
+type FairPosCalculator struct {
+	delayDelta uint64
+	tMin       float64
 }
 
-func calculateBaseTarget(
+func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+	var maxHit big.Int
+	maxHit.SetBytes(maxSignature)
+	var maxHitFloat big.Float
+	maxHitFloat.SetInt(&maxHit)
+	var hitFloat big.Float
+	hitFloat.SetInt(hit)
+	var quo big.Float
+	quo.Quo(&hitFloat, &maxHitFloat)
+	h, _ := quo.Float64()
+	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
+	res := uint64(calc.tMin + c1*log)
+	return res, nil
+}
+
+func (calc *FairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	_ uint64,
 	confirmedTarget uint64,
 	_ uint64,
 	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
-	delayDelta uint64,
 ) (types.BaseTarget, error) {
-	maxDelay := normalize(90-delayDelta, targetBlockDelaySeconds)
-	minDelay := normalize(30+delayDelta, targetBlockDelaySeconds)
+	maxDelay := normalize(90-calc.delayDelta, targetBlockDelaySeconds)
+	minDelay := normalize(30+calc.delayDelta, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
 		return confirmedTarget, nil
 	}
@@ -239,63 +256,16 @@ func calculateBaseTarget(
 	}
 }
 
-func calculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64, threshold float64) (uint64, error) {
-	var maxHit big.Int
-	maxHit.SetBytes(maxSignature)
-	var maxHitFloat big.Float
-	maxHitFloat.SetInt(&maxHit)
-	var hitFloat big.Float
-	hitFloat.SetInt(hit)
-	var quo big.Float
-	quo.Quo(&hitFloat, &maxHitFloat)
-	h, _ := quo.Float64()
-	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
-	res := uint64(threshold + c1*log)
-	return res, nil
+func (calc *FairPosCalculator) HeightForHit(height uint64) uint64 {
+	if fairPosHeightDiffForHit >= height {
+		return height
+	}
+	return height - fairPosHeightDiffForHit
 }
 
-type FairPosCalculatorV1 struct {
-}
-
-func (calc *FairPosCalculatorV1) HeightForHit(height uint64) uint64 {
-	return heightForHit(height)
-}
-
-func (calc *FairPosCalculatorV1) CalculateBaseTarget(
-	targetBlockDelaySeconds uint64,
-	confirmedHeight uint64,
-	confirmedTarget uint64,
-	confirmedTimestamp uint64,
-	greatGrandParentTimestamp uint64,
-	applyingBlockTimestamp uint64,
-) (types.BaseTarget, error) {
-	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV1)
-}
-
-func (calc *FairPosCalculatorV1) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
-	return calculateDelay(hit, confirmedTarget, balance, tMinV1)
-}
-
-type FairPosCalculatorV2 struct {
-}
-
-func (calc *FairPosCalculatorV2) HeightForHit(height uint64) uint64 {
-	return heightForHit(height)
-}
-
-func (calc *FairPosCalculatorV2) CalculateBaseTarget(
-	targetBlockDelaySeconds uint64,
-	confirmedHeight uint64,
-	confirmedTarget uint64,
-	confirmedTimestamp uint64,
-	greatGrandParentTimestamp uint64,
-	applyingBlockTimestamp uint64,
-) (types.BaseTarget, error) {
-	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV2)
-}
-
-func (calc *FairPosCalculatorV2) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
-	return calculateDelay(hit, confirmedTarget, balance, tMinV2)
+func NewFairPosCalculator(delayDelta uint64, tMin float64) PosCalculator {
+	return &FairPosCalculator{
+		delayDelta: delayDelta,
+		tMin:       tMin,
+	}
 }

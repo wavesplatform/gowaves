@@ -64,6 +64,9 @@ type FunctionalitySettings struct {
 	AddressSchemeCharacter proto.Scheme `json:"address_scheme_character"`
 
 	AverageBlockDelaySeconds uint64 `json:"average_block_delay_seconds"`
+	DelayDelta               uint64 `json:"delay_delta"`
+	// In Milliseconds.
+	MinBlockTime float64 `json:"min_block_time"`
 	// Configurable.
 	MaxBaseTarget uint64 `json:"max_base_target"`
 
@@ -156,7 +159,14 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 
 func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 	jsonParser := json.NewDecoder(r)
-	s := &BlockchainSettings{}
+	s := &BlockchainSettings{
+		FunctionalitySettings: FunctionalitySettings{
+			MinBlockTime: 15000,
+			DelayDelta:   8,
+		},
+		Type:    0,
+		Genesis: proto.Block{},
+	}
 	if err := jsonParser.Decode(s); err != nil {
 		return nil, errors.Wrap(err, "failed to read blockchain settings")
 	}
