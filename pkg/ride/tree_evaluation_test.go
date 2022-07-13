@@ -885,6 +885,19 @@ func smartStateDappFromDapp() types.SmartState {
 
 	return &MockSmartState{
 		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
+			expectedId := crypto.MustDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
+			if expectedId == id {
+				recipient, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, crypto.MustPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai"))
+
+				sender, _ := proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+
+				return &proto.LeaseInfo{
+					IsActive:    true,
+					LeaseAmount: 50,
+					Sender:      sender,
+					Recipient:   recipient,
+				}, nil
+			}
 			return nil, nil
 		},
 		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
@@ -1149,6 +1162,14 @@ func tearDownDappFromDapp() {
 
 func AddWavesBalance(address proto.WavesAddress, amount int64) {
 	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(amount)}
+}
+
+func AddAvailableAndLeaseOutBalance(address proto.WavesAddress, availableBalance int64, leaseOut int64) {
+	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseOut: leaseOut}
+}
+
+func AddAvailableAndLeaseInBalance(address proto.WavesAddress, availableBalance int64, leaseOut int64) {
+	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseIn: leaseOut}
 }
 
 func AddAssetBalance(address proto.WavesAddress, asset crypto.Digest, amount int64) {
@@ -2669,6 +2690,143 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 			b.Fatal("Expected no errors, got error ", err)
 		}
 	}
+	tearDownDappFromDapp()
+}
+
+// initially script 1 has 1000 available balance and 50 is leaseOut (spendable is 950).
+// After canceling the lease, the leaseOut is 0, and the spendable balance will be 1000 which is as much as the attached payment requires
+func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
+
+	/* script 1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func call() = {
+	    let r = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "cancelLease", [],[])
+	    if r == r
+		  then
+		  	  let r2 = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "test", [], [AttachedPayment(unit, 1000)])
+	        if r2 == r2
+	        then
+	            [
+	            ]
+	    else
+	        throw("impossible1")
+	        else
+	            throw("impossible2")
+	}
+	*/
+
+	/*
+		script 2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+
+		@Callable(i)
+		func cancelLease() = {
+		  let leaseId = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8' # the lease is 50 waves
+			[
+			LeaseCancel(leaseId)
+		  ]
+		}
+
+		@Callable(i)
+		func test() = {
+			([IntegerEntry("bar", 1)], 17)
+		}
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 0,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       0,
+		Timestamp: 1564703444249,
+	}
+
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAXIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAALY2FuY2VsTGVhc2UFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBAAAAAJyMgkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAgAAAAR0ZXN0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAA+gFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyBQAAAANuaWwJAAACAAAAAQIAAAALaW1wb3NzaWJsZTEJAAACAAAAAQIAAAALaW1wb3NzaWJsZTIAAAAARituYQ=="
+	secondScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAAtjYW5jZWxMZWFzZQAAAAAEAAAAB2xlYXNlSWQBAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlCQAETAAAAAIJAQAAAAtMZWFzZUNhbmNlbAAAAAEFAAAAB2xlYXNlSWQFAAAAA25pbAAAAAFpAQAAAAR0ZXN0AAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANiYXIAAAAAAAAAAAEFAAAAA25pbAAAAAAAAAAAEQAAAAA9/YEh"
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+
+	env := envDappFromDapp
+
+	_, tree := parseBase64Script(t, firstScript)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	AddAvailableAndLeaseInBalance(senderAddress, 0, 50) // the one to whom 50 waves is leased
+	AddAvailableAndLeaseOutBalance(addr, 1000, 50)      // the one who leases
+	AddWavesBalance(addressCallable, 0)
+	res, err := CallFunction(env, tree, "call", proto.Arguments{})
+
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+
+	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
+	balanceSender := diffBalance{balance: 0, leaseIn: 0}
+	balanceMain := diffBalance{balance: 0, leaseOut: 0}
+	balanceCallable := diffBalance{balance: 1000} // after invocation, 1000 waves are transferred to the callable dApp as attached payments
+
+	expectedDiffResult.wavesBalances[senderAddress.ID()] = balanceSender
+	expectedDiffResult.wavesBalances[addressCallable.ID()] = balanceCallable
+	expectedDiffResult.wavesBalances[addr.ID()] = balanceMain
+
+	assert.Equal(t, expectedDiffResult.wavesBalances, wrappedSt.diff.wavesBalances)
+
 	tearDownDappFromDapp()
 }
 
