@@ -271,6 +271,14 @@ func (ds *diffState) lease(sender, receiver proto.AddressID, amount int64) error
 		return err
 	}
 	ds.wavesBalances[receiver] = receiverDiff
+
+	if _, err := ds.loadWavesBalance(receiver); err != nil {
+		return err
+	}
+
+	if _, err := ds.loadWavesBalance(sender); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -297,6 +305,15 @@ func (ds *diffState) cancelLease(sender, receiver proto.AddressID, amount int64,
 	ds.wavesBalances[receiver] = receiverDiff
 
 	delete(ds.leases, leaseId)
+
+	if _, err := ds.loadWavesBalance(receiver); err != nil {
+		return err
+	}
+
+	if _, err := ds.loadWavesBalance(sender); err != nil {
+		return err
+	}
+
 	return nil
 }
 
