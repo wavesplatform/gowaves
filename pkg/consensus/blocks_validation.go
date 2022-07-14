@@ -92,7 +92,7 @@ func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
 		}
 		return FairPosCalculatorV1, nil
 	}
-	return &NxtPosCalculator{}, nil
+	return &nxtPosCalculator{}, nil
 }
 
 func (cv *Validator) generationSignatureProvider(height uint64) (GenerationSignatureProvider, error) {

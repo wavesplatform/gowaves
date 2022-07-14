@@ -36,6 +36,12 @@ var (
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
 )
 
+var (
+	NxtPosCalculator    = PosCalculator(&nxtPosCalculator{})
+	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
+	FairPosCalculatorV2 = NewFairPosCalculator(delayDeltaV2, tMinV2)
+)
+
 func normalize(value, targetBlockDelaySeconds uint64) float64 {
 	return float64(value*targetBlockDelaySeconds) / 60
 }
@@ -65,8 +71,7 @@ type GenerationSignatureProvider interface {
 
 // NXTGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
 // public key and generation signature from the previous block.
-type NXTGenerationSignatureProvider struct {
-}
+type NXTGenerationSignatureProvider struct{}
 
 // GenerationSignature builds NXT generation signature using only generator's public key.
 func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
@@ -104,8 +109,7 @@ func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 
 // VRFGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
 // of previous block and generator's secret key.
-type VRFGenerationSignatureProvider struct {
-}
+type VRFGenerationSignatureProvider struct{}
 
 func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	proof, err := crypto.SignVRF(key, msg)
@@ -153,17 +157,16 @@ type PosCalculator interface {
 	CalculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
 }
 
-type NxtPosCalculator struct {
-}
+type nxtPosCalculator struct{}
 
-func (calc *NxtPosCalculator) HeightForHit(height uint64) uint64 {
+func (calc *nxtPosCalculator) HeightForHit(height uint64) uint64 {
 	if nxtPosHeightDiffForHit >= height {
 		return height
 	}
 	return height - nxtPosHeightDiffForHit
 }
 
-func (calc *NxtPosCalculator) CalculateBaseTarget(
+func (calc *nxtPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	prevHeight uint64,
 	prevTarget uint64,
@@ -193,7 +196,7 @@ func (calc *NxtPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTarget, balance uint64) (uint64, error) {
+func (calc *nxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTarget, balance uint64) (uint64, error) {
 	var targetFloat big.Float
 	targetFloat.SetUint64(parentTarget)
 	var balanceFloat big.Float
@@ -208,17 +211,12 @@ func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTa
 	return delay, nil
 }
 
-var (
-	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
-	FairPosCalculatorV2 = NewFairPosCalculator(delayDeltaV2, tMinV2)
-)
-
-type FairPosCalculator struct {
+type fairPosCalculator struct {
 	delayDelta uint64
 	tMin       float64
 }
 
-func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+func (calc *fairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
 	var maxHit big.Int
 	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float
@@ -233,7 +231,7 @@ func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.Ba
 	return res, nil
 }
 
-func (calc *FairPosCalculator) CalculateBaseTarget(
+func (calc *fairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	_ uint64,
 	confirmedTarget uint64,
@@ -256,7 +254,7 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *FairPosCalculator) HeightForHit(height uint64) uint64 {
+func (calc *fairPosCalculator) HeightForHit(height uint64) uint64 {
 	if fairPosHeightDiffForHit >= height {
 		return height
 	}
@@ -264,7 +262,7 @@ func (calc *FairPosCalculator) HeightForHit(height uint64) uint64 {
 }
 
 func NewFairPosCalculator(delayDelta uint64, tMin float64) PosCalculator {
-	return &FairPosCalculator{
+	return &fairPosCalculator{
 		delayDelta: delayDelta,
 		tMin:       tMin,
 	}

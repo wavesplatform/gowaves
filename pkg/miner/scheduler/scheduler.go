@@ -77,7 +77,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	pos := consensus.NxtPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
 			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
@@ -180,7 +180,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	pos := consensus.NxtPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
 			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
