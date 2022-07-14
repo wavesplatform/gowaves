@@ -661,6 +661,8 @@ func (ws *WrappedState) ApplyToState(
 		IsUTF16KeyLen:         !env.blockV5Activated(), // if RideV4 isn't activated,
 		IsProtobufTransaction: env.isProtobufTx(),
 		MaxDataEntriesSize:    env.maxDataEntriesSize(),
+		Scheme:                ws.scheme,
+		ScriptAddress:         ws.callee(),
 	}
 	for _, action := range actions {
 		if err := localActionsCountValidator.CountAction(action, currentLibVersion, env.rideV6Activated()); err != nil {
