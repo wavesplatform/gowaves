@@ -1164,12 +1164,8 @@ func AddWavesBalance(address proto.WavesAddress, amount int64) {
 	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(amount)}
 }
 
-func AddAvailableAndLeaseOutBalance(address proto.WavesAddress, availableBalance int64, leaseOut int64) {
-	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseOut: leaseOut}
-}
-
-func AddAvailableAndLeaseInBalance(address proto.WavesAddress, availableBalance int64, leaseOut int64) {
-	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseIn: leaseOut}
+func AddAvailableAndLeaseBalances(address proto.WavesAddress, availableBalance, leaseIn, leaseOut int64) {
+	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseIn: leaseIn, LeaseOut: leaseOut}
 }
 
 func AddAssetBalance(address proto.WavesAddress, asset crypto.Digest, amount int64) {
@@ -2811,8 +2807,8 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
 	wrappedSt = *NewWrappedSt
 
-	AddAvailableAndLeaseInBalance(senderAddress, 0, 50) // the one to whom 50 waves is leased
-	AddAvailableAndLeaseOutBalance(addr, 1000, 50)      // the one who leases
+	AddAvailableAndLeaseBalances(senderAddress, 0, 50, 0) // the one to whom 50 waves is leased
+	AddAvailableAndLeaseBalances(addr, 1000, 0, 50)       // the one who leases
 	AddWavesBalance(addressCallable, 0)
 	AddWavesBalance(otherAddr, 0)
 	res, err := CallFunction(env, tree, "call", proto.Arguments{})
