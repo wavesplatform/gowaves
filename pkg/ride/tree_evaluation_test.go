@@ -10226,44 +10226,6 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	testDAppAddress := dApp1
-	rideV6Activated := true
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideObject {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		txIDFunc: func() rideType {
-			return rideBytes(tx.ID.Bytes())
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: func() bool {
-			return rideV6Activated
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
 
 	mockState := &MockSmartState{
 		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
@@ -10317,22 +10279,60 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 		},
 	}
 
-	testState := initWrappedState(mockState, env, tree.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	freshEnv := func(rideV6Activated bool) environment {
+		testDAppAddress := dApp1
+		env := &mockRideEnvironment{
+			schemeFunc: func() byte {
+				return proto.TestNetScheme
+			},
+			thisFunc: func() rideType {
+				return rideAddress(testDAppAddress)
+			},
+			transactionFunc: func() rideObject {
+				obj, err := transactionToObject(proto.TestNetScheme, tx)
+				require.NoError(t, err)
+				return obj
+			},
+			invocationFunc: func() rideObject {
+				return testInv
+			},
+			checkMessageLengthFunc: v3check,
+			setInvocationFunc: func(inv rideObject) {
+				testInv = inv
+			},
+			validateInternalPaymentsFunc: func() bool {
+				return true
+			},
+			txIDFunc: func() rideType {
+				return rideBytes(tx.ID.Bytes())
+			},
+			maxDataEntriesSizeFunc: func() int {
+				return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+			},
+			blockV5ActivatedFunc: func() bool {
+				return true
+			},
+			rideV6ActivatedFunc: func() bool {
+				return rideV6Activated
+			},
+			isProtobufTxFunc: isProtobufTx,
+		}
+		testState := initWrappedState(mockState, env, tree.LibVersion)
+		env.stateFunc = func() types.SmartState {
+			return testState
+		}
+		env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+			testDAppAddress = address
+			testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		}
+		return env
 	}
 
-	rideV6Activated = true
-	res, err := CallFunction(env, tree, "test", arguments)
+	res, err := CallFunction(freshEnv(true), tree, "test", arguments)
 	assert.Nil(t, res)
 	require.EqualError(t, err, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100")
 
-	rideV6Activated = false
-	res, err = CallFunction(env, tree, "test", arguments)
+	res, err = CallFunction(freshEnv(false), tree, "test", arguments)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 }
