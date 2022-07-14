@@ -2892,6 +2892,128 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
+func TestLeaseAndLeaseCancelFromAnotherDApp(t *testing.T) {
+	/*
+		# script 1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let self = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+		let callee = Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna')
+		let other = Address(base58'3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo')
+
+		@Callable(i)
+		func call() = { # spendable balance is 1000
+		  strict leaseID = invoke(self, "lease", [100], [AttachedPayment(unit, 100)]) # new lease 100 waves = 900 spendable
+		  strict r2 = invoke(callee, "test", [], [AttachedPayment(unit, 900)]) # spent 900 on payment = 0 spendable
+		  strict r3 = invoke(callee, "cancelLease", [leaseID], []) # cancel lease inside other dApp - must fail
+		  []
+		}
+
+		@Callable(i)
+		func lease(leaseAmount: Int) = {
+		  let l = Lease(other, leaseAmount)
+		  ([l], calculateLeaseId(l))
+		}
+	*/
+
+	/*
+		# script 2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+
+		let caller = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+
+		@Callable(i)
+		func cancelLease(leaseID: ByteVector) = {
+		  [LeaseCancel(leaseID)]
+		}
+
+		@Callable(i)
+		func test() = {
+		  ([IntegerEntry("bar", 1)], 17)
+		}
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	otherAddr, err := proto.NewAddressFromString("3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo")
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 0,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       0,
+		Timestamp: 1564703444249,
+	}
+
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAkIAhIAEgMKAQEAAAADAAAAAARzZWxmCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXmGzcIAVTPp5N5/8fgLu/XIJsKq/KS9G5AAAAAAZjYWxsZWUJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssAAAAABW90aGVyCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXcARipkeb6a1WaJTL74WMMIIgKJoIFJayAAAAAgAAAAFpAQAAAARjYWxsAAAAAAQAAAAHbGVhc2VJRAkAA/wAAAAEBQAAAARzZWxmAgAAAAVsZWFzZQkABEwAAAACAAAAAAAAAABkBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAGQFAAAAA25pbAMJAAAAAAAAAgUAAAAHbGVhc2VJRAUAAAAHbGVhc2VJRAQAAAACcjIJAAP8AAAABAUAAAAGY2FsbGVlAgAAAAR0ZXN0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAA4QFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyBAAAAAJyMwkAA/wAAAAEBQAAAAZjYWxsZWUCAAAAC2NhbmNlbExlYXNlCQAETAAAAAIFAAAAB2xlYXNlSUQFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAJyMwUAAAACcjMFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgAAAAFpAQAAAAVsZWFzZQAAAAEAAAALbGVhc2VBbW91bnQEAAAAAWwJAAREAAAAAgUAAAAFb3RoZXIFAAAAC2xlYXNlQW1vdW50CQAFFAAAAAIJAARMAAAAAgUAAAABbAUAAAADbmlsCQAEOQAAAAEFAAAAAWwAAAAAIzb6dw=="
+	secondScript = "AAIFAAAAAAAAAAkIAhIDCgECEgAAAAABAAAAAAZjYWxsZXIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVeYbNwgBVM+nk3n/x+Au79cgmwqr8pL0bkAAAACAAAAAWkBAAAAC2NhbmNlbExlYXNlAAAAAQAAAAdsZWFzZUlECQAETAAAAAIJAQAAAAtMZWFzZUNhbmNlbAAAAAEFAAAAB2xlYXNlSUQFAAAAA25pbAAAAAFpAQAAAAR0ZXN0AAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANiYXIAAAAAAAAAAAEFAAAAA25pbAAAAAAAAAAAEQAAAAD5tRli"
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+
+	env := envDappFromDapp
+
+	_, tree := parseBase64Script(t, firstScript)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	AddWavesBalance(addr, 1000)
+	AddWavesBalance(addressCallable, 0)
+	AddWavesBalance(otherAddr, 0)
+
+	res, err := CallFunction(env, tree, "call", proto.Arguments{})
+	require.EqualError(t, err, "invoke: failed to apply actions: attempt to cancel leasing that was created by other account; leaser '3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv'; canceller '3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'; leasing: 2vwy11XyZ7EigdVftufiyVG9YLTVTmDMd27n39nqSL2P")
+	require.Nil(t, res)
+
+	tearDownDappFromDapp()
+}
+
 func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	/* script 1
