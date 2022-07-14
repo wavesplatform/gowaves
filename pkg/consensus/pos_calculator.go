@@ -86,10 +86,10 @@ func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg
 	if len(msg) < crypto.DigestSize {
 		return nil, errors.New("invalid message length")
 	}
-	s := make([]byte, crypto.DigestSize*2)
+	s := [crypto.DigestSize * 2]byte{}
 	copy(s[:crypto.DigestSize], msg[:crypto.DigestSize])
 	copy(s[crypto.DigestSize:], key[:])
-	d, err := crypto.FastHash(s)
+	d, err := crypto.FastHash(s[:])
 	if err != nil {
 		return nil, errors.Wrap(err, "NXT generation signature provider")
 	}
@@ -134,13 +134,13 @@ func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 }
 
 func GenHit(source []byte) (*Hit, error) {
-	s := make([]byte, hitSize)
-	copy(s, source[:hitSize])
+	s := [hitSize]byte{}
+	copy(s[:], source[:hitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
 	var hit big.Int
-	hit.SetBytes(s)
+	hit.SetBytes(s[:])
 	return &hit, nil
 }
 
