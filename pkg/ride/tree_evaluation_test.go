@@ -2693,49 +2693,53 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 	tearDownDappFromDapp()
 }
 
-// initially script 1 has 1000 available balance and 50 is leaseOut (spendable is 950).
-// After canceling the lease, the leaseOut is 0, and the spendable balance will be 1000 which is as much as the attached payment requires
 func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
+	// initially script 1 has 1000 available balance and 50 is leaseOut (spendable is 950).
 
-	/* script 1
+	/*
+		# script 1
 		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 
+		let self = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+		let callee = Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna')
+		let other = Address(base58'3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo')
+		let leaseID_50 = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8'
+
 		@Callable(i)
-		func call() = {
-	    let r = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "cancelLease", [],[])
-	    if r == r
-		  then
-		  	  let r2 = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "test", [], [AttachedPayment(unit, 1000)])
-	        if r2 == r2
-	        then
-	            [
-	            ]
-	    else
-	        throw("impossible1")
-	        else
-	            throw("impossible2")
-	}
+		func call() = { # total balance is 950 spendable + 50 leased = 1000
+		  strict leaseID = invoke(self, "lease", [100], [AttachedPayment(unit, 100)]) # new lease 100 waves = 850 spendable
+		  strict r1 = invoke(self, "cancelLease", [leaseID_50], []) # cancel existed lease with 50 waves = 900 spendable
+		  strict r2 = invoke(callee, "test", [], [AttachedPayment(unit, 900)]) # spent 900 on payment = 0 spendable
+		  strict r3 = invoke(self, "cancelLease", [leaseID], []) # cancel lease 100 = 100 spendable
+		  strict r4 = invoke(callee, "test", [], [AttachedPayment(unit, 100)]) # spent 100 on payment = 0 spendable
+		  []
+		}
+
+		@Callable(i)
+		func lease(leaseAmount: Int) = {
+		  let l = Lease(other, leaseAmount)
+		  ([l], calculateLeaseId(l))
+		}
+
+		@Callable(i)
+		func cancelLease(leaseID: ByteVector) = {
+		  [LeaseCancel(leaseID)]
+		}
 	*/
 
 	/*
-		script 2
+		# script 2
 		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-#SCRIPT_TYPE ACCOUNT#-}
 
-		@Callable(i)
-		func cancelLease() = {
-		  let leaseId = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8' # the lease is 50 waves
-			[
-			LeaseCancel(leaseId)
-		  ]
-		}
+		let caller = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
 
 		@Callable(i)
 		func test() = {
-			([IntegerEntry("bar", 1)], 17)
+		  ([IntegerEntry("bar", 1)], 17)
 		}
 	*/
 	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
@@ -2758,6 +2762,9 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	otherAddr, err := proto.NewAddressFromString("3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo")
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -2788,8 +2795,8 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAXIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAALY2FuY2VsTGVhc2UFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBAAAAAJyMgkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAgAAAAR0ZXN0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAA+gFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyBQAAAANuaWwJAAACAAAAAQIAAAALaW1wb3NzaWJsZTEJAAACAAAAAQIAAAALaW1wb3NzaWJsZTIAAAAARituYQ=="
-	secondScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAAtjYW5jZWxMZWFzZQAAAAAEAAAAB2xlYXNlSWQBAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlCQAETAAAAAIJAQAAAAtMZWFzZUNhbmNlbAAAAAEFAAAAB2xlYXNlSWQFAAAAA25pbAAAAAFpAQAAAAR0ZXN0AAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANiYXIAAAAAAAAAAAEFAAAAA25pbAAAAAAAAAAAEQAAAAA9/YEh"
+	firstScript = "AAIFAAAAAAAAAA4IAhIAEgMKAQESAwoBAgAAAAQAAAAABHNlbGYJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVeYbNwgBVM+nk3n/x+Au79cgmwqr8pL0bkAAAAABmNhbGxlZQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywAAAAAFb3RoZXIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdwBGKmR5vprVZolMvvhYwwgiAomggUlrIAAAAACmxlYXNlSURfNTABAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlAAAAAwAAAAFpAQAAAARjYWxsAAAAAAQAAAAHbGVhc2VJRAkAA/wAAAAEBQAAAARzZWxmAgAAAAVsZWFzZQkABEwAAAACAAAAAAAAAABkBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAGQFAAAAA25pbAMJAAAAAAAAAgUAAAAHbGVhc2VJRAUAAAAHbGVhc2VJRAQAAAACcjEJAAP8AAAABAUAAAAEc2VsZgIAAAALY2FuY2VsTGVhc2UJAARMAAAAAgUAAAAKbGVhc2VJRF81MAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIxBQAAAAJyMQQAAAACcjIJAAP8AAAABAUAAAAGY2FsbGVlAgAAAAR0ZXN0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAA4QFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyBAAAAAJyMwkAA/wAAAAEBQAAAARzZWxmAgAAAAtjYW5jZWxMZWFzZQkABEwAAAACBQAAAAdsZWFzZUlEBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjMFAAAAAnIzBAAAAAJyNAkAA/wAAAAEBQAAAAZjYWxsZWUCAAAABHRlc3QFAAAAA25pbAkABEwAAAACCQEAAAAPQXR0YWNoZWRQYXltZW50AAAAAgUAAAAEdW5pdAAAAAAAAAAAZAUAAAADbmlsAwkAAAAAAAACBQAAAAJyNAUAAAACcjQFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAWkBAAAABWxlYXNlAAAAAQAAAAtsZWFzZUFtb3VudAQAAAABbAkABEQAAAACBQAAAAVvdGhlcgUAAAALbGVhc2VBbW91bnQJAAUUAAAAAgkABEwAAAACBQAAAAFsBQAAAANuaWwJAAQ5AAAAAQUAAAABbAAAAAFpAQAAAAtjYW5jZWxMZWFzZQAAAAEAAAAHbGVhc2VJRAkABEwAAAACCQEAAAALTGVhc2VDYW5jZWwAAAABBQAAAAdsZWFzZUlEBQAAAANuaWwAAAAAmzWQNg=="
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVyCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXmGzcIAVTPp5N5/8fgLu/XIJsKq/KS9G5AAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANiYXIAAAAAAAAAAAEFAAAAA25pbAAAAAAAAAAAEQAAAADJwxAG"
 
 	id = bytes.Repeat([]byte{0}, 32)
 
@@ -2807,6 +2814,7 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 	AddAvailableAndLeaseInBalance(senderAddress, 0, 50) // the one to whom 50 waves is leased
 	AddAvailableAndLeaseOutBalance(addr, 1000, 50)      // the one who leases
 	AddWavesBalance(addressCallable, 0)
+	AddWavesBalance(otherAddr, 0)
 	res, err := CallFunction(env, tree, "call", proto.Arguments{})
 
 	require.NoError(t, err)
@@ -2817,13 +2825,12 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
-	balanceSender := diffBalance{balance: 0, leaseIn: 0}
-	balanceMain := diffBalance{balance: 0, leaseOut: 0}
 	balanceCallable := diffBalance{balance: 1000} // after invocation, 1000 waves are transferred to the callable dApp as attached payments
 
-	expectedDiffResult.wavesBalances[senderAddress.ID()] = balanceSender
+	expectedDiffResult.wavesBalances[senderAddress.ID()] = diffBalance{}
 	expectedDiffResult.wavesBalances[addressCallable.ID()] = balanceCallable
-	expectedDiffResult.wavesBalances[addr.ID()] = balanceMain
+	expectedDiffResult.wavesBalances[addr.ID()] = diffBalance{}
+	expectedDiffResult.wavesBalances[otherAddr.ID()] = diffBalance{}
 
 	assert.Equal(t, expectedDiffResult.wavesBalances, wrappedSt.diff.wavesBalances)
 
