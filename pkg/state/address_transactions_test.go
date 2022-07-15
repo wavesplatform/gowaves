@@ -136,7 +136,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
@@ -194,7 +194,7 @@ func TestFailedTransaction(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)

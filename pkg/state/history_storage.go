@@ -349,7 +349,7 @@ func (hr *historyRecord) topEntry() (historyEntry, error) {
 type topEntryIterator struct {
 	dbIter keyvalue.Iterator
 	fmt    *historyFormatter
-	filter bool
+	amend  bool
 
 	err    error
 	curKey []byte
@@ -364,7 +364,7 @@ func (i *topEntryIterator) Next() bool {
 			i.err = err
 			return false
 		}
-		if _, err := i.fmt.normalize(history, i.filter); err != nil {
+		if _, err := i.fmt.normalize(history, i.amend); err != nil {
 			i.err = err
 			return false
 		}
@@ -506,7 +506,7 @@ func (hs *historyStorage) newTopEntryIteratorByPrefix(prefix []byte) (*topEntryI
 	if err != nil {
 		return nil, err
 	}
-	return &topEntryIterator{dbIter: dbIter, fmt: hs.fmt}, nil
+	return &topEntryIterator{dbIter: dbIter, fmt: hs.fmt, amend: hs.amend}, nil
 }
 
 func (hs *historyStorage) newTopEntryIterator(entity blockchainEntity) (*topEntryIterator, error) {
@@ -575,7 +575,6 @@ func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, e
 	hs.writeLock.Lock()
 	defer hs.writeLock.Unlock()
 
-	filter := true // TODO FIX
 	historyBytes, err := hs.db.Get(key)
 	if err != nil {
 		return nil, err // `keyvalue.ErrNotFound` is possible here along with other unwrapped DB errors
@@ -584,7 +583,7 @@ func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, e
 	if err != nil {
 		return nil, errs.Extend(err, "newHistoryRecordFromBytes")
 	}
-	changed, err := hs.fmt.normalize(history, filter)
+	changed, err := hs.fmt.normalize(history, hs.amend)
 	if err != nil {
 		return nil, err
 	}

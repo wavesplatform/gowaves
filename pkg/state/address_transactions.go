@@ -137,10 +137,10 @@ type addressTransactionsParams struct {
 }
 
 type addressTransactions struct {
-	stateDB *stateDB
-	rw      *blockReadWriter
-	stor    *batchedStorage
-
+	stateDB             *stateDB
+	rw                  *blockReadWriter
+	stor                *batchedStorage
+	amend               bool
 	filePath            string
 	addrTransactions    *os.File
 	addrTransactionsBuf *bufio.Writer
@@ -153,6 +153,7 @@ func newAddressTransactions(
 	stateDB *stateDB,
 	rw *blockReadWriter,
 	params *addressTransactionsParams,
+	amend bool,
 ) (*addressTransactions, error) {
 	bsParams := &batchedStorParams{
 		maxBatchSize: maxTransactionIdsBatchSize,
@@ -167,7 +168,7 @@ func newAddressTransactions(
 	if err := manageFile(addrTransactionsFile, db); err != nil {
 		return nil, err
 	}
-	stor, err := newBatchedStorage(db, stateDB, bsParams, params.batchedStorMemLimit, params.batchedStorMaxKeys)
+	stor, err := newBatchedStorage(db, stateDB, bsParams, params.batchedStorMemLimit, params.batchedStorMaxKeys, amend)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +180,7 @@ func newAddressTransactions(
 		addrTransactions:    addrTransactionsFile,
 		addrTransactionsBuf: bufio.NewWriter(addrTransactionsFile),
 		params:              params,
+		amend:               amend,
 	}
 	if params.providesData {
 		if err := atx.persist(); err != nil {
@@ -321,8 +323,7 @@ func (at *addressTransactions) persist() error {
 		// we shouldn't check isValid() on records.
 		isValid := true
 		// TODO here we should also add this flag
-		filter := true
-		if filter {
+		if at.amend {
 			blockNum := binary.BigEndian.Uint32(record[proto.AddressIDSize : proto.AddressIDSize+4])
 			isValid, err = at.stateDB.isValidBlock(blockNum)
 			if err != nil {

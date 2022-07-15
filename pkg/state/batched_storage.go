@@ -253,7 +253,7 @@ type batchedStorage struct {
 	dbBatch   keyvalue.Batch
 	writeLock *sync.Mutex
 	stateDB   *stateDB
-
+	amend     bool
 	params    *batchedStorParams
 	localStor map[string]*batchesGroup
 	memSize   int // Total size (in bytes) of what was added.
@@ -267,6 +267,7 @@ func newBatchedStorage(
 	params *batchedStorParams,
 	memLimit int,
 	maxKeys int,
+	amend bool,
 ) (*batchedStorage, error) {
 	// Actual record size is greater by blockNumLen.
 	params.recordSize += blockNumLen
@@ -284,6 +285,7 @@ func newBatchedStorage(
 		memSize:   0,
 		memLimit:  memLimit,
 		maxKeys:   maxKeys,
+		amend:     amend,
 	}, nil
 }
 
@@ -440,9 +442,7 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 }
 
 func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
-	// TODO here we should also add filter
-	filter := true
-	if filter {
+	if s.amend {
 		if err := s.normalizeBatches(key); err != nil {
 			return nil, errors.Wrap(err, "failed to normalize")
 		}
