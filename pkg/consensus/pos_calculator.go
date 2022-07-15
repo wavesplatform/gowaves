@@ -26,8 +26,6 @@ const (
 	c2           = float64(500000000000000000)
 	tMinV1       = float64(5000)
 	delayDeltaV1 = 0
-	tMinV2       = float64(15000)
-	delayDeltaV2 = 8
 )
 
 type Hit = big.Int
@@ -39,7 +37,6 @@ var (
 var (
 	NxtPosCalculator    = PosCalculator(&nxtPosCalculator{})
 	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
-	FairPosCalculatorV2 = NewFairPosCalculator(delayDeltaV2, tMinV2)
 )
 
 func normalize(value, targetBlockDelaySeconds uint64) float64 {
@@ -261,6 +258,7 @@ func (calc *fairPosCalculator) HeightForHit(height uint64) uint64 {
 	return height - fairPosHeightDiffForHit
 }
 
+// NewFairPosCalculator creates a custom FairPosCalculator, if this parameter is not specified in the config, then FairPosCalculatorV2 is used by default
 func NewFairPosCalculator(delayDelta uint64, tMin float64) PosCalculator {
 	return &fairPosCalculator{
 		delayDelta: delayDelta,
