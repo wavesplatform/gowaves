@@ -1,8 +1,9 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/settings"
