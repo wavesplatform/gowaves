@@ -2892,6 +2892,106 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
+func TestLeaseToSelf(t *testing.T) {
+	/*
+		# script 1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let self = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+		let other = Address(base58'3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo')
+
+		@Callable(i)
+		func call() = { # spendable balance is 1000
+		  strict leaseID = invoke(self, "lease", [1000], [AttachedPayment(unit, 1000)]) # attached action to self - must fail
+		  []
+		}
+
+		@Callable(i)
+		func lease(leaseAmount: Int) = {
+		  let l = Lease(other, leaseAmount)
+		  ([l], calculateLeaseId(l))
+		}
+	*/
+
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	otherAddr, err := proto.NewAddressFromString("3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo")
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 0,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       0,
+		Timestamp: 1564703444249,
+	}
+
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAkIAhIAEgMKAQEAAAACAAAAAARzZWxmCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXmGzcIAVTPp5N5/8fgLu/XIJsKq/KS9G5AAAAAAVvdGhlcgkBAAAAB0FkZHJlc3MAAAABAQAAABoBV3AEYqZHm+mtVmiUy++FjDCCICiaCBSWsgAAAAIAAAABaQEAAAAEY2FsbAAAAAAEAAAAB2xlYXNlSUQJAAP8AAAABAUAAAAEc2VsZgIAAAAFbGVhc2UJAARMAAAAAgAAAAAAAAAD6AUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAPoBQAAAANuaWwDCQAAAAAAAAIFAAAAB2xlYXNlSUQFAAAAB2xlYXNlSUQFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAABaQEAAAAFbGVhc2UAAAABAAAAC2xlYXNlQW1vdW50BAAAAAFsCQAERAAAAAIFAAAABW90aGVyBQAAAAtsZWFzZUFtb3VudAkABRQAAAACCQAETAAAAAIFAAAAAWwFAAAAA25pbAkABDkAAAABBQAAAAFsAAAAAFTZODM="
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+
+	env := envDappFromDapp
+
+	_, tree := parseBase64Script(t, firstScript)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	AddWavesBalance(addr, 1000)
+	AddWavesBalance(addressCallable, 0)
+	AddWavesBalance(otherAddr, 0)
+
+	res, err := CallFunction(env, tree, "call", proto.Arguments{})
+	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: transfers to DApp itself are forbidden since activation of RIDE V4")
+	require.Nil(t, res)
+
+	tearDownDappFromDapp()
+}
+
 func TestLeaseAndLeaseCancelFromAnotherDApp(t *testing.T) {
 	/*
 		# script 1
