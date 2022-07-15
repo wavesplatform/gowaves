@@ -20,6 +20,12 @@ const (
 	Custom
 )
 
+// Default it is params for FairPosCalculatorV2
+const (
+	minBlockTimeDefault = float64(15000)
+	delayDeltaDefault   = 8
+)
+
 var (
 	//go:embed embedded
 	res embed.FS
@@ -64,6 +70,12 @@ type FunctionalitySettings struct {
 	AddressSchemeCharacter proto.Scheme `json:"address_scheme_character"`
 
 	AverageBlockDelaySeconds uint64 `json:"average_block_delay_seconds"`
+
+	// FairPosCalculator
+	DelayDelta uint64 `json:"delay_delta"`
+	// In Milliseconds.
+	MinBlockTime float64 `json:"min_block_time"`
+
 	// Configurable.
 	MaxBaseTarget uint64 `json:"max_base_target"`
 
@@ -99,9 +111,15 @@ type BlockchainSettings struct {
 }
 
 var (
-	MainNetSettings       = mustLoadEmbeddedSettings(MainNet)
-	TestNetSettings       = mustLoadEmbeddedSettings(TestNet)
-	StageNetSettings      = mustLoadEmbeddedSettings(StageNet)
+	MainNetSettings  = mustLoadEmbeddedSettings(MainNet)
+	TestNetSettings  = mustLoadEmbeddedSettings(TestNet)
+	StageNetSettings = mustLoadEmbeddedSettings(StageNet)
+	defaultSettings  = BlockchainSettings{
+		FunctionalitySettings: FunctionalitySettings{
+			MinBlockTime: minBlockTimeDefault,
+			DelayDelta:   delayDeltaDefault,
+		},
+	}
 	DefaultCustomSettings = &BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
@@ -156,11 +174,11 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 
 func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 	jsonParser := json.NewDecoder(r)
-	s := &BlockchainSettings{}
-	if err := jsonParser.Decode(s); err != nil {
+	s := defaultSettings
+	if err := jsonParser.Decode(&s); err != nil {
 		return nil, errors.Wrap(err, "failed to read blockchain settings")
 	}
-	return s, nil
+	return &s, nil
 }
 
 func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
