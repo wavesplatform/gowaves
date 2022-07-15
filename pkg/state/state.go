@@ -470,8 +470,14 @@ func newStateManager(dataDir string, amend bool, genesis bool, params StateParam
 	return state, nil
 }
 
-func AddGenesisBlock(path string, filter bool, params StateParams, settings *settings.BlockchainSettings) error {
-	s, err := newStateManager(path, filter, true, params, settings)
+func AddGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) error {
+	s, err := newStateManager(path, false, true, params, settings)
+	defer func() {
+		err = s.Close()
+		if err != nil {
+			zap.S().Error(errors.Errorf("failed to close state after handling genesis block %v\n", err))
+		}
+	}()
 	if err != nil {
 		return err
 	}
@@ -492,10 +498,7 @@ func AddGenesisBlock(path string, filter bool, params StateParams, settings *set
 		}
 
 	}
-	err = s.Close()
-	if err != nil {
-		return errors.Errorf("failed to close state after handling genesis block %v\n", err)
-	}
+
 	return nil
 }
 

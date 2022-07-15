@@ -20,7 +20,7 @@ func TestGetBaseTarget(t *testing.T) {
 	assert.NoError(t, err)
 	params := defaultStateParams()
 	params.StoreExtendedApiData = true
-	err = state.AddGenesisBlock(dataDir, false, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -62,7 +62,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
-	err = state.AddGenesisBlock(dataDir, false, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err)

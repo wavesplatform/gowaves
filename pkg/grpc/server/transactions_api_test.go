@@ -117,7 +117,7 @@ func TestGetStatuses(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	require.NoError(t, err)
 	params := defaultStateParams()
-	err = state.AddGenesisBlock(dataDir, false, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	require.NoError(t, err)
 	params := defaultStateParams()
-	err = state.AddGenesisBlock(dataDir, false, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -284,7 +284,7 @@ func TestSign(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	require.NoError(t, err)
 	params := defaultStateParams()
-	err = state.AddGenesisBlock(dataDir, false, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	require.NoError(t, err)

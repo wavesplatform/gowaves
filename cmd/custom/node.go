@@ -164,7 +164,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntpTime
 
-	err = state.AddGenesisBlock(path, false, params, custom) // filter is always false for genesis block
+	err = state.AddGenesisBlock(path, params, custom) // filter is always false for genesis block
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
