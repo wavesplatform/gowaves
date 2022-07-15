@@ -27,7 +27,7 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 				panic("mock out the accountHasVerifier method")
 // 			},
 // 			clearFunc: func() error {
-// 				panic("mock out the clear method")
+// 				panic("mock out the clearCache method")
 // 			},
 // 			commitUncertainFunc: func(blockID proto.BlockID) error {
 // 				panic("mock out the commitUncertain method")
@@ -108,7 +108,7 @@ type mockScriptStorageState struct {
 	// accountHasVerifierFunc mocks the accountHasVerifier method.
 	accountHasVerifierFunc func(addr proto.WavesAddress, filter bool) (bool, error)
 
-	// clearFunc mocks the clear method.
+	// clearFunc mocks the clearCache method.
 	clearFunc func() error
 
 	// commitUncertainFunc mocks the commitUncertain method.
@@ -193,7 +193,7 @@ type mockScriptStorageState struct {
 			// Filter is the filter argument value.
 			Filter bool
 		}
-		// clear holds details about calls to the clear method.
+		// clearCache holds details about calls to the clearCache method.
 		clear []struct {
 		}
 		// commitUncertain holds details about calls to the commitUncertain method.
@@ -436,10 +436,10 @@ func (mock *mockScriptStorageState) accountHasVerifierCalls() []struct {
 	return calls
 }
 
-// clear calls clearFunc.
-func (mock *mockScriptStorageState) clear() error {
+// clearCache calls clearFunc.
+func (mock *mockScriptStorageState) clearCache() error {
 	if mock.clearFunc == nil {
-		panic("mockScriptStorageState.clearFunc: method is nil but scriptStorageState.clear was just called")
+		panic("mockScriptStorageState.clearFunc: method is nil but scriptStorageState.clearCache was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -449,7 +449,7 @@ func (mock *mockScriptStorageState) clear() error {
 	return mock.clearFunc()
 }
 
-// clearCalls gets all the calls that were made to clear.
+// clearCalls gets all the calls that were made to clearCache.
 // Check the length with:
 //     len(mockedscriptStorageState.clearCalls())
 func (mock *mockScriptStorageState) clearCalls() []struct {
