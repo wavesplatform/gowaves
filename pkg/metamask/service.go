@@ -231,14 +231,15 @@ func (c ethCallParams) String() string {
 }
 
 var (
-	erc20SymbolSelector   = ethabi.Signature("symbol()").Selector()           // "0x95d89b41"
-	erc20DecimalsSelector = ethabi.Signature("decimals()").Selector()         // "0x313ce567"
-	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
+	erc20SymbolSelector    = ethabi.Signature("symbol()").Selector()                  // "0x95d89b41"
+	erc20DecimalsSelector  = ethabi.Signature("decimals()").Selector()                // "0x313ce567"
+	erc20BalanceSelector   = ethabi.Signature("balanceOf(address)").Selector()        // "0x70a08231"
+	erc20SupportsInterface = ethabi.Signature("supportsInterface(bytes4)").Selector() // "0x01ffc9a7"
 )
 
 func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 	// TODO(nickeskov): what this method should send in case of error?
-	zap.S().Debugf("Eth_Call was called with %s", params.String())
+	zap.S().Debugf("Eth_Call was called with %q", params.String())
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
@@ -263,14 +264,14 @@ func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 			zap.S().Errorf("Eth_Call: failed to fetch full asset info, %s: %v", params.String(), err)
 			return "", err
 		}
-		return fullInfo.Name, nil
+		return proto.EncodeToHexString([]byte(fullInfo.Name)), nil
 	case erc20DecimalsSelector:
 		info, err := s.nodeRPCApp.State.AssetInfo(shortAssetID)
 		if err != nil {
 			zap.S().Errorf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
-		return fmt.Sprintf("%d", info.Decimals), nil
+		return uint64ToHexString(uint64(info.Decimals)), nil
 
 	case erc20BalanceSelector:
 		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
@@ -303,6 +304,8 @@ func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 			return "", err
 		}
 		return uint64ToHexString(accountBalance), nil
+	case erc20SupportsInterface:
+		return proto.EncodeToHexString([]byte("false")), nil
 	default:
 		return "", errors.Errorf("unexpected call, %s", params.String())
 	}
