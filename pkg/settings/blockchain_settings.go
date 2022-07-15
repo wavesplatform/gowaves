@@ -114,7 +114,7 @@ var (
 	MainNetSettings  = mustLoadEmbeddedSettings(MainNet)
 	TestNetSettings  = mustLoadEmbeddedSettings(TestNet)
 	StageNetSettings = mustLoadEmbeddedSettings(StageNet)
-	defaultSettings  = &BlockchainSettings{
+	defaultSettings  = BlockchainSettings{
 		FunctionalitySettings: FunctionalitySettings{
 			MinBlockTime: minBlockTimeDefault,
 			DelayDelta:   delayDeltaDefault,
@@ -175,10 +175,10 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 	jsonParser := json.NewDecoder(r)
 	s := defaultSettings
-	if err := jsonParser.Decode(s); err != nil {
+	if err := jsonParser.Decode(&s); err != nil {
 		return nil, errors.Wrap(err, "failed to read blockchain settings")
 	}
-	return s, nil
+	return &s, nil
 }
 
 func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
