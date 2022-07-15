@@ -94,7 +94,7 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 }
 
 func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
-	addr, err := ws.recipientToAddress(account)
+	addr, err := ws.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
 	}
@@ -106,7 +106,7 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 }
 
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-	addr, err := ws.recipientToAddress(account)
+	addr, err := ws.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get asset balance from wrapped state")
 	}
@@ -119,7 +119,7 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	addr, err := ws.recipientToAddress(account)
+	addr, err := ws.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
 	}
@@ -692,7 +692,7 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			recipient, err := ws.recipientToAddress(a.Recipient)
+			recipient, err := ws.NewestRecipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
@@ -717,7 +717,7 @@ func (ws *WrappedState) ApplyToState(
 			if err = ws.validateTransferAction(a, restrictions, senderAddress, env); err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
 			}
-			recipient, err := ws.recipientToAddress(a.Recipient)
+			recipient, err := ws.NewestRecipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
@@ -862,12 +862,12 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
-			recipient, err := ws.recipientToAddress(a.Recipient)
+			receiver, err := ws.NewestRecipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
-			if err := ws.diff.lease(senderAddress, *recipient, a.Amount, a.ID); err != nil {
+			if err := ws.diff.lease(senderAddress, *receiver, a.Amount, a.ID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
@@ -886,16 +886,23 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not actve", a.LeaseID.String())
 			}
 
-			senderID, err := ws.recipientToAddress(searchLease.Sender)
+			sender, err := ws.NewestRecipientToAddress(searchLease.Sender)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
-			recipientID, err := ws.recipientToAddress(searchLease.Recipient)
+			receiver, err := ws.NewestRecipientToAddress(searchLease.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
-			if err := ws.diff.cancelLease(*senderID, *recipientID, searchLease.leasedAmount, a.LeaseID); err != nil {
+			if canceler := ws.callee(); canceler != *sender {
+				return nil, errors.Errorf(
+					"attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s",
+					sender.String(), canceler.String(), a.LeaseID.String(),
+				)
+			}
+
+			if err := ws.diff.cancelLease(*sender, *receiver, searchLease.leasedAmount, a.LeaseID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
@@ -905,14 +912,6 @@ func (ws *WrappedState) ApplyToState(
 	}
 
 	return actions, nil
-}
-
-func (ws *WrappedState) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
-	addr, err := ws.diff.state.NewestRecipientToAddress(recipient)
-	if err != nil {
-		return nil, err
-	}
-	return addr, nil
 }
 
 type EvaluationEnvironment struct {
