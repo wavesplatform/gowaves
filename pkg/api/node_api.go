@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -21,7 +22,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultTimeout = 30 * time.Second
+const (
+	defaultTimeout = 30 * time.Second
+
+	maxDebugMessageLength = 100
+)
 
 type NodeApi struct {
 	state state.State
@@ -517,6 +522,11 @@ func (a *NodeApi) debugPrint(_ http.ResponseWriter, r *http.Request) error {
 	if err := tryParseJson(r.Body, req); err != nil {
 		return errors.Wrap(err, "failed to parse DebugPrint request body as JSON")
 	}
-	zap.S().Debug(req.Message)
+	trimmedStr := req.Message
+	if len(req.Message) > maxDebugMessageLength {
+		trimmedStr = req.Message[:maxDebugMessageLength]
+	}
+	safeStr := strings.NewReplacer("\n", "", "\r", "").Replace(trimmedStr)
+	zap.S().Debug(safeStr)
 	return nil
 }
