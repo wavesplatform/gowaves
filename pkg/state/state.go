@@ -629,7 +629,7 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
-	pos := &consensus.FairPosCalculatorV2{}
+	pos := consensus.NewFairPosCalculator(s.settings.DelayDelta, s.settings.MinBlockTime)
 	p := pos.HeightForHit(height)
 	refHitSource, err := s.NewestHitSourceAtHeight(p)
 	if err != nil {

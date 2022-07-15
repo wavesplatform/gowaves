@@ -26,14 +26,17 @@ const (
 	c2           = float64(500000000000000000)
 	tMinV1       = float64(5000)
 	delayDeltaV1 = 0
-	tMinV2       = float64(15000)
-	delayDeltaV2 = 8
 )
 
 type Hit = big.Int
 
 var (
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
+)
+
+var (
+	NxtPosCalculator    = PosCalculator(&nxtPosCalculator{})
+	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
 )
 
 func normalize(value, targetBlockDelaySeconds uint64) float64 {
@@ -65,8 +68,7 @@ type GenerationSignatureProvider interface {
 
 // NXTGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
 // public key and generation signature from the previous block.
-type NXTGenerationSignatureProvider struct {
-}
+type NXTGenerationSignatureProvider struct{}
 
 // GenerationSignature builds NXT generation signature using only generator's public key.
 func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
@@ -81,10 +83,10 @@ func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg
 	if len(msg) < crypto.DigestSize {
 		return nil, errors.New("invalid message length")
 	}
-	s := make([]byte, crypto.DigestSize*2)
+	s := [crypto.DigestSize * 2]byte{}
 	copy(s[:crypto.DigestSize], msg[:crypto.DigestSize])
 	copy(s[crypto.DigestSize:], key[:])
-	d, err := crypto.FastHash(s)
+	d, err := crypto.FastHash(s[:])
 	if err != nil {
 		return nil, errors.Wrap(err, "NXT generation signature provider")
 	}
@@ -104,8 +106,7 @@ func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 
 // VRFGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
 // of previous block and generator's secret key.
-type VRFGenerationSignatureProvider struct {
-}
+type VRFGenerationSignatureProvider struct{}
 
 func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	proof, err := crypto.SignVRF(key, msg)
@@ -130,13 +131,13 @@ func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 }
 
 func GenHit(source []byte) (*Hit, error) {
-	s := make([]byte, hitSize)
-	copy(s, source[:hitSize])
+	s := [hitSize]byte{}
+	copy(s[:], source[:hitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
 	var hit big.Int
-	hit.SetBytes(s)
+	hit.SetBytes(s[:])
 	return &hit, nil
 }
 
@@ -153,17 +154,16 @@ type PosCalculator interface {
 	CalculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
 }
 
-type NxtPosCalculator struct {
-}
+type nxtPosCalculator struct{}
 
-func (calc *NxtPosCalculator) HeightForHit(height uint64) uint64 {
+func (calc *nxtPosCalculator) HeightForHit(height uint64) uint64 {
 	if nxtPosHeightDiffForHit >= height {
 		return height
 	}
 	return height - nxtPosHeightDiffForHit
 }
 
-func (calc *NxtPosCalculator) CalculateBaseTarget(
+func (calc *nxtPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	prevHeight uint64,
 	prevTarget uint64,
@@ -193,7 +193,7 @@ func (calc *NxtPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTarget, balance uint64) (uint64, error) {
+func (calc *nxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTarget, balance uint64) (uint64, error) {
 	var targetFloat big.Float
 	targetFloat.SetUint64(parentTarget)
 	var balanceFloat big.Float
@@ -208,24 +208,36 @@ func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTa
 	return delay, nil
 }
 
-func heightForHit(height uint64) uint64 {
-	if fairPosHeightDiffForHit >= height {
-		return height
-	}
-	return height - fairPosHeightDiffForHit
+type fairPosCalculator struct {
+	delayDelta uint64
+	tMin       float64
 }
 
-func calculateBaseTarget(
+func (calc *fairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+	var maxHit big.Int
+	maxHit.SetBytes(maxSignature)
+	var maxHitFloat big.Float
+	maxHitFloat.SetInt(&maxHit)
+	var hitFloat big.Float
+	hitFloat.SetInt(hit)
+	var quo big.Float
+	quo.Quo(&hitFloat, &maxHitFloat)
+	h, _ := quo.Float64()
+	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
+	res := uint64(calc.tMin + c1*log)
+	return res, nil
+}
+
+func (calc *fairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	_ uint64,
 	confirmedTarget uint64,
 	_ uint64,
 	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
-	delayDelta uint64,
 ) (types.BaseTarget, error) {
-	maxDelay := normalize(90-delayDelta, targetBlockDelaySeconds)
-	minDelay := normalize(30+delayDelta, targetBlockDelaySeconds)
+	maxDelay := normalize(90-calc.delayDelta, targetBlockDelaySeconds)
+	minDelay := normalize(30+calc.delayDelta, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
 		return confirmedTarget, nil
 	}
@@ -239,63 +251,17 @@ func calculateBaseTarget(
 	}
 }
 
-func calculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64, threshold float64) (uint64, error) {
-	var maxHit big.Int
-	maxHit.SetBytes(maxSignature)
-	var maxHitFloat big.Float
-	maxHitFloat.SetInt(&maxHit)
-	var hitFloat big.Float
-	hitFloat.SetInt(hit)
-	var quo big.Float
-	quo.Quo(&hitFloat, &maxHitFloat)
-	h, _ := quo.Float64()
-	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
-	res := uint64(threshold + c1*log)
-	return res, nil
+func (calc *fairPosCalculator) HeightForHit(height uint64) uint64 {
+	if fairPosHeightDiffForHit >= height {
+		return height
+	}
+	return height - fairPosHeightDiffForHit
 }
 
-type FairPosCalculatorV1 struct {
-}
-
-func (calc *FairPosCalculatorV1) HeightForHit(height uint64) uint64 {
-	return heightForHit(height)
-}
-
-func (calc *FairPosCalculatorV1) CalculateBaseTarget(
-	targetBlockDelaySeconds uint64,
-	confirmedHeight uint64,
-	confirmedTarget uint64,
-	confirmedTimestamp uint64,
-	greatGrandParentTimestamp uint64,
-	applyingBlockTimestamp uint64,
-) (types.BaseTarget, error) {
-	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV1)
-}
-
-func (calc *FairPosCalculatorV1) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
-	return calculateDelay(hit, confirmedTarget, balance, tMinV1)
-}
-
-type FairPosCalculatorV2 struct {
-}
-
-func (calc *FairPosCalculatorV2) HeightForHit(height uint64) uint64 {
-	return heightForHit(height)
-}
-
-func (calc *FairPosCalculatorV2) CalculateBaseTarget(
-	targetBlockDelaySeconds uint64,
-	confirmedHeight uint64,
-	confirmedTarget uint64,
-	confirmedTimestamp uint64,
-	greatGrandParentTimestamp uint64,
-	applyingBlockTimestamp uint64,
-) (types.BaseTarget, error) {
-	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV2)
-}
-
-func (calc *FairPosCalculatorV2) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
-	return calculateDelay(hit, confirmedTarget, balance, tMinV2)
+// NewFairPosCalculator creates a custom FairPosCalculator, if this parameter is not specified in the config, then FairPosCalculatorV2 is used by default
+func NewFairPosCalculator(delayDelta uint64, tMin float64) PosCalculator {
+	return &fairPosCalculator{
+		delayDelta: delayDelta,
+		tMin:       tMin,
+	}
 }

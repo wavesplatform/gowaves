@@ -41,24 +41,24 @@ type SchedulerImpl struct {
 }
 
 type internal interface {
-	schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error)
+	schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error)
 }
 
 type internalImpl struct {
 }
 
-func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get vrfActivated")
 	}
 	if vrfActivated {
-		return a.scheduleWithVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+		return a.scheduleWithVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, MinBlockTime, DelayDelta, confirmedBlock, confirmedBlockHeight)
 	}
-	return a.scheduleWithoutVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	return a.scheduleWithoutVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, MinBlockTime, DelayDelta, confirmedBlock, confirmedBlockHeight)
 }
 
-func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
@@ -77,12 +77,12 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	pos := consensus.NxtPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
-			pos = &consensus.FairPosCalculatorV2{}
+			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
 		} else {
-			pos = &consensus.FairPosCalculatorV1{}
+			pos = consensus.FairPosCalculatorV1
 		}
 	}
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
@@ -161,7 +161,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	return out, nil
 }
 
-func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
@@ -180,12 +180,12 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	pos := consensus.NxtPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
-			pos = &consensus.FairPosCalculatorV2{}
+			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
 		} else {
-			pos = &consensus.FairPosCalculatorV1{}
+			pos = consensus.FairPosCalculatorV1
 		}
 	}
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
@@ -348,7 +348,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 	}
 
 	rs, err := a.storage.MapR(func(info state.StateInfo) (i interface{}, err error) {
-		return a.internal.schedule(info, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+		return a.internal.schedule(info, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, a.settings.MinBlockTime, a.settings.DelayDelta, confirmedBlock, confirmedBlockHeight)
 	})
 	if err != nil {
 		zap.S().Error(err)
