@@ -55,6 +55,7 @@ var (
 	blockID0 = genBlockId(1)
 	blockID1 = genBlockId(2)
 	blockID2 = genBlockId(3)
+	blockID3 = genBlockId(4)
 )
 
 type testWavesAddr interface {
@@ -354,7 +355,7 @@ type testStorageObjects struct {
 	entities *blockchainEntitiesStorage
 }
 
-func createStorageObjects() (*testStorageObjects, []string, error) {
+func createStorageObjects(amend bool) (*testStorageObjects, []string, error) {
 	res := make([]string, 2)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -383,7 +384,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 		return nil, res, err
 	}
 	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, true)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, amend)
 	if err != nil {
 		return nil, res, err
 	}
@@ -417,6 +418,17 @@ func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) 
 	s.flush(t)
 	err = s.rw.syncWithDb()
 	assert.NoError(t, err)
+}
+
+func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID proto.BlockID) {
+	s.flush(t)
+	err := s.stateDB.rollback(blockID)
+	assert.NoError(t, err, "rollbackBlock() failed")
+	err = s.rw.syncWithDb()
+	assert.NoError(t, err)
+	err = s.entities.scriptsStorage.clearCache()
+	assert.NoError(t, err)
+	s.flush(t)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {

@@ -178,7 +178,7 @@ func TestFinishRewardVoting(t *testing.T) {
 }
 
 func createTestObjects(sets *settings.BlockchainSettings) (*monetaryPolicy, *testStorageObjects, []string, error) {
-	storage, path, err := createStorageObjects()
+	storage, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, nil, path, err
 	}

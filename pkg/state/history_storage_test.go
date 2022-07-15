@@ -15,7 +15,7 @@ const (
 )
 
 func TestAddNewEntry(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -76,7 +76,7 @@ func TestAddNewEntry(t *testing.T) {
 }
 
 func TestNewestDataIterator(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -154,7 +154,7 @@ func TestNewestDataIterator(t *testing.T) {
 }
 
 func TestVariableSizes(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -198,7 +198,7 @@ func TestVariableSizes(t *testing.T) {
 }
 
 func TestFixedRecordSizes(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {

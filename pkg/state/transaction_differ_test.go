@@ -33,7 +33,7 @@ type differTestObjects struct {
 }
 
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")

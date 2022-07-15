@@ -28,7 +28,7 @@ type checkerTestObjects struct {
 }
 
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")

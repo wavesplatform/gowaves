@@ -17,7 +17,7 @@ type performerTestObjects struct {
 }
 
 func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")

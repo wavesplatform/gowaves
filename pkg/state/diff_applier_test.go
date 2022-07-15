@@ -16,7 +16,7 @@ type diffApplierTestObjects struct {
 }
 
 func createDiffApplierTestObjects(t *testing.T) (*diffApplierTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	applier, err := newDiffApplier(stor.entities.balances, proto.TestNetScheme)
 	assert.NoError(t, err, "newDiffApplier() failed")

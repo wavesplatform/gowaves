@@ -435,7 +435,7 @@ func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress) (proto.Scri
 	return ss.scriptBytesByKey(key.bytes())
 }
 
-func (ss *scriptsStorage) clear() error {
+func (ss *scriptsStorage) clearCache() error {
 	var err error
 	ss.cache, err = newLru(maxCacheSize, maxCacheBytes)
 	return err

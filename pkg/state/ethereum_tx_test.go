@@ -45,7 +45,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			)
 		},
 	}
-	stor, _, err := createStorageObjects()
+	stor, _, err := createStorageObjects(true)
 	require.NoError(t, err)
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {

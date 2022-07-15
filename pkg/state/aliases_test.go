@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateAlias(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -36,7 +36,7 @@ func TestCreateAlias(t *testing.T) {
 }
 
 func TestDisableStolenAliases(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {

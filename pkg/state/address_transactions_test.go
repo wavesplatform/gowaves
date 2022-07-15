@@ -117,7 +117,7 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 }
 
 func TestAddrTransactionsIdempotent(t *testing.T) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 }
 
 func TestFailedTransaction(t *testing.T) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
 	require.NoError(t, err)

@@ -15,7 +15,7 @@ type ordersVolumesStorageObjects struct {
 }
 
 func createOrdersVolumeStorageObjects() (*ordersVolumesStorageObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
