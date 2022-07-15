@@ -25,6 +25,8 @@
   "max_tx_time_forward_offset": 5400000,
   "address_scheme_character": 87,
   "average_block_delay_seconds": 60,
+  "min_block_time": 15000,
+  "delay_delta": 8,
   "max_base_target": 18446744073709551615,
   "block_reward_term": 100000,
   "initial_block_reward": 600000000,

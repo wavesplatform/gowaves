@@ -8,7 +8,7 @@ import (
 )
 
 func TestFairPosCalculateDelay(t *testing.T) {
-	fpos := &FairPosCalculatorV1{}
+	fpos := FairPosCalculatorV1
 	var hit big.Int
 	hit.SetString("1", 10)
 	delay, err := fpos.CalculateDelay(&hit, 100, 10000000000000)
@@ -31,7 +31,7 @@ func TestFairPosCalculateDelay(t *testing.T) {
 }
 
 func TestFairPosCalculateBaseTarget(t *testing.T) {
-	fpos := &FairPosCalculatorV1{}
+	fpos := FairPosCalculatorV1
 	target, err := fpos.CalculateBaseTarget(100, 30, 100, 100000000000, 99000, 100000)
 	if err != nil {
 		t.Fatalf("fpos.calculateBaseTarget(): %v\n", err)
@@ -55,7 +55,7 @@ func TestFairPosCalculateBaseTarget(t *testing.T) {
 }
 
 func TestNxtPosCalculateDelay(t *testing.T) {
-	nxt := &NxtPosCalculator{}
+	nxt := NxtPosCalculator
 	var hit big.Int
 	hit.SetString("7351874400125134246", 10)
 	delay, err := nxt.CalculateDelay(&hit, 334160, 500162462800)
@@ -78,7 +78,7 @@ func TestNxtPosCalculateDelay(t *testing.T) {
 }
 
 func TestNxtPosCalculateBaseTarget(t *testing.T) {
-	nxt := &NxtPosCalculator{}
+	nxt := NxtPosCalculator
 	target, err := nxt.CalculateBaseTarget(60, 200000, 309209, 1477353355327, 1477353205129, 1477353460467)
 	if err != nil {
 		t.Fatalf("nxt.calculateBaseTarget(): %v\n", err)

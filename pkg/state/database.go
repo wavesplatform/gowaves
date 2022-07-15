@@ -157,6 +157,7 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	numToIdKey := blockNumToIdKey{newBlockNum}
 	idBytes := blockID.Bytes()
 	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
+
 	// Increase blocks counter.
 	s.blocksNum++
 	return nil
