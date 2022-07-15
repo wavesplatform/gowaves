@@ -56,7 +56,7 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	for {
 		h, err := d.GoNodeClient.GetBlocksHeight()
 		assert.NoError(t, err, "failed to get height from go node")
-		if h.Height > beforeHeight.Height+3 {
+		if h.Height > beforeHeight.Height+1 {
 			goHeight = h.Height
 			break
 		}
@@ -65,7 +65,7 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	for {
 		h, err := d.ScalaNodeClient.GetBlocksHeight()
 		assert.NoError(t, err, "failed to get height from scala node")
-		if h.Height > beforeHeight.Height+3 {
+		if h.Height > beforeHeight.Height+1 {
 			scalaHeight = h.Height
 			break
 		}

@@ -38,24 +38,26 @@ type GenesisSettings struct {
 	Scheme               proto.Scheme
 	SchemeRaw            string             `json:"scheme"`
 	AverageBlockDelay    uint64             `json:"average_block_delay"`
+	MinBlockTime         float64            `json:"min_block_time"`
+	DelayDelta           uint64             `json:"delay_delta"`
 	Distributions        []DistributionItem `json:"distributions"`
 	PreactivatedFeatures []int16            `json:"preactivated_features"`
 }
 
-func parseGenesisSettings() (GenesisSettings, error) {
+func parseGenesisSettings() (*GenesisSettings, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		return GenesisSettings{}, err
+		return nil, err
 	}
 	configPath := filepath.Clean(filepath.Join(pwd, configFolder, genesisSettingsFileName))
 	f, err := os.Open(configPath)
 	if err != nil {
-		return GenesisSettings{}, fmt.Errorf("failed to open file: %s", err)
+		return nil, fmt.Errorf("failed to open file: %s", err)
 	}
 	jsonParser := json.NewDecoder(f)
-	s := GenesisSettings{}
-	if err := jsonParser.Decode(&s); err != nil {
-		return GenesisSettings{}, fmt.Errorf("failed to decode genesis settings: %s", err)
+	s := &GenesisSettings{}
+	if err := jsonParser.Decode(s); err != nil {
+		return nil, fmt.Errorf("failed to decode genesis settings: %s", err)
 	}
 	s.Scheme = s.SchemeRaw[0]
 	return s, nil
@@ -71,7 +73,7 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	bt, err := calcInitialBaseTarget(acc, genSettings.AverageBlockDelay)
+	bt, err := calcInitialBaseTarget(acc, genSettings)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,6 +86,8 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	cfg.Genesis = *b
 	cfg.AddressSchemeCharacter = genSettings.Scheme
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
+	cfg.MinBlockTime = genSettings.MinBlockTime
+	cfg.DelayDelta = genSettings.DelayDelta
 	cfg.BlockRewardIncrement = 100000
 	cfg.BlockRewardVotingPeriod = 1000
 	cfg.PreactivatedFeatures = genSettings.PreactivatedFeatures
@@ -98,7 +102,7 @@ type AccountInfo struct {
 	Address   proto.WavesAddress
 }
 
-func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
+func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
 	r := make([]genesis_generator.GenesisTransactionInfo, 0, len(settings.Distributions))
 	accounts := make([]AccountInfo, 0, len(settings.Distributions))
 	for _, dist := range settings.Distributions {
@@ -124,13 +128,12 @@ func makeTransactionAndKeyPairs(settings GenesisSettings, timestamp uint64) ([]g
 	return r, accounts, nil
 }
 
-func calculateBaseTarget(hit *consensus.Hit, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
+func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
 	if maxBT-minBT <= 1 {
 		return maxBT, nil
 	}
 	var newBT = (maxBT + minBT) / 2
-	posCalculator := consensus.NxtPosCalculator{}
-	delay, err := posCalculator.CalculateDelay(hit, newBT, balance)
+	delay, err := pos.CalculateDelay(hit, newBT, balance)
 	if err != nil {
 		return 0, err
 	}
@@ -144,17 +147,39 @@ func calculateBaseTarget(hit *consensus.Hit, minBT types.BaseTarget, maxBT types
 	} else {
 		min, max = minBT, newBT
 	}
-	return calculateBaseTarget(hit, min, max, balance, averageDelay)
+	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
 }
 
-func calcInitialBaseTarget(accounts []AccountInfo, averageDelay uint64) (types.BaseTarget, error) {
+func isFeaturePreactivated(features []int16, feature int16) bool {
+	for _, f := range features {
+		if f == feature {
+			return true
+		}
+	}
+	return false
+}
+
+func getPosCalculator(genSettings *GenesisSettings) consensus.PosCalculator {
+	fairActivated := isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.FairPoS))
+	if fairActivated {
+		blockV5Activated := isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.BlockV5))
+		if blockV5Activated {
+			return consensus.NewFairPosCalculator(genSettings.DelayDelta, genSettings.MinBlockTime)
+		}
+		return consensus.FairPosCalculatorV1
+	}
+	return consensus.NxtPosCalculator
+}
+
+func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings) (types.BaseTarget, error) {
 	maxBT := uint64(0)
+	pos := getPosCalculator(genSettings)
 	for _, info := range accounts {
 		hit, err := getHit(info.PublicKey)
 		if err != nil {
 			return 0, err
 		}
-		bt, err := calculateBaseTarget(hit, consensus.MinBaseTarget, 1000000, info.Amount, averageDelay)
+		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, 1000000, info.Amount, genSettings.AverageBlockDelay)
 		if err != nil {
 			return 0, err
 		}
