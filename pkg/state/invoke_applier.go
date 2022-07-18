@@ -338,6 +338,8 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		IsUTF16KeyLen:         isUTF16KeyLen,
 		IsProtobufTransaction: proto.IsProtobufTx(tx),
 		MaxDataEntriesSize:    maxDataEntriesSize,
+		Scheme:                ia.settings.AddressSchemeCharacter,
+		ScriptAddress:         *info.scriptAddr,
 	}
 	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
 	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, info.libVersion, validatePayments); err != nil {
