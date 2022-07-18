@@ -178,11 +178,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 			Asset:     payment.Asset,
 		}
 	}
-	address, err := env.state().NewestRecipientToAddress(recipient)
-	if err != nil {
-		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
-	}
-	env.setNewDAppAddress(*address)
 
 	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
@@ -193,6 +188,12 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return nil, err
 	}
+
+	address, err := env.state().NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
+	}
+	env.setNewDAppAddress(*address)
 
 	if invocation.blocklist() {
 		// append a call to the stack to protect a user from the reentrancy attack
