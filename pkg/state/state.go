@@ -471,17 +471,22 @@ func newStateManager(dataDir string, amend bool, genesis bool, params StateParam
 	return state, nil
 }
 
-func HandleGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) error {
+func HandleGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) (err error) {
+	// `amend` argument is always false for genesis block because block addition performs only if state height is 0
 	s, err := newStateManager(path, false, true, params, settings)
-	defer func() {
-		err = s.Close()
-		if err != nil {
-			zap.S().Error(errors.Errorf("failed to close state after handling genesis block %v\n", err))
-		}
-	}()
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if closeErr := s.Close(); closeErr != nil {
+			zap.S().Errorf("Failed to close state after handling genesis block: %v", err)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to close state after handling genesis block: %v", closeErr)
+			} else {
+				err = closeErr
+			}
+		}
+	}()
 	if err := s.setGenesisBlock(settings.Genesis); err != nil {
 		return err
 	}
@@ -489,6 +494,7 @@ func HandleGenesisBlock(path string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return err
 	}
+	// 0 state height means that no blocks are found in state, so blockchain history is empty
 	if height == 0 {
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
@@ -497,9 +503,7 @@ func HandleGenesisBlock(path string, params StateParams, settings *settings.Bloc
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v", err)
 		}
-
 	}
-
 	return nil
 }
 
