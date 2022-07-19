@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -23,6 +24,17 @@ import (
 	g "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+type StringedDataEntry struct {
+	Key   string
+	Value string
+}
+
+type DataEntriesSorter []StringedDataEntry
+
+func (a DataEntriesSorter) Len() int           { return len(a) }
+func (a DataEntriesSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a DataEntriesSorter) Less(i, j int) bool { return a[i].Key < a[j].Key && a[i].Value < a[j].Value }
 
 type report struct {
 	scheme       byte
@@ -268,10 +280,26 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 	return r, nil
 }
 
+func extractDataEntries(res *waves.InvokeScriptResult) []StringedDataEntry {
+	r := make([]StringedDataEntry, len(res.GetData()))
+	for i, e := range res.GetData() {
+		r[i] = StringedDataEntry{
+			Key:   e.GetKey(),
+			Value: extractValue(e),
+		}
+	}
+	if len(res.GetInvokes()) > 0 {
+		for _, inv := range res.GetInvokes() {
+			r = append(r, extractDataEntries(inv.GetStateChanges())...)
+		}
+	}
+	return r
+}
+
 func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 	sb := new(strings.Builder)
 	if len(a.GetData()) != 0 || len(b.GetData()) != 0 {
-		addDataDiff(sb, a.GetData(), b.GetData())
+		addDataDiff(sb, extractDataEntries(a), extractDataEntries(b))
 	}
 	if len(a.GetTransfers()) != 0 || len(b.GetTransfers()) != 0 {
 		addTransfersDiff(sb, a.GetTransfers(), b.GetTransfers(), scheme)
@@ -336,8 +364,8 @@ func addBurnsDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Burn) {
 	}
 }
 
-func equalDataEntries(a, b *waves.DataTransactionData_DataEntry) bool {
-	return a.GetKey() == b.GetKey() && extractValue(a) == extractValue(b)
+func equalDataEntries(a, b StringedDataEntry) bool {
+	return a.Key == b.Key && a.Value == b.Value
 }
 
 func extractValue(e *waves.DataTransactionData_DataEntry) string {
@@ -355,22 +383,24 @@ func extractValue(e *waves.DataTransactionData_DataEntry) string {
 	}
 }
 
-func addDataDiff(sb *strings.Builder, a, b []*waves.DataTransactionData_DataEntry) {
+func addDataDiff(sb *strings.Builder, a, b []StringedDataEntry) {
+	sort.Sort(DataEntriesSorter(a))
+	sort.Sort(DataEntriesSorter(b))
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !equalDataEntries(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-Key: %s; Value: %s\n", a[i].GetKey(), extractValue(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].GetKey(), extractValue(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t-Key: %s; Value: %s\n", a[i].Key, a[i].Value))
+			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].Key, b[i].Value))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", a[i].GetKey(), extractValue(a[i])))
+			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", a[i].Key, a[i].Value))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].GetKey(), extractValue(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].Key, b[i].Value))
 		}
 	}
 	if lsb.Len() > 0 {
