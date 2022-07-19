@@ -452,10 +452,6 @@ func newStateManager(dataDir string, amend bool, genesis bool, params StateParam
 	state.cv = consensus.NewValidator(state, settings, params.Time)
 
 	if !genesis {
-		state.setGenesisBlock(&settings.Genesis)
-		if err := state.applyPreActivatedFeatures(state.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
-			return nil, errors.Errorf("failed to apply pre-activated features: %v\n", err)
-		}
 		if err := state.loadLastBlock(); err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -497,7 +493,11 @@ func HandleGenesisBlock(path string, params StateParams, settings *settings.Bloc
 			return err
 		}
 		if err := s.addGenesisBlock(); err != nil {
-			return errors.Errorf("failed to apply/save genesis: %v", err)
+			return errors.Wrap(err, "failed to apply/save genesis")
+		}
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
+		if err := s.applyPreActivatedFeatures(s.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return errors.Wrap(err, "failed to apply pre-activated features")
 		}
 	}
 	return nil
@@ -598,7 +598,6 @@ func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto
 			return err
 		}
 	}
-	// should be always true because it's preactivation
 	if err := s.flush(); err != nil {
 		return err
 	}
