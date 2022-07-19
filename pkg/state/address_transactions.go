@@ -322,7 +322,6 @@ func (at *addressTransactions) persist() error {
 		// Filtering optimization: if all blocks are valid,
 		// we shouldn't check isValid() on records.
 		isValid := true
-		// TODO here we should also add this flag
 		if at.amend {
 			blockNum := binary.BigEndian.Uint32(record[proto.AddressIDSize : proto.AddressIDSize+4])
 			isValid, err = at.stateDB.isValidBlock(blockNum)

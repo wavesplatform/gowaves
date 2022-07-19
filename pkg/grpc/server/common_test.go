@@ -87,7 +87,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
-	err = state.AddGenesisBlock(dataDir, params, sets) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, sets) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, sets)
 	assert.NoError(t, err)

@@ -471,7 +471,7 @@ func newStateManager(dataDir string, amend bool, genesis bool, params StateParam
 	return state, nil
 }
 
-func AddGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) error {
+func HandleGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) error {
 	s, err := newStateManager(path, false, true, params, settings)
 	defer func() {
 		err = s.Close()

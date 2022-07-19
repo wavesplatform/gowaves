@@ -47,7 +47,7 @@ func TestGenesisConfig(t *testing.T) {
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
 
-	err = AddGenesisBlock(dataDir, stateParams, ss) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, stateParams, ss) // filter is always false for genesis block
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -89,7 +89,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -152,7 +152,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	if err != nil {
 		t.Fatalf("adding genesis block failed: %v.\n", err)
 	}
@@ -219,7 +219,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	if err != nil {
 		t.Fatalf("adding genesis block failed: %v.\n", err)
 	}
@@ -311,7 +311,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	featureID := int16(1)
 	sets := settings.MainNetSettings
 	sets.PreactivatedFeatures = []int16{featureID}
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), sets) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), sets) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), sets)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -348,7 +348,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	manager, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -379,7 +379,7 @@ func TestTransactionByID(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -414,7 +414,7 @@ func TestStateManager_Mutex(t *testing.T) {
 		err := os.RemoveAll(dataDir)
 		require.NoError(t, err)
 	}()
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	if err != nil {
 		t.Fatalf("adding genesis block failed: %v.\n", err)
 	}
@@ -436,7 +436,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -471,7 +471,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-	err = AddGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err = newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -484,7 +484,7 @@ func TestGenesisStateHash(t *testing.T) {
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
 
-	err = AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -511,7 +511,7 @@ func TestStateHashAtHeight(t *testing.T) {
 	assert.NoError(t, err, "failed to create dir for test data")
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
-	err = AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	assert.NoError(t, err, "adding genesis block failed")
 	manager, err := newStateManager(dataDir, false, false, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")

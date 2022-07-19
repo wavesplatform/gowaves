@@ -108,7 +108,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
-	err = state.AddGenesisBlock(dataDir, params, ss) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, ss) // filter is always false for genesis block
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 		return

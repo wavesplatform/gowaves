@@ -16,7 +16,7 @@ import (
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	require.NoError(t, err)
-	err = AddGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
 	require.NoError(t, err)
 	st, err := NewState(dataDir, true, false, params, settings.MainNetSettings)
 	require.NoError(t, err)
