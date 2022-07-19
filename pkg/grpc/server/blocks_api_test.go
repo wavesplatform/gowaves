@@ -39,7 +39,7 @@ func TestGetBlock(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
-	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -99,7 +99,7 @@ func TestGetBlockRange(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
-	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -182,7 +182,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	params := defaultStateParams()
-	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	assert.NoError(t, err)

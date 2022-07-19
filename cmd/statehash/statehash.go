@@ -101,7 +101,7 @@ func run() error {
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
 
-	err = state.HandleGenesisBlock(statePath, params, ss) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(statePath, params, ss)
 	if err != nil {
 		zap.S().Error(err)
 		return err

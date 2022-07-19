@@ -37,7 +37,7 @@ type invokeApplierTestObjects struct {
 func createInvokeApplierTestObjects(t *testing.T) (*invokeApplierTestObjects, string) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test state")
-	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings) // filter is always false for genesis block
+	err = HandleGenesisBlock(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	require.NoError(t, err)
 	state, err := newStateManager(dataDir, true, false, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")

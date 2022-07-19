@@ -23,7 +23,7 @@ func TestGetBalances(t *testing.T) {
 	require.NoError(t, err)
 	params := defaultStateParams()
 
-	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings) // filter is always false for genesis block
+	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
 	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
 	require.NoError(t, err)
