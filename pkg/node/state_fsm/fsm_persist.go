@@ -43,7 +43,7 @@ func (a *PersistFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
 func (a *PersistFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	err := a.peers.UpdateScore(p, score)
 	if err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	return a, nil, nil
 }
@@ -87,6 +87,10 @@ func (a *PersistFsm) Halt() (FSM, Async, error) {
 
 func (a *PersistFsm) String() string {
 	return "Persist"
+}
+
+func (a *PersistFsm) Errorf(err error) error {
+	return fsmErrorf(a, err)
 }
 
 func NewPersistTransition(info BaseInfo) (FSM, Async, error) {

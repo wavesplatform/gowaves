@@ -100,6 +100,8 @@ type FSM interface {
 	Halt() (FSM, Async, error)
 
 	String() string
+
+	Errorf(err error) error
 }
 
 func NewFsm(

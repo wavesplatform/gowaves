@@ -79,6 +79,10 @@ func (a HaltFSM) String() string {
 	return "Halt"
 }
 
+func (a HaltFSM) Errorf(err error) error {
+	return fsmErrorf(a, err)
+}
+
 func HaltTransition(info BaseInfo) (FSM, Async, error) {
 	zap.S().Debugf("started HaltTransition ")
 	info.peers.Close()

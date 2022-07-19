@@ -3,6 +3,7 @@ package state_fsm
 import (
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
@@ -54,4 +55,16 @@ func syncWithNewPeer(fsm FSM, baseInfo BaseInfo, p peer.Peer) (FSM, Async, error
 	}
 	zap.S().Debugf("[%s] Starting synchronization with peer '%s'", fsm.String(), p.ID())
 	return NewSyncFsm(baseInfo, c.Now(baseInfo.tm), internal)
+}
+
+func fsmErrorf(fsm FSM, err error) error {
+	if err == nil {
+		return nil
+	}
+	switch e := err.(type) {
+	case *proto.InfoMsg:
+		return proto.NewInfoMsg(errors.Errorf("[%s] %s", fsm.String(), e.Error()))
+	default:
+		return errors.Errorf("[%s] %s", fsm.String(), e.Error())
+	}
 }
