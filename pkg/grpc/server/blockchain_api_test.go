@@ -22,7 +22,7 @@ func TestGetBaseTarget(t *testing.T) {
 	params.StoreExtendedApiData = true
 	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
-	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
+	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)
@@ -64,7 +64,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	params := defaultStateParams()
 	err = state.HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
-	st, err := state.NewState(dataDir, true, false, params, settings.MainNetSettings)
+	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)

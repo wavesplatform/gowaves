@@ -92,7 +92,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}
-	st, err := NewState(dataDir, true, false, stateParams(), settings.MainNetSettings)
+	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}

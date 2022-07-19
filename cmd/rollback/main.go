@@ -49,7 +49,7 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
-	s, err := state.NewState(*statePath, true, false, params, cfg)
+	s, err := state.NewState(*statePath, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		return

@@ -286,7 +286,7 @@ func main() {
 		cancel()
 		return
 	}
-	st, err := state.NewState(path, true, false, params, cfg)
+	st, err := state.NewState(path, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

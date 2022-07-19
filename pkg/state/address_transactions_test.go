@@ -18,7 +18,7 @@ func testIterImpl(t *testing.T, params StateParams) {
 	require.NoError(t, err)
 	err = HandleGenesisBlock(dataDir, params, settings.MainNetSettings)
 	require.NoError(t, err)
-	st, err := NewState(dataDir, true, false, params, settings.MainNetSettings)
+	st, err := NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
 
 	defer func() {

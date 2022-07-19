@@ -170,7 +170,7 @@ func main() {
 		cancel()
 		return
 	}
-	nodeState, err := state.NewState(path, true, false, params, custom)
+	nodeState, err := state.NewState(path, true, params, custom)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

@@ -113,7 +113,7 @@ func main() {
 		zap.S().Fatalf("Failed to create state: %v", err)
 		return
 	}
-	st, err := state.NewState(dataDir, false, false, params, ss)
+	st, err := state.NewState(dataDir, false, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}

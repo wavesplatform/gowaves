@@ -106,7 +106,7 @@ func run() error {
 		zap.S().Error(err)
 		return err
 	}
-	st, err := state.NewState(statePath, false, false, params, ss)
+	st, err := state.NewState(statePath, false, params, ss)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
 		return err

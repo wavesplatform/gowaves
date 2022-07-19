@@ -89,7 +89,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	params := defaultStateParams()
 	err = state.HandleGenesisBlock(dataDir, params, sets)
 	require.NoError(t, err)
-	st, err := state.NewState(dataDir, true, false, params, sets)
+	st, err := state.NewState(dataDir, true, params, sets)
 	assert.NoError(t, err)
 	return st, func() {
 		err = st.Close()
