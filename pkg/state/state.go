@@ -557,7 +557,7 @@ func (s *stateManager) addGenesisBlock() error {
 	defer cancel()
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
-	// initialization should be always true because we're adding first block
+
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
 	}
@@ -565,7 +565,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 	close(chans.tasksChan)
-	// initialization should be always true because we're adding first block
+
 	if err := s.appender.applyAllDiffs(); err != nil {
 		return err
 	}
@@ -579,7 +579,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if verifyError != nil {
 		return wrapErr(ValidationError, verifyError)
 	}
-	// initialization should be always true because we're adding first block
+
 	if err := s.flush(); err != nil {
 		return wrapErr(ModificationError, err)
 	}
