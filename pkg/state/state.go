@@ -452,9 +452,7 @@ func newStateManager(dataDir string, amend bool, genesis bool, params StateParam
 	state.cv = consensus.NewValidator(state, settings, params.Time)
 
 	if !genesis {
-		if err := state.setGenesisBlock(settings.Genesis); err != nil {
-			return nil, err
-		}
+		state.setGenesisBlock(&settings.Genesis)
 		if err := state.applyPreActivatedFeatures(state.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
 			return nil, errors.Errorf("failed to apply pre-activated features: %v\n", err)
 		}
@@ -487,9 +485,7 @@ func HandleGenesisBlock(path string, params StateParams, settings *settings.Bloc
 			}
 		}
 	}()
-	if err := s.setGenesisBlock(settings.Genesis); err != nil {
-		return err
-	}
+	s.setGenesisBlock(&settings.Genesis)
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -540,9 +536,8 @@ func (s *stateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(s.mu)
 }
 
-func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
-	s.genesis = &genesisBlock
-	return nil
+func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
+	s.genesis = genesisBlock
 }
 
 func (s *stateManager) TxValidation(func(TxValidation) error) error {
