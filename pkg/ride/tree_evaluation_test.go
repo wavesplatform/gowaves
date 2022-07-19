@@ -10795,7 +10795,7 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(res.ScriptActions()))
 	_, err = testState.NewestFullWavesBalance(recipient)
-	require.Error(t, err)
+	require.EqualError(t, err, "negative effective balance")
 
 	// Reset wrapped state
 	testState = initWrappedState(mockState, env, tree1.LibVersion)
