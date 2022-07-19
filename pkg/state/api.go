@@ -190,7 +190,7 @@ type State interface {
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, amend, false, params, settings)
+	s, err := newStateManager(dataDir, amend, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

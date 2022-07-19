@@ -164,12 +164,6 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntpTime
 
-	err = state.HandleGenesisBlock(path, params, custom)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
 	nodeState, err := state.NewState(path, true, params, custom)
 	if err != nil {
 		zap.S().Error(err)

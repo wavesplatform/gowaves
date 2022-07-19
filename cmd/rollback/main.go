@@ -44,11 +44,7 @@ func main() {
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedApi
-	err = state.HandleGenesisBlock(*statePath, params, cfg)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+
 	s, err := state.NewState(*statePath, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)

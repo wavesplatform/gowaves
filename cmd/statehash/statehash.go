@@ -101,11 +101,6 @@ func run() error {
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
 
-	err = state.HandleGenesisBlock(statePath, params, ss)
-	if err != nil {
-		zap.S().Error(err)
-		return err
-	}
 	st, err := state.NewState(statePath, false, params, ss)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
