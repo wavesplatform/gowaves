@@ -664,6 +664,11 @@ func (ws *WrappedState) ApplyToState(
 		Scheme:                ws.scheme,
 		ScriptAddress:         ws.callee(),
 	}
+	if len(actions) == 0 {
+		if err := ws.rootActionsCountValidator.ValidateCounts(currentLibVersion, env.rideV6Activated()); err != nil {
+			return nil, errors.Wrap(err, "failed to validate total actions count")
+		}
+	}
 	for _, action := range actions {
 		if err := localActionsCountValidator.CountAction(action, currentLibVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate local actions count")
