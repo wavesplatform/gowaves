@@ -102,7 +102,7 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 	if err != nil {
 		return 0, err
 	}
-	return b.checkedSpendableBalance()
+	return b.checkedRegularBalance()
 }
 
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {

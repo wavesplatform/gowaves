@@ -10031,7 +10031,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
-func TestInvokeActionsCountRestrictionsV6ToV5PNegative(t *testing.T) {
+func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -10631,4 +10631,179 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 	callAndCheckResults()
 	rideV6Activated = true
 	callAndCheckResults()
+}
+
+func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+		strict res = invoke(callee,  "call", [], [AttachedPayment(unit, 5000000000)])
+	  []
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAQAAAAFpAQAAAARjYWxsAAAAAAQAAAADcmVzCQAD/AAAAAQFAAAABmNhbGxlZQIAAAAEY2FsbAUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAEqBfIABQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwUAAAADcmVzBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAABa6xWs="
+	_, tree1 := parseBase64Script(t, code1)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = []
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K"
+	_, tree2 := parseBase64Script(t, code2)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	rideV6Activated := false
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc: func() bool {
+			return rideV6Activated
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return tree1, nil
+			case dApp2.String():
+				return tree2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 100_00000000, nil
+			case dApp2.String():
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+			switch id {
+			case dApp1.ID():
+				return &types.WavesBalanceProfile{Balance: 100_00000000, LeaseOut: 60_00000000, Generating: 40_00000000}, nil
+			case dApp2.ID():
+				return &types.WavesBalanceProfile{}, nil
+			default:
+				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
+			}
+		},
+	}
+
+	testState := initWrappedState(mockState, env, tree1.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree1, "call", arguments)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(res.ScriptActions()))
+	_, err = testState.NewestFullWavesBalance(recipient)
+	require.EqualError(t, err, "negative effective balance")
+
+	// Reset wrapped state
+	testState = initWrappedState(mockState, env, tree1.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	rideV6Activated = true
+	res, err = CallFunction(env, tree1, "call", arguments)
+	assert.Nil(t, res)
+	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: not enough money in the DApp, balance of DApp with address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz is 4000000000 and it tried to transfer asset WAVES to 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1, amount of 5000000000")
 }
