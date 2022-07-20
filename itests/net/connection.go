@@ -12,12 +12,6 @@ type OutgoingPeer struct {
 	conn net.Conn
 }
 
-var NodeVersion = proto.Version{
-	Major: 1,
-	Minor: 4,
-	Patch: 0,
-}
-
 func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (OutgoingPeer, error) {
 	c, err := net.Dial("tcp", address)
 	if err != nil {

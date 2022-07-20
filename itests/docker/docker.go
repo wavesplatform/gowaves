@@ -1,19 +1,17 @@
 package docker
 
 import (
+	"context"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 
-	"github.com/wavesplatform/gowaves/itests/api"
 	"github.com/wavesplatform/gowaves/itests/config"
-)
-
-var (
-	GoNodeClient    = api.NewNodeClient("http://"+Localhost+":"+GoNodeRESTApiPort+"/", api.DefaultTimeout)
-	ScalaNodeClient = api.NewNodeClient("http://"+Localhost+":"+ScalaNodeRESTApiPort+"/", api.DefaultTimeout)
+	"github.com/wavesplatform/gowaves/pkg/client"
 )
 
 const (
@@ -28,6 +26,8 @@ const (
 	ScalaNodeBindPort    = "6868"
 
 	tcp = "/tcp"
+
+	defaultTimeout = 15 * time.Second
 )
 
 const (
@@ -38,6 +38,19 @@ const (
 	logDir               = "../build/logs"
 
 	walletPath = "wallet"
+)
+
+var (
+	GoNodeClient, _ = client.NewClient(client.Options{
+		BaseUrl: "http://" + Localhost + ":" + GoNodeRESTApiPort + "/",
+		Client:  &http.Client{Timeout: defaultTimeout},
+		ApiKey:  "itest-api-key",
+	})
+	ScalaNodeClient, _ = client.NewClient(client.Options{
+		BaseUrl: "http://" + Localhost + ":" + ScalaNodeRESTApiPort + "/",
+		Client:  &http.Client{Timeout: defaultTimeout},
+		ApiKey:  "itest-api-key",
+	})
 )
 
 type Docker struct {
@@ -145,8 +158,9 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 		})
 	}()
 	d.goLogFile = logfile
+	ctx := context.Background()
 	err = d.pool.Retry(func() error {
-		_, err := GoNodeClient.GetBlocksHeight()
+		_, _, err := GoNodeClient.Blocks.Height(ctx)
 		return err
 	})
 	if err != nil {
@@ -208,9 +222,9 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 		})
 	}()
 	d.scalaLogFile = logfile
-
+	ctx := context.Background()
 	err = d.pool.Retry(func() error {
-		_, err := ScalaNodeClient.GetBlocksHeight()
+		_, _, err := ScalaNodeClient.Blocks.Height(ctx)
 		return err
 	})
 	if err != nil {

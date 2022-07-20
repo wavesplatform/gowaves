@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -41,20 +42,20 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func StateHashCmp(t *testing.T, height uint64) {
-	goStateHash, err := d.GoNodeClient.GetStateHash(height)
+func StateHashCmp(t *testing.T, ctx context.Context, height uint64) {
+	goStateHash, _, err := d.GoNodeClient.Debug.StateHash(ctx, height)
 	assert.NoError(t, err, "failed to get stateHash from scala node")
 
-	scalaStateHash, err := d.ScalaNodeClient.GetStateHash(height)
+	scalaStateHash, _, err := d.ScalaNodeClient.Debug.StateHash(ctx, height)
 	assert.NoError(t, err, "failed to get stateHash from scala node")
 
 	assert.Equal(t, scalaStateHash, goStateHash)
 }
 
-func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
+func WaitForNewHeight(t *testing.T, ctx context.Context, beforeHeight client.BlocksHeight) uint64 {
 	var scalaHeight, goHeight uint64
 	for {
-		h, err := d.GoNodeClient.GetBlocksHeight()
+		h, _, err := d.GoNodeClient.Blocks.Height(ctx)
 		assert.NoError(t, err, "failed to get height from go node")
 		if h.Height > beforeHeight.Height+1 {
 			goHeight = h.Height
@@ -63,7 +64,7 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 		time.Sleep(time.Second * 1)
 	}
 	for {
-		h, err := d.ScalaNodeClient.GetBlocksHeight()
+		h, _, err := d.ScalaNodeClient.Blocks.Height(ctx)
 		assert.NoError(t, err, "failed to get height from scala node")
 		if h.Height > beforeHeight.Height+1 {
 			scalaHeight = h.Height
@@ -78,28 +79,29 @@ func WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
 	}
 }
 
-func SendStartMessage(t *testing.T) {
-	err := d.ScalaNodeClient.PostDebugPrint("------------- Start test: " + t.Name() + " -------------")
+func SendStartMessage(t *testing.T, ctx context.Context) {
+	_, err := d.ScalaNodeClient.Debug.PrintMsg(ctx, "------------- Start test: "+t.Name()+" -------------")
 	assert.NoError(t, err, "failed to send StartMessage to go node")
 
-	err = d.GoNodeClient.PostDebugPrint("------------- Start test: " + t.Name() + " -------------")
+	_, err = d.GoNodeClient.Debug.PrintMsg(ctx, "------------- Start test: "+t.Name()+" -------------")
 	assert.NoError(t, err, "failed to send StartMessage to scala node")
 }
 
-func SendEndMessage(t *testing.T) {
-	err := d.ScalaNodeClient.PostDebugPrint("------------- End test: " + t.Name() + " -------------")
+func SendEndMessage(t *testing.T, ctx context.Context) {
+	_, err := d.ScalaNodeClient.Debug.PrintMsg(ctx, "------------- End test: "+t.Name()+" -------------")
 	assert.NoError(t, err, "failed to send StartMessage to go node")
 
-	err = d.GoNodeClient.PostDebugPrint("------------- End test: " + t.Name() + " -------------")
+	_, err = d.GoNodeClient.Debug.PrintMsg(ctx, "------------- End test: "+t.Name()+" -------------")
 	assert.NoError(t, err, "failed to send StartMessage to scala node")
 }
 
 func TestSendTransaction(t *testing.T) {
-	SendStartMessage(t)
-	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, net.NodeVersion, "wavesL")
+	ctx := context.Background()
+	SendStartMessage(t, ctx)
+	goCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, proto.ProtocolVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
-	scalaCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, net.NodeVersion, "wavesL")
+	scalaCon, err := net.NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, proto.ProtocolVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
 
 	a := proto.NewOptionalAssetWaves()
@@ -113,7 +115,7 @@ func TestSendTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	heightBefore, err := d.GoNodeClient.GetBlocksHeight()
+	heightBefore, _, err := d.GoNodeClient.Blocks.Height(ctx)
 	assert.NoError(t, err, "failed to get height from go node")
 
 	err = goCon.SendMessage(&txMsg)
@@ -121,8 +123,8 @@ func TestSendTransaction(t *testing.T) {
 	err = scalaCon.SendMessage(&txMsg)
 	assert.NoError(t, err, "failed to send TransactionMessage")
 
-	newHeight := WaitForNewHeight(t, *heightBefore)
+	newHeight := WaitForNewHeight(t, ctx, *heightBefore)
 
-	StateHashCmp(t, newHeight)
-	SendEndMessage(t)
+	StateHashCmp(t, ctx, newHeight)
+	SendEndMessage(t, ctx)
 }

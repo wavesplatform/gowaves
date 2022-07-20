@@ -52,6 +52,8 @@ const (
 	ContentIDBlockIds          PeerMessageID = 33
 )
 
+var ProtocolVersion = Version{Major: 1, Minor: 4, Patch: 0}
+
 type Message interface {
 	io.ReaderFrom
 	io.WriterTo
