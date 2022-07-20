@@ -123,11 +123,7 @@ func (v *ActionsCountValidator) ValidateCounts(libVersion ast.LibraryVersion, is
 	if err != nil {
 		return err
 	}
-	err = v.validateAttachedPaymentActionGroup(isRideV6Activated)
-	if err != nil {
-		return err
-	}
-	return nil
+	return v.validateAttachedPaymentActionGroup(isRideV6Activated)
 }
 
 func (v *ActionsCountValidator) validateAttachedPaymentActionGroup(isRideV6Activated bool) error {
