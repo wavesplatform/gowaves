@@ -99,7 +99,7 @@ func (a issueSorter) Less(i, j int) bool {
 							}
 							return a[i].Script < a[j].Script
 						}
-						return a[i].Reissuable == false
+						return !a[i].Reissuable
 					}
 					return a[i].Decimals < a[j].Decimals
 				}
@@ -134,7 +134,7 @@ func (a reissueSorter) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a reissueSorter) Less(i, j int) bool {
 	if a[i].AssetID == a[j].AssetID {
 		if a[i].Amount == a[j].Amount {
-			return a[i].Reissuable != a[j].Reissuable && a[i].Reissuable == false
+			return a[i].Reissuable != a[j].Reissuable && !a[i].Reissuable
 		}
 		return a[i].Amount < a[j].Amount
 	}
