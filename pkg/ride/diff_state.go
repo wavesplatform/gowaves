@@ -67,6 +67,13 @@ func (db *diffBalance) spendableBalance() (int64, error) {
 	return b, nil
 }
 
+func (db *diffBalance) checkedRegularBalance() (uint64, error) {
+	if db.balance < 0 {
+		return 0, errors.New("negative regular balance")
+	}
+	return uint64(db.balance), nil
+}
+
 func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
 	b, err := common.AddInt64(db.balance, -db.leaseOut)
 	if err != nil {
@@ -95,9 +102,15 @@ func (db *diffBalance) toFullWavesBalance() (*proto.FullWavesBalance, error) {
 	if err != nil {
 		return nil, err
 	}
+	if eff < 0 {
+		return nil, errors.New("negative effective balance")
+	}
 	spb, err := db.spendableBalance()
 	if err != nil {
 		return nil, err
+	}
+	if spb < 0 {
+		return nil, errors.New("negative spendable balance")
 	}
 	gen := eff
 	if db.stateGenerating < gen {

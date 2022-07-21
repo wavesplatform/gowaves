@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/blockcmp/internal"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -271,28 +270,28 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 	sb := new(strings.Builder)
 	if len(a.GetData()) != 0 || len(b.GetData()) != 0 {
-		addDataDiff(sb, a.GetData(), b.GetData())
+		addDataDiff(sb, internal.ExtractDataEntries(a), internal.ExtractDataEntries(b))
 	}
 	if len(a.GetTransfers()) != 0 || len(b.GetTransfers()) != 0 {
-		addTransfersDiff(sb, a.GetTransfers(), b.GetTransfers(), scheme)
+		addTransfersDiff(sb, internal.ExtractTransfers(a, scheme), internal.ExtractTransfers(b, scheme))
 	}
 	if len(a.GetIssues()) != 0 || len(b.GetIssues()) != 0 {
-		addIssuesDiff(sb, a.GetIssues(), b.GetIssues())
+		addIssuesDiff(sb, internal.ExtractIssues(a), internal.ExtractIssues(b))
 	}
 	if len(a.GetReissues()) != 0 || len(b.GetReissues()) != 0 {
-		addReissuesDiff(sb, a.GetReissues(), b.GetReissues())
+		addReissuesDiff(sb, internal.ExtractReissues(a), internal.ExtractReissues(b))
 	}
 	if len(a.GetBurns()) != 0 || len(b.GetBurns()) != 0 {
-		addBurnsDiff(sb, a.GetBurns(), b.GetBurns())
+		addBurnsDiff(sb, internal.ExtractBurns(a), internal.ExtractBurns(b))
 	}
 	if len(a.GetSponsorFees()) != 0 || len(b.GetSponsorFees()) != 0 {
-		addSponsorFeesDiff(sb, a.GetSponsorFees(), b.GetSponsorFees())
+		addSponsorFeesDiff(sb, internal.ExtractSponsorships(a), internal.ExtractSponsorships(b))
 	}
 	if len(a.GetLeases()) != 0 || len(b.GetLeases()) != 0 {
-		addLeasesDiff(sb, a.GetLeases(), b.GetLeases(), scheme)
+		addLeasesDiff(sb, internal.ExtractLeases(a, scheme), internal.ExtractLeases(b, scheme))
 	}
 	if len(a.GetLeaseCancels()) != 0 || len(b.GetLeaseCancels()) != 0 {
-		addLeaseCancelsDiff(sb, a.GetLeaseCancels(), b.GetLeaseCancels())
+		addLeaseCancelsDiff(sb, internal.ExtractLeaseCancels(a), internal.ExtractLeaseCancels(b))
 	}
 	if a.GetErrorMessage().GetText() != b.GetErrorMessage().GetText() {
 		sb.WriteString("\tError:\n")
@@ -302,75 +301,22 @@ func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 	return sb.String()
 }
 
-func minmax(a, b int) (int, int) {
-	if a < b {
-		return a, b
-	}
-	return b, a
-}
-func addBurnsDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Burn) {
+func addDataDiff(sb *strings.Builder, a, b []internal.DataEntry) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
-		if a[i].GetAmount() != b[i].GetAmount() || !bytes.Equal(a[i].GetAssetId(), b[i].GetAssetId()) {
-			lsb.WriteString(fmt.Sprintf("\t-AssetID: %s; Amount: %d\n",
-				base58.Encode(a[i].GetAssetId()), a[i].Amount))
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
-				base58.Encode(b[i].GetAssetId()), b[i].Amount))
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
-				base58.Encode(a[i].GetAssetId()), a[i].Amount))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
-				base58.Encode(b[i].GetAssetId()), b[i].Amount))
-		}
-	}
-	if lsb.Len() > 0 {
-		sb.WriteString("\tBurns:\n")
-		sb.WriteString(lsb.String())
-	}
-}
-
-func equalDataEntries(a, b *waves.DataTransactionData_DataEntry) bool {
-	return a.GetKey() == b.GetKey() && extractValue(a) == extractValue(b)
-}
-
-func extractValue(e *waves.DataTransactionData_DataEntry) string {
-	switch v := e.GetValue().(type) {
-	case *waves.DataTransactionData_DataEntry_BinaryValue:
-		return base58.Encode(v.BinaryValue)
-	case *waves.DataTransactionData_DataEntry_BoolValue:
-		return fmt.Sprintf("%t", v.BoolValue)
-	case *waves.DataTransactionData_DataEntry_IntValue:
-		return fmt.Sprintf("%d", v.IntValue)
-	case *waves.DataTransactionData_DataEntry_StringValue:
-		return v.StringValue
-	default:
-		return fmt.Sprintf("unsupported value type %T", e.GetValue())
-	}
-}
-
-func addDataDiff(sb *strings.Builder, a, b []*waves.DataTransactionData_DataEntry) {
-	la := len(a)
-	lb := len(b)
-	min, max := minmax(la, lb)
-	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
-		if !equalDataEntries(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-Key: %s; Value: %s\n", a[i].GetKey(), extractValue(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].GetKey(), extractValue(b[i])))
-		}
-	}
-	for i := min; i < max; i++ {
-		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", a[i].GetKey(), extractValue(a[i])))
-		} else {
-			lsb.WriteString(fmt.Sprintf("\t+Key: %s; Value: %s\n", b[i].GetKey(), extractValue(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	if lsb.Len() > 0 {
@@ -379,40 +325,46 @@ func addDataDiff(sb *strings.Builder, a, b []*waves.DataTransactionData_DataEntr
 	}
 }
 
-func equalIssues(a, b *waves.InvokeScriptResult_Issue) bool {
-	return bytes.Equal(a.GetAssetId(), b.GetAssetId()) &&
-		a.GetName() == b.GetName() &&
-		a.GetDescription() == b.GetDescription() &&
-		a.GetAmount() == b.GetAmount() &&
-		a.GetDecimals() == b.GetDecimals() &&
-		a.GetReissuable() == b.GetReissuable() &&
-		bytes.Equal(a.GetScript(), b.GetScript()) &&
-		a.GetNonce() == b.GetNonce()
-}
-
-func issueString(i *waves.InvokeScriptResult_Issue) string {
-	return fmt.Sprintf(
-		"AssetID: %s; Name: %s; Description: %s; Amount: %d; Decimals: %d; Reissuable: %t; Script: %s; Nonce: %d\n",
-		base58.Encode(i.GetAssetId()), i.GetName(), i.GetDescription(), i.GetAmount(), i.GetDecimals(),
-		i.GetReissuable(), base64.StdEncoding.EncodeToString(i.GetScript()), i.GetNonce())
-}
-
-func addIssuesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Issue) {
+func addTransfersDiff(sb *strings.Builder, a, b []internal.Transfer) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
-		if !equalIssues(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", issueString(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", issueString(b[i])))
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", issueString(a[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", issueString(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	if lsb.Len() > 0 {
+		sb.WriteString("\tTransfers:\n")
+		sb.WriteString(lsb.String())
+	}
+}
+
+func addIssuesDiff(sb *strings.Builder, a, b []internal.Issue) {
+	la := len(a)
+	lb := len(b)
+	min, max := minmax(la, lb)
+	lsb := new(strings.Builder)
+	for i := 0; i < min; i++ {
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	for i := min; i < max; i++ {
+		if la > lb {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+		} else {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	if lsb.Len() > 0 {
@@ -421,127 +373,22 @@ func addIssuesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Issue) 
 	}
 }
 
-func addLeaseCancelsDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_LeaseCancel) {
+func addReissuesDiff(sb *strings.Builder, a, b []internal.Reissue) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
-		if !bytes.Equal(a[i].GetLeaseId(), b[i].GetLeaseId()) {
-			lsb.WriteString(fmt.Sprintf("\t-LeaseID: %s\n", base58.Encode(a[i].GetLeaseId())))
-			lsb.WriteString(fmt.Sprintf("\t+LeaseID: %s\n", base58.Encode(b[i].GetLeaseId())))
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+LeaseID: %s\n", base58.Encode(a[i].GetLeaseId())))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+LeaseID: %s\n", base58.Encode(b[i].GetLeaseId())))
-		}
-	}
-	if lsb.Len() > 0 {
-		sb.WriteString("\tLease Cancels:\n")
-		sb.WriteString(lsb.String())
-	}
-}
-
-func equalRecipient(a, b *waves.Recipient) bool {
-	switch ra := a.GetRecipient().(type) {
-	case *waves.Recipient_Alias:
-		rb, ok := b.GetRecipient().(*waves.Recipient_Alias)
-		if !ok {
-			return false
-		}
-		return ra.Alias == rb.Alias
-	case *waves.Recipient_PublicKeyHash:
-		rb, ok := b.GetRecipient().(*waves.Recipient_PublicKeyHash)
-		if !ok {
-			return false
-		}
-		return bytes.Equal(ra.PublicKeyHash, rb.PublicKeyHash)
-	default:
-		return false
-	}
-}
-
-func equalLeases(a, b *waves.InvokeScriptResult_Lease) bool {
-	return bytes.Equal(a.GetLeaseId(), b.GetLeaseId()) &&
-		a.GetAmount() == b.GetAmount() &&
-		a.GetNonce() == b.GetNonce() &&
-		equalRecipient(a.GetRecipient(), b.GetRecipient())
-}
-
-func recipientString(scheme byte, r *waves.Recipient) string {
-	switch tr := r.GetRecipient().(type) {
-	case *waves.Recipient_Alias:
-		return tr.Alias
-	case *waves.Recipient_PublicKeyHash:
-		a, err := proto.RebuildAddress(scheme, tr.PublicKeyHash)
-		if err != nil {
-			return fmt.Sprintf("invalid public key hash '%s'", base58.Encode(tr.PublicKeyHash))
-		}
-		return a.String()
-	default:
-		return fmt.Sprintf("unsupported recipient type %T", r)
-	}
-}
-
-func leaseString(scheme byte, l *waves.InvokeScriptResult_Lease) string {
-	return fmt.Sprintf("LeaseID: %s; Amount: %d; Nonce: %d; Recipient: %s",
-		base58.Encode(l.GetLeaseId()), l.GetAmount(), l.GetNonce(), recipientString(scheme, l.GetRecipient()))
-}
-
-func addLeasesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Lease, scheme byte) {
-	la := len(a)
-	lb := len(b)
-	min, max := minmax(la, lb)
-	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
-		if !equalLeases(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", leaseString(scheme, a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", leaseString(scheme, b[i])))
-		}
-	}
-	for i := min; i < max; i++ {
-		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", leaseString(scheme, a[i])))
-		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", leaseString(scheme, b[i])))
-		}
-	}
-	if lsb.Len() > 0 {
-		sb.WriteString("\tLeases:\n")
-		sb.WriteString(lsb.String())
-	}
-}
-
-func equalReissues(a, b *waves.InvokeScriptResult_Reissue) bool {
-	return a.GetIsReissuable() == b.GetIsReissuable() &&
-		a.GetAmount() == b.GetAmount() &&
-		bytes.Equal(a.GetAssetId(), b.GetAssetId())
-}
-
-func reissueString(r *waves.InvokeScriptResult_Reissue) string {
-	return fmt.Sprintf("AssetID: %s; Amount: %d; Reissuable: %t",
-		base58.Encode(r.GetAssetId()), r.GetAmount(), r.GetIsReissuable())
-}
-
-func addReissuesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Reissue) {
-	la := len(a)
-	lb := len(b)
-	min, max := minmax(la, lb)
-	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
-		if !equalReissues(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", reissueString(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", reissueString(b[i])))
-		}
-	}
-	for i := min; i < max; i++ {
-		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", reissueString(a[i])))
-		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", reissueString(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	if lsb.Len() > 0 {
@@ -550,32 +397,46 @@ func addReissuesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Reiss
 	}
 }
 
-func equalSponsorships(a, b *waves.InvokeScriptResult_SponsorFee) bool {
-	return bytes.Equal(a.GetMinFee().GetAssetId(), b.GetMinFee().GetAssetId()) &&
-		a.GetMinFee().GetAmount() == b.GetMinFee().GetAmount()
-}
-
-func sponsorshipString(s *waves.InvokeScriptResult_SponsorFee) string {
-	return fmt.Sprintf("AssetID: %s; Amount: %d",
-		base58.Encode(s.GetMinFee().GetAssetId()), s.GetMinFee().GetAmount())
-}
-
-func addSponsorFeesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_SponsorFee) {
+func addBurnsDiff(sb *strings.Builder, a, b []internal.Burn) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
-		if !equalSponsorships(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", sponsorshipString(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", sponsorshipString(b[i])))
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", sponsorshipString(a[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", sponsorshipString(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	if lsb.Len() > 0 {
+		sb.WriteString("\tBurns:\n")
+		sb.WriteString(lsb.String())
+	}
+}
+
+func addSponsorFeesDiff(sb *strings.Builder, a, b []internal.Sponsorship) {
+	la := len(a)
+	lb := len(b)
+	min, max := minmax(la, lb)
+	lsb := new(strings.Builder)
+	for i := 0; i < min; i++ {
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	for i := min; i < max; i++ {
+		if la > lb {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+		} else {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	if lsb.Len() > 0 {
@@ -584,44 +445,57 @@ func addSponsorFeesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Sp
 	}
 }
 
-func equalPayments(a, b *waves.InvokeScriptResult_Payment) bool {
-	return bytes.Equal(a.GetAddress(), b.GetAddress()) &&
-		bytes.Equal(a.GetAmount().GetAssetId(), b.GetAmount().GetAssetId()) &&
-		a.GetAmount().GetAmount() == b.GetAmount().GetAmount()
-}
-
-func paymentString(p *waves.InvokeScriptResult_Payment, scheme byte) string {
-	as := ""
-	a, err := proto.RebuildAddress(scheme, p.GetAddress())
-	if err != nil {
-		as = fmt.Sprintf("invalid address '%s'", base58.Encode(p.GetAddress()))
-	} else {
-		as = a.String()
-	}
-	return fmt.Sprintf("Address: %s; AsssetID: %s; Amount: %d",
-		as, base58.Encode(p.GetAmount().GetAssetId()), p.GetAmount().GetAmount())
-}
-
-func addTransfersDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Payment, scheme byte) {
+func addLeasesDiff(sb *strings.Builder, a, b []internal.Lease) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
-		if !equalPayments(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", paymentString(a[i], scheme)))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i], scheme)))
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(a[i], scheme)))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i], scheme)))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
 		}
 	}
 	if lsb.Len() > 0 {
-		sb.WriteString("\tTransfers:\n")
+		sb.WriteString("\tLeases:\n")
 		sb.WriteString(lsb.String())
 	}
+}
+
+func addLeaseCancelsDiff(sb *strings.Builder, a, b []internal.LeaseCancel) {
+	la := len(a)
+	lb := len(b)
+	min, max := minmax(la, lb)
+	lsb := new(strings.Builder)
+	for i := 0; i < min; i++ {
+		if !a[i].Equal(b[i]) {
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	for i := min; i < max; i++ {
+		if la > lb {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+		} else {
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+		}
+	}
+	if lsb.Len() > 0 {
+		sb.WriteString("\tLease Cancels:\n")
+		sb.WriteString(lsb.String())
+	}
+}
+
+func minmax(a, b int) (int, int) {
+	if a < b {
+		return a, b
+	}
+	return b, a
 }

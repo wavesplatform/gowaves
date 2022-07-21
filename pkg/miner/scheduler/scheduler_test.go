@@ -11,7 +11,7 @@ import (
 type mockInternal struct {
 }
 
-func (a mockInternal) schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a mockInternal) schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	return nil, nil
 }
 
