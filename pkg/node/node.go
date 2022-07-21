@@ -74,32 +74,44 @@ func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) 
 	return a.peers.Connect(ctx, addr)
 }
 
-func (a *Node) Serve(ctx context.Context) error {
+func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	// if empty declared address, listen on port doesn't make sense
 	if a.declAddr.Empty() {
+		zap.S().Warn("Declared address is empty")
 		return nil
 	}
 
 	if a.bindAddr.Empty() {
+		zap.S().Warn("Bind address is empty")
 		return nil
 	}
 
-	zap.S().Info("start listening on ", a.bindAddr.String())
-	l, err := net.Listen("tcp", a.bindAddr.String())
+	zap.S().Infof("Start listening on %s", a.bindAddr.String())
+	var lc net.ListenConfig
+	l, err := lc.Listen(ctx, "tcp", a.bindAddr.String())
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := l.Close(); err != nil {
+			zap.S().Errorf("Failed to close %T on addr %q: %v", l, l.Addr().String(), err)
+		}
+	}()
 
+	// TODO: implement good graceful shutdown
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			zap.S().Error(err)
+			if ctx.Err() != nil { // context has been canceled
+				return nil
+			}
+			zap.S().Errorf("Failed to accept new peer: %v", err)
 			continue
 		}
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Debugf("Incoming connection error: %v", err)
+				zap.S().Debugf("Incoming connection failed with addr %q: %v", conn.RemoteAddr().String(), err)
 				return
 			}
 		}()
@@ -115,7 +127,7 @@ func (a *Node) logErrors(fsm state_fsm.FSM, err error) {
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan messages.InternalMessage) {
+func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage) {
 	go func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
@@ -147,7 +159,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	}()
 
 	go func() {
-		if err := a.Serve(ctx); err != nil {
+		if err := a.serveIncomingPeers(ctx); err != nil {
 			return
 		}
 	}()
@@ -156,15 +168,16 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 
 	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to : %v", err)
 		return
 	}
 	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-	actions := CreateActions()
+	actions := createActions()
 
+	// TODO: implement graceful shutdown
 	for {
 		select {
-		case internalMess := <-InternalMessageCh:
+		case internalMess := <-internalMessageCh:
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
 				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
