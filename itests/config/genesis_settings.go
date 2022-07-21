@@ -135,7 +135,7 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 	if maxBT-minBT <= 1 {
 		return maxBT, nil
 	}
-	var newBT = (maxBT + minBT) / 2
+	newBT := (maxBT + minBT) / 2
 	delay, err := pos.CalculateDelay(hit, newBT, balance)
 	if err != nil {
 		return 0, err
@@ -145,12 +145,13 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 		return newBT, nil
 	}
 
+	var min, max uint64
 	if delay > averageDelay*1000 {
-		return calculateBaseTarget(hit, pos, newBT, maxBT, balance, averageDelay)
+		min, max = newBT, maxBT
 	} else {
-		return calculateBaseTarget(hit, pos, minBT, newBT, balance, averageDelay)
+		min, max = minBT, newBT
 	}
-
+	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
 }
 
 func isFeaturePreactivated(features []int16, feature int16) bool {
