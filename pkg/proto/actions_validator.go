@@ -110,6 +110,22 @@ func (v *ActionsCountValidator) validateBalanceActionsGroup(libVersion ast.Libra
 	return nil
 }
 
+func (v *ActionsCountValidator) ValidateCounts(libVersion ast.LibraryVersion, isRideV6Activated bool) error {
+	err := v.validateDataEntryGroup()
+	if err != nil {
+		return err
+	}
+	err = v.validateBalanceActionsGroup(libVersion)
+	if err != nil {
+		return err
+	}
+	err = v.validateAssetActionsGroup(libVersion)
+	if err != nil {
+		return err
+	}
+	return v.validateAttachedPaymentActionGroup(isRideV6Activated)
+}
+
 func (v *ActionsCountValidator) validateAttachedPaymentActionGroup(isRideV6Activated bool) error {
 	if isRideV6Activated && v.attachedPaymentScriptActionsCounter > MaxAttachedPaymentsScriptActions {
 		return errors.Errorf("number of attached payments (%d) produced by script is more than allowed %d",
