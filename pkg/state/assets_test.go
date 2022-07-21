@@ -74,7 +74,7 @@ func TestReissueAsset(t *testing.T) {
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.assets.reissueAsset(id, &assetReissueChange{false, 1}, blockID0, true)
+	err = to.assets.reissueAsset(id, &assetReissueChange{false, 1}, blockID0)
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
 	asset.quantity.Add(&asset.quantity, big.NewInt(1))
@@ -236,7 +236,7 @@ func TestAssetsUncertain(t *testing.T) {
 	if !resAsset.equal(asset) {
 		t.Errorf("assets after burn differ.")
 	}
-	err = to.assets.reissueAssetUncertain(id, &assetReissueChange{false, 1}, true)
+	err = to.assets.reissueAssetUncertain(id, &assetReissueChange{false, 1})
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
 	asset.quantity.Add(&asset.quantity, big.NewInt(1))

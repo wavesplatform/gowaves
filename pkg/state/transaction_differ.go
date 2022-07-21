@@ -770,7 +770,7 @@ func (td *transactionDiffer) orderFeeKey(address proto.AddressID, order proto.Or
 	}
 }
 
-func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, priceAsset bool, filter bool) (int, error) {
+func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, priceAsset bool) (int, error) {
 	exchange, ok := transaction.(proto.Exchange)
 	if !ok {
 		return 0, errors.Errorf("unsupported transaction type '%T'", transaction)
@@ -866,11 +866,11 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	}
 	amountAsset := buyOrder.GetAssetPair().AmountAsset
 	priceAsset := buyOrder.GetAssetPair().PriceAsset
-	amountDecimals, err := td.orderAssetDecimals(transaction, false, !info.initialisation)
+	amountDecimals, err := td.orderAssetDecimals(transaction, false)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	priceDecimals, err := td.orderAssetDecimals(transaction, true, !info.initialisation)
+	priceDecimals, err := td.orderAssetDecimals(transaction, true)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}

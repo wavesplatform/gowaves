@@ -192,7 +192,7 @@ type assetReissueChange struct {
 	diff       int64
 }
 
-func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange, filter bool) (*assetInfo, error) {
+func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange) (*assetInfo, error) {
 	info, err := a.newestAssetInfo(assetID)
 	if err != nil {
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
@@ -203,8 +203,8 @@ func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange, fil
 	return info, nil
 }
 
-func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blockID proto.BlockID, filter bool) error {
-	info, err := a.applyReissue(assetID, ch, filter)
+func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blockID proto.BlockID) error {
+	info, err := a.applyReissue(assetID, ch)
 	if err != nil {
 		return err
 	}
@@ -214,8 +214,8 @@ func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blo
 // reissueAssetUncertain() is similar to reissueAsset() but the changes can be
 // dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueChange, filter bool) error {
-	info, err := a.applyReissue(assetID, ch, filter)
+func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueChange) error {
+	info, err := a.applyReissue(assetID, ch)
 	if err != nil {
 		return err
 	}

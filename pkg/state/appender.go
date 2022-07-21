@@ -341,9 +341,8 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	if res.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
-			initialisation: params.initialisation,
-			height:         params.checkerInfo.height,
-			blockID:        params.checkerInfo.blockID,
+			height:  params.checkerInfo.height,
+			blockID: params.checkerInfo.blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))

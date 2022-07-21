@@ -119,9 +119,9 @@ type GetBlockByNumberResponse struct {
 
 // Eth_GetBlockByNumber returns information about a block by block number.
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-//   - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */
-func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filter bool) GetBlockByNumberResponse {
-	zap.S().Debugf("Eth_GetBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filter)
+//   - filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions */
+func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) GetBlockByNumberResponse {
+	zap.S().Debugf("Eth_GetBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filterTxObj)
 	// scala's node crunch
 	return GetBlockByNumberResponse{
 		Number: blockOrTag,

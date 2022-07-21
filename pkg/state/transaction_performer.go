@@ -10,9 +10,8 @@ import (
 )
 
 type performerInfo struct {
-	initialisation bool
-	height         uint64
-	blockID        proto.BlockID
+	height  uint64
+	blockID proto.BlockID
 }
 
 type transactionPerformer struct {
@@ -91,7 +90,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
-	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to reissue asset")
 	}
 	return nil

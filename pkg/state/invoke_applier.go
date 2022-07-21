@@ -546,7 +546,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				reissuable: a.Reissuable,
 				diff:       a.Quantity,
 			}
-			if err := ia.stor.assets.reissueAssetUncertain(id, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.reissueAssetUncertain(id, change); err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
 			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress.ID(), a)
