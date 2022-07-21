@@ -214,7 +214,7 @@ func divideBigInt(_ environment, args ...rideType) (rideType, error) {
 	if i2.Cmp(zeroBigInt) == 0 {
 		return nil, errors.New("divideBigInt: division by zero")
 	}
-	r := i1.Div(i1, i2)
+	r := i1.Quo(i1, i2)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("divideBigInt: %s result is out of range", r.String())
 	}

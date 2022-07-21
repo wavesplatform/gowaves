@@ -218,6 +218,8 @@ func TestMultiplyBigInt(t *testing.T) {
 }
 
 func TestDivideBigInt(t *testing.T) {
+	v1, ok := big.NewInt(0).SetString("-23493686343227100000", 10)
+	require.True(t, ok)
 	for i, test := range []struct {
 		args []rideType
 		fail bool
@@ -230,6 +232,7 @@ func TestDivideBigInt(t *testing.T) {
 		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}, false, toRideBigInt(1)},
 		{[]rideType{rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}}, false, toRideBigInt(1)},
 		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MinBigInt}}, false, toRideBigInt(0)},
+		{[]rideType{rideBigInt{v: v1}, toRideBigInt(100000000)}, false, toRideBigInt(-234936863432)},
 		{[]rideType{toRideBigInt(10), toRideBigInt(0)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
