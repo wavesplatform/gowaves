@@ -42,6 +42,7 @@ COPY --from=builder /app/build/bin/linux-amd64/node /app/node
 
 ENV DECLARED_ADDR="go-node:6873"
 
+# we need to wait some time due to NTP problems
 CMD sleep 5 && /app/node \
     -cfg-path=$CONFIG_PATH \
     -peers=$PEERS \
