@@ -3,10 +3,11 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -19,6 +20,8 @@ import (
 const (
 	genesisSettingsFileName = "genesis.json"
 	configFolder            = "config"
+
+	maxBaseTarget = 1000000
 )
 
 type GenesisConfig struct {
@@ -52,12 +55,12 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	configPath := filepath.Clean(filepath.Join(pwd, configFolder, genesisSettingsFileName))
 	f, err := os.Open(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %s", err)
+		return nil, errors.Wrap(err, "failed to open file")
 	}
 	jsonParser := json.NewDecoder(f)
 	s := &GenesisSettings{}
-	if err := jsonParser.Decode(s); err != nil {
-		return nil, fmt.Errorf("failed to decode genesis settings: %s", err)
+	if err = jsonParser.Decode(s); err != nil {
+		return nil, errors.Wrap(err, "failed to decode genesis settings")
 	}
 	s.Scheme = s.SchemeRaw[0]
 	return s, nil
@@ -112,15 +115,15 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 		s := append(iv[:], seed...)
 		h, err := crypto.SecureHash(s)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate hash from seed '%s': %s", string(seed), err)
+			return nil, nil, errors.Wrapf(err, "failed to generate hash from seed '%s'", string(seed))
 		}
 		sk, pk, err := crypto.GenerateKeyPair(h[:])
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate keyPair from seed '%s': %s", string(seed), err)
+			return nil, nil, errors.Wrapf(err, "failed to generate keyPair from seed '%s'", string(seed))
 		}
 		addr, err := proto.NewAddressFromPublicKey(settings.Scheme, pk)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate address from seed '%s': %s", string(seed), err)
+			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
 		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
 		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount, Address: addr})
@@ -141,13 +144,13 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 	if (diff >= 0 && diff < 100) || (diff < 0 && diff > -100) {
 		return newBT, nil
 	}
-	var min, max uint64
+
 	if delay > averageDelay*1000 {
-		min, max = newBT, maxBT
+		return calculateBaseTarget(hit, pos, newBT, maxBT, balance, averageDelay)
 	} else {
-		min, max = minBT, newBT
+		return calculateBaseTarget(hit, pos, minBT, newBT, balance, averageDelay)
 	}
-	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
+
 }
 
 func isFeaturePreactivated(features []int16, feature int16) bool {
@@ -175,11 +178,11 @@ func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings)
 	maxBT := uint64(0)
 	pos := getPosCalculator(genSettings)
 	for _, info := range accounts {
-		hit, err := getHit(info.PublicKey)
+		hit, err := getHit(info, genSettings)
 		if err != nil {
 			return 0, err
 		}
-		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, 1000000, info.Amount, genSettings.AverageBlockDelay)
+		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, maxBaseTarget, info.Amount, genSettings.AverageBlockDelay)
 		if err != nil {
 			return 0, err
 		}
@@ -190,12 +193,29 @@ func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings)
 	return maxBT, nil
 }
 
-func getHit(pk crypto.PublicKey) (*consensus.Hit, error) {
+func getHit(acc AccountInfo, genSettings *GenesisSettings) (*consensus.Hit, error) {
 	hitSource := make([]byte, crypto.DigestSize)
-	genSigProvider := consensus.NXTGenerationSignatureProvider{}
-	gs, err := genSigProvider.GenerationSignature(pk, hitSource)
-	if err != nil {
-		return nil, err
+	var gs []byte
+	var err error
+	if isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.BlockV5)) {
+		proof, err := crypto.SignVRF(acc.SecretKey, hitSource)
+		if err != nil {
+			return nil, err
+		}
+		ok, hs, err := crypto.VerifyVRF(acc.PublicKey, hitSource, proof)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, err
+		}
+		gs = hs
+	} else {
+		genSigProvider := consensus.NXTGenerationSignatureProvider{}
+		gs, err = genSigProvider.GenerationSignature(acc.PublicKey, hitSource)
+		if err != nil {
+			return nil, err
+		}
 	}
 	hit, err := consensus.GenHit(gs)
 	if err != nil {

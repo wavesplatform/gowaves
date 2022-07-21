@@ -47,7 +47,7 @@ jobs:
         run: export PATH="$HOME/bin:$PATH"; make ci
 
       - name: Test with race detector
-        run: go test -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v "/itests")
+        run: make gotest-coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -80,10 +80,7 @@ jobs:
         run: go mod vendor
 
       - name: Tests
-        run: |
-          mkdir -p build/config
-          mkdir -p build/logs
-          make itest
+        run: make itest
 
       - name: Upload itest logs
         uses: actions/upload-artifact@v3

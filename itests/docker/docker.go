@@ -9,6 +9,7 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
+	"github.com/xenolf/lego/log"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -27,7 +28,7 @@ const (
 
 	tcp = "/tcp"
 
-	defaultTimeout = 15 * time.Second
+	DefaultTimeout = 16 * time.Second
 )
 
 const (
@@ -40,19 +41,6 @@ const (
 	walletPath = "wallet"
 )
 
-var (
-	GoNodeClient, _ = client.NewClient(client.Options{
-		BaseUrl: "http://" + Localhost + ":" + GoNodeRESTApiPort + "/",
-		Client:  &http.Client{Timeout: defaultTimeout},
-		ApiKey:  "itest-api-key",
-	})
-	ScalaNodeClient, _ = client.NewClient(client.Options{
-		BaseUrl: "http://" + Localhost + ":" + ScalaNodeRESTApiPort + "/",
-		Client:  &http.Client{Timeout: defaultTimeout},
-		ApiKey:  "itest-api-key",
-	})
-)
-
 type Docker struct {
 	pool         *dockertest.Pool
 	network      *dockertest.Network
@@ -62,25 +50,25 @@ type Docker struct {
 	scalaLogFile *os.File
 }
 
-func NewDocker() (Docker, error) {
+func NewDocker() (*Docker, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		return Docker{}, err
+		return nil, err
 	}
 	net, err := pool.CreateNetwork("waves_it_network")
 	if err != nil {
-		return Docker{}, err
+		return nil, err
 	}
-	return Docker{pool: pool, network: net}, nil
+	return &Docker{pool: pool, network: net}, nil
 }
 
-func (d *Docker) RunContainers(paths config.ConfigPaths) error {
-	goNodeRes, err := d.runGoNode(paths.GoConfigPath)
+func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths) error {
+	goNodeRes, err := d.runGoNode(ctx, paths.GoConfigPath)
 	if err != nil {
 		return err
 	}
 	d.goNode = goNodeRes
-	scalaNodeRes, err := d.runScalaNode(paths.ScalaConfigPath)
+	scalaNodeRes, err := d.runScalaNode(ctx, paths.ScalaConfigPath)
 	if err != nil {
 		return err
 	}
@@ -90,8 +78,13 @@ func (d *Docker) RunContainers(paths config.ConfigPaths) error {
 
 func (d *Docker) Purge() error {
 	defer func() {
-		_ = d.goLogFile.Close()
-		_ = d.scalaLogFile.Close()
+		if err := d.goLogFile.Close(); err != nil {
+			log.Warnf("Failed to close go-node logs file: %s", err)
+
+		}
+		if err := d.scalaLogFile.Close(); err != nil {
+			log.Warnf("Failed to close scala-node logs file: %s", err)
+		}
 	}()
 	if err := d.pool.Purge(d.scalaNode); err != nil {
 		return err
@@ -105,7 +98,7 @@ func (d *Docker) Purge() error {
 	return nil
 }
 
-func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
+func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -145,7 +138,8 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 	}
 
 	go func() {
-		_ = d.pool.Client.Logs(dc.LogsOptions{
+		err = d.pool.Client.Logs(dc.LogsOptions{
+			Context:     ctx,
 			Stderr:      true,
 			Stdout:      true,
 			Follow:      true,
@@ -156,11 +150,22 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 
 			OutputStream: logfile,
 		})
+		if err != nil {
+			log.Warnf("Fail to get logs from go-node: %s", err)
+		}
 	}()
 	d.goLogFile = logfile
-	ctx := context.Background()
+
 	err = d.pool.Retry(func() error {
-		_, _, err := GoNodeClient.Blocks.Height(ctx)
+		nodeClient, err := client.NewClient(client.Options{
+			BaseUrl: "http://" + Localhost + ":" + GoNodeRESTApiPort + "/",
+			Client:  &http.Client{Timeout: DefaultTimeout},
+			ApiKey:  "itest-api-key",
+		})
+		if err != nil {
+			return err
+		}
+		_, _, err = nodeClient.Blocks.Height(ctx)
 		return err
 	})
 	if err != nil {
@@ -169,7 +174,7 @@ func (d *Docker) runGoNode(cfgPath string) (*dockertest.Resource, error) {
 	return res, nil
 }
 
-func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
+func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {
 	opt := &dockertest.RunOptions{
 		Repository: "wavesplatform/wavesnode",
 		Name:       "scala-node",
@@ -209,7 +214,8 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 	}
 
 	go func() {
-		_ = d.pool.Client.Logs(dc.LogsOptions{
+		err = d.pool.Client.Logs(dc.LogsOptions{
+			Context:     ctx,
 			Stderr:      true,
 			Stdout:      true,
 			Follow:      true,
@@ -220,11 +226,22 @@ func (d *Docker) runScalaNode(cfgPath string) (*dockertest.Resource, error) {
 
 			OutputStream: logfile,
 		})
+		if err != nil {
+			log.Warnf("Fail to get logs from scala-node: %s", err)
+		}
 	}()
 	d.scalaLogFile = logfile
-	ctx := context.Background()
+
 	err = d.pool.Retry(func() error {
-		_, _, err := ScalaNodeClient.Blocks.Height(ctx)
+		nodeClient, err := client.NewClient(client.Options{
+			BaseUrl: "http://" + Localhost + ":" + ScalaNodeRESTApiPort + "/",
+			Client:  &http.Client{Timeout: DefaultTimeout},
+			ApiKey:  "itest-api-key",
+		})
+		if err != nil {
+			return err
+		}
+		_, _, err = nodeClient.Blocks.Height(ctx)
 		return err
 	})
 	if err != nil {

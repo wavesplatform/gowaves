@@ -273,13 +273,17 @@ func (a *Debug) StateChanges(ctx context.Context, id crypto.Digest) (*StateChang
 	return &out, response, nil
 }
 
+type PrintMsgRequestBody struct {
+	Message string `json:"message"`
+}
+
 func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/debug/print")
 	if err != nil {
 		return nil, err
 	}
-
-	bts, err := json.Marshal(map[string]interface{}{"message": msg})
+	body := PrintMsgRequestBody{Message: msg}
+	bts, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}

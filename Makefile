@@ -33,7 +33,12 @@ build-forkdetector-linux-arm:
 gotest:
 	go test -cover $$(go list ./... | grep -v "/itests")
 
+gotest-coverage:
+	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
+
 itest:
+	mkdir -p build/config
+	mkdir -p build/logs
 	go test $$(go list ./... | grep "/itests")
 
 fmtcheck:

@@ -2,10 +2,12 @@ package net
 
 import (
 	"bufio"
-	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
 	"time"
+
+	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type OutgoingPeer struct {
@@ -15,7 +17,7 @@ type OutgoingPeer struct {
 func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (OutgoingPeer, error) {
 	c, err := net.Dial("tcp", address)
 	if err != nil {
-		return OutgoingPeer{}, fmt.Errorf("failed to connect to %s: %s", address, err)
+		return OutgoingPeer{}, errors.Wrapf(err, "failed to connect to %s", address)
 	}
 	handshake := proto.Handshake{
 		AppName:      wavesNetwork,
@@ -28,12 +30,12 @@ func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wa
 
 	_, err = handshake.WriteTo(c)
 	if err != nil {
-		return OutgoingPeer{}, fmt.Errorf("failed to send handshake to %s: %s", address, err)
+		return OutgoingPeer{}, errors.Wrapf(err, "failed to send handshake to %s", address)
 	}
 
 	_, err = handshake.ReadFrom(bufio.NewReader(c))
 	if err != nil {
-		return OutgoingPeer{}, fmt.Errorf("failed to read handshake from %s: %s", address, err)
+		return OutgoingPeer{}, errors.Wrapf(err, "failed to read handshake from %s", address)
 	}
 
 	return OutgoingPeer{conn: c}, nil
@@ -47,7 +49,11 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) error {
 
 	_, err = a.conn.Write(b)
 	if err != nil {
-		return fmt.Errorf("failed to send message: %s", err)
+		return errors.Wrapf(err, "failed to send message")
 	}
 	return nil
+}
+
+func (a *OutgoingPeer) Close() error {
+	return a.conn.Close()
 }

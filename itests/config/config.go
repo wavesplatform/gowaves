@@ -2,10 +2,12 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/xenolf/lego/log"
 
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -33,7 +35,9 @@ func CreateScalaNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
 		return "", err
 	}
 	defer func() {
-		_ = f.Close()
+		if err := f.Close(); err != nil {
+			log.Warnf("Failed to close file %s", err)
+		}
 	}()
 	templatePath := filepath.Clean(filepath.Join(pwd, configFolder, templateScalaCfgFilename))
 	t, err := template.ParseFiles(templatePath)
@@ -57,10 +61,15 @@ func CreateGoNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Warnf("Failed to close file %s", err)
+		}
+	}()
 	jsonWriter := json.NewEncoder(f)
 	jsonWriter.SetIndent("", "\t")
 	if err := jsonWriter.Encode(cfg); err != nil {
-		return "", fmt.Errorf("failed to encode genesis settings: %s", err)
+		return "", errors.Wrap(err, "failed to encode genesis settings")
 	}
 	return filepath.Clean(filepath.Join(pwd, tmpDir)), nil
 }
@@ -73,15 +82,15 @@ type ConfigPaths struct {
 func CreateFileConfigs() (ConfigPaths, TestConfig, error) {
 	cfg, acc, err := NewBlockchainConfig()
 	if err != nil {
-		return ConfigPaths{}, TestConfig{}, fmt.Errorf("failed to create blockchain config: %s", err)
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
 	}
 	scalaPath, err := CreateScalaNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, TestConfig{}, err
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
 	}
 	goPath, err := CreateGoNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, TestConfig{}, err
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create scala-node config")
 	}
 	return ConfigPaths{ScalaConfigPath: scalaPath, GoConfigPath: goPath}, TestConfig{Accounts: acc}, nil
 }
