@@ -635,7 +635,7 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	if err != nil {
 		return nil, err
 	}
-	gsp := &consensus.VRFGenerationSignatureProvider{}
+	gsp := consensus.VRFGenerationSignatureProvider
 	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, refHitSource, blockHeader.GenSignature)
 	if err != nil {
 		return nil, err
