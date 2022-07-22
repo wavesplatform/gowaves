@@ -61,9 +61,10 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
-		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
+		greatGrandParentHeight := confirmedBlockHeight - 2
+		greatGrandParent, err := storage.BlockByHeight(greatGrandParentHeight)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
 			return nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
@@ -77,7 +78,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	pos := consensus.NxtPosCalculator
+	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
 			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
@@ -85,46 +86,52 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 			pos = consensus.FairPosCalculatorV1
 		}
 	}
-	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
+	gsp := consensus.NXTGenerationSignatureProvider
 	if blockV5Activated {
-		gsp = &consensus.VRFGenerationSignatureProvider{}
+		gsp = consensus.VRFGenerationSignatureProvider
 	}
 
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
 
-	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
+	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
+		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
+	)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		key := keyPair.Secret
-		HitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
+		sk := keyPair.Secret
+		hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl", err)
+			zap.S().Errorf("Scheduler: Failed to get hit source at height %d: %v", heightForHit, err)
 			continue
 		}
-		genSig, err := gsp.GenerationSignature(key, HitSourceAtHeight)
+		genSig, err := gsp.GenerationSignature(sk, hitSourceAtHeight)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining, can't get generation signature at height %d: %v",
+				heightForHit, err,
+			)
 			continue
 		}
-		source, err := gsp.HitSource(key, HitSourceAtHeight)
+		source, err := gsp.HitSource(sk, hitSourceAtHeight)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to get hit source at height %d: %v",
+				heightForHit, err,
+			)
 			continue
 		}
-		var vrf []byte = nil
+		var vrf []byte
 		if blockV5Activated {
 			vrf = source
 		}
 		hit, err := consensus.GenHit(source)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to generate hit from source: %v", err)
 			continue
 		}
 
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to create address from PK: %v", err)
 			continue
 		}
 		var startHeight proto.Height = 1
@@ -133,19 +140,30 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
-			zap.S().Debugf("Scheduler: Failed to schedule mining for address '%s': %v", addr.String(), err)
+			zap.S().Debugf(
+				"Scheduler: Failed to schedule mining for address %q, failed to calculate effective balance with startHeight=%d: %v",
+				addr.String(), startHeight, err)
 			continue
 		}
 
 		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate delay: %v", addr.String(), err)
 			continue
 		}
 
-		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
+		baseTarget, err := pos.CalculateBaseTarget(
+			AverageBlockDelaySeconds,
+			confirmedBlockHeight,
+			confirmedBlock.BlockHeader.BaseTarget,
+			confirmedBlock.Timestamp,
+			greatGrandParentTimestamp,
+			delay+confirmedBlock.Timestamp,
+		)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate base target: %v",
+				addr.String(), err,
+			)
 			continue
 		}
 
@@ -164,9 +182,10 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
-		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
+		greatGrandParentHeight := confirmedBlockHeight - 2
+		greatGrandParent, err := storage.BlockByHeight(greatGrandParentHeight)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
 			return nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
@@ -180,7 +199,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
-	pos := consensus.NxtPosCalculator
+	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
 			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
@@ -188,10 +207,13 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			pos = consensus.FairPosCalculatorV1
 		}
 	}
-	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
-	hitSourceHeader, err := storage.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+
+	gsp := consensus.NXTGenerationSignatureProvider
+
+	heightForHit := pos.HeightForHit(confirmedBlockHeight)
+	hitSourceHeader, err := storage.HeaderByHeight(heightForHit)
 	if err != nil {
-		zap.S().Error("scheduler, internalImpl HeaderByHeight", err)
+		zap.S().Errorf("Scheduler: Failed to get header by height %d for hit: %v", heightForHit, err)
 		return nil, err
 	}
 
@@ -201,27 +223,27 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	zap.S().Debug("Generation accounts:")
 	var out []Emit
 	for _, keyPair := range keyPairs {
+		pk := keyPair.Public
 		genSigBlock := confirmedBlock.BlockHeader
-		genSig, err := gsp.GenerationSignature(keyPair.Public, genSigBlock.GenSignature)
+		genSig, err := gsp.GenerationSignature(pk, genSigBlock.GenSignature)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl", err)
+			zap.S().Errorf("Scheduler: Failed to get generation signature for PK %q: %v", pk.String(), err)
 			continue
 		}
-		source, err := gsp.HitSource(keyPair.Public, hitSourceHeader.GenSignature)
+		source, err := gsp.HitSource(pk, hitSourceHeader.GenSignature)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl HitSource", err)
+			zap.S().Errorf("Scheduler: Failed to generate hit source for PK %q: %v", pk.String(), err)
 			continue
 		}
-		var vrf []byte = nil
 		hit, err := consensus.GenHit(source)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl GenHit", err)
+			zap.S().Errorf("Scheduler: Failed to generate hit for PK %q: %v", pk.String(), err)
 			continue
 		}
 
-		addr, err := keyPair.Addr(schema)
+		addr, err := proto.NewAddressFromPublicKey(schema, pk)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl keyPair.Addr", err)
+			zap.S().Errorf("Scheduler: Failed to create new address from PK %q: %v", pk.String(), err)
 			continue
 		}
 		var startHeight proto.Height = 1
@@ -230,23 +252,34 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		}
 		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
-			zap.S().Debug("scheduler, internalImpl effectiveBalance, err", effectiveBalance, err, addr.String())
+			zap.S().Debugf("Scheduler: Failed to get effective balance for address %q from startHeight=%d: %v",
+				addr.String(), startHeight, err,
+			)
 			continue
 		}
 
 		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl pos.CalculateDelay", err)
+			zap.S().Errorf("Scheduler: Failed to calculate delay for address %q with effective balance %d: %v",
+				addr, effectiveBalance, err,
+			)
 			continue
 		}
 
-		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
+		baseTarget, err := pos.CalculateBaseTarget(
+			AverageBlockDelaySeconds,
+			confirmedBlockHeight,
+			confirmedBlock.BlockHeader.BaseTarget,
+			confirmedBlock.Timestamp,
+			greatGrandParentTimestamp,
+			delay+confirmedBlock.Timestamp,
+		)
 		if err != nil {
-			zap.S().Error("scheduler, internalImpl pos.CalculateBaseTarget", err)
+			zap.S().Errorf("Scheduler: Failed to calculate base target for address %q: %v", addr.String(), err)
 			continue
 		}
 		ts := confirmedBlock.Timestamp + delay
-		zap.S().Debugf("  %s (%s): ", addr.String(), keyPair.Public.String())
+		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
 		zap.S().Debugf("    Generation Balance: %d", int(effectiveBalance))
 		zap.S().Debugf("    Delay: %d", int(delay))
@@ -255,7 +288,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			Timestamp:    ts,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
-			VRF:          vrf,
+			VRF:          nil, // because without VRF
 			BaseTarget:   baseTarget,
 			Parent:       confirmedBlock.BlockID(),
 		})
@@ -308,19 +341,21 @@ func (a *SchedulerImpl) Reschedule() {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.storage.TopBlock()
 	if currentTimestamp-lastKnownBlock.Timestamp > a.outdatePeriod {
-		zap.S().Debugf("Scheduler: Mining is not allowed because blockchain is too old: cur %d, block.ts %d, outdate: %d, id: %s", currentTimestamp, lastKnownBlock.Timestamp, a.outdatePeriod, lastKnownBlock.ID)
+		zap.S().Debugf("Scheduler: Mining is not allowed because blockchain is too old: cur %d, block.ts %d, outdate: %d, id: %s",
+			currentTimestamp, lastKnownBlock.Timestamp, a.outdatePeriod, lastKnownBlock.ID,
+		)
 		return
 	}
 
 	h, err := a.storage.Height()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Scheduler: Failed to get state height: %v", err)
 		return
 	}
 
 	block, err := a.storage.BlockByHeight(h)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Scheduler: Failed to get block by height %d: %v", h, err)
 		return
 	}
 
@@ -343,7 +378,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 
 	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Scheduler: Failed to make key pairs from seeds: %v", err)
 		return
 	}
 
@@ -351,7 +386,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 		return a.internal.schedule(info, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, a.settings.MinBlockTime, a.settings.DelayDelta, confirmedBlock, confirmedBlockHeight)
 	})
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Scheduler: Failed to schedule: %v", err)
 	}
 	emits := rs.([]Emit)
 

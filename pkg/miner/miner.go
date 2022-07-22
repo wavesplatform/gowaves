@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -112,7 +113,7 @@ type Mine interface {
 	Mine() chan scheduler.Emit
 }
 
-func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan messages.InternalMessage) {
+func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan<- messages.InternalMessage) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -120,7 +121,7 @@ func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan messages.In
 		case v := <-s.Mine():
 			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature, v.VRF)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorf("Failed to mine key block: %v", err)
 				continue
 			}
 			internalCh <- messages.NewMinedBlockInternalMessage(block, limits, v.KeyPair, v.VRF)

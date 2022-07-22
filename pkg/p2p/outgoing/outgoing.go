@@ -89,7 +89,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 
 	_, err := handshake.WriteTo(c)
 	if err != nil {
-		zap.S().Error("Failed to send handshake: ", err, a.params.Address)
+		zap.S().Errorf("Failed to send handshake with addr %q: %v", a.params.Address.String(), err)
 		return nil, nil, err
 	}
 

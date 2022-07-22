@@ -34,7 +34,7 @@ func noop(fsm FSM) (FSM, Async, error) {
 func sendScore(p peer.Peer, storage state.State) {
 	curScore, err := storage.CurrentScore()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to send current score to peer %q: %v", p.RemoteAddr().String(), err)
 		return
 	}
 

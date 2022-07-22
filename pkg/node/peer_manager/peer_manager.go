@@ -318,7 +318,7 @@ func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error
 		defer a.removeSpawned(addr)
 		err := a.spawner.SpawnOutgoing(ctx, addr)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Failed to spawn outgoing peer with addr %q: %v", addr.String(), err)
 		}
 	}(addr)
 

@@ -35,8 +35,13 @@ var (
 )
 
 var (
-	NxtPosCalculator    = PosCalculator(&nxtPosCalculator{})
+	NXTPosCalculator    = PosCalculator(&nxtPosCalculator{})
 	FairPosCalculatorV1 = NewFairPosCalculator(delayDeltaV1, tMinV1)
+)
+
+var (
+	NXTGenerationSignatureProvider = GenerationSignatureProvider(&nxtGenerationSignatureProvider{})
+	VRFGenerationSignatureProvider = GenerationSignatureProvider(&vrfGenerationSignatureProvider{})
 )
 
 func normalize(value, targetBlockDelaySeconds uint64) float64 {
@@ -66,20 +71,20 @@ type GenerationSignatureProvider interface {
 	VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error)
 }
 
-// NXTGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
+// nxtGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
 // public key and generation signature from the previous block.
-type NXTGenerationSignatureProvider struct{}
+type nxtGenerationSignatureProvider struct{}
 
 // GenerationSignature builds NXT generation signature using only generator's public key.
-func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+func (p *nxtGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	return p.signature(key, msg)
 }
 
-func (p *NXTGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+func (p *nxtGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	return p.signature(key, msg)
 }
 
-func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+func (p *nxtGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	if len(msg) < crypto.DigestSize {
 		return nil, errors.New("invalid message length")
 	}
@@ -93,7 +98,7 @@ func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg
 	return d[:], nil
 }
 
-func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
+func (p *nxtGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
 	calculated, err := p.GenerationSignature(pk, msg)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "NXT generation signature provider")
@@ -104,11 +109,11 @@ func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 	return true, calculated, nil
 }
 
-// VRFGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
+// vrfGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
 // of previous block and generator's secret key.
-type VRFGenerationSignatureProvider struct{}
+type vrfGenerationSignatureProvider struct{}
 
-func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+func (p *vrfGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	proof, err := crypto.SignVRF(key, msg)
 	if err != nil {
 		return nil, errors.Wrapf(err, "VRF generation signature provider")
@@ -116,13 +121,13 @@ func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize
 	return proof, nil
 }
 
-func (p *VRFGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+func (p *vrfGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	vrf := crypto.ComputeVRF(key, msg)
 	return vrf, nil
 }
 
 // VerifyGenerationSignature checks that provided signature is valid against given generator's public key and message.
-func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
+func (p *vrfGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
 	ok, hs, err := crypto.VerifyVRF(pk, msg[:], sig[:])
 	if err != nil {
 		return false, nil, errors.Wrap(err, "VRF generation signature provider")
