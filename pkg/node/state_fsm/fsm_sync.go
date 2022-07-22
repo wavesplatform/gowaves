@@ -108,7 +108,7 @@ func (a *SyncFsm) PeerError(p peer.Peer, _ error) (FSM, Async, error) {
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
 				return err
 			})
-			return NewIdleFsm(a.baseInfo), nil, a.Errorf(errors.Errorf("error in [Sync]: %s", err))
+			return NewIdleFsm(a.baseInfo), nil, a.Errorf(err)
 		}
 	}
 	return a, nil, nil
