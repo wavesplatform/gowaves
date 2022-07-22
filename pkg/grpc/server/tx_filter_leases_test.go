@@ -13,7 +13,7 @@ import (
 func TestTxFilterLeases(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/lease_genesis.json")
 	require.NoError(t, err)
-	st, stCloser := stateWithCustomGenesis(t, genesisPath)
+	st := stateWithCustomGenesis(t, genesisPath)
 	txId, err := crypto.NewDigestFromBase58("ADXuoPsKMJ59HyLMGzLBbNQD8p2eJ93dciuBPJp3Qhx")
 	require.NoError(t, err)
 	txId2, err := crypto.NewDigestFromBase58("ADXuoPsKMJ59HyLMGzLBbNQD7p2eJ93dciuBPJp3Qhx")
@@ -25,10 +25,6 @@ func TestTxFilterLeases(t *testing.T) {
 	require.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58("7rAoh3kPtsPQCTMVe8Bb39GKNX17bR5G57Ef66uwXfeT")
 	require.NoError(t, err)
-
-	defer func() {
-		stCloser()
-	}()
 
 	var tx proto.Transaction
 	req := &g.TransactionsRequest{Sender: addrBody}

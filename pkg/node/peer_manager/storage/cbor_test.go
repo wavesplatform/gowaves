@@ -90,13 +90,7 @@ type binaryStorageCborSuite struct {
 }
 
 func (s *binaryStorageCborSuite) SetupTest() {
-	tmpdir, err := ioutil.TempDir("", "peers_storage_test_suite_*")
-	require.NoError(s.T(), err)
-	defer func() {
-		if err != nil {
-			assert.NoError(s.T(), os.Remove(tmpdir))
-		}
-	}()
+	tmpdir := s.T().TempDir()
 	now := time.Now()
 	storage, err := newCBORStorageInDir(tmpdir, now, peersStorageCurrentVersion)
 	require.NoError(s.T(), err)
@@ -106,9 +100,7 @@ func (s *binaryStorageCborSuite) SetupTest() {
 }
 
 func (s *binaryStorageCborSuite) TearDownTest() {
-	tmpdir := s.storage.storageDir
 	s.storage = nil
-	require.NoError(s.T(), os.RemoveAll(tmpdir))
 }
 
 func TestBinaryStorageCborTestSuite(t *testing.T) {

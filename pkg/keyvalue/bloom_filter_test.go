@@ -1,9 +1,7 @@
 package keyvalue
 
 import (
-	"io/ioutil"
 	"math/rand"
-	"os"
 	"path"
 	"testing"
 
@@ -33,11 +31,7 @@ func TestBloomFilter(t *testing.T) {
 }
 
 func TestSaveLoad(t *testing.T) {
-	dir, err := ioutil.TempDir(os.TempDir(), "bloom")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 	cacheFile := path.Join(dir, "bloom_cache")
 
 	params := NewBloomFilterParams(n, falsePositiveProbability, NewStore(cacheFile))

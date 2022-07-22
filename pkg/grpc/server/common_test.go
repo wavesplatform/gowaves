@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -79,21 +78,21 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	return sets
 }
 
-func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func()) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {
+	dataDir := t.TempDir()
 	sets := customSettingsWithGenesis(t, genesisPath)
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, sets)
 	assert.NoError(t, err)
-	return st, func() {
+
+	t.Cleanup(func() {
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}
+	})
+
+	return st
 }
 
 func createWallet(ctx context.Context, st state.State, settings *settings.BlockchainSettings) types.EmbeddedWallet {
