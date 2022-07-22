@@ -446,7 +446,7 @@ func newStateManagerInternal(dataDir string, amend bool, params StateParams, set
 		stateDB,
 		rw,
 		atxParams,
-		hs.amend,
+		amend,
 	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
