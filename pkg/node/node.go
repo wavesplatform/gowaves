@@ -118,12 +118,12 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	}
 }
 
-func (a *Node) logErrors(fsm state_fsm.FSM, err error) {
+func (a *Node) logErrors(err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		zap.S().Debugf("[%s] %s", fsm.String(), e.Error())
+		zap.S().Debugf("%s", e.Error())
 	default:
-		zap.S().Errorf("[%s] %s", fsm.String(), e.Error())
+		zap.S().Errorf("%s", e.Error())
 	}
 }
 
@@ -213,7 +213,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			a.logErrors(fsm, err)
+			a.logErrors(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 	}
