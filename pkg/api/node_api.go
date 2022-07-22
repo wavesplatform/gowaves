@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -21,7 +22,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultTimeout = 30 * time.Second
+const (
+	defaultTimeout = 30 * time.Second
+
+	maxDebugMessageLength = 100
+)
 
 type NodeApi struct {
 	state state.State
@@ -505,5 +510,23 @@ func trySendJson(w io.Writer, v interface{}) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal %T to JSON and write it to %T", v, w)
 	}
+	return nil
+}
+
+func (a *NodeApi) debugPrint(_ http.ResponseWriter, r *http.Request) error {
+	type debugPrintRequest struct {
+		Message string `json:"message"`
+	}
+
+	req := &debugPrintRequest{}
+	if err := tryParseJson(r.Body, req); err != nil {
+		return errors.Wrap(err, "failed to parse DebugPrint request body as JSON")
+	}
+	trimmedStr := req.Message
+	if len(req.Message) > maxDebugMessageLength {
+		trimmedStr = req.Message[:maxDebugMessageLength]
+	}
+	safeStr := strings.NewReplacer("\n", "", "\r", "").Replace(trimmedStr)
+	zap.S().Debug(safeStr)
 	return nil
 }
