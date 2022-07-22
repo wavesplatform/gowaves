@@ -14,7 +14,7 @@ const (
 	nxtPosHeightDiffForHit  = 0
 	fairPosHeightDiffForHit = 100
 	hitSize                 = 8
-	minBaseTarget           = 9
+	MinBaseTarget           = 9
 
 	// Nxt values.
 	minBlockDelaySeconds = 53
@@ -45,8 +45,8 @@ func normalize(value, targetBlockDelaySeconds uint64) float64 {
 
 func normalizeBaseTarget(baseTarget, targetBlockDelaySeconds uint64) uint64 {
 	maxBaseTarget := math.MaxUint64 / targetBlockDelaySeconds
-	if baseTarget <= minBaseTarget {
-		return minBaseTarget
+	if baseTarget <= MinBaseTarget {
+		return MinBaseTarget
 	}
 	if baseTarget >= maxBaseTarget {
 		return maxBaseTarget

@@ -1,0 +1,226 @@
+package config
+
+import (
+	"encoding/binary"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/consensus"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
+)
+
+const (
+	genesisSettingsFileName = "genesis.json"
+	configFolder            = "config"
+
+	maxBaseTarget = 1000000
+)
+
+type GenesisConfig struct {
+	GenesisTimestamp  int64
+	GenesisSignature  crypto.Signature
+	GenesisBaseTarget types.BaseTarget
+	AverageBlockDelay uint64
+	Transaction       []genesis_generator.GenesisTransactionInfo
+}
+
+type DistributionItem struct {
+	SeedText string `json:"seed_text"`
+	Amount   uint64 `json:"amount"`
+}
+
+type GenesisSettings struct {
+	Scheme               proto.Scheme
+	SchemeRaw            string             `json:"scheme"`
+	AverageBlockDelay    uint64             `json:"average_block_delay"`
+	MinBlockTime         float64            `json:"min_block_time"`
+	DelayDelta           uint64             `json:"delay_delta"`
+	Distributions        []DistributionItem `json:"distributions"`
+	PreactivatedFeatures []int16            `json:"preactivated_features"`
+}
+
+func parseGenesisSettings() (*GenesisSettings, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	configPath := filepath.Clean(filepath.Join(pwd, configFolder, genesisSettingsFileName))
+	f, err := os.Open(configPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open file")
+	}
+	jsonParser := json.NewDecoder(f)
+	s := &GenesisSettings{}
+	if err = jsonParser.Decode(s); err != nil {
+		return nil, errors.Wrap(err, "failed to decode genesis settings")
+	}
+	s.Scheme = s.SchemeRaw[0]
+	return s, nil
+}
+
+func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) {
+	genSettings, err := parseGenesisSettings()
+	if err != nil {
+		return nil, nil, err
+	}
+	ts := time.Now().UnixMilli()
+	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
+	if err != nil {
+		return nil, nil, err
+	}
+	bt, err := calcInitialBaseTarget(acc, genSettings)
+	if err != nil {
+		return nil, nil, err
+	}
+	b, err := genesis_generator.GenerateGenesisBlock(genSettings.Scheme, txs, bt, uint64(ts))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cfg := settings.DefaultCustomSettings
+	cfg.Genesis = *b
+	cfg.AddressSchemeCharacter = genSettings.Scheme
+	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
+	cfg.MinBlockTime = genSettings.MinBlockTime
+	cfg.DelayDelta = genSettings.DelayDelta
+	cfg.BlockRewardIncrement = 100000
+	cfg.BlockRewardVotingPeriod = 1000
+	cfg.PreactivatedFeatures = genSettings.PreactivatedFeatures
+
+	return cfg, acc, nil
+}
+
+type AccountInfo struct {
+	PublicKey crypto.PublicKey
+	SecretKey crypto.SecretKey
+	Amount    uint64
+	Address   proto.WavesAddress
+}
+
+func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
+	r := make([]genesis_generator.GenesisTransactionInfo, 0, len(settings.Distributions))
+	accounts := make([]AccountInfo, 0, len(settings.Distributions))
+	for _, dist := range settings.Distributions {
+		seed := []byte(dist.SeedText)
+		iv := [4]byte{}
+		binary.BigEndian.PutUint32(iv[:], uint32(0))
+		s := append(iv[:], seed...)
+		h, err := crypto.SecureHash(s)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to generate hash from seed '%s'", string(seed))
+		}
+		sk, pk, err := crypto.GenerateKeyPair(h[:])
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to generate keyPair from seed '%s'", string(seed))
+		}
+		addr, err := proto.NewAddressFromPublicKey(settings.Scheme, pk)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
+		}
+		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
+		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount, Address: addr})
+	}
+	return r, accounts, nil
+}
+
+func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
+	if maxBT-minBT <= 1 {
+		return maxBT, nil
+	}
+	newBT := (maxBT + minBT) / 2
+	delay, err := pos.CalculateDelay(hit, newBT, balance)
+	if err != nil {
+		return 0, err
+	}
+	diff := int64(delay) - int64(averageDelay)*1000
+	if (diff >= 0 && diff < 100) || (diff < 0 && diff > -100) {
+		return newBT, nil
+	}
+
+	var min, max uint64
+	if delay > averageDelay*1000 {
+		min, max = newBT, maxBT
+	} else {
+		min, max = minBT, newBT
+	}
+	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
+}
+
+func isFeaturePreactivated(features []int16, feature int16) bool {
+	for _, f := range features {
+		if f == feature {
+			return true
+		}
+	}
+	return false
+}
+
+func getPosCalculator(genSettings *GenesisSettings) consensus.PosCalculator {
+	fairActivated := isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.FairPoS))
+	if fairActivated {
+		blockV5Activated := isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.BlockV5))
+		if blockV5Activated {
+			return consensus.NewFairPosCalculator(genSettings.DelayDelta, genSettings.MinBlockTime)
+		}
+		return consensus.FairPosCalculatorV1
+	}
+	return consensus.NxtPosCalculator
+}
+
+func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings) (types.BaseTarget, error) {
+	maxBT := uint64(0)
+	pos := getPosCalculator(genSettings)
+	for _, info := range accounts {
+		hit, err := getHit(info, genSettings)
+		if err != nil {
+			return 0, err
+		}
+		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, maxBaseTarget, info.Amount, genSettings.AverageBlockDelay)
+		if err != nil {
+			return 0, err
+		}
+		if bt > maxBT {
+			maxBT = bt
+		}
+	}
+	return maxBT, nil
+}
+
+func getHit(acc AccountInfo, genSettings *GenesisSettings) (*consensus.Hit, error) {
+	hitSource := make([]byte, crypto.DigestSize)
+	var gs []byte
+	var err error
+	if isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.BlockV5)) {
+		proof, err := crypto.SignVRF(acc.SecretKey, hitSource)
+		if err != nil {
+			return nil, err
+		}
+		ok, hs, err := crypto.VerifyVRF(acc.PublicKey, hitSource, proof)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, err
+		}
+		gs = hs
+	} else {
+		genSigProvider := consensus.NXTGenerationSignatureProvider{}
+		gs, err = genSigProvider.GenerationSignature(acc.PublicKey, hitSource)
+		if err != nil {
+			return nil, err
+		}
+	}
+	hit, err := consensus.GenHit(gs)
+	if err != nil {
+		return nil, err
+	}
+	return hit, nil
+}
