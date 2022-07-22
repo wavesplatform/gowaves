@@ -105,7 +105,9 @@ func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm
 func sendSignatures(services services.Services, block *proto.BlockHeader, p peer.Peer) {
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to get height for blockID %q and send signatures to peer %q: %v",
+			block.BlockID().String(), p.RemoteAddr().String(), err,
+		)
 		return
 	}
 
@@ -131,7 +133,9 @@ func sendSignatures(services services.Services, block *proto.BlockHeader, p peer
 func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.Peer) {
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to get height for blockID %q and send blockIDs to peer %q: %v",
+			block.BlockID().String(), p.RemoteAddr().String(), err,
+		)
 		return
 	}
 
@@ -244,7 +248,7 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm state_
 	return fsm.Transaction(mess.ID, t)
 }
 
-func CreateActions() map[reflect.Type]Action {
+func createActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
 		reflect.TypeOf(&proto.GetPeersMessage{}):          GetPeersAction,

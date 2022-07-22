@@ -60,14 +60,14 @@ func (LastSignaturesImpl) LastBlockIDs(state storage.State) (*ReverseOrdering, e
 
 	height, err := state.Height()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("LastSignaturesImpl: failed to get height from state: %v", err)
 		return nil, err
 	}
 
 	for i := 0; i < 100 && height > 0; i++ {
 		sig, err := state.HeightToBlockID(height)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("LastSignaturesImpl: failed to get blockID for height %d: %v", height, err)
 			return nil, err
 		}
 		signatures = append(signatures, sig)

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -270,4 +271,28 @@ func (a *Debug) StateChanges(ctx context.Context, id crypto.Digest) (*StateChang
 	}
 
 	return &out, response, nil
+}
+
+func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
+	type printMsgRequestBody struct {
+		Message string `json:"message"`
+	}
+
+	url, err := joinUrl(a.options.BaseUrl, "/debug/print")
+	if err != nil {
+		return nil, err
+	}
+	bts, err := json.Marshal(printMsgRequestBody{Message: msg})
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(bts))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
+	req.Header.Add("Accept", "*/*")
+
+	return doHttp(ctx, a.options, req, nil)
 }

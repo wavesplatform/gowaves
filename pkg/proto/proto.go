@@ -52,6 +52,8 @@ const (
 	ContentIDBlockIds          PeerMessageID = 33
 )
 
+var ProtocolVersion = Version{Major: 1, Minor: 4, Patch: 0}
+
 type Message interface {
 	io.ReaderFrom
 	io.WriterTo
@@ -358,6 +360,12 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	ip := net.ParseIP(host)
+	if ip == nil {
+		ips, err := net.LookupIP(host)
+		if err == nil {
+			ip = ips[0]
+		}
+	}
 	p, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return TCPAddr{}
