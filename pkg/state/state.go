@@ -1545,7 +1545,6 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	// TODO: Should filter be always false? (we write only one hit source per block)
 	return s.stor.hitSources.hitSource(height)
 }
 
@@ -1557,7 +1556,6 @@ func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	// TODO: Should filter be always false? (we write only one hit source per block)
 	return s.stor.hitSources.newestHitSource(height)
 }
 
