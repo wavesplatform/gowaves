@@ -172,7 +172,7 @@ func getPosCalculator(genSettings *GenesisSettings) consensus.PosCalculator {
 		}
 		return consensus.FairPosCalculatorV1
 	}
-	return consensus.NxtPosCalculator
+	return consensus.NXTPosCalculator
 }
 
 func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings) (types.BaseTarget, error) {
@@ -212,7 +212,7 @@ func getHit(acc AccountInfo, genSettings *GenesisSettings) (*consensus.Hit, erro
 		}
 		gs = hs
 	} else {
-		genSigProvider := consensus.NXTGenerationSignatureProvider{}
+		genSigProvider := consensus.NXTGenerationSignatureProvider
 		gs, err = genSigProvider.GenerationSignature(acc.PublicKey, hitSource)
 		if err != nil {
 			return nil, err
