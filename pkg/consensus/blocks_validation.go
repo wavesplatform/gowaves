@@ -101,9 +101,9 @@ func (cv *Validator) generationSignatureProvider(height uint64) (GenerationSigna
 		return nil, err
 	}
 	if vrf {
-		return &VRFGenerationSignatureProvider{}, nil
+		return VRFGenerationSignatureProvider, nil
 	}
-	return &NXTGenerationSignatureProvider{}, nil
+	return NXTGenerationSignatureProvider, nil
 }
 
 func (cv *Validator) headerByHeight(height uint64) (*proto.BlockHeader, error) {

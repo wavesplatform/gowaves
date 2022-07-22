@@ -10036,8 +10036,6 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
-	caller := proto.NewAlias(proto.TestNetScheme, "caller")
-	callee := proto.NewAlias(proto.TestNetScheme, "callee")
 	/* On dApp1 address
 	{-# STDLIB_VERSION 6 #-}
 	{-# CONTENT_TYPE DAPP #-}
@@ -10116,7 +10114,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 	code2 := "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"
 	_, tree2 := parseBase64Script(t, code2)
 
-	recipient := proto.NewRecipientFromAlias(*caller)
+	recipient := proto.NewRecipientFromAddress(dApp1)
 	arguments := proto.Arguments{}
 	call := proto.FunctionCall{
 		Default:   false,
@@ -10206,24 +10204,13 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 			}
 		},
 		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			switch alias.String() {
-			case caller.String():
-				return dApp1, nil
-			case callee.String():
-				return dApp2, nil
-			default:
-				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
-			}
+			return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 		},
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			switch account.String() {
 			case dApp1.String():
 				return 0, nil
-			case caller.String():
-				return 0, nil
 			case dApp2.String():
-				return 100_000_000_000, nil
-			case callee.String():
 				return 100_000_000_000, nil
 			default:
 				return 0, errors.Errorf("unexpected account '%s'", account.String())
@@ -10253,6 +10240,207 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 	res, err := CallFunction(env, tree1, "call", arguments)
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, dApp3PK, dApp3 := makeAddressAndPK(t, "DAPP3")    // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp2 = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1') # V6 script produces 10 transfer actions
+	let dApp3 = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh') # V5 script produces no actions
+
+	@Callable(i)
+	func call() = {
+	  strict a1 = invoke(dApp2,  "call", [], []) # 10 actions
+	  strict b1 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a2 = invoke(dApp2,  "call", [], []) # 20 actions
+	  strict b2 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a3 = invoke(dApp2,  "call", [], []) # 30 actions
+	  strict b3 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a4 = invoke(dApp2,  "call", [], []) # 40 actions
+	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - FAIL
+	  []
+	}
+	*/
+	code1 := "BgIECAISAAIABWRBcHAyCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAVkQXBwMwkBB0FkZHJlc3MBARoBVHrvJZrEY3NpLnBpk6ugJuX5CI8UJdzjLgEBaQEEY2FsbAAEAmExCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMQUCYTEEAmIxCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMQUCYjEEAmEyCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMgUCYTIEAmIyCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMgUCYjIEAmEzCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMwUCYTMEAmIzCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMwUCYjMEAmE0CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNAUCYTQEAmI0CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNAUCYjQFA25pbAkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgCZPou1"
+	_, tree1 := parseBase64Script(t, code1)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = [
+		ScriptTransfer(i.caller, 1, unit),
+		ScriptTransfer(i.caller, 2, unit),
+		ScriptTransfer(i.caller, 3, unit),
+		ScriptTransfer(i.caller, 4, unit),
+		ScriptTransfer(i.caller, 5, unit),
+		ScriptTransfer(i.caller, 6, unit),
+		ScriptTransfer(i.caller, 7, unit),
+		ScriptTransfer(i.caller, 8, unit),
+		ScriptTransfer(i.caller, 9, unit),
+		ScriptTransfer(i.caller, 10, unit)
+	]
+	*/
+	code2 := "BgIECAISAAABAWkBBGNhbGwACQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0BQNuaWwAdHE1Mw=="
+	_, tree2 := parseBase64Script(t, code2)
+
+	/* On dApp3 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = []
+	*/
+	code3 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K"
+	_, tree3 := parseBase64Script(t, code3)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		blockV5ActivatedFunc: func() bool {
+			return true
+		},
+		rideV6ActivatedFunc:    noRideV6,
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		isProtobufTxFunc: isProtobufTx,
+	}
+
+	mockState := &MockSmartState{
+		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return tree1, nil
+			case dApp2.String():
+				return tree2, nil
+			case dApp3.String():
+				return tree3, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			case dApp3:
+				return dApp3PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			case dApp3.String():
+				return &dApp3, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case dApp3.String():
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+			switch id {
+			case dApp1.ID():
+				return &types.WavesBalanceProfile{}, nil
+			case dApp2.ID():
+				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
+			case dApp3.ID():
+				return &types.WavesBalanceProfile{}, nil
+			default:
+				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
+			}
+		},
+	}
+
+	testState := initWrappedState(mockState, env, tree1.LibVersion)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	res, err := CallFunction(env, tree1, "call", arguments)
+	assert.Nil(t, res)
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (40) produced by script is more than allowed 30")
 }
 
 func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {

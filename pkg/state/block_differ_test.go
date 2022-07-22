@@ -26,7 +26,7 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	require.NoError(t, err, "newBlockDiffer() failed")
-	return &blockDifferTestObjects{stor, blockDiffer, &consensus.NXTGenerationSignatureProvider{}}, path
+	return &blockDifferTestObjects{stor, blockDiffer, consensus.NXTGenerationSignatureProvider}, path
 }
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {

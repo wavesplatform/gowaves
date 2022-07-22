@@ -58,7 +58,7 @@ func (a *PeerImpl) Close() error {
 func (a *PeerImpl) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
 	select {

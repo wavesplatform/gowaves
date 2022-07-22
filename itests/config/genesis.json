@@ -1,0 +1,49 @@
+{
+  "scheme": "L",
+  "average_block_delay": 10,
+  "min_block_time": 5000,
+  "delay_delta": 0,
+  "preactivated_features": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 14, 16, 17],
+  "distributions": [
+    {
+      "seed_text": "node01",
+      "amount": 10000000000000
+    },
+    {
+      "seed_text": "node02",
+      "amount": 15000000000000
+    },
+    {
+      "seed_text": "node03",
+      "amount": 25000000000000
+    },
+    {
+      "seed_text": "node04",
+      "amount": 25000000000000
+    },
+    {
+      "seed_text": "node05",
+      "amount": 40000000000000
+    },
+    {
+      "seed_text": "node06",
+      "amount": 45000000000000
+    },
+    {
+      "seed_text": "node07",
+      "amount": 60000000000000
+    },
+    {
+      "seed_text": "node08",
+      "amount": 80000000000000
+    },
+    {
+      "seed_text": "node09",
+      "amount": 100000000000000
+    },
+    {
+      "seed_text": "node10",
+      "amount": 6000000000000000
+    }
+  ]
+}
