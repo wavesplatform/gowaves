@@ -23,7 +23,6 @@ const (
 )
 
 type checkerInfo struct {
-	initialisation   bool
 	currentTimestamp uint64
 	parentTimestamp  uint64
 	blockID          proto.BlockID
@@ -321,7 +320,7 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	if info.blockID != tc.genesis {
 		return nil, errors.New("genesis transaction inside of non-genesis block")
 	}
-	if !info.initialisation {
+	if tc.stor.amend() {
 		return nil, errors.New("genesis transaction in non-initialisation mode")
 	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves()}

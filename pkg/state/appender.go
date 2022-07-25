@@ -148,11 +148,10 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 }
 
 type appendBlockParams struct {
-	transactions   []proto.Transaction
-	chans          *verifierChans
-	block, parent  *proto.BlockHeader
-	height         uint64
-	initialisation bool
+	transactions  []proto.Transaction
+	chans         *verifierChans
+	block, parent *proto.BlockHeader
+	height        uint64
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -576,7 +575,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	checkerInfo := &checkerInfo{
-		initialisation:   params.initialisation,
 		currentTimestamp: params.block.Timestamp,
 		blockID:          params.block.BlockID(),
 		blockVersion:     params.block.Version,
@@ -822,7 +820,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
-		initialisation:   false,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 		blockID:          block.BlockID(),

@@ -62,7 +62,7 @@ func TestCheckGenesis(t *testing.T) {
 	_, err := to.tc.checkGenesis(tx, info)
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
-	info.initialisation = true
+	to.stor.hs.amend = false
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed with valid genesis tx")
 	info.blockID = blockID0

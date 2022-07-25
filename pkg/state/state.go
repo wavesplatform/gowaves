@@ -1033,12 +1033,11 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions:   transactions,
-		chans:          chans,
-		block:          &block.BlockHeader,
-		parent:         parentHeader,
-		height:         height,
-		initialisation: !s.stor.amend(),
+		transactions: transactions,
+		chans:        chans,
+		block:        &block.BlockHeader,
+		parent:       parentHeader,
+		height:       height,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
