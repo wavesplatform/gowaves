@@ -47,8 +47,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var protocolVersion = proto.Version{Major: 1, Minor: 4, Patch: 0}
-
 const (
 	maxTransactionTimeForwardOffset = 300 // seconds
 	mb                              = 1 << (10 * 2)
@@ -323,7 +321,7 @@ func main() {
 		cancel()
 		return
 	}
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), protocolVersion)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), proto.ProtocolVersion)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -346,7 +344,7 @@ func main() {
 		peerSpawnerImpl,
 		peerStorage,
 		int(*limitAllConnections/2),
-		protocolVersion,
+		proto.ProtocolVersion,
 		conf.WavesNetwork,
 		!*disableOutgoingConnections,
 		*newConnectionsLimit,

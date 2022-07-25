@@ -70,7 +70,7 @@ func (a *IdleFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
 	default:
-		return a, nil, errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String())
+		return a, nil, a.Errorf(errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String()))
 	}
 }
 
@@ -88,17 +88,17 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 		a.baseInfo.Reschedule()
 	}
 	sendScore(p, a.baseInfo.storage)
-	return fsm, as, err
+	return fsm, as, a.Errorf(err)
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("idle", score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	nodeScore, err := a.baseInfo.storage.CurrentScore()
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(err)
 	}
 	if score.Cmp(nodeScore) == 1 {
 		return syncWithNewPeer(a, a.baseInfo, p)
@@ -112,6 +112,10 @@ func (a *IdleFsm) Block(_ peer.Peer, _ *proto.Block) (FSM, Async, error) {
 
 func (a *IdleFsm) String() string {
 	return "Idle"
+}
+
+func (a *IdleFsm) Errorf(err error) error {
+	return fsmErrorf(a, err)
 }
 
 func NewIdleFsm(info BaseInfo) *IdleFsm {

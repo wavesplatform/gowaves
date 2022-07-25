@@ -25,7 +25,7 @@ type ActionsImpl struct {
 func (a *ActionsImpl) SendScore(s currentScorer) {
 	curScore, err := s.CurrentScore()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to get current score: %v", err)
 		return
 	}
 	bts := curScore.Bytes()
@@ -37,13 +37,13 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
 	bts, err := block.Marshaller().Marshal(a.services.Scheme)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to marshal block with ID %q: %v", block.BlockID().String(), err)
 		return
 	}
 
 	activated, err := a.services.State.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to get feature (%d) activation status: %v", settings.BlockV5, err)
 		return
 	}
 

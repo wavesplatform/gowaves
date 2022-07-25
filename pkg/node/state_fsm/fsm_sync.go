@@ -62,7 +62,7 @@ type SyncFsm struct {
 func (a *SyncFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
 	if err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	a.baseInfo.BroadcastTransaction(t, p)
 	return a, nil, nil
@@ -89,13 +89,13 @@ func (a *SyncFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			zap.S().Debugf("[Sync] Timeout (%s) while syncronisation with peer '%s'", a.conf.timeout.String(), a.conf.peerSyncWith.ID())
-			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
+			return NewIdleFsm(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
 		return a, nil, nil
 	case tasks.MineMicro:
 		return a, nil, nil
 	default:
-		return a, nil, errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String())
+		return a, nil, a.Errorf(errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String()))
 	}
 }
 
@@ -108,7 +108,7 @@ func (a *SyncFsm) PeerError(p peer.Peer, _ error) (FSM, Async, error) {
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
 				return err
 			})
-			return NewIdleFsm(a.baseInfo), nil, err
+			return NewIdleFsm(a.baseInfo), nil, a.Errorf(err)
 		}
 	}
 	return a, nil, nil
@@ -120,7 +120,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 	}
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
 	if err != nil {
-		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
+		return newSyncFsm(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
 	if internal.RequestedCount() > 0 {
 		// Blocks were requested waiting for them to receive and apply
@@ -129,7 +129,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 	// No blocks were request, switching to NG working mode
 	err = a.baseInfo.storage.StartProvidingExtendedApi()
 	if err != nil {
-		return NewIdleFsm(a.baseInfo), nil, err
+		return NewIdleFsm(a.baseInfo), nil, a.Errorf(err)
 	}
 	return NewNGFsm12(a.baseInfo), nil, nil
 }
@@ -137,7 +137,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	err := a.baseInfo.peers.NewConnection(p)
 	if err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	return a, nil, nil
 }
@@ -145,7 +145,7 @@ func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	return noop(a)
 }
@@ -158,7 +158,7 @@ func (a *SyncFsm) Block(p peer.Peer, block *proto.Block) (FSM, Async, error) {
 	zap.S().Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
 	internal, err := a.internal.Block(block)
 	if err != nil {
-		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
+		return newSyncFsm(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
 	return a.applyBlocks(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
 }
@@ -208,7 +208,7 @@ func (a *SyncFsm) getPeerWithMaxScore() (peer.Peer, error) {
 func (a *SyncFsm) changePeerSyncWith() (FSM, Async, error) {
 	peer, err := a.getPeerWithMaxScore()
 	if err != nil {
-		return NewIdleFsm(a.baseInfo), nil, errors.Wrapf(err, "Failed to change peer for sync")
+		return NewIdleFsm(a.baseInfo), nil, a.Errorf(errors.Wrapf(err, "Failed to change peer for sync"))
 	}
 	return syncWithNewPeer(a, a.baseInfo, peer)
 }
@@ -240,7 +240,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 		for _, b := range blocks {
 			metrics.FSMKeyBlockDeclined("sync", b, err)
 		}
-		return NewIdleFsm(a.baseInfo), nil, err
+		return NewIdleFsm(a.baseInfo), nil, a.Errorf(err)
 	}
 	for _, b := range blocks {
 		metrics.FSMKeyBlockApplied("sync", b)
@@ -249,7 +249,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(err)
 	}
 	if should {
 		return NewPersistTransition(a.baseInfo)
@@ -257,7 +257,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if eof {
 		err := a.baseInfo.storage.StartProvidingExtendedApi()
 		if err != nil {
-			return NewIdleFsm(a.baseInfo), nil, err
+			return NewIdleFsm(a.baseInfo), nil, a.Errorf(err)
 		}
 		return NewNGFsm12(a.baseInfo), nil, nil
 	}
@@ -266,6 +266,10 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 
 func (a *SyncFsm) String() string {
 	return "Sync"
+}
+
+func (a *SyncFsm) Errorf(err error) error {
+	return fsmErrorf(a, err)
 }
 
 func NewSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
