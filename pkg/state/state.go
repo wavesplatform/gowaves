@@ -97,6 +97,10 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
+func (s *blockchainEntitiesStorage) amend() bool {
+	return s.hs.amend
+}
+
 func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
 		BlockID: blockID,
@@ -1034,7 +1038,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		block:          &block.BlockHeader,
 		parent:         parentHeader,
 		height:         height,
-		initialisation: !s.stor.hs.amend,
+		initialisation: !s.stor.amend(),
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1206,24 +1210,17 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-type heightActionParams struct {
-	blockchainHeight uint64
-	lastBlock        proto.BlockID
-	nextBlock        proto.BlockID
-	initialisation   bool
-}
-
-func (s *stateManager) blockchainHeightAction(params *heightActionParams) error {
-	cancelLeases, err := s.needToCancelLeases(params.blockchainHeight)
+func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
+	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
 		return err
 	}
 	if cancelLeases {
-		if err := s.cancelLeases(params.blockchainHeight, params.lastBlock, params.initialisation); err != nil {
+		if err := s.cancelLeases(blockchainHeight, lastBlock); err != nil {
 			return err
 		}
 	}
-	resetStolenAliases, err := s.needToResetStolenAliases(params.blockchainHeight)
+	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
 	if err != nil {
 		return err
 	}
@@ -1232,20 +1229,20 @@ func (s *stateManager) blockchainHeightAction(params *heightActionParams) error 
 			return err
 		}
 	}
-	if s.needToFinishVotingPeriod(params.blockchainHeight) {
-		if err := s.finishVoting(params.blockchainHeight, params.lastBlock); err != nil {
+	if s.needToFinishVotingPeriod(blockchainHeight) {
+		if err := s.finishVoting(blockchainHeight, lastBlock); err != nil {
 			return err
 		}
-		if err := s.stor.features.resetVotes(params.nextBlock); err != nil {
+		if err := s.stor.features.resetVotes(nextBlock); err != nil {
 			return err
 		}
 	}
-	termIsOver, err := s.isBlockRewardTermOver(params.blockchainHeight)
+	termIsOver, err := s.isBlockRewardTermOver(blockchainHeight)
 	if err != nil {
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(params.blockchainHeight, params.lastBlock); err != nil {
+		if err := s.updateBlockReward(blockchainHeight, lastBlock); err != nil {
 			return err
 		}
 	}
@@ -1267,7 +1264,7 @@ func (s *stateManager) updateBlockReward(height uint64, blockID proto.BlockID) e
 	return nil
 }
 
-func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initialisation bool) error {
+func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error {
 	// Move balance diffs from diffStorage to historyStorage.
 	// It must be done before lease cancellation, because
 	// lease cancellation iterates through historyStorage.
@@ -1367,12 +1364,12 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	var ids []proto.BlockID
 	pos := 0
 	for s.newBlocks.next() {
-		curHeight := height + uint64(pos)
+		blockchainCurHeight := height + uint64(pos)
 		block, err := s.newBlocks.current()
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
-		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, curHeight); err != nil {
+		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
 			return nil, err
 		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
@@ -1381,12 +1378,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
-		params := &heightActionParams{
-			blockchainHeight: curHeight,
-			lastBlock:        lastAppliedBlock.BlockID(),
-			nextBlock:        block.BlockID(),
-		}
-		if err := s.blockchainHeightAction(params); err != nil {
+		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		// Send block for signature verification, which works in separate goroutine.
@@ -1400,21 +1392,21 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
-		hs, err := s.cv.GenerateHitSource(curHeight, block.BlockHeader)
+		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
 		if err != nil {
 			return nil, err
 		}
-		if err := s.stor.hitSources.appendBlockHitSource(block, curHeight+1, hs); err != nil {
+		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(block, lastAppliedBlock, chans, curHeight); err != nil {
+		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
 			return nil, err
 		}
-		if s.needToFinishVotingPeriod(params.blockchainHeight + 1) {
+		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(params.blockchainHeight + 2)
+			s.checkProtobufActivation(blockchainCurHeight + 2)
 		}
 		headers[pos] = block.BlockHeader
 		pos++
