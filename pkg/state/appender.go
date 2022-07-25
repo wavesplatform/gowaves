@@ -193,28 +193,30 @@ func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated
 }
 
 func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationParams) error {
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
-	var feeChanges txBalanceChanges
-	var err error
+	var (
+		feeChanges txBalanceChanges
+		err        error
+	)
+	di := newDifferInfo(info.blockInfo)
 	switch tx.GetTypeInfo().Type {
 	case proto.ExchangeTransaction:
-		feeChanges, err = a.txHandler.td.createDiffForExchangeFeeValidation(tx, differInfo)
+		feeChanges, err = a.txHandler.td.createDiffForExchangeFeeValidation(tx, di)
 		if err != nil {
 			return err
 		}
 	case proto.InvokeScriptTransaction:
-		feeChanges, err = a.txHandler.td.createFeeDiffInvokeScriptWithProofs(tx, differInfo)
+		feeChanges, err = a.txHandler.td.createFeeDiffInvokeScriptWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
 	case proto.InvokeExpressionTransaction:
-		feeChanges, err = a.txHandler.td.createFeeDiffInvokeExpressionWithProofs(tx, differInfo)
+		feeChanges, err = a.txHandler.td.createFeeDiffInvokeExpressionWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
 		// TODO handle ethereum invoke expression tx
 	case proto.EthereumMetamaskTransaction:
-		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
@@ -406,7 +408,6 @@ type appendTxParams struct {
 	rideV5Activated  bool
 	rideV6Activated  bool
 	validatingUtx    bool // if validatingUtx == false then chans MUST be initialized with non nil value
-	initialisation   bool
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -428,8 +429,7 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 		return nil, err
 	}
 	// Create balance diff of this tx.
-	differInfo := &differInfo{params.initialisation, params.blockInfo}
-	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
+	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, newDifferInfo(params.blockInfo))
 	if err != nil {
 		return nil, errs.Extend(err, "create transaction diff")
 	}
@@ -620,7 +620,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			rideV5Activated:  rideV5Activated,
 			rideV6Activated:  rideV6Activated,
 			validatingUtx:    false,
-			initialisation:   params.initialisation,
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -754,12 +753,12 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		return nil, err
 	}
 	// Create balance changes for both failure and success.
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
-	failedChanges, err := a.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
+	di := newDifferInfo(info.blockInfo)
+	failedChanges, err := a.blockDiffer.createFailedTransactionDiff(tx, info.block, di)
 	if err != nil {
 		return nil, err
 	}
-	successfulChanges, err := a.blockDiffer.createTransactionDiff(tx, info.block, differInfo)
+	successfulChanges, err := a.blockDiffer.createTransactionDiff(tx, info.block, di)
 	if err != nil {
 		return nil, err
 	}
@@ -846,7 +845,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV5Activated:  rideV5Activated,
 		rideV6Activated:  rideV6Activated,
 		validatingUtx:    true,
-		initialisation:   false,
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {

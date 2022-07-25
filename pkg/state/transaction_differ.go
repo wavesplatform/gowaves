@@ -195,8 +195,11 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 }
 
 type differInfo struct {
-	initialisation bool
-	blockInfo      *proto.BlockInfo
+	blockInfo *proto.BlockInfo
+}
+
+func newDifferInfo(blockInfo *proto.BlockInfo) *differInfo {
+	return &differInfo{blockInfo: blockInfo}
 }
 
 func (i *differInfo) hasMiner() bool {

@@ -238,7 +238,6 @@ func (tc *transactionChecker) checkFee(
 	params := &feeValidationParams{
 		stor:             tc.stor,
 		settings:         tc.settings,
-		initialisation:   info.initialisation,
 		txAssets:         assets,
 		rideV5Activated:  info.rideV5Activated,
 		estimatorVersion: info.estimatorVersion(),

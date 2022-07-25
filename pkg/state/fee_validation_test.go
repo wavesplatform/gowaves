@@ -39,7 +39,6 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: []crypto.Digest{tx.AssetID}},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -155,7 +154,6 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -183,7 +181,6 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -233,7 +230,6 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -267,7 +263,6 @@ func TestNFTMinFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -312,7 +307,6 @@ func TestReissueFeeReduction(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -349,7 +343,6 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -391,7 +384,6 @@ func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,

@@ -132,17 +132,16 @@ func defaultBlockInfo() *proto.BlockInfo {
 }
 
 func defaultDifferInfo() *differInfo {
-	return &differInfo{initialisation: false, blockInfo: defaultBlockInfo()}
+	return &differInfo{defaultBlockInfo()}
 }
 
 func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:    defaultCheckerInfo(),
-		blockInfo:      defaultBlockInfo(),
-		block:          defaultBlock(),
-		acceptFailed:   false,
-		validatingUtx:  false,
-		initialisation: false,
+		checkerInfo:   defaultCheckerInfo(),
+		blockInfo:     defaultBlockInfo(),
+		block:         defaultBlock(),
+		acceptFailed:  false,
+		validatingUtx: false,
 	}
 }
 

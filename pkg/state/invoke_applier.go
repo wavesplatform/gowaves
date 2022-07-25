@@ -192,7 +192,7 @@ func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 	return ia.invokeDiffStor.saveTxDiff(diff)
 }
 
-func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
+func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction) error {
 	for i, a := range actions {
 		switch ta := a.(type) {
 		case *proto.TransferScriptAction:
@@ -245,7 +245,7 @@ func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) u
 	return out
 }
 
-func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) (uint64, error) {
+func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction) (uint64, error) {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
 		var assetID proto.AssetID
@@ -324,7 +324,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	}
 	// Resolve all aliases.
 	// It has to be done before validation because we validate addresses, not aliases.
-	if err := ia.resolveAliases(info.actions, info.initialisation); err != nil {
+	if err := ia.resolveAliases(info.actions); err != nil {
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
@@ -354,7 +354,6 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.InsufficientActionsFee, info.failedChanges, err
 	}
 
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	txIDBytes, err := tx.GetID(ia.settings.AddressSchemeCharacter)
 	if err != nil {
 		return proto.DAppError, info.failedChanges, err
@@ -364,7 +363,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Add feeAndPaymentChanges to stor before performing actions.
-	feeAndPaymentChanges, err := ia.blockDiffer.createTransactionDiff(tx, info.block, differInfo)
+	feeAndPaymentChanges, err := ia.blockDiffer.createTransactionDiff(tx, info.block, newDifferInfo(info.blockInfo))
 	if err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
@@ -832,8 +831,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	// Create changes for both failed and successful scenarios.
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
-	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
+	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, newDifferInfo(info.blockInfo))
 	if err != nil {
 		return nil, err
 	}
@@ -894,7 +892,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
 	if !info.rideV5Activated {
-		actionScriptRuns, err := ia.countActionScriptRuns(r.ScriptActions(), info.initialisation)
+		actionScriptRuns, err := ia.countActionScriptRuns(r.ScriptActions())
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to countActionScriptRuns")
 		}
