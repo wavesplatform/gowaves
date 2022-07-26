@@ -22,7 +22,7 @@ func TestEthereumTransactionInfo(t *testing.T) {
 		"senderPublicKey": "v5DNa6N7r7Qmssi5LDFVV2kFzDNczCt7L6qubJjoGVrcfeT1Rdwtn5515QdHFztjLibGWRfhsvFv84qoCckU4a1",
 		"height": 2119282,
 		"applicationStatus": "succeeded",
-		"spentComplexity": 1,
+		"spentComplexity": 0,
 		"payload": {
 			"type": "transfer",
 			"recipient": "3N5cRHaFQTmuJ2sbHrKmgk7WW1jTe5ZnNPy",
@@ -43,5 +43,5 @@ func TestEthereumTransactionInfo(t *testing.T) {
 	}
 	require.Equal(t, expectedPayload, txInfo.Payload, "check payload equality")
 
-	require.Equal(t, 1, txInfo.GetSpentComplexity())
+	require.Equal(t, 0, txInfo.GetSpentComplexity())
 }
