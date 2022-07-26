@@ -115,7 +115,7 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 }
 
 func TestAddrTransactionsIdempotent(t *testing.T) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
@@ -146,9 +146,9 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	err = stor.rw.writeTransaction(tx, false)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
-	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0)
 	require.NoError(t, err)
-	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0)
 	require.NoError(t, err)
 	stor.flush(t)
 	err = atx.flush()
@@ -173,7 +173,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 }
 
 func TestFailedTransaction(t *testing.T) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
 	require.NoError(t, err)
@@ -192,7 +192,7 @@ func TestFailedTransaction(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestFailedTransaction(t *testing.T) {
 	err = stor.rw.writeTransaction(tx, true)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
-	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0)
 	require.NoError(t, err)
 	stor.flush(t)
 	err = atx.flush()

@@ -163,6 +163,7 @@ func main() {
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntpTime
+
 	nodeState, err := state.NewState(path, true, params, custom)
 	if err != nil {
 		zap.S().Error(err)

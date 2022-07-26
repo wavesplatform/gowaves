@@ -41,7 +41,6 @@ var feeConstants = map[proto.TransactionType]uint64{
 type feeValidationParams struct {
 	stor             *blockchainEntitiesStorage
 	settings         *settings.BlockchainSettings
-	initialisation   bool
 	txAssets         *txAssets
 	rideV5Activated  bool
 	estimatorVersion int
@@ -220,7 +219,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
-	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
+	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +227,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && params.rideV5Activated {
-		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, params.estimatorVersion, !params.initialisation)
+		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, params.estimatorVersion)
 		if err != nil {
 			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
 		}
@@ -245,7 +244,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
 	// again for compatibility with Scala.
 	if params.txAssets.feeAsset.Present {
-		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(params.txAssets.feeAsset.ID), !params.initialisation)
+		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(params.txAssets.feeAsset.ID))
 		if err != nil {
 			return nil, err
 		}
@@ -287,7 +286,7 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
 
 func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams) error {
 	shortFeeAssetID := proto.AssetIDFromDigest(feeAssetID)
-	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(shortFeeAssetID, !params.initialisation)
+	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(shortFeeAssetID)
 	if err != nil {
 		return errors.Errorf("newestIsSponsored: %v", err)
 	}

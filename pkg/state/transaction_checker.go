@@ -23,7 +23,6 @@ const (
 )
 
 type checkerInfo struct {
-	initialisation   bool
 	currentTimestamp uint64
 	parentTimestamp  uint64
 	blockID          proto.BlockID
@@ -238,7 +237,6 @@ func (tc *transactionChecker) checkFee(
 	params := &feeValidationParams{
 		stor:             tc.stor,
 		settings:         tc.settings,
-		initialisation:   info.initialisation,
 		txAssets:         assets,
 		rideV5Activated:  info.rideV5Activated,
 		estimatorVersion: info.estimatorVersion(),
@@ -267,15 +265,15 @@ func (tc *transactionChecker) checkTimestamps(txTimestamp, blockTimestamp, prevB
 	return nil
 }
 
-func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisation bool) error {
-	if !tc.stor.assets.newestAssetExists(*asset, !initialisation) {
+func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset) error {
+	if !tc.stor.assets.newestAssetExists(*asset) {
 		return errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", asset.String()))
 	}
 	return nil
 }
 
-func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initialisation bool) error {
-	if err := tc.checkAsset(asset, initialisation); err != nil {
+func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset) error {
+	if err := tc.checkAsset(asset); err != nil {
 		return err
 	}
 	if !asset.Present {
@@ -290,7 +288,7 @@ func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initiali
 	if !sponsorshipActivated {
 		return nil
 	}
-	isSponsored, err := tc.stor.sponsoredAssets.newestIsSponsored(proto.AssetIDFromDigest(asset.ID), !initialisation)
+	isSponsored, err := tc.stor.sponsoredAssets.newestIsSponsored(proto.AssetIDFromDigest(asset.ID))
 	if err != nil {
 		return err
 	}
@@ -300,14 +298,14 @@ func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initiali
 	return nil
 }
 
-func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset, initialisation bool) ([]crypto.Digest, error) {
+func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset) ([]crypto.Digest, error) {
 	var smartAssets []crypto.Digest
 	for _, asset := range assets {
 		if !asset.Present {
 			// Waves can not be scripted.
 			continue
 		}
-		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset.ID), !initialisation)
+		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset.ID))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", asset.String())
 		}
@@ -322,7 +320,7 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	if info.blockID != tc.genesis {
 		return nil, errors.New("genesis transaction inside of non-genesis block")
 	}
-	if !info.initialisation {
+	if tc.stor.amend() {
 		return nil, errors.New("genesis transaction in non-initialisation mode")
 	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves()}
@@ -354,10 +352,10 @@ func (tc *transactionChecker) checkTransfer(tx *proto.Transfer, info *checkerInf
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errs.Extend(err, "invalid timestamp")
 	}
-	if err := tc.checkAsset(&tx.AmountAsset, info.initialisation); err != nil {
+	if err := tc.checkAsset(&tx.AmountAsset); err != nil {
 		return err
 	}
-	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset); err != nil {
 		return err
 	}
 	return nil
@@ -369,7 +367,7 @@ func (tc *transactionChecker) checkTransferWithSig(transaction proto.Transaction
 		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
 	}
 	allAssets := []proto.OptionalAsset{tx.AmountAsset}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +422,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 
-		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(kind.Asset.ID), true)
+		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(kind.Asset.ID))
 		if err != nil {
 			return nil, errors.Errorf("failed to get asset info, %v", err)
 		}
@@ -437,7 +435,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 
 		allAssets := []proto.OptionalAsset{kind.Asset}
-		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+		smartAssets, err := tc.smartAssets(allAssets)
 		if err != nil {
 			return nil, err
 		}
@@ -460,14 +458,14 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		for _, p := range abiPayments {
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
 			if optAsset.Present {
-				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(optAsset.ID), true)
+				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(optAsset.ID))
 				if err != nil {
 					return nil, err
 				}
 				if isSmart {
 					minFee += proto.EthereumScriptedAssetMinFee
 				}
-				if err := tc.checkAsset(&optAsset, info.initialisation); err != nil {
+				if err := tc.checkAsset(&optAsset); err != nil {
 					return nil, errs.Extend(err, "bad payment asset")
 				}
 			}
@@ -480,7 +478,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
 		}
 
-		smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
+		smartAssets, err := tc.smartAssets(paymentAssets)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +496,7 @@ func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transact
 		return nil, errors.New("failed to convert interface to TransferWithProofs transaction")
 	}
 	allAssets := []proto.OptionalAsset{tx.AmountAsset}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -600,7 +598,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errs.Extend(err, "invalid timestamp")
 	}
-	assetInfo, err := tc.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID), !info.initialisation)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID))
 	if err != nil {
 		return err
 	}
@@ -631,7 +629,7 @@ func (tc *transactionChecker) checkReissueWithSig(transaction proto.Transaction,
 		return nil, errors.New("failed to convert interface to ReissueWithSig transaction")
 	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -651,7 +649,7 @@ func (tc *transactionChecker) checkReissueWithProofs(transaction proto.Transacti
 		return nil, errors.New("failed to convert interface to ReissueWithProofs transaction")
 	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +674,7 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errs.Extend(err, "invalid timestamp")
 	}
-	assetInfo, err := tc.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID), !info.initialisation)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID))
 	if err != nil {
 		return err
 	}
@@ -702,7 +700,7 @@ func (tc *transactionChecker) checkBurnWithSig(transaction proto.Transaction, in
 		return nil, errors.New("failed to convert interface to BurnWithSig transaction")
 	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -722,7 +720,7 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 		return nil, errors.New("failed to convert interface to BurnWithProofs transaction")
 	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +745,7 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 // orderScriptedAccount checks that sender account is a scripted account.
 // This method works for both proto.EthereumAddress and proto.WavesAddress.
 // Note that only real proto.WavesAddress account can have a verifier.
-func (tc *transactionChecker) orderScriptedAccount(order proto.Order, initialisation bool) (bool, error) {
+func (tc *transactionChecker) orderScriptedAccount(order proto.Order) (bool, error) {
 	senderAddr, err := order.GetSender(tc.settings.AddressSchemeCharacter)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get sender for order")
@@ -757,7 +755,7 @@ func (tc *transactionChecker) orderScriptedAccount(order proto.Order, initialisa
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
-	return tc.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !initialisation)
+	return tc.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 }
 
 func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64, info *checkerInfo) error {
@@ -773,14 +771,14 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	if newFee > fullFee {
 		return errors.New("current fee exceeds total order fee")
 	}
-	filledAmount, err := tc.stor.ordersVolumes.newestFilledAmount(orderId, !info.initialisation)
+	filledAmount, err := tc.stor.ordersVolumes.newestFilledAmount(orderId)
 	if err != nil {
 		return err
 	}
 	if fullAmount-newAmount < filledAmount {
 		return errors.New("order amount volume is overflowed")
 	}
-	filledFee, err := tc.stor.ordersVolumes.newestFilledFee(orderId, !info.initialisation)
+	filledFee, err := tc.stor.ordersVolumes.newestFilledFee(orderId)
 	if err != nil {
 		return err
 	}
@@ -863,7 +861,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		m[o.GetMatcherFeeAsset()] = struct{}{}
 	}
 	for a := range m {
-		if err := tc.checkAsset(&a, info.initialisation); err != nil {
+		if err := tc.checkAsset(&a); err != nil {
 			return nil, errs.Extend(err, "Assets should be issued before they can be traded")
 		}
 	}
@@ -871,7 +869,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	for a := range m {
 		allAssets = append(allAssets, a)
 	}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -891,11 +889,11 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	o1ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder1(), info.initialisation)
+	o1ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder1())
 	if err != nil {
 		return nil, err
 	}
-	o2ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder2(), info.initialisation)
+	o2ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder2())
 	if err != nil {
 		return nil, err
 	}
@@ -959,7 +957,7 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	}
 	var recipientAddr *proto.WavesAddress
 	if tx.Recipient.Address == nil {
-		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
+		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias)
 		if err != nil {
 			return errors.Errorf("invalid alias: %v", err)
 		}
@@ -1013,7 +1011,7 @@ func (tc *transactionChecker) checkLeaseCancel(tx *proto.LeaseCancel, info *chec
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errs.Extend(err, "invalid timestamp")
 	}
-	l, err := tc.stor.leases.newestLeasingInfo(tx.LeaseID, !info.initialisation)
+	l, err := tc.stor.leases.newestLeasingInfo(tx.LeaseID)
 	if err != nil {
 		return errs.Extend(err, "no leasing info found for this leaseID")
 	}
@@ -1076,7 +1074,7 @@ func (tc *transactionChecker) checkCreateAlias(tx *proto.CreateAlias, info *chec
 		return nil
 	}
 	// Check if alias is already taken.
-	if tc.stor.aliases.exists(tx.Alias.Alias, !info.initialisation) {
+	if tc.stor.aliases.exists(tx.Alias.Alias) {
 		return errs.NewAliasTaken("alias is already taken")
 	}
 	return nil
@@ -1136,7 +1134,7 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
 	allAssets := []proto.OptionalAsset{tx.Asset}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -1151,7 +1149,7 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 	if !activated {
 		return nil, errors.New("MassTransfer transaction has not been activated yet")
 	}
-	if err := tc.checkAsset(&tx.Asset, info.initialisation); err != nil {
+	if err := tc.checkAsset(&tx.Asset); err != nil {
 		return nil, err
 	}
 	return smartAssets, nil
@@ -1237,18 +1235,18 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if !activated {
 		return nil, errors.New("sponsorship has not been activated yet")
 	}
-	if err := tc.checkAsset(proto.NewOptionalAssetFromDigest(tx.AssetID), info.initialisation); err != nil {
+	if err := tc.checkAsset(proto.NewOptionalAssetFromDigest(tx.AssetID)); err != nil {
 		return nil, err
 	}
 	id := proto.AssetIDFromDigest(tx.AssetID)
-	assetInfo, err := tc.stor.assets.newestAssetInfo(id, !info.initialisation)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(id)
 	if err != nil {
 		return nil, err
 	}
 	if assetInfo.issuer != tx.SenderPK {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
-	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", tx.AssetID.String())
 	}
@@ -1304,7 +1302,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
 	id := proto.AssetIDFromDigest(tx.AssetID)
-	assetInfo, err := tc.stor.assets.newestAssetInfo(id, !info.initialisation)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(id)
 	if err != nil {
 		return nil, err
 	}
@@ -1319,7 +1317,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
-	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", tx.AssetID.String())
 	}
@@ -1361,7 +1359,7 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if !ride4DAppsActivated {
 		return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
 	}
-	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset); err != nil {
 		return nil, err
 	}
 	multiPaymentActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
@@ -1383,12 +1381,12 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	}
 	var paymentAssets []proto.OptionalAsset
 	for _, payment := range tx.Payments {
-		if err := tc.checkAsset(&payment.Asset, info.initialisation); err != nil {
+		if err := tc.checkAsset(&payment.Asset); err != nil {
 			return nil, errs.Extend(err, "bad payment asset")
 		}
 		paymentAssets = append(paymentAssets, payment.Asset)
 	}
-	smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(paymentAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -1414,7 +1412,7 @@ func (tc *transactionChecker) checkInvokeExpressionWithProofs(transaction proto.
 	if !isInvokeExpressionActivated {
 		return nil, errors.Errorf("can not use InvokeExpression before feature (%d) activation", settings.InvokeExpression)
 	}
-	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset); err != nil {
 		return nil, err
 	}
 
@@ -1433,7 +1431,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
-	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset); err != nil {
 		return nil, errs.Extend(err, "bad fee asset")
 	}
 	rideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
@@ -1444,7 +1442,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return nil, errors.Errorf("sponsored assets are prohibited for UpdateAssetInfo after feature (%d) activation", settings.RideV6)
 	}
 	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
-	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	smartAssets, err := tc.smartAssets(allAssets)
 	if err != nil {
 		return nil, err
 	}
@@ -1460,14 +1458,14 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return nil, errors.New("BlockV5 must be activated for UpdateAssetInfo transaction")
 	}
 	id := proto.AssetIDFromDigest(tx.AssetID)
-	assetInfo, err := tc.stor.assets.newestAssetInfo(id, !info.initialisation)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(id)
 	if err != nil {
 		return nil, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", tx.AssetID.String()))
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
-	lastUpdateHeight, err := tc.stor.assets.newestLastUpdateHeight(id, !info.initialisation)
+	lastUpdateHeight, err := tc.stor.assets.newestLastUpdateHeight(id)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to retrieve last update height")
 	}

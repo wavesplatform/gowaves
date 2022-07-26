@@ -110,7 +110,7 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 	req := &activatedFeaturesRecord{1}
 	err := to.state.stor.features.activateFeature(feature, req, blockID0)
 	assert.NoError(t, err)
-	err = to.state.flush(true)
+	err = to.state.flush()
 	assert.NoError(t, err)
 	to.state.reset()
 }
@@ -231,9 +231,9 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	}
 
 	// Flush.
-	err := to.state.appender.applyAllDiffs(false)
+	err := to.state.appender.applyAllDiffs()
 	assert.NoError(t, err, "applyAllDiffs() failed")
-	err = to.state.flush(false)
+	err = to.state.flush()
 	assert.NoError(t, err, "state.flush() failed")
 	to.state.reset()
 

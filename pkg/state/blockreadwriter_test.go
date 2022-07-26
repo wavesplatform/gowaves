@@ -243,7 +243,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	if err != nil {
 		t.Fatalf("createStorageObjects: %v", err)
 	}
@@ -266,7 +266,7 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	if err != nil {
 		t.Fatalf("createStorageObjects: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestReadNewest(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	if err != nil {
 		t.Fatalf("createStorageObjects: %v", err)
 	}
@@ -376,7 +376,7 @@ func TestReadNewest(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	if err != nil {
 		t.Fatalf("createStorageObjects: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 }
 
 func TestProtobufReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	if err != nil {
 		t.Fatalf("createStorageObjects: %v", err)
 	}
@@ -522,7 +522,7 @@ func TestFailedTransactionReadWrite(t *testing.T) {
 }
 
 func TestSyncWithDb(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
