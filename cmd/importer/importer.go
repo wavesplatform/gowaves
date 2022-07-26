@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -58,6 +57,9 @@ func main() {
 	if *blockchainPath == "" {
 		zap.S().Fatalf("You must specify blockchain-path option.")
 	}
+	if *dataDirPath == "" {
+		zap.S().Fatalf("You must specify data-path option.")
+	}
 
 	// Debug.
 	if *cpuProfilePath != "" {
@@ -92,14 +94,6 @@ func main() {
 			zap.S().Fatalf("Failed to load blockchain settings: %v", err)
 		}
 	}
-	dataDir := *dataDirPath
-	if dataDir == "" {
-		tempDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-		if err != nil {
-			zap.S().Fatalf("Failed to create temp dir for data: %v", err)
-		}
-		dataDir = tempDir
-	}
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
@@ -109,7 +103,7 @@ func main() {
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
 
-	st, err := state.NewState(dataDir, false, params, ss)
+	st, err := state.NewState(*dataDirPath, false, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}
@@ -117,11 +111,6 @@ func main() {
 	defer func() {
 		if err := st.Close(); err != nil {
 			zap.S().Fatalf("Failed to close State: %v", err)
-		}
-		if *dataDirPath == "" {
-			if err := os.RemoveAll(dataDir); err != nil {
-				zap.S().Fatalf("Failed to clean data dir: %v", err)
-			}
 		}
 	}()
 
