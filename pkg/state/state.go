@@ -363,12 +363,13 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	if err := handleGenesisBlock(dataDir, params, settings); err != nil {
-		return nil, errors.Wrap(err, "failed to handle genesis block")
-	}
 	state, err := newStateManagerInternal(dataDir, amend, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
+	}
+	state, err = handleGenesisBlock(state, dataDir, params, settings, amend)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to handle genesis block")
 	}
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -476,42 +477,45 @@ func newStateManagerInternal(dataDir string, amend bool, params StateParams, set
 	return state, nil
 }
 
-func handleGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) (err error) {
-	// `amend` argument is always false for genesis block because block addition performs only if state height is 0
-	state, err := newStateManagerInternal(path, false, params, settings)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if closeErr := state.Close(); closeErr != nil {
-			zap.S().Errorf("Failed to close state after handling genesis block: %v", err)
-			if err != nil {
-				err = errors.Wrapf(err, "failed to close state after handling genesis block: %v", closeErr)
-			} else {
-				err = closeErr
-			}
-		}
-	}()
-	state.setGenesisBlock(&settings.Genesis)
+func handleGenesisBlock(state *stateManager, path string, params StateParams, settings *settings.BlockchainSettings, amend bool) (*stateManager, error) {
 	height, err := state.Height()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// 0 state height means that no blocks are found in state, so blockchain history is empty
 	if height == 0 {
-		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := state.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
-			return err
+		// We have to close incoming state, add the Genesis block and then reopen state again
+		if err := state.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to close state before genesis block initialization")
 		}
-		if err := state.addGenesisBlock(); err != nil {
-			return errors.Wrap(err, "failed to apply/save genesis")
+		// The `amend` argument is always false for genesis block because block addition performs only if state height is 0
+		tmp, err := newStateManagerInternal(path, false, params, settings)
+		if err != nil {
+			return nil, err
 		}
-		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
-		if err := state.applyPreActivatedFeatures(state.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
-			return errors.Wrap(err, "failed to apply pre-activated features")
+		tmp.setGenesisBlock(&settings.Genesis)
+		// Assign unique block number for this block ID, add this number to the list of valid blocks
+		if err := tmp.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
+			return nil, err
+		}
+		if err := tmp.addGenesisBlock(); err != nil {
+			return nil, errors.Wrap(err, "failed to apply/save genesis")
+		}
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
+		if err := tmp.applyPreActivatedFeatures(state.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return nil, errors.Wrap(err, "failed to apply pre-activated features")
+		}
+		if err := tmp.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to close temporary storage after genesis block initialization")
+		}
+		// Set `state` to newly opened instance
+		state, err = newStateManagerInternal(path, amend, params, settings)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	state.setGenesisBlock(&settings.Genesis)
+	return state, nil
 }
 
 func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
