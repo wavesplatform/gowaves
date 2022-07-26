@@ -232,10 +232,10 @@ func (c ethCallParams) String() string {
 }
 
 var (
-	erc20SymbolSelector    = ethabi.Signature("symbol()").Selector()                  // "0x95d89b41"
-	erc20DecimalsSelector  = ethabi.Signature("decimals()").Selector()                // "0x313ce567"
-	erc20BalanceSelector   = ethabi.Signature("balanceOf(address)").Selector()        // "0x70a08231"
-	erc20SupportsInterface = ethabi.Signature("supportsInterface(bytes4)").Selector() // "0x01ffc9a7"
+	erc20SymbolSelector            = ethabi.Signature("symbol()").Selector()                  // "0x95d89b41"
+	erc20DecimalsSelector          = ethabi.Signature("decimals()").Selector()                // "0x313ce567"
+	erc20BalanceSelector           = ethabi.Signature("balanceOf(address)").Selector()        // "0x70a08231"
+	erc20SupportsInterfaceSelector = ethabi.Signature("supportsInterface(bytes4)").Selector() // "0x01ffc9a7"
 )
 
 func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
@@ -305,7 +305,7 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fas
 			return nil, err
 		}
 		return arena.NewUint(accountBalance), nil
-	case erc20SupportsInterface:
+	case erc20SupportsInterfaceSelector:
 		return arena.NewBool(false), nil
 	default:
 		return nil, errors.Errorf("unexpected call, %s", params.String())
