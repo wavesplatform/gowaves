@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type sponsoredAssetsTestObjects struct {
@@ -16,35 +15,24 @@ type sponsoredAssetsTestObjects struct {
 	sponsoredAssets *sponsoredAssets
 }
 
-func createSponsoredAssets(doubleActivation bool) (*sponsoredAssetsTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createSponsoredAssets(t *testing.T, doubleActivation bool) *sponsoredAssetsTestObjects {
+	stor := createStorageObjects(t, true)
 	sets := settings.MainNetSettings
 	sets.SponsorshipSingleActivationPeriod = !doubleActivation
 	features := newFeatures(stor.rw, stor.db, stor.hs, sets, settings.FeaturesInfo)
 	sponsoredAssets := newSponsoredAssets(stor.rw, features, stor.hs, sets, true)
-	return &sponsoredAssetsTestObjects{stor, features, sponsoredAssets}, path, nil
+	return &sponsoredAssetsTestObjects{stor, features, sponsoredAssets}
 }
 
 func TestSponsorAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	properCost := uint64(100500)
 
 	id := testGlobal.asset0.asset.ID
 	assetIDDigest := proto.AssetIDFromDigest(id)
-	err = to.sponsoredAssets.sponsorAsset(id, properCost, blockID0)
+	err := to.sponsoredAssets.sponsorAsset(id, properCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetIDDigest)
 	assert.NoError(t, err, "newestIsSponsored() failed")
@@ -85,15 +73,7 @@ func TestSponsorAsset(t *testing.T) {
 }
 
 func TestSponsorAssetUncertain(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	properCost := uint64(100500)
 	assetIDDigest := testGlobal.asset0.asset.ID
@@ -125,13 +105,13 @@ func TestSponsorAssetUncertain(t *testing.T) {
 		if tc.drop {
 			to.sponsoredAssets.dropUncertain()
 
-			_, err = to.sponsoredAssets.newestAssetCost(assetID)
+			_, err := to.sponsoredAssets.newestAssetCost(assetID)
 			assert.Error(t, err)
 			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetID)
 			assert.NoError(t, err)
 			assert.Equal(t, false, newestIsSponsored)
 		} else if tc.commit {
-			err = to.sponsoredAssets.commitUncertain(blockID0)
+			err := to.sponsoredAssets.commitUncertain(blockID0)
 			assert.NoError(t, err)
 
 			cost, err := to.sponsoredAssets.newestAssetCost(assetID)
@@ -146,15 +126,7 @@ func TestSponsorAssetUncertain(t *testing.T) {
 }
 
 func TestSponsoredAssetToWaves(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	cost := uint64(2)
@@ -162,7 +134,7 @@ func TestSponsoredAssetToWaves(t *testing.T) {
 	properWavesAmount := assetAmount / cost * FeeUnit
 	id := testGlobal.asset0.asset.ID
 	assetID := proto.AssetIDFromDigest(id)
-	err = to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
+	err := to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	wavesAmount, err := to.sponsoredAssets.sponsoredAssetToWaves(assetID, assetAmount)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
@@ -170,15 +142,7 @@ func TestSponsoredAssetToWaves(t *testing.T) {
 }
 
 func TestWavesToSponsoredAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	cost := uint64(2)
@@ -186,7 +150,7 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 	properAssetAmount := wavesAmount / FeeUnit * cost
 	id := testGlobal.asset0.asset.ID
 	assetID := proto.AssetIDFromDigest(id)
-	err = to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
+	err := to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	assetAmount, err := to.sponsoredAssets.wavesToSponsoredAsset(assetID, wavesAmount)
 	assert.NoError(t, err, "wavesToSponsoredAsset() failed")
@@ -194,15 +158,7 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 }
 
 func TestIsSponsorshipActivated_Double(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	// False before activation.
 	isSponsorshipActivated, err := to.sponsoredAssets.isSponsorshipActivated()
@@ -223,15 +179,7 @@ func TestIsSponsorshipActivated_Double(t *testing.T) {
 }
 
 func TestIsSponsorshipActivated_Single(t *testing.T) {
-	to, path, err := createSponsoredAssets(false)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, false)
 
 	// False before activation.
 	isSponsorshipActivated, err := to.sponsoredAssets.isSponsorshipActivated()

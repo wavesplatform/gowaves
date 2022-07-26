@@ -5,19 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestCreateAlias(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	aliasStr := "alias"
 	to.addBlock(t, blockID0)
@@ -36,15 +27,7 @@ func TestCreateAlias(t *testing.T) {
 }
 
 func TestDisableStolenAliases(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	aliasStr := "alias"
 	to.addBlock(t, blockID0)

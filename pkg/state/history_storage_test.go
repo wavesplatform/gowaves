@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -15,20 +14,12 @@ const (
 )
 
 func TestAddNewEntry(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	to.addBlock(t, blockID0)
 	key := bytes.Repeat([]byte{0xff}, keySize)
 	val := bytes.Repeat([]byte{0x1a}, valSize)
-	err = to.hs.addNewEntry(accountScript, key, val, blockID0)
+	err := to.hs.addNewEntry(accountScript, key, val, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
 	entry, err := to.hs.newestTopEntry(key)
 	assert.NoError(t, err, "newestTopEntry() failed")
@@ -76,15 +67,7 @@ func TestAddNewEntry(t *testing.T) {
 }
 
 func TestNewestDataIterator(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	// Add some entries and flush.
 	to.addBlock(t, blockID0)
@@ -94,7 +77,7 @@ func TestNewestDataIterator(t *testing.T) {
 	val1 := []byte{100}
 	key2 := assetScriptKey{assetID: proto.AssetIDFromDigest(testGlobal.asset0.asset.ID)}
 	val2 := []byte{88}
-	err = to.hs.addNewEntry(accountScript, key0.bytes(), val0, blockID0)
+	err := to.hs.addNewEntry(accountScript, key0.bytes(), val0, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
 	err = to.hs.addNewEntry(accountScript, key1.bytes(), val1, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
@@ -109,6 +92,7 @@ func TestNewestDataIterator(t *testing.T) {
 	assert.NoError(t, err, "addNewEntry() failed")
 	val4 := []byte{144, 169}
 	err = to.hs.addNewEntry(accountScript, key0.bytes(), val4, blockID1)
+	assert.NoError(t, err, "addNewEntry() failed")
 
 	// Test accountScript iterator.
 	correctValues := map[string][]byte{
@@ -154,15 +138,7 @@ func TestNewestDataIterator(t *testing.T) {
 }
 
 func TestVariableSizes(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	// Add some entries and flush.
 	to.addBlock(t, blockID0)
@@ -170,7 +146,7 @@ func TestVariableSizes(t *testing.T) {
 	val11 := []byte{1, 2, 3}
 	key2 := accountScriptKey{addr: testGlobal.minerInfo.addr.ID()}
 	val21 := []byte{9, 8, 7, 6}
-	err = to.hs.addNewEntry(accountScript, key1.bytes(), val11, blockID0)
+	err := to.hs.addNewEntry(accountScript, key1.bytes(), val11, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
 	err = to.hs.addNewEntry(accountScript, key2.bytes(), val21, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
@@ -198,19 +174,11 @@ func TestVariableSizes(t *testing.T) {
 }
 
 func TestFixedRecordSizes(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	to.addBlock(t, blockID0)
 	val1 := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	err = to.hs.addNewEntry(blockReward, blockRewardKeyBytes, val1, blockID0)
+	err := to.hs.addNewEntry(blockReward, blockRewardKeyBytes, val1, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
 	to.flush(t)
 

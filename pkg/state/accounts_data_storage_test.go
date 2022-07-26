@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type accountsDataStorageTestObjects struct {
@@ -13,40 +12,32 @@ type accountsDataStorageTestObjects struct {
 	accountsDataStor *accountsDataStorage
 }
 
-func createAccountsDataStorage(amend bool) (*accountsDataStorageTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(amend)
-	if err != nil {
-		return nil, path, err
-	}
+func createAccountsDataStorage(t *testing.T, amend bool) *accountsDataStorageTestObjects {
+	stor := createStorageObjects(t, amend)
 	accountsDataStor := newAccountsDataStorage(stor.db, stor.dbBatch, stor.hs, true)
-	return &accountsDataStorageTestObjects{stor, accountsDataStor}, path, nil
+	return &accountsDataStorageTestObjects{stor, accountsDataStor}
 }
 
 func TestAppendEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.IntegerDataEntry{Key: "Whatever", Value: int64(100500)}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
+
 	newEntry, err := to.accountsDataStor.retrieveNewestEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry0, newEntry)
+
 	to.stor.flush(t)
 	to.stor.addBlock(t, blockID1)
 	// Add entry with same key in diff block and check that the value changed.
 	entry1 := &proto.BooleanDataEntry{Key: "Whatever", Value: true}
 	err = to.accountsDataStor.appendEntry(addr0, entry1, blockID1)
 	assert.NoError(t, err)
+
 	to.stor.flush(t)
 	newEntry, err = to.accountsDataStor.retrieveEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveEntry() failed")
@@ -54,21 +45,14 @@ func TestAppendEntry(t *testing.T) {
 }
 
 func TestRetrieveEntries(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID2)
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.IntegerDataEntry{Key: "Whatever", Value: int64(100500)}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	assert.NoError(t, err)
 	entry1 := &proto.IntegerDataEntry{Key: "AnotherKey", Value: int64(42)}
 	err = to.accountsDataStor.appendEntry(addr0, entry1, blockID0)
 	assert.NoError(t, err)
@@ -103,20 +87,12 @@ func TestRetrieveEntries(t *testing.T) {
 }
 
 func TestRollbackEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.IntegerDataEntry{Key: "Whatever", Value: int64(100500)}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
 	to.stor.addBlock(t, blockID1)
 	entry1 := &proto.BooleanDataEntry{Key: "Whatever", Value: true}
@@ -158,20 +134,12 @@ func TestRollbackEntry(t *testing.T) {
 }
 
 func TestRetrieveIntegerEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(100500)}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
 	entry, err := to.accountsDataStor.retrieveNewestIntegerEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveNewestIntegerEntry() failed")
@@ -204,20 +172,12 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 }
 
 func TestRetrieveBooleanEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.BooleanDataEntry{Key: "TheKey", Value: true}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
 	entry, err := to.accountsDataStor.retrieveNewestBooleanEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveNewestBooleanEntry() failed")
@@ -250,20 +210,12 @@ func TestRetrieveBooleanEntry(t *testing.T) {
 }
 
 func TestRetrieveStringEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.StringDataEntry{Key: "TheKey", Value: "TheValue"}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
 	entry, err := to.accountsDataStor.retrieveNewestStringEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveNewestStringEntry() failed")
@@ -296,20 +248,12 @@ func TestRetrieveStringEntry(t *testing.T) {
 }
 
 func TestRetrieveBinaryEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorage(true)
-	assert.NoError(t, err, "createAccountsDataStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAccountsDataStorage(t, true)
 
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.BinaryDataEntry{Key: "TheKey", Value: []byte{0xaa, 0xff}}
-	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	err := to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
 	assert.NoError(t, err)
 	entry, err := to.accountsDataStor.retrieveNewestBinaryEntry(addr0, entry0.Key)
 	assert.NoError(t, err, "retrieveNewestBinaryEntry() failed")

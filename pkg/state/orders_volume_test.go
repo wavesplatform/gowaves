@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type ordersVolumesStorageObjects struct {
@@ -14,32 +13,20 @@ type ordersVolumesStorageObjects struct {
 	ordersVolumes *ordersVolumes
 }
 
-func createOrdersVolumeStorageObjects() (*ordersVolumesStorageObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createOrdersVolumeStorageObjects(t *testing.T) *ordersVolumesStorageObjects {
+	stor := createStorageObjects(t, true)
 	ordersVolumes := newOrdersVolumes(stor.hs)
-	return &ordersVolumesStorageObjects{stor, ordersVolumes}, path, nil
+	return &ordersVolumesStorageObjects{stor, ordersVolumes}
 }
 
 func TestIncreaseFilledFee(t *testing.T) {
-	to, path, err := createOrdersVolumeStorageObjects()
-	assert.NoError(t, err, "createOrdersVolumeStorageObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createOrdersVolumeStorageObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	orderId := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
 	firstFee := uint64(1)
 	secondFee := uint64(100500)
-	assert.NoError(t, err)
-	err = to.ordersVolumes.increaseFilledFee(orderId, firstFee, blockID0)
+	err := to.ordersVolumes.increaseFilledFee(orderId, firstFee, blockID0)
 	assert.NoError(t, err)
 	filledFee, err := to.ordersVolumes.newestFilledFee(orderId)
 	assert.NoError(t, err)
@@ -58,22 +45,13 @@ func TestIncreaseFilledFee(t *testing.T) {
 }
 
 func TestIncreaseFilledAmount(t *testing.T) {
-	to, path, err := createOrdersVolumeStorageObjects()
-	assert.NoError(t, err, "createOrdersVolumeStorageObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createOrdersVolumeStorageObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	orderId := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
 	firstAmount := uint64(1)
 	secondAmount := uint64(100500)
-	assert.NoError(t, err)
-	err = to.ordersVolumes.increaseFilledAmount(orderId, firstAmount, blockID0)
+	err := to.ordersVolumes.increaseFilledAmount(orderId, firstAmount, blockID0)
 	assert.NoError(t, err)
 	filledAmount, err := to.ordersVolumes.newestFilledAmount(orderId)
 	assert.NoError(t, err)

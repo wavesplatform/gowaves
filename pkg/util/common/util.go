@@ -45,15 +45,6 @@ func AddUint64(a, b uint64) (uint64, error) {
 	return 0, errors.New("64-bit unsigned integer overflow")
 }
 
-func CleanTemporaryDirs(dirs []string) error {
-	for _, dir := range dirs {
-		if err := os.RemoveAll(dir); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Dup duplicate (copy) bytes.
 func Dup(b []byte) []byte {
 	out := make([]byte, len(b))

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type scriptsStorageTestObjects struct {
@@ -13,32 +13,19 @@ type scriptsStorageTestObjects struct {
 	scriptsStorage *scriptsStorage
 }
 
-func createScriptsStorageTestObjects() (*scriptsStorageTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createScriptsStorageTestObjects(t *testing.T) *scriptsStorageTestObjects {
+	stor := createStorageObjects(t, true)
 	scriptsStorage, err := newScriptsStorage(stor.hs, proto.TestNetScheme, true)
-	if err != nil {
-		return nil, path, err
-	}
-	return &scriptsStorageTestObjects{stor, scriptsStorage}, path, nil
+	require.NoError(t, err)
+	return &scriptsStorageTestObjects{stor, scriptsStorage}
 }
 
 func TestSetAccountScript(t *testing.T) {
-	to, path, err := createScriptsStorageTestObjects()
-	assert.NoError(t, err, "createScriptsStorageTestObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createScriptsStorageTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := to.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
@@ -135,22 +122,14 @@ func TestSetAccountScript(t *testing.T) {
 }
 
 func TestSetAssetScript(t *testing.T) {
-	to, path, err := createScriptsStorageTestObjects()
-	assert.NoError(t, err, "createScriptsStorageTestObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createScriptsStorageTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
 	fullAssetID := testGlobal.asset0.asset.ID
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 
-	err = to.scriptsStorage.setAssetScript(fullAssetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := to.scriptsStorage.setAssetScript(fullAssetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

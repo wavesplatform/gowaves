@@ -9,24 +9,15 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestAssetScriptExtraFee(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err)
 
 	// Burn.
@@ -56,12 +47,7 @@ The account script is set on blockID2, then rollback returns storage to the bloc
 The account must not have a verifier anymore. However, the filter is false, so invalid data (verifier) will be returned\
 */
 func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-	defer func() {
-		to.stor.close(t)
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 	to.stor.hs.amend = false
 
 	tx := createSetScriptWithProofs(t)
@@ -96,12 +82,7 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 // the account script is set on blockID2, then blockID3 is added, then rollback returns storage to the blockID1.
 // The account must not have a verifier anymore. Filter is true, so everything must be valid
 func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-	defer func() {
-		to.stor.close(t)
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 	to.stor.hs.amend = true
 
 	tx := createSetScriptWithProofs(t)
@@ -132,20 +113,12 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 }
 
 func TestAccountScriptExtraFee(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err)
 
 	// Burn.
@@ -166,15 +139,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 }
 
 func TestCheckMinFeeWaves(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	// Burn.
 	tx := createBurnWithSig(t)
@@ -185,7 +150,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
 	}
-	err = checkMinFeeWaves(tx, params)
+	err := checkMinFeeWaves(tx, params)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 
 	tx.Fee = 1
@@ -216,15 +181,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 }
 
 func TestCheckMinFeeAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createSponsoredAssets(t, true)
 
 	tx := createTransferWithSig(t)
 	params := &feeValidationParams{
@@ -237,7 +194,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	assetCost := uint64(4)
-	err = to.sponsoredAssets.sponsorAsset(tx.FeeAsset.ID, assetCost, blockID0)
+	err := to.sponsoredAssets.sponsorAsset(tx.FeeAsset.ID, assetCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	to.stor.flush(t)
 
@@ -251,15 +208,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 }
 
 func TestNFTMinFee(t *testing.T) {
-	storage, path, err := createStorageObjects(true)
-	require.NoError(t, err)
-
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
+	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
@@ -295,15 +244,7 @@ func TestNFTMinFee(t *testing.T) {
 }
 
 func TestReissueFeeReduction(t *testing.T) {
-	storage, path, err := createStorageObjects(true)
-	require.NoError(t, err)
-
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
+	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
@@ -331,15 +272,7 @@ func TestReissueFeeReduction(t *testing.T) {
 }
 
 func TestSponsorshipFeeReduction(t *testing.T) {
-	storage, path, err := createStorageObjects(true)
-	require.NoError(t, err)
-
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
+	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
@@ -370,16 +303,8 @@ func randomScript(size uint64) (proto.Script, error) {
 }
 
 func TestSetScriptTransactionDynamicFee(t *testing.T) {
-	to, path, err := createSponsoredAssets(true)
-	assert.NoError(t, err, "createSponsoredAssets() failed")
+	to := createSponsoredAssets(t, true)
 	to.stor.activateFeature(t, int16(settings.RideV6))
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
 	tx := createSetScriptWithProofs(t)
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
@@ -389,8 +314,9 @@ func TestSetScriptTransactionDynamicFee(t *testing.T) {
 		estimatorVersion: maxEstimatorVersion,
 	}
 
-	tx.Script, err = randomScript(2 * 1024)
+	script, err := randomScript(2 * 1024)
 	assert.NoError(t, err)
+	tx.Script = script
 
 	// Validation failed with min fee
 	tx.Fee = FeeUnit * 1

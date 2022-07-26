@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type diffApplierTestObjects struct {
@@ -15,25 +15,17 @@ type diffApplierTestObjects struct {
 	td      *transactionDiffer
 }
 
-func createDiffApplierTestObjects(t *testing.T) (*diffApplierTestObjects, []string) {
-	stor, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
+func createDiffApplierTestObjects(t *testing.T) *diffApplierTestObjects {
+	stor := createStorageObjects(t, true)
 	applier, err := newDiffApplier(stor.entities.balances, proto.TestNetScheme)
-	assert.NoError(t, err, "newDiffApplier() failed")
+	require.NoError(t, err, "newDiffApplier() failed")
 	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionDiffer() failed")
-	return &diffApplierTestObjects{stor, applier, td}, path
+	require.NoError(t, err, "newTransactionDiffer() failed")
+	return &diffApplierTestObjects{stor, applier, td}
 }
 
 func TestDiffApplierWithWaves(t *testing.T) {
-	to, path := createDiffApplierTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createDiffApplierTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
@@ -89,14 +81,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 }
 
 func TestDiffApplierWithAssets(t *testing.T) {
-	to, path := createDiffApplierTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createDiffApplierTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
@@ -124,14 +109,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 
 // Check that intermediate balance in Transfer can not be negative.
 func TestTransferOverspend(t *testing.T) {
-	to, path := createDiffApplierTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createDiffApplierTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.

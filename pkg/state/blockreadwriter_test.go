@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -243,18 +242,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	if err != nil {
-		t.Fatalf("createStorageObjects: %v", err)
-	}
-
-	defer func() {
-		to.close(t)
-
-		if err := common.CleanTemporaryDirs(path); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-	}()
+	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
@@ -266,18 +254,7 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	if err != nil {
-		t.Fatalf("createStorageObjects: %v", err)
-	}
-
-	defer func() {
-		to.close(t)
-
-		if err := common.CleanTemporaryDirs(path); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-	}()
+	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
@@ -321,18 +298,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestReadNewest(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	if err != nil {
-		t.Fatalf("createStorageObjects: %v", err)
-	}
-
-	defer func() {
-		to.close(t)
-
-		if err := common.CleanTemporaryDirs(path); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-	}()
+	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
@@ -376,18 +342,7 @@ func TestReadNewest(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	if err != nil {
-		t.Fatalf("createStorageObjects: %v", err)
-	}
-
-	defer func() {
-		to.close(t)
-
-		if err := common.CleanTemporaryDirs(path); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-	}()
+	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
@@ -443,18 +398,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 }
 
 func TestProtobufReadWrite(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	if err != nil {
-		t.Fatalf("createStorageObjects: %v", err)
-	}
-
-	defer func() {
-		to.close(t)
-
-		if err := common.CleanTemporaryDirs(path); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-	}()
+	to := createStorageObjects(t, true)
 
 	// Activate protobuf and convert MainNet blocks to fake 'protobuf' ones.
 	// This is needed because blockReadWriter only accepts
@@ -522,18 +466,10 @@ func TestFailedTransactionReadWrite(t *testing.T) {
 }
 
 func TestSyncWithDb(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	// Add block.
-	err = to.rw.startBlock(blockID0)
+	err := to.rw.startBlock(blockID0)
 	assert.NoError(t, err, "startBlock() failed")
 	err = to.rw.finishBlock(blockID0)
 	assert.NoError(t, err, "finishBlock() failed")
