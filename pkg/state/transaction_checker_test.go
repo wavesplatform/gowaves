@@ -28,7 +28,7 @@ type checkerTestObjects struct {
 }
 
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
@@ -62,7 +62,7 @@ func TestCheckGenesis(t *testing.T) {
 	_, err := to.tc.checkGenesis(tx, info)
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
-	info.initialisation = true
+	to.stor.hs.amend = false
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed with valid genesis tx")
 	info.blockID = blockID0

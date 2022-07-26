@@ -86,9 +86,9 @@ func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
 	return changed, nil
 }
 
-func (hfmt *historyFormatter) normalize(history *historyRecord, filter bool) (bool, error) {
+func (hfmt *historyFormatter) normalize(history *historyRecord, amend bool) (bool, error) {
 	filtered := false
-	if filter {
+	if amend {
 		var err error
 		filtered, err = hfmt.filter(history)
 		if err != nil {
@@ -99,5 +99,5 @@ func (hfmt *historyFormatter) normalize(history *historyRecord, filter bool) (bo
 	if err != nil {
 		return false, err
 	}
-	return (filtered || cut), nil
+	return filtered || cut, nil
 }

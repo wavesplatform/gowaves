@@ -31,12 +31,12 @@ type batchedStorageTestObjects struct {
 }
 
 func createBatchedStorage(recordSize int) (*batchedStorageTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
 	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: recordSize, prefix: prefix}
-	batchedStor, err := newBatchedStorage(stor.db, stor.hs.stateDB, params, testMemLimit, 1000)
+	batchedStor, err := newBatchedStorage(stor.db, stor.hs.stateDB, params, testMemLimit, 1000, stor.hs.amend)
 	if err != nil {
 		return nil, path, err
 	}
@@ -53,7 +53,7 @@ func (to *batchedStorageTestObjects) addTestRecords(t *testing.T, key []byte, da
 		delete(to.rollbackedIds, rc.blockID)
 		blockNum, err := to.stor.stateDB.newestBlockIdToNum(rc.blockID)
 		assert.NoError(t, err)
-		err = to.batchedStor.addRecord(key, rc.record, blockNum, true)
+		err = to.batchedStor.addRecord(key, rc.record, blockNum)
 		assert.NoError(t, err)
 	}
 }
@@ -151,10 +151,10 @@ func TestLastRecordByKeyWithRollback(t *testing.T) {
 		to.rollbackBlock(t, id)
 	}
 
-	last, err := to.batchedStor.lastRecordByKey(key0, true)
+	last, err := to.batchedStor.lastRecordByKey(key0)
 	assert.NoError(t, err)
 	assert.Equal(t, key0Records[size/2-1].record, last)
-	last, err = to.batchedStor.newestLastRecordByKey(key0, true)
+	last, err = to.batchedStor.newestLastRecordByKey(key0)
 	assert.NoError(t, err)
 	assert.Equal(t, key0Records[size/2-1].record, last)
 }
@@ -175,33 +175,33 @@ func TestLastRecordByKey(t *testing.T) {
 	assert.NoError(t, err)
 	key0 := []byte{1, 2, 3}
 	record0 := []byte{4, 5, 6}
-	err = to.batchedStor.addRecord(key0, record0, blockNum0, true)
+	err = to.batchedStor.addRecord(key0, record0, blockNum0)
 	assert.NoError(t, err)
-	res, err := to.batchedStor.newestLastRecordByKey(key0, true)
+	res, err := to.batchedStor.newestLastRecordByKey(key0)
 	assert.NoError(t, err)
 	assert.Equal(t, record0, res)
 
 	key1 := []byte{7, 8, 9}
 	record1 := []byte{10, 11, 12}
-	err = to.batchedStor.addRecord(key1, record1, blockNum0, true)
+	err = to.batchedStor.addRecord(key1, record1, blockNum0)
 	assert.NoError(t, err)
-	res, err = to.batchedStor.newestLastRecordByKey(key1, true)
+	res, err = to.batchedStor.newestLastRecordByKey(key1)
 	assert.NoError(t, err)
 	assert.Equal(t, record1, res)
 
 	to.flush(t)
 
-	res, err = to.batchedStor.newestLastRecordByKey(key0, true)
+	res, err = to.batchedStor.newestLastRecordByKey(key0)
 	assert.NoError(t, err)
 	assert.Equal(t, record0, res)
-	res, err = to.batchedStor.newestLastRecordByKey(key1, true)
+	res, err = to.batchedStor.newestLastRecordByKey(key1)
 	assert.NoError(t, err)
 	assert.Equal(t, record1, res)
 
-	res, err = to.batchedStor.lastRecordByKey(key0, true)
+	res, err = to.batchedStor.lastRecordByKey(key0)
 	assert.NoError(t, err)
 	assert.Equal(t, record0, res)
-	res, err = to.batchedStor.lastRecordByKey(key1, true)
+	res, err = to.batchedStor.lastRecordByKey(key1)
 	assert.NoError(t, err)
 	assert.Equal(t, record1, res)
 
@@ -210,18 +210,18 @@ func TestLastRecordByKey(t *testing.T) {
 	assert.NoError(t, err)
 	key2 := []byte{13, 14, 15}
 	record2 := []byte{16, 17, 18}
-	err = to.batchedStor.addRecord(key2, record2, blockNum1, true)
+	err = to.batchedStor.addRecord(key2, record2, blockNum1)
 	assert.NoError(t, err)
-	res, err = to.batchedStor.newestLastRecordByKey(key2, true)
+	res, err = to.batchedStor.newestLastRecordByKey(key2)
 	assert.NoError(t, err)
 	assert.Equal(t, record2, res)
 
 	to.flush(t)
 
-	res, err = to.batchedStor.newestLastRecordByKey(key2, true)
+	res, err = to.batchedStor.newestLastRecordByKey(key2)
 	assert.NoError(t, err)
 	assert.Equal(t, record2, res)
-	res, err = to.batchedStor.lastRecordByKey(key2, true)
+	res, err = to.batchedStor.lastRecordByKey(key2)
 	assert.NoError(t, err)
 	assert.Equal(t, record2, res)
 }

@@ -349,7 +349,7 @@ func (hr *historyRecord) topEntry() (historyEntry, error) {
 type topEntryIterator struct {
 	dbIter keyvalue.Iterator
 	fmt    *historyFormatter
-	filter bool
+	amend  bool
 
 	err    error
 	curKey []byte
@@ -364,7 +364,7 @@ func (i *topEntryIterator) Next() bool {
 			i.err = err
 			return false
 		}
-		if _, err := i.fmt.normalize(history, i.filter); err != nil {
+		if _, err := i.fmt.normalize(history, i.amend); err != nil {
 			i.err = err
 			return false
 		}
@@ -471,15 +471,16 @@ type historyStorage struct {
 	dbBatch   keyvalue.Batch
 	writeLock *sync.Mutex
 	stateDB   *stateDB
-
-	stor *localHistoryStorage
-	fmt  *historyFormatter
+	amend     bool // if true, the records will be filtered which is important after rollback
+	stor      *localHistoryStorage
+	fmt       *historyFormatter
 }
 
 func newHistoryStorage(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
 	stateDB *stateDB,
+	amend bool,
 ) (*historyStorage, error) {
 	stor, err := newLocalHistoryStorage()
 	if err != nil {
@@ -496,29 +497,30 @@ func newHistoryStorage(
 		stateDB:   stateDB,
 		stor:      stor,
 		fmt:       fmt,
+		amend:     amend,
 	}, nil
 }
 
-func (hs *historyStorage) newTopEntryIteratorByPrefix(prefix []byte, filter bool) (*topEntryIterator, error) {
+func (hs *historyStorage) newTopEntryIteratorByPrefix(prefix []byte) (*topEntryIterator, error) {
 	dbIter, err := hs.db.NewKeyIterator(prefix)
 	if err != nil {
 		return nil, err
 	}
-	return &topEntryIterator{dbIter: dbIter, fmt: hs.fmt, filter: filter}, nil
+	return &topEntryIterator{dbIter: dbIter, fmt: hs.fmt, amend: hs.amend}, nil
 }
 
-func (hs *historyStorage) newTopEntryIterator(entity blockchainEntity, filter bool) (*topEntryIterator, error) {
+func (hs *historyStorage) newTopEntryIterator(entity blockchainEntity) (*topEntryIterator, error) {
 	prefix, err := prefixByEntity(entity)
 	if err != nil {
 		return nil, err
 	}
-	return hs.newTopEntryIteratorByPrefix(prefix, filter)
+	return hs.newTopEntryIteratorByPrefix(prefix)
 }
 
-func (hs *historyStorage) newNewestTopEntryIterator(entity blockchainEntity, filter bool) (*newestTopEntryIterator, error) {
+func (hs *historyStorage) newNewestTopEntryIterator(entity blockchainEntity) (*newestTopEntryIterator, error) {
 	i := &newestTopEntryIterator{entity: entity}
 	i.hsEntries = hs.stor.getEntries()
-	dbIter, err := hs.newTopEntryIterator(entity, filter)
+	dbIter, err := hs.newTopEntryIterator(entity)
 	if err != nil {
 		return nil, err
 	}
@@ -564,7 +566,7 @@ func (hs *historyStorage) manageDbUpdate(key []byte, history *historyRecord) err
 
 // getHistory() retrieves history record from DB. It also normalizes it,
 // saving the result back to DB, if update argument is true.
-func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyRecord, error) {
+func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, error) {
 	// Lock the write lock.
 	// It is necessary because if we read value *before* the main write batch is written,
 	// and manageDbUpdate() happens *after* it is written,
@@ -581,7 +583,7 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	if err != nil {
 		return nil, errs.Extend(err, "newHistoryRecordFromBytes")
 	}
-	changed, err := hs.fmt.normalize(history, filter)
+	changed, err := hs.fmt.normalize(history, hs.amend)
 	if err != nil {
 		return nil, err
 	}
@@ -596,23 +598,23 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	return history, nil
 }
 
-func (hs *historyStorage) topEntry(key []byte, filter bool) (historyEntry, error) {
-	history, err := hs.getHistory(key, filter, false)
+func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
+	history, err := hs.getHistory(key, false)
 	if err != nil {
 		return historyEntry{}, err // keyvalue.ErrNotFoundHere
 	}
 	return history.topEntry() // untyped error "empty history" here
 }
 
-func (hs *historyStorage) newestTopEntry(key []byte, filter bool) (historyEntry, error) {
+func (hs *historyStorage) newestTopEntry(key []byte) (historyEntry, error) {
 	if newHist, err := hs.stor.get(key); err == nil {
 		return newHist.topEntry()
 	}
-	return hs.topEntry(key, filter)
+	return hs.topEntry(key)
 }
 
-func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, filter bool) (*historyRecord, error) {
-	prevHist, err := hs.getHistory(key, filter, true)
+func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord) (*historyRecord, error) {
+	prevHist, err := hs.getHistory(key, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// New history.
 		return newHist, nil
@@ -627,19 +629,19 @@ func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, f
 }
 
 // fullHistory() returns combination of history from DB and the local storage (if any).
-func (hs *historyStorage) fullHistory(key []byte, filter bool) (*historyRecord, error) {
+func (hs *historyStorage) fullHistory(key []byte) (*historyRecord, error) {
 	newHist, err := hs.stor.get(key)
 	if err == errNotFound {
-		return hs.getHistory(key, filter, true)
+		return hs.getHistory(key, true)
 	} else if err != nil {
 		return nil, err
 	}
-	return hs.combineHistories(key, newHist, filter)
+	return hs.combineHistories(key, newHist)
 }
 
 // topEntryData() returns bytes of the top entry.
-func (hs *historyStorage) topEntryData(key []byte, filter bool) ([]byte, error) {
-	entry, err := hs.topEntry(key, filter)
+func (hs *historyStorage) topEntryData(key []byte) ([]byte, error) {
+	entry, err := hs.topEntry(key)
 	if err != nil {
 		return nil, err
 	}
@@ -647,8 +649,8 @@ func (hs *historyStorage) topEntryData(key []byte, filter bool) ([]byte, error) 
 }
 
 // newestTopEntryData() returns bytes of the top entry from local storage or DB.
-func (hs *historyStorage) newestTopEntryData(key []byte, filter bool) ([]byte, error) {
-	entry, err := hs.newestTopEntry(key, filter)
+func (hs *historyStorage) newestTopEntryData(key []byte) ([]byte, error) {
+	entry, err := hs.newestTopEntry(key)
 	if err != nil {
 		return nil, err
 	}
@@ -656,8 +658,8 @@ func (hs *historyStorage) newestTopEntryData(key []byte, filter bool) ([]byte, e
 }
 
 // newestBlockOfTheTopEntry() returns block ID of the top entry from local storage or DB.
-func (hs *historyStorage) newestBlockOfTheTopEntry(key []byte, filter bool) (proto.BlockID, error) {
-	entry, err := hs.newestTopEntry(key, filter)
+func (hs *historyStorage) newestBlockOfTheTopEntry(key []byte) (proto.BlockID, error) {
+	entry, err := hs.newestTopEntry(key)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -665,8 +667,8 @@ func (hs *historyStorage) newestBlockOfTheTopEntry(key []byte, filter bool) (pro
 }
 
 // blockOfTheTopEntry() returns block ID of the top entry from DB.
-func (hs *historyStorage) blockOfTheTopEntry(key []byte, filter bool) (proto.BlockID, error) {
-	entry, err := hs.topEntry(key, filter)
+func (hs *historyStorage) blockOfTheTopEntry(key []byte) (proto.BlockID, error) {
+	entry, err := hs.topEntry(key)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -678,14 +680,13 @@ type entryNumsCmp func(uint32, uint32) bool
 func (hs *historyStorage) entryDataWithHeightFilter(
 	key []byte,
 	limitHeight uint64,
-	filter bool,
 	cmp entryNumsCmp,
 ) ([]byte, error) {
 	limitBlockNum, err := hs.stateDB.blockNumByHeight(limitHeight)
 	if err != nil {
 		return nil, err
 	}
-	history, err := hs.getHistory(key, filter, false)
+	history, err := hs.getHistory(key, false)
 	if err != nil {
 		return nil, err
 	}
@@ -700,11 +701,11 @@ func (hs *historyStorage) entryDataWithHeightFilter(
 	return res.data, nil
 }
 
-func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bool) ([]byte, error) {
+func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64) ([]byte, error) {
 	cmp := func(entryNum, limitNum uint32) bool {
 		return entryNum <= limitNum
 	}
-	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
+	return hs.entryDataWithHeightFilter(key, height, cmp)
 }
 
 // blockRangeEntries() returns list of entries corresponding to given block interval.
@@ -730,8 +731,8 @@ func (hs *historyStorage) blockRangeEntries(history *historyRecord, startBlockNu
 
 // entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
 // WARNING: see comment about blockRangeEntries() to understand how this function actually works.
-func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
-	history, err := hs.getHistory(key, filter, false)
+func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64) ([][]byte, error) {
+	history, err := hs.getHistory(key, false)
 	if err != nil {
 		return nil, errs.Extend(err, "getHistory")
 	}
@@ -750,8 +751,8 @@ func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endH
 }
 
 // WARNING: see comment about blockRangeEntries() to understand how this function actually works.
-func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
-	history, err := hs.fullHistory(key, filter)
+func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight, endHeight uint64) ([][]byte, error) {
+	history, err := hs.fullHistory(key)
 	if err != nil {
 		return nil, err
 	}
@@ -773,11 +774,11 @@ func (hs *historyStorage) reset() {
 	hs.stor.reset()
 }
 
-func (hs *historyStorage) flush(filter bool) error {
+func (hs *historyStorage) flush() error {
 	entries := hs.stor.getEntries()
 	sortEntries(entries)
 	for _, entry := range entries {
-		newEntry, err := hs.combineHistories(entry.key, entry.value, filter)
+		newEntry, err := hs.combineHistories(entry.key, entry.value)
 		if err != nil {
 			return err
 		}

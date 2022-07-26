@@ -40,9 +40,9 @@ func newOrdersVolumes(hs *historyStorage) *ordersVolumes {
 	return &ordersVolumes{hs: hs}
 }
 
-func (ov *ordersVolumes) newestVolumeById(orderId []byte, filter bool) (*orderVolumeRecord, error) {
+func (ov *ordersVolumes) newestVolumeById(orderId []byte) (*orderVolumeRecord, error) {
 	key := ordersVolumeKey{orderId}
-	recordBytes, err := ov.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := ov.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +62,8 @@ func (ov *ordersVolumes) addNewRecord(orderId []byte, record *orderVolumeRecord,
 	return ov.hs.addNewEntry(ordersVolume, key.bytes(), recordBytes, blockID)
 }
 
-func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blockID proto.BlockID, filter bool) error {
-	prevVolume, err := ov.newestVolumeById(orderId, filter)
+func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blockID proto.BlockID) error {
+	prevVolume, err := ov.newestVolumeById(orderId)
 	if err != nil {
 		// New record.
 		return ov.addNewRecord(orderId, &orderVolumeRecord{feeFilled: feeChange}, blockID)
@@ -72,8 +72,8 @@ func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blo
 	return ov.addNewRecord(orderId, prevVolume, blockID)
 }
 
-func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint64, blockID proto.BlockID, filter bool) error {
-	prevVolume, err := ov.newestVolumeById(orderId, filter)
+func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint64, blockID proto.BlockID) error {
+	prevVolume, err := ov.newestVolumeById(orderId)
 	if err != nil {
 		// New record.
 		return ov.addNewRecord(orderId, &orderVolumeRecord{amountFilled: amountChange}, blockID)
@@ -82,8 +82,8 @@ func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint6
 	return ov.addNewRecord(orderId, prevVolume, blockID)
 }
 
-func (ov *ordersVolumes) newestFilledFee(orderId []byte, filter bool) (uint64, error) {
-	volume, err := ov.newestVolumeById(orderId, filter)
+func (ov *ordersVolumes) newestFilledFee(orderId []byte) (uint64, error) {
+	volume, err := ov.newestVolumeById(orderId)
 	if err != nil {
 		// No fee volume filled yet.
 		return 0, nil
@@ -91,8 +91,8 @@ func (ov *ordersVolumes) newestFilledFee(orderId []byte, filter bool) (uint64, e
 	return volume.feeFilled, nil
 }
 
-func (ov *ordersVolumes) newestFilledAmount(orderId []byte, filter bool) (uint64, error) {
-	volume, err := ov.newestVolumeById(orderId, filter)
+func (ov *ordersVolumes) newestFilledAmount(orderId []byte) (uint64, error) {
+	volume, err := ov.newestVolumeById(orderId)
 	if err != nil {
 		// No amount volume filled yet.
 		return 0, nil

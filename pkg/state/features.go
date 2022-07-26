@@ -120,7 +120,7 @@ func (f *features) featureVotesAtHeight(featureID int16, height uint64) (uint64,
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.entryDataAtHeight(keyBytes, height, true)
+	recordBytes, err := f.hs.entryDataAtHeight(keyBytes, height)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist || recordBytes == nil {
 		// 0 votes for unknown feature.
 		return 0, nil
@@ -137,7 +137,7 @@ func (f *features) featureVotes(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.topEntryData(keyBytes, true)
+	recordBytes, err := f.hs.topEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// 0 votes for unknown feature.
 		return 0, nil
@@ -154,7 +154,7 @@ func (f *features) newestFeatureVotes(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.newestTopEntryData(keyBytes, true)
+	recordBytes, err := f.hs.newestTopEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// 0 votes for unknown feature.
 		return 0, nil
@@ -214,7 +214,7 @@ func (f *features) newestIsActivated(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.newestTopEntryData(keyBytes, true)
+	_, err = f.hs.newestTopEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -230,7 +230,7 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.topEntryData(keyBytes, true)
+	_, err = f.hs.topEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -270,7 +270,7 @@ func (f *features) newestActivatedFeaturesRecord(featureID int16) (*activatedFea
 	if err != nil {
 		return nil, err
 	}
-	recordBytes, err := f.hs.newestTopEntryData(keyBytes, true)
+	recordBytes, err := f.hs.newestTopEntryData(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesR
 	if err != nil {
 		return nil, err
 	}
-	recordBytes, err := f.hs.topEntryData(keyBytes, true)
+	recordBytes, err := f.hs.topEntryData(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func (f *features) newestIsApproved(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.newestTopEntryData(keyBytes, true)
+	_, err = f.hs.newestTopEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -364,7 +364,7 @@ func (f *features) isApproved(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.topEntryData(keyBytes, true)
+	_, err = f.hs.topEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -388,7 +388,7 @@ func (f *features) newestApprovalHeight(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.newestTopEntryData(keyBytes, true)
+	recordBytes, err := f.hs.newestTopEntryData(keyBytes)
 	if err != nil {
 		return 0, err
 	}
@@ -405,7 +405,7 @@ func (f *features) approvalHeight(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.topEntryData(keyBytes, true)
+	recordBytes, err := f.hs.topEntryData(keyBytes)
 	if err != nil {
 		return 0, err
 	}
@@ -425,7 +425,7 @@ func (f *features) newestIsElected(height uint64, featureID int16) (bool, error)
 }
 
 func (f *features) resetVotes(blockID proto.BlockID) error {
-	iter, err := f.hs.newNewestTopEntryIterator(featureVote, true)
+	iter, err := f.hs.newNewestTopEntryIterator(featureVote)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (f *features) resetVotes(blockID proto.BlockID) error {
 
 // Check voting results, update approval list, reset voting list.
 func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) error {
-	iter, err := f.hs.newNewestTopEntryIterator(featureVote, true)
+	iter, err := f.hs.newNewestTopEntryIterator(featureVote)
 	if err != nil {
 		return err
 	}
@@ -496,7 +496,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 
 // Update activation list.
 func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
-	iter, err := f.hs.newNewestTopEntryIterator(approvedFeature, true)
+	iter, err := f.hs.newNewestTopEntryIterator(approvedFeature)
 	if err != nil {
 		return err
 	}
@@ -550,7 +550,7 @@ func (f *features) finishVoting(curHeight uint64, blockID proto.BlockID) error {
 }
 
 func (f *features) allFeatures() ([]int16, error) {
-	iter, err := f.hs.newTopEntryIterator(featureVote, true)
+	iter, err := f.hs.newTopEntryIterator(featureVote)
 	if err != nil {
 		return nil, err
 	}

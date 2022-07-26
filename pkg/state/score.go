@@ -28,13 +28,13 @@ func newScores(hs *historyStorage) *scores {
 	return &scores{hs}
 }
 
-func (s *scores) appendBlockScore(block *proto.Block, height uint64, filter bool) error {
+func (s *scores) appendBlockScore(block *proto.Block, height uint64) error {
 	blockScore, err := CalculateScore(block.BaseTarget)
 	if err != nil {
 		return err
 	}
 	if height > 1 {
-		prevScore, err := s.newestScore(height-1, filter)
+		prevScore, err := s.newestScore(height - 1)
 		if err != nil {
 			return err
 		}
@@ -50,18 +50,18 @@ func scoreFromBytes(scoreBytes []byte) *big.Int {
 	return &score
 }
 
-func (s *scores) score(height uint64, filter bool) (*big.Int, error) {
+func (s *scores) score(height uint64) (*big.Int, error) {
 	key := scoreKey{height: height}
-	scoreBytes, err := s.hs.topEntryData(key.bytes(), filter)
+	scoreBytes, err := s.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
 	return scoreFromBytes(scoreBytes), nil
 }
 
-func (s *scores) newestScore(height uint64, filter bool) (*big.Int, error) {
+func (s *scores) newestScore(height uint64) (*big.Int, error) {
 	key := scoreKey{height: height}
-	scoreBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
+	scoreBytes, err := s.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}

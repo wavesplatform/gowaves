@@ -10,9 +10,8 @@ import (
 )
 
 type performerInfo struct {
-	initialisation bool
-	height         uint64
-	blockID        proto.BlockID
+	height  uint64
+	blockID proto.BlockID
 }
 
 type transactionPerformer struct {
@@ -91,7 +90,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
-	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to reissue asset")
 	}
 	return nil
@@ -118,7 +117,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo)
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
 	}
-	if err := tp.stor.assets.burnAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.burnAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to burn asset")
 	}
 	return nil
@@ -149,10 +148,10 @@ func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.
 	if order.GetOrderType() == proto.Sell {
 		fee = tx.GetSellMatcherFee()
 	}
-	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID); err != nil {
 		return err
 	}
-	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID); err != nil {
 		return err
 	}
 	return nil
@@ -187,7 +186,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	var recipientAddr *proto.WavesAddress
 	if tx.Recipient.Address == nil {
-		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
+		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias)
 		if err != nil {
 			return errors.Errorf("invalid alias: %v\n", err)
 		}
@@ -226,7 +225,7 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 }
 
 func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo) error {
-	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID, !info.initialisation); err != nil {
+	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID); err != nil {
 		return errors.Wrap(err, "failed to cancel leasing")
 	}
 	return nil
@@ -255,7 +254,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 	}
 	// Save alias to aliases storage.
 	inf := &aliasInfo{
-		stolen: tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
+		stolen: tp.stor.aliases.exists(tx.Alias.Alias),
 		addr:   senderAddr,
 	}
 	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf, info.blockID); err != nil {
@@ -379,7 +378,7 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 		newDescription: tx.Description,
 		newHeight:      blockHeight,
 	}
-	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to update asset info")
 	}
 	return nil

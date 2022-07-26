@@ -16,7 +16,7 @@ type scriptsComplexityStorageObjects struct {
 }
 
 func createScriptsComplexityStorageObjects() (*scriptsComplexityStorageObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -55,31 +55,31 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	estimations := map[int]ride.TreeEstimation{1: est1, 2: est2, 3: est3}
 	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res1)
-	res2, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2, true)
+	res2, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2)
 	require.NoError(t, err)
 	assert.Equal(t, est2, *res2)
-	res3, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
+	res3, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
-	res, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	res, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res1)
-	res2, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2, true)
+	res2, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2)
 	require.NoError(t, err)
 	assert.Equal(t, est2, *res2)
-	res3, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
+	res3, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
-	res, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	res, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res)
 }
@@ -101,13 +101,13 @@ func TestSaveComplexityForAsset(t *testing.T) {
 	est := ride.TreeEstimation{Estimation: 500, Verifier: 500}
 	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 }

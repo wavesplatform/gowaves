@@ -278,6 +278,7 @@ func main() {
 	if !*bloomFilter {
 		params.DbParams.BloomFilterParams.Disable = true
 	}
+
 	st, err := state.NewState(path, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)

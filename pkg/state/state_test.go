@@ -46,6 +46,7 @@ func TestGenesisConfig(t *testing.T) {
 	}
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
+
 	manager, err := newStateManager(dataDir, true, stateParams, ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
@@ -119,7 +120,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
 	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
-	err = manager.flush(false)
+	err = manager.flush()
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
 	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp, 3, true)
@@ -393,7 +394,6 @@ func TestStateManager_Mutex(t *testing.T) {
 		err := os.RemoveAll(dataDir)
 		require.NoError(t, err)
 	}()
-
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
@@ -445,7 +445,6 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-
 	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
@@ -456,6 +455,7 @@ func TestGenesisStateHash(t *testing.T) {
 	assert.NoError(t, err, "failed to create dir for test data")
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
+
 	manager, err := newStateManager(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 

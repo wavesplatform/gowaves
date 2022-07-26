@@ -192,8 +192,8 @@ type assetReissueChange struct {
 	diff       int64
 }
 
-func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange, filter bool) (*assetInfo, error) {
-	info, err := a.newestAssetInfo(assetID, filter)
+func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange) (*assetInfo, error) {
+	info, err := a.newestAssetInfo(assetID)
 	if err != nil {
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -203,8 +203,8 @@ func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange, fil
 	return info, nil
 }
 
-func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blockID proto.BlockID, filter bool) error {
-	info, err := a.applyReissue(assetID, ch, filter)
+func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blockID proto.BlockID) error {
+	info, err := a.applyReissue(assetID, ch)
 	if err != nil {
 		return err
 	}
@@ -214,8 +214,8 @@ func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blo
 // reissueAssetUncertain() is similar to reissueAsset() but the changes can be
 // dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueChange, filter bool) error {
-	info, err := a.applyReissue(assetID, ch, filter)
+func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueChange) error {
+	info, err := a.applyReissue(assetID, ch)
 	if err != nil {
 		return err
 	}
@@ -227,8 +227,8 @@ type assetBurnChange struct {
 	diff int64
 }
 
-func (a *assets) applyBurn(assetID proto.AssetID, ch *assetBurnChange, filter bool) (*assetInfo, error) {
-	info, err := a.newestAssetInfo(assetID, filter)
+func (a *assets) applyBurn(assetID proto.AssetID, ch *assetBurnChange) (*assetInfo, error) {
+	info, err := a.newestAssetInfo(assetID)
 	if err != nil {
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -237,8 +237,8 @@ func (a *assets) applyBurn(assetID proto.AssetID, ch *assetBurnChange, filter bo
 	return info, nil
 }
 
-func (a *assets) burnAsset(assetID proto.AssetID, ch *assetBurnChange, blockID proto.BlockID, filter bool) error {
-	info, err := a.applyBurn(assetID, ch, filter)
+func (a *assets) burnAsset(assetID proto.AssetID, ch *assetBurnChange, blockID proto.BlockID) error {
+	info, err := a.applyBurn(assetID, ch)
 	if err != nil {
 		return err
 	}
@@ -248,8 +248,8 @@ func (a *assets) burnAsset(assetID proto.AssetID, ch *assetBurnChange, blockID p
 // burnAssetUncertain() is similar to burnAsset() but the changes can be
 // dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) burnAssetUncertain(assetID proto.AssetID, ch *assetBurnChange, filter bool) error {
-	info, err := a.applyBurn(assetID, ch, filter)
+func (a *assets) burnAssetUncertain(assetID proto.AssetID, ch *assetBurnChange) error {
+	info, err := a.applyBurn(assetID, ch)
 	if err != nil {
 		return err
 	}
@@ -263,8 +263,8 @@ type assetInfoChange struct {
 	newHeight      uint64
 }
 
-func (a *assets) updateAssetInfo(asset crypto.Digest, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
-	info, err := a.newestChangeableInfo(asset, filter)
+func (a *assets) updateAssetInfo(asset crypto.Digest, ch *assetInfoChange, blockID proto.BlockID) error {
+	info, err := a.newestChangeableInfo(asset)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -275,8 +275,8 @@ func (a *assets) updateAssetInfo(asset crypto.Digest, ch *assetInfoChange, block
 	return a.addNewRecord(proto.AssetIDFromDigest(asset), record, blockID)
 }
 
-func (a *assets) newestLastUpdateHeight(assetID proto.AssetID, filter bool) (uint64, error) {
-	assetInfo, err := a.newestAssetInfo(assetID, filter)
+func (a *assets) newestLastUpdateHeight(assetID proto.AssetID) (uint64, error) {
+	assetInfo, err := a.newestAssetInfo(assetID)
 	if err != nil {
 		return 0, err
 	}
@@ -306,13 +306,13 @@ func (a *assets) newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error)
 	return a.constInfo(assetID)
 }
 
-func (a *assets) newestChangeableInfo(asset crypto.Digest, filter bool) (*assetChangeableInfo, error) {
+func (a *assets) newestChangeableInfo(asset crypto.Digest) (*assetChangeableInfo, error) {
 	assetID := proto.AssetIDFromDigest(asset)
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
 		return &info.assetChangeableInfo, nil
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.newestTopEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.newestTopEntryData(histKey.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -323,13 +323,13 @@ func (a *assets) newestChangeableInfo(asset crypto.Digest, filter bool) (*assetC
 	return &record.assetChangeableInfo, nil
 }
 
-func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool {
+func (a *assets) newestAssetExists(asset proto.OptionalAsset) bool {
 	if !asset.Present {
 		// Waves.
 		return true
 	}
 	assetID := proto.AssetIDFromDigest(asset.ID)
-	if _, err := a.newestAssetInfo(assetID, filter); err != nil { // TODO: check error type
+	if _, err := a.newestAssetInfo(assetID); err != nil { // TODO: check error type
 		return false
 	}
 	return true
@@ -337,12 +337,12 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool 
 
 // Newest asset info (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
-func (a *assets) newestAssetInfo(assetID proto.AssetID, filter bool) (*assetInfo, error) {
+func (a *assets) newestAssetInfo(assetID proto.AssetID) (*assetInfo, error) {
 	constInfo, err := a.newestConstInfo(assetID)
 	if err != nil {
 		return nil, err
 	}
-	changeableInfo, err := a.newestChangeableInfo(proto.ReconstructDigest(assetID, constInfo.tail), filter)
+	changeableInfo, err := a.newestChangeableInfo(proto.ReconstructDigest(assetID, constInfo.tail))
 	if err != nil {
 		return nil, err
 	}
@@ -351,13 +351,13 @@ func (a *assets) newestAssetInfo(assetID proto.AssetID, filter bool) (*assetInfo
 
 // "Stable" asset info from database.
 // This should be used by external APIs.
-func (a *assets) assetInfo(assetID proto.AssetID, filter bool) (*assetInfo, error) {
+func (a *assets) assetInfo(assetID proto.AssetID) (*assetInfo, error) {
 	constInfo, err := a.constInfo(assetID) // `errs.UnknownAsset` error here
 	if err != nil {
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.topEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.topEntryData(histKey.bytes())
 	if err != nil {
 		return nil, err // `keyvalue.ErrNotFound` or "empty history" errors here
 	}

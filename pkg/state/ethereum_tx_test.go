@@ -45,7 +45,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			)
 		},
 	}
-	stor, _, err := createStorageObjects()
+	stor, _, err := createStorageObjects(true)
 	require.NoError(t, err)
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
@@ -124,10 +124,10 @@ func lessenDecodedDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) 
 
 func TestEthereumTransferAssets(t *testing.T) {
 	storage := &mockScriptStorageState{
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
 	}
@@ -167,7 +167,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	assetID := (*proto.AssetID)(tx.To())
 
-	assetInfo, err := txAppender.ethInfo.stor.assets.newestAssetInfo(*assetID, true)
+	assetInfo, err := txAppender.ethInfo.stor.assets.newestAssetInfo(*assetID)
 	require.NoError(t, err)
 	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
 	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
@@ -204,17 +204,17 @@ func defaultDecodedData(name string, arguments []ethabi.DecodedArg, payments []e
 	return decodedData
 }
 
-func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorageState, info *fallibleValidationParams) (proto.WavesAddress, *ast.Tree) {
+func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorageState) (proto.WavesAddress, *ast.Tree) {
 	scriptAddr, err := tx.WavesAddressTo(0)
 	require.NoError(t, err)
-	tree, err := stor.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	tree, err := stor.newestScriptByAddr(*scriptAddr)
 	require.NoError(t, err)
 	return *scriptAddr, tree
 }
 
 func TestEthereumInvoke(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -236,10 +236,10 @@ func TestEthereumInvoke(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
 	}
@@ -269,7 +269,7 @@ func TestEthereumInvoke(t *testing.T) {
 	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
-	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
+	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
 	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
@@ -346,7 +346,7 @@ func TestTransferCheckFee(t *testing.T) {
 
 func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -368,10 +368,10 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
 	}
@@ -397,7 +397,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
-	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
+	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
 	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
@@ -414,7 +414,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 
 func TestEthereumInvokeAllArguments(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
+	newestScriptByAddrFunc := func(addr proto.WavesAddress) (*ast.Tree, error) {
 		/*
 			{-# STDLIB_VERSION 4 #-}
 			{-# CONTENT_TYPE DAPP #-}
@@ -436,10 +436,10 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
 	}
@@ -471,7 +471,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
-	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
+	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
 	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)

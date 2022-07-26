@@ -15,7 +15,7 @@ const (
 )
 
 func TestAddNewEntry(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -30,35 +30,35 @@ func TestAddNewEntry(t *testing.T) {
 	val := bytes.Repeat([]byte{0x1a}, valSize)
 	err = to.hs.addNewEntry(accountScript, key, val, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
-	entry, err := to.hs.newestTopEntry(key, true)
+	entry, err := to.hs.newestTopEntry(key)
 	assert.NoError(t, err, "newestTopEntry() failed")
 	assert.Equal(t, val, entry.data)
-	data, err := to.hs.newestTopEntryData(key, true)
+	data, err := to.hs.newestTopEntryData(key)
 	assert.NoError(t, err, "newestTopEntryData() failed")
 	assert.Equal(t, val, data)
-	entries, err := to.hs.newestEntriesDataInHeightRange(key, 1, 1, true)
+	entries, err := to.hs.newestEntriesDataInHeightRange(key, 1, 1)
 	assert.NoError(t, err, "newestEntriesDataInHeightRange() failed")
 	assert.Equal(t, [][]byte{val}, entries)
 
-	blockID, err := to.hs.newestBlockOfTheTopEntry(key, true)
+	blockID, err := to.hs.newestBlockOfTheTopEntry(key)
 	assert.NoError(t, err, "newestBlockOfTheTopEntry() failed")
 	assert.Equal(t, blockID0, blockID)
 
 	to.flush(t)
 
-	entry, err = to.hs.topEntry(key, true)
+	entry, err = to.hs.topEntry(key)
 	assert.NoError(t, err, "topEntry() failed")
 	assert.Equal(t, val, entry.data)
-	data, err = to.hs.topEntryData(key, true)
+	data, err = to.hs.topEntryData(key)
 	assert.NoError(t, err, "topEntryData() failed")
 	assert.Equal(t, val, data)
-	blockID, err = to.hs.blockOfTheTopEntry(key, true)
+	blockID, err = to.hs.blockOfTheTopEntry(key)
 	assert.NoError(t, err, "blockOfTheTopEntry() failed")
 	assert.Equal(t, blockID0, blockID)
 
 	// Check entryDataAtHeight().
 
-	data, err = to.hs.entryDataAtHeight(key, 1, true)
+	data, err = to.hs.entryDataAtHeight(key, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, val, data)
 	to.addBlock(t, blockID1)
@@ -67,16 +67,16 @@ func TestAddNewEntry(t *testing.T) {
 	err = to.hs.addNewEntry(accountScript, key, val2, blockID1)
 	assert.NoError(t, err, "addNewEntry() failed")
 	to.flush(t)
-	data, err = to.hs.entryDataAtHeight(key, 1, true)
+	data, err = to.hs.entryDataAtHeight(key, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, val, data)
-	data, err = to.hs.entryDataAtHeight(key, 2, true)
+	data, err = to.hs.entryDataAtHeight(key, 2)
 	assert.NoError(t, err)
 	assert.Equal(t, val2, data)
 }
 
 func TestNewestDataIterator(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -117,7 +117,7 @@ func TestNewestDataIterator(t *testing.T) {
 		string(key1.bytes()): val1,
 	}
 	keys := make(map[string]bool)
-	iter, err := to.hs.newNewestTopEntryIterator(accountScript, true)
+	iter, err := to.hs.newNewestTopEntryIterator(accountScript)
 	assert.NoError(t, err)
 	for iter.Next() {
 		key := iter.Key()
@@ -136,7 +136,7 @@ func TestNewestDataIterator(t *testing.T) {
 	correctValues = map[string][]byte{
 		string(key2.bytes()): val2,
 	}
-	iter, err = to.hs.newNewestTopEntryIterator(assetScript, true)
+	iter, err = to.hs.newNewestTopEntryIterator(assetScript)
 	assert.NoError(t, err)
 	keys = make(map[string]bool)
 	for iter.Next() {
@@ -154,7 +154,7 @@ func TestNewestDataIterator(t *testing.T) {
 }
 
 func TestVariableSizes(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -185,12 +185,12 @@ func TestVariableSizes(t *testing.T) {
 	assert.NoError(t, err, "addNewEntry() failed")
 	to.flush(t)
 
-	h1, err := to.hs.getHistory(key1.bytes(), true, true)
+	h1, err := to.hs.getHistory(key1.bytes(), true)
 	assert.NoError(t, err)
 	s1, err := h1.countTotalSize()
 	assert.NoError(t, err)
 	assert.Equal(t, 1+4+4+3+4+4+4, s1)
-	h2, err := to.hs.getHistory(key2.bytes(), true, true)
+	h2, err := to.hs.getHistory(key2.bytes(), true)
 	assert.NoError(t, err)
 	s2, err := h2.countTotalSize()
 	assert.NoError(t, err)
@@ -198,7 +198,7 @@ func TestVariableSizes(t *testing.T) {
 }
 
 func TestFixedRecordSizes(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
@@ -220,7 +220,7 @@ func TestFixedRecordSizes(t *testing.T) {
 	assert.NoError(t, err, "addNewEntry() failed")
 	to.flush(t)
 
-	h, err := to.hs.getHistory(blockRewardKeyBytes, true, true)
+	h, err := to.hs.getHistory(blockRewardKeyBytes, true)
 	assert.NoError(t, err)
 	s, err := h.countTotalSize()
 	assert.NoError(t, err)

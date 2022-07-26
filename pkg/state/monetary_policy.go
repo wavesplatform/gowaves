@@ -68,7 +68,7 @@ func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings
 
 func (m *monetaryPolicy) reward() (uint64, error) {
 	var record blockRewardRecord
-	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes, true)
+	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return m.settings.InitialBlockReward, nil
 	}
@@ -83,7 +83,7 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	var record rewardVotesRecord
-	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes, true)
+	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return record, nil
 	}
