@@ -33,8 +33,6 @@ type TransactionIterator interface {
 // This should be used for APIs and other modules where stable, fully verified state is needed.
 // Methods of this interface are thread-safe.
 type StateInfo interface {
-	// Filter is a getter for state data normalization flag
-	Filter() bool
 	// Block getters.
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)
@@ -190,8 +188,8 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, filter bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, filter, params, settings)
+func NewState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
+	s, err := newStateManager(dataDir, amend, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

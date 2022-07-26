@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,8 +17,7 @@ import (
 )
 
 func TestGetBalances(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -29,15 +26,13 @@ func TestGetBalances(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err := conn.Close()
 		require.NoError(t, err)
 		err = st.Close()
 		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
@@ -67,7 +62,7 @@ func TestGetBalances(t *testing.T) {
 func TestGetActiveLeases(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/lease_genesis.json")
 	require.NoError(t, err)
-	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,12 +71,11 @@ func TestGetActiveLeases(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err = conn.Close()
 		require.NoError(t, err)
-		stateCloser()
-	}()
+	})
 
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3Fv3jiLvLS4c4N1ZvSLac3HBGUzaHDMvjN1")
@@ -118,7 +112,7 @@ func TestGetActiveLeases(t *testing.T) {
 func TestResolveAlias(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/alias_genesis.json")
 	require.NoError(t, err)
-	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -127,12 +121,11 @@ func TestResolveAlias(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err := conn.Close()
 		require.NoError(t, err)
-		stateCloser()
-	}()
+	})
 
 	cl := g.NewAccountsApiClient(conn)
 

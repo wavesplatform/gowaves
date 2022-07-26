@@ -3,10 +3,8 @@ package server
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
-	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -29,7 +27,7 @@ import (
 func TestGetTransactions(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/lease_genesis.json")
 	require.NoError(t, err)
-	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -38,12 +36,11 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err := conn.Close()
 		require.NoError(t, err)
-		stateCloser()
-	}()
+	})
 
 	id, err := crypto.NewDigestFromBase58("ADXuoPsKMJ59HyLMGzLBbNQD8p2eJ93dciuBPJp3Qhx")
 	require.NoError(t, err)
@@ -114,8 +111,7 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestGetStatuses(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -126,15 +122,13 @@ func TestGetStatuses(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err := conn.Close()
 		require.NoError(t, err)
 		err = st.Close()
 		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
+	})
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
@@ -178,8 +172,7 @@ func TestGetStatuses(t *testing.T) {
 }
 
 func TestGetUnconfirmed(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -190,15 +183,13 @@ func TestGetUnconfirmed(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err = conn.Close()
 		require.NoError(t, err)
 		err = st.Close()
 		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
+	})
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
@@ -277,8 +268,7 @@ func TestGetUnconfirmed(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
@@ -289,15 +279,13 @@ func TestSign(t *testing.T) {
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err = conn.Close()
 		require.NoError(t, err)
 		err = st.Close()
 		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
+	})
 
 	pk := keyPairs[0].Public
 

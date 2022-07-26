@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddBlock(t *testing.T) {
-	to, path, err := createStorageObjects()
+	to, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {

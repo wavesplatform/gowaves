@@ -39,7 +39,6 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: []crypto.Digest{tx.AssetID}},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -63,7 +62,7 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
-	filter := false
+	to.stor.hs.amend = false
 
 	tx := createSetScriptWithProofs(t)
 	info := defaultCheckerInfo()
@@ -82,13 +81,13 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have not a verifier after rollback") // the filter is false, so the script will be returned
 }
@@ -103,8 +102,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
-
-	filter := true
+	to.stor.hs.amend = true
 
 	tx := createSetScriptWithProofs(t)
 
@@ -120,7 +118,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter)
+	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
@@ -128,7 +126,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address, filter) // if cache is cleared, the script must have not be found
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address) // if cache is cleared, the script must have not be found
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }
@@ -156,7 +154,6 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -184,7 +181,6 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -234,7 +230,6 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -256,7 +251,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 }
 
 func TestNFTMinFee(t *testing.T) {
-	storage, path, err := createStorageObjects()
+	storage, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 
 	defer func() {
@@ -268,7 +263,6 @@ func TestNFTMinFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -301,7 +295,7 @@ func TestNFTMinFee(t *testing.T) {
 }
 
 func TestReissueFeeReduction(t *testing.T) {
-	storage, path, err := createStorageObjects()
+	storage, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 
 	defer func() {
@@ -313,7 +307,6 @@ func TestReissueFeeReduction(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -338,7 +331,7 @@ func TestReissueFeeReduction(t *testing.T) {
 }
 
 func TestSponsorshipFeeReduction(t *testing.T) {
-	storage, path, err := createStorageObjects()
+	storage, path, err := createStorageObjects(true)
 	require.NoError(t, err)
 
 	defer func() {
@@ -350,7 +343,6 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             storage.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,
@@ -392,7 +384,6 @@ func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	params := &feeValidationParams{
 		stor:             to.stor.entities,
 		settings:         settings.MainNetSettings,
-		initialisation:   false,
 		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 		rideV5Activated:  false,
 		estimatorVersion: maxEstimatorVersion,

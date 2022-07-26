@@ -24,7 +24,7 @@ type balancesTestObjects struct {
 }
 
 func createBalances() (*balancesTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -78,7 +78,7 @@ func TestCancelAllLeases(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr.ID(), true)
+		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, int64(0))
@@ -122,7 +122,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr.ID(), true)
+		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, tc.profile.leaseIn)
@@ -177,7 +177,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr.ID(), true)
+		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, tc.validLeaseIn)
@@ -260,7 +260,7 @@ func TestBalances(t *testing.T) {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
 		to.stor.flush(t)
-		profile, err := to.balances.wavesBalance(addr.ID(), true)
+		profile, err := to.balances.wavesBalance(addr.ID())
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -287,7 +287,7 @@ func TestBalances(t *testing.T) {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)
-		balance, err := to.balances.assetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID), true)
+		balance, err := to.balances.assetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID))
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}

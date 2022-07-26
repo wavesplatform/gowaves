@@ -108,6 +108,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
+
 	st, err := state.NewState(dataDir, false, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)

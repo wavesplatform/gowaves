@@ -33,7 +33,7 @@ type differTestObjects struct {
 }
 
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	assert.NoError(t, err, "createStorageObjects() failed")
 	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
@@ -1170,7 +1170,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 		testGlobal.senderInfo.addr: empty,
 	}
 	for _, entry := range entries {
-		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases, true)
+		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases)
 		assert.NoError(t, err, "recipientToAddress() failed")
 		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset), newBalanceDiff(int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")

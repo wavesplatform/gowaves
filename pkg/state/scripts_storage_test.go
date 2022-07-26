@@ -14,7 +14,7 @@ type scriptsStorageTestObjects struct {
 }
 
 func createScriptsStorageTestObjects() (*scriptsStorageTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -42,47 +42,47 @@ func TestSetAccountScript(t *testing.T) {
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
-	accountHasScript, err := to.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err := to.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err := to.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err := to.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err := to.scriptsStorage.newestScriptByAddr(addr, true)
+	scriptAst, err := to.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
-	accountHasScript, err = to.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
-	_, err = to.scriptsStorage.scriptByAddr(addr, true)
+	_, err = to.scriptsStorage.scriptByAddr(addr)
 	assert.Error(t, err, "scriptByAddr() did not fail before flushing")
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.scriptsStorage.newestScriptByAddr(addr, true)
+	scriptAst, err = to.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
-	accountHasScript, err = to.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.scriptsStorage.scriptByAddr(addr, true)
+	scriptAst, err = to.scriptsStorage.scriptByAddr(addr)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
@@ -91,46 +91,46 @@ func TestSetAccountScript(t *testing.T) {
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
-	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
-	_, err = to.scriptsStorage.newestScriptByAddr(addr, true)
+	_, err = to.scriptsStorage.newestScriptByAddr(addr)
 	assert.Error(t, err)
 
 	// Test stable before flushing.
-	accountHasScript, err = to.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.scriptsStorage.scriptByAddr(addr, true)
+	scriptAst, err = to.scriptsStorage.scriptByAddr(addr)
 	assert.NoError(t, err)
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
-	_, err = to.scriptsStorage.newestScriptByAddr(addr, true)
+	_, err = to.scriptsStorage.newestScriptByAddr(addr)
 	assert.Error(t, err)
 
 	// Test stable after flushing.
-	accountHasScript, err = to.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
-	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
-	_, err = to.scriptsStorage.scriptByAddr(addr, true)
+	_, err = to.scriptsStorage.scriptByAddr(addr)
 	assert.Error(t, err)
 }
 
@@ -154,35 +154,35 @@ func TestSetAssetScript(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err := to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err := to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err := to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err := to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
-	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.scriptsStorage.scriptByAsset(shortAssetID, true)
+	_, err = to.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.Error(t, err, "scriptByAsset() did not fail before flushing")
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
-	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.NoError(t, err, "scriptByAsset() failed after flushing")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
@@ -191,48 +191,48 @@ func TestSetAssetScript(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.Error(t, err)
 
 	// Test stable before flushing.
-	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.Error(t, err)
 
 	// Test stable after flushing.
-	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.scriptsStorage.scriptByAsset(shortAssetID, true)
+	_, err = to.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.Error(t, err)
 
 	// Test uncertain.
 	to.scriptsStorage.setAssetScriptUncertain(fullAssetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 	to.scriptsStorage.dropUncertain()
-	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	_, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.Error(t, err)
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
 	// Test after commit.
@@ -240,18 +240,18 @@ func TestSetAssetScript(t *testing.T) {
 	err = to.scriptsStorage.commitUncertain(blockID0)
 	assert.NoError(t, err, "commitUncertain() failed")
 	to.scriptsStorage.dropUncertain()
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 	// Test after flush.
 	to.stor.flush(t)
-	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID, true)
+	scriptAst, err = to.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 }

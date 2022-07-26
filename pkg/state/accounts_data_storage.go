@@ -205,13 +205,13 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	return nil
 }
 
-func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey string, filter bool) ([]byte, error) {
+func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey string) ([]byte, error) {
 	addrNum, _, err := s.newestAddrToNum(addr)
 	if err != nil {
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -222,13 +222,13 @@ func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey stri
 	return record.value, nil
 }
 
-func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string, filter bool) ([]byte, error) {
+func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string) ([]byte, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -239,13 +239,13 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string, fi
 	return record.value, nil
 }
 
-func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) ([]proto.DataEntry, error) {
+func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataEntry, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
-	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
+	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	return entries, nil
 }
 
-func (s *accountsDataStorage) newestEntryExists(addr proto.Address, filter bool) (bool, error) {
+func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error) {
 	addrNum, newest, err := s.newestAddrToNum(addr)
 	if err != nil {
 		// If there is no number for the address, no data for this address was saved before
@@ -295,7 +295,7 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address, filter bool)
 		return true, nil
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
-	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
+	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix())
 	if err != nil {
 		return false, err
 	}
@@ -311,12 +311,12 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address, filter bool)
 	return false, nil
 }
 
-func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
 	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
 		return entry.dataEntry, nil
 	}
-	entryBytes, err := s.newestEntryBytes(addr, key, filter)
+	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -331,8 +331,8 @@ func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string
 	return entry, nil
 }
 
-func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {
-	entryBytes, err := s.entryBytes(addr, key, filter)
+func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string, filt
 	return entry, nil
 }
 
-func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key string, filter bool) (*proto.IntegerDataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
 	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
 		intEntry, ok := entry.dataEntry.(*proto.IntegerDataEntry)
@@ -356,7 +356,7 @@ func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key
 		}
 		return intEntry, nil
 	}
-	entryBytes, err := s.newestEntryBytes(addr, key, filter)
+	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -368,8 +368,8 @@ func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key string, filter bool) (*proto.IntegerDataEntry, error) {
-	entryBytes, err := s.entryBytes(addr, key, filter)
+func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key strin
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key string, filter bool) (*proto.BooleanDataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
 	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
 		boolEntry, ok := entry.dataEntry.(*proto.BooleanDataEntry)
@@ -390,7 +390,7 @@ func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key
 		}
 		return boolEntry, nil
 	}
-	entryBytes, err := s.newestEntryBytes(addr, key, filter)
+	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -402,8 +402,8 @@ func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key string, filter bool) (*proto.BooleanDataEntry, error) {
-	entryBytes, err := s.entryBytes(addr, key, filter)
+func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +415,7 @@ func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key strin
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key string, filter bool) (*proto.StringDataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
 	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
 		stringEntry, ok := entry.dataEntry.(*proto.StringDataEntry)
@@ -424,7 +424,7 @@ func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key 
 		}
 		return stringEntry, nil
 	}
-	entryBytes, err := s.newestEntryBytes(addr, key, filter)
+	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -436,8 +436,8 @@ func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key 
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string, filter bool) (*proto.StringDataEntry, error) {
-	entryBytes, err := s.entryBytes(addr, key, filter)
+func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +449,7 @@ func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key string, filter bool) (*proto.BinaryDataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
 	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
 		binaryEntry, ok := entry.dataEntry.(*proto.BinaryDataEntry)
@@ -458,7 +458,7 @@ func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key 
 		}
 		return binaryEntry, nil
 	}
-	entryBytes, err := s.newestEntryBytes(addr, key, filter)
+	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
@@ -470,8 +470,8 @@ func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key 
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string, filter bool) (*proto.BinaryDataEntry, error) {
-	entryBytes, err := s.entryBytes(addr, key, filter)
+func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}

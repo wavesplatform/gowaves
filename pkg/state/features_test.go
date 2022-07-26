@@ -21,7 +21,7 @@ type featuresTestObjects struct {
 }
 
 func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}

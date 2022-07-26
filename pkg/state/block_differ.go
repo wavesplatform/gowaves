@@ -35,7 +35,7 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 	}, nil
 }
 
-func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID, initialisation bool) (*feeDistribution, error) {
+func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistribution, error) {
 	ngActivated, err := d.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID, initialisation 
 		return &d.prevDistr, nil
 	}
 	// Load from DB.
-	return d.stor.blocksInfo.feeDistribution(prevBlock, !initialisation)
+	return d.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
 func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
@@ -94,8 +94,8 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 	return diff, nil
 }
 
-func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey, initialisation bool) (txDiff, proto.WavesAddress, error) {
-	feeDistr, err := d.prevBlockFeeDistr(prevBlockID, initialisation)
+func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey) (txDiff, proto.WavesAddress, error) {
+	feeDistr, err := d.prevBlockFeeDistr(prevBlockID)
 	if err != nil {
 		return txDiff{}, proto.WavesAddress{}, err
 	}
@@ -169,12 +169,12 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, initialisation bool) (txDiff, error) {
+func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	var minerAddr proto.WavesAddress
 	if hasParent {
-		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey, initialisation)
+		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
 		if err != nil {
 			return txDiff{}, err
 		}

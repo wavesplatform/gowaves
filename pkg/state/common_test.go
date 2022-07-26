@@ -132,17 +132,16 @@ func defaultBlockInfo() *proto.BlockInfo {
 }
 
 func defaultDifferInfo() *differInfo {
-	return &differInfo{initialisation: false, blockInfo: defaultBlockInfo()}
+	return &differInfo{defaultBlockInfo()}
 }
 
 func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:    defaultCheckerInfo(),
-		blockInfo:      defaultBlockInfo(),
-		block:          defaultBlock(),
-		acceptFailed:   false,
-		validatingUtx:  false,
-		initialisation: false,
+		checkerInfo:   defaultCheckerInfo(),
+		blockInfo:     defaultBlockInfo(),
+		block:         defaultBlock(),
+		acceptFailed:  false,
+		validatingUtx: false,
 	}
 }
 
@@ -355,7 +354,7 @@ type testStorageObjects struct {
 	entities *blockchainEntitiesStorage
 }
 
-func createStorageObjects() (*testStorageObjects, []string, error) {
+func createStorageObjects(amend bool) (*testStorageObjects, []string, error) {
 	res := make([]string, 2)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -384,7 +383,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 		return nil, res, err
 	}
 	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, amend)
 	if err != nil {
 		return nil, res, err
 	}
@@ -508,7 +507,7 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	err := s.rw.flush()
 	assert.NoError(t, err, "rw.flush() failed")
 	s.rw.reset()
-	err = s.entities.flush(true)
+	err = s.entities.flush()
 	assert.NoError(t, err, "entities.flush() failed")
 	s.entities.reset()
 	err = s.stateDB.flush()

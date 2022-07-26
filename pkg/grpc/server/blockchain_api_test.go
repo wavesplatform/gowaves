@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +13,7 @@ import (
 )
 
 func TestGetBaseTarget(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
@@ -27,14 +24,12 @@ func TestGetBaseTarget(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewBlockchainApiClient(conn)
 
@@ -56,8 +51,7 @@ func TestGetBaseTarget(t *testing.T) {
 }
 
 func TestGetCumulativeScore(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -67,14 +61,12 @@ func TestGetCumulativeScore(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewBlockchainApiClient(conn)
 

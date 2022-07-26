@@ -64,7 +64,7 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		}
 		assetID := (*proto.AssetID)(ethTx.To())
 
-		assetInfo, err := e.stor.assets.newestAssetInfo(*assetID, true)
+		assetInfo, err := e.stor.assets.newestAssetInfo(*assetID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset info")
 		}
@@ -79,7 +79,7 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		if err != nil {
 			return nil, err
 		}
-		tree, err := e.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !params.initialisation)
+		tree, err := e.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}

@@ -2,9 +2,7 @@ package state
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math/rand"
-	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -84,23 +82,17 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
+	dataDir := t.TempDir()
 	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}
 
-	defer func() {
+	t.Cleanup(func() {
 		if err := st.Close(); err != nil {
 			t.Fatalf("Failed to close state: %v\n", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			t.Fatalf("Failed to clean data dirs: %v\n", err)
-		}
-	}()
+	})
 
 	err = applyBlocks(t, blocks, st)
 	assert.NoError(t, err, "failed to apply correct blocks")

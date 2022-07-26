@@ -16,7 +16,7 @@ type leasesTestObjects struct {
 }
 
 func createLeases() (*leasesTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
+	stor, path, err := createStorageObjects(true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -77,9 +77,9 @@ func TestCancelLeases(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		leasing, err := to.leases.leasingInfo(leaseID, true)
+		leasing, err := to.leases.leasingInfo(leaseID)
 		assert.NoError(t, err, "failed to get leasing")
-		active, err := to.leases.isActive(leaseID, true)
+		active, err := to.leases.isActive(leaseID)
 		assert.NoError(t, err)
 		if l.sender == badSenderStr {
 			assert.Equal(t, false, active)
@@ -96,10 +96,10 @@ func TestCancelLeases(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		leasing, err := to.leases.leasingInfo(leaseID, true)
+		leasing, err := to.leases.leasingInfo(leaseID)
 		assert.NoError(t, err, "failed to get leasing")
 		assert.Equal(t, leasing.isActive(), false, "did not cancel all the leasings")
-		active, err := to.leases.isActive(leaseID, true)
+		active, err := to.leases.isActive(leaseID)
 		assert.NoError(t, err)
 		assert.Equal(t, false, active)
 	}
@@ -160,11 +160,11 @@ func TestAddLeasing(t *testing.T) {
 	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
-	l, err := to.leases.newestLeasingInfo(leaseID, true)
+	l, err := to.leases.newestLeasingInfo(leaseID)
 	assert.NoError(t, err, "failed to get newest leasing info")
 	assert.Equal(t, l, r, "leasings differ before flushing")
 	to.stor.flush(t)
-	resLeasing, err := to.leases.leasingInfo(leaseID, true)
+	resLeasing, err := to.leases.leasingInfo(leaseID)
 	assert.NoError(t, err, "failed to get leasing info")
 	assert.Equal(t, resLeasing, r, "leasings differ after flushing")
 }
@@ -189,13 +189,13 @@ func TestCancelLeasing(t *testing.T) {
 	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
-	err = to.leases.cancelLeasing(leaseID, blockID0, to.stor.rw.height, &txID, true)
+	err = to.leases.cancelLeasing(leaseID, blockID0, to.stor.rw.height, &txID)
 	assert.NoError(t, err, "failed to cancel leasing")
 	r.Status = LeaseCanceled
 	r.CancelHeight = 1
 	r.CancelTransactionID = &txID
 	to.stor.flush(t)
-	resLeasing, err := to.leases.leasingInfo(leaseID, true)
+	resLeasing, err := to.leases.leasingInfo(leaseID)
 	assert.NoError(t, err, "failed to get leasing info")
 	assert.Equal(t, resLeasing, r, "invalid leasing record after cancellation")
 }
