@@ -2,8 +2,6 @@ package state
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,17 +12,14 @@ import (
 )
 
 func testIterImpl(t *testing.T, params StateParams) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	require.NoError(t, err)
+	dataDir := t.TempDir()
 	st, err := NewState(dataDir, true, params, settings.MainNetSettings)
 	require.NoError(t, err)
 
-	defer func() {
+	t.Cleanup(func() {
 		err = st.Close()
 		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
+	})
 
 	blockHeight := proto.Height(9900)
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
@@ -117,16 +112,15 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 func TestAddrTransactionsIdempotent(t *testing.T) {
 	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
-	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
-	require.NoError(t, err)
+	atxDir := t.TempDir()
 	path = append(path, atxDir)
 
-	defer func() {
+	t.Cleanup(func() {
 		stor.close(t)
 
 		err = common.CleanTemporaryDirs(path)
 		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	})
 
 	params := &addressTransactionsParams{
 		dir:                 atxDir,
@@ -175,16 +169,15 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 func TestFailedTransaction(t *testing.T) {
 	stor, path, err := createStorageObjects(true)
 	require.NoError(t, err)
-	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
-	require.NoError(t, err)
+	atxDir := t.TempDir()
 	path = append(path, atxDir)
 
-	defer func() {
+	t.Cleanup(func() {
 		stor.close(t)
 
 		err = common.CleanTemporaryDirs(path)
 		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	})
 
 	params := &addressTransactionsParams{
 		dir:                 atxDir,
