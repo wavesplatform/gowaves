@@ -377,7 +377,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		if err := state.Close(); err != nil {
 			return nil, errors.Wrap(err, "failed to close state before genesis block initialization")
 		}
-		if err := initializeStageWithGenesisBlock(dataDir, params, settings); err != nil {
+		if err := initializeStateWithGenesisBlock(dataDir, params, settings); err != nil {
 			return nil, err
 		}
 		// Set `state` to newly opened instance
@@ -493,7 +493,7 @@ func newStateManagerInternal(dataDir string, amend bool, params StateParams, set
 	return state, nil
 }
 
-func initializeStageWithGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) (err error) {
+func initializeStateWithGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) (err error) {
 	// The `amend` argument is always false for genesis block because block addition performs only if state height is 0
 	tmp, err := newStateManagerInternal(path, false, params, settings)
 	if err != nil {
