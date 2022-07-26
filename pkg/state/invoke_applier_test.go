@@ -721,6 +721,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
 	info.blockV5Activated = true
+	info.checkerInfo.height = 3_000_000 // We have to move height forward here because MainNet settings are used and height must be more than 2792473
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
