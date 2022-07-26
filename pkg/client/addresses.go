@@ -327,9 +327,7 @@ type AddressesData struct {
 }
 
 // AddressesData returns all data entries for given address
-func (a *Addresses) AddressesData(
-	ctx context.Context, address proto.WavesAddress) (*[]AddressesData, *Response, error) {
-
+func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddress) (proto.DataEntries, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -340,19 +338,16 @@ func (a *Addresses) AddressesData(
 		return nil, nil, err
 	}
 
-	out := new([]AddressesData)
+	out := new(proto.DataEntries)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
-
-	return out, response, nil
+	return *out, response, nil
 }
 
 // AddressesDataKey returns data entry for given address and key
-func (a *Addresses) AddressesDataKey(
-	ctx context.Context, address proto.WavesAddress, key string) (*AddressesData, *Response, error) {
-
+func (a *Addresses) AddressesDataKey(ctx context.Context, address proto.WavesAddress, key string) (proto.DataEntry, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s/%s", address.String(), key))
 	if err != nil {
 		return nil, nil, err
@@ -363,22 +358,24 @@ func (a *Addresses) AddressesDataKey(
 		return nil, nil, err
 	}
 
-	out := new(AddressesData)
-	response, err := doHttp(ctx, a.options, req, out)
+	buff := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buff)
 	if err != nil {
 		return nil, response, err
 	}
 
+	out, err := proto.NewDataEntryFromJSON(buff.Bytes())
+	if err != nil {
+		return nil, response, err
+	}
 	return out, response, nil
 }
 
-type AddressesDataKeys struct {
-	Keys []string `json:"keys"`
-}
-
 // AddressesDataKeys returns data entry for given address and keys
-func (a *Addresses) AddressesDataKeys(
-	ctx context.Context, address proto.WavesAddress, keys *AddressesDataKeys) (*[]AddressesData, *Response, error) {
+func (a *Addresses) AddressesDataKeys(ctx context.Context, address proto.WavesAddress, keys []string) (proto.DataEntries, *Response, error) {
+	type addressesDataKeys struct {
+		Keys []string `json:"keys"`
+	}
 
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
@@ -386,8 +383,7 @@ func (a *Addresses) AddressesDataKeys(
 	}
 
 	b := new(bytes.Buffer)
-	err = json.NewEncoder(b).Encode(keys)
-	if err != nil {
+	if err = json.NewEncoder(b).Encode(addressesDataKeys{Keys: keys}); err != nil {
 		return nil, nil, err
 	}
 
@@ -396,11 +392,10 @@ func (a *Addresses) AddressesDataKeys(
 		return nil, nil, err
 	}
 
-	out := new([]AddressesData)
+	out := new(proto.DataEntries)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
-
-	return out, response, nil
+	return *out, response, nil
 }
