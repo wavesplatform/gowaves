@@ -60,7 +60,7 @@ func main() {
 
 	handshake := proto.Handshake{
 		AppName:      *wavesNetwork,
-		Version:      *version,
+		Version:      version,
 		NodeName:     "nodename",
 		NodeNonce:    0x0,
 		DeclaredAddr: proto.HandshakeTCPAddr{},

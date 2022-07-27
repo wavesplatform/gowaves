@@ -206,16 +206,16 @@ func (a Version) CmpMinor(other Version) int {
 	return 2
 }
 
-func NewVersionFromString(version string) (*Version, error) {
+func NewVersionFromString(version string) (Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {
-		return nil, errors.Errorf("invalid version string '%s'", version)
+		return Version{}, errors.Errorf("invalid version string '%s'", version)
 	}
-	r := &Version{}
+	r := Version{}
 	for n, p := range parts {
 		i, err := strconv.ParseUint(p, 10, 32)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid version string '%s'", version)
+			return Version{}, errors.Wrapf(err, "invalid version string '%s'", version)
 		}
 		switch n {
 		case 0:
