@@ -6,6 +6,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+var peerVersionWithProtobuf = proto.NewVersion(1, 2, 0)
+
 type PeerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 	AskBlock(id proto.BlockID)
@@ -19,7 +21,7 @@ type PeerWrapperImpl struct {
 }
 
 func (a PeerWrapperImpl) SendTransaction(t proto.Transaction) error {
-	if a.p.Handshake().Version.Cmp(proto.NewVersion(1, 2, 0)) < 0 {
+	if a.p.Handshake().Version.Cmp(peerVersionWithProtobuf) < 0 {
 		bts, err := t.MarshalBinary()
 		if err != nil {
 			return err
@@ -40,7 +42,7 @@ func NewPeerExtension(p peer.Peer, scheme proto.Scheme) PeerExtension {
 }
 
 func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
-	if a.p.Handshake().Version.Cmp(proto.NewVersion(1, 2, 0)) < 0 {
+	if a.p.Handshake().Version.Cmp(peerVersionWithProtobuf) < 0 {
 		sigs := make([]crypto.Signature, len(ids))
 		for i, b := range ids {
 			sigs[i] = b.Signature()
@@ -56,7 +58,7 @@ func (a PeerWrapperImpl) AskBlock(id proto.BlockID) {
 }
 
 func (a PeerWrapperImpl) SendMicroBlock(micro *proto.MicroBlock) error {
-	if a.p.Handshake().Version.Cmp(proto.NewVersion(1, 2, 0)) < 0 {
+	if a.p.Handshake().Version.Cmp(peerVersionWithProtobuf) < 0 {
 		bts, err := micro.MarshalBinary(a.scheme)
 		if err != nil {
 			return err
