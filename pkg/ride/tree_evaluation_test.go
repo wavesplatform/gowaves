@@ -885,6 +885,19 @@ func smartStateDappFromDapp() types.SmartState {
 
 	return &MockSmartState{
 		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
+			expectedId := crypto.MustDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
+			if expectedId == id {
+				recipient, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, crypto.MustPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai"))
+
+				sender, _ := proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+
+				return &proto.LeaseInfo{
+					IsActive:    true,
+					LeaseAmount: 50,
+					Sender:      sender,
+					Recipient:   recipient,
+				}, nil
+			}
 			return nil, nil
 		},
 		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
@@ -1151,6 +1164,10 @@ func AddWavesBalance(address proto.WavesAddress, amount int64) {
 	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(amount)}
 }
 
+func AddAvailableAndLeaseBalances(address proto.WavesAddress, availableBalance, leaseIn, leaseOut int64) {
+	wrappedStateWavesBalanceProfile[address.ID()] = types.WavesBalanceProfile{Balance: uint64(availableBalance), LeaseIn: leaseIn, LeaseOut: leaseOut}
+}
+
 func AddAssetBalance(address proto.WavesAddress, asset crypto.Digest, amount int64) {
 	senderKey := assetBalanceKey{id: address.ID(), asset: asset}
 	wrappedStateAssetBalancesByAddressID[senderKey] = uint64(amount)
@@ -1385,9 +1402,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
 	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
-
-	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10}
-	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease
+	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease{recipient: addr, sender: addressCallable, amount: 10, active: true}
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
@@ -2669,6 +2684,150 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 			b.Fatal("Expected no errors, got error ", err)
 		}
 	}
+	tearDownDappFromDapp()
+}
+
+func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
+	// initially script 1 has 1000 available balance and 50 is leaseOut (spendable is 950).
+
+	/*
+		# script 1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let self = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+		let callee = Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna')
+		let other = Address(base58'3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo')
+		let leaseID_50 = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8'
+
+		@Callable(i)
+		func call() = { # total balance is 950 spendable + 50 leased = 1000
+		  strict leaseID = invoke(self, "lease", [100], []) # new lease 100 waves = 850 spendable
+		  strict r1 = invoke(self, "cancelLease", [leaseID_50], []) # cancel existed lease with 50 waves = 900 spendable
+		  strict r2 = invoke(callee, "test", [], [AttachedPayment(unit, 900)]) # spent 900 on payment = 0 spendable
+		  strict r3 = invoke(self, "cancelLease", [leaseID], []) # cancel lease 100 = 100 spendable
+		  strict r4 = invoke(callee, "test", [], [AttachedPayment(unit, 100)]) # spent 100 on payment = 0 spendable
+		  []
+		}
+
+		@Callable(i)
+		func lease(leaseAmount: Int) = {
+		  let l = Lease(other, leaseAmount)
+		  ([l], calculateLeaseId(l))
+		}
+
+		@Callable(i)
+		func cancelLease(leaseID: ByteVector) = {
+		  [LeaseCancel(leaseID)]
+		}
+	*/
+
+	/*
+		# script 2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+
+		let caller = Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv')
+
+		@Callable(i)
+		func test() = {
+		  ([IntegerEntry("bar", 1)], 17)
+		}
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	otherAddr, err := proto.NewAddressFromString("3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo")
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 0,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       0,
+		Timestamp: 1564703444249,
+	}
+
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAA4IAhIAEgMKAQESAwoBAgAAAAQAAAAABHNlbGYJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVeYbNwgBVM+nk3n/x+Au79cgmwqr8pL0bkAAAAABmNhbGxlZQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywAAAAAFb3RoZXIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdwBGKmR5vprVZolMvvhYwwgiAomggUlrIAAAAACmxlYXNlSURfNTABAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlAAAAAwAAAAFpAQAAAARjYWxsAAAAAAQAAAAHbGVhc2VJRAkAA/wAAAAEBQAAAARzZWxmAgAAAAVsZWFzZQkABEwAAAACAAAAAAAAAABkBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAAHbGVhc2VJRAUAAAAHbGVhc2VJRAQAAAACcjEJAAP8AAAABAUAAAAEc2VsZgIAAAALY2FuY2VsTGVhc2UJAARMAAAAAgUAAAAKbGVhc2VJRF81MAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIxBQAAAAJyMQQAAAACcjIJAAP8AAAABAUAAAAGY2FsbGVlAgAAAAR0ZXN0BQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAA4QFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyBAAAAAJyMwkAA/wAAAAEBQAAAARzZWxmAgAAAAtjYW5jZWxMZWFzZQkABEwAAAACBQAAAAdsZWFzZUlEBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjMFAAAAAnIzBAAAAAJyNAkAA/wAAAAEBQAAAAZjYWxsZWUCAAAABHRlc3QFAAAAA25pbAkABEwAAAACCQEAAAAPQXR0YWNoZWRQYXltZW50AAAAAgUAAAAEdW5pdAAAAAAAAAAAZAUAAAADbmlsAwkAAAAAAAACBQAAAAJyNAUAAAACcjQFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAWkBAAAABWxlYXNlAAAAAQAAAAtsZWFzZUFtb3VudAQAAAABbAkABEQAAAACBQAAAAVvdGhlcgUAAAALbGVhc2VBbW91bnQJAAUUAAAAAgkABEwAAAACBQAAAAFsBQAAAANuaWwJAAQ5AAAAAQUAAAABbAAAAAFpAQAAAAtjYW5jZWxMZWFzZQAAAAEAAAAHbGVhc2VJRAkABEwAAAACCQEAAAALTGVhc2VDYW5jZWwAAAABBQAAAAdsZWFzZUlEBQAAAANuaWwAAAAAlZWqug=="
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVyCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXmGzcIAVTPp5N5/8fgLu/XIJsKq/KS9G5AAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANiYXIAAAAAAAAAAAEFAAAAA25pbAAAAAAAAAAAEQAAAADJwxAG"
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+
+	env := envDappFromDapp
+
+	_, tree := parseBase64Script(t, firstScript)
+
+	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	wrappedSt = *NewWrappedSt
+
+	AddAvailableAndLeaseBalances(senderAddress, 0, 50, 0) // the one to whom 50 waves is leased
+	AddAvailableAndLeaseBalances(addr, 1000, 0, 50)       // the one who leases
+	AddWavesBalance(addressCallable, 0)
+	AddWavesBalance(otherAddr, 0)
+	res, err := CallFunction(env, tree, "call", proto.Arguments{})
+
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+
+	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
+	balanceCallable := diffBalance{balance: 1000} // after invocation, 1000 waves are transferred to the callable dApp as attached payments
+
+	expectedDiffResult.wavesBalances[senderAddress.ID()] = diffBalance{}
+	expectedDiffResult.wavesBalances[addressCallable.ID()] = balanceCallable
+	expectedDiffResult.wavesBalances[addr.ID()] = diffBalance{}
+	expectedDiffResult.wavesBalances[otherAddr.ID()] = diffBalance{}
+
+	assert.Equal(t, expectedDiffResult.wavesBalances, wrappedSt.diff.wavesBalances)
+
 	tearDownDappFromDapp()
 }
 

@@ -873,21 +873,10 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
-			var (
-				senderID   = senderAddress.ID()
-				receiverID = receiver.ID()
-			)
-			if _, err := ws.diff.loadWavesBalance(senderID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
-			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
-			if err := ws.diff.lease(senderID, receiverID, a.Amount); err != nil {
-				return nil, errors.Wrap(err, "failed to apply Lease action")
-			}
 
-			ws.diff.addNewLease(a.Recipient, proto.NewRecipientFromAddress(senderAddress), a.Amount, a.ID)
+			if err := ws.diff.lease(senderAddress, *receiver, a.Amount, a.ID); err != nil {
+				return nil, errors.Wrap(err, "failed to apply Lease action")
+			}
 
 		case *proto.LeaseCancelScriptAction:
 			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
@@ -896,41 +885,21 @@ func (ws *WrappedState) ApplyToState(
 			}
 			a.Sender = &pk
 
-			searchLease, err := ws.diff.findLeaseByIDForCancel(a.LeaseID)
+			l, err := ws.diff.loadLease(a.LeaseID)
 			if err != nil {
-				return nil, errors.Errorf("failed to find lease by leaseID")
+				return nil, errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
 			}
-			if searchLease == nil {
-				return nil, errors.Errorf("there is no lease to cancel")
+			if !l.active {
+				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not actve", a.LeaseID.String())
 			}
-
-			sender, err := ws.NewestRecipientToAddress(searchLease.Sender)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			receiver, err := ws.NewestRecipientToAddress(searchLease.Recipient)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-
-			if canceler := ws.callee(); canceler != *sender {
+			if canceler := ws.callee(); canceler != l.sender {
 				return nil, errors.Errorf(
 					"attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s",
-					sender.String(), canceler.String(), a.LeaseID.String(),
+					l.sender.String(), canceler.String(), a.LeaseID.String(),
 				)
 			}
 
-			var (
-				senderID   = sender.ID()
-				receiverID = receiver.ID()
-			)
-			if _, err := ws.diff.loadWavesBalance(senderID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			if _, err := ws.diff.loadWavesBalance(receiverID); err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			if err := ws.diff.cancelLease(senderID, receiverID, searchLease.leasedAmount); err != nil {
+			if err := ws.diff.cancelLease(l.sender, l.recipient, l.amount, a.LeaseID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 
@@ -1015,27 +984,13 @@ func NewEnvironmentWithWrappedState(
 			return nil, errors.Errorf("not enough money for tx attached payment #%d of asset '%s' with amount %d",
 				i+1, payment.Asset.String(), payment.Amount)
 		}
-		if payment.Asset.Present {
-			senderKey := assetBalanceKey{id: sender.ID(), asset: payment.Asset.ID}
-			if err := st.diff.addAssetBalance(senderKey, -int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		if payment.Asset.Present { // Update asset balance
+			if err := st.diff.assetTransfer(sender.ID(), recipient.ID(), payment.Asset.ID, int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
-			recipientKey := assetBalanceKey{id: recipient.ID(), asset: payment.Asset.ID}
-			if _, err := st.diff.loadAssetBalance(recipientKey); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if err := st.diff.addAssetBalance(recipientKey, int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-		} else {
-			if err := st.diff.addWavesBalance(sender.ID(), -int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if _, err := st.diff.loadWavesBalance(recipient.ID()); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-			}
-			if err := st.diff.addWavesBalance(recipient.ID(), int64(payment.Amount)); err != nil {
-				return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		} else { // Update Waves balance
+			if err := st.diff.wavesTransfer(sender.ID(), recipient.ID(), int64(payment.Amount)); err != nil {
+				return nil, errors.Wrap(err, "failed to apply transfer action")
 			}
 		}
 	}
