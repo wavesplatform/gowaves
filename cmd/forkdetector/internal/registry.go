@@ -408,8 +408,8 @@ type versions []proto.Version
 func newVersions(vs []proto.Version) versions {
 	sorted := proto.ByVersion(vs)
 	sort.Sort(sort.Reverse(sorted))
-	for i := 0; i < len(vs); i++ {
-		sorted[i].Patch = 0
+	for i, v := range sorted {
+		sorted[i] = proto.NewVersion(v.Major(), v.Minor(), 0)
 	}
 	return versions(sorted)
 }
@@ -422,7 +422,7 @@ func (vs versions) nextVersion(v proto.Version) proto.Version {
 	i := 0
 	for ; i < len(vs); i++ {
 		x := vs[i]
-		if v.Major == x.Major && v.Minor == x.Minor {
+		if v.Major() == x.Major() && v.Minor() == x.Minor() {
 			break
 		}
 	}

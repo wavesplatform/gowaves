@@ -15,7 +15,13 @@ func TestRegisterNewAddresses(t *testing.T) {
 
 	storage := &storage{db: db}
 
-	versions := []proto.Version{{Minor: 1}, {Minor: 2}, {Minor: 3}, {Minor: 4}, {Minor: 5}}
+	versions := []proto.Version{
+		proto.NewVersion(0, 1, 0),
+		proto.NewVersion(0, 2, 0),
+		proto.NewVersion(0, 3, 0),
+		proto.NewVersion(0, 4, 0),
+		proto.NewVersion(0, 5, 0),
+	}
 
 	addr := &net.TCPAddr{IP: net.IPv4(8, 8, 8, 8), Port: 1234}
 	registry := NewRegistry('T', addr, versions, storage)
@@ -35,7 +41,7 @@ func TestRegisterNewAddresses(t *testing.T) {
 	for _, pa := range pas1 {
 		v, err := registry.SuggestVersion(pa)
 		require.NoError(t, err)
-		assert.Equal(t, proto.Version{Minor: 5}, v)
+		assert.Equal(t, proto.NewVersion(0, 5, 0), v)
 		ip, _, err := splitAddr(pa)
 		require.NoError(t, err)
 		m[hash(ip)] = struct{}{}
