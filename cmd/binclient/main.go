@@ -52,7 +52,7 @@ func main() {
 		zap.S().Fatal("please, provide 'version' CLI argument")
 	}
 
-	version, err := proto.NewVersionFromString(*version)
+	parsedVersion, err := proto.NewVersionFromString(*version)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -60,7 +60,7 @@ func main() {
 
 	handshake := proto.Handshake{
 		AppName:      *wavesNetwork,
-		Version:      version,
+		Version:      parsedVersion,
 		NodeName:     "nodename",
 		NodeNonce:    0x0,
 		DeclaredAddr: proto.HandshakeTCPAddr{},
