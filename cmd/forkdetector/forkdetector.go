@@ -272,7 +272,7 @@ func splitVersions(s string) ([]proto.Version, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid version '%s'", f)
 		}
-		r = append(r, *v)
+		r = append(r, v)
 	}
 	return r, nil
 }

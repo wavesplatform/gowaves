@@ -88,8 +88,8 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 
 func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, *proto.Handshake, error) {
 	possibleVersions := []proto.Version{
-		{Major: 1, Minor: 2, Patch: 0},
-		{Major: 1, Minor: 1, Patch: 0},
+		proto.NewVersion(1, 2, 0),
+		proto.NewVersion(1, 1, 0),
 	}
 	index := 0
 

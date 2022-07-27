@@ -320,7 +320,7 @@ func TestHandshakeReadFrom(t *testing.T) {
 	_, err := h.ReadFrom(bytes.NewReader(b))
 	require.NoError(t, err)
 	assert.Equal(t, "wavesT", h.AppName)
-	assert.Equal(t, Version{Minor: 13, Patch: 2}, h.Version)
+	assert.Equal(t, NewVersion(0, 13, 2), h.Version)
 	assert.Equal(t, "Node-514178", h.NodeName)
 	assert.Empty(t, h.DeclaredAddr)
 }
@@ -338,7 +338,7 @@ func TestHandshakeReadFrom2(t *testing.T) {
 	_, err := h.ReadFrom(bytes.NewReader(b))
 	require.NoError(t, err)
 	assert.Equal(t, "wavesT", h.AppName)
-	assert.Equal(t, Version{Minor: 15, Patch: 2}, h.Version)
+	assert.Equal(t, NewVersion(0, 15, 2), h.Version)
 	assert.Equal(t, "testnode1.wavesnode.net", h.NodeName)
 	assert.EqualValues(t, 615697, h.NodeNonce)
 	require.NoError(t, err)
@@ -356,7 +356,7 @@ func TestHandshakeRoundTrip(t *testing.T) {
 
 	h1 := Handshake{
 		AppName:      "wavesT",
-		Version:      Version{Minor: 15, Patch: 2},
+		Version:      NewVersion(0, 15, 2),
 		NodeName:     "testnode1.wavesnode.net",
 		NodeNonce:    615697,
 		DeclaredAddr: NewHandshakeTCPAddr(net.IPv4(217, 100, 219, 251), 6863),
@@ -437,13 +437,13 @@ func TestHandshakeTCPAddrCastToTCPAddr(t *testing.T) {
 func TestNewVersionFromString(t *testing.T) {
 	v, err := NewVersionFromString("1.2.3")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 2, 3}, *v)
+	assert.Equal(t, NewVersion(1, 2, 3), v)
 	v, err = NewVersionFromString("1.2")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 2, 0}, *v)
+	assert.Equal(t, NewVersion(1, 2, 0), v)
 	v, err = NewVersionFromString("1")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 0, 0}, *v)
+	assert.Equal(t, NewVersion(1, 0, 0), v)
 	_, err = NewVersionFromString("")
 	assert.Error(t, err)
 	_, err = NewVersionFromString("1.2.3.4")
@@ -456,24 +456,24 @@ func TestNewVersionFromString(t *testing.T) {
 
 func TestVersionsSort(t *testing.T) {
 	versions := []Version{
-		{0, 16, 1},
-		{0, 13, 4},
-		{0, 16, 5},
-		{0, 15, 5},
-		{0, 16, 1},
-		{1, 0, 0},
-		{1, 2, 3},
+		NewVersion(0, 16, 1),
+		NewVersion(0, 13, 4),
+		NewVersion(0, 16, 5),
+		NewVersion(0, 15, 5),
+		NewVersion(0, 16, 1),
+		NewVersion(1, 0, 0),
+		NewVersion(1, 2, 3),
 	}
 	v := ByVersion(versions)
 	sort.Sort(v)
 	expected := []Version{
-		{0, 13, 4},
-		{0, 15, 5},
-		{0, 16, 1},
-		{0, 16, 1},
-		{0, 16, 5},
-		{1, 0, 0},
-		{1, 2, 3},
+		NewVersion(0, 13, 4),
+		NewVersion(0, 15, 5),
+		NewVersion(0, 16, 1),
+		NewVersion(0, 16, 1),
+		NewVersion(0, 16, 5),
+		NewVersion(1, 0, 0),
+		NewVersion(1, 2, 3),
 	}
 	assert.Equal(t, expected, []Version(v))
 }
@@ -515,22 +515,22 @@ func TestBlockIdsMessageRoundTrip(t *testing.T) {
 }
 
 func TestVersion_Cmp(t *testing.T) {
-	require.Equal(t, 0, Version{1, 2, 1}.Cmp(Version{1, 2, 1}))
-	require.Equal(t, 1, Version{2, 2, 1}.Cmp(Version{1, 2, 1}))
-	require.Equal(t, -1, Version{1, 2, 0}.Cmp(Version{1, 2, 1}))
+	require.Equal(t, 0, NewVersion(1, 2, 1).Cmp(NewVersion(1, 2, 1)))
+	require.Equal(t, 1, NewVersion(2, 2, 1).Cmp(NewVersion(1, 2, 1)))
+	require.Equal(t, -1, NewVersion(1, 2, 0).Cmp(NewVersion(1, 2, 1)))
 }
 
 func TestVersion_CmpMinor(t *testing.T) {
 	// Check equals.
-	require.Equal(t, 0, Version{1, 2, 0}.CmpMinor(Version{1, 2, 0}))
+	require.Equal(t, 0, NewVersion(1, 2, 0).CmpMinor(NewVersion(1, 2, 0)))
 	// Check patch version has no effect.
-	require.Equal(t, 0, Version{1, 2, 0}.CmpMinor(Version{1, 2, 3}))
+	require.Equal(t, 0, NewVersion(1, 2, 0).CmpMinor(NewVersion(1, 2, 3)))
 	// Check diff only 1 version
-	require.Equal(t, 1, Version{1, 2, 0}.CmpMinor(Version{1, 1, 0}))
+	require.Equal(t, 1, NewVersion(1, 2, 0).CmpMinor(NewVersion(1, 1, 0)))
 	// Check totally different.
-	require.Equal(t, 2, Version{1, 3, 0}.CmpMinor(Version{1, 1, 0}))
+	require.Equal(t, 2, NewVersion(1, 3, 0).CmpMinor(NewVersion(1, 1, 0)))
 	// Check major.
-	require.Equal(t, 2, Version{0, 1, 0}.CmpMinor(Version{1, 1, 0}))
+	require.Equal(t, 2, NewVersion(0, 1, 0).CmpMinor(NewVersion(1, 1, 0)))
 }
 
 func TestGetBlockMessage_MarshalBinary(t *testing.T) {
