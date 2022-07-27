@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
+	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -231,80 +232,83 @@ func (c ethCallParams) String() string {
 }
 
 var (
-	erc20SymbolSelector   = ethabi.Signature("symbol()").Selector()           // "0x95d89b41"
-	erc20DecimalsSelector = ethabi.Signature("decimals()").Selector()         // "0x313ce567"
-	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
+	erc20SymbolSelector            = ethabi.Signature("symbol()").Selector()                  // "0x95d89b41"
+	erc20DecimalsSelector          = ethabi.Signature("decimals()").Selector()                // "0x313ce567"
+	erc20BalanceSelector           = ethabi.Signature("balanceOf(address)").Selector()        // "0x70a08231"
+	erc20SupportsInterfaceSelector = ethabi.Signature("supportsInterface(bytes4)").Selector() // "0x01ffc9a7"
 )
 
 func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
-	// TODO(nickeskov): what this method should send in case of error?
-	zap.S().Debugf("Eth_Call was called with %s", params.String())
+	val, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
+	if err != nil {
+		zap.S().Debugf("Eth_Call: %v", err)
+		return "0x", err
+	}
+	return proto.EncodeToHexString(val.MarshalTo(nil)), nil
+}
+
+func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fastrlp.Value, error) {
+	zap.S().Debugf("Eth_Call was called with %q", params.String())
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to decode 'data' parameter as hex")
+		return nil, errors.Wrapf(err, "failed to decode 'data' parameter as hex")
 	}
 	if l := len(callData); l < ethabi.SelectorSize {
-		return "", errors.Errorf("insufficient call data size: wanted at least %d, got %d",
+		return nil, errors.Errorf("insufficient call data size: wanted at least %d, got %d",
 			ethabi.SelectorSize, l,
 		)
 	}
 	selector, err := ethabi.NewSelectorFromBytes(callData[:ethabi.SelectorSize])
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse selector from call data")
+		return nil, errors.Wrap(err, "failed to parse selector from call data")
 	}
 
-	shortAssetID := proto.AssetID(params.To)
-
+	var (
+		arena        fastrlp.Arena
+		shortAssetID = proto.AssetID(params.To)
+	)
 	switch selector {
 	case erc20SymbolSelector:
-		fullInfo, err := s.nodeRPCApp.State.FullAssetInfo(shortAssetID)
+		fullInfo, err := state.FullAssetInfo(shortAssetID)
 		if err != nil {
-			zap.S().Errorf("Eth_Call: failed to fetch full asset info, %s: %v", params.String(), err)
-			return "", err
+			zap.S().Debugf("Eth_Call: failed to fetch full asset info, %s: %v", params.String(), err)
+			return nil, err
 		}
-		return fullInfo.Name, nil
+		return arena.NewString(fullInfo.Name), nil
 	case erc20DecimalsSelector:
-		info, err := s.nodeRPCApp.State.AssetInfo(shortAssetID)
+		info, err := state.AssetInfo(shortAssetID)
 		if err != nil {
-			zap.S().Errorf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
-			return "", err
+			zap.S().Debugf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
+			return nil, err
 		}
-		return fmt.Sprintf("%d", info.Decimals), nil
-
+		return arena.NewUint(uint64(info.Decimals)), nil
 	case erc20BalanceSelector:
 		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
-			err := errors.Errorf(
-				"invalid call data for %q ERC20 method, call data %q",
+			return nil, errors.Errorf("invalid call data for %q ERC20 method, call data %q",
 				erc20BalanceSelector.String(), params.Data,
 			)
-			zap.S().Debugf("Eth_Call: %v", err)
-			return "", err
 		}
 		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.Scheme)
+		wavesAddr, err := ethAddr.ToWavesAddress(scheme)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		info, err := s.nodeRPCApp.State.AssetInfo(shortAssetID)
-		if err != nil {
-			zap.S().Errorf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
-			return "", err
-		}
-		asset := proto.AssetIDFromDigest(info.ID)
-		accountBalance, err := s.nodeRPCApp.State.AssetBalance(proto.Recipient{Address: &wavesAddr}, asset)
+		accountBalance, err := state.AssetBalance(proto.Recipient{Address: &wavesAddr}, shortAssetID)
 		if err != nil {
 			zap.S().Errorf("Eth_Call: failed to fetch account balance for addr=%q, %s: %v",
 				wavesAddr.String(), params.String(), err,
 			)
-			return "", err
+			return nil, err
 		}
-		return uint64ToHexString(accountBalance), nil
+		return arena.NewUint(accountBalance), nil
+	case erc20SupportsInterfaceSelector:
+		return arena.NewBool(false), nil
 	default:
-		return "", errors.Errorf("unexpected call, %s", params.String())
+		return nil, errors.Errorf("unexpected call, %s", params.String())
 	}
 }
 
