@@ -885,31 +885,21 @@ func (ws *WrappedState) ApplyToState(
 			}
 			a.Sender = &pk
 
-			searchLease, err := ws.diff.loadLease(a.LeaseID)
+			l, err := ws.diff.loadLease(a.LeaseID)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
 			}
-			if !searchLease.IsActive {
+			if !l.active {
 				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not actve", a.LeaseID.String())
 			}
-
-			sender, err := ws.NewestRecipientToAddress(searchLease.Sender)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-			receiver, err := ws.NewestRecipientToAddress(searchLease.Recipient)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
-			}
-
-			if canceler := ws.callee(); canceler != *sender {
+			if canceler := ws.callee(); canceler != l.sender {
 				return nil, errors.Errorf(
 					"attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s",
-					sender.String(), canceler.String(), a.LeaseID.String(),
+					l.sender.String(), canceler.String(), a.LeaseID.String(),
 				)
 			}
 
-			if err := ws.diff.cancelLease(*sender, *receiver, searchLease.leasedAmount, a.LeaseID); err != nil {
+			if err := ws.diff.cancelLease(l.sender, l.recipient, l.amount, a.LeaseID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply LeaseCancel action")
 			}
 

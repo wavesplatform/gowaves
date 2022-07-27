@@ -1402,9 +1402,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
 	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
-
-	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10, IsActive: true}
-	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease
+	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease{recipient: addr, sender: addressCallable, amount: 10, active: true}
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)

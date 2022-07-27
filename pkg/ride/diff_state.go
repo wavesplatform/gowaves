@@ -20,10 +20,10 @@ func (d *dataEntryKey) String() string {
 }
 
 type lease struct {
-	IsActive     bool
-	Recipient    proto.Recipient
-	leasedAmount int64
-	Sender       proto.Recipient
+	sender    proto.WavesAddress
+	recipient proto.WavesAddress
+	active    bool
+	amount    int64
 }
 
 type diffBalance struct {
@@ -277,10 +277,10 @@ func (ds *diffState) loadLease(leaseID crypto.Digest) (lease, error) {
 		return lease{}, err
 	}
 	l := lease{
-		IsActive:     leaseFromStore.IsActive,
-		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
-		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
-		leasedAmount: int64(leaseFromStore.LeaseAmount),
+		active:    leaseFromStore.IsActive,
+		recipient: leaseFromStore.Recipient,
+		sender:    leaseFromStore.Sender,
+		amount:    int64(leaseFromStore.LeaseAmount),
 	}
 	ds.leases[leaseID] = l
 	return l, nil
@@ -316,10 +316,10 @@ func (ds *diffState) lease(sender, receiver proto.WavesAddress, amount int64, le
 	}
 	// add new lease
 	l := lease{
-		IsActive:     true,
-		Recipient:    proto.NewRecipientFromAddress(receiver),
-		Sender:       proto.NewRecipientFromAddress(sender),
-		leasedAmount: amount,
+		active:    true,
+		recipient: receiver,
+		sender:    sender,
+		amount:    amount,
 	}
 	ds.leases[leaseID] = l
 	return nil
@@ -335,7 +335,7 @@ func (ds *diffState) cancelLease(sender, receiver proto.WavesAddress, amount int
 	if err != nil {
 		return errors.Wrapf(err, "failed to load lease by leaseID '%s' for cancel", leaseID.String())
 	}
-	l.IsActive = false
+	l.active = false
 	ds.leases[leaseID] = l
 	return nil
 }
