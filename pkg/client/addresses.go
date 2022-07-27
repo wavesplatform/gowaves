@@ -320,12 +320,6 @@ func (a *Addresses) BalanceAfterConfirmations(
 	return out, response, nil
 }
 
-type AddressesData struct {
-	Key   string      `json:"key"`
-	Type  string      `json:"type"`
-	Value interface{} `json:"value"`
-}
-
 // AddressesData returns all data entries for given address
 func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddress) (proto.DataEntries, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
