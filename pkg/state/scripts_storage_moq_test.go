@@ -53,6 +53,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 // 				panic("mock out the newestIsSmartAsset method")
 // 			},
+// 			newestScriptBasicInfoByAddressIDFunc: func(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+// 				panic("mock out the newestScriptBasicInfoByAddressID method")
+// 			},
 // 			newestScriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
 // 				panic("mock out the newestScriptByAddr method")
 // 			},
@@ -64,9 +67,6 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			},
 // 			newestScriptBytesByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
 // 				panic("mock out the newestScriptBytesByAsset method")
-// 			},
-// 			newestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-// 				panic("mock out the newestScriptPKByAddr method")
 // 			},
 // 			prepareHashesFunc: func() error {
 // 				panic("mock out the prepareHashes method")
@@ -92,7 +92,7 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 // 				panic("mock out the setAssetScript method")
 // 			},
-// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)  {
+// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 // 				panic("mock out the setAssetScriptUncertain method")
 // 			},
 // 		}
@@ -135,6 +135,9 @@ type mockScriptStorageState struct {
 	// newestIsSmartAssetFunc mocks the newestIsSmartAsset method.
 	newestIsSmartAssetFunc func(assetID proto.AssetID) (bool, error)
 
+	// newestScriptBasicInfoByAddressIDFunc mocks the newestScriptBasicInfoByAddressID method.
+	newestScriptBasicInfoByAddressIDFunc func(addressID proto.AddressID) (scriptBasicInfoRecord, error)
+
 	// newestScriptByAddrFunc mocks the newestScriptByAddr method.
 	newestScriptByAddrFunc func(addr proto.WavesAddress) (*ast.Tree, error)
 
@@ -146,9 +149,6 @@ type mockScriptStorageState struct {
 
 	// newestScriptBytesByAssetFunc mocks the newestScriptBytesByAsset method.
 	newestScriptBytesByAssetFunc func(assetID proto.AssetID) (proto.Script, error)
-
-	// newestScriptPKByAddrFunc mocks the newestScriptPKByAddr method.
-	newestScriptPKByAddrFunc func(addr proto.WavesAddress) (crypto.PublicKey, error)
 
 	// prepareHashesFunc mocks the prepareHashes method.
 	prepareHashesFunc func() error
@@ -175,7 +175,7 @@ type mockScriptStorageState struct {
 	setAssetScriptFunc func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 
 	// setAssetScriptUncertainFunc mocks the setAssetScriptUncertain method.
-	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
+	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -226,6 +226,11 @@ type mockScriptStorageState struct {
 			// AssetID is the assetID argument value.
 			AssetID proto.AssetID
 		}
+		// newestScriptBasicInfoByAddressID holds details about calls to the newestScriptBasicInfoByAddressID method.
+		newestScriptBasicInfoByAddressID []struct {
+			// AddressID is the addressID argument value.
+			AddressID proto.AddressID
+		}
 		// newestScriptByAddr holds details about calls to the newestScriptByAddr method.
 		newestScriptByAddr []struct {
 			// Addr is the addr argument value.
@@ -245,11 +250,6 @@ type mockScriptStorageState struct {
 		newestScriptBytesByAsset []struct {
 			// AssetID is the assetID argument value.
 			AssetID proto.AssetID
-		}
-		// newestScriptPKByAddr holds details about calls to the newestScriptPKByAddr method.
-		newestScriptPKByAddr []struct {
-			// Addr is the addr argument value.
-			Addr proto.WavesAddress
 		}
 		// prepareHashes holds details about calls to the prepareHashes method.
 		prepareHashes []struct {
@@ -309,31 +309,31 @@ type mockScriptStorageState struct {
 			Pk crypto.PublicKey
 		}
 	}
-	lockaccountHasScript         sync.RWMutex
-	lockaccountHasVerifier       sync.RWMutex
-	lockclearCache               sync.RWMutex
-	lockcommitUncertain          sync.RWMutex
-	lockdropUncertain            sync.RWMutex
-	lockgetAccountScriptsHasher  sync.RWMutex
-	lockgetAssetScriptsHasher    sync.RWMutex
-	lockisSmartAsset             sync.RWMutex
-	locknewestAccountHasScript   sync.RWMutex
-	locknewestAccountHasVerifier sync.RWMutex
-	locknewestIsSmartAsset       sync.RWMutex
-	locknewestScriptByAddr       sync.RWMutex
-	locknewestScriptByAsset      sync.RWMutex
-	locknewestScriptBytesByAddr  sync.RWMutex
-	locknewestScriptBytesByAsset sync.RWMutex
-	locknewestScriptPKByAddr     sync.RWMutex
-	lockprepareHashes            sync.RWMutex
-	lockreset                    sync.RWMutex
-	lockscriptByAddr             sync.RWMutex
-	lockscriptByAsset            sync.RWMutex
-	lockscriptBytesByAddr        sync.RWMutex
-	lockscriptBytesByAsset       sync.RWMutex
-	locksetAccountScript         sync.RWMutex
-	locksetAssetScript           sync.RWMutex
-	locksetAssetScriptUncertain  sync.RWMutex
+	lockaccountHasScript                 sync.RWMutex
+	lockaccountHasVerifier               sync.RWMutex
+	lockclearCache                       sync.RWMutex
+	lockcommitUncertain                  sync.RWMutex
+	lockdropUncertain                    sync.RWMutex
+	lockgetAccountScriptsHasher          sync.RWMutex
+	lockgetAssetScriptsHasher            sync.RWMutex
+	lockisSmartAsset                     sync.RWMutex
+	locknewestAccountHasScript           sync.RWMutex
+	locknewestAccountHasVerifier         sync.RWMutex
+	locknewestIsSmartAsset               sync.RWMutex
+	locknewestScriptBasicInfoByAddressID sync.RWMutex
+	locknewestScriptByAddr               sync.RWMutex
+	locknewestScriptByAsset              sync.RWMutex
+	locknewestScriptBytesByAddr          sync.RWMutex
+	locknewestScriptBytesByAsset         sync.RWMutex
+	lockprepareHashes                    sync.RWMutex
+	lockreset                            sync.RWMutex
+	lockscriptByAddr                     sync.RWMutex
+	lockscriptByAsset                    sync.RWMutex
+	lockscriptBytesByAddr                sync.RWMutex
+	lockscriptBytesByAsset               sync.RWMutex
+	locksetAccountScript                 sync.RWMutex
+	locksetAssetScript                   sync.RWMutex
+	locksetAssetScriptUncertain          sync.RWMutex
 }
 
 // accountHasScript calls accountHasScriptFunc.
@@ -657,6 +657,37 @@ func (mock *mockScriptStorageState) newestIsSmartAssetCalls() []struct {
 	return calls
 }
 
+// newestScriptBasicInfoByAddressID calls newestScriptBasicInfoByAddressIDFunc.
+func (mock *mockScriptStorageState) newestScriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	if mock.newestScriptBasicInfoByAddressIDFunc == nil {
+		panic("mockScriptStorageState.newestScriptBasicInfoByAddressIDFunc: method is nil but scriptStorageState.newestScriptBasicInfoByAddressID was just called")
+	}
+	callInfo := struct {
+		AddressID proto.AddressID
+	}{
+		AddressID: addressID,
+	}
+	mock.locknewestScriptBasicInfoByAddressID.Lock()
+	mock.calls.newestScriptBasicInfoByAddressID = append(mock.calls.newestScriptBasicInfoByAddressID, callInfo)
+	mock.locknewestScriptBasicInfoByAddressID.Unlock()
+	return mock.newestScriptBasicInfoByAddressIDFunc(addressID)
+}
+
+// newestScriptBasicInfoByAddressIDCalls gets all the calls that were made to newestScriptBasicInfoByAddressID.
+// Check the length with:
+//     len(mockedscriptStorageState.newestScriptBasicInfoByAddressIDCalls())
+func (mock *mockScriptStorageState) newestScriptBasicInfoByAddressIDCalls() []struct {
+	AddressID proto.AddressID
+} {
+	var calls []struct {
+		AddressID proto.AddressID
+	}
+	mock.locknewestScriptBasicInfoByAddressID.RLock()
+	calls = mock.calls.newestScriptBasicInfoByAddressID
+	mock.locknewestScriptBasicInfoByAddressID.RUnlock()
+	return calls
+}
+
 // newestScriptByAddr calls newestScriptByAddrFunc.
 func (mock *mockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress) (*ast.Tree, error) {
 	if mock.newestScriptByAddrFunc == nil {
@@ -778,37 +809,6 @@ func (mock *mockScriptStorageState) newestScriptBytesByAssetCalls() []struct {
 	mock.locknewestScriptBytesByAsset.RLock()
 	calls = mock.calls.newestScriptBytesByAsset
 	mock.locknewestScriptBytesByAsset.RUnlock()
-	return calls
-}
-
-// newestScriptPKByAddr calls newestScriptPKByAddrFunc.
-func (mock *mockScriptStorageState) newestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
-	if mock.newestScriptPKByAddrFunc == nil {
-		panic("mockScriptStorageState.newestScriptPKByAddrFunc: method is nil but scriptStorageState.newestScriptPKByAddr was just called")
-	}
-	callInfo := struct {
-		Addr proto.WavesAddress
-	}{
-		Addr: addr,
-	}
-	mock.locknewestScriptPKByAddr.Lock()
-	mock.calls.newestScriptPKByAddr = append(mock.calls.newestScriptPKByAddr, callInfo)
-	mock.locknewestScriptPKByAddr.Unlock()
-	return mock.newestScriptPKByAddrFunc(addr)
-}
-
-// newestScriptPKByAddrCalls gets all the calls that were made to newestScriptPKByAddr.
-// Check the length with:
-//     len(mockedscriptStorageState.newestScriptPKByAddrCalls())
-func (mock *mockScriptStorageState) newestScriptPKByAddrCalls() []struct {
-	Addr proto.WavesAddress
-} {
-	var calls []struct {
-		Addr proto.WavesAddress
-	}
-	mock.locknewestScriptPKByAddr.RLock()
-	calls = mock.calls.newestScriptPKByAddr
-	mock.locknewestScriptPKByAddr.RUnlock()
 	return calls
 }
 
@@ -1075,7 +1075,7 @@ func (mock *mockScriptStorageState) setAssetScriptCalls() []struct {
 }
 
 // setAssetScriptUncertain calls setAssetScriptUncertainFunc.
-func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 	if mock.setAssetScriptUncertainFunc == nil {
 		panic("mockScriptStorageState.setAssetScriptUncertainFunc: method is nil but scriptStorageState.setAssetScriptUncertain was just called")
 	}
@@ -1091,7 +1091,7 @@ func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.D
 	mock.locksetAssetScriptUncertain.Lock()
 	mock.calls.setAssetScriptUncertain = append(mock.calls.setAssetScriptUncertain, callInfo)
 	mock.locksetAssetScriptUncertain.Unlock()
-	mock.setAssetScriptUncertainFunc(fullAssetID, script, pk)
+	return mock.setAssetScriptUncertainFunc(fullAssetID, script, pk)
 }
 
 // setAssetScriptUncertainCalls gets all the calls that were made to setAssetScriptUncertain.

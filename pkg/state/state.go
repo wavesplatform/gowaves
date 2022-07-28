@@ -726,7 +726,11 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 }
 
 func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
-	return s.stor.scriptsStorage.newestScriptPKByAddr(addr)
+	info, err := s.stor.scriptsStorage.newestScriptBasicInfoByAddressID(addr.ID())
+	if err != nil {
+		return crypto.PublicKey{}, errors.Wrap(err, "failed to get script public key")
+	}
+	return info.PK, nil
 }
 
 func (s *stateManager) NewestAccountHasScript(addr proto.WavesAddress) (bool, error) {
@@ -2324,4 +2328,12 @@ func (s *stateManager) Close() error {
 		return wrapErr(ClosureError, err)
 	}
 	return nil
+}
+
+func (s *stateManager) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
+	info, err := s.stor.scriptsStorage.newestScriptBasicInfoByAddressID(id)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get script version")
+	}
+	return info.LibraryVersion, nil
 }

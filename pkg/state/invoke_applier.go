@@ -500,7 +500,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
-			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK)
+			if err := ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
 			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
@@ -757,10 +759,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+		scriptPK = si.PK
 
 	case *proto.InvokeExpressionTransactionWithProofs:
 		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
@@ -793,10 +796,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+		scriptPK = si.PK
 
 	default:
 		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)

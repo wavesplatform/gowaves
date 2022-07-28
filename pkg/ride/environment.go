@@ -341,6 +341,10 @@ func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset 
 	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
 }
 
+func (ws *WrappedState) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
+	return ws.diff.state.NewestScriptVersionByAddressID(id)
+}
+
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
@@ -595,11 +599,11 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 }
 
 func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
-	tree, err := ws.NewestScriptByAccount(proto.NewRecipientFromAddress(ws.callee()))
+	v, err := ws.NewestScriptVersionByAddressID(ws.callee().ID())
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to get script by recipient")
+		return 0, errors.Wrapf(err, "failed to get script version on address %q", ws.callee().String())
 	}
-	return tree.LibVersion, nil
+	return v, nil
 }
 
 func (ws *WrappedState) invCount() int {

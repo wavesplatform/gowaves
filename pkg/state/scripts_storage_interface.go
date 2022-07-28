@@ -10,7 +10,7 @@ import (
 type scriptStorageState interface {
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()
-	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
+	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error
 	setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 	newestIsSmartAsset(assetID proto.AssetID) (bool, error)
 	isSmartAsset(assetID proto.AssetID) (bool, error)
@@ -25,7 +25,7 @@ type scriptStorageState interface {
 	newestAccountHasScript(addr proto.WavesAddress) (bool, error)
 	accountHasScript(addr proto.WavesAddress) (bool, error)
 	newestScriptByAddr(addr proto.WavesAddress) (*ast.Tree, error)
-	newestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
+	newestScriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error)
 	scriptByAddr(addr proto.WavesAddress) (*ast.Tree, error)
 	scriptBytesByAddr(addr proto.WavesAddress) (proto.Script, error)
 	clearCache() error
