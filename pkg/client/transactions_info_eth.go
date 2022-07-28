@@ -38,8 +38,7 @@ func (p *EthereumTransactionTransferPayload) GetTypeString() string {
 	return EthereumTransactionTransferTypeString
 }
 
-// TODO
-type EthereumTransactionInvocationPayload struct{}
+type EthereumTransactionInvocationPayload InvokeAction
 
 func (p *EthereumTransactionInvocationPayload) GetType() EthereumTransactionType {
 	return EthereumTransactionInvocationType

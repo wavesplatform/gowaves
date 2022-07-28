@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func TestEthereumTransactionInfo(t *testing.T) {
+func TestEthereumTransferTransactionInfo(t *testing.T) {
 	jsonSrc := `{
 		"type": 18,
 		"id": "8NJXHtHTSwmb3th98omHdWCmeTrkKH4Q3w1SRC3FyUFK",
@@ -42,6 +42,57 @@ func TestEthereumTransactionInfo(t *testing.T) {
 		Amount:    10000000,
 	}
 	require.Equal(t, expectedPayload, txInfo.Payload, "check payload equality")
+}
 
-	require.Equal(t, 0, txInfo.GetSpentComplexity())
+func TestEthereumInvocationTransactionInfo(t *testing.T) {
+	jsonSrc := `{
+		"type": 18,
+		"id": "2Y67uLthNfzEBpEJFyrP7MKqPYTFYjM5nz2NnETZVUYU",
+		"fee": 500000,
+		"feeAssetId": null,
+		"timestamp": 1634881836984,
+		"version": 1,
+		"chainId": 83,
+		"bytes": "0xf9011186017ca68d17b88502540be4008307a120940ea8e14f313237aac31995f9c19a7e0f78c1cc2b80b8a409abf90e0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000064672696461790000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000081caa0ecb7124f915bd366186a6451aabdde3fbf0db94caa78a6b8d6115bb5ce6407d8a077ab1e756d343b9927c3c4add5c797915aef2de112576213d6a30ce5e040ba3c",
+		"sender": "3MRejoFLZ6FsXRjVEzBpnQ27s61FDLLDGxh",
+		"senderPublicKey": "3nFhfAYDSRS4UrU22HaAuFT4YHZD5Et3vy7fBTcTxefuAVXs8pHRR4pvpAzvMbmskwjWB7PxFKqPNsioRVZ9mxaa",
+		"height": 1042032,
+		"applicationStatus": "succeeded",
+		"payload": {
+		  "type": "invocation",
+		  "dApp": "3MRuzZVauiiX2DGwNyP8Tv7idDGUy1VG5bJ",
+		  "call": {
+			"function": "saveString",
+			"args": [
+			  {
+				"type": "string",
+				"value": "Friday"
+			  }
+			]
+		  },
+		  "payment": [],
+		  "stateChanges": {
+			"data": [
+			  {
+				"key": "str_1042032",
+				"type": "string",
+				"value": "Friday"
+			  }
+			],
+			"transfers": [],
+			"issues": [],
+			"reissues": [],
+			"burns": [],
+			"sponsorFees": [],
+			"leases": [],
+			"leaseCancels": [],
+			"invokes": []
+		  }
+		}
+	  }`
+
+	txInfo := new(EthereumTransactionInfo)
+	err := json.Unmarshal([]byte(jsonSrc), txInfo)
+	require.NoError(t, err, "unmarshal invocation Ethereum transaction info")
+
 }

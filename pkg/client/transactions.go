@@ -120,7 +120,7 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (TransactionI
 		return nil, response, errors.Wrap(err, "TransactionTypeVersion unmarshal")
 	}
 
-	out, err := GuessTransactionInfoType(&tt)
+	out, err := guessTransactionInfoType(&tt)
 	if err != nil {
 		return nil, response, errors.Wrap(err, "Guess transaction info type failed")
 	}
