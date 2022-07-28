@@ -25,7 +25,7 @@ type scriptStorageState interface {
 	newestAccountHasScript(addr proto.WavesAddress) (bool, error)
 	accountHasScript(addr proto.WavesAddress) (bool, error)
 	newestScriptByAddr(addr proto.WavesAddress) (*ast.Tree, error)
-	newestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
+	newestScriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error)
 	scriptByAddr(addr proto.WavesAddress) (*ast.Tree, error)
 	scriptBytesByAddr(addr proto.WavesAddress) (proto.Script, error)
 	clearCache() error

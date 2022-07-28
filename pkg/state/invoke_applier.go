@@ -759,10 +759,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+		scriptPK = si.PK
 
 	case *proto.InvokeExpressionTransactionWithProofs:
 		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
@@ -795,10 +796,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
-		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr)
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+		scriptPK = si.PK
 
 	default:
 		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)

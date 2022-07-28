@@ -455,17 +455,17 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress) (*ast.Tree
 	return tree, nil
 }
 
-func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
-	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
+func (ss *scriptsStorage) newestScriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addressID}}
 	recordBytes, err := ss.hs.newestTopEntryData(key.bytes())
 	if err != nil {
-		return crypto.PublicKey{}, err
+		return scriptBasicInfoRecord{}, err
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
-		return crypto.PublicKey{}, err
+		return scriptBasicInfoRecord{}, err
 	}
-	return info.PK, err
+	return info, err
 }
 
 // scriptByAddr returns script of corresponding proto.WavesAddress.
