@@ -52,7 +52,7 @@ const (
 	ContentIDBlockIds          PeerMessageID = 33
 )
 
-var ProtocolVersion = Version{Major: 1, Minor: 4, Patch: 0}
+var ProtocolVersion = NewVersion(1, 4, 0)
 
 type Message interface {
 	io.ReaderFrom
@@ -155,34 +155,47 @@ func (h *Header) Copy(data []byte) (int, error) {
 
 // Version represents the version of the protocol
 type Version struct {
-	Major, Minor, Patch uint32
+	_                   struct{} // this field disallows raw struct initialization
+	major, minor, patch uint32
 }
 
-func NewVersion(Major, Minor, Patch uint32) Version {
+func NewVersion(major, minor, patch uint32) Version {
 	return Version{
-		Major: Major,
-		Minor: Minor,
-		Patch: Patch,
+		major: major,
+		minor: minor,
+		patch: patch,
 	}
 }
 
-func (a Version) Cmp(other Version) int {
-	if a.Major < other.Major {
+func (v Version) Major() uint32 {
+	return v.major
+}
+
+func (v Version) Minor() uint32 {
+	return v.minor
+}
+
+func (v Version) Patch() uint32 {
+	return v.patch
+}
+
+func (v Version) Cmp(other Version) int {
+	if v.major < other.major {
 		return -1
 	}
-	if a.Major > other.Major {
+	if v.major > other.major {
 		return 1
 	}
-	if a.Minor < other.Minor {
+	if v.minor < other.minor {
 		return -1
 	}
-	if a.Minor > other.Minor {
+	if v.minor > other.minor {
 		return 1
 	}
-	if a.Patch < other.Patch {
+	if v.patch < other.patch {
 		return -1
 	}
-	if a.Patch > other.Patch {
+	if v.patch > other.patch {
 		return 1
 	}
 	return 0
@@ -192,78 +205,78 @@ func (a Version) Cmp(other Version) int {
 // If equal return 0.
 // If diff only 1 version (for example 1.14 and 1.13), then 1
 // If more then 1 version, then return 2.
-func (a Version) CmpMinor(other Version) int {
-	if a.Major != other.Major {
+func (v Version) CmpMinor(other Version) int {
+	if v.major != other.major {
 		return 2
 	}
-	if a.Minor == other.Minor {
+	if v.minor == other.minor {
 		return 0
 	}
-	rs := a.Minor - other.Minor
+	rs := v.minor - other.minor
 	if rs*rs == 1 {
 		return 1
 	}
 	return 2
 }
 
-func NewVersionFromString(version string) (*Version, error) {
+func NewVersionFromString(version string) (Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {
-		return nil, errors.Errorf("invalid version string '%s'", version)
+		return Version{}, errors.Errorf("invalid version string '%s'", version)
 	}
-	r := &Version{}
+	r := Version{}
 	for n, p := range parts {
 		i, err := strconv.ParseUint(p, 10, 32)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid version string '%s'", version)
+			return Version{}, errors.Wrapf(err, "invalid version string '%s'", version)
 		}
 		switch n {
 		case 0:
-			r.Major = uint32(i)
+			r.major = uint32(i)
 		case 1:
-			r.Minor = uint32(i)
+			r.minor = uint32(i)
 		case 2:
-			r.Patch = uint32(i)
+			r.patch = uint32(i)
 		}
 	}
 	return r, nil
 }
 
-func (a Version) WriteTo(writer io.Writer) (int64, error) {
+func (v Version) WriteTo(writer io.Writer) (int64, error) {
 	b := [12]byte{}
-	binary.BigEndian.PutUint32(b[:4], a.Major)
-	binary.BigEndian.PutUint32(b[4:8], a.Minor)
-	binary.BigEndian.PutUint32(b[8:], a.Patch)
+	binary.BigEndian.PutUint32(b[:4], v.major)
+	binary.BigEndian.PutUint32(b[4:8], v.minor)
+	binary.BigEndian.PutUint32(b[8:], v.patch)
 	n, err := writer.Write(b[:])
 	return int64(n), err
 }
 
-func (a *Version) ReadFrom(r io.Reader) (int64, error) {
+func (v *Version) ReadFrom(r io.Reader) (int64, error) {
 	b := [12]byte{}
 	n, err := io.ReadFull(r, b[:])
 	if err != nil {
 		return int64(n), err
 	}
-	a.Major = binary.BigEndian.Uint32(b[0:4])
-	a.Minor = binary.BigEndian.Uint32(b[4:8])
-	a.Patch = binary.BigEndian.Uint32(b[8:12])
+	v.major = binary.BigEndian.Uint32(b[0:4])
+	v.minor = binary.BigEndian.Uint32(b[4:8])
+	v.patch = binary.BigEndian.Uint32(b[8:12])
 	return int64(n), nil
 }
 
-func (a Version) String() string {
+func (v Version) String() string {
 	sb := strings.Builder{}
-	sb.WriteString(strconv.Itoa(int(a.Major)))
+	sb.WriteString(strconv.Itoa(int(v.major)))
 	sb.WriteRune('.')
-	sb.WriteString(strconv.Itoa(int(a.Minor)))
+	sb.WriteString(strconv.Itoa(int(v.minor)))
 	sb.WriteRune('.')
-	sb.WriteString(strconv.Itoa(int(a.Patch)))
+	sb.WriteString(strconv.Itoa(int(v.patch)))
 	return sb.String()
 }
 
-func (a Version) MarshalJSON() ([]byte, error) {
+func (v Version) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteRune('"')
-	sb.WriteString(a.String())
+	sb.WriteString(v.String())
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
 }
@@ -288,9 +301,9 @@ func (a ByVersion) Less(i, j int) bool {
 			return 1
 		}
 	}
-	x := cmp(a[i].Major, a[j].Major)
-	y := cmp(a[i].Minor, a[j].Minor)
-	z := cmp(a[i].Patch, a[j].Patch)
+	x := cmp(a[i].major, a[j].major)
+	y := cmp(a[i].minor, a[j].minor)
+	z := cmp(a[i].patch, a[j].patch)
 	if x < 0 {
 		return true
 	} else if x == 0 {

@@ -66,7 +66,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	writeHandshake := proto.Handshake{
 		AppName: params.WavesNetwork,
 		// pass the same minor version as received
-		Version:      proto.Version{Major: 0, Minor: readHandshake.Version.Minor, Patch: 0},
+		Version:      proto.NewVersion(readHandshake.Version.Major(), readHandshake.Version.Minor(), 0),
 		NodeName:     "retransmitter",
 		NodeNonce:    0x0,
 		DeclaredAddr: proto.HandshakeTCPAddr(params.DeclAddr),
