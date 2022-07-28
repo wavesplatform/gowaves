@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/base64"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"math/rand"
@@ -354,44 +353,34 @@ type testStorageObjects struct {
 	entities *blockchainEntitiesStorage
 }
 
-func createStorageObjects(amend bool) (*testStorageObjects, []string, error) {
-	res := make([]string, 2)
-	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
-	if err != nil {
-		return nil, nil, err
-	}
-	res[0] = dbDir0
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		return nil, res, err
-	}
-	res[1] = rwDir
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestKeyValParams())
-	if err != nil {
-		return nil, res, err
-	}
+func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
+	db, err := keyvalue.NewKeyVal(t.TempDir(), defaultTestKeyValParams())
+	require.NoError(t, err)
+	// no need to close db because stateDB closes it
+
 	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
+	require.NoError(t, err)
+
 	stateDB, err := newStateDB(db, dbBatch, DefaultTestingStateParams())
-	if err != nil {
-		return nil, res, err
-	}
-	rw, err := newBlockReadWriter(rwDir, 8, 8, stateDB, proto.MainNetScheme)
-	if err != nil {
-		return nil, res, err
-	}
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, stateDB.close())
+	})
+
+	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, proto.MainNetScheme)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, rw.close())
+	})
 	stateDB.setRw(rw)
+
 	hs, err := newHistoryStorage(db, dbBatch, stateDB, amend)
-	if err != nil {
-		return nil, res, err
-	}
+	require.NoError(t, err)
+
 	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw, false)
-	if err != nil {
-		return nil, res, err
-	}
-	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}, res, nil
+	require.NoError(t, err)
+
+	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}
 }
 
 func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
@@ -513,13 +502,6 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	err = s.stateDB.flush()
 	assert.NoError(t, err, "stateDB.flush() failed")
 	s.stateDB.reset()
-}
-
-func (s *testStorageObjects) close(t *testing.T) {
-	err := s.rw.close()
-	assert.NoError(t, err)
-	err = s.stateDB.close()
-	assert.NoError(t, err)
 }
 
 func genRandBlockId(t *testing.T) proto.BlockID {

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -17,29 +17,16 @@ type historyTestObjects struct {
 	fmt  *historyFormatter
 }
 
-func createHistory() (*historyTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createHistory(t *testing.T) *historyTestObjects {
+	stor := createStorageObjects(t, true)
 	fmt, err := newHistoryFormatter(stor.stateDB)
-	if err != nil {
-		return nil, path, err
-	}
-	return &historyTestObjects{stor, fmt}, path, nil
+	require.NoError(t, err)
+	return &historyTestObjects{stor, fmt}
 }
 
 func TestNormalizeFeatureVote(t *testing.T) {
 	// featureVote entity does not need cuts.
-	to, path, err := createHistory()
-	assert.NoError(t, err, "createHistory() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createHistory(t)
 
 	// Create history record and add blocks.
 	ids := genRandBlockIds(t, totalBlocks)
@@ -75,15 +62,7 @@ func TestNormalizeFeatureVote(t *testing.T) {
 }
 
 func TestNormalize(t *testing.T) {
-	to, path, err := createHistory()
-	assert.NoError(t, err, "createHistory() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createHistory(t)
 
 	// Create history record and add blocks.
 	ids := genRandBlockIds(t, totalBlocks)

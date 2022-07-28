@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -23,16 +23,11 @@ type balancesTestObjects struct {
 	balances *balances
 }
 
-func createBalances() (*balancesTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createBalances(t *testing.T) *balancesTestObjects {
+	stor := createStorageObjects(t, true)
 	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, proto.MainNetScheme, true)
-	if err != nil {
-		return nil, path, err
-	}
-	return &balancesTestObjects{stor, balances}, path, nil
+	require.NoError(t, err)
+	return &balancesTestObjects{stor, balances}
 }
 
 func genAsset(fillWith byte) crypto.Digest {
@@ -44,15 +39,7 @@ func genAsset(fillWith byte) crypto.Digest {
 }
 
 func TestCancelAllLeases(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBalances(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
@@ -72,7 +59,7 @@ func TestCancelAllLeases(t *testing.T) {
 		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	err = to.balances.cancelAllLeases(blockID1)
+	err := to.balances.cancelAllLeases(blockID1)
 	assert.NoError(t, err, "cancelAllLeases() failed")
 	to.stor.flush(t)
 	for _, tc := range tests {
@@ -87,15 +74,7 @@ func TestCancelAllLeases(t *testing.T) {
 }
 
 func TestCancelLeaseOverflows(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBalances(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
@@ -140,15 +119,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 }
 
 func TestCancelInvalidLeaseIns(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBalances(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
@@ -171,7 +142,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
-	err = to.balances.cancelInvalidLeaseIns(leaseIns, blockID1)
+	err := to.balances.cancelInvalidLeaseIns(leaseIns, blockID1)
 	assert.NoError(t, err, "cancelInvalidLeaseIns() failed")
 	to.stor.flush(t)
 	for _, tc := range tests {
@@ -186,15 +157,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 }
 
 func TestMinBalanceInRange(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBalances(t)
 
 	addr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
@@ -231,15 +194,7 @@ func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
 }
 
 func TestBalances(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBalances(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
@@ -298,25 +253,17 @@ func TestBalances(t *testing.T) {
 }
 
 func TestNftList(t *testing.T) {
-	to, path, err := createBalances()
-	assert.NoError(t, err, "createBalances() failed")
+	to := createBalances(t)
 
 	// see to.balances.setAssetBalance function details for more info
 	assetIDBytes := testGlobal.asset1.assetID
 	addTailInfoToAssetsState(to.stor.entities.assets, assetIDBytes)
 
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
 	to.stor.addBlock(t, blockID0)
 
 	addr := testGlobal.senderInfo.addr
 	assetID := testGlobal.asset1.asset.ID
-	err = to.balances.setAssetBalance(addr.ID(), proto.AssetIDFromDigest(assetIDBytes), 123, blockID0)
+	err := to.balances.setAssetBalance(addr.ID(), proto.AssetIDFromDigest(assetIDBytes), 123, blockID0)
 	assert.NoError(t, err)
 	asset := defaultNFT(proto.DigestTail(assetID))
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestBlockRewardRecord(t *testing.T) {
@@ -53,16 +52,10 @@ func TestRewardVotesRecord(t *testing.T) {
 }
 
 func TestAddVote(t *testing.T) {
-	mo, storage, path, err := createTestObjects(settings.MainNetSettings)
-	require.NoError(t, err)
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err)
-	}()
+	mo, storage := createTestObjects(t, settings.MainNetSettings)
 
 	storage.addBlock(t, blockID0)
-	err = mo.vote(700000000, 99001, 0, blockID0)
+	err := mo.vote(700000000, 99001, 0, blockID0)
 	require.NoError(t, err)
 	votes, err := mo.votes()
 	require.NoError(t, err)
@@ -89,16 +82,10 @@ func TestAddVote(t *testing.T) {
 }
 
 func TestRollbackVote(t *testing.T) {
-	mo, storage, path, err := createTestObjects(settings.MainNetSettings)
-	require.NoError(t, err)
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err)
-	}()
+	mo, storage := createTestObjects(t, settings.MainNetSettings)
 
 	storage.addBlock(t, blockID0)
-	err = mo.vote(700000000, 99001, 0, blockID0)
+	err := mo.vote(700000000, 99001, 0, blockID0)
 	require.NoError(t, err)
 	votes, err := mo.votes()
 	require.NoError(t, err)
@@ -123,16 +110,10 @@ func TestRollbackVote(t *testing.T) {
 }
 
 func TestFinishRewardVoting(t *testing.T) {
-	s := settings.MainNetSettings
-	s.FunctionalitySettings.BlockRewardTerm = 5
-	s.FunctionalitySettings.BlockRewardVotingPeriod = 2
-	mo, storage, path, err := createTestObjects(s)
-	require.NoError(t, err)
-	defer func() {
-		storage.close(t)
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	sets := settings.MainNetSettings
+	sets.FunctionalitySettings.BlockRewardTerm = 5
+	sets.FunctionalitySettings.BlockRewardVotingPeriod = 2
+	mo, storage := createTestObjects(t, sets)
 
 	ids := genRandBlockIds(t, 10)
 	var initial uint64 = 600000000
@@ -159,7 +140,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		msg := fmt.Sprintf("height %d", h)
 		id := ids[i]
 		storage.addBlock(t, id)
-		err = mo.vote(step.vote, h, 10, id)
+		err := mo.vote(step.vote, h, 10, id)
 		require.NoError(t, err, msg)
 		votes, err := mo.votes()
 		require.NoError(t, err, msg)
@@ -169,7 +150,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		reward, err := mo.reward()
 		require.NoError(t, err, msg)
 		assert.Equal(t, step.reward, reward, fmt.Sprintf("unexpected reward %d: %s", reward, msg))
-		_, end := blockRewardTermBoundaries(h, 10, s.FunctionalitySettings)
+		_, end := blockRewardTermBoundaries(h, 10, sets.FunctionalitySettings)
 		if h == end {
 			err = mo.updateBlockReward(h, id)
 			require.NoError(t, err)
@@ -177,11 +158,8 @@ func TestFinishRewardVoting(t *testing.T) {
 	}
 }
 
-func createTestObjects(sets *settings.BlockchainSettings) (*monetaryPolicy, *testStorageObjects, []string, error) {
-	storage, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, nil, path, err
-	}
+func createTestObjects(t *testing.T, sets *settings.BlockchainSettings) (*monetaryPolicy, *testStorageObjects) {
+	storage := createStorageObjects(t, true)
 	mp := newMonetaryPolicy(storage.hs, sets)
-	return mp, storage, path, nil
+	return mp, storage
 }

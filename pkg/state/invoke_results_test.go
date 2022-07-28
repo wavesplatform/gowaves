@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type invokeResultsTestObjects struct {
@@ -15,24 +14,14 @@ type invokeResultsTestObjects struct {
 	invokeResults *invokeResults
 }
 
-func createInvokeResults() (*invokeResultsTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createInvokeResults(t *testing.T) *invokeResultsTestObjects {
+	stor := createStorageObjects(t, true)
 	invokeResults := newInvokeResults(stor.hs)
-	return &invokeResultsTestObjects{stor, invokeResults}, path, nil
+	return &invokeResultsTestObjects{stor, invokeResults}
 }
 
 func TestSaveEmptyInvokeResult(t *testing.T) {
-	to, path, err := createInvokeResults()
-	require.NoError(t, err, "createInvokeResults() failed")
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createInvokeResults(t)
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
 	savedRes, _, err := proto.NewScriptResult(nil, proto.ScriptErrorMessage{})
@@ -47,19 +36,10 @@ func TestSaveEmptyInvokeResult(t *testing.T) {
 }
 
 func TestSaveResult(t *testing.T) {
-	to, path, err := createInvokeResults()
-	require.NoError(t, err, "createInvokeResults() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
-
+	to := createInvokeResults(t)
 	rcp := proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
-
 	invokeID := crypto.MustDigestFromBase58(invokeId)
+
 	to.stor.addBlock(t, blockID0)
 	savedRes := &proto.ScriptResult{
 		DataEntries: []*proto.DataEntryScriptAction{
@@ -102,7 +82,7 @@ func TestSaveResult(t *testing.T) {
 			{LeaseID: testGlobal.asset0.asset.ID},
 		},
 	}
-	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
+	err := to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)
 	to.stor.flush(t)
 	res, err := to.invokeResults.invokeResult('W', invokeID)
