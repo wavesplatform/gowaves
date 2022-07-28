@@ -83,7 +83,11 @@ type SmartState interface {
 	// assets crypto.Digest.
 	NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error)
 
-	//TODO: The last two functions intended to be used only in wrapped state. Extract separate interface for such functions.
+	// NewestScriptVersionByAddressID returns library version of the script on the account with given proto.AddressID.
+	// In case of no script on account an error is returned.
+	NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error)
+
+	//TODO: The last 3 functions intended to be used only in wrapped state. Extract separate interface for such functions.
 }
 
 type ID interface {

@@ -124,8 +124,8 @@ func lessenDecodedDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) 
 
 func TestEthereumTransferAssets(t *testing.T) {
 	storage := &mockScriptStorageState{
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
-			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
+			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
@@ -236,8 +236,8 @@ func TestEthereumInvoke(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
-			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
+			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
@@ -368,8 +368,8 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
-			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
+			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
@@ -436,8 +436,8 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	storage := &mockScriptStorageState{
 		newestScriptByAddrFunc: newestScriptByAddrFunc,
 		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
-			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
+			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil

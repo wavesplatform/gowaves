@@ -888,9 +888,7 @@ func smartStateDappFromDapp() types.SmartState {
 			expectedId := crypto.MustDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
 			if expectedId == id {
 				recipient, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, crypto.MustPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai"))
-
 				sender, _ := proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
-
 				return &proto.LeaseInfo{
 					IsActive:    true,
 					LeaseAmount: 50,
@@ -1082,6 +1080,32 @@ func smartStateDappFromDapp() types.SmartState {
 				return &v, nil
 			}
 			return nil, errors.New("waves balance profile not found")
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case addr.ID():
+				script, err := base64.StdEncoding.DecodeString(firstScript)
+				if err != nil {
+					return 0, err
+				}
+				tree, err := serialization.Parse(script)
+				if err != nil {
+					return 0, err
+				}
+				return tree.LibVersion, nil
+			case addressCallable.ID():
+				script, err := base64.StdEncoding.DecodeString(secondScript)
+				if err != nil {
+					return 0, err
+				}
+				tree, err := serialization.Parse(script)
+				if err != nil {
+					return 0, err
+				}
+				return tree.LibVersion, nil
+			default:
+				return 0, errors.New("unsupported address")
+			}
 		},
 	}
 }
@@ -1304,14 +1328,12 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 10, Nonce: 0},
 	}
 
-	smartState := smartStateDappFromDapp
-
 	thisAddress = addr
 	env := envDappFromDapp
 
 	_, tree := parseBase64Script(t, firstScript)
 
-	NewWrappedSt := initWrappedState(smartState(), env, tree.LibVersion)
+	NewWrappedSt := initWrappedState(smartStateDappFromDapp(), env, tree.LibVersion)
 	wrappedSt = *NewWrappedSt
 
 	AddWavesBalance(addr, 10000)
@@ -1376,7 +1398,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fullBalanceCallableExpected, fullBalanceCallable)
 
-	expectedDiffResult := initWrappedState(smartState(), env, tree.LibVersion).diff
+	expectedDiffResult := initWrappedState(smartStateDappFromDapp(), env, tree.LibVersion).diff
 	expectedDiffResult.wavesBalances[addr.ID()] = diffBalance{balance: 7533, leaseIn: 10, stateGenerating: 0}
 
 	balanceCallable := diffBalance{balance: 2467, leaseOut: 10, stateGenerating: 0}
@@ -7435,6 +7457,9 @@ func TestOriginCaller(t *testing.T) {
 		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -7650,6 +7675,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			}
 			return 0, errors.Errorf("unexpected asset '%s'", a.String())
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState = initWrappedState(mockState, env, tree1.LibVersion)
@@ -7843,6 +7871,9 @@ func TestAliasesInInvokes(t *testing.T) {
 			default:
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -8075,6 +8106,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 			}
 			return 0, errors.Errorf("unxepected asset '%s'", a.String())
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -8261,6 +8295,9 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			return &types.WavesBalanceProfile{}, nil
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 
@@ -8465,6 +8502,9 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 			}
 
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -8660,6 +8700,9 @@ func TestReissueInInvoke(t *testing.T) {
 				return 0, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -8833,6 +8876,9 @@ func TestNegativePayments(t *testing.T) {
 			default:
 				return nil, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
 			}
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 
@@ -9036,6 +9082,9 @@ func TestComplexityOverflow(t *testing.T) {
 				return 0, errors.Errorf("unxepected account '%s'", account.String())
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -9170,6 +9219,9 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 			default:
 				return 0, errors.Errorf("unxepected account '%s'", account.String())
 			}
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 
@@ -9341,6 +9393,9 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 				return nil, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -9493,6 +9548,16 @@ func TestInvokeFailForRideV4(t *testing.T) {
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV5, nil
+			case dApp2.ID():
+				return ast.LibV4, nil
+			default:
+				return 0, errors.New("unexpected address ID")
+			}
 		},
 	}
 
@@ -9713,6 +9778,16 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
 			default:
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
+			}
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV6, nil
+			case dApp2.ID():
+				return ast.LibV5, nil
+			default:
+				return 0, errors.New("unexpected address ID")
 			}
 		},
 	}
@@ -9957,6 +10032,16 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV6, nil
+			case dApp2.ID():
+				return ast.LibV5, nil
+			default:
+				return 0, errors.New("unexpected address ID")
+			}
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -10174,6 +10259,16 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV6, nil
+			case dApp2.ID():
+				return ast.LibV5, nil
+			default:
+				return 0, errors.New("unexpected address ID")
+			}
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -10385,6 +10480,16 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV6, nil
+			case dApp2.ID():
+				return ast.LibV5, nil
+			default:
+				return 0, errors.New("unexpected address ID")
+			}
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -10586,6 +10691,18 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			switch id {
+			case dApp1.ID():
+				return ast.LibV6, nil
+			case dApp2.ID():
+				return ast.LibV6, nil
+			case dApp3.ID():
+				return ast.LibV5, nil
+			default:
+				return 0, errors.New("unexpected address ID")
+			}
+		},
 	}
 
 	testState := initWrappedState(mockState, env, tree1.LibVersion)
@@ -10723,6 +10840,9 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 		},
 		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 			return &types.WavesBalanceProfile{Balance: 5000000000}, nil
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 
@@ -10929,6 +11049,9 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 				return nil, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
 			}
 		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
+		},
 	}
 
 	expectedScriptResult := &proto.ScriptResult{
@@ -11126,6 +11249,9 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 			default:
 				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
 			}
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 	}
 
