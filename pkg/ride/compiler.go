@@ -1,6 +1,7 @@
 package ride
 
 //go:generate go run ./generate
+//go:generate go run ./generate_ride_objects
 
 import (
 	"bytes"

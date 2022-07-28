@@ -1,0 +1,30 @@
+{
+  "actions": [
+    {
+      "name": "assetPair",
+      "fields": [
+        {
+          "name": "amountAsset",
+          "types": ["rideUnit", "rideBytes"]
+        },
+        {
+          "name": "priceAsset",
+          "types": ["rideUnit", "rideBytes"]
+        }
+      ]
+    },
+    {
+      "name": "transferEntry",
+      "fields": [
+        {
+          "name": "recipient",
+          "types": ["rideRecipient", "rideAlias", "rideAddress", "rideAddressLike"]
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"]
+        }
+      ]
+    }
+  ]
+}
