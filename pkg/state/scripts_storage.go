@@ -465,6 +465,9 @@ func (ss *scriptsStorage) newestScriptBasicInfoByAddressID(addressID proto.Addre
 	if err := info.unmarshalBinary(recordBytes); err != nil {
 		return scriptBasicInfoRecord{}, err
 	}
+	if !info.scriptExists() {
+		return scriptBasicInfoRecord{}, errors.New("empty script")
+	}
 	return info, err
 }
 
