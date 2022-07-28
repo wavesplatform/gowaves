@@ -95,4 +95,6 @@ func TestEthereumInvocationTransactionInfo(t *testing.T) {
 	err := json.Unmarshal([]byte(jsonSrc), txInfo)
 	require.NoError(t, err, "unmarshal invocation Ethereum transaction info")
 
+	_, ok := txInfo.Payload.(*EthereumTransactionInvocationPayload)
+	require.True(t, ok, "payload type of ethereum transaction is wrong")
 }

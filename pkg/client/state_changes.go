@@ -22,7 +22,7 @@ type IssueAction struct {
 	Description    string        `json:"description"`
 	Decimals       int32         `json:"decimals"`
 	Reissuable     bool          `json:"isReissuable"`
-	CompiledScript string        `json:"compiledScript"`
+	CompiledScript []byte        `json:"compiledScript"`
 }
 
 type ReissueAction struct {
@@ -42,15 +42,15 @@ type SponsorFeeAction struct {
 }
 
 type LeaseAction struct {
-	ID                  crypto.Digest    `json:"id"`
-	OriginTransactionId crypto.Digest    `json:"originTransactionId"`
-	Sender              crypto.PublicKey `json:"sender"`
-	Recipient           proto.Recipient  `json:"recipient"`
-	Amount              int32            `json:"amount"`
-	Height              int32            `json:"height"`
-	Status              LeaseStatus      `json:"status"`
-	CancelHeight        int32            `json:"cancelHeight,omitempty"`
-	CancelTransactionId crypto.Digest    `json:"cancelTransactionId,omitempty"`
+	ID                  crypto.Digest      `json:"id"`
+	OriginTransactionId crypto.Digest      `json:"originTransactionId"`
+	Sender              proto.WavesAddress `json:"sender"`
+	Recipient           proto.Recipient    `json:"recipient"`
+	Amount              int32              `json:"amount"`
+	Height              int32              `json:"height"`
+	Status              LeaseStatus        `json:"status"`
+	CancelHeight        int32              `json:"cancelHeight,omitempty"`
+	CancelTransactionId crypto.Digest      `json:"cancelTransactionId,omitempty"`
 }
 
 type LeaseStatus byte
@@ -83,20 +83,20 @@ type LeaseCancelAction struct {
 }
 
 type InvokeAction struct {
-	DApp         proto.Recipient    `json:"dApp"`
-	Call         proto.FunctionCall `json:"call"`
-	Payments     []*proto.Payment   `json:"payment"`
-	StateChanges StateChanges       `json:"stateChanges"`
+	DApp         proto.WavesAddress     `json:"dApp"`
+	Call         proto.FunctionCall     `json:"call"`
+	Payments     []*proto.ScriptPayment `json:"payment"`
+	StateChanges StateChanges           `json:"stateChanges"`
 }
 
 type StateChanges struct {
-	Data         *DataEntries         `json:"data"`
-	Transfers    []*TransferAction    `json:"transfers"`
-	Issues       []*IssueAction       `json:"issues"`
-	Reissues     []*ReissueAction     `json:"reissues"`
-	Burns        []*BurnAction        `json:"burns"`
-	SponsorFees  []*SponsorFeeAction  `json:"sponsorFees"`
-	Leases       []*LeaseAction       `json:"leases"`
-	LeaseCancels []*LeaseCancelAction `json:"leaseCancel"`
-	Invokes      []*InvokeAction      `json:"invokes"`
+	Data        *DataEntries         `json:"data"`
+	Transfers   []*TransferAction    `json:"transfers"`
+	Issues      []*IssueAction       `json:"issues"`
+	Reissues    []*ReissueAction     `json:"reissues"`
+	Burns       []*BurnAction        `json:"burns"`
+	SponsorFees []*SponsorFeeAction  `json:"sponsorFees"`
+	Leases      []*LeaseAction       `json:"leases"`
+	LeaseCancel []*LeaseCancelAction `json:"leaseCancel"`
+	Invokes     []*InvokeAction      `json:"invokes"`
 }
