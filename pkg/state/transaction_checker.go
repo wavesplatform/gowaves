@@ -320,9 +320,6 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	if info.blockID != tc.genesis {
 		return nil, errors.New("genesis transaction inside of non-genesis block")
 	}
-	if tc.stor.amend() {
-		return nil, errors.New("genesis transaction in non-initialisation mode")
-	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves()}
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
