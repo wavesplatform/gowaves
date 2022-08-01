@@ -50,12 +50,18 @@ func TestCheckGenesis(t *testing.T) {
 
 	tx := createGenesis()
 	info := defaultCheckerInfo()
-	info.blockID = blockID0
+
 	_, err := to.tc.checkGenesis(tx, info)
 	assert.EqualError(t, err, "genesis transaction inside of non-genesis block")
+
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
 	_, err = to.tc.checkGenesis(tx, info)
+	assert.EqualError(t, err, "genesis transaction on non zero height")
+
+	info.height = 0
+	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed in non-initialisation mode")
+
 	to.stor.hs.amend = false
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed with valid genesis tx")
