@@ -244,6 +244,20 @@ func checkCompatibility(stateDB *stateDB, params StateParams) error {
 	return nil
 }
 
+func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
+	storedAmend, err := stateDB.amendFlag()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get stored amend flag")
+	}
+	if !storedAmend && amend { // update if storedAmend == false and amend == true
+		if err := stateDB.updateAmendFlag(amend); err != nil {
+			return false, errors.Wrap(err, "failed to update amend flag")
+		}
+		storedAmend = amend
+	}
+	return storedAmend, nil
+}
+
 type newBlocks struct {
 	binary    bool
 	binBlocks [][]byte
@@ -380,19 +394,23 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create db: %v", err))
+		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db"))
 	}
 	zap.S().Info("Finished initializing database")
 	dbBatch, err := db.NewBatch()
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v", err))
+		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
 	}
 	stateDB, err := newStateDB(db, dbBatch, params)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
+		return nil, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
 	}
 	if err := checkCompatibility(stateDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
+	}
+	handledAmend, err := handleAmendFlag(stateDB, amend)
+	if err != nil {
+		return nil, wrapErr(Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(
@@ -406,7 +424,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
 	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, amend)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, handledAmend)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
@@ -426,7 +444,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		stateDB,
 		rw,
 		atxParams,
-		amend,
+		handledAmend,
 	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
