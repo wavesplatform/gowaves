@@ -40,7 +40,7 @@ func ScalaNodeClient(t *testing.T) *Client {
 		return scalaNodeClient
 	}
 	ScalaNodeClientRaw, err := client.NewClient(client.Options{
-		BaseUrl: "http://" + d.Localhost + ":" + d.GoNodeRESTApiPort + "/",
+		BaseUrl: "http://" + d.Localhost + ":" + d.ScalaNodeRESTApiPort + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
 	})
