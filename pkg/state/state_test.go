@@ -32,6 +32,37 @@ func bigFromStr(s string) *big.Int {
 	return &i
 }
 
+func TestHandleAmendFlag(t *testing.T) {
+	dataDir := t.TempDir()
+	// first open with false amend
+	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	t.Cleanup(func() {
+		assert.NoError(t, manager.Close(), "manager.Close() failed")
+	})
+	assert.False(t, manager.stor.hs.amend)
+
+	// open with true amend
+	assert.NoError(t, manager.Close(), "manager.Close() failed")
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	assert.True(t, manager.stor.hs.amend)
+
+	// open with false amend again. Result amend should be true
+	assert.NoError(t, manager.Close(), "manager.Close() failed")
+	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	assert.True(t, manager.stor.hs.amend)
+
+	// first open with true amend
+	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	t.Cleanup(func() {
+		assert.NoError(t, newManager.Close(), "newManager.Close() failed")
+	})
+	assert.True(t, newManager.stor.hs.amend)
+}
+
 func TestGenesisConfig(t *testing.T) {
 	dataDir := t.TempDir()
 	ss := &settings.BlockchainSettings{
