@@ -7,28 +7,32 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-// Supposed that each struct which implements this interface embeddes
-// related proto.<*>Transaction struct and TransactionInfoCommon struct.
 type TransactionInfo interface {
 	proto.Transaction
+	GetSpentComplexity() int
+	GetHeight() proto.Height
+}
+
+// Supposed that each struct which implements this interface embeddes
+// related proto.<*>Transaction struct and transactionInfoCommonImpl struct.
+type transactionInfoInternal interface {
+	TransactionInfo
 
 	// Must call common function TransactionInfoUnmarshalJSON and pass itself as the 2nd argument
 	json.Unmarshaler
 
-	TransactionInfoCommon
-
 	unmarshalSpecificData(data []byte) error
 	getTransactionObject() proto.Transaction
-	getInfoCommonObject() TransactionInfoCommon
+	getInfoCommonObject() *transactionInfoCommonImpl
 }
 
-func TransactionInfoUnmarshalJSON(data []byte, txInfo TransactionInfo) error {
+func TransactionInfoUnmarshalJSON(data []byte, txInfo transactionInfoInternal) error {
 	if err := json.Unmarshal(data, txInfo.getTransactionObject()); err != nil {
 		return errors.Wrap(err, "Unmarshal proto.Transaction failed")
 	}
 
 	if err := json.Unmarshal(data, txInfo.getInfoCommonObject()); err != nil {
-		return errors.Wrap(err, "Unmarshal TransactionInfoCommon failed")
+		return errors.Wrap(err, "Unmarshal transactionInfoCommonImpl failed")
 	}
 
 	if err := txInfo.unmarshalSpecificData(data); err != nil {
@@ -115,13 +119,6 @@ func guessTransactionInfoType(t *proto.TransactionTypeVersion) (TransactionInfo,
 	return out, nil
 }
 
-// Struct that implements TransactionInfoCommon must be embedded by each transaction info
-// in order to unmarshal and provide common fields/methods through all transaction infos
-type TransactionInfoCommon interface {
-	GetSpentComplexity() int
-	GetHeight() proto.Height
-}
-
 type transactionInfoCommonImpl struct {
 	SpentComplexity int          `json:"spentComplexity"`
 	Height          proto.Height `json:"height"`
@@ -151,31 +148,34 @@ func (txInfoCommon *transactionInfoCommonImpl) unmarshalSpecificData(data []byte
 
 type TransactionInfoImpl[T proto.Transaction] struct {
 	T
-	TransactionInfoCommonImpl
-}
-
-func (txInfo *TransactionInfoImpl[T]) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
-}
-
-func (txInfo *TransactionInfoImpl[T]) getTransactionObject() proto.Transaction {
-	return &txInfo.T
+	transactionInfoCommonImpl
 }
 
 func (txInfo *TransactionInfoImpl[T]) UnmarshalJSON(data []byte) error {
-	return TransactionInfoUnmarshalJSON(data, txInfo)
+	if err := json.Unmarshal(data, txInfo.T); err != nil {
+		return errors.Wrap(err, "Unmarshal proto.Transaction failed")
+	}
+
+	if err := json.Unmarshal(data, &txInfo.transactionInfoCommonImpl); err != nil {
+		return errors.Wrap(err, "Unmarshal transactionInfoCommonImpl failed")
+	}
+
+	return nil
 }
 
 // Two ways to implement certain transaction info.
-// 1. If there's no need to override unmarshalSpecificData method. Type alias:
+// 1. If there's no need to parse specific data method. Type alias:
 type CertainTransaction1Info = TransactionInfoImpl[proto.CertainTransaction1]
 
-// 2. If unmarshalSpecificData method is needed to override:
+// 2. If parse specific data method is needed:
 type CertainTransaction2Info struct {
 	TransactionInfoImpl[proto.CertainTransaction2]
 }
 
-func (txInfo *CertainTransaction2Info[T]) unmarshalSpecificData(data []byte) error {
+func (txInfo *CertainTransaction2Info[T]) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(txInfo.TransactionInfoImpl); err != nil {
+		return err
+	}
 	// implementation of unmarshalling specific data
 	return nil
 }
@@ -186,7 +186,7 @@ type GenesisTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *GenesisTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *GenesisTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -203,7 +203,7 @@ type PaymentTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *PaymentTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *PaymentTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -220,7 +220,7 @@ type IssueWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *IssueWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *IssueWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -237,7 +237,7 @@ type IssueWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *IssueWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *IssueWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -254,7 +254,7 @@ type TransferWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *TransferWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *TransferWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -271,7 +271,7 @@ type TransferWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *TransferWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *TransferWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -288,7 +288,7 @@ type ReissueWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *ReissueWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *ReissueWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -305,7 +305,7 @@ type ReissueWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *ReissueWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *ReissueWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -322,7 +322,7 @@ type BurnWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *BurnWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *BurnWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -339,7 +339,7 @@ type BurnWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *BurnWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *BurnWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -356,7 +356,7 @@ type ExchangeWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *ExchangeWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *ExchangeWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -373,7 +373,7 @@ type ExchangeWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *ExchangeWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *ExchangeWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -390,7 +390,7 @@ type LeaseWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *LeaseWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *LeaseWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -407,7 +407,7 @@ type LeaseWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *LeaseWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *LeaseWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -424,7 +424,7 @@ type LeaseCancelWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *LeaseCancelWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *LeaseCancelWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -441,7 +441,7 @@ type LeaseCancelWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *LeaseCancelWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *LeaseCancelWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -458,7 +458,7 @@ type CreateAliasWithProofsTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *CreateAliasWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *CreateAliasWithProofsTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -475,7 +475,7 @@ type CreateAliasWithSigTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *CreateAliasWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *CreateAliasWithSigTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -492,7 +492,7 @@ type MassTransferTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *MassTransferTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *MassTransferTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -509,7 +509,7 @@ type DataTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *DataTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *DataTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -526,7 +526,7 @@ type SetScriptTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *SetScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *SetScriptTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -543,7 +543,7 @@ type SponsorshipTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *SponsorshipTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *SponsorshipTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -560,7 +560,7 @@ type SetAssetScriptTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *SetAssetScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *SetAssetScriptTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -597,7 +597,7 @@ func (txInfo *InvokeScriptTransactionInfo) GetStateChanges() *StateChanges {
 	return &txInfo.StateChanges
 }
 
-func (txInfo *InvokeScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *InvokeScriptTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
@@ -614,7 +614,7 @@ type UpdateAssetInfoTransactionInfo struct {
 	transactionInfoCommonImpl
 }
 
-func (txInfo *UpdateAssetInfoTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *UpdateAssetInfoTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 

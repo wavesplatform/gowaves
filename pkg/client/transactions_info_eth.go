@@ -72,7 +72,7 @@ type EthereumTransactionInfo struct {
 	Payload EthereumTransactionPayload `json:"payload"`
 }
 
-func (txInfo *EthereumTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
+func (txInfo *EthereumTransactionInfo) getInfoCommonObject() *transactionInfoCommonImpl {
 	return &txInfo.transactionInfoCommonImpl
 }
 
