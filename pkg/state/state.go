@@ -97,10 +97,6 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) amend() bool {
-	return s.hs.amend
-}
-
 func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
 		BlockID: blockID,
@@ -363,43 +359,6 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	state, err := newStateManagerInternal(dataDir, amend, params, settings)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create new state instance")
-	}
-	height, err := state.Height()
-	if err != nil {
-		return nil, err
-	}
-	// 0 state height means that no blocks are found in state, so blockchain history is empty
-	if height == 0 {
-		// We have to close incoming state, add the Genesis block and then reopen state again
-		if err := state.Close(); err != nil {
-			return nil, errors.Wrap(err, "failed to close state before genesis block initialization")
-		}
-		if err := initializeStateWithGenesisBlock(dataDir, params, settings); err != nil {
-			return nil, err
-		}
-		// Set `state` to newly opened instance
-		state, err = newStateManagerInternal(dataDir, amend, params, settings)
-		if err != nil {
-			return nil, err
-		}
-	}
-	state.setGenesisBlock(&settings.Genesis)
-	if err := state.loadLastBlock(); err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	h, err := state.Height()
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	state.checkProtobufActivation(h + 1)
-	return state, nil
-}
-
-// newStateManagerInternal should be called ONLY inside newStateManager or handleGenesisBlock.
-func newStateManagerInternal(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -490,38 +449,35 @@ func newStateManagerInternal(dataDir string, amend bool, params StateParams, set
 	}
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
-	return state, nil
-}
 
-func initializeStateWithGenesisBlock(path string, params StateParams, settings *settings.BlockchainSettings) (err error) {
-	// The `amend` argument is always false for genesis block because block addition performs only if state height is 0
-	tmp, err := newStateManagerInternal(path, false, params, settings)
+	height, err := state.Height()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() {
-		if closeErr := tmp.Close(); closeErr != nil {
-			zap.S().Errorf("Failed to close temporary state after genesis block initialization: %v", err)
-			if err != nil {
-				err = errors.Wrapf(err, "and failed to close temporary storage after genesis block initialization: %v", closeErr)
-			} else {
-				err = closeErr
-			}
+	state.setGenesisBlock(&settings.Genesis)
+	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
+	if height == 0 {
+		// Assign unique block number for this block ID, add this number to the list of valid blocks
+		if err := state.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
+			return nil, err
 		}
-	}()
-	tmp.setGenesisBlock(&settings.Genesis)
-	// Assign unique block number for this block ID, add this number to the list of valid blocks
-	if err := tmp.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
-		return err
+		if err := state.addGenesisBlock(); err != nil {
+			return nil, errors.Wrap(err, "failed to apply/save genesis")
+		}
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
+		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return nil, errors.Wrap(err, "failed to apply pre-activated features")
+		}
 	}
-	if err := tmp.addGenesisBlock(); err != nil {
-		return errors.Wrap(err, "failed to apply/save genesis")
+	if err := state.loadLastBlock(); err != nil {
+		return nil, wrapErr(RetrievalError, err)
 	}
-	// We apply pre-activated features after genesis block, so they aren't active in genesis itself
-	if err := tmp.applyPreActivatedFeatures(tmp.settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
-		return errors.Wrap(err, "failed to apply pre-activated features")
+	h, err := state.Height()
+	if err != nil {
+		return nil, wrapErr(Other, err)
 	}
-	return nil
+	state.checkProtobufActivation(h + 1)
+	return state, nil
 }
 
 func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
