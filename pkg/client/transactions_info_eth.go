@@ -81,7 +81,7 @@ func (txInfo *EthereumTransactionInfo) getTransactionObject() proto.Transaction 
 }
 
 func (txInfo *EthereumTransactionInfo) UnmarshalJSON(data []byte) error {
-	return TransactionInfoUnmarshalJSON(data, txInfo)
+	return transactionInfoUnmarshalJSON(data, txInfo)
 }
 
 func (txInfo *EthereumTransactionInfo) unmarshalSpecificData(data []byte) error {
