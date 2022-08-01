@@ -122,21 +122,21 @@ type TransactionInfoCommon interface {
 	GetHeight() proto.Height
 }
 
-type TransactionInfoCommonImpl struct {
+type transactionInfoCommonImpl struct {
 	SpentComplexity int          `json:"spentComplexity"`
 	Height          proto.Height `json:"height"`
 }
 
-func (txInfoCommon *TransactionInfoCommonImpl) GetSpentComplexity() int {
+func (txInfoCommon *transactionInfoCommonImpl) GetSpentComplexity() int {
 	return txInfoCommon.SpentComplexity
 }
 
-func (txInfoCommon *TransactionInfoCommonImpl) GetHeight() proto.Height {
+func (txInfoCommon *transactionInfoCommonImpl) GetHeight() proto.Height {
 	return txInfoCommon.Height
 }
 
 // noop. useful for transactions with no specific data
-func (txInfoCommon *TransactionInfoCommonImpl) unmarshalSpecificData(data []byte) error {
+func (txInfoCommon *transactionInfoCommonImpl) unmarshalSpecificData(data []byte) error {
 	return nil
 }
 
@@ -183,11 +183,11 @@ func (txInfo *CertainTransaction2Info[T]) unmarshalSpecificData(data []byte) err
 
 type GenesisTransactionInfo struct {
 	proto.Genesis
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *GenesisTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *GenesisTransactionInfo) getTransactionObject() proto.Transaction {
@@ -200,11 +200,11 @@ func (txInfo *GenesisTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type PaymentTransactionInfo struct {
 	proto.Payment
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *PaymentTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *PaymentTransactionInfo) getTransactionObject() proto.Transaction {
@@ -217,11 +217,11 @@ func (txInfo *PaymentTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type IssueWithProofsTransactionInfo struct {
 	proto.IssueWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *IssueWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *IssueWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -234,11 +234,11 @@ func (txInfo *IssueWithProofsTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type IssueWithSigTransactionInfo struct {
 	proto.IssueWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *IssueWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *IssueWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -251,11 +251,11 @@ func (txInfo *IssueWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type TransferWithProofsTransactionInfo struct {
 	proto.TransferWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *TransferWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *TransferWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -268,11 +268,11 @@ func (txInfo *TransferWithProofsTransactionInfo) UnmarshalJSON(data []byte) erro
 
 type TransferWithSigTransactionInfo struct {
 	proto.TransferWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *TransferWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *TransferWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -285,11 +285,11 @@ func (txInfo *TransferWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type ReissueWithProofsTransactionInfo struct {
 	proto.ReissueWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *ReissueWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *ReissueWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -302,11 +302,11 @@ func (txInfo *ReissueWithProofsTransactionInfo) UnmarshalJSON(data []byte) error
 
 type ReissueWithSigTransactionInfo struct {
 	proto.ReissueWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *ReissueWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *ReissueWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -319,11 +319,11 @@ func (txInfo *ReissueWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type BurnWithProofsTransactionInfo struct {
 	proto.BurnWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *BurnWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *BurnWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -336,11 +336,11 @@ func (txInfo *BurnWithProofsTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type BurnWithSigTransactionInfo struct {
 	proto.BurnWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *BurnWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *BurnWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -353,11 +353,11 @@ func (txInfo *BurnWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type ExchangeWithProofsTransactionInfo struct {
 	proto.ExchangeWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *ExchangeWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *ExchangeWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -370,11 +370,11 @@ func (txInfo *ExchangeWithProofsTransactionInfo) UnmarshalJSON(data []byte) erro
 
 type ExchangeWithSigTransactionInfo struct {
 	proto.ExchangeWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *ExchangeWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *ExchangeWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -387,11 +387,11 @@ func (txInfo *ExchangeWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type LeaseWithProofsTransactionInfo struct {
 	proto.LeaseWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -404,11 +404,11 @@ func (txInfo *LeaseWithProofsTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type LeaseWithSigTransactionInfo struct {
 	proto.LeaseWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -421,11 +421,11 @@ func (txInfo *LeaseWithSigTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type LeaseCancelWithProofsTransactionInfo struct {
 	proto.LeaseCancelWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseCancelWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseCancelWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -438,11 +438,11 @@ func (txInfo *LeaseCancelWithProofsTransactionInfo) UnmarshalJSON(data []byte) e
 
 type LeaseCancelWithSigTransactionInfo struct {
 	proto.LeaseCancelWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseCancelWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *LeaseCancelWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -455,11 +455,11 @@ func (txInfo *LeaseCancelWithSigTransactionInfo) UnmarshalJSON(data []byte) erro
 
 type CreateAliasWithProofsTransactionInfo struct {
 	proto.CreateAliasWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *CreateAliasWithProofsTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *CreateAliasWithProofsTransactionInfo) getTransactionObject() proto.Transaction {
@@ -472,11 +472,11 @@ func (txInfo *CreateAliasWithProofsTransactionInfo) UnmarshalJSON(data []byte) e
 
 type CreateAliasWithSigTransactionInfo struct {
 	proto.CreateAliasWithSig
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *CreateAliasWithSigTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *CreateAliasWithSigTransactionInfo) getTransactionObject() proto.Transaction {
@@ -489,11 +489,11 @@ func (txInfo *CreateAliasWithSigTransactionInfo) UnmarshalJSON(data []byte) erro
 
 type MassTransferTransactionInfo struct {
 	proto.MassTransferWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *MassTransferTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *MassTransferTransactionInfo) getTransactionObject() proto.Transaction {
@@ -506,11 +506,11 @@ func (txInfo *MassTransferTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type DataTransactionInfo struct {
 	proto.DataWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *DataTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *DataTransactionInfo) getTransactionObject() proto.Transaction {
@@ -523,11 +523,11 @@ func (txInfo *DataTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type SetScriptTransactionInfo struct {
 	proto.SetScriptWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *SetScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *SetScriptTransactionInfo) getTransactionObject() proto.Transaction {
@@ -540,11 +540,11 @@ func (txInfo *SetScriptTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type SponsorshipTransactionInfo struct {
 	proto.SponsorshipWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *SponsorshipTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *SponsorshipTransactionInfo) getTransactionObject() proto.Transaction {
@@ -557,11 +557,11 @@ func (txInfo *SponsorshipTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type SetAssetScriptTransactionInfo struct {
 	proto.SetAssetScriptWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *SetAssetScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *SetAssetScriptTransactionInfo) getTransactionObject() proto.Transaction {
@@ -574,7 +574,7 @@ func (txInfo *SetAssetScriptTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type InvokeScriptTransactionInfo struct {
 	proto.InvokeScriptWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 
 	StateChanges StateChanges
 }
@@ -598,7 +598,7 @@ func (txInfo *InvokeScriptTransactionInfo) GetStateChanges() *StateChanges {
 }
 
 func (txInfo *InvokeScriptTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *InvokeScriptTransactionInfo) getTransactionObject() proto.Transaction {
@@ -611,11 +611,11 @@ func (txInfo *InvokeScriptTransactionInfo) UnmarshalJSON(data []byte) error {
 
 type UpdateAssetInfoTransactionInfo struct {
 	proto.UpdateAssetInfoWithProofs
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 }
 
 func (txInfo *UpdateAssetInfoTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *UpdateAssetInfoTransactionInfo) getTransactionObject() proto.Transaction {

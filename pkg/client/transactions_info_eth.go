@@ -10,7 +10,7 @@ import (
 type EthereumTransactionType byte
 
 const (
-	EthereumTransactionTransferType EthereumTransactionType = iota
+	EthereumTransactionTransferType EthereumTransactionType = iota + 1
 	EthereumTransactionInvocationType
 )
 
@@ -48,13 +48,13 @@ func (p *EthereumTransactionInvocationPayload) GetTypeString() string {
 	return EthereumTransactionInvocationTypeString
 }
 
-type EthereumTransactionTypeDetector struct {
+type ethereumTransactionTypeDetector struct {
 	Payload struct {
 		Type string `json:"type"`
 	} `json:"payload"`
 }
 
-func guessEthereumTransactionPayload(detector *EthereumTransactionTypeDetector) (EthereumTransactionPayload, error) {
+func guessEthereumTransactionPayload(detector *ethereumTransactionTypeDetector) (EthereumTransactionPayload, error) {
 	switch detector.Payload.Type {
 	case EthereumTransactionTransferTypeString:
 		return &EthereumTransactionTransferPayload{}, nil
@@ -67,13 +67,13 @@ func guessEthereumTransactionPayload(detector *EthereumTransactionTypeDetector) 
 
 type EthereumTransactionInfo struct {
 	proto.EthereumTransaction
-	TransactionInfoCommonImpl
+	transactionInfoCommonImpl
 
 	Payload EthereumTransactionPayload `json:"payload"`
 }
 
 func (txInfo *EthereumTransactionInfo) getInfoCommonObject() TransactionInfoCommon {
-	return &txInfo.TransactionInfoCommonImpl
+	return &txInfo.transactionInfoCommonImpl
 }
 
 func (txInfo *EthereumTransactionInfo) getTransactionObject() proto.Transaction {
@@ -85,7 +85,7 @@ func (txInfo *EthereumTransactionInfo) UnmarshalJSON(data []byte) error {
 }
 
 func (txInfo *EthereumTransactionInfo) unmarshalSpecificData(data []byte) error {
-	detector := new(EthereumTransactionTypeDetector)
+	detector := new(ethereumTransactionTypeDetector)
 	if err := json.Unmarshal(data, detector); err != nil {
 		return errors.Wrap(err, "Ethereum transaction type unmarshal")
 	}

@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/base64"
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -103,20 +102,20 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 	expectedInvokeDApp, _ := proto.NewAddressFromString("3My9cBgDYLyeT1YF8ip9XxqwWvJMjj8WdeM")
 
 	expectedStateChanges := StateChanges{
-		Data: &DataEntries{
+		Data: DataEntries{
 			&proto.StringDataEntry{
 				Key:   "keyHello",
 				Value: "hello",
 			},
 		},
-		Transfers: []*TransferAction{
+		Transfers: []TransferAction{
 			{
 				Address: expectedTransferAddr,
 				Asset:   proto.NewOptionalAssetWaves(),
 				Amount:  900000,
 			},
 		},
-		Issues: []*IssueAction{
+		Issues: []IssueAction{
 			{
 				AssetID:        expectedAssetId,
 				Name:           "CatCoin",
@@ -126,26 +125,26 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 				CompiledScript: expectedScript,
 			},
 		},
-		Reissues: []*ReissueAction{
+		Reissues: []ReissueAction{
 			{
 				AssetID:    expectedAssetId,
 				Reissuable: false,
 				Quantity:   10000,
 			},
 		},
-		Burns: []*BurnAction{
+		Burns: []BurnAction{
 			{
 				AssetID:  expectedAssetId,
 				Quantity: 10000,
 			},
 		},
-		SponsorFees: []*SponsorFeeAction{
+		SponsorFees: []SponsorFeeAction{
 			{
 				AssetID:              expectedAssetId,
 				MinSponsoredAssetFee: 100,
 			},
 		},
-		Leases: []*LeaseAction{
+		Leases: []LeaseAction{
 			{
 				ID:                  expectedLeaseID,
 				OriginTransactionId: expectedLeaseID,
@@ -156,12 +155,12 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 				Status:              LeaseCanceledStatus,
 			},
 		},
-		LeaseCancel: []*LeaseCancelAction{
+		LeaseCancel: []LeaseCancelAction{
 			{
 				LeaseID: expectedLeaseID,
 			},
 		},
-		Invokes: []*InvokeAction{
+		Invokes: []InvokeAction{
 			{
 				DApp: expectedInvokeDApp,
 				Call: proto.FunctionCall{
@@ -170,7 +169,7 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 						proto.NewIntegerArgument(1000),
 					},
 				},
-				Payments: []*proto.ScriptPayment{
+				Payments: []proto.ScriptPayment{
 					{
 						Asset:  *proto.NewOptionalAssetFromDigest(expectedAssetId),
 						Amount: 100000,
@@ -182,13 +181,5 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 
 	var actualChanges StateChanges
 	require.NoError(t, json.Unmarshal([]byte(jsonSrc), &actualChanges), "unmarshal StateChanges error")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Data, actualChanges.Data), "non equal 'data' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Transfers, actualChanges.Transfers), "non equal 'transfers' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Issues, actualChanges.Issues), "non equal 'issues' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Reissues, actualChanges.Reissues), "non equal 'reissues' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Burns, actualChanges.Burns), "non equal 'burns' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.SponsorFees, actualChanges.SponsorFees), "non equal 'sponsorFees' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Leases, actualChanges.Leases), "non equal 'leases' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.LeaseCancel, actualChanges.LeaseCancel), "non equal 'leaseCancel' field")
-	require.True(t, reflect.DeepEqual(expectedStateChanges.Invokes, actualChanges.Invokes), "non equal 'invokes' field")
+	require.Equal(t, expectedStateChanges, actualChanges, "non equal stateChanges")
 }

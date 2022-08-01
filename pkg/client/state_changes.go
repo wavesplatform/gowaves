@@ -1,7 +1,7 @@
 package client
 
 import (
-	"encoding/json"
+	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -56,13 +56,13 @@ type LeaseAction struct {
 type LeaseStatus byte
 
 const (
-	LeaseActiveStatus LeaseStatus = iota
+	LeaseActiveStatus LeaseStatus = iota + 1
 	LeaseCanceledStatus
 )
 
 func (s *LeaseStatus) UnmarshalJSON(data []byte) error {
-	var stringStatus string
-	if err := json.Unmarshal(data, &stringStatus); err != nil {
+	stringStatus, err := strconv.Unquote(string(data))
+	if err != nil {
 		return err
 	}
 
@@ -78,25 +78,39 @@ func (s *LeaseStatus) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (s LeaseStatus) String() string {
+	switch s {
+	case LeaseActiveStatus:
+		return "active"
+	case LeaseCanceledStatus:
+		return "canceled"
+	}
+	return "unknown"
+}
+
+func (s LeaseStatus) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(s.String())), nil
+}
+
 type LeaseCancelAction struct {
 	LeaseID crypto.Digest `json:"leaseId"`
 }
 
 type InvokeAction struct {
-	DApp         proto.WavesAddress     `json:"dApp"`
-	Call         proto.FunctionCall     `json:"call"`
-	Payments     []*proto.ScriptPayment `json:"payment"`
-	StateChanges StateChanges           `json:"stateChanges"`
+	DApp         proto.WavesAddress    `json:"dApp"`
+	Call         proto.FunctionCall    `json:"call"`
+	Payments     []proto.ScriptPayment `json:"payment"`
+	StateChanges StateChanges          `json:"stateChanges"`
 }
 
 type StateChanges struct {
-	Data        *DataEntries         `json:"data"`
-	Transfers   []*TransferAction    `json:"transfers"`
-	Issues      []*IssueAction       `json:"issues"`
-	Reissues    []*ReissueAction     `json:"reissues"`
-	Burns       []*BurnAction        `json:"burns"`
-	SponsorFees []*SponsorFeeAction  `json:"sponsorFees"`
-	Leases      []*LeaseAction       `json:"leases"`
-	LeaseCancel []*LeaseCancelAction `json:"leaseCancel"`
-	Invokes     []*InvokeAction      `json:"invokes"`
+	Data        DataEntries         `json:"data"`
+	Transfers   []TransferAction    `json:"transfers"`
+	Issues      []IssueAction       `json:"issues"`
+	Reissues    []ReissueAction     `json:"reissues"`
+	Burns       []BurnAction        `json:"burns"`
+	SponsorFees []SponsorFeeAction  `json:"sponsorFees"`
+	Leases      []LeaseAction       `json:"leases"`
+	LeaseCancel []LeaseCancelAction `json:"leaseCancel"`
+	Invokes     []InvokeAction      `json:"invokes"`
 }
