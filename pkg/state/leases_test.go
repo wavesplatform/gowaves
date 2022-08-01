@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type leasesTestObjects struct {
@@ -15,13 +14,10 @@ type leasesTestObjects struct {
 	leases *leases
 }
 
-func createLeases() (*leasesTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createLeases(t *testing.T) *leasesTestObjects {
+	stor := createStorageObjects(t, true)
 	leases := newLeases(stor.hs, true)
-	return &leasesTestObjects{stor, leases}, path, nil
+	return &leasesTestObjects{stor, leases}
 }
 
 func createLease(t *testing.T, sender string, id crypto.Digest) *leasing {
@@ -39,15 +35,7 @@ func createLease(t *testing.T, sender string, id crypto.Digest) *leasing {
 }
 
 func TestCancelLeases(t *testing.T) {
-	to, path, err := createLeases()
-	assert.NoError(t, err, "createLeases() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createLeases(t)
 
 	to.stor.addBlock(t, blockID0)
 	leasings := []struct {
@@ -106,15 +94,7 @@ func TestCancelLeases(t *testing.T) {
 }
 
 func TestValidLeaseIns(t *testing.T) {
-	to, path, err := createLeases()
-	assert.NoError(t, err, "createLeases() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createLeases(t)
 
 	to.stor.addBlock(t, blockID0)
 	leasings := []struct {
@@ -143,15 +123,7 @@ func TestValidLeaseIns(t *testing.T) {
 }
 
 func TestAddLeasing(t *testing.T) {
-	to, path, err := createLeases()
-	assert.NoError(t, err, "createLeases() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createLeases(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -170,15 +142,7 @@ func TestAddLeasing(t *testing.T) {
 }
 
 func TestCancelLeasing(t *testing.T) {
-	to, path, err := createLeases()
-	assert.NoError(t, err, "createLeases() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createLeases(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))

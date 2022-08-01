@@ -4,19 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestAddBlock(t *testing.T) {
-	to, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
-
-	defer func() {
-		to.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createStorageObjects(t, true)
 
 	to.addBlock(t, blockID0)
 	blockNum, err := to.stateDB.newestBlockIdToNum(blockID0)

@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type blockDifferTestObjects struct {
@@ -18,15 +17,14 @@ type blockDifferTestObjects struct {
 	gsp         consensus.GenerationSignatureProvider
 }
 
-func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
+func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
 	sets := settings.TestNetSettings
-	stor, path, err := createStorageObjects(false)
-	require.NoError(t, err, "createStorageObjects() failed")
+	stor := createStorageObjects(t, false)
 	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	require.NoError(t, err, "newBlockDiffer() failed")
-	return &blockDifferTestObjects{stor, blockDiffer, consensus.NXTGenerationSignatureProvider}, path
+	return &blockDifferTestObjects{stor, blockDiffer, consensus.NXTGenerationSignatureProvider}
 }
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
@@ -51,14 +49,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 }
 
 func TestCreateBlockDiffWithoutNg(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	block, _ := genBlocks(t, to)
 	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true)
@@ -68,14 +59,7 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 }
 
 func TestCreateBlockDiffNg(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	parent, child := genBlocks(t, to)
 	// Activate NG first of all.
@@ -108,14 +92,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 }
 
 func TestCreateBlockDiffSponsorship(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	parent, child := genBlocks(t, to)
 	// Create asset.
@@ -181,12 +158,7 @@ func genBlockWithSingleTransaction(t *testing.T, prevID proto.BlockID, prevGenSi
 }
 
 func TestCreateBlockDiffWithReward(t *testing.T) {
-	to, path := createBlockDiffer(t)
-	defer func() {
-		to.stor.close(t)
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))

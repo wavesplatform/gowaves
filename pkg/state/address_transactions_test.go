@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func testIterImpl(t *testing.T, params StateParams) {
@@ -110,20 +109,10 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 }
 
 func TestAddrTransactionsIdempotent(t *testing.T) {
-	stor, path, err := createStorageObjects(true)
-	require.NoError(t, err)
-	atxDir := t.TempDir()
-	path = append(path, atxDir)
-
-	t.Cleanup(func() {
-		stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	})
+	stor := createStorageObjects(t, true)
 
 	params := &addressTransactionsParams{
-		dir:                 atxDir,
+		dir:                 t.TempDir(),
 		batchedStorMemLimit: AddressTransactionsMemLimit,
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
@@ -167,20 +156,10 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 }
 
 func TestFailedTransaction(t *testing.T) {
-	stor, path, err := createStorageObjects(true)
-	require.NoError(t, err)
-	atxDir := t.TempDir()
-	path = append(path, atxDir)
-
-	t.Cleanup(func() {
-		stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	})
+	stor := createStorageObjects(t, true)
 
 	params := &addressTransactionsParams{
-		dir:                 atxDir,
+		dir:                 t.TempDir(),
 		batchedStorMemLimit: AddressTransactionsMemLimit,
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,

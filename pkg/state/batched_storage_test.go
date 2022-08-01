@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -30,21 +30,16 @@ type batchedStorageTestObjects struct {
 	rollbackedIds map[proto.BlockID]bool
 }
 
-func createBatchedStorage(recordSize int) (*batchedStorageTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createBatchedStorage(t *testing.T, recordSize int) *batchedStorageTestObjects {
+	stor := createStorageObjects(t, true)
 	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: recordSize, prefix: prefix}
 	batchedStor, err := newBatchedStorage(stor.db, stor.hs.stateDB, params, testMemLimit, 1000, stor.hs.amend)
-	if err != nil {
-		return nil, path, err
-	}
+	require.NoError(t, err)
 	return &batchedStorageTestObjects{
 		stor:          stor,
 		batchedStor:   batchedStor,
 		rollbackedIds: make(map[proto.BlockID]bool),
-	}, path, nil
+	}
 }
 
 func (to *batchedStorageTestObjects) addTestRecords(t *testing.T, key []byte, data []testRecord) {
@@ -129,15 +124,7 @@ func genTestRecords(t *testing.T, ids []proto.BlockID) []testRecord {
 }
 
 func TestLastRecordByKeyWithRollback(t *testing.T) {
-	to, path, err := createBatchedStorage(testRecordSize)
-	assert.NoError(t, err, "createBatchedStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBatchedStorage(t, testRecordSize)
 
 	ids := genRandBlockIds(t, size)
 	key0Records := genTestRecords(t, ids)
@@ -160,15 +147,7 @@ func TestLastRecordByKeyWithRollback(t *testing.T) {
 }
 
 func TestLastRecordByKey(t *testing.T) {
-	to, path, err := createBatchedStorage(3)
-	assert.NoError(t, err, "createBatchedStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBatchedStorage(t, 3)
 
 	to.stor.addBlock(t, blockID0)
 	blockNum0, err := to.stor.stateDB.newestBlockIdToNum(blockID0)
@@ -227,15 +206,7 @@ func TestLastRecordByKey(t *testing.T) {
 }
 
 func TestIterators(t *testing.T) {
-	to, path, err := createBatchedStorage(testRecordSize)
-	assert.NoError(t, err, "createBatchedStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBatchedStorage(t, testRecordSize)
 
 	ids := genRandBlockIds(t, size)
 	key0Records := genTestRecords(t, ids)

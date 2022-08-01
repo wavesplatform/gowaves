@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type assetsTestObjects struct {
@@ -16,25 +15,14 @@ type assetsTestObjects struct {
 	assets *assets
 }
 
-func createAssets() (*assetsTestObjects, []string, error) {
-	stor, path, err := createStorageObjects(true)
-	if err != nil {
-		return nil, path, err
-	}
+func createAssets(t *testing.T) *assetsTestObjects {
+	stor := createStorageObjects(t, true)
 	assets := newAssets(stor.db, stor.dbBatch, stor.hs)
-	return &assetsTestObjects{stor, assets}, path, nil
+	return &assetsTestObjects{stor, assets}
 }
 
 func TestIssueAsset(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -57,15 +45,7 @@ func TestIssueAsset(t *testing.T) {
 }
 
 func TestReissueAsset(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -87,15 +67,7 @@ func TestReissueAsset(t *testing.T) {
 }
 
 func TestBurnAsset(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -116,15 +88,7 @@ func TestBurnAsset(t *testing.T) {
 }
 
 func TestUpdateAssetInfo(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -156,15 +120,7 @@ func TestUpdateAssetInfo(t *testing.T) {
 }
 
 func TestNewestLastUpdateHeight(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
@@ -191,15 +147,7 @@ func TestNewestLastUpdateHeight(t *testing.T) {
 }
 
 func TestAssetsUncertain(t *testing.T) {
-	to, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createAssets(t)
 
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")

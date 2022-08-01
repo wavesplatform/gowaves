@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type performerTestObjects struct {
@@ -16,12 +16,11 @@ type performerTestObjects struct {
 	tp   *transactionPerformer
 }
 
-func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) {
-	stor, path, err := createStorageObjects(true)
-	assert.NoError(t, err, "createStorageObjects() failed")
+func createPerformerTestObjects(t *testing.T) *performerTestObjects {
+	stor := createStorageObjects(t, true)
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionPerformer() failed")
-	return &performerTestObjects{stor, tp}, path
+	require.NoError(t, err, "newTransactionPerformer() failed")
+	return &performerTestObjects{stor, tp}
 }
 
 func defaultPerformerInfo() *performerInfo {
@@ -29,14 +28,7 @@ func defaultPerformerInfo() *performerInfo {
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithSig(t, 1000)
@@ -65,14 +57,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
@@ -102,14 +87,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 }
 
 func TestPerformReissueWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithSig(t, 1000)
@@ -126,14 +104,7 @@ func TestPerformReissueWithSig(t *testing.T) {
 }
 
 func TestPerformReissueWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithProofs(t, 1000)
@@ -150,14 +121,7 @@ func TestPerformReissueWithProofs(t *testing.T) {
 }
 
 func TestPerformBurnWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
@@ -173,14 +137,7 @@ func TestPerformBurnWithSig(t *testing.T) {
 }
 
 func TestPerformBurnWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
@@ -196,14 +153,7 @@ func TestPerformBurnWithProofs(t *testing.T) {
 }
 
 func TestPerformExchange(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createExchangeWithSig(t)
@@ -252,14 +202,7 @@ func TestPerformExchange(t *testing.T) {
 }
 
 func TestPerformLeaseWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithSig(t)
@@ -280,14 +223,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 }
 
 func TestPerformLeaseWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithProofs(t)
@@ -308,14 +244,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 }
 
 func TestPerformLeaseCancelWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithSig(t)
@@ -340,14 +269,7 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 }
 
 func TestPerformLeaseCancelWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithProofs(t)
@@ -372,14 +294,7 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 }
 
 func TestPerformCreateAliasWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithSig(t)
@@ -402,14 +317,7 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 }
 
 func TestPerformCreateAliasWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithProofs(t)
@@ -432,14 +340,7 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 }
 
 func TestPerformDataWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -457,14 +358,7 @@ func TestPerformDataWithProofs(t *testing.T) {
 }
 
 func TestPerformSponsorshipWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -507,14 +401,7 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 }
 
 func TestPerformSetScriptWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -571,14 +458,7 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 }
 
 func TestPerformSetAssetScriptWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -659,14 +539,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createUpdateAssetInfoWithProofs(t)
