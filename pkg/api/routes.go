@@ -108,7 +108,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/transactions", func(r chi.Router) {
 			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
-
+			r.Get("/info/{id}", wrapper(a.TransactionInfo))
 			rAuth := r.With(checkAuthMiddleware)
 
 			rAuth.Post("/broadcast", wrapper(a.TransactionsBroadcast))

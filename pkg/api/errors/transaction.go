@@ -70,3 +70,13 @@ func NewInvalidBlockIDError(message string) *InvalidBlockIdError {
 		},
 	}
 }
+
+func NewInvalidTransactionIDError(message string) *InvalidTransactionIdError {
+	return &InvalidTransactionIdError{
+		genericError: genericError{
+			ID:       InvalidTransactionIdErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  message,
+		},
+	}
+}
