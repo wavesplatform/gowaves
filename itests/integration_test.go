@@ -22,6 +22,7 @@ type ItestSuite struct {
 	cancel  context.CancelFunc
 	cfg     config.TestConfig
 	docker  *d.Docker
+	conns   net.NodeConnections
 
 	ctx context.Context
 }
@@ -41,10 +42,16 @@ func (suite *ItestSuite) SetupSuite() {
 		docker.Finish(suite.cancel)
 		suite.NoError(err, "couldn't run docker containers")
 	}
+	suite.conns = net.NewNodeConnections(suite.T())
 }
 
 func (suite *ItestSuite) TearDownSuite() {
+	lastHeight := node_client.ScalaNodeClient(suite.T()).GetHeight(suite.T(), suite.ctx)
+	newHeight := utils.WaitForNewHeight(suite.T(), suite.ctx, *lastHeight)
+	utils.StateHashCmp(suite.T(), suite.ctx, newHeight)
+
 	suite.docker.Finish(suite.cancel)
+	suite.conns.Close()
 }
 
 func (suite *ItestSuite) SetupTest() {
@@ -68,14 +75,9 @@ func (suite *ItestSuite) Test_SendTransaction() {
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	heightBefore := node_client.GoNodeClient(suite.T()).GetHeight(suite.T(), suite.ctx)
+	suite.conns.SendToEachNode(suite.T(), &txMsg)
 
-	connections := net.NewNodeConnections(suite.T())
-	defer connections.Close()
-	connections.SendToEachNode(suite.T(), &txMsg)
-
-	newHeight := utils.WaitForNewHeight(suite.T(), suite.ctx, *heightBefore)
-	utils.StateHashCmp(suite.T(), suite.ctx, newHeight)
+	utils.WaitForTransaction(suite.T(), suite.ctx, tx.ID, 1*time.Minute)
 }
 
 func TestItestSuite(t *testing.T) {

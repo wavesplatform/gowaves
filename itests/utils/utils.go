@@ -2,13 +2,16 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/wavesplatform/gowaves/itests/node_client"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 func SendStartMessage(t *testing.T, ctx context.Context) {
@@ -51,4 +54,30 @@ func WaitForNewHeight(t *testing.T, ctx context.Context, beforeHeight client.Blo
 	} else {
 		return goHeight - 1
 	}
+}
+
+func Retry(timeout time.Duration, f func() error) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = time.Second * 2
+	bo.MaxElapsedTime = timeout
+	if err := backoff.Retry(f, bo); err != nil {
+		if bo.NextBackOff() == backoff.Stop {
+			return fmt.Errorf("reached retry deadline")
+		}
+		return err
+	}
+	return nil
+}
+
+func WaitForTransaction(t *testing.T, ctx context.Context, ID *crypto.Digest, timeout time.Duration) {
+	err := Retry(timeout, func() error {
+		_, _, err := node_client.GoNodeClient(t).TransactionInfoRaw(ctx, *ID)
+		return err
+	})
+	assert.NoError(t, err, "Failed to get TransactionInfo from go node")
+	err = Retry(timeout, func() error {
+		_, _, err := node_client.ScalaNodeClient(t).TransactionInfoRaw(ctx, *ID)
+		return err
+	})
+	assert.NoError(t, err, "Failed to get TransactionInfo from scala node")
 }

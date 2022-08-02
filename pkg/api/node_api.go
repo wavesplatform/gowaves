@@ -55,6 +55,54 @@ func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+func transactionIDAtInvalidLenErr(key string) *apiErrs.InvalidTransactionIdError {
+	return apiErrs.NewInvalidTransactionIDError(
+		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
+			key, // nickeskov: this part must be the last part of HTTP path
+			len(key),
+			crypto.DigestSize,
+			crypto.SignatureSize,
+		),
+	)
+}
+
+func transactionIDAtInvalidCharErr(invalidChar rune, id string) *apiErrs.InvalidTransactionIdError {
+	return apiErrs.NewInvalidTransactionIDError(
+		fmt.Sprintf(
+			"requirement failed: Wrong char %q in Base58 string '%s'",
+			invalidChar,
+			id,
+		),
+	)
+}
+
+func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "id")
+
+	id, err := crypto.NewDigestFromBase58(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return transactionIDAtInvalidCharErr(invalidRune, s)
+		}
+		return transactionIDAtInvalidLenErr(s)
+	}
+	tx, err := a.state.TransactionByID(id.Bytes())
+	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.TransactionDoesNotExist
+		}
+		return errors.Wrapf(err,
+			"TransactionsInfo: expected NotFound in state error, but received other error = %s", s,
+		)
+	}
+	err = json.NewEncoder(w).Encode(tx)
+	if err != nil {
+		return errors.Wrap(err, "TransactionsInfo: failed to marshal tx to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
 	apiBlock, err := a.app.BlocksLast()
 	if err != nil {

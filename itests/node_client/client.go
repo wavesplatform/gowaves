@@ -9,6 +9,7 @@ import (
 
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -64,4 +65,14 @@ func (c *Client) StateHash(t *testing.T, ctx context.Context, height uint64) *pr
 func (c *Client) PrintMsg(t *testing.T, ctx context.Context, msg string) {
 	_, err := c.cli.Debug.PrintMsg(ctx, msg)
 	assert.NoError(t, err, "failed to send Msg to node")
+}
+
+func (c *Client) TransactionInfo(t *testing.T, ctx context.Context, ID crypto.Digest) proto.Transaction {
+	info, _, err := c.cli.Transactions.Info(ctx, ID)
+	assert.NoError(t, err, "failed to get TransactionInfo from node")
+	return info
+}
+
+func (c *Client) TransactionInfoRaw(ctx context.Context, ID crypto.Digest) (proto.Transaction, *client.Response, error) {
+	return c.cli.Transactions.Info(ctx, ID)
 }
