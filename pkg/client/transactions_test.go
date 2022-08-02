@@ -2,11 +2,12 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestNewTransactions(t *testing.T) {
@@ -93,7 +94,7 @@ func TestTransactions_Info(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.NotNil(t, resp)
-	assert.Equal(t, &id, body.(*proto.ExchangeWithSig).ID)
+	assert.Equal(t, &id, body.(*ExchangeWithSigTransactionInfo).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB", resp.Request.URL.String())
 }
 
@@ -143,7 +144,7 @@ func TestTransactionInfoDataTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.NotNil(t, resp)
-	assert.Equal(t, &id, body.(*proto.DataWithProofs).ID)
+	assert.Equal(t, &id, body.(*DataTransactionInfo).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8", resp.Request.URL.String())
 
 }

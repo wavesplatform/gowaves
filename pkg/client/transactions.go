@@ -98,7 +98,7 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 }
 
 // Info gets transaction info.
-func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
+func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (TransactionInfo, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/info/%s", id.String()))
 	if err != nil {
 		return nil, nil, err
@@ -110,23 +110,27 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 	}
 
 	buf := new(bytes.Buffer)
-	buf.WriteRune('[')
 	response, err := doHttp(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
-	buf.WriteRune(']')
-	out := TransactionsField{}
+
+	var tt proto.TransactionTypeVersion
+	if err = json.Unmarshal(buf.Bytes(), &tt); err != nil {
+		return nil, response, errors.Wrap(err, "TransactionTypeVersion unmarshal")
+	}
+
+	out, err := guessTransactionInfoType(&tt)
+	if err != nil {
+		return nil, response, errors.Wrap(err, "Guess transaction info type failed")
+	}
+
 	err = json.Unmarshal(buf.Bytes(), &out)
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 
-	if len(out) == 0 {
-		return nil, response, errors.New("invalid transaction ")
-	}
-
-	return out[0], response, nil
+	return out, response, nil
 }
 
 // Address gets list of transactions where specified address has been involved.
