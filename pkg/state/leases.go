@@ -75,7 +75,7 @@ func newLeases(hs *historyStorage, calcHashes bool) *leases {
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID proto.BlockID) error {
-	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -117,7 +117,7 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 }
 
 func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) (map[proto.WavesAddress]balanceDiff, error) {
-	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
 	}
@@ -169,7 +169,7 @@ func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID prot
 }
 
 func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
-	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -198,13 +198,13 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 }
 
 // Leasing info from DB or local storage.
-func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
+func (l *leases) newestLeasingInfo(id crypto.Digest) (*leasing, error) {
 	if leasing, ok := l.uncertainLeases[id]; ok {
 		return leasing, nil
 	}
 
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.newestTopEntryData(key.bytes(), filter)
+	recordBytes, err := l.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -219,9 +219,9 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 }
 
 // Stable leasing info from DB.
-func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
+func (l *leases) leasingInfo(id crypto.Digest) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := l.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +235,8 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	return record, nil
 }
 
-func (l *leases) isActive(id crypto.Digest, filter bool) (bool, error) {
-	info, err := l.leasingInfo(id, filter)
+func (l *leases) isActive(id crypto.Digest) (bool, error) {
+	info, err := l.leasingInfo(id)
 	if err != nil {
 		return false, err
 	}
@@ -274,8 +274,8 @@ func (l *leases) addLeasingUncertain(id crypto.Digest, leasing *leasing) {
 	l.uncertainLeases[id] = leasing
 }
 
-func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, height uint64, txID *crypto.Digest, filter bool) error {
-	leasing, err := l.newestLeasingInfo(id, filter)
+func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, height uint64, txID *crypto.Digest) error {
+	leasing, err := l.newestLeasingInfo(id)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v", err)
 	}
@@ -285,8 +285,8 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, height u
 	return l.addLeasing(id, leasing, blockID)
 }
 
-func (l *leases) cancelLeasingUncertain(id crypto.Digest, height uint64, txID *crypto.Digest, filter bool) error {
-	leasing, err := l.newestLeasingInfo(id, filter)
+func (l *leases) cancelLeasingUncertain(id crypto.Digest, height uint64, txID *crypto.Digest) error {
+	leasing, err := l.newestLeasingInfo(id)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v", err)
 	}

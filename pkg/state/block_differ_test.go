@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type blockDifferTestObjects struct {
@@ -18,15 +17,14 @@ type blockDifferTestObjects struct {
 	gsp         consensus.GenerationSignatureProvider
 }
 
-func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
+func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
 	sets := settings.TestNetSettings
-	stor, path, err := createStorageObjects()
-	require.NoError(t, err, "createStorageObjects() failed")
+	stor := createStorageObjects(t, false)
 	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	require.NoError(t, err, "newBlockDiffer() failed")
-	return &blockDifferTestObjects{stor, blockDiffer, consensus.NXTGenerationSignatureProvider}, path
+	return &blockDifferTestObjects{stor, blockDiffer, consensus.NXTGenerationSignatureProvider}
 }
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
@@ -51,31 +49,17 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 }
 
 func TestCreateBlockDiffWithoutNg(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	block, _ := genBlocks(t, to)
-	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Empty miner diff before NG activation.
 	assert.Equal(t, txDiff{}, minerDiff)
 }
 
 func TestCreateBlockDiffNg(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	parent, child := genBlocks(t, to)
 	// Activate NG first of all.
@@ -96,7 +80,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -108,14 +92,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 }
 
 func TestCreateBlockDiffSponsorship(t *testing.T) {
-	to, path := createBlockDiffer(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	parent, child := genBlocks(t, to)
 	// Create asset.
@@ -141,14 +118,14 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	}
 	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
 	require.NoError(t, err, "saveCurFeeDistr() failed")
-	_, err = to.blockDiffer.createMinerDiff(&parent.BlockHeader, false, false)
+	_, err = to.blockDiffer.createMinerDiff(&parent.BlockHeader, false)
 	require.NoError(t, err, "createMinerDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -181,12 +158,7 @@ func genBlockWithSingleTransaction(t *testing.T, prevID proto.BlockID, prevGenSi
 }
 
 func TestCreateBlockDiffWithReward(t *testing.T) {
-	to, path := createBlockDiffer(t)
-	defer func() {
-		to.stor.close(t)
-		err := common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createBlockDiffer(t)
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -209,7 +181,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
 	to.stor.addBlock(t, block2.BlockID())
-	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true)
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2

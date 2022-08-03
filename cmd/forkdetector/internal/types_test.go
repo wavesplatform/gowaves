@@ -21,8 +21,8 @@ func TestPeerNodeBinaryRoundTrip(t *testing.T) {
 		next     time.Time
 		state    NodeState
 	}{
-		{net.IPv4(1, 2, 3, 4), 1234, 1234567890, "wavesT", proto.Version{Major: 0, Minor: 16}, 0, ts, NodeUnknown},
-		{net.IPv6zero, 5678, 9876543210, "wavesW", proto.Version{Major: 0, Minor: 15}, 12345, ts, NodeHostile},
+		{net.IPv4(1, 2, 3, 4), 1234, 1234567890, "wavesT", proto.NewVersion(0, 16, 0), 0, ts, NodeUnknown},
+		{net.IPv6zero, 5678, 9876543210, "wavesW", proto.NewVersion(0, 15, 0), 12345, ts, NodeHostile},
 		{net.IPv6loopback, 6666, 0, "", proto.Version{}, 1, ts, NodeResponding},
 		{net.IPv4zero, 0, 0, "", proto.Version{}, 0, ts, NodeDiscarded},
 	}
@@ -66,8 +66,8 @@ func TestPeerNodeString(t *testing.T) {
 		state    NodeState
 		exp      string
 	}{
-		{net.IPv4(1, 2, 3, 4), 1234, 1234567890, "wavesT", proto.Version{Major: 0, Minor: 16}, 0, ts, NodeUnknown, "1.2.3.4:1234|1234567890|wavesT|UNKNOWN|v0.16.0|0|0001-01-01T00:00:00Z"},
-		{net.IPv6zero, 5678, 9876543210, "wavesW", proto.Version{Major: 0, Minor: 15}, 12345, ts, NodeHostile, "[::]:5678|9876543210|wavesW|HOSTILE|v0.15.0|12345|0001-01-01T00:00:00Z"},
+		{net.IPv4(1, 2, 3, 4), 1234, 1234567890, "wavesT", proto.NewVersion(0, 16, 0), 0, ts, NodeUnknown, "1.2.3.4:1234|1234567890|wavesT|UNKNOWN|v0.16.0|0|0001-01-01T00:00:00Z"},
+		{net.IPv6zero, 5678, 9876543210, "wavesW", proto.NewVersion(0, 15, 0), 12345, ts, NodeHostile, "[::]:5678|9876543210|wavesW|HOSTILE|v0.15.0|12345|0001-01-01T00:00:00Z"},
 		{net.IPv6loopback, 6666, 0, "", proto.Version{}, 1, ts, NodeResponding, "[::1]:6666|0||RESPONDING|v0.0.0|1|0001-01-01T00:00:00Z"},
 		{net.IPv4zero, 0, 0, "", proto.Version{}, 0, ts, NodeDiscarded, "0.0.0.0:0|0||DISCARDED|v0.0.0|0|0001-01-01T00:00:00Z"},
 	}

@@ -4,13 +4,10 @@ import (
 	"encoding/binary"
 	"sync"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-)
-
-const (
-	stateInfoSize = 4
 )
 
 var (
@@ -23,31 +20,18 @@ var (
 )
 
 type stateInfo struct {
-	version            uint16
-	hasExtendedApiData bool
-	hasStateHashes     bool
+	Version            uint16 `cbor:"0,keyasint,omitemtpy"`
+	Amend              bool   `cbor:"1,keyasint,omitemtpy"`
+	HasExtendedApiData bool   `cbor:"2,keyasint,omitemtpy"`
+	HasStateHashes     bool   `cbor:"3,keyasint,omitemtpy"`
 }
 
-func (inf *stateInfo) marshalBinary() []byte {
-	buf := make([]byte, stateInfoSize)
-	binary.BigEndian.PutUint16(buf[:2], inf.version)
-	proto.PutBool(buf[2:], inf.hasExtendedApiData)
-	proto.PutBool(buf[3:], inf.hasStateHashes)
-	return buf
+func (inf *stateInfo) marshalBinary() ([]byte, error) {
+	return cbor.Marshal(inf)
 }
 
 func (inf *stateInfo) unmarshalBinary(data []byte) error {
-	if len(data) != stateInfoSize {
-		return errInvalidDataSize
-	}
-	inf.version = binary.BigEndian.Uint16(data[:2])
-	var err error
-	inf.hasExtendedApiData, err = proto.Bool(data[2:])
-	if err != nil {
-		return err
-	}
-	inf.hasStateHashes, err = proto.Bool(data[3:])
-	return err
+	return cbor.Unmarshal(data, inf)
 }
 
 func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
@@ -59,15 +43,19 @@ func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 		return nil
 	}
 	info := &stateInfo{
-		version:            StateVersion,
-		hasExtendedApiData: params.StoreExtendedApiData,
-		hasStateHashes:     params.BuildStateHashes,
+		Version:            StateVersion,
+		HasExtendedApiData: params.StoreExtendedApiData,
+		HasStateHashes:     params.BuildStateHashes,
 	}
-	infoBytes := info.marshalBinary()
-	if err := db.Put(stateInfoKeyBytes, infoBytes); err != nil {
+	return putStateInfoToDB(db, info)
+}
+
+func putStateInfoToDB(db keyvalue.KeyValue, info *stateInfo) error {
+	infoBytes, err := info.marshalBinary()
+	if err != nil {
 		return err
 	}
-	return nil
+	return db.Put(stateInfoKeyBytes, infoBytes)
 }
 
 // stateDB is responsible for all the actions which operate on the whole DB.
@@ -318,28 +306,41 @@ func (s *stateDB) getHeight() (uint64, error) {
 	return binary.LittleEndian.Uint64(dbHeightBytes), nil
 }
 
-func (s *stateDB) stateVersion() (int, error) {
+func (s *stateDB) stateInfo() (stateInfo, error) {
 	stateInfoBytes, err := s.db.Get(stateInfoKeyBytes)
 	if err != nil {
-		return 0, err
+		return stateInfo{}, err
 	}
 	var info stateInfo
 	if err := info.unmarshalBinary(stateInfoBytes); err != nil {
-		return 0, err
+		return stateInfo{}, err
 	}
-	return int(info.version), nil
+	return info, nil
 }
 
-func (s *stateDB) stateInfo() (*stateInfo, error) {
-	stateInfoBytes, err := s.db.Get(stateInfoKeyBytes)
+func (s *stateDB) stateVersion() (int, error) {
+	info, err := s.stateInfo()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	var info stateInfo
-	if err := info.unmarshalBinary(stateInfoBytes); err != nil {
-		return nil, err
+	return int(info.Version), nil
+}
+
+func (s *stateDB) amendFlag() (bool, error) {
+	info, err := s.stateInfo()
+	if err != nil {
+		return false, err
 	}
-	return &info, nil
+	return info.Amend, nil
+}
+
+func (s *stateDB) updateAmendFlag(amend bool) error {
+	info, err := s.stateInfo()
+	if err != nil {
+		return err
+	}
+	info.Amend = amend
+	return putStateInfoToDB(s.db, &info)
 }
 
 // stateStoresHashes indicates if state hashes must be stored.
@@ -348,7 +349,7 @@ func (s *stateDB) stateStoresHashes() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return info.hasStateHashes, nil
+	return info.HasStateHashes, nil
 }
 
 // stateStoresApiData indicates if additional data for gRPC API must be stored.
@@ -357,7 +358,7 @@ func (s *stateDB) stateStoresApiData() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return info.hasExtendedApiData, nil
+	return info.HasExtendedApiData, nil
 }
 
 func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error) {

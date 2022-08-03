@@ -2,18 +2,19 @@ package server
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	protobuf "google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestGetInfo(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/asset_issue_genesis.json")
 	assert.NoError(t, err)
-	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -22,11 +23,10 @@ func TestGetInfo(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
-		stateCloser()
-	}()
+	})
 
 	cl := g.NewAssetsApiClient(conn)
 

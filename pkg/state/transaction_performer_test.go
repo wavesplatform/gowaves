@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type performerTestObjects struct {
@@ -16,27 +16,19 @@ type performerTestObjects struct {
 	tp   *transactionPerformer
 }
 
-func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) {
-	stor, path, err := createStorageObjects()
-	assert.NoError(t, err, "createStorageObjects() failed")
+func createPerformerTestObjects(t *testing.T) *performerTestObjects {
+	stor := createStorageObjects(t, true)
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionPerformer() failed")
-	return &performerTestObjects{stor, tp}, path
+	require.NoError(t, err, "newTransactionPerformer() failed")
+	return &performerTestObjects{stor, tp}
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return &performerInfo{false, 0, blockID0}
+	return &performerInfo{0, blockID0}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithSig(t, 1000)
@@ -59,20 +51,13 @@ func TestPerformIssueWithSig(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
@@ -96,20 +81,13 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformReissueWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithSig(t, 1000)
@@ -120,20 +98,13 @@ func TestPerformReissueWithSig(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueWithSig transaction")
 }
 
 func TestPerformReissueWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithProofs(t, 1000)
@@ -144,20 +115,13 @@ func TestPerformReissueWithProofs(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueWithSig transaction")
 }
 
 func TestPerformBurnWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
@@ -167,20 +131,13 @@ func TestPerformBurnWithSig(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnWithSig transaction")
 }
 
 func TestPerformBurnWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
@@ -190,20 +147,13 @@ func TestPerformBurnWithProofs(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnWithProofs transaction")
 }
 
 func TestPerformExchange(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createExchangeWithSig(t)
@@ -213,53 +163,46 @@ func TestPerformExchange(t *testing.T) {
 	sellOrderId, err := tx.GetOrder2().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId, true)
+	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
 
-	filledAmount, err := to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId, true)
+	filledAmount, err := to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
 	buyOrderId, err := tx.GetOrder1().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId, true)
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
 
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId, true)
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
 	to.stor.flush(t)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId, true)
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
 
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId, true)
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId, true)
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
 
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId, true)
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 }
 
 func TestPerformLeaseWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithSig(t)
@@ -274,20 +217,13 @@ func TestPerformLeaseWithSig(t *testing.T) {
 		Sender:              testGlobal.senderInfo.addr,
 	}
 
-	info, err := to.stor.entities.leases.leasingInfo(*tx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*tx.ID)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseWithSig transaction")
 }
 
 func TestPerformLeaseWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithProofs(t)
@@ -302,20 +238,13 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 		Sender:              testGlobal.senderInfo.addr,
 	}
 
-	info, err := to.stor.entities.leases.leasingInfo(*tx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*tx.ID)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseWithSig transaction")
 }
 
 func TestPerformLeaseCancelWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithSig(t)
@@ -334,20 +263,13 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 	err = to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performLeaseCancelWithSig() failed")
 	to.stor.flush(t)
-	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseCancelWithSig transaction")
 }
 
 func TestPerformLeaseCancelWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithProofs(t)
@@ -366,27 +288,20 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 	err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 	to.stor.flush(t)
-	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseCancelWithProofs transaction")
 }
 
 func TestPerformCreateAliasWithSig(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithSig(t)
 	err := to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performCreateAliasWithSig() failed")
 	to.stor.flush(t)
-	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
 	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithSig transaction")
 
@@ -397,26 +312,19 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 	err = to.stor.entities.aliases.disableStolenAliases()
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
-	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.Equal(t, errAliasDisabled, err)
 }
 
 func TestPerformCreateAliasWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithProofs(t)
 	err := to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performCreateAliasWithProofs() failed")
 	to.stor.flush(t)
-	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
 	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
 
@@ -427,19 +335,12 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 	err = to.stor.entities.aliases.disableStolenAliases()
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
-	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.Equal(t, errAliasDisabled, err)
 }
 
 func TestPerformDataWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -451,20 +352,13 @@ func TestPerformDataWithProofs(t *testing.T) {
 	assert.NoError(t, err, "performDataWithProofs() failed")
 	to.stor.flush(t)
 
-	newEntry, err := to.stor.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key, true)
+	newEntry, err := to.stor.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key)
 	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry, newEntry)
 }
 
 func TestPerformSponsorshipWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -474,47 +368,40 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 
 	assetID := proto.AssetIDFromDigest(tx.AssetID)
 
-	isSponsored, err := to.stor.entities.sponsoredAssets.newestIsSponsored(assetID, true)
+	isSponsored, err := to.stor.entities.sponsoredAssets.newestIsSponsored(assetID)
 	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, isSponsored, true)
 
-	assetCost, err := to.stor.entities.sponsoredAssets.newestAssetCost(assetID, true)
+	assetCost, err := to.stor.entities.sponsoredAssets.newestAssetCost(assetID)
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 
-	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID), true)
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID))
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, false)
 
 	to.stor.flush(t)
 
-	isSponsored, err = to.stor.entities.sponsoredAssets.newestIsSponsored(assetID, true)
+	isSponsored, err = to.stor.entities.sponsoredAssets.newestIsSponsored(assetID)
 	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, isSponsored, true)
 
-	assetCost, err = to.stor.entities.sponsoredAssets.newestAssetCost(assetID, true)
+	assetCost, err = to.stor.entities.sponsoredAssets.newestAssetCost(assetID)
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 
-	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID), true)
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID))
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, true)
 
-	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(proto.AssetIDFromDigest(tx.AssetID), true)
+	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(proto.AssetIDFromDigest(tx.AssetID))
 
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 }
 
 func TestPerformSetScriptWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -525,60 +412,53 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	addr := testGlobal.senderInfo.addr
 
 	// Test newest before flushing.
-	accountHasScript, err := to.stor.entities.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err := to.stor.entities.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAddr(addr, true)
+	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
-	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
-	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
-	_, err = to.stor.entities.scriptsStorage.scriptByAddr(addr, true)
+	_, err = to.stor.entities.scriptsStorage.scriptByAddr(addr)
 	assert.Error(t, err, "scriptByAddr() did not fail before flushing")
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	accountHasScript, err = to.stor.entities.scriptsStorage.newestAccountHasScript(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr, true)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAddr(addr, true)
+	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
-	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
-	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr, true)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAddr(addr, true)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAddr(addr)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 }
 
 func TestPerformSetAssetScriptWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -590,35 +470,35 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 
 	// Test newest before flushing.
-	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID, true)
+	_, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.Error(t, err, "scriptByAsset() did not fail before flushing")
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID, true)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.NoError(t, err, "scriptByAsset() failed after flushing")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
@@ -627,46 +507,39 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.Error(t, err)
 
 	// Test stable before flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID, true)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID)
 	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
+	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID)
 	assert.Error(t, err)
 
 	// Test stable after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(shortAssetID)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, false, isSmartAsset)
-	_, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID, true)
+	_, err = to.stor.entities.scriptsStorage.scriptByAsset(shortAssetID)
 	assert.Error(t, err)
 }
 
 func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
-	to, path := createPerformerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createPerformerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createUpdateAssetInfoWithProofs(t)
@@ -677,7 +550,7 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	assetInfo.description = tx.Description
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(tx.AssetID), true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(tx.AssetID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing UpdateAssetInfo transaction")
 }

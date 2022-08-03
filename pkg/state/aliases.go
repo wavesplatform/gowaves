@@ -112,9 +112,9 @@ func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.Bl
 	return a.hs.addNewEntry(alias, keyBytes, recordBytes, blockID)
 }
 
-func (a *aliases) exists(aliasStr string, filter bool) bool {
+func (a *aliases) exists(aliasStr string) bool {
 	key := aliasKey{alias: aliasStr}
-	if _, err := a.hs.newestTopEntryData(key.bytes(), filter); err != nil {
+	if _, err := a.hs.newestTopEntryData(key.bytes()); err != nil {
 		return false
 	}
 	return true
@@ -132,7 +132,7 @@ func (a *aliases) isDisabled(aliasStr string) (bool, error) {
 	return a.db.Has(key.bytes())
 }
 
-func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.WavesAddress, error) {
+func (a *aliases) newestAddrByAlias(aliasStr string) (*proto.WavesAddress, error) {
 	disabled, err := a.newestIsDisabled(aliasStr)
 	if err != nil {
 		return nil, err
@@ -141,15 +141,15 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.WavesA
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	record, err := a.newestRecordByAlias(key.bytes(), filter)
+	record, err := a.newestRecordByAlias(key.bytes())
 	if err != nil {
 		return nil, err
 	}
 	return &record.info.addr, nil
 }
 
-func (a *aliases) newestRecordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.newestTopEntryData(key, filter)
+func (a *aliases) newestRecordByAlias(key []byte) (*aliasRecord, error) {
+	recordBytes, err := a.hs.newestTopEntryData(key)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +160,8 @@ func (a *aliases) newestRecordByAlias(key []byte, filter bool) (*aliasRecord, er
 	return &record, nil
 }
 
-func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.topEntryData(key, filter)
+func (a *aliases) recordByAlias(key []byte) (*aliasRecord, error) {
+	recordBytes, err := a.hs.topEntryData(key)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
 	return &record, nil
 }
 
-func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.WavesAddress, error) {
+func (a *aliases) addrByAlias(aliasStr string) (*proto.WavesAddress, error) {
 	disabled, err := a.isDisabled(aliasStr)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.WavesAddress
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	record, err := a.recordByAlias(key.bytes(), filter)
+	record, err := a.recordByAlias(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.WavesAddress
 
 func (a *aliases) disableStolenAliases() error {
 	// TODO: this action can not be rolled back now, do we need it?
-	iter, err := a.hs.newNewestTopEntryIterator(alias, true)
+	iter, err := a.hs.newNewestTopEntryIterator(alias)
 	if err != nil {
 		return err
 	}

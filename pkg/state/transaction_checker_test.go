@@ -14,7 +14,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 var (
@@ -27,14 +26,13 @@ type checkerTestObjects struct {
 	tp   *transactionPerformer
 }
 
-func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
-	stor, path, err := createStorageObjects()
-	assert.NoError(t, err, "createStorageObjects() failed")
+func createCheckerTestObjects(t *testing.T) *checkerTestObjects {
+	stor := createStorageObjects(t, true)
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionChecker() failed")
+	require.NoError(t, err, "newTransactionChecker() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionPerformer() failed")
-	return &checkerTestObjects{stor, tc, tp}, path
+	require.NoError(t, err, "newTransactionPerformer() failed")
+	return &checkerTestObjects{stor, tc, tp}
 }
 
 func defaultCheckerInfo() *checkerInfo {
@@ -48,37 +46,29 @@ func defaultCheckerInfo() *checkerInfo {
 }
 
 func TestCheckGenesis(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createGenesis()
 	info := defaultCheckerInfo()
+
 	_, err := to.tc.checkGenesis(tx, info)
+	assert.EqualError(t, err, "genesis transaction inside of non-genesis block")
+
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
-	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
-	info.initialisation = true
+	_, err = to.tc.checkGenesis(tx, info)
+	assert.EqualError(t, err, "genesis transaction on non zero height")
+
+	info.height = 0
+	_, err = to.tc.checkGenesis(tx, info)
+	assert.NoError(t, err, "checkGenesis failed in non-initialisation mode")
+
+	to.stor.hs.amend = false
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed with valid genesis tx")
-	info.blockID = blockID0
-	_, err = to.tc.checkGenesis(tx, info)
-	assert.Error(t, err, "checkGenesis accepted genesis tx in non-genesis block")
 }
 
 func TestCheckPayment(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createPayment(t)
 	info := defaultCheckerInfo()
@@ -95,14 +85,7 @@ func TestCheckPayment(t *testing.T) {
 }
 
 func TestCheckTransferWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createTransferWithSig(t)
 	info := defaultCheckerInfo()
@@ -139,14 +122,7 @@ func TestCheckTransferWithSig(t *testing.T) {
 }
 
 func TestCheckTransferWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createTransferWithProofs(t)
 	info := defaultCheckerInfo()
@@ -190,14 +166,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 }
 
 func TestCheckIsValidUtf8(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	err := to.tc.isValidUtf8("just a normal string")
 	assert.NoError(t, err)
@@ -215,14 +184,7 @@ func TestCheckIsValidUtf8(t *testing.T) {
 }
 
 func TestCheckIssueWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createIssueWithSig(t, 1000)
 	info := defaultCheckerInfo()
@@ -235,14 +197,7 @@ func TestCheckIssueWithSig(t *testing.T) {
 }
 
 func TestCheckIssueWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createIssueWithProofs(t, 1000)
 	info := defaultCheckerInfo()
@@ -257,14 +212,7 @@ func TestCheckIssueWithProofs(t *testing.T) {
 }
 
 func TestCheckReissueWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
@@ -305,14 +253,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 }
 
 func TestCheckReissueWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
@@ -359,14 +300,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 }
 
 func TestCheckBurnWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
@@ -399,14 +333,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 }
 
 func TestCheckBurnWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
@@ -444,14 +371,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 }
 
 func TestCheckExchangeWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createExchangeWithSig(t)
 	info := defaultCheckerInfo()
@@ -516,14 +436,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 }
 
 func TestCheckExchangeWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	txOV2 := createExchangeWithProofs(t)
 	info := defaultCheckerInfo()
@@ -615,14 +528,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 }
 
 func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createUnorderedExchangeWithProofs(t, 2)
 	info := defaultCheckerInfo()
@@ -641,14 +547,7 @@ func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
 }
 
 func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createUnorderedExchangeWithProofs(t, 3)
 	info := defaultCheckerInfo()
@@ -667,14 +566,7 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 }
 
 func TestCheckLeaseWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createLeaseWithSig(t)
 	info := defaultCheckerInfo()
@@ -688,14 +580,7 @@ func TestCheckLeaseWithSig(t *testing.T) {
 }
 
 func TestCheckLeaseWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createLeaseWithProofs(t)
 	info := defaultCheckerInfo()
@@ -715,14 +600,7 @@ func TestCheckLeaseWithProofs(t *testing.T) {
 }
 
 func TestCheckLeaseCancelWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	leaseTx := createLeaseWithSig(t)
 	info := defaultCheckerInfo()
@@ -750,14 +628,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 }
 
 func TestCheckLeaseCancelWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	leaseTx := createLeaseWithProofs(t)
 	info := defaultCheckerInfo()
@@ -792,14 +663,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 }
 
 func TestCheckCreateAliasWithSig(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createCreateAliasWithSig(t)
 	info := defaultCheckerInfo()
@@ -822,14 +686,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 }
 
 func TestCheckCreateAliasWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createCreateAliasWithProofs(t)
 	info := defaultCheckerInfo()
@@ -857,14 +714,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 }
 
 func TestCheckMassTransferWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	entriesNum := 50
 	entries := generateMassTransferEntries(t, entriesNum)
@@ -894,14 +744,7 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 }
 
 func TestCheckDataWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createDataWithProofs(t, 1)
 	info := defaultCheckerInfo()
@@ -947,14 +790,7 @@ func TestCheckDataWithProofs(t *testing.T) {
 }
 
 func TestCheckSponsorshipWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
@@ -997,14 +833,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 }
 
 func TestCheckSetScriptWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createSetScriptWithProofs(t)
 	info := defaultCheckerInfo()
@@ -1502,14 +1331,7 @@ func TestCheckSetScriptWithProofsCheckDAppCallables(t *testing.T) {
 }
 
 func TestCheckSetAssetScriptWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createSetAssetScriptWithProofs(t)
 	info := defaultCheckerInfo()
@@ -1544,14 +1366,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func TestCheckInvokeScriptWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	payments := []proto.ScriptPayment{
 		{Amount: 1, Asset: *testGlobal.asset0.asset},
@@ -1589,14 +1404,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 }
 
 func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createUpdateAssetInfoWithProofs(t)
 	// We create asset using random block here on purpose, this way
@@ -1637,14 +1445,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 }
 
 func TestCheckInvokeExpressionWithProofs(t *testing.T) {
-	to, path := createCheckerTestObjects(t)
-
-	defer func() {
-		to.stor.close(t)
-
-		err := common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createCheckerTestObjects(t)
 
 	tx := createInvokeExpressionWithProofs(t, make([]byte, 1), proto.OptionalAsset{}, 1)
 	info := defaultCheckerInfo()

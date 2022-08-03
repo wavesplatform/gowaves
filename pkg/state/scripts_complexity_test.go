@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type scriptsComplexityStorageObjects struct {
@@ -15,24 +14,14 @@ type scriptsComplexityStorageObjects struct {
 	scriptsComplexity *scriptsComplexity
 }
 
-func createScriptsComplexityStorageObjects() (*scriptsComplexityStorageObjects, []string, error) {
-	stor, path, err := createStorageObjects()
-	if err != nil {
-		return nil, path, err
-	}
+func createScriptsComplexityStorageObjects(t *testing.T) *scriptsComplexityStorageObjects {
+	stor := createStorageObjects(t, true)
 	scriptsComplexity := newScriptsComplexity(stor.hs)
-	return &scriptsComplexityStorageObjects{stor, scriptsComplexity}, path, nil
+	return &scriptsComplexityStorageObjects{stor, scriptsComplexity}
 }
 
 func TestSaveComplexityForAddr(t *testing.T) {
-	to, path, err := createScriptsComplexityStorageObjects()
-	require.NoError(t, err, "createScriptsComplexityStorageObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-		err = common.CleanTemporaryDirs(path)
-		require.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createScriptsComplexityStorageObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
@@ -53,61 +42,53 @@ func TestSaveComplexityForAddr(t *testing.T) {
 		Functions:  map[string]int{"lightFunc": 789, "heavyFunc": 3000, "superHeavyFunc": 9876543210},
 	}
 	estimations := map[int]ride.TreeEstimation{1: est1, 2: est2, 3: est3}
-	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, blockID0)
+	err := to.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res1)
-	res2, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2, true)
+	res2, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2)
 	require.NoError(t, err)
 	assert.Equal(t, est2, *res2)
-	res3, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
+	res3, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
-	res, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	res, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res1)
-	res2, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2, true)
+	res2, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 2)
 	require.NoError(t, err)
 	assert.Equal(t, est2, *res2)
-	res3, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
+	res3, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
-	res, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	res, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
 	require.NoError(t, err)
 	assert.Equal(t, est1, *res)
 }
 
 func TestSaveComplexityForAsset(t *testing.T) {
-	to, path, err := createScriptsComplexityStorageObjects()
-	assert.NoError(t, err, "createScriptsComplexityStorageObjects() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
+	to := createScriptsComplexityStorageObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	asset := testGlobal.asset0.asset.ID
 	assetID := proto.AssetIDFromDigest(asset)
 	est := ride.TreeEstimation{Estimation: 500, Verifier: 500}
-	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
+	err := to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 }

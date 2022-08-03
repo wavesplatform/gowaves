@@ -22,9 +22,9 @@ func (hss *hitSources) appendBlockHitSource(block *proto.Block, blockHeight uint
 	return hss.hs.addNewEntry(hitSource, key.bytes(), hs, block.BlockID())
 }
 
-func (hss *hitSources) hitSource(height uint64, filter bool) ([]byte, error) {
+func (hss *hitSources) hitSource(height uint64) ([]byte, error) {
 	key := hitSourceKey{height: height}
-	hs, err := hss.hs.topEntryData(key.bytes(), filter)
+	hs, err := hss.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -34,9 +34,9 @@ func (hss *hitSources) hitSource(height uint64, filter bool) ([]byte, error) {
 	return hs, nil
 }
 
-func (hss *hitSources) newestHitSource(height uint64, filter bool) ([]byte, error) {
+func (hss *hitSources) newestHitSource(height uint64) ([]byte, error) {
 	key := hitSourceKey{height: height}
-	hs, err := hss.hs.newestTopEntryData(key.bytes(), filter)
+	hs, err := hss.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}

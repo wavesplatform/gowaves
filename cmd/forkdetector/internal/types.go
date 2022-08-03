@@ -127,11 +127,11 @@ func (a PeerNode) MarshalBinary() ([]byte, error) {
 	pos += 8
 	proto.PutStringWithUInt8Len(buf[pos:], a.Name)
 	pos += 1 + len(a.Name)
-	binary.BigEndian.PutUint32(buf[pos:], a.Version.Major)
+	binary.BigEndian.PutUint32(buf[pos:], a.Version.Major())
 	pos += 4
-	binary.BigEndian.PutUint32(buf[pos:], a.Version.Minor)
+	binary.BigEndian.PutUint32(buf[pos:], a.Version.Minor())
 	pos += 4
-	binary.BigEndian.PutUint32(buf[pos:], a.Version.Patch)
+	binary.BigEndian.PutUint32(buf[pos:], a.Version.Patch())
 	pos += 4
 	binary.BigEndian.PutUint32(buf[pos:], uint32(a.Attempts))
 	pos += 4
@@ -162,14 +162,13 @@ func (a *PeerNode) UnmarshalBinary(data []byte) error {
 	}
 	a.Name = n
 	data = data[1+len(n):]
-	var v proto.Version
-	v.Major = binary.BigEndian.Uint32(data[:4])
+	major := binary.BigEndian.Uint32(data[:4])
 	data = data[4:]
-	v.Minor = binary.BigEndian.Uint32(data[:4])
+	minor := binary.BigEndian.Uint32(data[:4])
 	data = data[4:]
-	v.Patch = binary.BigEndian.Uint32(data[:4])
+	patch := binary.BigEndian.Uint32(data[:4])
 	data = data[4:]
-	a.Version = v
+	a.Version = proto.NewVersion(major, minor, patch)
 	a.Attempts = int(binary.BigEndian.Uint32(data[:4]))
 	data = data[4:]
 	t := time.Time{}

@@ -48,7 +48,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !info.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
@@ -77,7 +77,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !info.initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 		}
@@ -96,7 +96,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if !ok {
 		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}
@@ -139,7 +139,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID))
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,6 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		// For asset script we use original estimation
 		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
 			proto.AssetIDFromDigest(assetID),
-			!params.initialisation,
 		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
@@ -351,7 +350,7 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 		if err != nil {
 			return err
 		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev)
 		if err != nil {
 			return err
 		}

@@ -1,12 +1,9 @@
 package keyvalue
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -17,8 +14,7 @@ const (
 )
 
 func TestKeyVal(t *testing.T) {
-	dbDir, err := ioutil.TempDir(os.TempDir(), "dbDir0")
-	require.NoError(t, err)
+	dbDir := t.TempDir()
 	params := KeyValParams{
 		CacheParams:         CacheParams{cacheSize},
 		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability, NoOpStore{}, false},
@@ -29,12 +25,10 @@ func TestKeyVal(t *testing.T) {
 	kv, err := NewKeyVal(dbDir, params)
 	assert.NoError(t, err, "NewKeyVal() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err = kv.Close()
 		assert.NoError(t, err, "Close() failed")
-		err = os.RemoveAll(dbDir)
-		assert.NoError(t, err, "os.RemoveAll() failed")
-	}()
+	})
 
 	// Test direct DB operations.
 	keyPrefix := []byte("sampleKey")

@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -71,15 +72,28 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 }
 
 type scriptBasicInfoRecord struct {
-	PK        crypto.PublicKey `cbor:"0,keyasint,omitemtpy"`
-	ScriptLen uint32           `cbor:"1,keyasint,omitemtpy"`
+	PK             crypto.PublicKey   `cbor:"0,keyasint,omitemtpy"`
+	ScriptLen      uint32             `cbor:"1,keyasint,omitemtpy"`
+	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitemtpy"`
+	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
 }
 
-func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) scriptBasicInfoRecord {
-	return scriptBasicInfoRecord{
-		PK:        pk,
-		ScriptLen: uint32(len(script)),
+func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
+	scriptLen := uint32(len(script))
+	if scriptLen == 0 {
+		return scriptBasicInfoRecord{PK: pk, ScriptLen: scriptLen}, nil, nil
 	}
+	tree, err := scriptBytesToTree(script)
+	if err != nil {
+		return scriptBasicInfoRecord{}, nil, errors.Wrapf(err, "failed to parse script bytes to tree for pk %q", pk.String())
+	}
+	info := scriptBasicInfoRecord{
+		PK:             pk,
+		ScriptLen:      scriptLen,
+		LibraryVersion: tree.LibVersion,
+		HasVerifier:    tree.HasVerifier(),
+	}
+	return info, tree, nil
 }
 
 func (r *scriptBasicInfoRecord) scriptExists() bool {
@@ -96,19 +110,26 @@ func (r *scriptBasicInfoRecord) unmarshalBinary(data []byte) error {
 
 type scriptDBItem struct {
 	script proto.Script
+	tree   *ast.Tree
 	info   scriptBasicInfoRecord
 }
 
-func newScriptDBItem(pk crypto.PublicKey, script proto.Script) scriptDBItem {
-	return scriptDBItem{
-		script: script,
-		info:   newScriptBasicInfoRecord(pk, script),
+func newScriptDBItem(pk crypto.PublicKey, script proto.Script) (scriptDBItem, error) {
+	info, tree, err := newScriptBasicInfoRecord(pk, script)
+	if err != nil {
+		return scriptDBItem{}, errors.Wrap(err, "failed to create new script basic info record")
 	}
+	dbItem := scriptDBItem{
+		script: script,
+		tree:   tree,
+		info:   info,
+	}
+	return dbItem, nil
 }
 
 type assetScriptRecordWithAssetIDTail struct {
 	scriptDBItem scriptDBItem
-	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't stored to db, because it is used only for state hash calculation
+	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't have to be stored to db, because it is used only for state hash calculation
 }
 
 // TODO: LRU cache for script ASTs here only makes sense at the import stage.
@@ -161,24 +182,20 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, 
 		ss.cache.deleteIfExists(scriptKeyBytes)
 		return nil
 	}
-	tree, err := scriptBytesToTree(dbItem.script)
-	if err != nil {
-		return err
-	}
-	ss.cache.set(scriptKeyBytes, *tree, scriptSize)
+	ss.cache.set(scriptKeyBytes, *dbItem.tree, scriptSize)
 	return nil
 }
 
-func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	script, err := ss.hs.topEntryData(key, filter)
+func (ss *scriptsStorage) scriptBytesByKey(key []byte) (proto.Script, error) {
+	script, err := ss.hs.topEntryData(key)
 	if err != nil {
 		return proto.Script{}, err
 	}
 	return script, nil
 }
 
-func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	script, err := ss.hs.newestTopEntryData(key, filter)
+func (ss *scriptsStorage) newestScriptBytesByKey(key []byte) (proto.Script, error) {
+	script, err := ss.hs.newestTopEntryData(key)
 	if err != nil {
 		return proto.Script{}, err
 	}
@@ -193,16 +210,16 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*ast.Tr
 	return scriptBytesToTree(script)
 }
 
-func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ast.Tree, error) {
-	script, err := ss.hs.newestTopEntryData(key, filter)
+func (ss *scriptsStorage) newestScriptAstByKey(key []byte) (*ast.Tree, error) {
+	script, err := ss.hs.newestTopEntryData(key)
 	if err != nil {
 		return nil, err
 	}
-	return ss.scriptAstFromRecordBytes(script)
+	return ss.scriptAstFromRecordBytes(script) // Possible errors `proto.ErrNotFound` and parsing errors.
 }
 
-func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ast.Tree, error) {
-	script, err := ss.hs.topEntryData(key, filter)
+func (ss *scriptsStorage) scriptTreeByKey(key []byte) (*ast.Tree, error) {
+	script, err := ss.hs.topEntryData(key)
 	if err != nil {
 		return nil, err // Possible errors are `keyvalue.ErrNotFoundHere` and untyped "empty history"
 	}
@@ -223,16 +240,23 @@ func (ss *scriptsStorage) dropUncertain() {
 	ss.uncertainAssetScripts = make(map[proto.AssetID]assetScriptRecordWithAssetIDTail)
 }
 
-func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 	// NOTE: we use fullAssetID (crypto.Digest) only for state hashes compatibility
 	var (
 		assetID     = proto.AssetIDFromDigest(fullAssetID)
 		assetIDTail = proto.DigestTail(fullAssetID)
 	)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set uncertain asset script for asset %q with pk %q",
+			fullAssetID.String(), pk.String(),
+		)
+	}
 	ss.uncertainAssetScripts[assetID] = assetScriptRecordWithAssetIDTail{
 		assetIDTail:  assetIDTail,
-		scriptDBItem: newScriptDBItem(pk, script),
+		scriptDBItem: dbItem,
 	}
+	return nil
 }
 
 func (ss *scriptsStorage) setAssetScript(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
@@ -248,11 +272,16 @@ func (ss *scriptsStorage) setAssetScript(fullAssetID crypto.Digest, script proto
 			return err
 		}
 	}
-	dbItem := newScriptDBItem(pk, script)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set asset script for asset %q with pk %q on block %q",
+			fullAssetID.String(), pk.String(), blockID.String(),
+		)
+	}
 	return ss.setScript(assetScript, &key, dbItem, blockID)
 }
 
-func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
+func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID) (bool, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
 		return !r.scriptDBItem.script.IsEmpty(), nil
 	}
@@ -261,7 +290,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID, filter bool)
 		return true, nil
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
-	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes(), filter)
+	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: check error type
 		return false, nil
 	}
@@ -272,9 +301,9 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID, filter bool)
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
+func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &assetScriptKey{assetID}}
-	recordBytes, err := ss.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: check error type
 		return false, nil
 	}
@@ -285,19 +314,16 @@ func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID, filter bool) (bool
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID) (*ast.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		if r.scriptDBItem.script.IsEmpty() {
-			return nil, proto.ErrNotFound
-		}
-		return scriptBytesToTree(r.scriptDBItem.script)
+		return ss.scriptAstFromRecordBytes(r.scriptDBItem.script) // Possible errors `proto.ErrNotFound` and parsing errors.
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
 	if script, has := ss.cache.get(keyBytes); has {
 		return &script, nil
 	}
-	tree, err := ss.newestScriptAstByKey(keyBytes, filter)
+	tree, err := ss.newestScriptAstByKey(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -305,24 +331,24 @@ func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool
 	return tree, nil
 }
 
-func (ss *scriptsStorage) scriptByAsset(assetID proto.AssetID, filter bool) (*ast.Tree, error) {
+func (ss *scriptsStorage) scriptByAsset(assetID proto.AssetID) (*ast.Tree, error) {
 	key := assetScriptKey{assetID}
-	return ss.scriptTreeByKey(key.bytes(), filter)
+	return ss.scriptTreeByKey(key.bytes())
 }
 
-func (ss *scriptsStorage) scriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
+func (ss *scriptsStorage) scriptBytesByAsset(assetID proto.AssetID) (proto.Script, error) {
 	key := assetScriptKey{assetID}
-	return ss.scriptBytesByKey(key.bytes(), filter)
+	return ss.scriptBytesByKey(key.bytes())
 }
 
-func (ss *scriptsStorage) newestScriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
+func (ss *scriptsStorage) newestScriptBytesByAsset(assetID proto.AssetID) (proto.Script, error) {
 	key := assetScriptKey{assetID}
-	return ss.newestScriptBytesByKey(key.bytes(), filter)
+	return ss.newestScriptBytesByKey(key.bytes())
 }
 
-func (ss *scriptsStorage) newestScriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+func (ss *scriptsStorage) newestScriptBytesByAddr(addr proto.WavesAddress) (proto.Script, error) {
 	key := accountScriptKey{addr.ID()}
-	return ss.newestScriptBytesByKey(key.bytes(), filter)
+	return ss.newestScriptBytesByKey(key.bytes())
 }
 
 func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
@@ -337,40 +363,61 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 			return err
 		}
 	}
-	dbItem := newScriptDBItem(pk, script)
+	dbItem, err := newScriptDBItem(pk, script)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set account script for account %q with pk %q on block %q",
+			addr.String(), pk.String(), blockID.String(),
+		)
+	}
 	return ss.setScript(accountScript, &key, dbItem, blockID)
 }
 
 // newestAccountHasVerifier checks that account has verifier.
 // Note that only real proto.WavesAddress account can have a verifier.
-func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
+func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (bool, error) {
 	key := accountScriptKey{addr.ID()}
 	keyBytes := key.bytes()
 	if script, has := ss.cache.get(keyBytes); has {
 		return script.HasVerifier(), nil
 	}
-	script, err := ss.newestScriptAstByKey(keyBytes, filter)
+	infoKey := scriptBasicInfoKey{scriptKey: &key}
+	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
-	return script.HasVerifier(), nil
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account also doesn't have verifier
+		return false, nil
+	}
+	return info.HasVerifier, nil
 }
 
-func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
-	script, err := ss.scriptByAddr(addr, filter)
+func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress) (bool, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
 		return false, nil
 	}
-	return script.HasVerifier(), nil
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account also doesn't have verifier
+		return false, nil
+	}
+	return info.HasVerifier, nil
 }
 
-func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
+func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress) (bool, error) {
 	key := accountScriptKey{addr.ID()}
 	if _, has := ss.cache.get(key.bytes()); has {
 		return true, nil
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
-	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes(), filter)
+	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: check error type
 		return false, nil
 	}
@@ -381,9 +428,9 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress, filter
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
+func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
-	recordBytes, err := ss.hs.topEntryData(key.bytes(), filter)
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: check error type
 		return false, nil
 	}
@@ -394,13 +441,13 @@ func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress, filter bool)
 	return info.scriptExists(), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress) (*ast.Tree, error) {
 	key := accountScriptKey{addr.ID()}
 	keyBytes := key.bytes()
 	if tree, has := ss.cache.get(keyBytes); has {
 		return &tree, nil
 	}
-	tree, err := ss.newestScriptAstByKey(keyBytes, filter)
+	tree, err := ss.newestScriptAstByKey(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -408,31 +455,34 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter boo
 	return tree, nil
 }
 
-func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
-	recordBytes, err := ss.hs.newestTopEntryData(key.bytes(), filter)
+func (ss *scriptsStorage) newestScriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addressID}}
+	recordBytes, err := ss.hs.newestTopEntryData(key.bytes())
 	if err != nil {
-		return crypto.PublicKey{}, err
+		return scriptBasicInfoRecord{}, err
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
-		return crypto.PublicKey{}, err
+		return scriptBasicInfoRecord{}, err
 	}
-	return info.PK, err
+	if !info.scriptExists() {
+		return scriptBasicInfoRecord{}, errors.New("empty script")
+	}
+	return info, err
 }
 
 // scriptByAddr returns script of corresponding proto.WavesAddress.
 // Note that only real proto.WavesAddress account can have a scripts.
-func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress, filter bool) (*ast.Tree, error) {
+func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress) (*ast.Tree, error) {
 	key := accountScriptKey{addr: addr.ID()}
-	return ss.scriptTreeByKey(key.bytes(), filter)
+	return ss.scriptTreeByKey(key.bytes())
 }
 
 // scriptBytesByAddr returns script bytes of corresponding proto.WavesAddress.
 // Note that only real proto.WavesAddress account can have a scripts.
-func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress) (proto.Script, error) {
 	key := accountScriptKey{addr: addr.ID()}
-	return ss.scriptBytesByKey(key.bytes(), filter)
+	return ss.scriptBytesByKey(key.bytes())
 }
 
 func (ss *scriptsStorage) clearCache() error {

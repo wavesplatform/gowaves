@@ -48,6 +48,8 @@ By default, the node is run as a MainNet node. To run a TestNet node put `testne
 ./node -state-path [path to node state directory] -blockchain-type testnet
 ``` 
 
+Read more about [running the node as Linux service](https://github.com/wavesplatform/gowaves/tree/master/cmd/node#readme).
+
 ### How to set block generation
 
 Go Node has two parameters which allow the loading of private keys from a wallet file.
@@ -162,10 +164,10 @@ Send the transaction to the network:
 
 ### What's done
 
-* Full blockchain support of Waves version 1.3
-* Full support of RIDE version 5
-* RIDE DApp-to-DApp invocations
+* Full blockchain support of Waves Protocol version 1.4
+* Full support of RIDE version 6
 * Full support of gRPC API
+* Full support of Metamask API
 * Block generation
 * Partial and very limited support of REST API
 * Fast and optimized import of blockchain
@@ -177,9 +179,8 @@ Send the transaction to the network:
 
 ### Future plans
 
-* Full support of REST API
 * Extensive integration testing
-* RIDE v6, MetaMask support
+* Full support of REST API
 
 ### Building from sources
 

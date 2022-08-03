@@ -2,9 +2,7 @@ package state
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -34,11 +32,39 @@ func bigFromStr(s string) *big.Int {
 	return &i
 }
 
+func TestHandleAmendFlag(t *testing.T) {
+	dataDir := t.TempDir()
+	// first open with false amend
+	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	t.Cleanup(func() {
+		assert.NoError(t, manager.Close(), "manager.Close() failed")
+	})
+	assert.False(t, manager.stor.hs.amend)
+
+	// open with true amend
+	assert.NoError(t, manager.Close(), "manager.Close() failed")
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	assert.True(t, manager.stor.hs.amend)
+
+	// open with false amend again. Result amend should be true
+	assert.NoError(t, manager.Close(), "manager.Close() failed")
+	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	assert.True(t, manager.stor.hs.amend)
+
+	// first open with true amend
+	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	t.Cleanup(func() {
+		assert.NoError(t, newManager.Close(), "newManager.Close() failed")
+	})
+	assert.True(t, newManager.stor.hs.amend)
+}
+
 func TestGenesisConfig(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("TempDir(): %v.\n", err)
-	}
+	dataDir := t.TempDir()
 	ss := &settings.BlockchainSettings{
 		Type:                  settings.Custom,
 		Genesis:               settings.TestNetSettings.Genesis,
@@ -46,19 +72,17 @@ func TestGenesisConfig(t *testing.T) {
 	}
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
+
 	manager, err := newStateManager(dataDir, true, stateParams, ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
 
-	defer func() {
+	t.Cleanup(func() {
 		if err := manager.Close(); err != nil {
 			t.Fatalf("Failed to close stateManager: %v\n", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			t.Fatalf("Failed to clean dara dir: %v\n", err)
-		}
-	}()
+	})
 
 	genesis, err := manager.BlockByHeight(1)
 	if err != nil {
@@ -82,17 +106,14 @@ func validateTxs(st *stateManager, timestamp uint64, txs []proto.Transaction) er
 func TestValidationWithoutBlocks(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	// Test txs from real block without this block.
 	height := proto.Height(75)
@@ -119,7 +140,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
 	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
-	err = manager.flush(false)
+	err = manager.flush()
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
 	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp, 3, true)
@@ -141,10 +162,7 @@ func TestStateRollback(t *testing.T) {
 	}
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
@@ -164,14 +182,11 @@ func TestStateRollback(t *testing.T) {
 		{7501, 7501, filepath.Join(dir, "testdata", "accounts-7501")},
 	}
 
-	defer func() {
+	t.Cleanup(func() {
 		if err := manager.Close(); err != nil {
 			t.Fatalf("Failed to close stateManager: %v\n", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			t.Fatalf("Failed to clean dara dir: %v\n", err)
-		}
-	}()
+	})
 
 	for _, tc := range tests {
 		height, err := manager.Height()
@@ -204,10 +219,7 @@ func TestStateIntegrated(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
 	balancesPath := filepath.Join(dir, "testdata", "accounts-1001")
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
@@ -219,14 +231,11 @@ func TestStateIntegrated(t *testing.T) {
 		{height: 1, score: bigFromStr("120000000219"), path: filepath.Join(dir, "testdata", "accounts-1")},
 	}
 
-	defer func() {
+	t.Cleanup(func() {
 		if err := manager.Close(); err != nil {
 			t.Fatalf("Failed to close stateManager: %v\n", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			t.Fatalf("Failed to clean dara dir: %v\n", err)
-		}
-	}()
+	})
 
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
@@ -290,8 +299,7 @@ func TestStateIntegrated(t *testing.T) {
 func TestPreactivatedFeatures(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	// Set preactivated feature.
 	featureID := int16(1)
 	sets := settings.MainNetSettings
@@ -299,12 +307,10 @@ func TestPreactivatedFeatures(t *testing.T) {
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), sets)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	// Check features status.
 	activated, err := manager.IsActivated(featureID)
@@ -329,17 +335,14 @@ func TestPreactivatedFeatures(t *testing.T) {
 func TestDisallowDuplicateTxIds(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	// Apply blocks.
 	height := uint64(75)
@@ -358,17 +361,14 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 func TestTransactionByID(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	// Apply blocks.
 	height := uint64(75)
@@ -385,23 +385,14 @@ func TestTransactionByID(t *testing.T) {
 }
 
 func TestStateManager_Mutex(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
-	defer func() {
-		err := os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
-
-	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		require.NoError(t, err)
-	}()
+	})
 
 	mu := manager.Mutex()
 	mu.Lock().Unlock()
@@ -410,17 +401,14 @@ func TestStateManager_Mutex(t *testing.T) {
 func TestStateManager_TopBlock(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	genesis, err := manager.BlockByHeight(1)
 	assert.NoError(t, err)
@@ -445,26 +433,23 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-
 	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
 }
 
 func TestGenesisStateHash(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
+
 	manager, err := newStateManager(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	stateHash, err := manager.StateHashAtHeight(1)
 	assert.NoError(t, err, "StateHashAtHeight failed")
@@ -477,19 +462,16 @@ func TestGenesisStateHash(t *testing.T) {
 }
 
 func TestStateHashAtHeight(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
+	dataDir := t.TempDir()
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
 	manager, err := newStateManager(dataDir, false, params, settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
-	defer func() {
+	t.Cleanup(func() {
 		err := manager.Close()
 		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
+	})
 
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)

@@ -76,26 +76,32 @@ func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths) er
 	return nil
 }
 
-func (d *Docker) Purge() error {
-	defer func() {
-		if err := d.goLogFile.Close(); err != nil {
-			log.Warnf("Failed to close go-node logs file: %s", err)
+func (d *Docker) Finish(cancel context.CancelFunc) {
+	cancel()
+	if d.scalaNode != nil {
+		if err := d.pool.Purge(d.scalaNode); err != nil {
+			log.Warnf("Failed to purge scala-node: %s", err)
+		}
+	}
+	if d.goNode != nil {
+		if err := d.pool.Purge(d.goNode); err != nil {
+			log.Warnf("Failed to purge go-node: %s", err)
 
 		}
+	}
+	if err := d.pool.RemoveNetwork(d.network); err != nil {
+		log.Warnf("Failed to remove docker network: %s", err)
+	}
+	if d.goLogFile != nil {
+		if err := d.goLogFile.Close(); err != nil {
+			log.Warnf("Failed to close go-node logs file: %s", err)
+		}
+	}
+	if d.scalaLogFile != nil {
 		if err := d.scalaLogFile.Close(); err != nil {
 			log.Warnf("Failed to close scala-node logs file: %s", err)
 		}
-	}()
-	if err := d.pool.Purge(d.scalaNode); err != nil {
-		return err
 	}
-	if err := d.pool.Purge(d.goNode); err != nil {
-		return err
-	}
-	if err := d.pool.RemoveNetwork(d.network); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {

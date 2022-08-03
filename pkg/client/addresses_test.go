@@ -275,3 +275,79 @@ func TestAddresses_BalanceAfterConfirmations(t *testing.T) {
 	assert.EqualValues(t, 37983102983592, body.Balance)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/balance/3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8/1", resp.Request.URL.String())
 }
+
+const addressData = `
+[
+  {
+    "key": "test1",
+    "type": "integer",
+    "value": 950000
+  },
+  {
+    "key": "test2",
+    "type": "string",
+    "value": "fdsafdsasdfasd"
+  },
+  {
+    "key": "test3",
+    "type": "string",
+    "value": "Aqy7PRU"
+  }
+]`
+
+var expectedEntries = proto.DataEntries{
+	&proto.IntegerDataEntry{Key: "test1", Value: 950000},
+	&proto.StringDataEntry{Key: "test2", Value: "fdsafdsasdfasd"},
+	&proto.StringDataEntry{Key: "test3", Value: "Aqy7PRU"},
+}
+
+func TestAddresses_Data(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressData, 200),
+	})
+	require.NoError(t, err)
+
+	entries, resp, err := client.Addresses.AddressesData(context.Background(), address)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.ElementsMatch(t, expectedEntries, entries)
+}
+
+func TestAddresses_DataKey(t *testing.T) {
+	const addressDataKey = `
+	{
+		"key": "test3",
+		"type": "string",
+		"value": "Aqy7PRU"
+	}`
+	expectedEntry := &proto.StringDataEntry{Key: "test3", Value: "Aqy7PRU"}
+
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressDataKey, 200),
+	})
+	require.NoError(t, err)
+
+	entry, resp, err := client.Addresses.AddressesDataKey(context.Background(), address, "test3")
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, expectedEntry, entry)
+}
+
+func TestAddresses_DataKeys(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressData, 200),
+	})
+	require.NoError(t, err)
+
+	keys := []string{"test1", "test2", "test3"}
+	entries, resp, err := client.Addresses.AddressesDataKeys(context.Background(), address, keys)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.ElementsMatch(t, expectedEntries, entries)
+}

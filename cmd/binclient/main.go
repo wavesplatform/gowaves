@@ -6,11 +6,8 @@ import (
 	"flag"
 	"io"
 	"net"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -55,7 +52,7 @@ func main() {
 		zap.S().Fatal("please, provide 'version' CLI argument")
 	}
 
-	version, err := parseVersion(*version)
+	parsedVersion, err := proto.NewVersionFromString(*version)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -63,7 +60,7 @@ func main() {
 
 	handshake := proto.Handshake{
 		AppName:      *wavesNetwork,
-		Version:      version,
+		Version:      parsedVersion,
 		NodeName:     "nodename",
 		NodeNonce:    0x0,
 		DeclaredAddr: proto.HandshakeTCPAddr{},
@@ -148,39 +145,4 @@ func readPacket(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	return buf, nil
-}
-
-func parseVersion(v string) (proto.Version, error) {
-	rs := strings.Split(v, ".")
-	if len(rs) != 3 {
-		return proto.Version{}, errors.Errorf("incorrect version %s", v)
-	}
-
-	major, err := parseUint32(rs[0])
-	if err != nil {
-		return proto.Version{}, err
-	}
-	minor, err := parseUint32(rs[1])
-	if err != nil {
-		return proto.Version{}, err
-	}
-	patch, err := parseUint32(rs[2])
-	if err != nil {
-		return proto.Version{}, err
-	}
-
-	return proto.Version{
-		Major: major,
-		Minor: minor,
-		Patch: patch,
-	}, nil
-
-}
-
-func parseUint32(val string) (uint32, error) {
-	num, err := strconv.ParseUint(val, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint32(num), nil
 }

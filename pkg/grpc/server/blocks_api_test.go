@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,8 +33,7 @@ func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.Bl
 }
 
 func TestGetBlock(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -46,14 +43,12 @@ func TestGetBlock(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewBlocksApiClient(conn)
 
@@ -93,8 +88,7 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestGetBlockRange(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -104,14 +98,12 @@ func TestGetBlockRange(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewBlocksApiClient(conn)
 
@@ -174,8 +166,7 @@ func TestGetBlockRange(t *testing.T) {
 }
 
 func TestGetCurrentHeight(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	dataDir := t.TempDir()
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -185,14 +176,12 @@ func TestGetCurrentHeight(t *testing.T) {
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		conn.Close()
 		err = st.Close()
 		assert.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
-	}()
+	})
 
 	cl := g.NewBlocksApiClient(conn)
 
