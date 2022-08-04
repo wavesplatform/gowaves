@@ -1,4 +1,4 @@
-FROM golang:1.18.5-alpine3.16 as parent
+FROM golang:1.19.0-alpine3.16 as parent
 
 WORKDIR /app
 
