@@ -2,11 +2,11 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/wavesplatform/gowaves/itests/node_client"
@@ -62,7 +62,7 @@ func Retry(timeout time.Duration, f func() error) error {
 	bo.MaxElapsedTime = timeout
 	if err := backoff.Retry(f, bo); err != nil {
 		if bo.NextBackOff() == backoff.Stop {
-			return fmt.Errorf("reached retry deadline")
+			return errors.Wrap(err, "reached retry deadline")
 		}
 		return err
 	}
