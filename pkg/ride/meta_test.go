@@ -55,7 +55,6 @@ func verify() = true
 @Callable(i)
 func call1(n: Int, b: Boolean, s: String, a: ByteVector) = []
 
-
 @Callable(i)
 func call2(li: List[Int], lsb: List[ByteVector|String], sl: List[String]) = []
 

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime/debug"
 
@@ -49,7 +48,7 @@ func (bf *bloomFilter) WriteTo(w io.Writer) (n int64, err error) {
 	return bf.filter.WriteTo(w)
 }
 
-func (bf bloomFilter) Params() BloomFilterParams {
+func (bf *bloomFilter) Params() BloomFilterParams {
 	return bf.params
 }
 
@@ -126,7 +125,7 @@ type NoOpStore struct {
 
 func (NoOpStore) WithPath(string) {}
 
-func (a NoOpStore) save(to io.WriterTo) error {
+func (a NoOpStore) save(_ io.WriterTo) error {
 	return nil
 }
 
@@ -189,7 +188,7 @@ func (a *storeImpl) save(f io.WriterTo) error {
 }
 
 func (a *storeImpl) load() ([]byte, error) {
-	bts, err := ioutil.ReadFile(a.path)
+	bts, err := os.ReadFile(a.path)
 	if err != nil {
 		return nil, err
 	}

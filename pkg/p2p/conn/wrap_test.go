@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//test that we are receiving bytes
+// test that we are receiving bytes
 func TestWrapConnection(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)

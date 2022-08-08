@@ -2,7 +2,6 @@ package storage
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -142,7 +141,7 @@ func (bs *CBORStorage) DeleteKnown(known []KnownPeer) error {
 		delete(bs.known, k)
 	}
 
-	// newEntries is nil because there no new entries
+	// newEntries is nil because there is no new entries
 	if err := bs.unsafeSyncKnown(nil, backup); err != nil {
 		return errors.Wrap(err, "failed to delete known peers")
 	}
@@ -229,7 +228,7 @@ func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
 		delete(bs.suspended, s.IP)
 	}
 
-	// newEntries is nil because there no new entries
+	// newEntries is nil because there is no new entries
 	if err := bs.unsafeSyncSuspended(nil, backup); err != nil {
 		return errors.Wrap(err, "failed to delete suspended peers")
 	}
@@ -271,7 +270,7 @@ func (bs *CBORStorage) DropSuspended() error {
 }
 
 // DropStorage clear storage memory cache and truncates storage files.
-// In case of error we can loose suspended peers storage file, but honestly it's almost impossible case.
+// In case of error we can lose suspended peers storage file, but honestly it's almost impossible case.
 func (bs *CBORStorage) DropStorage() error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
@@ -283,7 +282,7 @@ func (bs *CBORStorage) DropStorage() error {
 
 	if err := bs.unsafeDropKnown(); err != nil {
 		bs.suspended = suspendedBackup
-		// It's almost impossible case, but if it happens we have inconsistency in suspended peers
+		// It's almost impossible case, but if it happens we have inconsistency in suspended peers,
 		// but honestly it's not fatal error
 		if syncErr := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); syncErr != nil {
 			return errors.Wrapf(err, "failed to sync suspended peers storage from backup: %v", syncErr)
@@ -397,7 +396,7 @@ func marshalToCborAndSyncToFile(filePath string, value interface{}) error {
 		return errors.Wrapf(err, "failed to marshal %T to CBOR", value)
 	}
 
-	if err := ioutil.WriteFile(filePath, data, 0600); err != nil {
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
 		return errors.Wrapf(err, "failed to write %T in file %q", value, filePath)
 	}
 	return nil
@@ -406,7 +405,7 @@ func marshalToCborAndSyncToFile(filePath string, value interface{}) error {
 // unmarshalCborFromFile read file content and trying to unmarshall it into out parameter. It also
 // returns error if file is empty.
 func unmarshalCborFromFile(path string, out interface{}) error {
-	data, err := ioutil.ReadFile(filepath.Clean(path))
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return errors.Wrapf(err, "failed to read from file with name %q", path)
 	}
@@ -452,7 +451,7 @@ func createFileIfNotExist(path string) (err error) {
 
 func updatePeersStorageVersion(storageVersionFile string, newVersion int) error {
 	stringVersion := strconv.Itoa(newVersion)
-	err := ioutil.WriteFile(storageVersionFile, []byte(stringVersion), 0600)
+	err := os.WriteFile(storageVersionFile, []byte(stringVersion), 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write data in file %q", storageVersionFile)
 	}
@@ -464,7 +463,7 @@ func getPeersStorageVersion(storageVersionFile string) (int, error) {
 	if err := createFileIfNotExist(cleanedStorageVersionFile); err != nil {
 		return 0, errors.Wrap(err, "failed to create if not exists storage version file")
 	}
-	versionData, err := ioutil.ReadFile(cleanedStorageVersionFile)
+	versionData, err := os.ReadFile(cleanedStorageVersionFile)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to read from file %q", storageVersionFile)
 	}
