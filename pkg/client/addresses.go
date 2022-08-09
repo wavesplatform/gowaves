@@ -334,7 +334,7 @@ func WithMatches(matches string) AddressesDataParam {
 	}
 }
 
-func WithKeys(keys []string) AddressesDataParam {
+func WithKeys(keys ...string) AddressesDataParam {
 	return func(p *AddressesDataParams) {
 		p.keys = keys
 	}

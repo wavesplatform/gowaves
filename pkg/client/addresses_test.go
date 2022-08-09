@@ -337,7 +337,7 @@ func TestAddresses_DataWithKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, resp, err := client.Addresses.AddressesData(context.Background(), address, WithKeys([]string{"test1", "test2"}))
+	_, resp, err := client.Addresses.AddressesData(context.Background(), address, WithKeys("test1", "test2"))
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/data/3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H?key=test1&key=test2", resp.Request.URL.String())
