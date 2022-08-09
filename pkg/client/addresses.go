@@ -354,11 +354,7 @@ func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddres
 		v.Add("key", key)
 	}
 
-	urlPath, err := url.JoinPath(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-	u, err := url.Parse(urlPath)
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
