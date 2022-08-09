@@ -216,6 +216,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
+	ws.totalComplexity += res.Complexity()
+
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
@@ -238,8 +240,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 	env.setInvocation(oldInvocationParam)
-
-	ws.totalComplexity += res.Complexity()
 
 	if res.userResult() == nil {
 		return rideUnit{}, nil
