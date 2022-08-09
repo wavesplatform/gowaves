@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -20,7 +19,7 @@ type MockHttpRequest struct {
 
 func NewMockHttpRequestFromString(s string, statusCode int) *MockHttpRequest {
 	return &MockHttpRequest{
-		Body:       ioutil.NopCloser(strings.NewReader(s)),
+		Body:       io.NopCloser(strings.NewReader(s)),
 		StatusCode: statusCode,
 	}
 }
@@ -50,7 +49,7 @@ func TestClient_Do(t *testing.T) {
 	cancel, fn := context.WithCancel(bg)
 	fn()
 
-	req, _ := http.NewRequest("GET", "http://google.com", nil)
+	req, _ := http.NewRequest("GET", "https://google.com", nil)
 
 	resp, err := client.Do(cancel, req, nil)
 	assert.Nil(t, resp)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -72,7 +71,7 @@ func show(opts Opts) {
 		return
 	}
 
-	b, err := ioutil.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
+	b, err := os.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 		return
@@ -112,7 +111,7 @@ func addToWallet(opts Opts) {
 
 	var wlt wallet.Wallet
 	if exists(walletPath) {
-		b, err := ioutil.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
+		b, err := os.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 		if err != nil {
 			fmt.Printf("Err: %s\n", err.Error())
 			return
@@ -153,7 +152,7 @@ func addToWallet(opts Opts) {
 		return
 	}
 
-	err = ioutil.WriteFile(walletPath, bts, 0600)
+	err = os.WriteFile(walletPath, bts, 0600)
 	if err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 		return

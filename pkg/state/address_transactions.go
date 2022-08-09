@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -296,7 +295,7 @@ func (at *addressTransactions) persist() error {
 	zap.S().Info("Starting to sort TransactionsByAddresses file, will take awhile...")
 	debug.FreeOSMemory()
 	// Create file for emsort and set emsort over it.
-	tempFile, err := ioutil.TempFile(os.TempDir(), "emsort")
+	tempFile, err := os.CreateTemp(os.TempDir(), "emsort")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp file for emsort")
 	}

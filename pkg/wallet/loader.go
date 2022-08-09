@@ -1,7 +1,7 @@
 package wallet
 
 import (
-	"io/ioutil"
+	"os"
 	"os/user"
 	"path/filepath"
 )
@@ -20,12 +20,12 @@ func NewLoader(path string) LoaderImpl {
 
 func (a LoaderImpl) Load() ([]byte, error) {
 	if a.path != "" {
-		return ioutil.ReadFile(a.path)
+		return os.ReadFile(a.path)
 	} else {
 		u, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
-		return ioutil.ReadFile(filepath.Join(u.HomeDir, ".waves"))
+		return os.ReadFile(filepath.Join(u.HomeDir, ".waves"))
 	}
 }

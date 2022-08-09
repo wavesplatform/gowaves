@@ -16,91 +16,91 @@ var _ scriptStorageState = &mockScriptStorageState{}
 
 // mockScriptStorageState is a mock implementation of scriptStorageState.
 //
-// 	func TestSomethingThatUsesscriptStorageState(t *testing.T) {
+//	func TestSomethingThatUsesscriptStorageState(t *testing.T) {
 //
-// 		// make and configure a mocked scriptStorageState
-// 		mockedscriptStorageState := &mockScriptStorageState{
-// 			accountHasScriptFunc: func(addr proto.WavesAddress) (bool, error) {
-// 				panic("mock out the accountHasScript method")
-// 			},
-// 			accountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-// 				panic("mock out the accountHasVerifier method")
-// 			},
-// 			clearCacheFunc: func() error {
-// 				panic("mock out the clearCache method")
-// 			},
-// 			commitUncertainFunc: func(blockID proto.BlockID) error {
-// 				panic("mock out the commitUncertain method")
-// 			},
-// 			dropUncertainFunc: func()  {
-// 				panic("mock out the dropUncertain method")
-// 			},
-// 			getAccountScriptsHasherFunc: func() *stateHasher {
-// 				panic("mock out the getAccountScriptsHasher method")
-// 			},
-// 			getAssetScriptsHasherFunc: func() *stateHasher {
-// 				panic("mock out the getAssetScriptsHasher method")
-// 			},
-// 			isSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-// 				panic("mock out the isSmartAsset method")
-// 			},
-// 			newestAccountHasScriptFunc: func(addr proto.WavesAddress) (bool, error) {
-// 				panic("mock out the newestAccountHasScript method")
-// 			},
-// 			newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-// 				panic("mock out the newestAccountHasVerifier method")
-// 			},
-// 			newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-// 				panic("mock out the newestIsSmartAsset method")
-// 			},
-// 			newestScriptBasicInfoByAddressIDFunc: func(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
-// 				panic("mock out the newestScriptBasicInfoByAddressID method")
-// 			},
-// 			newestScriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
-// 				panic("mock out the newestScriptByAddr method")
-// 			},
-// 			newestScriptByAssetFunc: func(assetID proto.AssetID) (*ast.Tree, error) {
-// 				panic("mock out the newestScriptByAsset method")
-// 			},
-// 			newestScriptBytesByAddrFunc: func(addr proto.WavesAddress) (proto.Script, error) {
-// 				panic("mock out the newestScriptBytesByAddr method")
-// 			},
-// 			newestScriptBytesByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
-// 				panic("mock out the newestScriptBytesByAsset method")
-// 			},
-// 			prepareHashesFunc: func() error {
-// 				panic("mock out the prepareHashes method")
-// 			},
-// 			resetFunc: func()  {
-// 				panic("mock out the reset method")
-// 			},
-// 			scriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
-// 				panic("mock out the scriptByAddr method")
-// 			},
-// 			scriptByAssetFunc: func(assetID proto.AssetID) (*ast.Tree, error) {
-// 				panic("mock out the scriptByAsset method")
-// 			},
-// 			scriptBytesByAddrFunc: func(addr proto.WavesAddress) (proto.Script, error) {
-// 				panic("mock out the scriptBytesByAddr method")
-// 			},
-// 			scriptBytesByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
-// 				panic("mock out the scriptBytesByAsset method")
-// 			},
-// 			setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-// 				panic("mock out the setAccountScript method")
-// 			},
-// 			setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-// 				panic("mock out the setAssetScript method")
-// 			},
-// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
-// 				panic("mock out the setAssetScriptUncertain method")
-// 			},
-// 		}
+//		// make and configure a mocked scriptStorageState
+//		mockedscriptStorageState := &mockScriptStorageState{
+//			accountHasScriptFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the accountHasScript method")
+//			},
+//			accountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the accountHasVerifier method")
+//			},
+//			clearCacheFunc: func() error {
+//				panic("mock out the clearCache method")
+//			},
+//			commitUncertainFunc: func(blockID proto.BlockID) error {
+//				panic("mock out the commitUncertain method")
+//			},
+//			dropUncertainFunc: func()  {
+//				panic("mock out the dropUncertain method")
+//			},
+//			getAccountScriptsHasherFunc: func() *stateHasher {
+//				panic("mock out the getAccountScriptsHasher method")
+//			},
+//			getAssetScriptsHasherFunc: func() *stateHasher {
+//				panic("mock out the getAssetScriptsHasher method")
+//			},
+//			isSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
+//				panic("mock out the isSmartAsset method")
+//			},
+//			newestAccountHasScriptFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the newestAccountHasScript method")
+//			},
+//			newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the newestAccountHasVerifier method")
+//			},
+//			newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
+//				panic("mock out the newestIsSmartAsset method")
+//			},
+//			newestScriptBasicInfoByAddressIDFunc: func(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+//				panic("mock out the newestScriptBasicInfoByAddressID method")
+//			},
+//			newestScriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
+//				panic("mock out the newestScriptByAddr method")
+//			},
+//			newestScriptByAssetFunc: func(assetID proto.AssetID) (*ast.Tree, error) {
+//				panic("mock out the newestScriptByAsset method")
+//			},
+//			newestScriptBytesByAddrFunc: func(addr proto.WavesAddress) (proto.Script, error) {
+//				panic("mock out the newestScriptBytesByAddr method")
+//			},
+//			newestScriptBytesByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
+//				panic("mock out the newestScriptBytesByAsset method")
+//			},
+//			prepareHashesFunc: func() error {
+//				panic("mock out the prepareHashes method")
+//			},
+//			resetFunc: func()  {
+//				panic("mock out the reset method")
+//			},
+//			scriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
+//				panic("mock out the scriptByAddr method")
+//			},
+//			scriptByAssetFunc: func(assetID proto.AssetID) (*ast.Tree, error) {
+//				panic("mock out the scriptByAsset method")
+//			},
+//			scriptBytesByAddrFunc: func(addr proto.WavesAddress) (proto.Script, error) {
+//				panic("mock out the scriptBytesByAddr method")
+//			},
+//			scriptBytesByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
+//				panic("mock out the scriptBytesByAsset method")
+//			},
+//			setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+//				panic("mock out the setAccountScript method")
+//			},
+//			setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+//				panic("mock out the setAssetScript method")
+//			},
+//			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
+//				panic("mock out the setAssetScriptUncertain method")
+//			},
+//		}
 //
-// 		// use mockedscriptStorageState in code that requires scriptStorageState
-// 		// and then make assertions.
+//		// use mockedscriptStorageState in code that requires scriptStorageState
+//		// and then make assertions.
 //
-// 	}
+//	}
 type mockScriptStorageState struct {
 	// accountHasScriptFunc mocks the accountHasScript method.
 	accountHasScriptFunc func(addr proto.WavesAddress) (bool, error)
@@ -354,7 +354,8 @@ func (mock *mockScriptStorageState) accountHasScript(addr proto.WavesAddress) (b
 
 // accountHasScriptCalls gets all the calls that were made to accountHasScript.
 // Check the length with:
-//     len(mockedscriptStorageState.accountHasScriptCalls())
+//
+//	len(mockedscriptStorageState.accountHasScriptCalls())
 func (mock *mockScriptStorageState) accountHasScriptCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -385,7 +386,8 @@ func (mock *mockScriptStorageState) accountHasVerifier(addr proto.WavesAddress) 
 
 // accountHasVerifierCalls gets all the calls that were made to accountHasVerifier.
 // Check the length with:
-//     len(mockedscriptStorageState.accountHasVerifierCalls())
+//
+//	len(mockedscriptStorageState.accountHasVerifierCalls())
 func (mock *mockScriptStorageState) accountHasVerifierCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -413,7 +415,8 @@ func (mock *mockScriptStorageState) clearCache() error {
 
 // clearCacheCalls gets all the calls that were made to clearCache.
 // Check the length with:
-//     len(mockedscriptStorageState.clearCacheCalls())
+//
+//	len(mockedscriptStorageState.clearCacheCalls())
 func (mock *mockScriptStorageState) clearCacheCalls() []struct {
 } {
 	var calls []struct {
@@ -442,7 +445,8 @@ func (mock *mockScriptStorageState) commitUncertain(blockID proto.BlockID) error
 
 // commitUncertainCalls gets all the calls that were made to commitUncertain.
 // Check the length with:
-//     len(mockedscriptStorageState.commitUncertainCalls())
+//
+//	len(mockedscriptStorageState.commitUncertainCalls())
 func (mock *mockScriptStorageState) commitUncertainCalls() []struct {
 	BlockID proto.BlockID
 } {
@@ -470,7 +474,8 @@ func (mock *mockScriptStorageState) dropUncertain() {
 
 // dropUncertainCalls gets all the calls that were made to dropUncertain.
 // Check the length with:
-//     len(mockedscriptStorageState.dropUncertainCalls())
+//
+//	len(mockedscriptStorageState.dropUncertainCalls())
 func (mock *mockScriptStorageState) dropUncertainCalls() []struct {
 } {
 	var calls []struct {
@@ -496,7 +501,8 @@ func (mock *mockScriptStorageState) getAccountScriptsHasher() *stateHasher {
 
 // getAccountScriptsHasherCalls gets all the calls that were made to getAccountScriptsHasher.
 // Check the length with:
-//     len(mockedscriptStorageState.getAccountScriptsHasherCalls())
+//
+//	len(mockedscriptStorageState.getAccountScriptsHasherCalls())
 func (mock *mockScriptStorageState) getAccountScriptsHasherCalls() []struct {
 } {
 	var calls []struct {
@@ -522,7 +528,8 @@ func (mock *mockScriptStorageState) getAssetScriptsHasher() *stateHasher {
 
 // getAssetScriptsHasherCalls gets all the calls that were made to getAssetScriptsHasher.
 // Check the length with:
-//     len(mockedscriptStorageState.getAssetScriptsHasherCalls())
+//
+//	len(mockedscriptStorageState.getAssetScriptsHasherCalls())
 func (mock *mockScriptStorageState) getAssetScriptsHasherCalls() []struct {
 } {
 	var calls []struct {
@@ -551,7 +558,8 @@ func (mock *mockScriptStorageState) isSmartAsset(assetID proto.AssetID) (bool, e
 
 // isSmartAssetCalls gets all the calls that were made to isSmartAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.isSmartAssetCalls())
+//
+//	len(mockedscriptStorageState.isSmartAssetCalls())
 func (mock *mockScriptStorageState) isSmartAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -582,7 +590,8 @@ func (mock *mockScriptStorageState) newestAccountHasScript(addr proto.WavesAddre
 
 // newestAccountHasScriptCalls gets all the calls that were made to newestAccountHasScript.
 // Check the length with:
-//     len(mockedscriptStorageState.newestAccountHasScriptCalls())
+//
+//	len(mockedscriptStorageState.newestAccountHasScriptCalls())
 func (mock *mockScriptStorageState) newestAccountHasScriptCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -613,7 +622,8 @@ func (mock *mockScriptStorageState) newestAccountHasVerifier(addr proto.WavesAdd
 
 // newestAccountHasVerifierCalls gets all the calls that were made to newestAccountHasVerifier.
 // Check the length with:
-//     len(mockedscriptStorageState.newestAccountHasVerifierCalls())
+//
+//	len(mockedscriptStorageState.newestAccountHasVerifierCalls())
 func (mock *mockScriptStorageState) newestAccountHasVerifierCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -644,7 +654,8 @@ func (mock *mockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID) (b
 
 // newestIsSmartAssetCalls gets all the calls that were made to newestIsSmartAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.newestIsSmartAssetCalls())
+//
+//	len(mockedscriptStorageState.newestIsSmartAssetCalls())
 func (mock *mockScriptStorageState) newestIsSmartAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -675,7 +686,8 @@ func (mock *mockScriptStorageState) newestScriptBasicInfoByAddressID(addressID p
 
 // newestScriptBasicInfoByAddressIDCalls gets all the calls that were made to newestScriptBasicInfoByAddressID.
 // Check the length with:
-//     len(mockedscriptStorageState.newestScriptBasicInfoByAddressIDCalls())
+//
+//	len(mockedscriptStorageState.newestScriptBasicInfoByAddressIDCalls())
 func (mock *mockScriptStorageState) newestScriptBasicInfoByAddressIDCalls() []struct {
 	AddressID proto.AddressID
 } {
@@ -706,7 +718,8 @@ func (mock *mockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress) 
 
 // newestScriptByAddrCalls gets all the calls that were made to newestScriptByAddr.
 // Check the length with:
-//     len(mockedscriptStorageState.newestScriptByAddrCalls())
+//
+//	len(mockedscriptStorageState.newestScriptByAddrCalls())
 func (mock *mockScriptStorageState) newestScriptByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -737,7 +750,8 @@ func (mock *mockScriptStorageState) newestScriptByAsset(assetID proto.AssetID) (
 
 // newestScriptByAssetCalls gets all the calls that were made to newestScriptByAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.newestScriptByAssetCalls())
+//
+//	len(mockedscriptStorageState.newestScriptByAssetCalls())
 func (mock *mockScriptStorageState) newestScriptByAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -768,7 +782,8 @@ func (mock *mockScriptStorageState) newestScriptBytesByAddr(addr proto.WavesAddr
 
 // newestScriptBytesByAddrCalls gets all the calls that were made to newestScriptBytesByAddr.
 // Check the length with:
-//     len(mockedscriptStorageState.newestScriptBytesByAddrCalls())
+//
+//	len(mockedscriptStorageState.newestScriptBytesByAddrCalls())
 func (mock *mockScriptStorageState) newestScriptBytesByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -799,7 +814,8 @@ func (mock *mockScriptStorageState) newestScriptBytesByAsset(assetID proto.Asset
 
 // newestScriptBytesByAssetCalls gets all the calls that were made to newestScriptBytesByAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.newestScriptBytesByAssetCalls())
+//
+//	len(mockedscriptStorageState.newestScriptBytesByAssetCalls())
 func (mock *mockScriptStorageState) newestScriptBytesByAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -827,7 +843,8 @@ func (mock *mockScriptStorageState) prepareHashes() error {
 
 // prepareHashesCalls gets all the calls that were made to prepareHashes.
 // Check the length with:
-//     len(mockedscriptStorageState.prepareHashesCalls())
+//
+//	len(mockedscriptStorageState.prepareHashesCalls())
 func (mock *mockScriptStorageState) prepareHashesCalls() []struct {
 } {
 	var calls []struct {
@@ -853,7 +870,8 @@ func (mock *mockScriptStorageState) reset() {
 
 // resetCalls gets all the calls that were made to reset.
 // Check the length with:
-//     len(mockedscriptStorageState.resetCalls())
+//
+//	len(mockedscriptStorageState.resetCalls())
 func (mock *mockScriptStorageState) resetCalls() []struct {
 } {
 	var calls []struct {
@@ -882,7 +900,8 @@ func (mock *mockScriptStorageState) scriptByAddr(addr proto.WavesAddress) (*ast.
 
 // scriptByAddrCalls gets all the calls that were made to scriptByAddr.
 // Check the length with:
-//     len(mockedscriptStorageState.scriptByAddrCalls())
+//
+//	len(mockedscriptStorageState.scriptByAddrCalls())
 func (mock *mockScriptStorageState) scriptByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -913,7 +932,8 @@ func (mock *mockScriptStorageState) scriptByAsset(assetID proto.AssetID) (*ast.T
 
 // scriptByAssetCalls gets all the calls that were made to scriptByAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.scriptByAssetCalls())
+//
+//	len(mockedscriptStorageState.scriptByAssetCalls())
 func (mock *mockScriptStorageState) scriptByAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -944,7 +964,8 @@ func (mock *mockScriptStorageState) scriptBytesByAddr(addr proto.WavesAddress) (
 
 // scriptBytesByAddrCalls gets all the calls that were made to scriptBytesByAddr.
 // Check the length with:
-//     len(mockedscriptStorageState.scriptBytesByAddrCalls())
+//
+//	len(mockedscriptStorageState.scriptBytesByAddrCalls())
 func (mock *mockScriptStorageState) scriptBytesByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -975,7 +996,8 @@ func (mock *mockScriptStorageState) scriptBytesByAsset(assetID proto.AssetID) (p
 
 // scriptBytesByAssetCalls gets all the calls that were made to scriptBytesByAsset.
 // Check the length with:
-//     len(mockedscriptStorageState.scriptBytesByAssetCalls())
+//
+//	len(mockedscriptStorageState.scriptBytesByAssetCalls())
 func (mock *mockScriptStorageState) scriptBytesByAssetCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -1012,7 +1034,8 @@ func (mock *mockScriptStorageState) setAccountScript(addr proto.WavesAddress, sc
 
 // setAccountScriptCalls gets all the calls that were made to setAccountScript.
 // Check the length with:
-//     len(mockedscriptStorageState.setAccountScriptCalls())
+//
+//	len(mockedscriptStorageState.setAccountScriptCalls())
 func (mock *mockScriptStorageState) setAccountScriptCalls() []struct {
 	Addr    proto.WavesAddress
 	Script  proto.Script
@@ -1055,7 +1078,8 @@ func (mock *mockScriptStorageState) setAssetScript(assetID crypto.Digest, script
 
 // setAssetScriptCalls gets all the calls that were made to setAssetScript.
 // Check the length with:
-//     len(mockedscriptStorageState.setAssetScriptCalls())
+//
+//	len(mockedscriptStorageState.setAssetScriptCalls())
 func (mock *mockScriptStorageState) setAssetScriptCalls() []struct {
 	AssetID crypto.Digest
 	Script  proto.Script
@@ -1096,7 +1120,8 @@ func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.D
 
 // setAssetScriptUncertainCalls gets all the calls that were made to setAssetScriptUncertain.
 // Check the length with:
-//     len(mockedscriptStorageState.setAssetScriptUncertainCalls())
+//
+//	len(mockedscriptStorageState.setAssetScriptUncertainCalls())
 func (mock *mockScriptStorageState) setAssetScriptUncertainCalls() []struct {
 	FullAssetID crypto.Digest
 	Script      proto.Script
