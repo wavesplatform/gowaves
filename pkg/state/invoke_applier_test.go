@@ -3,7 +3,7 @@ package state
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -86,7 +86,7 @@ func readTestScript(name string) ([]byte, error) {
 		return nil, err
 	}
 	dAppPath := filepath.Join(dir, "testdata", "scripts", name)
-	scriptFileContent, err := ioutil.ReadFile(dAppPath)
+	scriptFileContent, err := os.ReadFile(dAppPath)
 	if err != nil {
 		return nil, err
 	}

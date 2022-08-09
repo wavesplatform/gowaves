@@ -394,12 +394,12 @@ type scriptHeader struct {
 }
 
 /*
-	Serialization mode V1 (LIBRARY_VERSION <= 5):
-	00 CONTENT_TYPE LIBRARY_VERSION <DAPP|EXPRESSION> - DApp, Expression
-	LIBRARY_VERSION <EXPRESSION> - Expression
+Serialization mode V1 (LIBRARY_VERSION <= 5):
+00 CONTENT_TYPE LIBRARY_VERSION <DAPP|EXPRESSION> - DApp, Expression
+LIBRARY_VERSION <EXPRESSION> - Expression
 
-	Serialization mode V2 (since LIBRARY_VERSION >= 6):
-	LIBRARY_VERSION CONTENT_TYPE <DAPP|EXPRESSION> - DApp, Expression
+Serialization mode V2 (since LIBRARY_VERSION >= 6):
+LIBRARY_VERSION CONTENT_TYPE <DAPP|EXPRESSION> - DApp, Expression
 */
 func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
 	b, err := r.ReadByte()

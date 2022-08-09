@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 
 	"github.com/valyala/bytebufferpool"
@@ -75,7 +74,7 @@ func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *
 		}
 
 		if skip(header) {
-			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
+			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
 				return
@@ -84,7 +83,7 @@ func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *
 		}
 		// received too long message than we expected, probably it is error, discard
 		if int(header.HeaderLength()+header.PayloadLength) > maxMessageSize {
-			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
+			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
 				return

@@ -31,7 +31,6 @@ const (
 )
 
 /*
-
 Notes on InfluxDB schema design.
 
 Both tags and fields are key-value pairs but with one significant difference is that tags are automatically indexed.
@@ -48,9 +47,9 @@ Excerpt from the documentation:
 
 In general, your queries should guide what gets stored as a tag and what gets stored as a field:
 
- * Store commonly-queried meta data in tags.
- * Store data in fields if each data point contains a different value.
- * Store numeric values as fields (tag values only support string values).
+  - Store commonly-queried meta data in tags.
+  - Store data in fields if each data point contains a different value.
+  - Store numeric values as fields (tag values only support string values).
 
 Tags containing highly variable information like unique IDs, hashes, and random strings lead to a large number of
 series, also known as high series cardinality.
@@ -62,11 +61,10 @@ a field rather than a tag.
 
 Use the following conventions when naming your tag and field keys:
 
- * Avoid keywords in tag and field names
- * Avoid the same tag and field name
- * Avoid encoding data in measurement names
- * Avoid more than one piece of information in one tag
-
+  - Avoid keywords in tag and field names
+  - Avoid the same tag and field name
+  - Avoid encoding data in measurement names
+  - Avoid more than one piece of information in one tag
 */
 var (
 	once sync.Once

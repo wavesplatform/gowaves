@@ -636,7 +636,7 @@ func initExchangeWithProofs() {
 	}
 }
 
-//SetAssetScriptWithProofs
+// SetAssetScriptWithProofs
 func initSetAssetScriptWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
@@ -661,7 +661,7 @@ func initSetAssetScriptWithProofs() {
 	}
 }
 
-//InvokeScriptWithProofs
+// InvokeScriptWithProofs
 func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 

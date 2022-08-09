@@ -695,43 +695,43 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 	}
 }
 
-//TODO: This test is based on real transaction from Testnet https://wavesexplorer.com/testnet/tx/6cEuK2q1FzhcVhiHUhYZXiZigroqTiRQ2Zswg139fcFW
+// TODO: This test is based on real transaction from Testnet https://wavesexplorer.com/testnet/tx/6cEuK2q1FzhcVhiHUhYZXiZigroqTiRQ2Zswg139fcFW
 // and produces an incorrect or unexpected diff, should be fixes some how
-//func TestCreateDiffExchangeWithSignature(t *testing.T) {
-//	to, path := createDifferTestObjects(t)
 //
-//	to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 8)
-//	to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
+//	func TestCreateDiffExchangeWithSignature(t *testing.T) {
+//		to, path := createDifferTestObjects(t)
 //
-//	amount := uint64(394)
-//	price := uint64(251566)
+//		to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 8)
+//		to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
 //
-//	tx := createExchangeWithSigParams(t, price, amount)
-//	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
-//	assert.NoError(t, err, "createDiffExchange() failed")
+//		amount := uint64(394)
+//		price := uint64(251566)
 //
-//	priceAmount := price * amount
-//	correctDiff := txDiff{
-//		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
-//		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, false),
-//		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
-//		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
-//		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
-//		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
-//		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
-//		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-//		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
+//		tx := createExchangeWithSigParams(t, price, amount)
+//		ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+//		assert.NoError(t, err, "createDiffExchange() failed")
+//
+//		priceAmount := price * amount
+//		correctDiff := txDiff{
+//			testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
+//			testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, false),
+//			testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
+//			testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
+//			testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
+//			testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+//			testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
+//			testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+//			testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
+//		}
+//		correctAddrs := map[proto.Address]struct{}{
+//			testGlobal.recipientInfo.addr: empty,
+//			testGlobal.senderInfo.addr:    empty,
+//			testGlobal.matcherInfo.addr:   empty,
+//		}
+//
+//		assert.Equal(t, correctDiff, ch.diff)
+//		assert.Equal(t, correctAddrs, ch.addrs)
 //	}
-//	correctAddrs := map[proto.Address]struct{}{
-//		testGlobal.recipientInfo.addr: empty,
-//		testGlobal.senderInfo.addr:    empty,
-//		testGlobal.matcherInfo.addr:   empty,
-//	}
-//
-//	assert.Equal(t, correctDiff, ch.diff)
-//	assert.Equal(t, correctAddrs, ch.addrs)
-//}
-//
 func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	to := createDifferTestObjects(t)
 

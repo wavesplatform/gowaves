@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//API Auth
+// API Auth
 type authError struct {
 	genericError
 }

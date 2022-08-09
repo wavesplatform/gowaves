@@ -2,7 +2,6 @@ package storage
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,7 +15,7 @@ import (
 )
 
 func TestMarshalUnmarshalCborFromFile(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "test_marshal_to_cbor_*.cbor")
+	tmpFile, err := os.CreateTemp("", "test_marshal_to_cbor_*.cbor")
 	require.NoError(t, err)
 	defer func() {
 		filename := tmpFile.Name()
@@ -53,7 +52,7 @@ func TestMarshalUnmarshalCborFromFile(t *testing.T) {
 }
 
 func TestUnmarshalCborFromEmptyFile(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "peers_storage_test_*.cbor")
+	tmpFile, err := os.CreateTemp("", "peers_storage_test_*.cbor")
 	require.NoError(t, err)
 	defer func() {
 		filename := tmpFile.Name()
@@ -67,7 +66,7 @@ func TestUnmarshalCborFromEmptyFile(t *testing.T) {
 }
 
 func TestCborMarshalUnmarshalWithEmptyData(t *testing.T) {
-	tmpFile, err := ioutil.TempFile("", "*.cbor")
+	tmpFile, err := os.CreateTemp("", "*.cbor")
 	require.NoError(t, err)
 	defer func() {
 		filename := tmpFile.Name()
