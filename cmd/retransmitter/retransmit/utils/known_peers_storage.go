@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/spf13/afero"
@@ -47,7 +47,7 @@ func (a *FileBasedStorage) Read() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(a.f)
+	return io.ReadAll(a.f)
 }
 
 func (a *FileBasedStorage) Close() {
@@ -60,7 +60,7 @@ func (a NoOnStorage) Read() ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (a NoOnStorage) Save(b []byte) error {
+func (a NoOnStorage) Save(_ []byte) error {
 	return nil
 }
 

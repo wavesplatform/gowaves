@@ -42,7 +42,9 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 }
 
-/* Negative test
+/*
+	Negative test
+
 The account script is set on blockID2, then rollback returns storage to the blockID1.
 The account must not have a verifier anymore. However, the filter is false, so invalid data (verifier) will be returned\
 */
@@ -107,7 +109,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address) // if cache is cleared, the script must have not be found
+	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address) // if cache is cleared, the script must have not been found
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }

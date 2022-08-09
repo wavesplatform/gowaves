@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -44,7 +43,7 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 
 func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) error {
 	// TODO: use io.LimitReader
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast: failed to read request body")
 	}
