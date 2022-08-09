@@ -598,8 +598,8 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.B
 	return block, nil
 }
 
-//WriteToWithoutSignature writes binary representation of block into Writer.
-//It does not sign and write signature.
+// WriteToWithoutSignature writes binary representation of block into Writer.
+// It does not sign and write signature.
 func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
@@ -768,7 +768,7 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 	return b, nil
 }
 
-//BlockGetSignature get signature from block without deserialization
+// BlockGetSignature get signature from block without deserialization
 func BlockGetSignature(data []byte) (crypto.Signature, error) {
 	sig := crypto.Signature{}
 	if len(data) < crypto.SignatureSize {

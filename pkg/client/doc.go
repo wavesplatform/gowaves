@@ -26,6 +26,5 @@ Simple example of client usage:
 		// handle error
 	}
 	...
-
 */
 package client

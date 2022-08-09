@@ -14,73 +14,73 @@ var _ featuresState = &mockFeaturesState{}
 
 // mockFeaturesState is a mock implementation of featuresState.
 //
-// 	func TestSomethingThatUsesfeaturesState(t *testing.T) {
+//	func TestSomethingThatUsesfeaturesState(t *testing.T) {
 //
-// 		// make and configure a mocked featuresState
-// 		mockedfeaturesState := &mockFeaturesState{
-// 			activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
-// 				panic("mock out the activateFeature method")
-// 			},
-// 			activationHeightFunc: func(featureID int16) (uint64, error) {
-// 				panic("mock out the activationHeight method")
-// 			},
-// 			addVoteFunc: func(featureID int16, blockID proto.BlockID) error {
-// 				panic("mock out the addVote method")
-// 			},
-// 			allFeaturesFunc: func() ([]int16, error) {
-// 				panic("mock out the allFeatures method")
-// 			},
-// 			approvalHeightFunc: func(featureID int16) (uint64, error) {
-// 				panic("mock out the approvalHeight method")
-// 			},
-// 			approveFeatureFunc: func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
-// 				panic("mock out the approveFeature method")
-// 			},
-// 			featureVotesFunc: func(featureID int16) (uint64, error) {
-// 				panic("mock out the featureVotes method")
-// 			},
-// 			featureVotesAtHeightFunc: func(featureID int16, height uint64) (uint64, error) {
-// 				panic("mock out the featureVotesAtHeight method")
-// 			},
-// 			finishVotingFunc: func(curHeight uint64, blockID proto.BlockID) error {
-// 				panic("mock out the finishVoting method")
-// 			},
-// 			isActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 				panic("mock out the isActivatedAtHeight method")
-// 			},
-// 			isApprovedFunc: func(featureID int16) (bool, error) {
-// 				panic("mock out the isApproved method")
-// 			},
-// 			isApprovedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 				panic("mock out the isApprovedAtHeight method")
-// 			},
-// 			newestActivationHeightFunc: func(featureID int16) (uint64, error) {
-// 				panic("mock out the newestActivationHeight method")
-// 			},
-// 			newestApprovalHeightFunc: func(featureID int16) (uint64, error) {
-// 				panic("mock out the newestApprovalHeight method")
-// 			},
-// 			newestIsActivatedFunc: func(featureID int16) (bool, error) {
-// 				panic("mock out the newestIsActivated method")
-// 			},
-// 			newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 				panic("mock out the newestIsActivatedAtHeight method")
-// 			},
-// 			newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
-// 				panic("mock out the newestIsActivatedForNBlocks method")
-// 			},
-// 			newestIsApprovedFunc: func(featureID int16) (bool, error) {
-// 				panic("mock out the newestIsApproved method")
-// 			},
-// 			resetVotesFunc: func(blockID proto.BlockID) error {
-// 				panic("mock out the resetVotes method")
-// 			},
-// 		}
+//		// make and configure a mocked featuresState
+//		mockedfeaturesState := &mockFeaturesState{
+//			activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
+//				panic("mock out the activateFeature method")
+//			},
+//			activationHeightFunc: func(featureID int16) (uint64, error) {
+//				panic("mock out the activationHeight method")
+//			},
+//			addVoteFunc: func(featureID int16, blockID proto.BlockID) error {
+//				panic("mock out the addVote method")
+//			},
+//			allFeaturesFunc: func() ([]int16, error) {
+//				panic("mock out the allFeatures method")
+//			},
+//			approvalHeightFunc: func(featureID int16) (uint64, error) {
+//				panic("mock out the approvalHeight method")
+//			},
+//			approveFeatureFunc: func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
+//				panic("mock out the approveFeature method")
+//			},
+//			featureVotesFunc: func(featureID int16) (uint64, error) {
+//				panic("mock out the featureVotes method")
+//			},
+//			featureVotesAtHeightFunc: func(featureID int16, height uint64) (uint64, error) {
+//				panic("mock out the featureVotesAtHeight method")
+//			},
+//			finishVotingFunc: func(curHeight uint64, blockID proto.BlockID) error {
+//				panic("mock out the finishVoting method")
+//			},
+//			isActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+//				panic("mock out the isActivatedAtHeight method")
+//			},
+//			isApprovedFunc: func(featureID int16) (bool, error) {
+//				panic("mock out the isApproved method")
+//			},
+//			isApprovedAtHeightFunc: func(featureID int16, height uint64) bool {
+//				panic("mock out the isApprovedAtHeight method")
+//			},
+//			newestActivationHeightFunc: func(featureID int16) (uint64, error) {
+//				panic("mock out the newestActivationHeight method")
+//			},
+//			newestApprovalHeightFunc: func(featureID int16) (uint64, error) {
+//				panic("mock out the newestApprovalHeight method")
+//			},
+//			newestIsActivatedFunc: func(featureID int16) (bool, error) {
+//				panic("mock out the newestIsActivated method")
+//			},
+//			newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+//				panic("mock out the newestIsActivatedAtHeight method")
+//			},
+//			newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
+//				panic("mock out the newestIsActivatedForNBlocks method")
+//			},
+//			newestIsApprovedFunc: func(featureID int16) (bool, error) {
+//				panic("mock out the newestIsApproved method")
+//			},
+//			resetVotesFunc: func(blockID proto.BlockID) error {
+//				panic("mock out the resetVotes method")
+//			},
+//		}
 //
-// 		// use mockedfeaturesState in code that requires featuresState
-// 		// and then make assertions.
+//		// use mockedfeaturesState in code that requires featuresState
+//		// and then make assertions.
 //
-// 	}
+//	}
 type mockFeaturesState struct {
 	// activateFeatureFunc mocks the activateFeature method.
 	activateFeatureFunc func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error
@@ -300,7 +300,8 @@ func (mock *mockFeaturesState) activateFeature(featureID int16, r *activatedFeat
 
 // activateFeatureCalls gets all the calls that were made to activateFeature.
 // Check the length with:
-//     len(mockedfeaturesState.activateFeatureCalls())
+//
+//	len(mockedfeaturesState.activateFeatureCalls())
 func (mock *mockFeaturesState) activateFeatureCalls() []struct {
 	FeatureID int16
 	R         *activatedFeaturesRecord
@@ -335,7 +336,8 @@ func (mock *mockFeaturesState) activationHeight(featureID int16) (uint64, error)
 
 // activationHeightCalls gets all the calls that were made to activationHeight.
 // Check the length with:
-//     len(mockedfeaturesState.activationHeightCalls())
+//
+//	len(mockedfeaturesState.activationHeightCalls())
 func (mock *mockFeaturesState) activationHeightCalls() []struct {
 	FeatureID int16
 } {
@@ -368,7 +370,8 @@ func (mock *mockFeaturesState) addVote(featureID int16, blockID proto.BlockID) e
 
 // addVoteCalls gets all the calls that were made to addVote.
 // Check the length with:
-//     len(mockedfeaturesState.addVoteCalls())
+//
+//	len(mockedfeaturesState.addVoteCalls())
 func (mock *mockFeaturesState) addVoteCalls() []struct {
 	FeatureID int16
 	BlockID   proto.BlockID
@@ -398,7 +401,8 @@ func (mock *mockFeaturesState) allFeatures() ([]int16, error) {
 
 // allFeaturesCalls gets all the calls that were made to allFeatures.
 // Check the length with:
-//     len(mockedfeaturesState.allFeaturesCalls())
+//
+//	len(mockedfeaturesState.allFeaturesCalls())
 func (mock *mockFeaturesState) allFeaturesCalls() []struct {
 } {
 	var calls []struct {
@@ -427,7 +431,8 @@ func (mock *mockFeaturesState) approvalHeight(featureID int16) (uint64, error) {
 
 // approvalHeightCalls gets all the calls that were made to approvalHeight.
 // Check the length with:
-//     len(mockedfeaturesState.approvalHeightCalls())
+//
+//	len(mockedfeaturesState.approvalHeightCalls())
 func (mock *mockFeaturesState) approvalHeightCalls() []struct {
 	FeatureID int16
 } {
@@ -462,7 +467,8 @@ func (mock *mockFeaturesState) approveFeature(featureID int16, r *approvedFeatur
 
 // approveFeatureCalls gets all the calls that were made to approveFeature.
 // Check the length with:
-//     len(mockedfeaturesState.approveFeatureCalls())
+//
+//	len(mockedfeaturesState.approveFeatureCalls())
 func (mock *mockFeaturesState) approveFeatureCalls() []struct {
 	FeatureID int16
 	R         *approvedFeaturesRecord
@@ -497,7 +503,8 @@ func (mock *mockFeaturesState) featureVotes(featureID int16) (uint64, error) {
 
 // featureVotesCalls gets all the calls that were made to featureVotes.
 // Check the length with:
-//     len(mockedfeaturesState.featureVotesCalls())
+//
+//	len(mockedfeaturesState.featureVotesCalls())
 func (mock *mockFeaturesState) featureVotesCalls() []struct {
 	FeatureID int16
 } {
@@ -530,7 +537,8 @@ func (mock *mockFeaturesState) featureVotesAtHeight(featureID int16, height uint
 
 // featureVotesAtHeightCalls gets all the calls that were made to featureVotesAtHeight.
 // Check the length with:
-//     len(mockedfeaturesState.featureVotesAtHeightCalls())
+//
+//	len(mockedfeaturesState.featureVotesAtHeightCalls())
 func (mock *mockFeaturesState) featureVotesAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
@@ -565,7 +573,8 @@ func (mock *mockFeaturesState) finishVoting(curHeight uint64, blockID proto.Bloc
 
 // finishVotingCalls gets all the calls that were made to finishVoting.
 // Check the length with:
-//     len(mockedfeaturesState.finishVotingCalls())
+//
+//	len(mockedfeaturesState.finishVotingCalls())
 func (mock *mockFeaturesState) finishVotingCalls() []struct {
 	CurHeight uint64
 	BlockID   proto.BlockID
@@ -600,7 +609,8 @@ func (mock *mockFeaturesState) isActivatedAtHeight(featureID int16, height uint6
 
 // isActivatedAtHeightCalls gets all the calls that were made to isActivatedAtHeight.
 // Check the length with:
-//     len(mockedfeaturesState.isActivatedAtHeightCalls())
+//
+//	len(mockedfeaturesState.isActivatedAtHeightCalls())
 func (mock *mockFeaturesState) isActivatedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
@@ -633,7 +643,8 @@ func (mock *mockFeaturesState) isApproved(featureID int16) (bool, error) {
 
 // isApprovedCalls gets all the calls that were made to isApproved.
 // Check the length with:
-//     len(mockedfeaturesState.isApprovedCalls())
+//
+//	len(mockedfeaturesState.isApprovedCalls())
 func (mock *mockFeaturesState) isApprovedCalls() []struct {
 	FeatureID int16
 } {
@@ -666,7 +677,8 @@ func (mock *mockFeaturesState) isApprovedAtHeight(featureID int16, height uint64
 
 // isApprovedAtHeightCalls gets all the calls that were made to isApprovedAtHeight.
 // Check the length with:
-//     len(mockedfeaturesState.isApprovedAtHeightCalls())
+//
+//	len(mockedfeaturesState.isApprovedAtHeightCalls())
 func (mock *mockFeaturesState) isApprovedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
@@ -699,7 +711,8 @@ func (mock *mockFeaturesState) newestActivationHeight(featureID int16) (uint64, 
 
 // newestActivationHeightCalls gets all the calls that were made to newestActivationHeight.
 // Check the length with:
-//     len(mockedfeaturesState.newestActivationHeightCalls())
+//
+//	len(mockedfeaturesState.newestActivationHeightCalls())
 func (mock *mockFeaturesState) newestActivationHeightCalls() []struct {
 	FeatureID int16
 } {
@@ -730,7 +743,8 @@ func (mock *mockFeaturesState) newestApprovalHeight(featureID int16) (uint64, er
 
 // newestApprovalHeightCalls gets all the calls that were made to newestApprovalHeight.
 // Check the length with:
-//     len(mockedfeaturesState.newestApprovalHeightCalls())
+//
+//	len(mockedfeaturesState.newestApprovalHeightCalls())
 func (mock *mockFeaturesState) newestApprovalHeightCalls() []struct {
 	FeatureID int16
 } {
@@ -761,7 +775,8 @@ func (mock *mockFeaturesState) newestIsActivated(featureID int16) (bool, error) 
 
 // newestIsActivatedCalls gets all the calls that were made to newestIsActivated.
 // Check the length with:
-//     len(mockedfeaturesState.newestIsActivatedCalls())
+//
+//	len(mockedfeaturesState.newestIsActivatedCalls())
 func (mock *mockFeaturesState) newestIsActivatedCalls() []struct {
 	FeatureID int16
 } {
@@ -794,7 +809,8 @@ func (mock *mockFeaturesState) newestIsActivatedAtHeight(featureID int16, height
 
 // newestIsActivatedAtHeightCalls gets all the calls that were made to newestIsActivatedAtHeight.
 // Check the length with:
-//     len(mockedfeaturesState.newestIsActivatedAtHeightCalls())
+//
+//	len(mockedfeaturesState.newestIsActivatedAtHeightCalls())
 func (mock *mockFeaturesState) newestIsActivatedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
@@ -829,7 +845,8 @@ func (mock *mockFeaturesState) newestIsActivatedForNBlocks(featureID int16, n in
 
 // newestIsActivatedForNBlocksCalls gets all the calls that were made to newestIsActivatedForNBlocks.
 // Check the length with:
-//     len(mockedfeaturesState.newestIsActivatedForNBlocksCalls())
+//
+//	len(mockedfeaturesState.newestIsActivatedForNBlocksCalls())
 func (mock *mockFeaturesState) newestIsActivatedForNBlocksCalls() []struct {
 	FeatureID int16
 	N         int
@@ -862,7 +879,8 @@ func (mock *mockFeaturesState) newestIsApproved(featureID int16) (bool, error) {
 
 // newestIsApprovedCalls gets all the calls that were made to newestIsApproved.
 // Check the length with:
-//     len(mockedfeaturesState.newestIsApprovedCalls())
+//
+//	len(mockedfeaturesState.newestIsApprovedCalls())
 func (mock *mockFeaturesState) newestIsApprovedCalls() []struct {
 	FeatureID int16
 } {
@@ -893,7 +911,8 @@ func (mock *mockFeaturesState) resetVotes(blockID proto.BlockID) error {
 
 // resetVotesCalls gets all the calls that were made to resetVotes.
 // Check the length with:
-//     len(mockedfeaturesState.resetVotesCalls())
+//
+//	len(mockedfeaturesState.resetVotesCalls())
 func (mock *mockFeaturesState) resetVotesCalls() []struct {
 	BlockID proto.BlockID
 } {
