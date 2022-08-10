@@ -13,13 +13,14 @@ const configPath = "/generate_ride_objects/ride_objects.json"
 type actionField struct {
 	Name  string   `json:"name"`
 	Types []string `json:"types"`
+	Order int      `json:"order"`
 }
 
 type actionsObject struct {
 	Name   string        `json:"name"`
 	Fields []actionField `json:"fields"`
 
-	StructName string
+	StructName string `json:"struct_name"`
 }
 
 type rideObjects struct {
@@ -42,7 +43,9 @@ func parseConfig() (*rideObjects, error) {
 		return nil, errors.Wrap(err, "failed to decode ride objects config")
 	}
 	for i := 0; i < len(s.Actions); i++ {
-		s.Actions[i].StructName = strings.ToUpper(string(s.Actions[i].Name[0])) + s.Actions[i].Name[1:]
+		if s.Actions[i].StructName == "" {
+			s.Actions[i].StructName = strings.ToUpper(string(s.Actions[i].Name[0])) + s.Actions[i].Name[1:]
+		}
 	}
 	return s, nil
 }
