@@ -880,7 +880,7 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
 	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 200)}}}
 	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
-	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 11}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 10}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
 	tests := []invokeApplierTestData{
 		{ // No error, no failure - transaction applied
 			payments: []proto.ScriptPayment{},
