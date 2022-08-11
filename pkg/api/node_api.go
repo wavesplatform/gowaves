@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/netutil"
+
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
@@ -275,7 +277,22 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		}
 	}()
 
-	err = apiServer.ListenAndServe()
+	err = nil
+	if opts.MaxConnections > 0 {
+		if address == "" {
+			address = ":http"
+		}
+
+		ln, lErr := net.Listen("tcp", address)
+		if lErr != nil {
+			return lErr
+		}
+
+		err = apiServer.Serve(netutil.LimitListener(ln, opts.MaxConnections))
+	} else {
+		err = apiServer.ListenAndServe()
+	}
+
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
