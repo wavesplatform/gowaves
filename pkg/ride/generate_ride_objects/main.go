@@ -75,6 +75,8 @@ func main() {
 		// get method
 		sb.WriteString(fmt.Sprintf("func (o ride%s) get(prop string) (rideType, error) {\n", act.StructName))
 		sb.WriteString("\tswitch prop {\n")
+		sb.WriteString("\tcase instanceField:\n")
+		sb.WriteString(fmt.Sprintf("\t\treturn rideString(%sTypeName), nil\n", act.Name))
 		for _, field := range act.Fields {
 			sb.WriteString(fmt.Sprintf("\tcase %sField:\n", field.Name))
 			sb.WriteString(fmt.Sprintf("\t\treturn o.%s, nil\n", field.Name))
@@ -115,8 +117,30 @@ func main() {
 		// String method
 		sb.WriteString(fmt.Sprintf("func (o ride%s) String() string {\n", act.StructName))
 		sb.WriteString("\treturn strings.Join(o.lines(), \"\\n\")\n")
-		sb.WriteString("}\n")
+		sb.WriteString("}\n\n")
+
+		// SetProofs (only for transactions)
+		if act.SetProofs {
+			sb.WriteString(fmt.Sprintf("func (o *ride%s) SetProofs(proofs rideType) {\n", act.StructName))
+			sb.WriteString("\to.proofs = proofs\n")
+			sb.WriteString("}\n\n")
+		}
 	}
+	// ResetProofs (only for transactions)
+	sb.WriteString("func ResetProofs(obj rideType) error {\n")
+	sb.WriteString("\tswitch tx := obj.(type) {\n")
+	for _, act := range s.Actions {
+		if act.SetProofs {
+			sb.WriteString(fmt.Sprintf("\tcase ride%s:\n", act.StructName))
+			sb.WriteString("\t\ttx.SetProofs(rideUnit{})\n")
+		}
+	}
+	sb.WriteString("\tdefault:\n")
+	sb.WriteString("\t\treturn errors.Errorf(\"type '%s' is not tx\", obj.instanceOf())\n")
+	sb.WriteString("\t}\n")
+	sb.WriteString("\treturn nil\n")
+	sb.WriteString("}\n\n")
+
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {

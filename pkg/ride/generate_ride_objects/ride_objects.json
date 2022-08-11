@@ -53,6 +53,11 @@
           "name": "scripted",
           "types": ["rideBoolean"],
           "order": 2
+        },
+        {
+          "name": "sponsored",
+          "types": ["rideBoolean"],
+          "order": -1
         }
       ]
     },
@@ -88,6 +93,11 @@
           "name": "scripted",
           "types": ["rideBoolean"],
           "order": 1
+        },
+        {
+          "name": "sponsored",
+          "types": ["rideBoolean"],
+          "order": -1
         },
         {
           "name": "reissuable",
@@ -217,7 +227,7 @@
         },
         {
           "name": "value",
-          "types": ["rideBytes"],
+          "types": ["rideBoolean"],
           "order": 1
         }
       ]
@@ -294,6 +304,11 @@
           "name": "payments",
           "types": ["rideUnit", "attachedPayment", "rideList"],
           "order": 1
+        },
+        {
+          "name": "payment",
+          "types": ["rideUnit", "rideType"],
+          "order": -1
         },
         {
           "name": "callerPublicKey",
@@ -670,6 +685,7 @@
     },
     {
       "name": "burnTransaction",
+      "set_proofs": true,
       "fields": [
         {
           "name": "bodyBytes",
@@ -725,7 +741,13 @@
     },
     {
       "name": "createAliasTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 5
+        },
         {
           "name": "alias",
           "types": ["rideString"],
@@ -745,11 +767,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 3
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 5
         },
         {
           "name": "timestamp",
@@ -775,7 +792,13 @@
     },
     {
       "name": "dataTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 7
+        },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
@@ -790,11 +813,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 5
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 7
         },
         {
           "name": "data",
@@ -825,7 +843,23 @@
     },
     {
       "name": "exchangeTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 12
+        },
+        {
+          "name": "buyOrder",
+          "types": ["rideType"],
+          "order": 2
+        },
+        {
+          "name": "sellOrder",
+          "types": ["rideType"],
+          "order": 7
+        },
         {
           "name": "id",
           "types": ["rideBytes"],
@@ -840,21 +874,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 8
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 12
-        },
-        {
-          "name": "buyOrder",
-          "types": ["rideOrder"],
-          "order": 2
-        },
-        {
-          "name": "sellOrder",
-          "types": ["rideOrder"],
-          "order": 7
         },
         {
           "name": "timestamp",
@@ -940,7 +959,13 @@
     },
     {
       "name": "invokeExpressionTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 8
+        },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
@@ -967,11 +992,6 @@
           "order": 6
         },
         {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 8
-        },
-        {
           "name": "timestamp",
           "types": ["rideInt"],
           "order": 0
@@ -995,7 +1015,13 @@
     },
     {
       "name": "invokeScriptTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 5
+        },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
@@ -1037,11 +1063,6 @@
           "order": 0
         },
         {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 5
-        },
-        {
           "name": "args",
           "types": ["rideList"],
           "order": 12
@@ -1070,7 +1091,13 @@
     },
     {
       "name": "issueTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 12
+        },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
@@ -1102,11 +1129,6 @@
           "order": 5
         },
         {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 12
-        },
-        {
           "name": "timestamp",
           "types": ["rideInt"],
           "order": 0
@@ -1121,13 +1143,11 @@
           "types": ["rideInt"],
           "order": 9
         },
-
         {
           "name": "quantity",
           "types": ["rideInt"],
           "order": 11
         },
-
         {
           "name": "decimals",
           "types": ["rideInt"],
@@ -1147,7 +1167,13 @@
     },
     {
       "name": "leaseCancelTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 7
+        },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
@@ -1167,11 +1193,6 @@
           "name": "leaseID",
           "types": ["rideBytes"],
           "order": 5
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 7
         },
         {
           "name": "timestamp",
@@ -1197,7 +1218,13 @@
     },
     {
       "name": "leaseTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 8
+        },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
@@ -1217,11 +1244,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 6
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 8
         },
         {
           "name": "timestamp",
@@ -1252,7 +1274,13 @@
     },
     {
       "name": "massTransferTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 9
+        },
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
@@ -1282,11 +1310,6 @@
           "name": "transfers",
           "types": ["rideList"],
           "order": 8
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 9
         },
         {
           "name": "transfersCount",
@@ -1322,7 +1345,13 @@
     },
     {
       "name": "paymentTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 8
+        },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
@@ -1342,11 +1371,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 6
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 8
         },
         {
           "name": "timestamp",
@@ -1377,6 +1401,7 @@
     },
     {
       "name": "reissueTransaction",
+      "set_proofs": true,
       "fields": [
         {
           "name": "bodyBytes",
@@ -1437,7 +1462,13 @@
     },
     {
       "name": "setAssetScriptTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 8
+        },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
@@ -1464,11 +1495,6 @@
           "order": 5
         },
         {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 8
-        },
-        {
           "name": "timestamp",
           "types": ["rideInt"],
           "order": 0
@@ -1492,7 +1518,13 @@
     },
     {
       "name": "setScriptTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 7
+        },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
@@ -1512,11 +1544,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 4
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 7
         },
         {
           "name": "timestamp",
@@ -1542,7 +1569,13 @@
     },
     {
       "name": "sponsorFeeTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 7
+        },
         {
           "name": "minSponsoredAssetFee",
           "types": ["rideInt", "rideUnit"],
@@ -1569,11 +1602,6 @@
           "order": 5
         },
         {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 7
-        },
-        {
           "name": "timestamp",
           "types": ["rideInt"],
           "order": 0
@@ -1597,6 +1625,7 @@
     },
     {
       "name": "transferTransaction",
+      "set_proofs": true,
       "fields": [
         {
           "name": "assetID",
@@ -1604,19 +1633,39 @@
           "order": 3
         },
         {
+          "name": "bodyBytes",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
           "order": 4
         },
         {
+          "name": "version",
+          "types": ["rideInt", "rideUnit"],
+          "order": 6
+        },
+        {
+          "name": "attachment",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 9
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 11
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt", "rideUnit"],
+          "order": 12
+        },
+        {
           "name": "recipient",
           "types": ["rideRecipient"],
           "order": 0
-        },
-        {
-          "name": "bodyBytes",
-          "types": ["rideBytes"],
-          "order": 2
         },
         {
           "name": "id",
@@ -1629,16 +1678,6 @@
           "order": 8
         },
         {
-          "name": "attachment",
-          "types": ["rideBytes"],
-          "order": 9
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 11
-        },
-        {
           "name": "timestamp",
           "types": ["rideInt"],
           "order": 1
@@ -1649,16 +1688,6 @@
           "order": 5
         },
         {
-          "name": "version",
-          "types": ["rideInt"],
-          "order": 6
-        },
-        {
-          "name": "fee",
-          "types": ["rideInt"],
-          "order": 12
-        },
-        {
           "name": "sender",
           "types": ["rideAddress"],
           "order": 10
@@ -1667,7 +1696,13 @@
     },
     {
       "name": "updateAssetInfoTransaction",
+      "set_proofs": true,
       "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList", "rideUnit"],
+          "order": 9
+        },
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
@@ -1702,11 +1737,6 @@
           "name": "senderPublicKey",
           "types": ["rideBytes"],
           "order": 7
-        },
-        {
-          "name": "proofs",
-          "types": ["rideList"],
-          "order": 9
         },
         {
           "name": "timestamp",

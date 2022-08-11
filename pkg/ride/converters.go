@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
+func transactionToObject(scheme byte, tx proto.Transaction) (rideType, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)
@@ -72,55 +72,52 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	}
 }
 
-func assetInfoToObject(info *proto.AssetInfo) rideObject {
-	return rideObject{
-		instanceField:       rideString(assetTypeName),
-		idField:             rideBytes(info.ID.Bytes()),
-		quantityField:       rideInt(info.Quantity),
-		decimalsField:       rideInt(info.Decimals),
-		issuerField:         rideAddress(info.Issuer),
-		issuePublicKeyField: rideBytes(common.Dup(info.IssuerPublicKey.Bytes())),
-		reissuableField:     rideBoolean(info.Reissuable),
-		scriptedField:       rideBoolean(info.Scripted),
-		sponsoredField:      rideBoolean(info.Sponsored),
-	}
+func assetInfoToObject(info *proto.AssetInfo) rideType {
+	return newRideAsset(
+		rideBytes(common.Dup(info.IssuerPublicKey.Bytes())),
+		rideBytes(info.ID.Bytes()),
+		rideInt(info.Quantity),
+		rideInt(info.Decimals),
+		rideAddress(info.Issuer),
+		rideBoolean(info.Scripted),
+		rideBoolean(info.Sponsored),
+		rideBoolean(info.Reissuable),
+	)
 }
 
-func fullAssetInfoToObject(info *proto.FullAssetInfo) rideObject {
-	return rideObject{
-		instanceField:        rideString(assetTypeName),
-		idField:              rideBytes(info.ID.Bytes()),
-		quantityField:        rideInt(info.Quantity),
-		decimalsField:        rideInt(info.Decimals),
-		issuerField:          rideAddress(info.Issuer),
-		issuePublicKeyField:  rideBytes(common.Dup(info.IssuerPublicKey.Bytes())),
-		reissuableField:      rideBoolean(info.Reissuable),
-		scriptedField:        rideBoolean(info.Scripted),
-		sponsoredField:       rideBoolean(info.Sponsored),
-		nameField:            rideString(info.Name),
-		descriptionField:     rideString(info.Description),
-		minSponsoredFeeField: rideInt(info.SponsorshipCost),
-	}
+func fullAssetInfoToObject(info *proto.FullAssetInfo) rideType {
+	return newRideFullAsset(
+		rideString(info.Description),
+		rideString(info.Name),
+		rideBytes(common.Dup(info.IssuerPublicKey.Bytes())),
+		rideBytes(info.ID.Bytes()),
+		rideInt(info.SponsorshipCost),
+		rideInt(info.Decimals),
+		rideInt(info.Quantity),
+		rideAddress(info.Issuer),
+		rideBoolean(info.Reissuable),
+		rideBoolean(info.Scripted),
+		rideBoolean(info.Sponsored),
+	)
 }
 
-func blockInfoToObject(info *proto.BlockInfo) rideObject {
+func blockInfoToObject(info *proto.BlockInfo) rideType {
 	var vrf rideType = rideUnit{}
 	if len(info.VRF) > 0 {
 		vrf = rideBytes(common.Dup(info.VRF.Bytes()))
 	}
-	return rideObject{
-		instanceField:            rideString(blockInfoTypeName),
-		timestampField:           rideInt(info.Timestamp),
-		heightField:              rideInt(info.Height),
-		baseTargetField:          rideInt(info.BaseTarget),
-		generationSignatureField: rideBytes(common.Dup(info.GenerationSignature.Bytes())),
-		generatorField:           rideAddress(info.Generator),
-		generatorPublicKeyField:  rideBytes(common.Dup(info.GeneratorPublicKey.Bytes())),
-		vrfField:                 vrf,
-	}
+	return newRideBlockInfo(
+		vrf,
+		rideBytes(common.Dup(info.GenerationSignature.Bytes())),
+		rideBytes(common.Dup(info.GeneratorPublicKey.Bytes())),
+		rideInt(info.BaseTarget),
+		rideInt(info.Timestamp),
+		rideInt(info.Height),
+		rideAddress(info.Generator),
+	)
 }
 
-func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideObject, error) {
+func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
@@ -129,36 +126,34 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	if len(vrf) > 0 {
 		vf = rideBytes(common.Dup(vrf))
 	}
-	return rideObject{
-		instanceField:            rideString(blockInfoTypeName),
-		timestampField:           rideInt(header.Timestamp),
-		heightField:              rideInt(height),
-		baseTargetField:          rideInt(header.BaseTarget),
-		generationSignatureField: rideBytes(common.Dup(header.GenSignature.Bytes())),
-		generatorField:           rideAddress(address),
-		generatorPublicKeyField:  rideBytes(common.Dup(header.GenPublicKey.Bytes())),
-		vrfField:                 vf,
-	}, nil
+	return newRideBlockInfo(
+		vf,
+		rideBytes(common.Dup(header.GenSignature.Bytes())),
+		rideBytes(common.Dup(header.GenPublicKey.Bytes())),
+		rideInt(header.BaseTarget),
+		rideInt(header.Timestamp),
+		rideInt(height),
+		rideAddress(address),
+	), nil
 }
 
-func genesisToObject(scheme byte, tx *proto.Genesis) (rideObject, error) {
+func genesisToObject(scheme byte, tx *proto.Genesis) (rideType, error) {
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "genesisToObject")
 	}
-	return rideObject{
-		instanceField:  rideString(genesisTransactionTypeName),
-		versionField:   rideInt(tx.Version),
-		idField:        rideBytes(tx.ID.Bytes()),
-		recipientField: rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
-		amountField:    rideInt(tx.Amount),
-		feeField:       rideInt(0),
-		timestampField: rideInt(tx.Timestamp),
-		bodyBytesField: rideBytes(body),
-	}, nil
+	return newRideGenesisTransaction(
+		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(body),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(0),
+	), nil
 }
 
-func paymentToObject(scheme byte, tx *proto.Payment) (rideObject, error) {
+func paymentToObject(scheme byte, tx *proto.Payment) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "paymentToObject")
@@ -167,22 +162,21 @@ func paymentToObject(scheme byte, tx *proto.Payment) (rideObject, error) {
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "paymentToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(paymentTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		recipientField:       rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
-		amountField:          rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRidePaymentTransaction(
+		signatureToProofs(tx.Signature),
+		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func issueWithSigToObject(scheme byte, tx *proto.IssueWithSig) (rideObject, error) {
+func issueWithSigToObject(scheme byte, tx *proto.IssueWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "issueWithSigToObject")
@@ -191,26 +185,25 @@ func issueWithSigToObject(scheme byte, tx *proto.IssueWithSig) (rideObject, erro
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "issueWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(issueTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		nameField:            rideString(tx.Name),
-		descriptionField:     rideString(tx.Description),
-		quantityField:        rideInt(tx.Quantity),
-		decimalsField:        rideInt(tx.Decimals),
-		reissuableField:      rideBoolean(tx.Reissuable),
-		scriptField:          rideUnit{},
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideIssueTransaction(
+		signatureToProofs(tx.Signature),
+		rideUnit{},
+		rideString(tx.Description),
+		rideString(tx.Name),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideInt(tx.Quantity),
+		rideInt(tx.Decimals),
+		rideBoolean(tx.Reissuable),
+		rideAddress(sender),
+	), nil
 }
 
-func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideObject, error) {
+func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "issueWithProofsToObject")
@@ -223,26 +216,25 @@ func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideObject
 	if tx.NonEmptyScript() {
 		sf = rideBytes(common.Dup(tx.Script))
 	}
-	return rideObject{
-		instanceField:        rideString(issueTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		nameField:            rideString(tx.Name),
-		descriptionField:     rideString(tx.Description),
-		quantityField:        rideInt(tx.Quantity),
-		decimalsField:        rideInt(tx.Decimals),
-		reissuableField:      rideBoolean(tx.Reissuable),
-		scriptField:          sf,
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideIssueTransaction(
+		proofs(tx.Proofs),
+		sf,
+		rideString(tx.Description),
+		rideString(tx.Name),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideInt(tx.Quantity),
+		rideInt(tx.Decimals),
+		rideBoolean(tx.Reissuable),
+		rideAddress(sender),
+	), nil
 }
 
-func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideObject, error) {
+func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "transferWithSigToObject")
@@ -251,25 +243,24 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideObject
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "transferWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(transferTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		recipientField:       rideRecipient(tx.Recipient),
-		assetIDField:         optionalAsset(tx.AmountAsset),
-		amountField:          rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		feeAssetIDField:      optionalAsset(tx.FeeAsset),
-		attachmentField:      rideBytes(tx.Attachment),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideTransferTransaction(
+		optionalAsset(tx.AmountAsset),
+		rideBytes(body),
+		optionalAsset(tx.FeeAsset),
+		rideInt(tx.Version),
+		rideBytes(tx.Attachment),
+		signatureToProofs(tx.Signature),
+		rideInt(tx.Fee),
+		rideRecipient(tx.Recipient),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideAddress(sender),
+	), nil
 }
 
-func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (rideObject, error) {
+func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
@@ -278,25 +269,24 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(transferTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		recipientField:       rideRecipient(tx.Recipient),
-		assetIDField:         optionalAsset(tx.AmountAsset),
-		amountField:          rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		feeAssetIDField:      optionalAsset(tx.FeeAsset),
-		attachmentField:      rideBytes(tx.Attachment),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideTransferTransaction(
+		optionalAsset(tx.AmountAsset),
+		rideBytes(body),
+		optionalAsset(tx.FeeAsset),
+		rideInt(tx.Version),
+		rideBytes(tx.Attachment),
+		proofs(tx.Proofs),
+		rideInt(tx.Fee),
+		rideRecipient(tx.Recipient),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideAddress(sender),
+	), nil
 }
 
-func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideObject, error) {
+func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "reissueWithSigToObject")
@@ -305,23 +295,22 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideObject, 
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "reissueWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(reissueTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		quantityField:        rideInt(tx.Quantity),
-		reissuableField:      rideBoolean(tx.Reissuable),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideReissueTransaction(
+		rideBytes(body),
+		signatureToProofs(tx.Signature),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Quantity),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+		rideBoolean(tx.Reissuable),
+	), nil
 }
 
-func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideObject, error) {
+func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
@@ -330,23 +319,22 @@ func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideOb
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(reissueTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		quantityField:        rideInt(tx.Quantity),
-		reissuableField:      rideBoolean(tx.Reissuable),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideReissueTransaction(
+		rideBytes(body),
+		proofs(tx.Proofs),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Quantity),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+		rideBoolean(tx.Reissuable),
+	), nil
 }
 
-func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideObject, error) {
+func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "burnWithSigToObject")
@@ -355,22 +343,21 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideObject, error)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "burnWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(burnTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		quantityField:        rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideBurnTransaction(
+		rideBytes(body),
+		signatureToProofs(tx.Signature),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Amount),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideObject, error) {
+func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
@@ -379,27 +366,22 @@ func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideObject, 
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(burnTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		quantityField:        rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideBurnTransaction(
+		rideBytes(body),
+		proofs(tx.Proofs),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Amount),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func assetPairToObject(aa, pa proto.OptionalAsset) rideObject {
-	return rideObject{
-		instanceField:    rideString(assetPairTypeName),
-		amountAssetField: optionalAsset(aa),
-		priceAssetField:  optionalAsset(pa),
-	}
+func assetPairToObject(aa, pa proto.OptionalAsset) rideType {
+	return newRideAssetPair(optionalAsset(aa), optionalAsset(pa))
 }
 
 func orderType(orderType proto.OrderType) rideType {
@@ -412,7 +394,7 @@ func orderType(orderType proto.OrderType) rideType {
 	panic("invalid orderType")
 }
 
-func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
+func orderToObject(scheme proto.Scheme, o proto.Order) (rideType, error) {
 	id, err := o.GetID()
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "orderToObject")
@@ -440,26 +422,25 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 	}
 	matcherPk := o.GetMatcherPK()
 	pair := o.GetAssetPair()
-	return rideObject{
-		instanceField:          rideString(orderTypeName),
-		idField:                rideBytes(id),
-		senderField:            rideAddress(senderWavesAddr),
-		senderPublicKeyField:   rideBytes(common.Dup(o.GetSenderPKBytes())),
-		matcherPublicKeyField:  rideBytes(common.Dup(matcherPk.Bytes())),
-		assetPairField:         assetPairToObject(pair.AmountAsset, pair.PriceAsset),
-		orderTypeField:         orderType(o.GetOrderType()),
-		priceField:             rideInt(o.GetPrice()),
-		amountField:            rideInt(o.GetAmount()),
-		timestampField:         rideInt(o.GetTimestamp()),
-		expirationField:        rideInt(o.GetExpiration()),
-		matcherFeeField:        rideInt(o.GetMatcherFee()),
-		matcherFeeAssetIDField: optionalAsset(o.GetMatcherFeeAsset()),
-		bodyBytesField:         rideBytes(body),
-		proofsField:            proofs(p),
-	}, nil
+	return newRideOrder(
+		assetPairToObject(pair.AmountAsset, pair.PriceAsset),
+		orderType(o.GetOrderType()),
+		optionalAsset(o.GetMatcherFeeAsset()),
+		proofs(p),
+		rideBytes(body),
+		rideBytes(id),
+		rideBytes(common.Dup(o.GetSenderPKBytes())),
+		rideBytes(common.Dup(matcherPk.Bytes())),
+		rideInt(o.GetAmount()),
+		rideInt(o.GetTimestamp()),
+		rideInt(o.GetExpiration()),
+		rideInt(o.GetMatcherFee()),
+		rideInt(o.GetPrice()),
+		rideAddress(senderWavesAddr),
+	), nil
 }
 
-func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideObject, error) {
+func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideType, error) {
 	buy, err := orderToObject(scheme, tx.Order1)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithSigToObject")
@@ -476,26 +457,25 @@ func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideObject
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(exchangeTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(addr),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		buyOrderField:        buy,
-		sellOrderField:       sell,
-		priceField:           rideInt(tx.Price),
-		amountField:          rideInt(tx.Amount),
-		buyMatcherFeeField:   rideInt(tx.BuyMatcherFee),
-		sellMatcherFeeField:  rideInt(tx.SellMatcherFee),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(bts),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideExchangeTransaction(
+		signatureToProofs(tx.Signature),
+		buy,
+		sell,
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(bts),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Price),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(tx.BuyMatcherFee),
+		rideInt(tx.Fee),
+		rideInt(tx.SellMatcherFee),
+		rideAddress(addr),
+	), nil
 }
 
-func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (rideObject, error) {
+func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (rideType, error) {
 	buy, err := orderToObject(scheme, tx.Order1)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
@@ -512,26 +492,25 @@ func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (ride
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(exchangeTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(addr),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		buyOrderField:        buy,
-		sellOrderField:       sell,
-		priceField:           rideInt(tx.Price),
-		amountField:          rideInt(tx.Amount),
-		buyMatcherFeeField:   rideInt(tx.BuyMatcherFee),
-		sellMatcherFeeField:  rideInt(tx.SellMatcherFee),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(bts),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideExchangeTransaction(
+		proofs(tx.Proofs),
+		sell,
+		buy,
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(bts),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Price),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(tx.BuyMatcherFee),
+		rideInt(tx.Fee),
+		rideInt(tx.SellMatcherFee),
+		rideAddress(addr),
+	), nil
 }
 
-func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideObject, error) {
+func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseWithSigToObject")
@@ -540,22 +519,21 @@ func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideObject, erro
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(leaseTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		recipientField:       rideRecipient(tx.Recipient),
-		amountField:          rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideLeaseTransaction(
+		signatureToProofs(tx.Signature),
+		rideRecipient(tx.Recipient),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideObject, error) {
+func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
@@ -564,22 +542,21 @@ func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideObject
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(leaseTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		recipientField:       rideRecipient(tx.Recipient),
-		amountField:          rideInt(tx.Amount),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideLeaseTransaction(
+		proofs(tx.Proofs),
+		rideRecipient(tx.Recipient),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Amount),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func leaseCancelWithSigToObject(scheme byte, tx *proto.LeaseCancelWithSig) (rideObject, error) {
+func leaseCancelWithSigToObject(scheme byte, tx *proto.LeaseCancelWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithSigToObject")
@@ -588,21 +565,20 @@ func leaseCancelWithSigToObject(scheme byte, tx *proto.LeaseCancelWithSig) (ride
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(leaseCancelTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		leaseIDField:         rideBytes(tx.LeaseID.Bytes()),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideLeaseCancelTransaction(
+		signatureToProofs(tx.Signature),
+		rideBytes(body),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(tx.LeaseID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs) (rideObject, error) {
+func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
@@ -611,21 +587,20 @@ func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(leaseCancelTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		leaseIDField:         rideBytes(tx.LeaseID.Bytes()),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideLeaseCancelTransaction(
+		proofs(tx.Proofs),
+		rideBytes(body),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(tx.LeaseID.Bytes()),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func createAliasWithSigToObject(scheme byte, tx *proto.CreateAliasWithSig) (rideObject, error) {
+func createAliasWithSigToObject(scheme byte, tx *proto.CreateAliasWithSig) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "createAliasWithSigToObject")
@@ -634,21 +609,20 @@ func createAliasWithSigToObject(scheme byte, tx *proto.CreateAliasWithSig) (ride
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "createAliasWithSigToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(createAliasTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		aliasField:           rideString(tx.Alias.Alias),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          signatureToProofs(tx.Signature),
-	}, nil
+	return newRideCreateAliasTransaction(
+		signatureToProofs(tx.Signature),
+		rideString(tx.Alias.Alias),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Fee),
+		rideInt(tx.Version),
+		rideAddress(sender),
+	), nil
 }
 
-func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs) (rideObject, error) {
+func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
@@ -657,29 +631,27 @@ func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(createAliasTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		aliasField:           rideString(tx.Alias.Alias),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideCreateAliasTransaction(
+		proofs(tx.Proofs),
+		rideString(tx.Alias.Alias),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Fee),
+		rideInt(tx.Version),
+		rideAddress(sender),
+	), nil
 }
 
-func transferEntryToObject(transferEntry proto.MassTransferEntry) rideObject {
-	return rideObject{
-		instanceField:  rideString(transferEntryTypeName),
-		recipientField: rideRecipient(transferEntry.Recipient),
-		amountField:    rideInt(transferEntry.Amount),
-	}
+func transferEntryToObject(transferEntry proto.MassTransferEntry) rideType {
+	return newRideTransferEntry(
+		rideRecipient(transferEntry.Recipient),
+		rideInt(transferEntry.Amount),
+	)
 }
 
-func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProofs) (rideObject, error) {
+func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "massTransferWithProofsToObject")
@@ -695,55 +667,35 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 		transfers[i] = transferEntryToObject(transfer)
 		total += int64(transfer.Amount)
 	}
-	return rideObject{
-		instanceField:        rideString(massTransferTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         optionalAsset(tx.Asset),
-		transfersField:       transfers,
-		transfersCountField:  rideInt(count),
-		totalAmountField:     rideInt(total),
-		attachmentField:      rideBytes(tx.Attachment),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideMassTransferTransaction(
+		proofs(tx.Proofs),
+		optionalAsset(tx.Asset),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideBytes(tx.Attachment),
+		transfers,
+		rideInt(count),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Fee),
+		rideInt(total),
+		rideInt(tx.Version),
+		rideAddress(sender),
+	), nil
 }
 
 func dataEntryToObject(entry proto.DataEntry) rideType {
 	switch e := entry.(type) {
 	case *proto.IntegerDataEntry:
-		return rideObject{
-			instanceField: rideString(integerEntryTypeName),
-			keyField:      rideString(entry.GetKey()),
-			valueField:    rideInt(e.Value),
-		}
+		return newRideIntegerEntry(rideString(entry.GetKey()), rideInt(e.Value))
 	case *proto.BooleanDataEntry:
-		return rideObject{
-			instanceField: rideString(booleanEntryTypeName),
-			keyField:      rideString(entry.GetKey()),
-			valueField:    rideBoolean(e.Value),
-		}
+		return newRideBooleanEntry(rideString(entry.GetKey()), rideBoolean(e.Value))
 	case *proto.BinaryDataEntry:
-		return rideObject{
-			instanceField: rideString(binaryEntryTypeName),
-			keyField:      rideString(entry.GetKey()),
-			valueField:    rideBytes(e.Value),
-		}
+		return newRideBinaryEntry(rideString(entry.GetKey()), rideBytes(e.Value))
 	case *proto.StringDataEntry:
-		return rideObject{
-			instanceField: rideString(stringEntryTypeName),
-			keyField:      rideString(entry.GetKey()),
-			valueField:    rideString(e.Value),
-		}
+		return newRideStringEntry(rideString(entry.GetKey()), rideString(e.Value))
 	case *proto.DeleteDataEntry:
-		return rideObject{
-			instanceField: rideString(deleteEntryTypeName),
-			keyField:      rideString(entry.GetKey()),
-		}
+		return newRideDeleteEntry(rideUnit{}, rideString(entry.GetKey()))
 	default:
 		return rideUnit{}
 	}
@@ -757,7 +709,7 @@ func dataEntriesToList(entries []proto.DataEntry) rideList {
 	return r
 }
 
-func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideObject, error) {
+func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
@@ -766,21 +718,20 @@ func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideObject, 
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(dataTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		dataField:            dataEntriesToList(tx.Entries),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideDataTransaction(
+		proofs(tx.Proofs),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		dataEntriesToList(tx.Entries),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (rideObject, error) {
+func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
@@ -793,21 +744,20 @@ func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (ri
 	if len(tx.Script) > 0 {
 		sf = rideBytes(common.Dup(tx.Script))
 	}
-	return rideObject{
-		instanceField:        rideString(setScriptTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		scriptField:          sf,
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideSetScriptTransaction(
+		proofs(tx.Proofs),
+		sf,
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs) (rideObject, error) {
+func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "sponsorshipWithProofsToObject")
@@ -820,22 +770,21 @@ func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs)
 	if tx.MinAssetFee > 0 {
 		f = rideInt(tx.MinAssetFee)
 	}
-	return rideObject{
-		instanceField:             rideString(sponsorFeeTransactionTypeName),
-		versionField:              rideInt(tx.Version),
-		idField:                   rideBytes(tx.ID.Bytes()),
-		senderField:               rideAddress(sender),
-		senderPublicKeyField:      rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:              rideBytes(tx.AssetID.Bytes()),
-		minSponsoredAssetFeeField: f,
-		feeField:                  rideInt(tx.Fee),
-		timestampField:            rideInt(tx.Timestamp),
-		bodyBytesField:            rideBytes(body),
-		proofsField:               proofs(tx.Proofs),
-	}, nil
+	return newRideSponsorFeeTransaction(
+		proofs(tx.Proofs),
+		f,
+		rideBytes(body),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithProofs) (rideObject, error) {
+func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "setAssetScriptWithProofsToObject")
@@ -848,30 +797,25 @@ func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithP
 	if len(tx.Script) > 0 {
 		sf = rideBytes(common.Dup(tx.Script))
 	}
-	return rideObject{
-		instanceField:        rideString(setAssetScriptTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		scriptField:          sf,
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideSetAssetScriptTransaction(
+		proofs(tx.Proofs),
+		sf,
+		rideBytes(body),
+		rideBytes(tx.AssetID.Bytes()),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
-func attachedPaymentToObject(p proto.ScriptPayment) rideObject {
-	return rideObject{
-		instanceField: rideString(attachedPaymentTypeName),
-		assetIDField:  optionalAsset(p.Asset),
-		amountField:   rideInt(p.Amount),
-	}
+func attachedPaymentToObject(p proto.ScriptPayment) rideType {
+	return newRideAttachedPayment(optionalAsset(p.Asset), rideInt(p.Amount))
 }
 
-func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProofs) (rideObject, error) {
+func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
@@ -889,7 +833,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 		args[i] = a
 	}
 	var pf rideType = rideUnit{}
-	var psf rideType = rideList{}
+	var psf = rideList{}
 	switch {
 	case len(tx.Payments) == 1:
 		p := attachedPaymentToObject(tx.Payments[0])
@@ -902,26 +846,25 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 		}
 		psf = pl
 	}
-	return rideObject{
-		instanceField:        rideString(invokeScriptTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		dAppField:            rideRecipient(tx.ScriptRecipient),
-		feeAssetIDField:      optionalAsset(tx.FeeAsset),
-		functionField:        rideString(tx.FunctionCall.Name),
-		argsField:            args,
-		paymentField:         pf,
-		paymentsField:        psf,
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideInvokeScriptTransaction(
+		proofs(tx.Proofs),
+		optionalAsset(tx.FeeAsset),
+		pf,
+		rideRecipient(tx.ScriptRecipient),
+		rideString(tx.FunctionCall.Name),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		psf,
+		args,
+		rideInt(tx.Timestamp),
+		rideInt(tx.Fee),
+		rideInt(tx.Version),
+		rideAddress(sender),
+	), nil
 }
 
-func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideObject, error) {
+func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
@@ -930,19 +873,18 @@ func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionT
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(invokeExpressionTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		expressionField:      rideBytes(common.Dup(tx.Expression.Bytes())),
-		feeAssetIDField:      optionalAsset(tx.FeeAsset),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideInvokeExpressionTransaction(
+		proofs(tx.Proofs),
+		optionalAsset(tx.FeeAsset),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.Expression.Bytes())),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
 func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
@@ -990,7 +932,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 	return arguments, nil
 }
 
-func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
+func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1016,44 +958,42 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 				tx.Value().String())
 		}
 		amount := res.Int64()
-		return rideObject{
-			instanceField:        rideString(transferTransactionTypeName),
-			bodyBytesField:       rideBytes(nil),
-			proofsField:          proofs(proto.NewProofs()),
-			versionField:         rideInt(tx.GetVersion()),
-			idField:              rideBytes(tx.ID.Bytes()),
-			senderField:          rideAddress(sender),
-			senderPublicKeyField: rideBytes(callerPK),
-			recipientField:       rideRecipient(proto.NewRecipientFromAddress(*to)),
-			assetIDField:         optionalAsset(proto.NewOptionalAssetWaves()),
-			amountField:          rideInt(amount),
-			feeField:             rideInt(tx.GetFee()),
-			feeAssetIDField:      optionalAsset(proto.NewOptionalAssetWaves()),
-			attachmentField:      rideBytes(nil),
-			timestampField:       rideInt(tx.GetTimestamp()),
-		}, nil
+		return newRideTransferTransaction(
+			optionalAsset(proto.NewOptionalAssetWaves()),
+			rideBytes(nil),
+			optionalAsset(proto.NewOptionalAssetWaves()),
+			rideInt(tx.GetVersion()),
+			rideBytes(nil),
+			proofs(proto.NewProofs()),
+			rideInt(tx.GetFee()),
+			rideRecipient(proto.NewRecipientFromAddress(*to)),
+			rideBytes(tx.ID.Bytes()),
+			rideBytes(callerPK),
+			rideInt(tx.GetTimestamp()),
+			rideInt(amount),
+			rideAddress(sender),
+		), nil
 
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		recipientAddr, err := proto.EthereumAddress(kind.Arguments.Recipient).ToWavesAddress(scheme)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
-		return rideObject{
-			instanceField:        rideString(transferTransactionTypeName),
-			bodyBytesField:       rideBytes(nil),
-			proofsField:          proofs(proto.NewProofs()),
-			versionField:         rideInt(tx.GetVersion()),
-			idField:              rideBytes(tx.ID.Bytes()),
-			senderField:          rideAddress(sender),
-			senderPublicKeyField: rideBytes(callerPK),
-			recipientField:       rideRecipient(proto.NewRecipientFromAddress(recipientAddr)),
-			assetIDField:         optionalAsset(kind.Asset),
-			amountField:          rideInt(kind.Arguments.Amount),
-			feeField:             rideInt(tx.GetFee()),
-			feeAssetIDField:      optionalAsset(proto.NewOptionalAssetWaves()),
-			attachmentField:      rideBytes(nil),
-			timestampField:       rideInt(tx.GetTimestamp()),
-		}, nil
+		return newRideTransferTransaction(
+			optionalAsset(kind.Asset),
+			rideBytes(nil),
+			optionalAsset(proto.NewOptionalAssetWaves()),
+			rideInt(tx.GetVersion()),
+			rideBytes(nil),
+			proofs(proto.NewProofs()),
+			rideInt(tx.GetFee()),
+			rideRecipient(proto.NewRecipientFromAddress(recipientAddr)),
+			rideBytes(tx.ID.Bytes()),
+			rideBytes(callerPK),
+			rideInt(tx.GetTimestamp()),
+			rideInt(kind.Arguments.Amount),
+			rideAddress(sender),
+		), nil
 
 	case *proto.EthereumInvokeScriptTxKind:
 		abiPayments := tx.TxKind.DecodedData().Payments
@@ -1064,7 +1004,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			scriptPayments = append(scriptPayments, payment)
 		}
 		var payment rideType = rideUnit{}
-		var payments rideType = rideList{}
+		var payments = rideList{}
 		switch {
 		case len(scriptPayments) == 1:
 			payment = attachedPaymentToObject(scriptPayments[0])
@@ -1088,29 +1028,28 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			}
 			args[i] = a
 		}
-		return rideObject{
-			instanceField:        rideString(invokeScriptTransactionTypeName),
-			bodyBytesField:       rideBytes(nil),
-			proofsField:          proofs(proto.NewProofs()),
-			versionField:         rideInt(tx.GetVersion()),
-			idField:              rideBytes(tx.ID.Bytes()),
-			senderField:          rideAddress(sender),
-			senderPublicKeyField: rideBytes(callerPK),
-			dAppField:            rideRecipient(proto.NewRecipientFromAddress(*to)),
-			paymentField:         payment,
-			paymentsField:        payments,
-			argsField:            args,
-			feeAssetIDField:      optionalAsset(proto.NewOptionalAssetWaves()),
-			functionField:        rideString(tx.TxKind.DecodedData().Name),
-			feeField:             rideInt(tx.GetFee()),
-			timestampField:       rideInt(tx.GetTimestamp()),
-		}, nil
+		return newRideInvokeScriptTransaction(
+			proofs(proto.NewProofs()),
+			optionalAsset(proto.NewOptionalAssetWaves()),
+			payment,
+			rideRecipient(proto.NewRecipientFromAddress(*to)),
+			rideString(tx.TxKind.DecodedData().Name),
+			rideBytes(nil),
+			rideBytes(tx.ID.Bytes()),
+			rideBytes(callerPK),
+			payments,
+			args,
+			rideInt(tx.GetTimestamp()),
+			rideInt(tx.GetFee()),
+			rideInt(tx.GetVersion()),
+			rideAddress(sender),
+		), nil
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}
 }
 
-func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideObject, error) {
+func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
@@ -1119,21 +1058,20 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
 	}
-	return rideObject{
-		instanceField:        rideString(updateAssetInfoTransactionTypeName),
-		versionField:         rideInt(tx.Version),
-		idField:              rideBytes(tx.ID.Bytes()),
-		senderField:          rideAddress(sender),
-		senderPublicKeyField: rideBytes(common.Dup(tx.SenderPK.Bytes())),
-		assetIDField:         rideBytes(tx.AssetID.Bytes()),
-		nameField:            rideString(tx.Name),
-		descriptionField:     rideString(tx.Description),
-		feeAssetIDField:      optionalAsset(tx.FeeAsset),
-		feeField:             rideInt(tx.Fee),
-		timestampField:       rideInt(tx.Timestamp),
-		bodyBytesField:       rideBytes(body),
-		proofsField:          proofs(tx.Proofs),
-	}, nil
+	return newRideUpdateAssetInfoTransaction(
+		proofs(tx.Proofs),
+		rideBytes(tx.AssetID.Bytes()),
+		optionalAsset(tx.FeeAsset),
+		rideString(tx.Name),
+		rideString(tx.Description),
+		rideBytes(body),
+		rideBytes(tx.ID.Bytes()),
+		rideBytes(common.Dup(tx.SenderPK.Bytes())),
+		rideInt(tx.Timestamp),
+		rideInt(tx.Version),
+		rideInt(tx.Fee),
+		rideAddress(sender),
+	), nil
 }
 
 func convertListArguments(args rideList, check bool) ([]rideType, error) {
@@ -1202,7 +1140,7 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Transaction) (rideObject, error) {
+func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Transaction) (rideType, error) {
 	var (
 		senderPK crypto.PublicKey
 		id       crypto.Digest
@@ -1248,21 +1186,20 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		oca = rideAddress(sender)
 		ock = callerPK
 	}
-	return rideObject{
-		instanceField:              rideString(invocationTypeName),
-		transactionIDField:         rideBytes(id.Bytes()),
-		callerField:                rideAddress(sender),
-		callerPublicKeyField:       callerPK,
-		originCallerField:          oca,
-		originCallerPublicKeyField: ock,
-		paymentField:               payment,
-		paymentsField:              payments,
-		feeAssetIDField:            optionalAsset(feeAsset),
-		feeField:                   rideInt(fee),
-	}, nil
+	return newRideInvocation(
+		oca,
+		payments,
+		payment,
+		callerPK,
+		optionalAsset(feeAsset),
+		ock,
+		rideBytes(id.Bytes()),
+		rideAddress(sender),
+		rideInt(fee),
+	), nil
 }
 
-func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1294,54 +1231,63 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	}
 
 	wavesAsset := proto.NewOptionalAssetWaves()
-	return rideObject{
-		instanceField:              rideString(invocationTypeName),
-		transactionIDField:         rideBytes(tx.ID.Bytes()),
-		callerField:                rideAddress(sender),
-		callerPublicKeyField:       callerPK,
-		originCallerField:          ocf1,
-		originCallerPublicKeyField: ocf2,
-		paymentField:               pf,
-		paymentsField:              psf,
-		feeAssetIDField:            optionalAsset(wavesAsset),
-		feeField:                   rideInt(int64(tx.GetFee())),
-	}, nil
+	return newRideInvocation(
+		ocf1,
+		psf,
+		pf,
+		callerPK,
+		optionalAsset(wavesAsset),
+		ocf2,
+		rideBytes(tx.ID.Bytes()),
+		rideAddress(sender),
+		rideInt(int64(tx.GetFee())),
+	), nil
 }
 
-func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
-	return rideObject{
-		instanceField:        rideString(scriptTransferTypeName),
-		versionField:         rideUnit{},
-		idField:              rideBytes(tr.ID.Bytes()),
-		senderField:          rideAddress(tr.Sender),
-		senderPublicKeyField: rideBytes(common.Dup(tr.SenderPK.Bytes())),
-		recipientField:       rideRecipient(tr.Recipient),
-		assetField:           optionalAsset(tr.Asset),
-		assetIDField:         optionalAsset(tr.Asset),
-		amountField:          rideInt(tr.Amount),
-		feeAssetIDField:      rideUnit{},
-		feeField:             rideUnit{},
-		timestampField:       rideInt(tr.Timestamp),
-		attachmentField:      rideUnit{},
-		bodyBytesField:       rideUnit{},
-		proofsField:          rideUnit{},
-	}
+func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
+	return newRideFullScriptTransfer(
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		optionalAsset(tr.Asset),
+		optionalAsset(tr.Asset),
+		rideRecipient(tr.Recipient),
+		rideBytes(common.Dup(tr.SenderPK.Bytes())),
+		rideBytes(tr.ID.Bytes()),
+		rideInt(tr.Amount),
+		rideInt(tr.Timestamp),
+		rideAddress(tr.Sender),
+	)
 }
 
-func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rideObject {
-	obj := scriptTransferToObject(st)
-	obj[instanceField] = rideString(transferTransactionTypeName)
-	return obj
+func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rideType {
+	return newRideTransferTransaction(
+		optionalAsset(st.Asset),
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideUnit{},
+		rideRecipient(st.Recipient),
+		rideBytes(st.ID.Bytes()),
+		rideBytes(common.Dup(st.SenderPK.Bytes())),
+		rideInt(st.Amount),
+		rideInt(st.Timestamp),
+		rideAddress(st.Sender),
+	)
 }
 
-func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
-	return rideObject{
-		instanceField:   rideString(balanceDetailsTypeName),
-		availableField:  rideInt(fwb.Available),
-		regularField:    rideInt(fwb.Regular),
-		generatingField: rideInt(fwb.Generating),
-		effectiveField:  rideInt(fwb.Effective),
-	}
+func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideType {
+	return newRideBalanceDetails(
+		rideInt(fwb.Available),
+		rideInt(fwb.Regular),
+		rideInt(fwb.Generating),
+		rideInt(fwb.Effective),
+	)
 }
 
 func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
@@ -1655,41 +1601,39 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 	}
 }
 
-func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, timestamp uint64) (rideObject, error) {
+func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, timestamp uint64) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, pk)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to convert action to object")
 	}
 	switch a := action.(type) {
 	case *proto.ReissueScriptAction:
-		return rideObject{
-			instanceField:        rideString(reissueTransactionTypeName),
-			versionField:         rideInt(0),
-			idField:              rideBytes(id.Bytes()),
-			senderField:          rideAddress(address),
-			senderPublicKeyField: rideBytes(common.Dup(pk.Bytes())),
-			assetIDField:         rideBytes(a.AssetID.Bytes()),
-			quantityField:        rideInt(a.Quantity),
-			reissuableField:      rideBoolean(a.Reissuable),
-			feeField:             rideInt(0),
-			timestampField:       rideInt(timestamp),
-			bodyBytesField:       rideUnit{},
-			proofsField:          rideUnit{},
-		}, nil
+		return newRideReissueTransaction(
+			rideUnit{},
+			rideUnit{},
+			rideBytes(common.Dup(pk.Bytes())),
+			rideBytes(a.AssetID.Bytes()),
+			rideBytes(id.Bytes()),
+			rideInt(timestamp),
+			rideInt(0),
+			rideInt(a.Quantity),
+			rideInt(0),
+			rideAddress(address),
+			rideBoolean(a.Reissuable),
+		), nil
 	case *proto.BurnScriptAction:
-		return rideObject{
-			instanceField:        rideString(burnTransactionTypeName),
-			idField:              rideBytes(id.Bytes()),
-			versionField:         rideInt(0),
-			senderField:          rideAddress(address),
-			senderPublicKeyField: rideBytes(common.Dup(pk.Bytes())),
-			assetIDField:         rideBytes(a.AssetID.Bytes()),
-			quantityField:        rideInt(a.Quantity),
-			feeField:             rideInt(0),
-			timestampField:       rideInt(timestamp),
-			bodyBytesField:       rideUnit{},
-			proofsField:          rideUnit{},
-		}, nil
+		return newRideBurnTransaction(
+			rideUnit{},
+			rideUnit{},
+			rideBytes(common.Dup(pk.Bytes())),
+			rideBytes(a.AssetID.Bytes()),
+			rideBytes(id.Bytes()),
+			rideInt(timestamp),
+			rideInt(0),
+			rideInt(a.Quantity),
+			rideInt(0),
+			rideAddress(address),
+		), nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported script action '%T'", action)
 	}

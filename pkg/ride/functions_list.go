@@ -489,21 +489,32 @@ func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
 
 func findItem(list rideList, key rideString, entryType, valueType string) (rideType, error) {
 	for _, item := range list {
-		o, ok := item.(rideObject)
-		if !ok {
-			return nil, errors.Errorf("unexpected type of list item '%s'", item.instanceOf())
-		}
-		switch o.instanceOf() {
+		switch item.instanceOf() {
 		case dataEntryTypeName:
-			if o[keyField].eq(key) {
-				v := o[valueField]
-				if v.instanceOf() == valueType {
-					return v, nil
+			if k, err := item.get(keyField); err == nil {
+				return nil, err
+			} else {
+				if k.eq(key) {
+					if v, err := item.get(valueField); err != nil {
+						if v.instanceOf() == valueType {
+							return v, nil
+						}
+					} else {
+						return nil, err
+					}
 				}
 			}
 		case entryType:
-			if o[keyField].eq(key) {
-				return o[valueField], nil
+			if k, err := item.get(keyField); err == nil {
+				return nil, err
+			} else {
+				if k.eq(key) {
+					if v, err := item.get(valueField); err != nil {
+						return v, nil
+					} else {
+						return nil, err
+					}
+				}
 			}
 		}
 	}

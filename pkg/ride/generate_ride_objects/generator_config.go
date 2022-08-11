@@ -21,6 +21,7 @@ type actionsObject struct {
 	Fields []actionField `json:"fields"`
 
 	StructName string `json:"struct_name"`
+	SetProofs  bool   `json:"set_proofs"`
 }
 
 type rideObjects struct {

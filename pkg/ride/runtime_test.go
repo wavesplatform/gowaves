@@ -396,7 +396,7 @@ func makeDataTransactionObject(t *testing.T, sig, senderPublicKey string, keys, 
 	return obj
 }
 
-func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.WavesAddress, script []byte, tx proto.Transaction) rideObject {
+func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.WavesAddress, script []byte, tx proto.Transaction) rideType {
 	info := &proto.FullAssetInfo{
 		AssetInfo: proto.AssetInfo{
 			ID:              digest,
@@ -497,7 +497,7 @@ func TestTypesStrings(t *testing.T) {
 	testDataTransaction := makeDataTransactionObject(t, sig, dig, []string{"key"}, []string{"value"}, 1, 2)
 	testAssetInfo := makeFullAssetInfo(d, pk, ad, longBytes, itx)
 	testBlockInfo := makeBlockInfo(shortBytes, ad, pk)
-	testIssueAction := newIssue("name", "description", 1, 2, true, rideUnit{}, 3)
+	testIssueAction := newRideIssue("name", "description", 1, 2, true, rideUnit{}, 3)
 	testReissueAction := newReissue(shortBytes, 1, true)
 	testBurnAction := newBurn(shortBytes, 1)
 	testSponsorFee := newSponsorFee(shortBytes, 1)

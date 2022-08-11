@@ -701,17 +701,17 @@ type (
 type environment interface {
 	scheme() byte
 	height() rideInt
-	transaction() rideObject
+	transaction() rideType
 	this() rideType
-	block() rideObject
+	block() rideType
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
 	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
 	takeString(s string, n int) rideString
-	invocation() rideObject // Invocation object made of invoke transaction
-	setInvocation(inv rideObject)
+	invocation() rideType // Invocation object made of invoke transaction
+	setInvocation(inv rideType)
 	libVersion() ast.LibraryVersion
 	validateInternalPayments() bool
 	blockV5Activated() bool
