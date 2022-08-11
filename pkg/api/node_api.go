@@ -257,7 +257,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
+func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
 	if opts == nil {
 		opts = DefaultRunOptions()
 	}
@@ -277,7 +277,6 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		}
 	}()
 
-	err = nil
 	if opts.MaxConnections > 0 {
 		if address == "" {
 			address = ":http"
@@ -288,7 +287,10 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 			return lErr
 		}
 
-		err = apiServer.Serve(netutil.LimitListener(ln, opts.MaxConnections))
+		ln = netutil.LimitListener(ln, opts.MaxConnections)
+		zap.S().Debugf("Set limit for number of simultaneous connections for REST API to %d", opts.MaxConnections)
+
+		err = apiServer.Serve(ln)
 	} else {
 		err = apiServer.ListenAndServe()
 	}
@@ -297,11 +299,6 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		return err
 	}
 	return nil
-}
-
-func Run(ctx context.Context, address string, n *NodeApi) error {
-	// TODO(nickeskov): add run flags in CLI flags
-	return RunWithOpts(ctx, address, n, nil)
 }
 
 func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) error {

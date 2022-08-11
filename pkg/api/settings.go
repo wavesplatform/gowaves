@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultMaxConnections = 256
+	DefaultMaxConnections = 64
 )
 
 type RunOptions struct {
