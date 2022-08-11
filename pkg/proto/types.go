@@ -202,7 +202,7 @@ type OptionalAsset struct {
 	ID      crypto.Digest
 }
 
-//NewOptionalAssetFromString creates an OptionalAsset structure from its string representation.
+// NewOptionalAssetFromString creates an OptionalAsset structure from its string representation.
 func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	switch strings.ToUpper(s) {
 	case WavesAssetName, "":
@@ -278,7 +278,7 @@ func (a OptionalAsset) BinarySize() int {
 	return s
 }
 
-//MarshalBinary marshals the optional asset to its binary representation.
+// MarshalBinary marshals the optional asset to its binary representation.
 func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	PutBool(buf, a.Present)
@@ -288,7 +288,7 @@ func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//WriteTo writes its binary representation.
+// WriteTo writes its binary representation.
 func (a OptionalAsset) WriteTo(w io.Writer) (int64, error) {
 	s := serializer.New(w)
 	err := a.Serialize(s)
@@ -298,7 +298,7 @@ func (a OptionalAsset) WriteTo(w io.Writer) (int64, error) {
 	return s.N(), nil
 }
 
-//Serialize into binary representation.
+// Serialize into binary representation.
 func (a OptionalAsset) Serialize(s *serializer.Serializer) error {
 	err := s.Bool(a.Present)
 	if err != nil {
@@ -313,7 +313,7 @@ func (a OptionalAsset) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-//UnmarshalBinary reads the OptionalAsset structure from its binary representation.
+// UnmarshalBinary reads the OptionalAsset structure from its binary representation.
 func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 	var err error
 	a.Present, err = Bool(data)
@@ -390,7 +390,7 @@ func NewAttachmentFromBase58(s string) (Attachment, error) {
 	return base58.Decode(s)
 }
 
-//OrderType an alias for byte that encodes the type of OrderV1 (BUY|SELL).
+// OrderType an alias for byte that encodes the type of OrderV1 (BUY|SELL).
 type OrderType byte
 
 func (t OrderType) ToProtobuf() g.Order_Side {
@@ -422,7 +422,7 @@ func (t OrderType) String() string {
 	}
 }
 
-//MarshalJSON writes value of OrderType to JSON representation.
+// MarshalJSON writes value of OrderType to JSON representation.
 func (t OrderType) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteRune('"')
@@ -431,7 +431,7 @@ func (t OrderType) MarshalJSON() ([]byte, error) {
 	return []byte(sb.String()), nil
 }
 
-//UnmarshalJSON reads the OrderType value from JSON value.
+// UnmarshalJSON reads the OrderType value from JSON value.
 func (t *OrderType) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
@@ -452,7 +452,7 @@ func (t *OrderType) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//AssetPair is a pair of assets in ExchangeTransaction.
+// AssetPair is a pair of assets in ExchangeTransaction.
 type AssetPair struct {
 	AmountAsset OptionalAsset `json:"amountAsset"`
 	PriceAsset  OptionalAsset `json:"priceAsset"`
@@ -841,7 +841,7 @@ func (o *OrderBody) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//OrderV1 is an order created and signed by user. Two matched orders builds up an Exchange transaction.
+// OrderV1 is an order created and signed by user. Two matched orders builds up an Exchange transaction.
 type OrderV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
@@ -898,7 +898,7 @@ func (o OrderV1) GetMatcherFeeAsset() OptionalAsset {
 	return OptionalAsset{}
 }
 
-//NewUnsignedOrderV1 creates the new unsigned order.
+// NewUnsignedOrderV1 creates the new unsigned order.
 func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
@@ -969,7 +969,7 @@ func (o *OrderV1) GenerateID(_ Scheme) error {
 	return nil
 }
 
-//Sign adds a signature to the order.
+// Sign adds a signature to the order.
 func (o *OrderV1) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -988,7 +988,7 @@ func (o *OrderV1) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify checks that the order's signature is valid.
+// Verify checks that the order's signature is valid.
 func (o *OrderV1) Verify(_ Scheme) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
@@ -1000,7 +1000,7 @@ func (o *OrderV1) Verify(_ Scheme) (bool, error) {
 	return crypto.Verify(o.SenderPK, *o.Signature, b), nil
 }
 
-//MarshalBinary writes order to its bytes representation.
+// MarshalBinary writes order to its bytes representation.
 func (o *OrderV1) MarshalBinary() ([]byte, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1013,7 +1013,7 @@ func (o *OrderV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize order to its bytes representation.
+// Serialize order to its bytes representation.
 func (o *OrderV1) Serialize(s *serializer.Serializer) error {
 	err := o.BodySerialize(s)
 	if err != nil {
@@ -1022,7 +1022,7 @@ func (o *OrderV1) Serialize(s *serializer.Serializer) error {
 	return s.Bytes(o.Signature[:])
 }
 
-//UnmarshalBinary reads an order from its binary representation.
+// UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV1MinLen {
 		return errors.Errorf("not enough data for OrderV1, expected not less then %d, received %d", orderV1MinLen, l)
@@ -1052,7 +1052,7 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//OrderV2 is an order created and signed by user. Two matched orders builds up an Exchange transaction. Version 2 with proofs.
+// OrderV2 is an order created and signed by user. Two matched orders builds up an Exchange transaction. Version 2 with proofs.
 type OrderV2 struct {
 	Version byte           `json:"version"`
 	ID      *crypto.Digest `json:"id,omitempty"`
@@ -1105,7 +1105,7 @@ func (o OrderV2) GetProofs() (*ProofsV1, error) {
 	return o.Proofs, nil
 }
 
-//NewUnsignedOrderV2 creates the new unsigned order.
+// NewUnsignedOrderV2 creates the new unsigned order.
 func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV2 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
@@ -1200,7 +1200,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//Sign adds a signature to the order.
+// Sign adds a signature to the order.
 func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1221,7 +1221,7 @@ func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify checks that the order's signature is valid.
+// Verify checks that the order's signature is valid.
 func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1230,7 +1230,7 @@ func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 	return o.Proofs.Verify(o.SenderPK, b)
 }
 
-//MarshalBinary writes order to its bytes representation.
+// MarshalBinary writes order to its bytes representation.
 func (o *OrderV2) MarshalBinary() ([]byte, error) {
 	bb, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1247,7 +1247,7 @@ func (o *OrderV2) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads an order from its binary representation.
+// UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV2) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2MinLen {
 		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2MinLen, l)
@@ -1334,7 +1334,7 @@ func (o OrderV3) GetProofs() (*ProofsV1, error) {
 	return o.Proofs, nil
 }
 
-//NewUnsignedOrderV3 creates the new unsigned order.
+// NewUnsignedOrderV3 creates the new unsigned order.
 func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *OrderV3 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
@@ -1454,7 +1454,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//Sign adds a signature to the order.
+// Sign adds a signature to the order.
 func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1475,7 +1475,7 @@ func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify checks that the order's signature is valid.
+// Verify checks that the order's signature is valid.
 func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1484,7 +1484,7 @@ func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 	return o.Proofs.Verify(o.SenderPK, b)
 }
 
-//MarshalBinary writes order to its bytes representation.
+// MarshalBinary writes order to its bytes representation.
 func (o *OrderV3) MarshalBinary() ([]byte, error) {
 	bb, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1501,7 +1501,7 @@ func (o *OrderV3) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads an order from its binary representation.
+// UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV3) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV3MinLen {
 		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3MinLen, l)
@@ -1593,7 +1593,7 @@ func (o OrderV4) GetProofs() (*ProofsV1, error) {
 	return o.Proofs, nil
 }
 
-//NewUnsignedOrderV4 creates the new unsigned order.
+// NewUnsignedOrderV4 creates the new unsigned order.
 func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *OrderV4 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
@@ -1658,7 +1658,7 @@ func (o *OrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	return pbOrder.MarshalVTFlat()
 }
 
-//Sign adds a signature to the order.
+// Sign adds a signature to the order.
 func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -1679,7 +1679,7 @@ func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify checks that the order's signature is valid.
+// Verify checks that the order's signature is valid.
 func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -1698,7 +1698,7 @@ func (o *OrderV4) Valid() (bool, error) {
 	return true, nil
 }
 
-//NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
+// NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
 func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
 	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode)
 	return &EthereumOrderV4{
@@ -1880,7 +1880,7 @@ const (
 	proofMaxSize        = 64
 )
 
-//ProofsV1 is a collection of proofs.
+// ProofsV1 is a collection of proofs.
 type ProofsV1 struct {
 	Version byte
 	Proofs  []B58Bytes
@@ -1903,7 +1903,7 @@ func (p ProofsV1) Bytes() [][]byte {
 	return res
 }
 
-//String gives a string representation of the proofs collection.
+// String gives a string representation of the proofs collection.
 func (p ProofsV1) String() string {
 	var sb strings.Builder
 	sb.WriteRune('[')
@@ -1917,12 +1917,12 @@ func (p ProofsV1) String() string {
 	return sb.String()
 }
 
-//MarshalJSON writes the proofs to JSON.
+// MarshalJSON writes the proofs to JSON.
 func (p ProofsV1) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.Proofs)
 }
 
-//UnmarshalJSON reads the proofs from JSON.
+// UnmarshalJSON reads the proofs from JSON.
 func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	var tmp []B58Bytes
 	err := json.Unmarshal(value, &tmp)
@@ -1937,7 +1937,7 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//MarshalBinary writes the proofs to its binary form.
+// MarshalBinary writes the proofs to its binary form.
 func (p *ProofsV1) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, p.BinarySize())
 	pos := 0
@@ -1955,7 +1955,7 @@ func (p *ProofsV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize proofs to its binary form.
+// Serialize proofs to its binary form.
 func (p *ProofsV1) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(proofsVersion)
 	if err != nil {
@@ -1979,7 +1979,7 @@ func (p *ProofsV1) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-//UnmarshalBinary reads the proofs from its binary representation.
+// UnmarshalBinary reads the proofs from its binary representation.
 func (p *ProofsV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < proofsMinLen {
 		return errors.Errorf("not enough data for ProofsV1 value, expected %d, received %d", proofsMinLen, l)
@@ -2008,7 +2008,7 @@ func (p *ProofsV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//Sign creates a signature and stores it as a proof at first position.
+// Sign creates a signature and stores it as a proof at first position.
 func (p *ProofsV1) Sign(key crypto.SecretKey, data []byte) error {
 	if len(p.Proofs) == 0 {
 		s, err := crypto.Sign(key, data)
@@ -2029,7 +2029,7 @@ func (p *ProofsV1) Sign(key crypto.SecretKey, data []byte) error {
 	return nil
 }
 
-//Verify checks that the proof at first position is a valid signature.
+// Verify checks that the proof at first position is a valid signature.
 func (p *ProofsV1) Verify(key crypto.PublicKey, data []byte) (bool, error) {
 	sig, err := p.ExtractSignature()
 	if err != nil {
@@ -2101,7 +2101,7 @@ func (vt DataValueType) String() string {
 	}
 }
 
-//Supported value types.
+// Supported value types.
 const (
 	DataInteger DataValueType = iota
 	DataBoolean
@@ -2110,8 +2110,8 @@ const (
 	DataDelete = DataValueType(0xff)
 )
 
-//DataEntry is a common interface of all types of data entries.
-//The interface is used to store different types of data entries in one slice.
+// DataEntry is a common interface of all types of data entries.
+// The interface is used to store different types of data entries in one slice.
 type DataEntry interface {
 	GetKey() string
 	SetKey(string)
@@ -2155,7 +2155,7 @@ func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	return entry, nil
 }
 
-//IntegerDataEntry stores int64 value.
+// IntegerDataEntry stores int64 value.
 type IntegerDataEntry struct {
 	Key   string
 	Value int64
@@ -2184,17 +2184,17 @@ func (e IntegerDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	return nil
 }
 
-//GetKey returns the key of data entry.
+// GetKey returns the key of data entry.
 func (e IntegerDataEntry) GetKey() string {
 	return e.Key
 }
 
-//SetKey sets the key of data entry.
+// SetKey sets the key of data entry.
 func (e *IntegerDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
-//GetValueType returns the value type of the entry.
+// GetValueType returns the value type of the entry.
 func (e IntegerDataEntry) GetValueType() DataValueType {
 	return DataInteger
 }
@@ -2207,7 +2207,7 @@ func (e IntegerDataEntry) PayloadSize() int {
 	return len(e.Key) + 8 // 8 == sizeof(int64)
 }
 
-//MarshalValue marshals the integer data entry value in its bytes representation.
+// MarshalValue marshals the integer data entry value in its bytes representation.
 func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
 	buf := make([]byte, 1+8)
 	pos := 0
@@ -2217,7 +2217,7 @@ func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalValue reads binary representation of integer data entry value to the structure.
+// UnmarshalValue reads binary representation of integer data entry value to the structure.
 func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 8
 	if l := len(data); l < minLen {
@@ -2230,7 +2230,7 @@ func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 	return nil
 }
 
-//MarshalBinary marshals the integer data entry in its bytes representation.
+// MarshalBinary marshals the integer data entry in its bytes representation.
 func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
@@ -2244,7 +2244,7 @@ func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads binary representation of integer data entry to the structure.
+// UnmarshalBinary reads binary representation of integer data entry to the structure.
 func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1 + 8
 	if l := len(data); l < minLen {
@@ -2262,7 +2262,7 @@ func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes a JSON representation of integer data entry.
+// MarshalJSON writes a JSON representation of integer data entry.
 func (e IntegerDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
@@ -2271,7 +2271,7 @@ func (e IntegerDataEntry) MarshalJSON() ([]byte, error) {
 	}{e.Key, e.GetValueType().String(), int(e.Value)})
 }
 
-//UnmarshalJSON reads an integer data entry from its JSON representation.
+// UnmarshalJSON reads an integer data entry from its JSON representation.
 func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
@@ -2286,7 +2286,7 @@ func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//BooleanDataEntry represents a key-value pair that stores a bool value.
+// BooleanDataEntry represents a key-value pair that stores a bool value.
 type BooleanDataEntry struct {
 	Key   string
 	Value bool
@@ -2315,17 +2315,17 @@ func (e BooleanDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	return nil
 }
 
-//GetKey returns the key of data entry.
+// GetKey returns the key of data entry.
 func (e BooleanDataEntry) GetKey() string {
 	return e.Key
 }
 
-//SetKey sets the key of data entry.
+// SetKey sets the key of data entry.
 func (e *BooleanDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
-//GetValueType returns the data type (Boolean) of the entry.
+// GetValueType returns the data type (Boolean) of the entry.
 func (e BooleanDataEntry) GetValueType() DataValueType {
 	return DataBoolean
 }
@@ -2338,7 +2338,7 @@ func (e BooleanDataEntry) PayloadSize() int {
 	return len(e.Key) + 1 // 1 == sizeof(bool)
 }
 
-//MarshalValue writes a byte representation of the boolean data entry value.
+// MarshalValue writes a byte representation of the boolean data entry value.
 func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
 	buf := make([]byte, 1+1)
 	pos := 0
@@ -2348,7 +2348,7 @@ func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalValue reads a byte representation of the data entry value.
+// UnmarshalValue reads a byte representation of the data entry value.
 func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 1
 	if l := len(data); l < minLen {
@@ -2365,7 +2365,7 @@ func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
 	return nil
 }
 
-//MarshalBinary writes a byte representation of the boolean data entry.
+// MarshalBinary writes a byte representation of the boolean data entry.
 func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
@@ -2379,7 +2379,7 @@ func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads a byte representation of the data entry.
+// UnmarshalBinary reads a byte representation of the data entry.
 func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1 + 1
 	if l := len(data); l < minLen {
@@ -2397,7 +2397,7 @@ func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the data entry to a JSON representation.
+// MarshalJSON writes the data entry to a JSON representation.
 func (e BooleanDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
@@ -2406,7 +2406,7 @@ func (e BooleanDataEntry) MarshalJSON() ([]byte, error) {
 	}{e.Key, e.GetValueType().String(), e.Value})
 }
 
-//UnmarshalJSON reads the entry from its JSON representation.
+// UnmarshalJSON reads the entry from its JSON representation.
 func (e *BooleanDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
@@ -2421,7 +2421,7 @@ func (e *BooleanDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//BinaryDataEntry represents a key-value data entry that stores binary value.
+// BinaryDataEntry represents a key-value data entry that stores binary value.
 type BinaryDataEntry struct {
 	Key   string
 	Value []byte
@@ -2453,17 +2453,17 @@ func (e BinaryDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	return nil
 }
 
-//GetKey returns the key of data entry.
+// GetKey returns the key of data entry.
 func (e BinaryDataEntry) GetKey() string {
 	return e.Key
 }
 
-//SetKey sets the key of data entry.
+// SetKey sets the key of data entry.
 func (e *BinaryDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
-//GetValueType returns the type of value (Binary) stored in an entry.
+// GetValueType returns the type of value (Binary) stored in an entry.
 func (e BinaryDataEntry) GetValueType() DataValueType {
 	return DataBinary
 }
@@ -2476,7 +2476,7 @@ func (e BinaryDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
-//MarshalValue writes an entry value to its byte representation.
+// MarshalValue writes an entry value to its byte representation.
 func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	pos := 0
 	buf := make([]byte, 1+2+len(e.Value))
@@ -2486,7 +2486,7 @@ func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalValue reads an entry value from a binary representation.
+// UnmarshalValue reads an entry value from a binary representation.
 func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 2
 	if l := len(data); l < minLen {
@@ -2503,7 +2503,7 @@ func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
 	return nil
 }
 
-//MarshalBinary writes an entry to its byte representation.
+// MarshalBinary writes an entry to its byte representation.
 func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
@@ -2517,7 +2517,7 @@ func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads an entry from a binary representation.
+// UnmarshalBinary reads an entry from a binary representation.
 func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1 + 2
 	if l := len(data); l < minLen {
@@ -2535,7 +2535,7 @@ func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON converts an entry to its JSON representation. Note that BASE64 is used to represent the binary value.
+// MarshalJSON converts an entry to its JSON representation. Note that BASE64 is used to represent the binary value.
 func (e BinaryDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
@@ -2544,7 +2544,7 @@ func (e BinaryDataEntry) MarshalJSON() ([]byte, error) {
 	}{e.Key, e.GetValueType().String(), e.Value})
 }
 
-//UnmarshalJSON converts JSON to a BinaryDataEntry structure. Value should be stored as BASE64 sting in JSON.
+// UnmarshalJSON converts JSON to a BinaryDataEntry structure. Value should be stored as BASE64 sting in JSON.
 func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
@@ -2559,7 +2559,7 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//StringDataEntry structure is a key-value pair to store a string value.
+// StringDataEntry structure is a key-value pair to store a string value.
 type StringDataEntry struct {
 	Key   string
 	Value string
@@ -2591,17 +2591,17 @@ func (e StringDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	return nil
 }
 
-//GetKey returns the key of key-value pair.
+// GetKey returns the key of key-value pair.
 func (e StringDataEntry) GetKey() string {
 	return e.Key
 }
 
-//SetKey sets the key of data entry.
+// SetKey sets the key of data entry.
 func (e *StringDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
-//GetValueType returns the type of value in key-value entry.
+// GetValueType returns the type of value in key-value entry.
 func (e StringDataEntry) GetValueType() DataValueType {
 	return DataString
 }
@@ -2614,7 +2614,7 @@ func (e StringDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
-//MarshalValue converts the data entry value to its byte representation.
+// MarshalValue converts the data entry value to its byte representation.
 func (e StringDataEntry) MarshalValue() ([]byte, error) {
 	buf := make([]byte, 1+2+len(e.Value))
 	pos := 0
@@ -2624,7 +2624,7 @@ func (e StringDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalValue reads StringDataEntry value from bytes.
+// UnmarshalValue reads StringDataEntry value from bytes.
 func (e *StringDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 2
 	if l := len(data); l < minLen {
@@ -2641,7 +2641,7 @@ func (e *StringDataEntry) UnmarshalValue(data []byte) error {
 	return nil
 }
 
-//MarshalBinary converts the data entry to its byte representation.
+// MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
@@ -2655,7 +2655,7 @@ func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads StringDataEntry structure from bytes.
+// UnmarshalBinary reads StringDataEntry structure from bytes.
 func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1 + 2
 	if l := len(data); l < minLen {
@@ -2673,7 +2673,7 @@ func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the entry to its JSON representation.
+// MarshalJSON writes the entry to its JSON representation.
 func (e StringDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
@@ -2682,7 +2682,7 @@ func (e StringDataEntry) MarshalJSON() ([]byte, error) {
 	}{e.Key, e.GetValueType().String(), e.Value})
 }
 
-//UnmarshalJSON reads the entry from JSON.
+// UnmarshalJSON reads the entry from JSON.
 func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
@@ -2697,7 +2697,7 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//DeleteDataEntry structure stores the key that should be removed from state storage.
+// DeleteDataEntry structure stores the key that should be removed from state storage.
 type DeleteDataEntry struct {
 	Key string
 }
@@ -2725,17 +2725,17 @@ func (e DeleteDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 	return nil
 }
 
-//GetKey returns the key of key-value pair.
+// GetKey returns the key of key-value pair.
 func (e DeleteDataEntry) GetKey() string {
 	return e.Key
 }
 
-//SetKey sets the key of data entry.
+// SetKey sets the key of data entry.
 func (e *DeleteDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
-//GetValueType returns the type of value in key-value entry.
+// GetValueType returns the type of value in key-value entry.
 func (e DeleteDataEntry) GetValueType() DataValueType {
 	return DataDelete
 }
@@ -2748,12 +2748,12 @@ func (e DeleteDataEntry) PayloadSize() int {
 	return 0 // this entry doesn't have any payload
 }
 
-//MarshalValue converts the data entry value to its byte representation.
+// MarshalValue converts the data entry value to its byte representation.
 func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
 	return []byte{byte(DataDelete)}, nil
 }
 
-//UnmarshalValue checks DeleteDataEntry value type is set.
+// UnmarshalValue checks DeleteDataEntry value type is set.
 func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1
 	if l := len(data); l < minLen {
@@ -2765,7 +2765,7 @@ func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
 	return nil
 }
 
-//MarshalBinary converts the data entry to its byte representation.
+// MarshalBinary converts the data entry to its byte representation.
 func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
@@ -2779,7 +2779,7 @@ func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads StringDataEntry structure from bytes.
+// UnmarshalBinary reads StringDataEntry structure from bytes.
 func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1
 	if l := len(data); l < minLen {
@@ -2797,7 +2797,7 @@ func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the entry to its JSON representation.
+// MarshalJSON writes the entry to its JSON representation.
 func (e DeleteDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string  `json:"key"`
@@ -2805,7 +2805,7 @@ func (e DeleteDataEntry) MarshalJSON() ([]byte, error) {
 	}{e.Key, nil})
 }
 
-//UnmarshalJSON reads the entry from JSON.
+// UnmarshalJSON reads the entry from JSON.
 func (e *DeleteDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
@@ -2819,7 +2819,7 @@ func (e *DeleteDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//dataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+// dataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type dataEntryType struct {
 	Type string `json:"type"`
 }
@@ -3041,7 +3041,7 @@ type Argument interface {
 	Serialize(*serializer.Serializer) error
 }
 
-//ArgumentType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+// ArgumentType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type ArgumentType struct {
 	Type string `json:"type"`
 }
@@ -3068,12 +3068,12 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 
 type Arguments []Argument
 
-//Append adds an argument to the Arguments list.
+// Append adds an argument to the Arguments list.
 func (a *Arguments) Append(arg Argument) {
 	*a = append(*a, arg)
 }
 
-//UnmarshalJSON custom JSON deserialization method.
+// UnmarshalJSON custom JSON deserialization method.
 func (a *Arguments) UnmarshalJSON(data []byte) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Arguments from JSON") }
 
@@ -3188,7 +3188,7 @@ func NewIntegerArgument(i int64) *IntegerArgument {
 	return &IntegerArgument{i}
 }
 
-//GetValueType returns the value type of the entry.
+// GetValueType returns the value type of the entry.
 func (a IntegerArgument) GetValueType() ArgumentValueType {
 	return ArgumentInteger
 }
@@ -3197,7 +3197,7 @@ func (a IntegerArgument) BinarySize() int {
 	return integerArgumentLen
 }
 
-//MarshalBinary marshals the integer argument in its bytes representation.
+// MarshalBinary marshals the integer argument in its bytes representation.
 func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
@@ -3207,7 +3207,7 @@ func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize the integer argument in its bytes representation.
+// Serialize the integer argument in its bytes representation.
 func (a IntegerArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentInteger))
 	if err != nil {
@@ -3216,7 +3216,7 @@ func (a IntegerArgument) Serialize(s *serializer.Serializer) error {
 	return s.Uint64(uint64(a.Value))
 }
 
-//UnmarshalBinary reads binary representation of integer argument to the structure.
+// UnmarshalBinary reads binary representation of integer argument to the structure.
 func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < integerArgumentLen {
 		return errors.Errorf("invalid data length for IntegerArgument, expected not less than %d, received %d", integerArgumentLen, l)
@@ -3228,7 +3228,7 @@ func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes a JSON representation of integer argument.
+// MarshalJSON writes a JSON representation of integer argument.
 func (a IntegerArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
@@ -3236,7 +3236,7 @@ func (a IntegerArgument) MarshalJSON() ([]byte, error) {
 	}{a.GetValueType().String(), int(a.Value)})
 }
 
-//UnmarshalJSON reads an integer argument from its JSON representation.
+// UnmarshalJSON reads an integer argument from its JSON representation.
 func (a *IntegerArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string `json:"type"`
@@ -3249,12 +3249,12 @@ func (a *IntegerArgument) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//BooleanArgument represents a key-value pair that stores a bool value.
+// BooleanArgument represents a key-value pair that stores a bool value.
 type BooleanArgument struct {
 	Value bool
 }
 
-//GetValueType returns the data type (Boolean) of the argument.
+// GetValueType returns the data type (Boolean) of the argument.
 func (a BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
 }
@@ -3263,7 +3263,7 @@ func (a BooleanArgument) BinarySize() int {
 	return booleanArgumentLen
 }
 
-//MarshalBinary writes a byte representation of the boolean data entry.
+// MarshalBinary writes a byte representation of the boolean data entry.
 func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	if a.Value {
@@ -3274,7 +3274,7 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize argument to its byte representation.
+// Serialize argument to its byte representation.
 func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
 	buf := byte(0)
 	if a.Value {
@@ -3285,7 +3285,7 @@ func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
 	return s.Byte(buf)
 }
 
-//UnmarshalBinary reads a byte representation of the data entry.
+// UnmarshalBinary reads a byte representation of the data entry.
 func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < booleanArgumentLen {
 		return errors.Errorf("invalid data length for BooleanArgument, expected not less than %d, received %d", booleanArgumentLen, l)
@@ -3301,7 +3301,7 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the argument to a JSON representation.
+// MarshalJSON writes the argument to a JSON representation.
 func (a BooleanArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
@@ -3309,7 +3309,7 @@ func (a BooleanArgument) MarshalJSON() ([]byte, error) {
 	}{a.GetValueType().String(), a.Value})
 }
 
-//UnmarshalJSON reads the entry from its JSON representation.
+// UnmarshalJSON reads the entry from its JSON representation.
 func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string `json:"type"`
@@ -3322,12 +3322,12 @@ func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//BinaryArgument represents an argument that stores binary value.
+// BinaryArgument represents an argument that stores binary value.
 type BinaryArgument struct {
 	Value []byte
 }
 
-//GetValueType returns the type of value (Binary) stored in an argument.
+// GetValueType returns the type of value (Binary) stored in an argument.
 func (a BinaryArgument) GetValueType() ArgumentValueType {
 	return ArgumentBinary
 }
@@ -3336,7 +3336,7 @@ func (a BinaryArgument) BinarySize() int {
 	return binaryArgumentMinLen + len(a.Value)
 }
 
-//MarshalBinary writes an argument to its byte representation.
+// MarshalBinary writes an argument to its byte representation.
 func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
@@ -3346,7 +3346,7 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize argument to its byte representation.
+// Serialize argument to its byte representation.
 func (a BinaryArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentBinary))
 	if err != nil {
@@ -3355,7 +3355,7 @@ func (a BinaryArgument) Serialize(s *serializer.Serializer) error {
 	return s.BytesWithUInt32Len(a.Value)
 }
 
-//UnmarshalBinary reads an argument from a binary representation.
+// UnmarshalBinary reads an argument from a binary representation.
 func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < binaryArgumentMinLen {
 		return errors.Errorf("invalid data length for BinaryArgument, expected not less than %d, received %d", binaryArgumentMinLen, l)
@@ -3371,7 +3371,7 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
+// MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
 func (a BinaryArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
@@ -3379,7 +3379,7 @@ func (a BinaryArgument) MarshalJSON() ([]byte, error) {
 	}{a.GetValueType().String(), a.Value})
 }
 
-//UnmarshalJSON converts JSON to a BinaryArgument structure. Value should be stored as BASE64 sting in JSON.
+// UnmarshalJSON converts JSON to a BinaryArgument structure. Value should be stored as BASE64 sting in JSON.
 func (a *BinaryArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string `json:"type"`
@@ -3392,7 +3392,7 @@ func (a *BinaryArgument) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//StringArgument structure is an argument that store a string value.
+// StringArgument structure is an argument that store a string value.
 type StringArgument struct {
 	Value string
 }
@@ -3401,7 +3401,7 @@ func NewStringArgument(s string) *StringArgument {
 	return &StringArgument{s}
 }
 
-//GetValueType returns the type of value of the argument.
+// GetValueType returns the type of value of the argument.
 func (a StringArgument) GetValueType() ArgumentValueType {
 	return ArgumentString
 }
@@ -3410,7 +3410,7 @@ func (a StringArgument) BinarySize() int {
 	return stringArgumentMinLen + len(a.Value)
 }
 
-//MarshalBinary converts the argument to its byte representation.
+// MarshalBinary converts the argument to its byte representation.
 func (a StringArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
@@ -3420,7 +3420,7 @@ func (a StringArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize argument to its byte representation.
+// Serialize argument to its byte representation.
 func (a StringArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentString))
 	if err != nil {
@@ -3429,7 +3429,7 @@ func (a StringArgument) Serialize(s *serializer.Serializer) error {
 	return s.StringWithUInt32Len(a.Value)
 }
 
-//UnmarshalBinary reads an StringArgument structure from bytes.
+// UnmarshalBinary reads an StringArgument structure from bytes.
 func (a *StringArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < stringArgumentMinLen {
 		return errors.Errorf("invalid data length for StringArgument, expected not less than %d, received %d", stringArgumentMinLen, l)
@@ -3445,7 +3445,7 @@ func (a *StringArgument) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the entry to its JSON representation.
+// MarshalJSON writes the entry to its JSON representation.
 func (a StringArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
@@ -3453,7 +3453,7 @@ func (a StringArgument) MarshalJSON() ([]byte, error) {
 	}{a.GetValueType().String(), a.Value})
 }
 
-//UnmarshalJSON reads the entry from JSON.
+// UnmarshalJSON reads the entry from JSON.
 func (a *StringArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string `json:"type"`
@@ -3470,7 +3470,7 @@ type ListArgument struct {
 	Items Arguments
 }
 
-//GetValueType returns the type of value of the argument.
+// GetValueType returns the type of value of the argument.
 func (a ListArgument) GetValueType() ArgumentValueType {
 	return ArgumentList
 }
@@ -3479,7 +3479,7 @@ func (a ListArgument) BinarySize() int {
 	return 1 + a.Items.BinarySize()
 }
 
-//MarshalBinary converts the argument to its byte representation.
+// MarshalBinary converts the argument to its byte representation.
 func (a ListArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
@@ -3493,7 +3493,7 @@ func (a ListArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//Serialize argument to its byte representation.
+// Serialize argument to its byte representation.
 func (a ListArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentList))
 	if err != nil {
@@ -3502,7 +3502,7 @@ func (a ListArgument) Serialize(s *serializer.Serializer) error {
 	return a.Items.Serialize(s)
 }
 
-//UnmarshalBinary reads an StringArgument structure from bytes.
+// UnmarshalBinary reads an StringArgument structure from bytes.
 func (a *ListArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < listArgumentMinLen {
 		return errors.Errorf("invalid data length for ListArgument, expected not less than %d, received %d", listArgumentMinLen, l)
@@ -3520,7 +3520,7 @@ func (a *ListArgument) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the entry to its JSON representation.
+// MarshalJSON writes the entry to its JSON representation.
 func (a ListArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string     `json:"type"`
@@ -3528,7 +3528,7 @@ func (a ListArgument) MarshalJSON() ([]byte, error) {
 	}{a.GetValueType().String(), a.Items})
 }
 
-//UnmarshalJSON reads the entry from JSON.
+// UnmarshalJSON reads the entry from JSON.
 func (a *ListArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string    `json:"type"`
@@ -3623,7 +3623,7 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//MarshalJSON writes the entry to its JSON representation.
+// MarshalJSON writes the entry to its JSON representation.
 func (c FunctionCall) MarshalJSON() ([]byte, error) {
 	if c.Default {
 		return []byte("null"), nil
@@ -3635,7 +3635,7 @@ func (c FunctionCall) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-//UnmarshalJSON reads the entry from JSON.
+// UnmarshalJSON reads the entry from JSON.
 func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	str := string(value)
 	if str == "null" || str == "{}" {

@@ -5,13 +5,13 @@ const (
 	WrongJsonErrorID ErrorID = 1
 )
 
-//API Auth
+// API Auth
 const (
 	ApiKeyNotValidErrorID        ApiAuthErrorID = 2
 	TooBigArrayAllocationErrorID ApiAuthErrorID = 10
 )
 
-//VALIDATION
+// VALIDATION
 const (
 	InvalidSignatureErrorID                     ValidationErrorID = 101
 	InvalidAddressErrorID                       ValidationErrorID = 102
@@ -34,7 +34,7 @@ const (
 	TransactionNotAllowedByAssetScriptErrorID   ValidationErrorID = 308
 )
 
-//TRANSACTIONS
+// TRANSACTIONS
 const (
 	TransactionDoesNotExistErrorID    TransactionErrorID = 311
 	UnsupportedTransactionTypeErrorID TransactionErrorID = 312

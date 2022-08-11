@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -32,12 +33,12 @@ type AddressesBalance struct {
 
 // Balance returns account's balance by its address
 func (a *Addresses) Balance(ctx context.Context, address proto.WavesAddress) (*AddressesBalance, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("addresses/balance/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("addresses/balance/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,12 +62,12 @@ type AddressesBalanceDetails struct {
 
 // BalanceDetails returns account's detail balance by its address
 func (a *Addresses) BalanceDetails(ctx context.Context, address proto.WavesAddress) (*AddressesBalanceDetails, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/details/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/details/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,12 +94,12 @@ type AddressesScriptInfo struct {
 
 // ScriptInfo gets account's script information
 func (a *Addresses) ScriptInfo(ctx context.Context, address proto.WavesAddress) (*AddressesScriptInfo, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/scriptInfo/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/scriptInfo/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -114,11 +115,11 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address proto.WavesAddress) 
 
 // Addresses gets wallet accounts addresses
 func (a *Addresses) Addresses(ctx context.Context) ([]proto.WavesAddress, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, "/addresses")
+	u, err := joinUrl(a.options.BaseUrl, "/addresses")
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -139,11 +140,11 @@ type AddressesValidate struct {
 
 // Validate checks whether address is valid or not
 func (a *Addresses) Validate(ctx context.Context, address proto.WavesAddress) (*AddressesValidate, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/validate/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/validate/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,11 +166,11 @@ type AddressesEffectiveBalance struct {
 
 // EffectiveBalance gets account's balance
 func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.WavesAddress) (*AddressesEffectiveBalance, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/effectiveBalance/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/effectiveBalance/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -189,11 +190,11 @@ type addressesPublicKey struct {
 
 // PublicKey generates address from public key
 func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.WavesAddress, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/publicKey/%s", publicKey))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/publicKey/%s", publicKey))
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,13 +224,13 @@ func (a *Addresses) SignText(ctx context.Context, address proto.WavesAddress, me
 		return nil, nil, NoApiKeyError
 	}
 
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/signText/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/signText/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
 
 	req, err := http.NewRequest(
-		"POST", url.String(),
+		"POST", u.String(),
 		strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
@@ -262,7 +263,7 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.WavesAddress, 
 		return false, nil, NoApiKeyError
 	}
 
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/verifyText/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/verifyText/%s", address.String()))
 	if err != nil {
 		return false, nil, err
 	}
@@ -273,7 +274,7 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.WavesAddress, 
 	}
 
 	req, err := http.NewRequest(
-		"POST", url.String(),
+		"POST", u.String(),
 		bytes.NewReader(bodyBytes))
 	if err != nil {
 		return false, nil, err
@@ -301,12 +302,12 @@ type BalanceAfterConfirmations struct {
 func (a *Addresses) BalanceAfterConfirmations(
 	ctx context.Context, address proto.WavesAddress, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
 
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/%s/%d", address.String(), confirmations))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/%s/%d", address.String(), confirmations))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -320,14 +321,46 @@ func (a *Addresses) BalanceAfterConfirmations(
 	return out, response, nil
 }
 
+type AddressesDataParams struct {
+	matches string
+	keys    []string
+}
+
+type AddressesDataParam func(*AddressesDataParams)
+
+func WithMatches(matches string) AddressesDataParam {
+	return func(p *AddressesDataParams) {
+		p.matches = matches
+	}
+}
+
+func WithKeys(keys ...string) AddressesDataParam {
+	return func(p *AddressesDataParams) {
+		p.keys = keys
+	}
+}
+
 // AddressesData returns all data entries for given address
-func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddress) (proto.DataEntries, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
+func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddress, opts ...AddressesDataParam) (proto.DataEntries, *Response, error) {
+	params := &AddressesDataParams{}
+	for _, opt := range opts {
+		opt(params)
+	}
+	v := url.Values{}
+	if params.matches != "" {
+		v.Add("matches", params.matches)
+	}
+	for _, key := range params.keys {
+		v.Add("key", key)
+	}
+
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
+	u.RawQuery = v.Encode()
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -342,12 +375,12 @@ func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddres
 
 // AddressesDataKey returns data entry for given address and key
 func (a *Addresses) AddressesDataKey(ctx context.Context, address proto.WavesAddress, key string) (proto.DataEntry, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s/%s", address.String(), key))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s/%s", address.String(), url.QueryEscape(key)))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -371,7 +404,7 @@ func (a *Addresses) AddressesDataKeys(ctx context.Context, address proto.WavesAd
 		Keys []string `json:"keys"`
 	}
 
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
+	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/data/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -381,7 +414,7 @@ func (a *Addresses) AddressesDataKeys(ctx context.Context, address proto.WavesAd
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("POST", url.String(), b)
+	req, err := http.NewRequest("POST", u.String(), b)
 	if err != nil {
 		return nil, nil, err
 	}

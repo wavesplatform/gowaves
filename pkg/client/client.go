@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -53,8 +52,8 @@ type Response struct {
 type HttpClient interface {
 }
 
-// Creates new client instance
-// If no options provided will use default
+// NewClient creates new client instance.
+// If no options provided will use default.
 func NewClient(options ...Options) (*Client, error) {
 	if len(options) > 1 {
 		return nil, errors.New("too many options provided. Expects no or just one item")
@@ -96,7 +95,7 @@ func NewClient(options ...Options) (*Client, error) {
 	return c, nil
 }
 
-func (a Client) GetOptions() Options {
+func (a *Client) GetOptions() Options {
 	return a.options
 }
 
@@ -125,12 +124,14 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	if err != nil {
 		return nil, &RequestError{Err: err}
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close() // No error handling intentionally
+	}(resp.Body)
 
 	response := newResponse(resp)
 
 	if response.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		return response, &RequestError{
 			Err:  errors.Errorf("Invalid status code: expect 200 got %d", response.StatusCode),
 			Body: string(body),

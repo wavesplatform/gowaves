@@ -564,7 +564,7 @@ func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
 	a.Equal(reissueTransactionTypeName, rs.instanceOf())
 }
 
-//ReissueTransaction
+// ReissueTransaction
 func TestNewVariablesFromReissueWithSig(t *testing.T) {
 	suite.Run(t, new(ReissueWithSigTestSuite))
 }
@@ -668,7 +668,7 @@ func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(reissueTransactionTypeName, rs.instanceOf())
 }
 
-//ReissueTransaction
+// ReissueTransaction
 func TestNewVariablesFromReissueWithProofs(t *testing.T) {
 	suite.Run(t, new(ReissueWithProofsTestSuite))
 }
@@ -764,7 +764,7 @@ func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
 	a.Equal(burnTransactionTypeName, rs.instanceOf())
 }
 
-//BurnWithSig
+// BurnWithSig
 func TestNewVariablesFromBurnWithSig(t *testing.T) {
 	suite.Run(t, new(BurnWithSigTestSuite))
 }
@@ -861,7 +861,7 @@ func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(burnTransactionTypeName, rs.instanceOf())
 }
 
-//BurnWithProofs
+// BurnWithProofs
 func TestNewVariablesFromBurnWithProofs(t *testing.T) {
 	suite.Run(t, new(BurnWithProofsTestSuite))
 }
@@ -998,7 +998,7 @@ func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(massTransferTransactionTypeName, rs.instanceOf())
 }
 
-//MassTransferTransaction
+// MassTransferTransaction
 func TestNewVariablesFromMassTransferWithProofs(t *testing.T) {
 	suite.Run(t, new(MassTransferWithProofsTestSuite))
 }
@@ -1121,7 +1121,7 @@ func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
 	a.Equal(exchangeTransactionTypeName, rs.instanceOf())
 }
 
-//ExchangeWithSig
+// ExchangeWithSig
 func TestNewVariablesFromExchangeWithSig(t *testing.T) {
 	suite.Run(t, new(ExchangeWithSigTestSuite))
 }
@@ -1246,7 +1246,7 @@ func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(exchangeTransactionTypeName, rs.instanceOf())
 }
 
-//ExchangeWithProofs
+// ExchangeWithProofs
 func TestNewVariablesFromExchangeWithProofs(t *testing.T) {
 	suite.Run(t, new(ExchangeWithProofsTestSuite))
 }
@@ -1402,7 +1402,7 @@ func (a *OrderTestSuite) Test_instanceFieldName() {
 	a.Equal(orderTypeName, rs.instanceOf())
 }
 
-//OrderV1
+// OrderV1
 func TestNewVariablesFromOrderV1(t *testing.T) {
 	suite.Run(t, new(OrderTestSuite))
 }
@@ -1468,7 +1468,7 @@ func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
 	a.Equal(rideBytes(a.matcherFeeAssetID.ID.Bytes()), matcherFeeAssetId)
 }
 
-//EthereumOrderV4
+// EthereumOrderV4
 func TestNewVariablesFromEthereumOrderV4(t *testing.T) {
 	suite.Run(t, new(EthereumOrderV4TestSuite))
 }
@@ -1567,7 +1567,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(setAssetScriptTransactionTypeName, rs.instanceOf())
 }
 
-//SetAssetScriptWithProofs
+// SetAssetScriptWithProofs
 func TestNewVariablesFromSetAssetScriptWithProofs(t *testing.T) {
 	suite.Run(t, new(SetAssetScriptWithProofsTestSuite))
 }
@@ -1698,7 +1698,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_instanceFieldName() {
 	a.Equal(invokeScriptTransactionTypeName, rs.instanceOf())
 }
 
-//InvokeScriptTransaction
+// InvokeScriptTransaction
 func TestNewVariablesFromInvokeScriptWithProofs(t *testing.T) {
 	suite.Run(t, new(InvokeScriptWithProofsTestSuite))
 }
@@ -1950,7 +1950,6 @@ func TestNewVariablesFromIssueWithProofs(t *testing.T) {
 	suite.Run(t, new(IssueWithProofsTestSuite))
 }
 
-//
 type LeaseWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseWithSig
@@ -2046,7 +2045,6 @@ func TestNewVariablesFromLeaseWithSig(t *testing.T) {
 	suite.Run(t, new(LeaseWithSigTestSuite))
 }
 
-//
 type LeaseWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseWithProofs
@@ -2143,7 +2141,6 @@ func TestNewVariablesFromLeaseWithProofs(t *testing.T) {
 	suite.Run(t, new(LeaseWithProofsTestSuite))
 }
 
-//
 type LeaseCancelWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseCancelWithSig
@@ -2232,7 +2229,6 @@ func TestNewVariablesFromLeaseCancelWithSig(t *testing.T) {
 	suite.Run(t, new(LeaseCancelWithSigTestSuite))
 }
 
-//
 type LeaseCancelWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseCancelWithProofs
@@ -2322,7 +2318,6 @@ func TestNewVariablesFromLeaseCancelWithProofs(t *testing.T) {
 	suite.Run(t, new(LeaseCancelWithProofsTestSuite))
 }
 
-//
 type DataWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.DataWithProofs
@@ -2416,7 +2411,6 @@ func TestNewVariablesFromDataWithProofsTestSuite(t *testing.T) {
 	suite.Run(t, new(DataWithProofsTestSuite))
 }
 
-//
 type SponsorshipWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.SponsorshipWithProofs
@@ -2521,7 +2515,6 @@ func TestNewVariablesFromSponsorshipWithProofs(t *testing.T) {
 	suite.Run(t, new(SponsorshipWithProofsTestSuite))
 }
 
-//
 type CreateAliasWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.CreateAliasWithSig
@@ -2610,7 +2603,6 @@ func TestNewVariablesFromCreateAliasWithSigTestSuite(t *testing.T) {
 	suite.Run(t, new(CreateAliasWithSigTestSuite))
 }
 
-//
 type CreateAliasWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.CreateAliasWithProofs

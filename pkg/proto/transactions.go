@@ -18,7 +18,7 @@ import (
 
 type TransactionType byte
 
-//All transaction types supported.
+// All transaction types supported.
 const (
 	GenesisTransaction          TransactionType = iota + 1 // 1 - Genesis transaction
 	PaymentTransaction                                     // 2 - Payment transaction
@@ -402,7 +402,7 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 	return out, nil
 }
 
-//Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
+// Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -499,12 +499,12 @@ func (tx Genesis) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-//NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
+// NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genesis {
 	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}
 }
 
-//Validate checks the validity of transaction parameters and it's signature.
+// Validate checks the validity of transaction parameters and it's signature.
 func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
@@ -575,7 +575,7 @@ func (tx *Genesis) GenerateSig() error {
 	return nil
 }
 
-//MarshalBinary writes transaction bytes to slice of bytes.
+// MarshalBinary writes transaction bytes to slice of bytes.
 func (tx *Genesis) MarshalBinary() ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -584,7 +584,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
-//UnmarshalBinary reads transaction values from the slice of bytes.
+// UnmarshalBinary reads transaction values from the slice of bytes.
 func (tx *Genesis) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l != genesisBodyLen {
 		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
@@ -661,7 +661,7 @@ func (tx *Genesis) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
-//Payment transaction is deprecated and can be used only for validation of blockchain.
+// Payment transaction is deprecated and can be used only for validation of blockchain.
 type Payment struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version"`
@@ -749,7 +749,7 @@ func (tx Payment) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-//NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
+// NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amount, fee, timestamp uint64) *Payment {
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
@@ -811,7 +811,7 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//Sign calculates transaction signature and set it as an ID.
+// Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	if IsProtobufTx(tx) {
 		b, err := MarshalTxBody(scheme, tx)
@@ -853,7 +853,7 @@ func (tx *Payment) BodyMarshalBinary() ([]byte, error) {
 	return d, nil
 }
 
-//Verify checks that the Signature is valid for given public key.
+// Verify checks that the Signature is valid for given public key.
 func (tx *Payment) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -875,7 +875,7 @@ func (tx *Payment) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, erro
 	return crypto.Verify(publicKey, *tx.Signature, d), nil
 }
 
-//MarshalBinary returns a bytes representation of Payment transaction.
+// MarshalBinary returns a bytes representation of Payment transaction.
 func (tx *Payment) MarshalBinary() ([]byte, error) {
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)
@@ -895,7 +895,7 @@ func (tx *Payment) bodyMarshalBinaryBuffer() []byte {
 	return make([]byte, paymentBodyLen)
 }
 
-//UnmarshalBinary reads Payment transaction from its binary representation.
+// UnmarshalBinary reads Payment transaction from its binary representation.
 func (tx *Payment) UnmarshalBinary(data []byte, scheme Scheme) error {
 	size := paymentBodyLen + crypto.SignatureSize
 	if l := len(data); l != size {

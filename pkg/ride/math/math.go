@@ -226,13 +226,13 @@ func Fraction(value, numerator, denominator int64) (int64, error) {
 }
 
 func log(base, exponent *decimal.Big, resultScale int) (*decimal.Big, error) {
-	r := decimal.WithContext(decimal.Context128).SetMantScale(0, resultScale)
-	bl := decimal.WithContext(decimal.Context128)
+	r := decimal.WithContext(bigIntContext).SetMantScale(0, resultScale)
+	bl := decimal.WithContext(bigIntContext)
 	math.Log(bl, base)
 	if bl.Context.Err() != nil {
 		return nil, errors.New(bl.Context.Conditions.Error())
 	}
-	el := decimal.WithContext(decimal.Context128)
+	el := decimal.WithContext(bigIntContext)
 	math.Log(el, exponent)
 	if el.Context.Err() != nil {
 		return nil, errors.New(el.Context.Conditions.Error())
@@ -261,8 +261,8 @@ func LogBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	if !checkScalesBigInt(baseScale, exponentScale, resultScale) {
 		return nil, errors.New("invalid scale")
 	}
-	b := decimal.WithContext(decimal.Context128).SetBigMantScale(base, baseScale)
-	e := decimal.WithContext(decimal.Context128).SetBigMantScale(exponent, exponentScale)
+	b := decimal.WithContext(bigIntContext).SetBigMantScale(base, baseScale)
+	e := decimal.WithContext(bigIntContext).SetBigMantScale(exponent, exponentScale)
 	r, err := log(b, e, resultScale)
 	if err != nil {
 		return nil, err
