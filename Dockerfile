@@ -18,7 +18,7 @@ COPY Makefile .
 RUN make build-node-linux
 RUN make build-integration-linux
 
-FROM alpine:3.16.1
+FROM alpine:3.16.2
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 

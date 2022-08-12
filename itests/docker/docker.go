@@ -9,6 +9,7 @@ import (
 
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
+	"github.com/pkg/errors"
 	"github.com/xenolf/lego/log"
 
 	"github.com/wavesplatform/gowaves/itests/config"
@@ -29,6 +30,10 @@ const (
 	tcp = "/tcp"
 
 	DefaultTimeout = 16 * time.Second
+
+	scalaContainerName = "scala-node"
+	goContainerName    = "go-node"
+	networkName        = "waves_it_network"
 )
 
 const (
@@ -55,11 +60,44 @@ func NewDocker() (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
-	net, err := pool.CreateNetwork("waves_it_network")
+	err = removeExistsContainers(pool)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to remove old containers")
+	}
+	net, err := pool.CreateNetwork(networkName)
 	if err != nil {
 		return nil, err
 	}
 	return &Docker{pool: pool, network: net}, nil
+}
+
+func removeExistsContainers(pool *dockertest.Pool) error {
+	res, exist := pool.ContainerByName(goContainerName)
+	if exist {
+		err := pool.Purge(res)
+		if err != nil {
+			return err
+		}
+	}
+	res, exist = pool.ContainerByName(scalaContainerName)
+	if exist {
+		err := pool.Purge(res)
+		if err != nil {
+			return err
+		}
+	}
+	net, err := pool.NetworksByName(networkName)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(net); i++ {
+		err = pool.RemoveNetwork(&net[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths) error {
@@ -110,7 +148,7 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Res
 		return nil, err
 	}
 	opt := &dockertest.RunOptions{
-		Name:     "go-node",
+		Name:     goContainerName,
 		User:     "gowaves",
 		Hostname: "go-node",
 		Env: []string{
@@ -183,7 +221,7 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Res
 func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {
 	opt := &dockertest.RunOptions{
 		Repository: "wavesplatform/wavesnode",
-		Name:       "scala-node",
+		Name:       scalaContainerName,
 		Tag:        "latest",
 		Hostname:   "scala-node",
 		PortBindings: map[dc.Port][]dc.PortBinding{

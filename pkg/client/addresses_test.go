@@ -315,6 +315,34 @@ func TestAddresses_Data(t *testing.T) {
 	assert.ElementsMatch(t, expectedEntries, entries)
 }
 
+func TestAddresses_DataWithMatches(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString("[]", 200),
+	})
+	require.NoError(t, err)
+
+	_, resp, err := client.Addresses.AddressesData(context.Background(), address, WithMatches("test.+"))
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/data/3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H?matches=test.%2B", resp.Request.URL.String())
+}
+
+func TestAddresses_DataWithKeys(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString("[]", 200),
+	})
+	require.NoError(t, err)
+
+	_, resp, err := client.Addresses.AddressesData(context.Background(), address, WithKeys("test1", "test2"))
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/data/3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H?key=test1&key=test2", resp.Request.URL.String())
+}
+
 func TestAddresses_DataKey(t *testing.T) {
 	const addressDataKey = `
 	{
@@ -335,6 +363,21 @@ func TestAddresses_DataKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, expectedEntry, entry)
+}
+
+func TestAddresses_DataKeyEscaping(t *testing.T) {
+	const addressDataKey = `{ "key": "test", "type": "string", "value": "test" }`
+	address, _ := proto.NewAddressFromString("3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(addressDataKey, 200),
+	})
+	require.NoError(t, err)
+
+	_, resp, err := client.Addresses.AddressesDataKey(context.Background(), address, "%s__test")
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/data/3N3Aq1GcHD8bZMGyVgyvaTHrBM7EySFtJ1H/%25s__test", resp.Request.URL.String())
 }
 
 func TestAddresses_DataKeys(t *testing.T) {

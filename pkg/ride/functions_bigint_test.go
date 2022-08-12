@@ -71,6 +71,8 @@ func BenchmarkPowBigInt(b *testing.B) {
 }
 
 func TestLogBigInt(t *testing.T) {
+	v1, ok := big.NewInt(0).SetString("999996034266679907751935378141784045", 10)
+	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -82,6 +84,7 @@ func TestLogBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(-16), rideInt(0), toRideBigInt(2), rideInt(0), rideInt(0), newCeiling(nil)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideInt(16), toRideBigInt(10), rideInt(0), rideInt(0), newCeiling(nil)}, false, toRideBigInt(-16)},
 		{[]rideType{toRideBigInt(100), rideInt(0), toRideBigInt(10), rideInt(0), rideInt(0), newUp(nil)}, false, toRideBigInt(2)},
+		{[]rideType{rideBigInt{v: v1}, rideInt(18), toRideBigInt(10001), rideInt(4), rideInt(0), newDown(nil)}, false, toRideBigInt(414485)},
 		{[]rideType{toRideBigInt(100), rideInt(0), toRideBigInt(10), rideInt(0), rideInt(0), newUp(nil), newDown(nil)}, true, nil},
 		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), toRideBigInt(100), rideInt(0), rideInt(0), newNoAlg(nil)}, true, nil},
 		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), toRideBigInt(100), rideString("0"), rideInt(0), newUp(nil)}, true, nil},

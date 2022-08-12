@@ -15,19 +15,19 @@ var _ types.Time = &MockTime{}
 
 // MockTime is a mock implementation of types.Time.
 //
-// 	func TestSomethingThatUsesTime(t *testing.T) {
+//	func TestSomethingThatUsesTime(t *testing.T) {
 //
-// 		// make and configure a mocked types.Time
-// 		mockedTime := &MockTime{
-// 			NowFunc: func() time.Time {
-// 				panic("mock out the Now method")
-// 			},
-// 		}
+//		// make and configure a mocked types.Time
+//		mockedTime := &MockTime{
+//			NowFunc: func() time.Time {
+//				panic("mock out the Now method")
+//			},
+//		}
 //
-// 		// use mockedTime in code that requires types.Time
-// 		// and then make assertions.
+//		// use mockedTime in code that requires types.Time
+//		// and then make assertions.
 //
-// 	}
+//	}
 type MockTime struct {
 	// NowFunc mocks the Now method.
 	NowFunc func() time.Time
@@ -56,7 +56,8 @@ func (mock *MockTime) Now() time.Time {
 
 // NowCalls gets all the calls that were made to Now.
 // Check the length with:
-//     len(mockedTime.NowCalls())
+//
+//	len(mockedTime.NowCalls())
 func (mock *MockTime) NowCalls() []struct {
 } {
 	var calls []struct {

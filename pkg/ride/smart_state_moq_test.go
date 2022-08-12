@@ -17,100 +17,100 @@ var _ types.SmartState = &MockSmartState{}
 
 // MockSmartState is a mock implementation of types.SmartState.
 //
-// 	func TestSomethingThatUsesSmartState(t *testing.T) {
+//	func TestSomethingThatUsesSmartState(t *testing.T) {
 //
-// 		// make and configure a mocked types.SmartState
-// 		mockedSmartState := &MockSmartState{
-// 			AddingBlockHeightFunc: func() (uint64, error) {
-// 				panic("mock out the AddingBlockHeight method")
-// 			},
-// 			BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
-// 				panic("mock out the BlockVRF method")
-// 			},
-// 			EstimatorVersionFunc: func() (int, error) {
-// 				panic("mock out the EstimatorVersion method")
-// 			},
-// 			IsNotFoundFunc: func(err error) bool {
-// 				panic("mock out the IsNotFound method")
-// 			},
-// 			IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
-// 				panic("mock out the IsStateUntouched method")
-// 			},
-// 			NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-// 				panic("mock out the NewestAddrByAlias method")
-// 			},
-// 			NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-// 				panic("mock out the NewestAssetBalance method")
-// 			},
-// 			NewestAssetBalanceByAddressIDFunc: func(id proto.AddressID, asset crypto.Digest) (uint64, error) {
-// 				panic("mock out the NewestAssetBalanceByAddressID method")
-// 			},
-// 			NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-// 				panic("mock out the NewestAssetInfo method")
-// 			},
-// 			NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-// 				panic("mock out the NewestAssetIsSponsored method")
-// 			},
-// 			NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-// 				panic("mock out the NewestFullAssetInfo method")
-// 			},
-// 			NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-// 				panic("mock out the NewestFullWavesBalance method")
-// 			},
-// 			NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
-// 				panic("mock out the NewestHeaderByHeight method")
-// 			},
-// 			NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
-// 				panic("mock out the NewestLeasingInfo method")
-// 			},
-// 			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-// 				panic("mock out the NewestRecipientToAddress method")
-// 			},
-// 			NewestScriptByAccountFunc: func(account proto.Recipient) (*ast.Tree, error) {
-// 				panic("mock out the NewestScriptByAccount method")
-// 			},
-// 			NewestScriptByAssetFunc: func(assetID crypto.Digest) (*ast.Tree, error) {
-// 				panic("mock out the NewestScriptByAsset method")
-// 			},
-// 			NewestScriptBytesByAccountFunc: func(account proto.Recipient) (proto.Script, error) {
-// 				panic("mock out the NewestScriptBytesByAccount method")
-// 			},
-// 			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-// 				panic("mock out the NewestScriptPKByAddr method")
-// 			},
-// 			NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-// 				panic("mock out the NewestScriptVersionByAddressID method")
-// 			},
-// 			NewestTransactionByIDFunc: func(bytes []byte) (proto.Transaction, error) {
-// 				panic("mock out the NewestTransactionByID method")
-// 			},
-// 			NewestTransactionHeightByIDFunc: func(bytes []byte) (uint64, error) {
-// 				panic("mock out the NewestTransactionHeightByID method")
-// 			},
-// 			NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-// 				panic("mock out the NewestWavesBalance method")
-// 			},
-// 			RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-// 				panic("mock out the RetrieveNewestBinaryEntry method")
-// 			},
-// 			RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-// 				panic("mock out the RetrieveNewestBooleanEntry method")
-// 			},
-// 			RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-// 				panic("mock out the RetrieveNewestIntegerEntry method")
-// 			},
-// 			RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-// 				panic("mock out the RetrieveNewestStringEntry method")
-// 			},
-// 			WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-// 				panic("mock out the WavesBalanceProfile method")
-// 			},
-// 		}
+//		// make and configure a mocked types.SmartState
+//		mockedSmartState := &MockSmartState{
+//			AddingBlockHeightFunc: func() (uint64, error) {
+//				panic("mock out the AddingBlockHeight method")
+//			},
+//			BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
+//				panic("mock out the BlockVRF method")
+//			},
+//			EstimatorVersionFunc: func() (int, error) {
+//				panic("mock out the EstimatorVersion method")
+//			},
+//			IsNotFoundFunc: func(err error) bool {
+//				panic("mock out the IsNotFound method")
+//			},
+//			IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
+//				panic("mock out the IsStateUntouched method")
+//			},
+//			NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+//				panic("mock out the NewestAddrByAlias method")
+//			},
+//			NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+//				panic("mock out the NewestAssetBalance method")
+//			},
+//			NewestAssetBalanceByAddressIDFunc: func(id proto.AddressID, asset crypto.Digest) (uint64, error) {
+//				panic("mock out the NewestAssetBalanceByAddressID method")
+//			},
+//			NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+//				panic("mock out the NewestAssetInfo method")
+//			},
+//			NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+//				panic("mock out the NewestAssetIsSponsored method")
+//			},
+//			NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+//				panic("mock out the NewestFullAssetInfo method")
+//			},
+//			NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+//				panic("mock out the NewestFullWavesBalance method")
+//			},
+//			NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
+//				panic("mock out the NewestHeaderByHeight method")
+//			},
+//			NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
+//				panic("mock out the NewestLeasingInfo method")
+//			},
+//			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+//				panic("mock out the NewestRecipientToAddress method")
+//			},
+//			NewestScriptByAccountFunc: func(account proto.Recipient) (*ast.Tree, error) {
+//				panic("mock out the NewestScriptByAccount method")
+//			},
+//			NewestScriptByAssetFunc: func(assetID crypto.Digest) (*ast.Tree, error) {
+//				panic("mock out the NewestScriptByAsset method")
+//			},
+//			NewestScriptBytesByAccountFunc: func(account proto.Recipient) (proto.Script, error) {
+//				panic("mock out the NewestScriptBytesByAccount method")
+//			},
+//			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+//				panic("mock out the NewestScriptPKByAddr method")
+//			},
+//			NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+//				panic("mock out the NewestScriptVersionByAddressID method")
+//			},
+//			NewestTransactionByIDFunc: func(bytes []byte) (proto.Transaction, error) {
+//				panic("mock out the NewestTransactionByID method")
+//			},
+//			NewestTransactionHeightByIDFunc: func(bytes []byte) (uint64, error) {
+//				panic("mock out the NewestTransactionHeightByID method")
+//			},
+//			NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+//				panic("mock out the NewestWavesBalance method")
+//			},
+//			RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+//				panic("mock out the RetrieveNewestBinaryEntry method")
+//			},
+//			RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+//				panic("mock out the RetrieveNewestBooleanEntry method")
+//			},
+//			RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+//				panic("mock out the RetrieveNewestIntegerEntry method")
+//			},
+//			RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+//				panic("mock out the RetrieveNewestStringEntry method")
+//			},
+//			WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+//				panic("mock out the WavesBalanceProfile method")
+//			},
+//		}
 //
-// 		// use mockedSmartState in code that requires types.SmartState
-// 		// and then make assertions.
+//		// use mockedSmartState in code that requires types.SmartState
+//		// and then make assertions.
 //
-// 	}
+//	}
 type MockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
@@ -394,7 +394,8 @@ func (mock *MockSmartState) AddingBlockHeight() (uint64, error) {
 
 // AddingBlockHeightCalls gets all the calls that were made to AddingBlockHeight.
 // Check the length with:
-//     len(mockedSmartState.AddingBlockHeightCalls())
+//
+//	len(mockedSmartState.AddingBlockHeightCalls())
 func (mock *MockSmartState) AddingBlockHeightCalls() []struct {
 } {
 	var calls []struct {
@@ -425,7 +426,8 @@ func (mock *MockSmartState) BlockVRF(blockHeader *proto.BlockHeader, height uint
 
 // BlockVRFCalls gets all the calls that were made to BlockVRF.
 // Check the length with:
-//     len(mockedSmartState.BlockVRFCalls())
+//
+//	len(mockedSmartState.BlockVRFCalls())
 func (mock *MockSmartState) BlockVRFCalls() []struct {
 	BlockHeader *proto.BlockHeader
 	Height      uint64
@@ -455,7 +457,8 @@ func (mock *MockSmartState) EstimatorVersion() (int, error) {
 
 // EstimatorVersionCalls gets all the calls that were made to EstimatorVersion.
 // Check the length with:
-//     len(mockedSmartState.EstimatorVersionCalls())
+//
+//	len(mockedSmartState.EstimatorVersionCalls())
 func (mock *MockSmartState) EstimatorVersionCalls() []struct {
 } {
 	var calls []struct {
@@ -484,7 +487,8 @@ func (mock *MockSmartState) IsNotFound(err error) bool {
 
 // IsNotFoundCalls gets all the calls that were made to IsNotFound.
 // Check the length with:
-//     len(mockedSmartState.IsNotFoundCalls())
+//
+//	len(mockedSmartState.IsNotFoundCalls())
 func (mock *MockSmartState) IsNotFoundCalls() []struct {
 	Err error
 } {
@@ -515,7 +519,8 @@ func (mock *MockSmartState) IsStateUntouched(account proto.Recipient) (bool, err
 
 // IsStateUntouchedCalls gets all the calls that were made to IsStateUntouched.
 // Check the length with:
-//     len(mockedSmartState.IsStateUntouchedCalls())
+//
+//	len(mockedSmartState.IsStateUntouchedCalls())
 func (mock *MockSmartState) IsStateUntouchedCalls() []struct {
 	Account proto.Recipient
 } {
@@ -546,7 +551,8 @@ func (mock *MockSmartState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAdd
 
 // NewestAddrByAliasCalls gets all the calls that were made to NewestAddrByAlias.
 // Check the length with:
-//     len(mockedSmartState.NewestAddrByAliasCalls())
+//
+//	len(mockedSmartState.NewestAddrByAliasCalls())
 func (mock *MockSmartState) NewestAddrByAliasCalls() []struct {
 	Alias proto.Alias
 } {
@@ -579,7 +585,8 @@ func (mock *MockSmartState) NewestAssetBalance(account proto.Recipient, assetID 
 
 // NewestAssetBalanceCalls gets all the calls that were made to NewestAssetBalance.
 // Check the length with:
-//     len(mockedSmartState.NewestAssetBalanceCalls())
+//
+//	len(mockedSmartState.NewestAssetBalanceCalls())
 func (mock *MockSmartState) NewestAssetBalanceCalls() []struct {
 	Account proto.Recipient
 	AssetID crypto.Digest
@@ -614,7 +621,8 @@ func (mock *MockSmartState) NewestAssetBalanceByAddressID(id proto.AddressID, as
 
 // NewestAssetBalanceByAddressIDCalls gets all the calls that were made to NewestAssetBalanceByAddressID.
 // Check the length with:
-//     len(mockedSmartState.NewestAssetBalanceByAddressIDCalls())
+//
+//	len(mockedSmartState.NewestAssetBalanceByAddressIDCalls())
 func (mock *MockSmartState) NewestAssetBalanceByAddressIDCalls() []struct {
 	ID    proto.AddressID
 	Asset crypto.Digest
@@ -647,7 +655,8 @@ func (mock *MockSmartState) NewestAssetInfo(assetID crypto.Digest) (*proto.Asset
 
 // NewestAssetInfoCalls gets all the calls that were made to NewestAssetInfo.
 // Check the length with:
-//     len(mockedSmartState.NewestAssetInfoCalls())
+//
+//	len(mockedSmartState.NewestAssetInfoCalls())
 func (mock *MockSmartState) NewestAssetInfoCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -678,7 +687,8 @@ func (mock *MockSmartState) NewestAssetIsSponsored(assetID crypto.Digest) (bool,
 
 // NewestAssetIsSponsoredCalls gets all the calls that were made to NewestAssetIsSponsored.
 // Check the length with:
-//     len(mockedSmartState.NewestAssetIsSponsoredCalls())
+//
+//	len(mockedSmartState.NewestAssetIsSponsoredCalls())
 func (mock *MockSmartState) NewestAssetIsSponsoredCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -709,7 +719,8 @@ func (mock *MockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.F
 
 // NewestFullAssetInfoCalls gets all the calls that were made to NewestFullAssetInfo.
 // Check the length with:
-//     len(mockedSmartState.NewestFullAssetInfoCalls())
+//
+//	len(mockedSmartState.NewestFullAssetInfoCalls())
 func (mock *MockSmartState) NewestFullAssetInfoCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -740,7 +751,8 @@ func (mock *MockSmartState) NewestFullWavesBalance(account proto.Recipient) (*pr
 
 // NewestFullWavesBalanceCalls gets all the calls that were made to NewestFullWavesBalance.
 // Check the length with:
-//     len(mockedSmartState.NewestFullWavesBalanceCalls())
+//
+//	len(mockedSmartState.NewestFullWavesBalanceCalls())
 func (mock *MockSmartState) NewestFullWavesBalanceCalls() []struct {
 	Account proto.Recipient
 } {
@@ -771,7 +783,8 @@ func (mock *MockSmartState) NewestHeaderByHeight(height uint64) (*proto.BlockHea
 
 // NewestHeaderByHeightCalls gets all the calls that were made to NewestHeaderByHeight.
 // Check the length with:
-//     len(mockedSmartState.NewestHeaderByHeightCalls())
+//
+//	len(mockedSmartState.NewestHeaderByHeightCalls())
 func (mock *MockSmartState) NewestHeaderByHeightCalls() []struct {
 	Height uint64
 } {
@@ -802,7 +815,8 @@ func (mock *MockSmartState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInf
 
 // NewestLeasingInfoCalls gets all the calls that were made to NewestLeasingInfo.
 // Check the length with:
-//     len(mockedSmartState.NewestLeasingInfoCalls())
+//
+//	len(mockedSmartState.NewestLeasingInfoCalls())
 func (mock *MockSmartState) NewestLeasingInfoCalls() []struct {
 	ID crypto.Digest
 } {
@@ -833,7 +847,8 @@ func (mock *MockSmartState) NewestRecipientToAddress(recipient proto.Recipient) 
 
 // NewestRecipientToAddressCalls gets all the calls that were made to NewestRecipientToAddress.
 // Check the length with:
-//     len(mockedSmartState.NewestRecipientToAddressCalls())
+//
+//	len(mockedSmartState.NewestRecipientToAddressCalls())
 func (mock *MockSmartState) NewestRecipientToAddressCalls() []struct {
 	Recipient proto.Recipient
 } {
@@ -864,7 +879,8 @@ func (mock *MockSmartState) NewestScriptByAccount(account proto.Recipient) (*ast
 
 // NewestScriptByAccountCalls gets all the calls that were made to NewestScriptByAccount.
 // Check the length with:
-//     len(mockedSmartState.NewestScriptByAccountCalls())
+//
+//	len(mockedSmartState.NewestScriptByAccountCalls())
 func (mock *MockSmartState) NewestScriptByAccountCalls() []struct {
 	Account proto.Recipient
 } {
@@ -895,7 +911,8 @@ func (mock *MockSmartState) NewestScriptByAsset(assetID crypto.Digest) (*ast.Tre
 
 // NewestScriptByAssetCalls gets all the calls that were made to NewestScriptByAsset.
 // Check the length with:
-//     len(mockedSmartState.NewestScriptByAssetCalls())
+//
+//	len(mockedSmartState.NewestScriptByAssetCalls())
 func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -926,7 +943,8 @@ func (mock *MockSmartState) NewestScriptBytesByAccount(account proto.Recipient) 
 
 // NewestScriptBytesByAccountCalls gets all the calls that were made to NewestScriptBytesByAccount.
 // Check the length with:
-//     len(mockedSmartState.NewestScriptBytesByAccountCalls())
+//
+//	len(mockedSmartState.NewestScriptBytesByAccountCalls())
 func (mock *MockSmartState) NewestScriptBytesByAccountCalls() []struct {
 	Account proto.Recipient
 } {
@@ -957,7 +975,8 @@ func (mock *MockSmartState) NewestScriptPKByAddr(addr proto.WavesAddress) (crypt
 
 // NewestScriptPKByAddrCalls gets all the calls that were made to NewestScriptPKByAddr.
 // Check the length with:
-//     len(mockedSmartState.NewestScriptPKByAddrCalls())
+//
+//	len(mockedSmartState.NewestScriptPKByAddrCalls())
 func (mock *MockSmartState) NewestScriptPKByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -988,7 +1007,8 @@ func (mock *MockSmartState) NewestScriptVersionByAddressID(id proto.AddressID) (
 
 // NewestScriptVersionByAddressIDCalls gets all the calls that were made to NewestScriptVersionByAddressID.
 // Check the length with:
-//     len(mockedSmartState.NewestScriptVersionByAddressIDCalls())
+//
+//	len(mockedSmartState.NewestScriptVersionByAddressIDCalls())
 func (mock *MockSmartState) NewestScriptVersionByAddressIDCalls() []struct {
 	ID proto.AddressID
 } {
@@ -1019,7 +1039,8 @@ func (mock *MockSmartState) NewestTransactionByID(bytes []byte) (proto.Transacti
 
 // NewestTransactionByIDCalls gets all the calls that were made to NewestTransactionByID.
 // Check the length with:
-//     len(mockedSmartState.NewestTransactionByIDCalls())
+//
+//	len(mockedSmartState.NewestTransactionByIDCalls())
 func (mock *MockSmartState) NewestTransactionByIDCalls() []struct {
 	Bytes []byte
 } {
@@ -1050,7 +1071,8 @@ func (mock *MockSmartState) NewestTransactionHeightByID(bytes []byte) (uint64, e
 
 // NewestTransactionHeightByIDCalls gets all the calls that were made to NewestTransactionHeightByID.
 // Check the length with:
-//     len(mockedSmartState.NewestTransactionHeightByIDCalls())
+//
+//	len(mockedSmartState.NewestTransactionHeightByIDCalls())
 func (mock *MockSmartState) NewestTransactionHeightByIDCalls() []struct {
 	Bytes []byte
 } {
@@ -1081,7 +1103,8 @@ func (mock *MockSmartState) NewestWavesBalance(account proto.Recipient) (uint64,
 
 // NewestWavesBalanceCalls gets all the calls that were made to NewestWavesBalance.
 // Check the length with:
-//     len(mockedSmartState.NewestWavesBalanceCalls())
+//
+//	len(mockedSmartState.NewestWavesBalanceCalls())
 func (mock *MockSmartState) NewestWavesBalanceCalls() []struct {
 	Account proto.Recipient
 } {
@@ -1114,7 +1137,8 @@ func (mock *MockSmartState) RetrieveNewestBinaryEntry(account proto.Recipient, k
 
 // RetrieveNewestBinaryEntryCalls gets all the calls that were made to RetrieveNewestBinaryEntry.
 // Check the length with:
-//     len(mockedSmartState.RetrieveNewestBinaryEntryCalls())
+//
+//	len(mockedSmartState.RetrieveNewestBinaryEntryCalls())
 func (mock *MockSmartState) RetrieveNewestBinaryEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1149,7 +1173,8 @@ func (mock *MockSmartState) RetrieveNewestBooleanEntry(account proto.Recipient, 
 
 // RetrieveNewestBooleanEntryCalls gets all the calls that were made to RetrieveNewestBooleanEntry.
 // Check the length with:
-//     len(mockedSmartState.RetrieveNewestBooleanEntryCalls())
+//
+//	len(mockedSmartState.RetrieveNewestBooleanEntryCalls())
 func (mock *MockSmartState) RetrieveNewestBooleanEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1184,7 +1209,8 @@ func (mock *MockSmartState) RetrieveNewestIntegerEntry(account proto.Recipient, 
 
 // RetrieveNewestIntegerEntryCalls gets all the calls that were made to RetrieveNewestIntegerEntry.
 // Check the length with:
-//     len(mockedSmartState.RetrieveNewestIntegerEntryCalls())
+//
+//	len(mockedSmartState.RetrieveNewestIntegerEntryCalls())
 func (mock *MockSmartState) RetrieveNewestIntegerEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1219,7 +1245,8 @@ func (mock *MockSmartState) RetrieveNewestStringEntry(account proto.Recipient, k
 
 // RetrieveNewestStringEntryCalls gets all the calls that were made to RetrieveNewestStringEntry.
 // Check the length with:
-//     len(mockedSmartState.RetrieveNewestStringEntryCalls())
+//
+//	len(mockedSmartState.RetrieveNewestStringEntryCalls())
 func (mock *MockSmartState) RetrieveNewestStringEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1252,7 +1279,8 @@ func (mock *MockSmartState) WavesBalanceProfile(id proto.AddressID) (*types.Wave
 
 // WavesBalanceProfileCalls gets all the calls that were made to WavesBalanceProfile.
 // Check the length with:
-//     len(mockedSmartState.WavesBalanceProfileCalls())
+//
+//	len(mockedSmartState.WavesBalanceProfileCalls())
 func (mock *MockSmartState) WavesBalanceProfileCalls() []struct {
 	ID proto.AddressID
 } {

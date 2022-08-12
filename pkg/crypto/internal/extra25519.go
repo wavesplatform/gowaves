@@ -1,6 +1,6 @@
 package internal
 
-// compare to fe_montx_to_edy
+// FeMontgomeryXToEdwardsY compare to fe_montx_to_edy
 func FeMontgomeryXToEdwardsY(out, x *FieldElement) {
 	/*
 	   	 y = (u - 1) / (u + 1)
@@ -41,7 +41,8 @@ var lMinus1 = [32]byte{0xec, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
 
 // ScNeg computes:
 // b = -a (mod l)
-//  where l = 2^252 + 27742317777372353535851937790883648493.
+//
+//	where l = 2^252 + 27742317777372353535851937790883648493.
 func ScNeg(b, a *[32]byte) {
 	var zero [32]byte
 	ScMulAdd(b, &lMinus1, a, &zero)
@@ -53,7 +54,7 @@ func ScNeg(b, a *[32]byte) {
 func ScCMove(f, g *[32]byte, b int32) {
 	var x [32]byte
 	for i := range x {
-		x[i] = (f[i] ^ g[i])
+		x[i] = f[i] ^ g[i]
 	}
 	b = -b
 	for i := range x {
