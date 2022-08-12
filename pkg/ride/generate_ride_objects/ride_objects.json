@@ -268,7 +268,7 @@
         {
           "name": "value",
           "types": ["rideUnit"],
-          "order": 1
+          "order": -1
         },
         {
           "name": "key",
@@ -414,6 +414,7 @@
     },
     {
       "name": "order",
+      "set_proofs": true,
       "fields": [
         {
           "name": "assetPair",
@@ -558,7 +559,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideUnit"],
+          "types": ["rideList"],
           "order": -1
         },
         {
@@ -694,7 +695,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -745,7 +746,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 5
         },
         {
@@ -796,7 +797,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 7
         },
         {
@@ -847,7 +848,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 12
         },
         {
@@ -963,7 +964,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -1019,7 +1020,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 5
         },
         {
@@ -1095,7 +1096,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 12
         },
         {
@@ -1171,7 +1172,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 7
         },
         {
@@ -1222,7 +1223,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -1278,7 +1279,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 9
         },
         {
@@ -1349,7 +1350,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -1410,7 +1411,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -1466,7 +1467,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 8
         },
         {
@@ -1522,7 +1523,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 7
         },
         {
@@ -1573,7 +1574,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 7
         },
         {
@@ -1654,7 +1655,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 11
         },
         {
@@ -1700,7 +1701,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList", "rideUnit"],
+          "types": ["rideList"],
           "order": 9
         },
         {

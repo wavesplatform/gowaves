@@ -20,7 +20,7 @@ var _ environment = &mockRideEnvironment{}
 //
 //		// make and configure a mocked environment
 //		mockedenvironment := &mockRideEnvironment{
-//			blockFunc: func() rideObject {
+//			blockFunc: func() rideType {
 //				panic("mock out the block method")
 //			},
 //			blockV5ActivatedFunc: func() bool {
@@ -35,7 +35,7 @@ var _ environment = &mockRideEnvironment{}
 //			internalPaymentsValidationHeightFunc: func() uint64 {
 //				panic("mock out the internalPaymentsValidationHeight method")
 //			},
-//			invocationFunc: func() rideObject {
+//			invocationFunc: func() rideType {
 //				panic("mock out the invocation method")
 //			},
 //			isProtobufTxFunc: func() bool {
@@ -53,7 +53,7 @@ var _ environment = &mockRideEnvironment{}
 //			schemeFunc: func() byte {
 //				panic("mock out the scheme method")
 //			},
-//			setInvocationFunc: func(inv rideObject)  {
+//			setInvocationFunc: func(inv rideType)  {
 //				panic("mock out the setInvocation method")
 //			},
 //			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
@@ -71,7 +71,7 @@ var _ environment = &mockRideEnvironment{}
 //			timestampFunc: func() uint64 {
 //				panic("mock out the timestamp method")
 //			},
-//			transactionFunc: func() rideObject {
+//			transactionFunc: func() rideType {
 //				panic("mock out the transaction method")
 //			},
 //			txIDFunc: func() rideType {

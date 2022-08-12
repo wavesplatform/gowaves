@@ -822,7 +822,6 @@ func (o rideDeleteEntry) lines() []string {
 	r := make([]string, 0, 4)
 	r = append(r, deleteEntryTypeName+"(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
-	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
 	return r
 }
@@ -1376,6 +1375,15 @@ func (o rideOrder) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+func (o rideOrder) setProofs(proofs rideList) rideProven {
+	o.proofs = proofs
+	return o
+}
+
+func (o rideOrder) getProofs() rideList {
+	return o.proofs
+}
+
 type rideReissue struct {
 	assetID      rideBytes
 	quantity     rideInt
@@ -1572,7 +1580,7 @@ func (o rideScriptTransfer) String() string {
 type rideFullScriptTransfer struct {
 	attachment      rideUnit
 	bodyBytes       rideUnit
-	proofs          rideUnit
+	proofs          rideList
 	feeAssetID      rideUnit
 	fee             rideUnit
 	version         rideUnit
@@ -1586,7 +1594,7 @@ type rideFullScriptTransfer struct {
 	sender          rideAddress
 }
 
-func newRideFullScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs rideUnit, feeAssetID rideUnit, fee rideUnit, version rideUnit, asset rideType, assetID rideType, recipient rideRecipient, senderPublicKey rideBytes, id rideBytes, amount rideInt, timestamp rideInt, sender rideAddress) rideFullScriptTransfer {
+func newRideFullScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs rideList, feeAssetID rideUnit, fee rideUnit, version rideUnit, asset rideType, assetID rideType, recipient rideRecipient, senderPublicKey rideBytes, id rideBytes, amount rideInt, timestamp rideInt, sender rideAddress) rideFullScriptTransfer {
 	return rideFullScriptTransfer{
 		attachment:      attachment,
 		bodyBytes:       bodyBytes,
@@ -1994,7 +2002,7 @@ func (o rideWriteSet) String() string {
 
 type rideBurnTransaction struct {
 	bodyBytes       rideType
-	proofs          rideType
+	proofs          rideList
 	senderPublicKey rideBytes
 	assetID         rideBytes
 	id              rideBytes
@@ -2005,7 +2013,7 @@ type rideBurnTransaction struct {
 	sender          rideAddress
 }
 
-func newRideBurnTransaction(bodyBytes rideType, proofs rideType, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
+func newRideBurnTransaction(bodyBytes rideType, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
 	return rideBurnTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
@@ -2115,12 +2123,17 @@ func (o rideBurnTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideBurnTransaction) SetProofs(proofs rideType) {
+func (o rideBurnTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideBurnTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideCreateAliasTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	alias           rideString
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -2131,7 +2144,7 @@ type rideCreateAliasTransaction struct {
 	sender          rideAddress
 }
 
-func newRideCreateAliasTransaction(proofs rideType, alias rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideCreateAliasTransaction {
+func newRideCreateAliasTransaction(proofs rideList, alias rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideCreateAliasTransaction {
 	return rideCreateAliasTransaction{
 		proofs:          proofs,
 		alias:           alias,
@@ -2234,12 +2247,17 @@ func (o rideCreateAliasTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideCreateAliasTransaction) SetProofs(proofs rideType) {
+func (o rideCreateAliasTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideCreateAliasTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideDataTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	bodyBytes       rideBytes
 	id              rideBytes
 	senderPublicKey rideBytes
@@ -2250,7 +2268,7 @@ type rideDataTransaction struct {
 	sender          rideAddress
 }
 
-func newRideDataTransaction(proofs rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, data rideList, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideDataTransaction {
+func newRideDataTransaction(proofs rideList, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, data rideList, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideDataTransaction {
 	return rideDataTransaction{
 		proofs:          proofs,
 		bodyBytes:       bodyBytes,
@@ -2353,12 +2371,17 @@ func (o rideDataTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideDataTransaction) SetProofs(proofs rideType) {
+func (o rideDataTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideDataTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideExchangeTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	buyOrder        rideType
 	sellOrder       rideType
 	id              rideBytes
@@ -2374,7 +2397,7 @@ type rideExchangeTransaction struct {
 	sender          rideAddress
 }
 
-func newRideExchangeTransaction(proofs rideType, buyOrder rideType, sellOrder rideType, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
+func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder rideType, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
 	return rideExchangeTransaction{
 		proofs:          proofs,
 		buyOrder:        buyOrder,
@@ -2512,8 +2535,13 @@ func (o rideExchangeTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideExchangeTransaction) SetProofs(proofs rideType) {
+func (o rideExchangeTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideExchangeTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideGenesisTransaction struct {
@@ -2615,7 +2643,7 @@ func (o rideGenesisTransaction) String() string {
 }
 
 type rideInvokeExpressionTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	feeAssetID      rideType
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -2627,7 +2655,7 @@ type rideInvokeExpressionTransaction struct {
 	sender          rideAddress
 }
 
-func newRideInvokeExpressionTransaction(proofs rideType, feeAssetID rideType, bodyBytes rideBytes, id rideBytes, expression rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideInvokeExpressionTransaction {
+func newRideInvokeExpressionTransaction(proofs rideList, feeAssetID rideType, bodyBytes rideBytes, id rideBytes, expression rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideInvokeExpressionTransaction {
 	return rideInvokeExpressionTransaction{
 		proofs:          proofs,
 		feeAssetID:      feeAssetID,
@@ -2737,12 +2765,17 @@ func (o rideInvokeExpressionTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideInvokeExpressionTransaction) SetProofs(proofs rideType) {
+func (o rideInvokeExpressionTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideInvokeExpressionTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideInvokeScriptTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	feeAssetID      rideType
 	payment         rideType
 	dApp            rideRecipient
@@ -2758,7 +2791,7 @@ type rideInvokeScriptTransaction struct {
 	sender          rideAddress
 }
 
-func newRideInvokeScriptTransaction(proofs rideType, feeAssetID rideType, payment rideType, dApp rideRecipient, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransaction {
+func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, payment rideType, dApp rideRecipient, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransaction {
 	return rideInvokeScriptTransaction{
 		proofs:          proofs,
 		feeAssetID:      feeAssetID,
@@ -2895,12 +2928,17 @@ func (o rideInvokeScriptTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideInvokeScriptTransaction) SetProofs(proofs rideType) {
+func (o rideInvokeScriptTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideInvokeScriptTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideIssueTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	script          rideType
 	description     rideString
 	name            rideString
@@ -2916,7 +2954,7 @@ type rideIssueTransaction struct {
 	sender          rideAddress
 }
 
-func newRideIssueTransaction(proofs rideType, script rideType, description rideString, name rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, quantity rideInt, decimals rideInt, reissuable rideBoolean, sender rideAddress) rideIssueTransaction {
+func newRideIssueTransaction(proofs rideList, script rideType, description rideString, name rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, quantity rideInt, decimals rideInt, reissuable rideBoolean, sender rideAddress) rideIssueTransaction {
 	return rideIssueTransaction{
 		proofs:          proofs,
 		script:          script,
@@ -3054,12 +3092,17 @@ func (o rideIssueTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideIssueTransaction) SetProofs(proofs rideType) {
+func (o rideIssueTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideIssueTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideLeaseCancelTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	bodyBytes       rideBytes
 	senderPublicKey rideBytes
 	id              rideBytes
@@ -3070,7 +3113,7 @@ type rideLeaseCancelTransaction struct {
 	sender          rideAddress
 }
 
-func newRideLeaseCancelTransaction(proofs rideType, bodyBytes rideBytes, senderPublicKey rideBytes, id rideBytes, leaseID rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseCancelTransaction {
+func newRideLeaseCancelTransaction(proofs rideList, bodyBytes rideBytes, senderPublicKey rideBytes, id rideBytes, leaseID rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseCancelTransaction {
 	return rideLeaseCancelTransaction{
 		proofs:          proofs,
 		bodyBytes:       bodyBytes,
@@ -3173,12 +3216,17 @@ func (o rideLeaseCancelTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideLeaseCancelTransaction) SetProofs(proofs rideType) {
+func (o rideLeaseCancelTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideLeaseCancelTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideLeaseTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	recipient       rideRecipient
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -3190,7 +3238,7 @@ type rideLeaseTransaction struct {
 	sender          rideAddress
 }
 
-func newRideLeaseTransaction(proofs rideType, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
+func newRideLeaseTransaction(proofs rideList, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
 	return rideLeaseTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -3300,12 +3348,17 @@ func (o rideLeaseTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideLeaseTransaction) SetProofs(proofs rideType) {
+func (o rideLeaseTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideLeaseTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideMassTransferTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	assetID         rideType
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -3320,7 +3373,7 @@ type rideMassTransferTransaction struct {
 	sender          rideAddress
 }
 
-func newRideMassTransferTransaction(proofs rideType, assetID rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, attachment rideBytes, transfers rideList, transfersCount rideInt, timestamp rideInt, fee rideInt, totalAmount rideInt, version rideInt, sender rideAddress) rideMassTransferTransaction {
+func newRideMassTransferTransaction(proofs rideList, assetID rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, attachment rideBytes, transfers rideList, transfersCount rideInt, timestamp rideInt, fee rideInt, totalAmount rideInt, version rideInt, sender rideAddress) rideMassTransferTransaction {
 	return rideMassTransferTransaction{
 		proofs:          proofs,
 		assetID:         assetID,
@@ -3451,12 +3504,17 @@ func (o rideMassTransferTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideMassTransferTransaction) SetProofs(proofs rideType) {
+func (o rideMassTransferTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideMassTransferTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type ridePaymentTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	recipient       rideRecipient
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -3468,7 +3526,7 @@ type ridePaymentTransaction struct {
 	sender          rideAddress
 }
 
-func newRidePaymentTransaction(proofs rideType, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
+func newRidePaymentTransaction(proofs rideList, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
 	return ridePaymentTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -3578,13 +3636,18 @@ func (o ridePaymentTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *ridePaymentTransaction) SetProofs(proofs rideType) {
+func (o ridePaymentTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o ridePaymentTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideReissueTransaction struct {
 	bodyBytes       rideType
-	proofs          rideType
+	proofs          rideList
 	senderPublicKey rideBytes
 	assetID         rideBytes
 	id              rideBytes
@@ -3596,7 +3659,7 @@ type rideReissueTransaction struct {
 	reissuable      rideBoolean
 }
 
-func newRideReissueTransaction(bodyBytes rideType, proofs rideType, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
+func newRideReissueTransaction(bodyBytes rideType, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
 	return rideReissueTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
@@ -3713,12 +3776,17 @@ func (o rideReissueTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideReissueTransaction) SetProofs(proofs rideType) {
+func (o rideReissueTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideReissueTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideSetAssetScriptTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	script          rideType
 	bodyBytes       rideBytes
 	assetID         rideBytes
@@ -3730,7 +3798,7 @@ type rideSetAssetScriptTransaction struct {
 	sender          rideAddress
 }
 
-func newRideSetAssetScriptTransaction(proofs rideType, script rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetAssetScriptTransaction {
+func newRideSetAssetScriptTransaction(proofs rideList, script rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetAssetScriptTransaction {
 	return rideSetAssetScriptTransaction{
 		proofs:          proofs,
 		script:          script,
@@ -3840,12 +3908,17 @@ func (o rideSetAssetScriptTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideSetAssetScriptTransaction) SetProofs(proofs rideType) {
+func (o rideSetAssetScriptTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideSetAssetScriptTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideSetScriptTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	script          rideType
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -3856,7 +3929,7 @@ type rideSetScriptTransaction struct {
 	sender          rideAddress
 }
 
-func newRideSetScriptTransaction(proofs rideType, script rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetScriptTransaction {
+func newRideSetScriptTransaction(proofs rideList, script rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetScriptTransaction {
 	return rideSetScriptTransaction{
 		proofs:          proofs,
 		script:          script,
@@ -3959,12 +4032,17 @@ func (o rideSetScriptTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideSetScriptTransaction) SetProofs(proofs rideType) {
+func (o rideSetScriptTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideSetScriptTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideSponsorFeeTransaction struct {
-	proofs               rideType
+	proofs               rideList
 	minSponsoredAssetFee rideType
 	bodyBytes            rideBytes
 	assetID              rideBytes
@@ -3976,7 +4054,7 @@ type rideSponsorFeeTransaction struct {
 	sender               rideAddress
 }
 
-func newRideSponsorFeeTransaction(proofs rideType, minSponsoredAssetFee rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSponsorFeeTransaction {
+func newRideSponsorFeeTransaction(proofs rideList, minSponsoredAssetFee rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSponsorFeeTransaction {
 	return rideSponsorFeeTransaction{
 		proofs:               proofs,
 		minSponsoredAssetFee: minSponsoredAssetFee,
@@ -4086,8 +4164,13 @@ func (o rideSponsorFeeTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideSponsorFeeTransaction) SetProofs(proofs rideType) {
+func (o rideSponsorFeeTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideSponsorFeeTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideTransferTransaction struct {
@@ -4096,7 +4179,7 @@ type rideTransferTransaction struct {
 	feeAssetID      rideType
 	version         rideType
 	attachment      rideType
-	proofs          rideType
+	proofs          rideList
 	fee             rideType
 	recipient       rideRecipient
 	id              rideBytes
@@ -4106,7 +4189,7 @@ type rideTransferTransaction struct {
 	sender          rideAddress
 }
 
-func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID rideType, version rideType, attachment rideType, proofs rideType, fee rideType, recipient rideRecipient, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
+func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideRecipient, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
 	return rideTransferTransaction{
 		assetID:         assetID,
 		bodyBytes:       bodyBytes,
@@ -4237,12 +4320,17 @@ func (o rideTransferTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideTransferTransaction) SetProofs(proofs rideType) {
+func (o rideTransferTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
+}
+
+func (o rideTransferTransaction) getProofs() rideList {
+	return o.proofs
 }
 
 type rideUpdateAssetInfoTransaction struct {
-	proofs          rideType
+	proofs          rideList
 	assetID         rideType
 	feeAssetID      rideType
 	name            rideString
@@ -4256,7 +4344,7 @@ type rideUpdateAssetInfoTransaction struct {
 	sender          rideAddress
 }
 
-func newRideUpdateAssetInfoTransaction(proofs rideType, assetID rideType, feeAssetID rideType, name rideString, description rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideUpdateAssetInfoTransaction {
+func newRideUpdateAssetInfoTransaction(proofs rideList, assetID rideType, feeAssetID rideType, name rideString, description rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideUpdateAssetInfoTransaction {
 	return rideUpdateAssetInfoTransaction{
 		proofs:          proofs,
 		assetID:         assetID,
@@ -4379,46 +4467,19 @@ func (o rideUpdateAssetInfoTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o *rideUpdateAssetInfoTransaction) SetProofs(proofs rideType) {
+func (o rideUpdateAssetInfoTransaction) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
+	return o
 }
 
-func ResetProofs(obj rideType) error {
+func (o rideUpdateAssetInfoTransaction) getProofs() rideList {
+	return o.proofs
+}
+
+func resetProofs(obj rideType) error {
 	switch tx := obj.(type) {
-	case rideBurnTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideCreateAliasTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideDataTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideExchangeTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideInvokeExpressionTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideInvokeScriptTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideIssueTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideLeaseCancelTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideLeaseTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideMassTransferTransaction:
-		tx.SetProofs(rideUnit{})
-	case ridePaymentTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideReissueTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideSetAssetScriptTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideSetScriptTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideSponsorFeeTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideTransferTransaction:
-		tx.SetProofs(rideUnit{})
-	case rideUpdateAssetInfoTransaction:
-		tx.SetProofs(rideUnit{})
+	case rideProven:
+		tx.setProofs(rideList{})
 	default:
 		return errors.Errorf("type '%s' is not tx", obj.instanceOf())
 	}

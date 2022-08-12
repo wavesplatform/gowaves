@@ -137,10 +137,10 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	), nil
 }
 
-func genesisToObject(scheme byte, tx *proto.Genesis) (rideType, error) {
+func genesisToObject(scheme byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "genesisToObject")
+		return rideGenesisTransaction{}, EvaluationFailure.Wrap(err, "genesisToObject")
 	}
 	return newRideGenesisTransaction(
 		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
@@ -153,14 +153,14 @@ func genesisToObject(scheme byte, tx *proto.Genesis) (rideType, error) {
 	), nil
 }
 
-func paymentToObject(scheme byte, tx *proto.Payment) (rideType, error) {
+func paymentToObject(scheme byte, tx *proto.Payment) (ridePaymentTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "paymentToObject")
+		return ridePaymentTransaction{}, EvaluationFailure.Wrap(err, "paymentToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "paymentToObject")
+		return ridePaymentTransaction{}, EvaluationFailure.Wrap(err, "paymentToObject")
 	}
 	return newRidePaymentTransaction(
 		signatureToProofs(tx.Signature),
@@ -203,14 +203,14 @@ func issueWithSigToObject(scheme byte, tx *proto.IssueWithSig) (rideType, error)
 	), nil
 }
 
-func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideType, error) {
+func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideIssueTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "issueWithProofsToObject")
+		return rideIssueTransaction{}, EvaluationFailure.Wrap(err, "issueWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "issueWithProofsToObject")
+		return rideIssueTransaction{}, EvaluationFailure.Wrap(err, "issueWithProofsToObject")
 	}
 	var sf rideType = rideUnit{}
 	if tx.NonEmptyScript() {
@@ -260,14 +260,14 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, 
 	), nil
 }
 
-func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (rideType, error) {
+func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (rideTransferTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
+		return rideTransferTransaction{}, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
+		return rideTransferTransaction{}, EvaluationFailure.Wrap(err, "transferWithProofsToObject")
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
@@ -310,14 +310,14 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideType, er
 	), nil
 }
 
-func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideType, error) {
+func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideReissueTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
+		return rideReissueTransaction{}, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
+		return rideReissueTransaction{}, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
 	return newRideReissueTransaction(
 		rideBytes(body),
@@ -357,14 +357,14 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideType, error) {
 	), nil
 }
 
-func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideType, error) {
+func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideBurnTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
+		return rideBurnTransaction{}, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
+		return rideBurnTransaction{}, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
 	return newRideBurnTransaction(
 		rideBytes(body),
@@ -394,31 +394,31 @@ func orderType(orderType proto.OrderType) rideType {
 	panic("invalid orderType")
 }
 
-func orderToObject(scheme proto.Scheme, o proto.Order) (rideType, error) {
+func orderToObject(scheme proto.Scheme, o proto.Order) (rideOrder, error) {
 	id, err := o.GetID()
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "orderToObject")
+		return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
 	}
 	senderAddr, err := o.GetSender(scheme)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "failed to execute 'orderToObject' func, failed to get sender of order")
+		return rideOrder{}, EvaluationFailure.Wrap(err, "failed to execute 'orderToObject' func, failed to get sender of order")
 	}
 	// note that in ride we use only proto.WavesAddress addresses
 	senderWavesAddr, err := senderAddr.ToWavesAddress(scheme)
 	if err != nil {
-		return nil, EvaluationFailure.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+		return rideOrder{}, EvaluationFailure.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
 	var body []byte
 	// we should leave bodyBytes empty only for proto.EthereumOrderV4
 	if _, ok := o.(*proto.EthereumOrderV4); !ok {
 		body, err = proto.MarshalOrderBody(scheme, o)
 		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "orderToObject")
+			return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
 		}
 	}
 	p, err := o.GetProofs()
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "orderToObject")
+		return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
 	}
 	matcherPk := o.GetMatcherPK()
 	pair := o.GetAssetPair()
@@ -475,27 +475,27 @@ func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideType, 
 	), nil
 }
 
-func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (rideType, error) {
+func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (rideExchangeTransaction, error) {
 	buy, err := orderToObject(scheme, tx.Order1)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
+		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
 	sell, err := orderToObject(scheme, tx.Order2)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
+		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
 	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
+		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
 	bts, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
+		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
 	return newRideExchangeTransaction(
 		proofs(tx.Proofs),
-		sell,
 		buy,
+		sell,
 		tx.ID.Bytes(),
 		bts,
 		common.Dup(tx.SenderPK.Bytes()),
@@ -533,14 +533,14 @@ func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideType, error)
 	), nil
 }
 
-func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideType, error) {
+func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideLeaseTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
+		return rideLeaseTransaction{}, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
+		return rideLeaseTransaction{}, EvaluationFailure.Wrap(err, "leaseWithProofsToObject")
 	}
 	return newRideLeaseTransaction(
 		proofs(tx.Proofs),
@@ -578,14 +578,14 @@ func leaseCancelWithSigToObject(scheme byte, tx *proto.LeaseCancelWithSig) (ride
 	), nil
 }
 
-func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs) (rideType, error) {
+func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs) (rideLeaseCancelTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
+		return rideLeaseCancelTransaction{}, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
+		return rideLeaseCancelTransaction{}, EvaluationFailure.Wrap(err, "leaseCancelWithProofsToObject")
 	}
 	return newRideLeaseCancelTransaction(
 		proofs(tx.Proofs),
@@ -622,14 +622,14 @@ func createAliasWithSigToObject(scheme byte, tx *proto.CreateAliasWithSig) (ride
 	), nil
 }
 
-func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs) (rideType, error) {
+func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs) (rideCreateAliasTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
+		return rideCreateAliasTransaction{}, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
+		return rideCreateAliasTransaction{}, EvaluationFailure.Wrap(err, "createAliasWithProofsToObject")
 	}
 	return newRideCreateAliasTransaction(
 		proofs(tx.Proofs),
@@ -651,14 +651,14 @@ func transferEntryToObject(transferEntry proto.MassTransferEntry) rideType {
 	)
 }
 
-func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProofs) (rideType, error) {
+func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProofs) (rideMassTransferTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "massTransferWithProofsToObject")
+		return rideMassTransferTransaction{}, EvaluationFailure.Wrap(err, "massTransferWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "massTransferWithProofsToObject")
+		return rideMassTransferTransaction{}, EvaluationFailure.Wrap(err, "massTransferWithProofsToObject")
 	}
 	var total int64 = 0
 	count := len(tx.Transfers)
@@ -709,14 +709,14 @@ func dataEntriesToList(entries []proto.DataEntry) rideList {
 	return r
 }
 
-func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideType, error) {
+func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideDataTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
+		return rideDataTransaction{}, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
+		return rideDataTransaction{}, EvaluationFailure.Wrap(err, "dataWithProofsToObject")
 	}
 	return newRideDataTransaction(
 		proofs(tx.Proofs),
@@ -731,14 +731,14 @@ func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideType, er
 	), nil
 }
 
-func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (rideType, error) {
+func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (rideSetScriptTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
+		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
+		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
 	}
 	var sf rideType = rideUnit{}
 	if len(tx.Script) > 0 {
@@ -757,14 +757,14 @@ func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (ri
 	), nil
 }
 
-func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs) (rideType, error) {
+func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs) (rideSponsorFeeTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "sponsorshipWithProofsToObject")
+		return rideSponsorFeeTransaction{}, EvaluationFailure.Wrap(err, "sponsorshipWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "sponsorshipWithProofsToObject")
+		return rideSponsorFeeTransaction{}, EvaluationFailure.Wrap(err, "sponsorshipWithProofsToObject")
 	}
 	var f rideType = rideUnit{}
 	if tx.MinAssetFee > 0 {
@@ -784,14 +784,14 @@ func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs)
 	), nil
 }
 
-func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithProofs) (rideType, error) {
+func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithProofs) (rideSetAssetScriptTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "setAssetScriptWithProofsToObject")
+		return rideSetAssetScriptTransaction{}, EvaluationFailure.Wrap(err, "setAssetScriptWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "setAssetScriptWithProofsToObject")
+		return rideSetAssetScriptTransaction{}, EvaluationFailure.Wrap(err, "setAssetScriptWithProofsToObject")
 	}
 	var sf rideType = rideUnit{}
 	if len(tx.Script) > 0 {
@@ -815,20 +815,20 @@ func attachedPaymentToObject(p proto.ScriptPayment) rideType {
 	return newRideAttachedPayment(optionalAsset(p.Asset), rideInt(p.Amount))
 }
 
-func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProofs) (rideType, error) {
+func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProofs) (rideInvokeScriptTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	args := make(rideList, len(tx.FunctionCall.Arguments))
 	for i, arg := range tx.FunctionCall.Arguments {
 		a, err := convertArgument(arg)
 		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+			return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 		}
 		args[i] = a
 	}
@@ -864,14 +864,14 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	), nil
 }
 
-func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideType, error) {
+func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideInvokeExpressionTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideInvokeExpressionTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideInvokeExpressionTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	return newRideInvokeExpressionTransaction(
 		proofs(tx.Proofs),
@@ -1049,14 +1049,14 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 	}
 }
 
-func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideType, error) {
+func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideUpdateAssetInfoTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
+		return rideUpdateAssetInfoTransaction{}, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
+		return rideUpdateAssetInfoTransaction{}, EvaluationFailure.Wrap(err, "updateAssetInfoWithProofsToObject")
 	}
 	return newRideUpdateAssetInfoTransaction(
 		proofs(tx.Proofs),
@@ -1173,11 +1173,11 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		feeAsset = transaction.FeeAsset
 		fee = transaction.Fee
 	default:
-		return nil, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
+		return rideInvocation{}, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
 	}
 	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
-		return nil, err
+		return rideInvocation{}, err
 	}
 	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	var oca rideType = rideUnit{}
@@ -1199,14 +1199,14 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 	), nil
 }
 
-func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideType, error) {
+func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideInvocation, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
-		return nil, err
+		return rideInvocation{}, err
 	}
 	callerEthereumPK, err := tx.FromPK()
 	if err != nil {
-		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+		return rideInvocation{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	var ocf1 rideType = rideUnit{}
@@ -1248,7 +1248,7 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
 	return newRideFullScriptTransfer(
 		rideUnit{},
 		rideUnit{},
-		rideUnit{},
+		rideList{},
 		rideUnit{},
 		rideUnit{},
 		rideUnit{},
@@ -1270,7 +1270,7 @@ func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rid
 		rideUnit{},
 		rideUnit{},
 		rideUnit{},
-		rideUnit{},
+		rideList{},
 		rideUnit{},
 		rideRecipient(st.Recipient),
 		st.ID.Bytes(),
@@ -1291,7 +1291,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideType {
 }
 
 func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
-	switch obj.instanceOf() {
+	switch obj.instanceOf() { //TODO: remake with type switch
 	case writeSetTypeName:
 		data, err := obj.get(dataField)
 		if err != nil {
@@ -1610,7 +1610,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	case *proto.ReissueScriptAction:
 		return newRideReissueTransaction(
 			rideUnit{},
-			rideUnit{},
+			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),
 			id.Bytes(),
@@ -1624,7 +1624,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	case *proto.BurnScriptAction:
 		return newRideBurnTransaction(
 			rideUnit{},
-			rideUnit{},
+			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),
 			id.Bytes(),

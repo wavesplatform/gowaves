@@ -1078,7 +1078,7 @@ func (e *EvaluationEnvironment) SetTransactionWithoutProofs(tx proto.Transaction
 	if err := e.SetTransaction(tx); err != nil {
 		return err
 	}
-	if err := ResetProofs(e.tx); err != nil {
+	if err := resetProofs(e.tx); err != nil {
 		return err
 	}
 	return nil
@@ -1122,7 +1122,6 @@ func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v ast.LibraryVer
 		return err
 	}
 	e.inv = obj
-
 	return nil
 }
 

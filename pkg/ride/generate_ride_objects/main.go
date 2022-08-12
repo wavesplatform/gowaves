@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"go/format"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 )
@@ -64,7 +64,7 @@ func main() {
 		sb.WriteString(fmt.Sprintf("\tif oo, ok := other.(ride%s); ok {\n", act.StructName))
 		for _, field := range act.Fields {
 			sb.WriteString(fmt.Sprintf("\t\tif !o.%s.eq(oo.%s) {\n", field.Name, field.Name))
-			sb.WriteString(fmt.Sprintf("\t\t\treturn false\n"))
+			sb.WriteString("\t\t\treturn false\n")
 			sb.WriteString("\t\t}\n")
 		}
 		sb.WriteString("\t\treturn true\n")
@@ -121,20 +121,20 @@ func main() {
 
 		// SetProofs (only for transactions)
 		if act.SetProofs {
-			sb.WriteString(fmt.Sprintf("func (o *ride%s) SetProofs(proofs rideType) {\n", act.StructName))
+			sb.WriteString(fmt.Sprintf("func (o ride%s) setProofs(proofs rideList) rideProven {\n", act.StructName))
 			sb.WriteString("\to.proofs = proofs\n")
+			sb.WriteString("\treturn o\n")
+			sb.WriteString("}\n\n")
+			sb.WriteString(fmt.Sprintf("func (o ride%s) getProofs() rideList {\n", act.StructName))
+			sb.WriteString("\treturn o.proofs\n")
 			sb.WriteString("}\n\n")
 		}
 	}
 	// ResetProofs (only for transactions)
-	sb.WriteString("func ResetProofs(obj rideType) error {\n")
+	sb.WriteString("func resetProofs(obj rideType) error {\n")
 	sb.WriteString("\tswitch tx := obj.(type) {\n")
-	for _, act := range s.Actions {
-		if act.SetProofs {
-			sb.WriteString(fmt.Sprintf("\tcase ride%s:\n", act.StructName))
-			sb.WriteString("\t\ttx.SetProofs(rideUnit{})\n")
-		}
-	}
+	sb.WriteString("\tcase rideProven:\n")
+	sb.WriteString("\t\ttx.setProofs(rideList{})\n")
 	sb.WriteString("\tdefault:\n")
 	sb.WriteString("\t\treturn errors.Errorf(\"type '%s' is not tx\", obj.instanceOf())\n")
 	sb.WriteString("\t}\n")
@@ -147,7 +147,7 @@ func main() {
 		println(code)
 		panic(err)
 	}
-	err = ioutil.WriteFile("ride_objects_generated.go", b, 0600)
+	err = os.WriteFile("ride_objects.gen.go", b, 0600)
 	if err != nil {
 		panic(err)
 	}

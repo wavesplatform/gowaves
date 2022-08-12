@@ -164,7 +164,7 @@ func TestNewVariablesFromTransferWithSig(t *testing.T) {
 type TransferWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.TransferWithProofs
-	f  func(scheme byte, tx *proto.TransferWithProofs) (rideType, error)
+	f  func(scheme byte, tx *proto.TransferWithProofs) (rideTransferTransaction, error)
 }
 
 func (a *TransferWithProofsTestSuite) SetupTest() {
@@ -1254,7 +1254,7 @@ func TestNewVariablesFromExchangeWithProofs(t *testing.T) {
 type OrderTestSuite struct {
 	suite.Suite
 	tx proto.Order
-	f  func(scheme proto.Scheme, tx proto.Order) (rideType, error)
+	f  func(scheme proto.Scheme, tx proto.Order) (rideOrder, error)
 	d  crypto.Digest
 	aa proto.OptionalAsset
 	pa proto.OptionalAsset
@@ -1314,7 +1314,7 @@ func (a *OrderTestSuite) Test_orderType() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
 	orderType, err := rs.get(orderTypeField)
 	a.NoError(err)
-	a.Equal(orderTypeName, orderType.instanceOf())
+	a.Equal("Sell", orderType.instanceOf())
 }
 
 func (a *OrderTestSuite) Test_price() {
@@ -1594,7 +1594,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
 	payment, err := rs.get(paymentField)
 	a.NoError(err)
-	asset, err := payment.get(assetField)
+	asset, err := payment.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideBytes(byte_helpers.Digest.Bytes()), asset)
 	amount, err := payment.get(amountField)
@@ -2439,9 +2439,9 @@ func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_presence() {
 func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_absence() {
 	a.tx.MinAssetFee = 0
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
-	_, err := rs.get(minSponsoredAssetFeeField)
-	a.Error(err)
-	a.Equal(rideUnit{}, minSponsoredAssetFeeField)
+	field, err := rs.get(minSponsoredAssetFeeField)
+	a.NoError(err)
+	a.Equal(rideUnit{}, field)
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_id() {

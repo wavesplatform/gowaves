@@ -190,7 +190,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		originCaller,
 		payments,
 		payment,
-		rideBytes(common.Dup(callerPublicKey.Bytes())),
+		common.Dup(callerPublicKey.Bytes()),
 		feeAssetID,
 		originCallerPublicKey,
 		transactionID,
@@ -250,7 +250,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	res, err := invokeFunctionFromDApp(env, recipient, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
+		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
 	ws.totalComplexity += res.Complexity()
@@ -1015,38 +1015,11 @@ func calculateAssetID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
-	if t := args[0].instanceOf(); t != issueTypeName {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", t)
-	}
 	issue, ok := args[0].(rideIssue)
 	if !ok {
-		return nil, errors.New("calculateAssetID: not an object")
+		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[0])
 	}
-	name, err := stringProperty(issue, nameField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	description, err := stringProperty(issue, descriptionField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	decimals, err := intProperty(issue, decimalsField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	quantity, err := intProperty(issue, quantityField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	reissuable, err := booleanProperty(issue, isReissuableField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	nonce, err := intProperty(issue, nonceField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	return calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
+	return calcAssetID(env, issue.name, issue.description, issue.decimals, issue.quantity, issue.isReissuable, issue.nonce)
 }
 
 func simplifiedIssue(_ environment, args ...rideType) (rideType, error) {
@@ -1725,29 +1698,15 @@ func calculateLeaseID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
-	if t := args[0].instanceOf(); t != leaseTypeName {
-		return nil, errors.Errorf("calculateLeaseID: unexpected argument type '%s'", t)
-	}
-	lease, ok := args[0].(rideLeaseCancel)
+	lease, ok := args[0].(rideLease)
 	if !ok {
-		return nil, errors.New("calculateLeaseID: not an object")
-	}
-	if lease.instanceOf() != leaseTypeName {
-		return nil, errors.Errorf("calculateLeaseID: unexpected object type '%s'", lease.instanceOf())
+		return nil, errors.Errorf("calculateLeaseID: unexpected argument type '%s'", args[0])
 	}
 	recipient, err := recipientProperty(lease, recipientField)
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
-	amount, err := intProperty(lease, amountField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateLeaseID")
-	}
-	nonce, err := intProperty(lease, nonceField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateLeaseID")
-	}
-	return calcLeaseID(env, recipient, amount, nonce)
+	return calcLeaseID(env, recipient, lease.amount, lease.nonce)
 }
 
 func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
