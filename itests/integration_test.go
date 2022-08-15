@@ -11,7 +11,6 @@ import (
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/itests/node_client"
-	"github.com/wavesplatform/gowaves/itests/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -23,8 +22,7 @@ type ItestSuite struct {
 	cfg     config.TestConfig
 	docker  *d.Docker
 	conns   net.NodeConnections
-
-	ctx context.Context
+	clients *node_client.NodesClients
 }
 
 func (suite *ItestSuite) SetupSuite() {
@@ -43,24 +41,27 @@ func (suite *ItestSuite) SetupSuite() {
 		suite.NoError(err, "couldn't run docker containers")
 	}
 	suite.conns = net.NewNodeConnections(suite.T())
+	suite.clients = &node_client.NodesClients{
+		GoClients:    node_client.NewNodeClient(suite.T(), d.ScalaNodeRESTApiPort, d.ScalaNodeGrpsApiPort),
+		ScalaClients: node_client.NewNodeClient(suite.T(), d.GoNodeRESTApiPort, d.GoNodeGrpsApiPort),
+	}
 }
 
 func (suite *ItestSuite) TearDownSuite() {
-	lastHeight := node_client.ScalaNodeClient(suite.T()).GetHeight(suite.T(), suite.ctx)
-	newHeight := utils.WaitForNewHeight(suite.T(), suite.ctx, *lastHeight)
-	utils.StateHashCmp(suite.T(), suite.ctx, newHeight)
+	lastHeight := suite.clients.ScalaClients.HttpClient.GetHeight(suite.T())
+	newHeight := suite.clients.WaitForNewHeight(suite.T(), *lastHeight)
+	suite.clients.StateHashCmp(suite.T(), newHeight)
 
 	suite.docker.Finish(suite.cancel)
 	suite.conns.Close()
 }
 
 func (suite *ItestSuite) SetupTest() {
-	suite.ctx = context.Background()
-	utils.SendStartMessage(suite.T(), suite.ctx)
+	suite.clients.SendStartMessage(suite.T())
 }
 
 func (suite *ItestSuite) TearDownTest() {
-	utils.SendEndMessage(suite.T(), suite.ctx)
+	suite.clients.SendEndMessage(suite.T())
 }
 
 func (suite *ItestSuite) Test_SendTransaction() {
@@ -77,7 +78,9 @@ func (suite *ItestSuite) Test_SendTransaction() {
 
 	suite.conns.SendToEachNode(suite.T(), &txMsg)
 
-	utils.WaitForTransaction(suite.T(), suite.ctx, tx.ID, 1*time.Minute)
+	suite.clients.WaitForTransaction(suite.T(), tx.ID, 1*time.Minute)
+	b := suite.clients.GoClients.GrpcClient.GetBalance(suite.T(), suite.cfg.Accounts[1].Address)
+	suite.Equal(suite.cfg.Accounts[1].Amount+1000000000, uint64(b.GetWaves().GetAvailable()))
 }
 
 func TestItestSuite(t *testing.T) {
