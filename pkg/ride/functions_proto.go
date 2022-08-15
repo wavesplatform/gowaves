@@ -1476,7 +1476,7 @@ func writeSet(_ environment, args ...rideType) (rideType, error) {
 	var entries rideList
 	for _, item := range list {
 		e, ok := item.(rideDataEntry)
-		if !ok || e.instanceOf() != dataEntryTypeName {
+		if !ok {
 			return nil, errors.Errorf("writeSet: unexpected list item type '%s'", item.instanceOf())
 		}
 		entries = append(entries, e)
@@ -1521,7 +1521,7 @@ func transferSet(_ environment, args ...rideType) (rideType, error) {
 	var transfers rideList
 	for _, item := range list {
 		t, ok := item.(rideScriptTransfer)
-		if !ok || t.instanceOf() != scriptTransferTypeName {
+		if !ok {
 			return nil, errors.Errorf("transferSet: unexpected list item type '%s'", item.instanceOf())
 		}
 		transfers = append(transfers, t)

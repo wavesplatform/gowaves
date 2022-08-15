@@ -463,27 +463,27 @@ func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
-func findFirstEntry(list rideList, key rideString, valueTypeName string) rideType {
+func findFirstEntry(list rideList, key rideString, expectedValueType string) rideType {
 	for _, item := range list {
 		switch ti := item.(type) {
 		case rideDataEntry:
-			if ti.key == key && ti.value.instanceOf() == valueTypeName {
+			if ti.key == key && ti.value.instanceOf() == expectedValueType {
 				return ti.value
 			}
 		case rideIntegerEntry:
-			if ti.key == key && valueTypeName == intTypeName {
+			if ti.key == key && expectedValueType == intTypeName {
 				return ti.value
 			}
 		case rideBooleanEntry:
-			if ti.key == key && valueTypeName == booleanTypeName {
+			if ti.key == key && expectedValueType == booleanTypeName {
 				return ti.value
 			}
 		case rideBinaryEntry:
-			if ti.key == key && valueTypeName == bytesTypeName {
+			if ti.key == key && expectedValueType == bytesTypeName {
 				return ti.value
 			}
 		case rideStringEntry:
-			if ti.key == key && valueTypeName == stringTypeName {
+			if ti.key == key && expectedValueType == stringTypeName {
 				return ti.value
 			}
 		}
