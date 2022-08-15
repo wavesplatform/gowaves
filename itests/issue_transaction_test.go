@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"fmt"
 	"github.com/wavesplatform/gowaves/itests/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"time"
@@ -26,7 +25,7 @@ import (
 //не очень удобно использовать, так как вернуть систему в первоначальное состояние достаточно "затратный" процесс, поэтому
 //следует использовать достаточно "богатый" аккаунт)
 
-type TestData struct {
+type IssueTestData struct {
 	AssetName  string
 	AssetDesc  string
 	Quantity   uint64
@@ -37,9 +36,9 @@ type TestData struct {
 	Expected   string //ожидаемый результат
 }
 
-func NewTestData(assetName string, assetDesc string, quantity uint64, decimals byte, reissuable bool, fee uint64,
-	timestamp uint64, expected string) *TestData {
-	return &TestData{
+func NewIssueTestData(assetName string, assetDesc string, quantity uint64, decimals byte, reissuable bool, fee uint64,
+	timestamp uint64, expected string) *IssueTestData {
+	return &IssueTestData{
 		AssetName:  assetName,
 		AssetDesc:  assetDesc,
 		Quantity:   quantity,
@@ -56,28 +55,60 @@ func getCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixNano() / 1000000)
 }
 
-func getDataMatrix() []TestData {
-	var t = []TestData{
-		*NewTestData("test", "t", uint64(1), byte(0), true, uint64(100000000), getCurrentTimestampInMs(), ""),
+func getDataMatrix() []IssueTestData {
+	var t = []IssueTestData{
+		*NewIssueTestData(
+			"test",
+			"t",
+			1,
+			0,
+			true,
+			100000000,
+			getCurrentTimestampInMs(),
+			""),
+		*NewIssueTestData(
+			"testtest",
+			"testtesttestest",
+			100000000000,
+			4,
+			true,
+			100000000,
+			getCurrentTimestampInMs(),
+			""),
+		*NewIssueTestData(
+			"testtesttestest",
+			"testtesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
+				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
+				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
+				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
+				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
+				"stesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
+				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
+				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
+				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
+				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
+				"sttesttesttestt",
+			9223372036854775807,
+			8,
+			true,
+			100000000,
+			getCurrentTimestampInMs(),
+			""),
 	}
 	return t
 }
 
-func (suite *ItestSuite) Test_IssueTxWithMinValues() {
-	//test data (need to use something for parametrization)
-	//assetName := "test"
-	//assetDesc := "t"
-	//quantity := uint64(1)
-	//decimals := byte(0)
-	//reissuable := true
-	//fee := uint64(100000000)
-	//ts := getCurrentTimestampInMs()
-	//
-	testdata := getDataMatrix()
-	//steps
-	tx := proto.NewUnsignedIssueWithSig(suite.cfg.Accounts[0].PublicKey, testdata[0].AssetName, testdata[0].AssetDesc,
-		testdata[0].Quantity, testdata[0].Decimals, testdata[0].Reissuable, testdata[0].Fee, testdata[0].Timestamp)
-	err := tx.Sign('L', suite.cfg.Accounts[0].SecretKey)
+func createAndSignTransaction(suite *ItestSuite, name string, description string, quantity uint64,
+	decimals byte, reissuable bool, timestamp uint64, fee uint64) (tx *proto.IssueWithSig, err error) {
+	tx = proto.NewUnsignedIssueWithSig(suite.cfg.Accounts[0].PublicKey, name, description,
+		quantity, decimals, reissuable, timestamp, fee)
+	err = tx.Sign('L', suite.cfg.Accounts[0].SecretKey)
+	return tx, err
+}
+
+func createAndSendTransaction(suite *ItestSuite, name string, description string, quantity uint64,
+	decimals byte, reissuable bool, timestamp uint64, fee uint64) {
+	tx, err := createAndSignTransaction(suite, name, description, quantity, decimals, reissuable, timestamp, fee)
 	suite.NoError(err, "failed to create proofs from signature")
 
 	bts, err := tx.MarshalBinary()
@@ -87,7 +118,17 @@ func (suite *ItestSuite) Test_IssueTxWithMinValues() {
 	suite.conns.SendToEachNode(suite.T(), &txMsg)
 
 	utils.WaitForTransaction(suite.T(), suite.ctx, tx.ID, 1*time.Minute)
-	fmt.Println(*tx)
+}
+
+func (suite *ItestSuite) Test_IssueTx() {
+	testdata := getDataMatrix()
+	for _, td := range testdata {
+		createAndSendTransaction(suite, td.AssetName, td.AssetDesc,
+			td.Quantity, td.Decimals, td.Reissuable, td.Timestamp, td.Fee)
+	}
+
+	//steps
+
 	//asserts
 	//проверка того, что ID транзакции соответствует ID выпущенного токена (возможно имеет смысл перенести на уровень unit)
 	//assertBalance (не хватает метода, аналогичного miner.assertBalances(firstAddress, balance1 - issueFee, eff1 - issueFee))
