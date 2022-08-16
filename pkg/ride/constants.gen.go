@@ -15,6 +15,7 @@ func constantV1(id int) rideConstructor {
 	}
 	return _constructors_V1[id]
 }
+
 func checkConstantV1(name string) (uint16, bool) {
 	for i := 0; i <= 2; i++ {
 		if _constants_V1[_c_index_V1[i]:_c_index_V1[i+1]] == name {
@@ -37,6 +38,7 @@ func constantV2(id int) rideConstructor {
 	}
 	return _constructors_V2[id]
 }
+
 func checkConstantV2(name string) (uint16, bool) {
 	for i := 0; i <= 12; i++ {
 		if _constants_V2[_c_index_V2[i]:_c_index_V2[i+1]] == name {
@@ -59,6 +61,7 @@ func constantV3(id int) rideConstructor {
 	}
 	return _constructors_V3[id]
 }
+
 func checkConstantV3(name string) (uint16, bool) {
 	for i := 0; i <= 25; i++ {
 		if _constants_V3[_c_index_V3[i]:_c_index_V3[i+1]] == name {
@@ -81,6 +84,7 @@ func constantV4(id int) rideConstructor {
 	}
 	return _constructors_V4[id]
 }
+
 func checkConstantV4(name string) (uint16, bool) {
 	for i := 0; i <= 25; i++ {
 		if _constants_V4[_c_index_V4[i]:_c_index_V4[i+1]] == name {
@@ -103,6 +107,7 @@ func constantV5(id int) rideConstructor {
 	}
 	return _constructors_V5[id]
 }
+
 func checkConstantV5(name string) (uint16, bool) {
 	for i := 0; i <= 23; i++ {
 		if _constants_V5[_c_index_V5[i]:_c_index_V5[i+1]] == name {
@@ -125,6 +130,7 @@ func constantV6(id int) rideConstructor {
 	}
 	return _constructors_V6[id]
 }
+
 func checkConstantV6(name string) (uint16, bool) {
 	for i := 0; i <= 23; i++ {
 		if _constants_V6[_c_index_V6[i]:_c_index_V6[i+1]] == name {

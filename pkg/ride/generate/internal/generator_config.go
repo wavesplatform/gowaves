@@ -1,14 +1,15 @@
-package main
+package internal
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
-const configPath = "/generate_ride_objects/ride_objects.json"
+const configPath = "/generate/ride_objects.json"
 
 type actionField struct {
 	Name  string   `json:"name"`
