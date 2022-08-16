@@ -79,8 +79,8 @@ func (suite *ItestSuite) Test_SendTransaction() {
 	suite.conns.SendToEachNode(suite.T(), &txMsg)
 
 	suite.clients.WaitForTransaction(suite.T(), tx.ID, 1*time.Minute)
-	b := suite.clients.GoClients.GrpcClient.GetBalance(suite.T(), suite.cfg.Accounts[1].Address)
-	suite.Equal(suite.cfg.Accounts[1].Amount+1000000000, uint64(b.GetWaves().GetAvailable()))
+	b := suite.clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), suite.cfg.Accounts[1].Address)
+	suite.Equal(suite.cfg.Accounts[1].Amount+1000000000, uint64(b.GetAvailable()))
 }
 
 func TestItestSuite(t *testing.T) {
