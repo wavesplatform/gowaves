@@ -54,9 +54,5 @@ func (c *Coder) Save(name string) error {
 		println("============================")
 		return err
 	}
-	err = os.WriteFile(name, b, 0600)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(name, b, 0600)
 }
