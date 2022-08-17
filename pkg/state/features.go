@@ -75,16 +75,19 @@ type features struct {
 	hs                  *historyStorage
 	settings            *settings.BlockchainSettings
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
+	activationCache     map[settings.Feature]bool
 }
 
-func newFeatures(
-	rw *blockReadWriter,
-	db keyvalue.IterableKeyVal,
-	hs *historyStorage,
-	settings *settings.BlockchainSettings,
-	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
-) *features {
-	return &features{rw, db, hs, settings, definedFeaturesInfo}
+func newFeatures(rw *blockReadWriter, db keyvalue.IterableKeyVal, hs *historyStorage, stg *settings.BlockchainSettings,
+	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo) *features {
+	return &features{
+		rw:                  rw,
+		db:                  db,
+		hs:                  hs,
+		settings:            stg,
+		definedFeaturesInfo: definedFeaturesInfo,
+		activationCache:     make(map[settings.Feature]bool),
+	}
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
@@ -180,6 +183,7 @@ func (f *features) printActivationLog(featureID int16, height uint64) {
 }
 
 func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
+	f.resetCache()
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -209,6 +213,9 @@ func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, er
 }
 
 func (f *features) newestIsActivated(featureID int16) (bool, error) {
+	if status, ok := f.activationCache[settings.Feature(featureID)]; ok {
+		return status, nil
+	}
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -216,11 +223,13 @@ func (f *features) newestIsActivated(featureID int16) (bool, error) {
 	}
 	_, err = f.hs.newestTopEntryData(keyBytes)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		f.activationCache[settings.Feature(featureID)] = false
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
+	f.activationCache[settings.Feature(featureID)] = true
 	return true, nil
 }
 
@@ -496,6 +505,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 
 // Update activation list.
 func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
+	f.resetCache()
 	iter, err := f.hs.newNewestTopEntryIterator(approvedFeature)
 	if err != nil {
 		return err
@@ -572,4 +582,8 @@ func (f *features) allFeatures() ([]int16, error) {
 		list = append(list, k.featureID)
 	}
 	return list, nil
+}
+
+func (f *features) resetCache() {
+	f.activationCache = make(map[settings.Feature]bool)
 }
