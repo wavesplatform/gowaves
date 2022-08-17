@@ -49,9 +49,9 @@ func (c *Coder) Save(name string) error {
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {
-		println("====== Generated code ======")
-		println(code)
-		println("============================")
+		fmt.Println("====== Generated code ======")
+		fmt.Println(code)
+		fmt.Println("============================")
 		return err
 	}
 	return os.WriteFile(name, b, 0600)
