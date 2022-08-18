@@ -141,7 +141,7 @@ func TestFunctions(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 5
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transferWithProofsToObject('W', transfer)
 			if err != nil {
 				panic(err)
@@ -196,7 +196,7 @@ func TestFunctions(t *testing.T) {
 		},
 	}
 	_ /*envWithDataTX :*/ = &mockRideEnvironment{
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
 				panic(err)
@@ -205,7 +205,7 @@ func TestFunctions(t *testing.T) {
 		},
 	}
 	envWithExchangeTX := &mockRideEnvironment{
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
 				panic(err)
@@ -461,7 +461,7 @@ func testTransferWithProofs() *proto.TransferWithProofs {
 	return tx
 }
 
-func testTransferObject() rideObject {
+func testTransferObject() rideType {
 	obj, err := transferWithProofsToObject('T', testTransferWithProofs())
 	if err != nil {
 		panic(err)

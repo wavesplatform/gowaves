@@ -20,7 +20,7 @@ var _ environment = &mockRideEnvironment{}
 //
 //		// make and configure a mocked environment
 //		mockedenvironment := &mockRideEnvironment{
-//			blockFunc: func() rideObject {
+//			blockFunc: func() rideType {
 //				panic("mock out the block method")
 //			},
 //			blockV5ActivatedFunc: func() bool {
@@ -35,7 +35,7 @@ var _ environment = &mockRideEnvironment{}
 //			internalPaymentsValidationHeightFunc: func() uint64 {
 //				panic("mock out the internalPaymentsValidationHeight method")
 //			},
-//			invocationFunc: func() rideObject {
+//			invocationFunc: func() rideType {
 //				panic("mock out the invocation method")
 //			},
 //			isProtobufTxFunc: func() bool {
@@ -53,7 +53,7 @@ var _ environment = &mockRideEnvironment{}
 //			schemeFunc: func() byte {
 //				panic("mock out the scheme method")
 //			},
-//			setInvocationFunc: func(inv rideObject)  {
+//			setInvocationFunc: func(inv rideType)  {
 //				panic("mock out the setInvocation method")
 //			},
 //			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
@@ -71,7 +71,7 @@ var _ environment = &mockRideEnvironment{}
 //			timestampFunc: func() uint64 {
 //				panic("mock out the timestamp method")
 //			},
-//			transactionFunc: func() rideObject {
+//			transactionFunc: func() rideType {
 //				panic("mock out the transaction method")
 //			},
 //			txIDFunc: func() rideType {
@@ -88,7 +88,7 @@ var _ environment = &mockRideEnvironment{}
 //	}
 type mockRideEnvironment struct {
 	// blockFunc mocks the block method.
-	blockFunc func() rideObject
+	blockFunc func() rideType
 
 	// blockV5ActivatedFunc mocks the blockV5Activated method.
 	blockV5ActivatedFunc func() bool
@@ -103,7 +103,7 @@ type mockRideEnvironment struct {
 	internalPaymentsValidationHeightFunc func() uint64
 
 	// invocationFunc mocks the invocation method.
-	invocationFunc func() rideObject
+	invocationFunc func() rideType
 
 	// isProtobufTxFunc mocks the isProtobufTx method.
 	isProtobufTxFunc func() bool
@@ -121,7 +121,7 @@ type mockRideEnvironment struct {
 	schemeFunc func() byte
 
 	// setInvocationFunc mocks the setInvocation method.
-	setInvocationFunc func(inv rideObject)
+	setInvocationFunc func(inv rideType)
 
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
 	setNewDAppAddressFunc func(address proto.WavesAddress)
@@ -139,7 +139,7 @@ type mockRideEnvironment struct {
 	timestampFunc func() uint64
 
 	// transactionFunc mocks the transaction method.
-	transactionFunc func() rideObject
+	transactionFunc func() rideType
 
 	// txIDFunc mocks the txID method.
 	txIDFunc func() rideType
@@ -187,7 +187,7 @@ type mockRideEnvironment struct {
 		// setInvocation holds details about calls to the setInvocation method.
 		setInvocation []struct {
 			// Inv is the inv argument value.
-			Inv rideObject
+			Inv rideType
 		}
 		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
 		setNewDAppAddress []struct {
@@ -243,7 +243,7 @@ type mockRideEnvironment struct {
 }
 
 // block calls blockFunc.
-func (mock *mockRideEnvironment) block() rideObject {
+func (mock *mockRideEnvironment) block() rideType {
 	if mock.blockFunc == nil {
 		panic("mockRideEnvironment.blockFunc: method is nil but environment.block was just called")
 	}
@@ -383,7 +383,7 @@ func (mock *mockRideEnvironment) internalPaymentsValidationHeightCalls() []struc
 }
 
 // invocation calls invocationFunc.
-func (mock *mockRideEnvironment) invocation() rideObject {
+func (mock *mockRideEnvironment) invocation() rideType {
 	if mock.invocationFunc == nil {
 		panic("mockRideEnvironment.invocationFunc: method is nil but environment.invocation was just called")
 	}
@@ -545,12 +545,12 @@ func (mock *mockRideEnvironment) schemeCalls() []struct {
 }
 
 // setInvocation calls setInvocationFunc.
-func (mock *mockRideEnvironment) setInvocation(inv rideObject) {
+func (mock *mockRideEnvironment) setInvocation(inv rideType) {
 	if mock.setInvocationFunc == nil {
 		panic("mockRideEnvironment.setInvocationFunc: method is nil but environment.setInvocation was just called")
 	}
 	callInfo := struct {
-		Inv rideObject
+		Inv rideType
 	}{
 		Inv: inv,
 	}
@@ -565,10 +565,10 @@ func (mock *mockRideEnvironment) setInvocation(inv rideObject) {
 //
 //	len(mockedenvironment.setInvocationCalls())
 func (mock *mockRideEnvironment) setInvocationCalls() []struct {
-	Inv rideObject
+	Inv rideType
 } {
 	var calls []struct {
-		Inv rideObject
+		Inv rideType
 	}
 	mock.locksetInvocation.RLock()
 	calls = mock.calls.setInvocation
@@ -726,7 +726,7 @@ func (mock *mockRideEnvironment) timestampCalls() []struct {
 }
 
 // transaction calls transactionFunc.
-func (mock *mockRideEnvironment) transaction() rideObject {
+func (mock *mockRideEnvironment) transaction() rideType {
 	if mock.transactionFunc == nil {
 		panic("mockRideEnvironment.transactionFunc: method is nil but environment.transaction was just called")
 	}

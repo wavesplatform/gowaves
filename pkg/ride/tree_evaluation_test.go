@@ -169,7 +169,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 		},
 		takeStringFunc: v5takeString,
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transferWithProofsToObject('W', transfer)
 			if err != nil {
 				panic(err)
@@ -182,7 +182,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		rideV6ActivatedFunc: noRideV6,
 	}
 	envWithDataTX := &mockRideEnvironment{
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
 				panic(err)
@@ -196,7 +196,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		rideV6ActivatedFunc: noRideV6,
 	}
 	envWithExchangeTX := &mockRideEnvironment{
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
 				panic(err)
@@ -507,7 +507,7 @@ func TestDataFunctions(t *testing.T) {
 	txObj, err := transactionToObject('W', data)
 	require.NoError(t, err)
 	env := &mockRideEnvironment{
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return txObj
 		},
 		heightFunc: func() rideInt {
@@ -549,7 +549,7 @@ func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	}
 
 	env := &mockRideEnvironment{
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			if !verifier {
 				obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 				if err != nil {
@@ -565,7 +565,7 @@ func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return txo
 		},
 		rideV6ActivatedFunc: noRideV6,
@@ -1117,7 +1117,7 @@ func testAddressIDString(id proto.AddressID) string {
 
 var thisAddress proto.WavesAddress
 var tx *proto.InvokeScriptWithProofs
-var inv rideObject
+var inv rideType
 var id []byte
 
 func WrappedStateFunc() types.SmartState {
@@ -1125,7 +1125,7 @@ func WrappedStateFunc() types.SmartState {
 }
 
 var envDappFromDapp = &mockRideEnvironment{
-	setInvocationFunc: func(invocation rideObject) {
+	setInvocationFunc: func(invocation rideType) {
 		inv = invocation
 	},
 	schemeFunc: func() byte {
@@ -1142,11 +1142,11 @@ var envDappFromDapp = &mockRideEnvironment{
 		thisAddress = address
 		wrappedSt.cle = rideAddress(address)
 	},
-	transactionFunc: func() rideObject {
+	transactionFunc: func() rideType {
 		obj, _ := transactionToObject(proto.MainNetScheme, tx)
 		return obj
 	},
-	invocationFunc: func() rideObject {
+	invocationFunc: func() rideType {
 		return inv
 	},
 	timestampFunc: func() uint64 {
@@ -4493,13 +4493,13 @@ func TestHashScriptFunc(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(addr)
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return inv
 		},
 		timestampFunc: func() uint64 {
 			return 1564703444249
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, _ := transactionToObject(proto.TestNetScheme, tx)
 			return obj
 		},
@@ -4619,7 +4619,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		timestampFunc: func() uint64 {
 			return 1564703444249
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, _ := transactionToObject(proto.TestNetScheme, tx)
 			return obj
 		},
@@ -4702,7 +4702,7 @@ func TestMatchOverwrite(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return tv
 		},
 		stateFunc: func() types.SmartState {
@@ -4759,7 +4759,7 @@ func TestFailSript1(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return tv
 		},
 		stateFunc: func() types.SmartState {
@@ -4859,7 +4859,7 @@ func TestFailSript2(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return tv
 		},
 		stateFunc: func() types.SmartState {
@@ -4948,7 +4948,7 @@ func TestWhaleDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -4983,12 +4983,12 @@ func TestWhaleDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -5077,7 +5077,7 @@ func TestExchangeDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -5106,12 +5106,12 @@ func TestExchangeDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -5234,7 +5234,7 @@ func TestBankDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -5267,12 +5267,12 @@ func TestBankDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -5357,7 +5357,7 @@ func TestLigaDApp1(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -5409,12 +5409,12 @@ func TestLigaDApp1(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx1)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx1)
 			require.NoError(t, err)
 			return obj
@@ -5510,7 +5510,7 @@ func TestLigaDApp1(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -5600,12 +5600,12 @@ func TestLigaDApp1(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx2)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx2)
 			require.NoError(t, err)
 			return obj
@@ -5694,7 +5694,7 @@ func TestTestingDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -5722,12 +5722,12 @@ func TestTestingDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -5815,7 +5815,7 @@ func TestDropElementDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		takeStringFunc: v5takeString,
@@ -5838,7 +5838,7 @@ func TestDropElementDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -5924,7 +5924,7 @@ func TestMathDApp(t *testing.T) {
 	}
 
 	env := &mockRideEnvironment{
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		heightFunc: func() rideInt {
@@ -5949,7 +5949,7 @@ func TestMathDApp(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6046,7 +6046,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6073,12 +6073,12 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6172,7 +6172,7 @@ func Test8Ball(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6201,12 +6201,12 @@ func Test8Ball(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6296,7 +6296,7 @@ func TestIntegerEntry(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6315,7 +6315,7 @@ func TestIntegerEntry(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6513,7 +6513,7 @@ func TestBadType(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6532,12 +6532,12 @@ func TestBadType(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6661,7 +6661,7 @@ func TestNoDeclaration(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6694,12 +6694,12 @@ func TestNoDeclaration(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(4, proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -6831,7 +6831,7 @@ func TestZeroReissue(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -6878,12 +6878,12 @@ func TestZeroReissue(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(4, proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -7064,7 +7064,7 @@ func TestStageNet2(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
 		},
-		blockFunc: func() rideObject {
+		blockFunc: func() rideType {
 			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
@@ -7095,12 +7095,12 @@ func TestStageNet2(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(4, proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -7183,7 +7183,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -7229,7 +7229,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			return scriptTransferToObject(tr)
 		},
 		checkMessageLengthFunc: v3check,
@@ -7284,12 +7284,12 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			obj, err := invocationToObject(3, proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
@@ -7407,16 +7407,16 @@ func TestOriginCaller(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		rideV6ActivatedFunc: noRideV6,
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		setNewDAppAddressFunc: func(address proto.WavesAddress) {
@@ -7587,16 +7587,16 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -7776,12 +7776,12 @@ func TestAliasesInInvokes(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -7789,7 +7789,7 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -8016,16 +8016,16 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -8214,16 +8214,16 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -8395,16 +8395,16 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 			return true
 		},
 		rideV6ActivatedFunc: noRideV6,
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -8592,16 +8592,16 @@ func TestReissueInInvoke(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -8799,16 +8799,16 @@ func TestNegativePayments(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9011,16 +9011,16 @@ func TestComplexityOverflow(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9157,16 +9157,16 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9302,16 +9302,16 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9480,16 +9480,16 @@ func TestInvokeFailForRideV4(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9688,12 +9688,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -9701,7 +9701,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -9940,12 +9940,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -9953,7 +9953,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -10167,12 +10167,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -10180,7 +10180,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -10399,12 +10399,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -10412,7 +10412,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -10600,12 +10600,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -10613,7 +10613,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 		},
 		rideV6ActivatedFunc:    noRideV6,
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -10855,16 +10855,16 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 			thisFunc: func() rideType {
 				return rideAddress(testDAppAddress)
 			},
-			transactionFunc: func() rideObject {
+			transactionFunc: func() rideType {
 				obj, err := transactionToObject(proto.TestNetScheme, tx)
 				require.NoError(t, err)
 				return obj
 			},
-			invocationFunc: func() rideObject {
+			invocationFunc: func() rideType {
 				return testInv
 			},
 			checkMessageLengthFunc: v3check,
-			setInvocationFunc: func(inv rideObject) {
+			setInvocationFunc: func(inv rideType) {
 				testInv = inv
 			},
 			validateInternalPaymentsFunc: func() bool {
@@ -10966,16 +10966,16 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -11167,12 +11167,12 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
-		transactionFunc: func() rideObject {
+		transactionFunc: func() rideType {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
-		invocationFunc: func() rideObject {
+		invocationFunc: func() rideType {
 			return testInv
 		},
 		blockV5ActivatedFunc: func() bool {
@@ -11182,7 +11182,7 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 			return rideV6Activated
 		},
 		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideObject) {
+		setInvocationFunc: func(inv rideType) {
 			testInv = inv
 		},
 		validateInternalPaymentsFunc: func() bool {
