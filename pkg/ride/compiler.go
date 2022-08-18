@@ -121,7 +121,7 @@ func (c *compiler) compileDAppScript(tree *ast.Tree) (*DAppScript, error) {
 			parameterName: v.InvocationParameter,
 		}
 	}
-	// All declarations goes here after verifier and public functions
+	// All declarations go here after verifier and public functions
 	for _, d := range c.declarations {
 		pos := bb.Len()
 		c.patcher.setOrigin(d.buffer(), pos)
