@@ -37,6 +37,11 @@ type DistributionItem struct {
 	Amount   uint64 `json:"amount"`
 }
 
+type FeatureInfo struct {
+	Feature int16  `json:"feature"`
+	Height  uint64 `json:"height"`
+}
+
 type GenesisSettings struct {
 	Scheme               proto.Scheme
 	SchemeRaw            string             `json:"scheme"`
@@ -44,7 +49,17 @@ type GenesisSettings struct {
 	MinBlockTime         float64            `json:"min_block_time"`
 	DelayDelta           uint64             `json:"delay_delta"`
 	Distributions        []DistributionItem `json:"distributions"`
-	PreactivatedFeatures []int16            `json:"preactivated_features"`
+	PreactivatedFeatures []FeatureInfo      `json:"preactivated_features"`
+}
+
+type ScalaCustomOptions struct {
+	Features     []FeatureInfo
+	EnableMining bool
+}
+
+type Config struct {
+	BlockchainSettings *settings.BlockchainSettings
+	ScalaOpts          *ScalaCustomOptions
 }
 
 func parseGenesisSettings() (*GenesisSettings, error) {
@@ -66,7 +81,7 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) {
+func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
@@ -93,9 +108,14 @@ func NewBlockchainConfig() (*settings.BlockchainSettings, []AccountInfo, error) 
 	cfg.DelayDelta = genSettings.DelayDelta
 	cfg.BlockRewardIncrement = 100000
 	cfg.BlockRewardVotingPeriod = 1000
-	cfg.PreactivatedFeatures = genSettings.PreactivatedFeatures
-
-	return cfg, acc, nil
+	cfg.InitialBlockReward = 600000000
+	for _, feature := range genSettings.PreactivatedFeatures {
+		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
+	}
+	return &Config{
+		BlockchainSettings: cfg,
+		ScalaOpts:          &ScalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
+	}, acc, nil
 }
 
 type AccountInfo struct {
@@ -154,9 +174,9 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
 }
 
-func isFeaturePreactivated(features []int16, feature int16) bool {
+func isFeaturePreactivated(features []FeatureInfo, feature int16) bool {
 	for _, f := range features {
-		if f == feature {
+		if f.Feature == feature {
 			return true
 		}
 	}
