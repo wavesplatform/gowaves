@@ -91,11 +91,7 @@ func intFromArray(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArray")
 	}
-	item, err := findItem(list, key, integerEntryTypeName, intTypeName)
-	if err != nil {
-		return nil, errors.Wrap(err, "intFromArray")
-	}
-	return item, nil
+	return findFirstEntry(list, key, intTypeName), nil
 }
 
 func booleanFromArray(_ environment, args ...rideType) (rideType, error) {
@@ -103,11 +99,7 @@ func booleanFromArray(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArray")
 	}
-	item, err := findItem(list, key, booleanEntryTypeName, booleanTypeName)
-	if err != nil {
-		return nil, errors.Wrap(err, "booleanFromArray")
-	}
-	return item, nil
+	return findFirstEntry(list, key, booleanTypeName), nil
 }
 
 func bytesFromArray(_ environment, args ...rideType) (rideType, error) {
@@ -115,11 +107,7 @@ func bytesFromArray(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArray")
 	}
-	item, err := findItem(list, key, binaryEntryTypeName, bytesTypeName)
-	if err != nil {
-		return nil, errors.Wrap(err, "bytesFromArray")
-	}
-	return item, nil
+	return findFirstEntry(list, key, bytesTypeName), nil
 }
 
 func stringFromArray(_ environment, args ...rideType) (rideType, error) {
@@ -127,11 +115,7 @@ func stringFromArray(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArray")
 	}
-	item, err := findItem(list, key, stringEntryTypeName, stringTypeName)
-	if err != nil {
-		return nil, errors.Wrap(err, "stringFromArray")
-	}
-	return item, nil
+	return findFirstEntry(list, key, stringTypeName), nil
 }
 
 func intFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
@@ -139,18 +123,16 @@ func intFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArrayByIndex")
 	}
-	e := list[i]
-	o, ok := e.(rideObject)
-	if !ok {
-		return nil, errors.Errorf("intFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
-	}
-	switch {
-	case o.instanceOf() == dataEntryTypeName && o[valueField].instanceOf() == intTypeName:
-		return o[valueField], nil
-	case o.instanceOf() == integerEntryTypeName:
-		return o[valueField], nil
+	switch te := list[i].(type) {
+	case rideDataEntry:
+		if v, err := te.get(valueField); err == nil && v.instanceOf() == intTypeName {
+			return v, nil
+		}
+		return nil, errors.Errorf("intFromArrayByIndex: unexpected value type %q of data entry", te.value.instanceOf())
+	case rideIntegerEntry:
+		return te.get(valueField)
 	default:
-		return nil, errors.Errorf("intFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
+		return nil, errors.Errorf("intFromArrayByIndex: unexpected type of list item %q", te.instanceOf())
 	}
 }
 
@@ -159,18 +141,16 @@ func booleanFromArrayByIndex(_ environment, args ...rideType) (rideType, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArrayByIndex")
 	}
-	e := list[i]
-	o, ok := e.(rideObject)
-	if !ok {
-		return nil, errors.Errorf("booleanFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
-	}
-	switch {
-	case o.instanceOf() == dataEntryTypeName && o[valueField].instanceOf() == booleanTypeName:
-		return o[valueField], nil
-	case o.instanceOf() == booleanEntryTypeName:
-		return o[valueField], nil
+	switch te := list[i].(type) {
+	case rideDataEntry:
+		if v, err := te.get(valueField); err == nil && v.instanceOf() == booleanTypeName {
+			return v, nil
+		}
+		return nil, errors.Errorf("booleanFromArrayByIndex: unexpected value type %q of data entry", te.value.instanceOf())
+	case rideBooleanEntry:
+		return te.get(valueField)
 	default:
-		return nil, errors.Errorf("booleanFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
+		return nil, errors.Errorf("booleanFromArrayByIndex: unexpected type of list item %q", te.instanceOf())
 	}
 }
 
@@ -179,18 +159,16 @@ func bytesFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArrayByIndex")
 	}
-	e := list[i]
-	o, ok := e.(rideObject)
-	if !ok {
-		return nil, errors.Errorf("bytesFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
-	}
-	switch {
-	case o.instanceOf() == dataEntryTypeName && o[valueField].instanceOf() == bytesTypeName:
-		return o[valueField], nil
-	case o.instanceOf() == binaryEntryTypeName:
-		return o[valueField], nil
+	switch te := list[i].(type) {
+	case rideDataEntry:
+		if v, err := te.get(valueField); err == nil && v.instanceOf() == bytesTypeName {
+			return v, nil
+		}
+		return nil, errors.Errorf("bytesFromArrayByIndex: unexpected value type %q of data entry", te.value.instanceOf())
+	case rideBinaryEntry:
+		return te.get(valueField)
 	default:
-		return nil, errors.Errorf("bytesFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
+		return nil, errors.Errorf("bytesFromArrayByIndex: unexpected type of list item %q", te.instanceOf())
 	}
 }
 
@@ -199,18 +177,16 @@ func stringFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArrayByIndex")
 	}
-	e := list[i]
-	o, ok := e.(rideObject)
-	if !ok {
-		return nil, errors.Errorf("stringFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
-	}
-	switch {
-	case o.instanceOf() == dataEntryTypeName && o[valueField].instanceOf() == stringTypeName:
-		return o[valueField], nil
-	case o.instanceOf() == stringEntryTypeName:
-		return o[valueField], nil
+	switch te := list[i].(type) {
+	case rideDataEntry:
+		if v, err := te.get(valueField); err == nil && v.instanceOf() == stringTypeName {
+			return v, nil
+		}
+		return nil, errors.Errorf("stringFromArrayByIndex: unexpected value type %q of data entry", te.value.instanceOf())
+	case rideStringEntry:
+		return te.get(valueField)
 	default:
-		return nil, errors.Errorf("stringFromArrayByIndex: unexpected type of list item '%s'", e.instanceOf())
+		return nil, errors.Errorf("stringFromArrayByIndex: unexpected type of list item %q", te.instanceOf())
 	}
 }
 
@@ -487,27 +463,32 @@ func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
-func findItem(list rideList, key rideString, entryType, valueType string) (rideType, error) {
+func findFirstEntry(list rideList, key rideString, expectedValueType string) rideType {
 	for _, item := range list {
-		o, ok := item.(rideObject)
-		if !ok {
-			return nil, errors.Errorf("unexpected type of list item '%s'", item.instanceOf())
-		}
-		switch o.instanceOf() {
-		case dataEntryTypeName:
-			if o[keyField].eq(key) {
-				v := o[valueField]
-				if v.instanceOf() == valueType {
-					return v, nil
-				}
+		switch ti := item.(type) {
+		case rideDataEntry:
+			if ti.key == key && ti.value.instanceOf() == expectedValueType {
+				return ti.value
 			}
-		case entryType:
-			if o[keyField].eq(key) {
-				return o[valueField], nil
+		case rideIntegerEntry:
+			if ti.key == key && expectedValueType == intTypeName {
+				return ti.value
+			}
+		case rideBooleanEntry:
+			if ti.key == key && expectedValueType == booleanTypeName {
+				return ti.value
+			}
+		case rideBinaryEntry:
+			if ti.key == key && expectedValueType == bytesTypeName {
+				return ti.value
+			}
+		case rideStringEntry:
+			if ti.key == key && expectedValueType == stringTypeName {
+				return ti.value
 			}
 		}
 	}
-	return rideUnit{}, nil
+	return rideUnit{}
 }
 
 func intSlice(list rideList) ([]int, error) {

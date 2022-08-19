@@ -1,0 +1,1765 @@
+{
+  "actions": [
+    {
+      "name": "asset",
+      "struct_name": "FullAsset",
+      "fields": [
+        {
+          "name": "description",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "name",
+          "types": ["rideString"],
+          "order": 8
+        },
+        {
+          "name": "issuePublicKey",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "minSponsoredFee",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "decimals",
+          "types": ["rideInt"],
+          "order": 6
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "issuer",
+          "types": ["rideAddress"],
+          "order": 1
+        },
+        {
+          "name": "reissuable",
+          "types": ["rideBoolean"],
+          "order": 7
+        },
+        {
+          "name": "scripted",
+          "types": ["rideBoolean"],
+          "order": 2
+        },
+        {
+          "name": "sponsored",
+          "types": ["rideBoolean"],
+          "order": -1
+        }
+      ]
+    },
+    {
+      "name": "asset",
+      "fields": [
+        {
+          "name": "issuePublicKey",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 6
+        },
+        {
+          "name": "decimals",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "issuer",
+          "types": ["rideAddress"],
+          "order": 0
+        },
+        {
+          "name": "scripted",
+          "types": ["rideBoolean"],
+          "order": 1
+        },
+        {
+          "name": "sponsored",
+          "types": ["rideBoolean"],
+          "order": -1
+        },
+        {
+          "name": "reissuable",
+          "types": ["rideBoolean"],
+          "order": 5
+        }
+      ]
+    },
+    {
+      "name": "assetPair",
+      "fields": [
+        {
+          "name": "amountAsset",
+          "types": ["rideUnit", "rideBytes"],
+          "order" : 0
+        },
+        {
+          "name": "priceAsset",
+          "types": ["rideUnit", "rideBytes"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "attachedPayment",
+      "fields": [
+        {
+          "name": "assetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 0
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "balanceDetails",
+      "fields": [
+        {
+          "name": "available",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "regular",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "generating",
+          "types": ["rideInt"],
+          "order": 2
+        },
+        {
+          "name": "effective",
+          "types": ["rideInt"],
+          "order": 3
+        }
+      ]
+    },
+    {
+      "name": "binaryEntry",
+      "fields": [
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "value",
+          "types": ["rideBytes"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "blockInfo",
+      "fields": [
+        {
+          "name": "vrf",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "generationSignature",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "generatorPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "baseTarget",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 2
+        },
+
+        {
+          "name": "height",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "generator",
+          "types": ["rideAddress"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "booleanEntry",
+      "fields": [
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "value",
+          "types": ["rideBoolean"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "burn",
+      "fields": [
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 0
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "dataEntry",
+      "fields": [
+        {
+          "name": "value",
+          "types": ["rideInt", "rideBytes", "rideBoolean", "rideString"],
+          "order": 1
+        },
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "deleteEntry",
+      "fields": [
+        {
+          "name": "value",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "integerEntry",
+      "fields": [
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "value",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "invocation",
+      "fields": [
+        {
+          "name": "originCaller",
+          "types": ["rideUnit", "rideAddress"],
+          "order": 0
+        },
+        {
+          "name": "payments",
+          "types": ["rideUnit", "attachedPayment", "rideList"],
+          "order": 1
+        },
+        {
+          "name": "payment",
+          "types": ["rideUnit", "rideType"],
+          "order": -1
+        },
+        {
+          "name": "callerPublicKey",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "originCallerPublicKey",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 4
+        },
+        {
+          "name": "transactionID",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "caller",
+          "types": ["rideAddress"],
+          "order": 6
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "issue",
+      "fields": [
+        {
+          "name": "compiledScript",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 4
+        },
+        {
+          "name": "name",
+          "types": ["rideString"],
+          "order": 5
+        },
+        {
+          "name": "description",
+          "types": ["rideString"],
+          "order": 2
+        },
+        {
+          "name": "nonce",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "decimals",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 6
+        },
+        {
+          "name": "isReissuable",
+          "types": ["rideBoolean"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "leaseCancel",
+      "fields": [
+        {
+          "name": "leaseID",
+          "types": ["rideBytes"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "lease",
+      "fields": [
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "nonce",
+          "types": ["rideInt"],
+          "order": 2
+        }
+      ]
+    },
+    {
+      "name": "order",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "assetPair",
+          "types": ["rideType"],
+          "order": 0
+        },
+        {
+          "name": "orderType",
+          "types": ["rideType"],
+          "order": 9
+        },
+        {
+          "name": "matcherFeeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 4
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 10
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "matcherPublicKey",
+          "types": ["rideBytes"],
+          "order": 7
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "expiration",
+          "types": ["rideInt"],
+          "order": 11
+        },
+        {
+          "name": "matcherFee",
+          "types": ["rideInt"],
+          "order": 12
+        },
+        {
+          "name": "price",
+          "types": ["rideInt"],
+          "order": 13
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 8
+        }
+      ]
+    },
+    {
+      "name": "reissue",
+      "fields": [
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 0
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "isReissuable",
+          "types": ["rideBoolean"],
+          "order": 2
+        }
+      ]
+    },
+    {
+      "name": "scriptResult",
+      "fields": [
+        {
+          "name": "writeSet",
+          "types": ["rideType"],
+          "order": 0
+        },
+        {
+          "name": "transferSet",
+          "types": ["rideType"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "scriptTransfer",
+      "fields": [
+        {
+          "name": "recipient",
+          "types": ["rideRecipient", "rideAlias", "rideAddress", "rideAddressLike"],
+          "order": 0
+        },
+        {
+          "name": "asset",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "scriptTransfer",
+      "struct_name": "FullScriptTransfer",
+      "fields": [
+        {
+          "name": "attachment",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": -1
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "fee",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "version",
+          "types": ["rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "asset",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": -1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": -1
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": -1
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": -1
+        }
+      ]
+    },
+    {
+      "name": "sponsorFee",
+      "fields": [
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 0
+        },
+        {
+          "name": "minSponsoredAssetFee",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "stringEntry",
+      "fields": [
+        {
+          "name": "key",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "value",
+          "types": ["rideString"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "transferEntry",
+      "fields": [
+        {
+          "name": "recipient",
+          "types": ["rideRecipient", "rideAlias", "rideAddress", "rideAddressLike"],
+          "order": 0
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "transferSet",
+      "fields": [
+        {
+          "name": "transfers",
+          "types": ["rideList"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "writeSet",
+      "fields": [
+        {
+          "name": "data",
+          "types": ["rideList"],
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "burnTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "createAliasTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 5
+        },
+        {
+          "name": "alias",
+          "types": ["rideString"],
+          "order": 7
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 6
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 4
+        }
+      ]
+    },
+    {
+      "name": "dataTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 7
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "data",
+          "types": ["rideList"],
+          "order": 2
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "exchangeTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 12
+        },
+        {
+          "name": "buyOrder",
+          "types": ["rideType"],
+          "order": 2
+        },
+        {
+          "name": "sellOrder",
+          "types": ["rideType"],
+          "order": 7
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 8
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "price",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 5
+        },
+        {
+          "name": "buyMatcherFee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 11
+        },
+        {
+          "name": "sellMatcherFee",
+          "types": ["rideInt"],
+          "order": 13
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 10
+        }
+      ]
+    },
+    {
+      "name": "genesisTransaction",
+      "fields": [
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": -1
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 2
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 5
+        }
+      ]
+    },
+    {
+      "name": "invokeExpressionTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "expression",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "invokeScriptTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 5
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "payment",
+          "types": ["rideUnit", "rideAttachedPayment"],
+          "order": -1
+        },
+        {
+          "name": "dApp",
+          "types": ["rideRecipient"],
+          "order": 7
+        },
+        {
+          "name": "function",
+          "types": ["rideString"],
+          "order": 10
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 9
+        },
+        {
+          "name": "payments",
+          "types": ["rideList"],
+          "order": 0
+        },
+        {
+          "name": "args",
+          "types": ["rideList"],
+          "order": 12
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 6
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 11
+        }
+      ]
+    },
+    {
+      "name": "issueTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 12
+        },
+        {
+          "name": "script",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 7
+        },
+        {
+          "name": "description",
+          "types": ["rideString"],
+          "order": 2
+        },
+        {
+          "name": "name",
+          "types": ["rideString"],
+          "order": 10
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 11
+        },
+        {
+          "name": "decimals",
+          "types": ["rideInt"],
+          "order": 13
+        },
+        {
+          "name": "reissuable",
+          "types": ["rideBoolean"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "leaseCancelTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 7
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "leaseID",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 2
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "leaseTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "massTransferTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 9
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "attachment",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "transfers",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "transfersCount",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 10
+        },
+        {
+          "name": "totalAmount",
+          "types": ["rideInt"],
+          "order": 11
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 12
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "paymentTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        }
+      ]
+    },
+    {
+      "name": "reissueTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 4
+        },
+        {
+          "name": "quantity",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 10
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 7
+        },
+        {
+          "name": "reissuable",
+          "types": ["rideBoolean"],
+          "order": 9
+        }
+      ]
+    },
+    {
+      "name": "setAssetScriptTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 8
+        },
+        {
+          "name": "script",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 7
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "setScriptTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 7
+        },
+        {
+          "name": "script",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 6
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 3
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 2
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 8
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 5
+        }
+      ]
+    },
+    {
+      "name": "sponsorFeeTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 7
+        },
+        {
+          "name": "minSponsoredAssetFee",
+          "types": ["rideInt", "rideUnit"],
+          "order": 8
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 1
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 4
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 5
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 0
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 3
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order":9
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "transferTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "assetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 2
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 4
+        },
+        {
+          "name": "version",
+          "types": ["rideInt", "rideUnit"],
+          "order": 6
+        },
+        {
+          "name": "attachment",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 9
+        },
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 11
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt", "rideUnit"],
+          "order": 12
+        },
+        {
+          "name": "recipient",
+          "types": ["rideRecipient"],
+          "order": 0
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 7
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 8
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "amount",
+          "types": ["rideInt"],
+          "order": 5
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 10
+        }
+      ]
+    },
+    {
+      "name": "updateAssetInfoTransaction",
+      "set_proofs": true,
+      "fields": [
+        {
+          "name": "proofs",
+          "types": ["rideList"],
+          "order": 9
+        },
+        {
+          "name": "assetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": 3
+        },
+        {
+          "name": "feeAssetID",
+          "types": ["rideBytes", "rideUnit"],
+          "order": -1
+        },
+        {
+          "name": "name",
+          "types": ["rideString"],
+          "order": 0
+        },
+        {
+          "name": "description",
+          "types": ["rideString"],
+          "order": 4
+        },
+        {
+          "name": "bodyBytes",
+          "types": ["rideBytes"],
+          "order": 2
+        },
+        {
+          "name": "id",
+          "types": ["rideBytes"],
+          "order": 6
+        },
+        {
+          "name": "senderPublicKey",
+          "types": ["rideBytes"],
+          "order": 7
+        },
+        {
+          "name": "timestamp",
+          "types": ["rideInt"],
+          "order": 1
+        },
+        {
+          "name": "version",
+          "types": ["rideInt"],
+          "order": 5
+        },
+        {
+          "name": "fee",
+          "types": ["rideInt"],
+          "order": 10
+        },
+        {
+          "name": "sender",
+          "types": ["rideAddress"],
+          "order": 8
+        }
+      ]
+    }
+  ]
+}

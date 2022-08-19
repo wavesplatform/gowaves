@@ -44,12 +44,11 @@ func extractOptionalAsset(v rideType) (proto.OptionalAsset, error) {
 func convertAttachedPayments(payments rideList) (proto.ScriptPayments, error) {
 	res := make([]proto.ScriptPayment, len(payments))
 	for i, value := range payments {
-		payment, ok := value.(rideObject)
-		if !ok {
+		if value.instanceOf() != attachedPaymentTypeName {
 			return nil, RuntimeError.Errorf("payments list has an unexpected element %d of type '%s'",
-				i, payment.instanceOf())
+				i, value.instanceOf())
 		}
-		amount, err := payment.get(amountField)
+		amount, err := value.get(amountField)
 		if err != nil {
 			return nil, RuntimeError.Wrap(err, "attached payment")
 		}
@@ -58,7 +57,7 @@ func convertAttachedPayments(payments rideList) (proto.ScriptPayments, error) {
 			return nil, RuntimeError.Errorf("property 'amount' of attached payment %d has an invalid type '%s'",
 				i, amount.instanceOf())
 		}
-		assetID, err := payment.get(assetIDField)
+		assetID, err := value.get(assetIDField)
 		if err != nil {
 			return nil, RuntimeError.Wrap(err, "attached payment")
 		}
@@ -147,19 +146,57 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	oldInvocationParam := env.invocation()
-	invocationParam := oldInvocationParam.copy()
-	invocationParam[callerField] = callerAddress
+	originCaller, err := oldInvocationParam.get(originCallerField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	payment, err := oldInvocationParam.get(paymentField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	feeAssetID, err := oldInvocationParam.get(feeAssetIDField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	transactionIDRaw, err := oldInvocationParam.get(transactionIDField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	transactionID, ok := transactionIDRaw.(rideBytes)
+	if !ok {
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), transactionIDRaw.instanceOf())
+	}
+	originCallerPublicKey, err := oldInvocationParam.get(originCallerPublicKeyField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	feeRaw, err := oldInvocationParam.get(feeField)
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	fee, ok := feeRaw.(rideInt)
+	if !ok {
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), feeRaw.instanceOf())
+	}
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
 	}
-	invocationParam[callerPublicKeyField] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	payments, ok := args[3].(rideList)
 	if !ok {
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of forth argument", invocation.name(), args[3].instanceOf())
 	}
-	invocationParam[paymentsField] = payments
-	env.setInvocation(invocationParam)
+	env.setInvocation(newRideInvocation(
+		originCaller,
+		payments,
+		payment,
+		common.Dup(callerPublicKey.Bytes()),
+		feeAssetID,
+		originCallerPublicKey,
+		transactionID,
+		callerAddress,
+		fee,
+	))
 
 	attachedPayments, err := convertAttachedPayments(payments)
 	if err != nil {
@@ -213,7 +250,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	res, err := invokeFunctionFromDApp(env, recipient, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
+		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
 	ws.totalComplexity += res.Complexity()
@@ -978,38 +1015,11 @@ func calculateAssetID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
-	if t := args[0].instanceOf(); t != issueTypeName {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", t)
-	}
-	issue, ok := args[0].(rideObject)
+	issue, ok := args[0].(rideIssue)
 	if !ok {
-		return nil, errors.New("calculateAssetID: not an object")
+		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[0])
 	}
-	name, err := stringProperty(issue, nameField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	description, err := stringProperty(issue, descriptionField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	decimals, err := intProperty(issue, decimalsField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	quantity, err := intProperty(issue, quantityField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	reissuable, err := booleanProperty(issue, isReissuableField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	nonce, err := intProperty(issue, nonceField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
-	}
-	return calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
+	return calcAssetID(env, issue.name, issue.description, issue.decimals, issue.quantity, issue.isReissuable, issue.nonce)
 }
 
 func simplifiedIssue(_ environment, args ...rideType) (rideType, error) {
@@ -1036,7 +1046,15 @@ func simplifiedIssue(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[4].instanceOf())
 	}
-	return newIssue(name, description, quantity, decimals, reissuable, rideUnit{}, 0), nil
+	return newRideIssue(
+		rideUnit{},
+		name,
+		description,
+		0,
+		decimals,
+		quantity,
+		reissuable,
+	), nil
 }
 
 func fullIssue(_ environment, args ...rideType) (rideType, error) {
@@ -1076,7 +1094,15 @@ func fullIssue(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[6].instanceOf())
 	}
-	return newIssue(name, description, quantity, decimals, reissuable, script, nonce), nil
+	return newRideIssue(
+		script,
+		name,
+		description,
+		nonce,
+		decimals,
+		quantity,
+		reissuable,
+	), nil
 }
 
 func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
@@ -1201,7 +1227,10 @@ func checkedBytesDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("checkedBytesDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newDataEntry(binaryEntryTypeName, key, value), nil
+	return newRideBinaryEntry(
+		key,
+		value,
+	), nil
 }
 
 func checkedBooleanDataEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1216,7 +1245,10 @@ func checkedBooleanDataEntry(_ environment, args ...rideType) (rideType, error) 
 	if !ok {
 		return nil, errors.Errorf("checkedBooleanDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newDataEntry(booleanEntryTypeName, key, value), nil
+	return newRideBooleanEntry(
+		key,
+		value,
+	), nil
 }
 
 func checkedDeleteEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1224,7 +1256,10 @@ func checkedDeleteEntry(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "checkedDeleteEntry")
 	}
-	return newDataEntry(deleteEntryTypeName, key, rideUnit{}), nil
+	return newRideDeleteEntry(
+		rideUnit{},
+		key,
+	), nil
 }
 
 func checkedIntDataEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1239,7 +1274,10 @@ func checkedIntDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("checkedIntDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newDataEntry(integerEntryTypeName, key, value), nil
+	return newRideIntegerEntry(
+		key,
+		value,
+	), nil
 }
 
 func checkedStringDataEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1254,7 +1292,10 @@ func checkedStringDataEntry(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("checkedStringDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newDataEntry(stringEntryTypeName, key, value), nil
+	return newRideStringEntry(
+		key,
+		value,
+	), nil
 }
 
 // Constructors
@@ -1292,19 +1333,10 @@ func assetPair(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("assetPair: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return rideObject{
-		instanceField:    rideString(assetPairTypeName),
-		amountAssetField: aa,
-		priceAssetField:  pa,
-	}, nil
-}
-
-func newBurn(assetID rideBytes, quantity rideInt) rideObject {
-	return rideObject{
-		instanceField: rideString(burnTypeName),
-		assetIDField:  assetID,
-		quantityField: quantity,
-	}
+	return newRideAssetPair(
+		aa,
+		pa,
+	), nil
 }
 
 func burn(_ environment, args ...rideType) (rideType, error) {
@@ -1319,7 +1351,10 @@ func burn(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("burn: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return newBurn(assetID, quantity), nil
+	return newRideBurn(
+		assetID,
+		quantity,
+	), nil
 }
 
 func dataEntry(_ environment, args ...rideType) (rideType, error) {
@@ -1337,7 +1372,10 @@ func dataEntry(_ environment, args ...rideType) (rideType, error) {
 	default:
 		return nil, errors.Errorf("dataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newDataEntry(dataEntryTypeName, key, value), nil
+	return newRideDataEntry(
+		value,
+		key,
+	), nil
 }
 
 func dataTransaction(_ environment, args ...rideType) (rideType, error) {
@@ -1380,18 +1418,17 @@ func dataTransaction(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[8].instanceOf())
 	}
-	return rideObject{
-		instanceField:        rideString(dataTransactionTypeName),
-		dataField:            entries,
-		idField:              id,
-		feeField:             fee,
-		timestampField:       timestamp,
-		versionField:         version,
-		senderField:          addr,
-		senderPublicKeyField: pk,
-		bodyBytesField:       body,
-		proofsField:          proofs,
-	}, nil
+	return newRideDataTransaction(
+		proofs,
+		body,
+		id,
+		pk,
+		entries,
+		timestamp,
+		version,
+		fee,
+		addr,
+	), nil
 }
 
 func transferObject(_ environment, args ...rideType) (rideType, error) {
@@ -1406,11 +1443,10 @@ func transferObject(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("transferObject: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return rideObject{
-		instanceField:  rideString(transferEntryTypeName),
-		recipientField: rideRecipient(recipient),
-		amountField:    amount,
-	}, nil
+	return newRideTransferEntry(
+		rideRecipient(recipient),
+		amount,
+	), nil
 }
 
 func scriptResult(_ environment, args ...rideType) (rideType, error) {
@@ -1423,11 +1459,10 @@ func scriptResult(_ environment, args ...rideType) (rideType, error) {
 	if args[1].instanceOf() != transferSetTypeName {
 		return nil, errors.Errorf("scriptResult: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return rideObject{
-		instanceField:    rideString(scriptResultTypeName),
-		writeSetField:    args[0],
-		transferSetField: args[1],
-	}, nil
+	return newRideScriptResult(
+		args[0],
+		args[1],
+	), nil
 }
 
 func writeSet(_ environment, args ...rideType) (rideType, error) {
@@ -1440,16 +1475,13 @@ func writeSet(_ environment, args ...rideType) (rideType, error) {
 	}
 	var entries rideList
 	for _, item := range list {
-		e, ok := item.(rideObject)
-		if !ok || e.instanceOf() != dataEntryTypeName {
+		e, ok := item.(rideDataEntry)
+		if !ok {
 			return nil, errors.Errorf("writeSet: unexpected list item type '%s'", item.instanceOf())
 		}
 		entries = append(entries, e)
 	}
-	return rideObject{
-		instanceField: rideString(writeSetTypeName),
-		dataField:     entries,
-	}, nil
+	return newRideWriteSet(entries), nil
 }
 
 func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
@@ -1471,12 +1503,11 @@ func scriptTransfer(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	return rideObject{
-		instanceField:  rideString(scriptTransferTypeName),
-		recipientField: recipient,
-		amountField:    amount,
-		assetField:     asset,
-	}, nil
+	return newRideScriptTransfer(
+		recipient,
+		asset,
+		amount,
+	), nil
 }
 
 func transferSet(_ environment, args ...rideType) (rideType, error) {
@@ -1489,29 +1520,17 @@ func transferSet(_ environment, args ...rideType) (rideType, error) {
 	}
 	var transfers rideList
 	for _, item := range list {
-		t, ok := item.(rideObject)
-		if !ok || t.instanceOf() != scriptTransferTypeName {
+		t, ok := item.(rideScriptTransfer)
+		if !ok {
 			return nil, errors.Errorf("transferSet: unexpected list item type '%s'", item.instanceOf())
 		}
 		transfers = append(transfers, t)
 	}
-	return rideObject{
-		instanceField:  rideString(transferSetTypeName),
-		transfersField: transfers,
-	}, nil
+	return newRideTransferSet(transfers), nil
 }
 
 func unit(_ environment, _ ...rideType) (rideType, error) {
 	return rideUnit{}, nil
-}
-
-func newReissue(assetID rideBytes, quantity rideInt, reissuable rideBoolean) rideObject {
-	return rideObject{
-		instanceField:     rideString(reissueTypeName),
-		assetIDField:      assetID,
-		quantityField:     quantity,
-		isReissuableField: reissuable,
-	}
 }
 
 func reissue(_ environment, args ...rideType) (rideType, error) {
@@ -1530,15 +1549,11 @@ func reissue(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("reissue: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	return newReissue(assetID, quantity, reissuable), nil
-}
-
-func newSponsorFee(asset rideBytes, fee rideInt) rideObject {
-	return rideObject{
-		instanceField:             rideString(sponsorFeeTypeName),
-		assetIDField:              asset,
-		minSponsoredAssetFeeField: fee,
-	}
+	return newRideReissue(
+		assetID,
+		quantity,
+		reissuable,
+	), nil
 }
 
 func sponsorship(_ environment, args ...rideType) (rideType, error) {
@@ -1546,7 +1561,10 @@ func sponsorship(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "sponsorship")
 	}
-	return newSponsorFee(asset, rideInt(fee)), nil
+	return newRideSponsorFee(
+		asset,
+		rideInt(fee),
+	), nil
 }
 
 func attachedPayment(_ environment, args ...rideType) (rideType, error) {
@@ -1564,11 +1582,7 @@ func attachedPayment(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return rideObject{
-		instanceField: rideString(attachedPaymentTypeName),
-		assetIDField:  assetID,
-		amountField:   amount,
-	}, nil
+	return newRideAttachedPayment(assetID, amount), nil
 }
 
 func extractRecipient(v rideType) (proto.Recipient, error) {
@@ -1658,27 +1672,6 @@ func digest(v rideType) (c1.Hash, error) {
 	}
 }
 
-func newIssue(name, description rideString, quantity, decimals rideInt, reissuable rideBoolean, script rideType, nonce rideInt) rideObject {
-	return rideObject{
-		instanceField:       rideString(issueTypeName),
-		nameField:           name,
-		descriptionField:    description,
-		quantityField:       quantity,
-		decimalsField:       decimals,
-		isReissuableField:   reissuable,
-		compiledScriptField: script,
-		nonceField:          nonce,
-	}
-}
-
-func newDataEntry(name, key rideString, value rideType) rideObject {
-	return rideObject{
-		instanceField: name,
-		keyField:      key,
-		valueField:    value,
-	}
-}
-
 func checkAsset(v rideType) (rideType, bool) {
 	switch v.(type) {
 	case rideUnit, rideBytes:
@@ -1705,38 +1698,15 @@ func calculateLeaseID(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
-	if t := args[0].instanceOf(); t != leaseTypeName {
-		return nil, errors.Errorf("calculateLeaseID: unexpected argument type '%s'", t)
-	}
-	lease, ok := args[0].(rideObject)
+	lease, ok := args[0].(rideLease)
 	if !ok {
-		return nil, errors.New("calculateLeaseID: not an object")
-	}
-	if lease.instanceOf() != leaseTypeName {
-		return nil, errors.Errorf("calculateLeaseID: unexpected object type '%s'", lease.instanceOf())
+		return nil, errors.Errorf("calculateLeaseID: unexpected argument type '%s'", args[0])
 	}
 	recipient, err := recipientProperty(lease, recipientField)
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
-	amount, err := intProperty(lease, amountField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateLeaseID")
-	}
-	nonce, err := intProperty(lease, nonceField)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateLeaseID")
-	}
-	return calcLeaseID(env, recipient, amount, nonce)
-}
-
-func newLease(recipient rideRecipient, amount, nonce rideInt) rideObject {
-	return rideObject{
-		instanceField:  rideString(leaseTypeName),
-		recipientField: recipient,
-		amountField:    amount,
-		nonceField:     nonce,
-	}
+	return calcLeaseID(env, recipient, lease.amount, lease.nonce)
 }
 
 func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
@@ -1751,7 +1721,11 @@ func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("simplifiedLease: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return newLease(rideRecipient(recipient), amount, 0), nil
+	return newRideLease(
+		rideRecipient(recipient),
+		amount,
+		0,
+	), nil
 }
 
 func fullLease(_ environment, args ...rideType) (rideType, error) {
@@ -1770,14 +1744,11 @@ func fullLease(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fullLease: unexpected argument type '%s'", args[6].instanceOf())
 	}
-	return newLease(rideRecipient(recipient), amount, nonce), nil
-}
-
-func newLeaseCancel(id rideBytes) rideObject {
-	return rideObject{
-		instanceField: rideString(leaseCancelTypeName),
-		leaseIDField:  id,
-	}
+	return newRideLease(
+		rideRecipient(recipient),
+		amount,
+		nonce,
+	), nil
 }
 
 func leaseCancel(_ environment, args ...rideType) (rideType, error) {
@@ -1788,5 +1759,5 @@ func leaseCancel(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("leaseCancel: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	return newLeaseCancel(id), nil
+	return newRideLeaseCancel(id), nil
 }

@@ -293,7 +293,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	switch res := r.(type) {
 	case rideBoolean:
 		return ScriptResult{res: bool(res), complexity: e.complexity()}, nil
-	case rideObject:
+	case rideScriptResult, rideWriteSet, rideTransferSet:
 		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")

@@ -1252,10 +1252,12 @@ func TestTransferFromProtobuf(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
-			o, ok := r.(rideObject)
-			assert.True(t, ok)
-			assert.Equal(t, test.inst, o[instanceField])
-			assert.Equal(t, test.id, o["id"])
+			inst, err := r.get(instanceField)
+			require.NoError(t, err)
+			assert.Equal(t, test.inst, inst)
+			id, err := r.get("id")
+			require.NoError(t, err)
+			assert.Equal(t, test.id, id)
 		}
 	}
 }
