@@ -2,15 +2,16 @@ package integration_test
 
 import (
 	"context"
-	"github.com/stretchr/testify/suite"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/itests/node_client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type ItestSuite struct {
