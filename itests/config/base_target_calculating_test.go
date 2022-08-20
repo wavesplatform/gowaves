@@ -28,7 +28,7 @@ func TestCalculateBaseTarget(t *testing.T) {
 		MinBlockTime:         5000,
 		DelayDelta:           0,
 		Distributions:        nil,
-		PreactivatedFeatures: []int16{8, 15},
+		PreactivatedFeatures: []FeatureInfo{{Feature: 8}, {Feature: 15}},
 	}
 	pos := getPosCalculator(&settings)
 
@@ -52,7 +52,7 @@ func TestCalculateBaseTarget(t *testing.T) {
 	for _, tc := range tests {
 		sk, pk, err := createKeyPair(tc.seedText)
 		assert.NoError(t, err)
-		
+
 		hit, err := getHit(AccountInfo{pk, sk, tc.balance, proto.WavesAddress{}}, &settings)
 		assert.NoError(t, err)
 
