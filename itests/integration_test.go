@@ -27,8 +27,8 @@ type ItestSuite struct {
 
 func (suite *ItestSuite) SetupSuite() {
 	suite.mainCtx, suite.cancel = context.WithCancel(context.Background())
-
-	paths, cfg, err := config.CreateFileConfigs()
+	enableScalaMining := true
+	paths, cfg, err := config.CreateFileConfigs(enableScalaMining)
 	suite.NoError(err, "couldn't create config")
 	suite.cfg = cfg
 
@@ -48,9 +48,8 @@ func (suite *ItestSuite) SetupSuite() {
 }
 
 func (suite *ItestSuite) TearDownSuite() {
-	lastHeight := suite.clients.ScalaClients.HttpClient.GetHeight(suite.T())
-	newHeight := suite.clients.WaitForNewHeight(suite.T(), *lastHeight)
-	suite.clients.StateHashCmp(suite.T(), newHeight)
+	height := suite.clients.WaitForNewHeight(suite.T())
+	suite.clients.StateHashCmp(suite.T(), height)
 
 	suite.docker.Finish(suite.cancel)
 	suite.conns.Close()
@@ -67,9 +66,9 @@ func (suite *ItestSuite) TearDownTest() {
 func (suite *ItestSuite) Test_SendTransaction() {
 	a := proto.NewOptionalAssetWaves()
 	ts := uint64(time.Now().UnixNano() / 1000000)
-	tx := proto.NewUnsignedTransferWithSig(suite.cfg.Accounts[0].PublicKey, a, a, ts, 1000000000, 10000000,
-		proto.NewRecipientFromAddress(suite.cfg.Accounts[1].Address), proto.Attachment{})
-	err := tx.Sign('L', suite.cfg.Accounts[0].SecretKey)
+	tx := proto.NewUnsignedTransferWithSig(suite.cfg.Accounts[2].PublicKey, a, a, ts, 1000000000, 10000000,
+		proto.NewRecipientFromAddress(suite.cfg.Accounts[3].Address), proto.Attachment{})
+	err := tx.Sign('L', suite.cfg.Accounts[2].SecretKey)
 	suite.NoError(err, "failed to create proofs from signature")
 
 	bts, err := tx.MarshalBinary()
@@ -79,8 +78,8 @@ func (suite *ItestSuite) Test_SendTransaction() {
 	suite.conns.SendToEachNode(suite.T(), &txMsg)
 
 	suite.clients.WaitForTransaction(suite.T(), tx.ID, 1*time.Minute)
-	b := suite.clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), suite.cfg.Accounts[1].Address)
-	suite.Equal(suite.cfg.Accounts[1].Amount+1000000000, uint64(b.GetAvailable()))
+	b := suite.clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), suite.cfg.Accounts[3].Address)
+	suite.Equal(suite.cfg.Accounts[3].Amount+1000000000, uint64(b.GetAvailable()))
 }
 
 func TestItestSuite(t *testing.T) {
