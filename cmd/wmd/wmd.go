@@ -26,6 +26,7 @@ var version = "0.0.0"
 
 const (
 	defaultSyncInterval = 10
+	defaultTimeout      = 30 * time.Second
 )
 
 func run() error {
@@ -69,8 +70,10 @@ func run() error {
 			listenAddr := fmt.Sprintf(":%d", *profilerPort)
 			zap.S().Infof("Profile server listening on %s", listenAddr)
 			profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
-			http.Handle("/", profileRedirect)
-			zap.S().Errorf("%v", http.ListenAndServe(listenAddr, nil))
+			h := http.NewServeMux()
+			h.Handle("/", profileRedirect)
+			s := &http.Server{Addr: listenAddr, Handler: h, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
+			zap.S().Errorf("%v", s.ListenAndServe())
 		}()
 	}
 
