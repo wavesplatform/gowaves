@@ -1483,6 +1483,8 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
 		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
 	}
+	// Clear features cache
+	s.stor.features.clearCache()
 
 	if err := s.stor.flush(); err != nil {
 		zap.S().Fatalf("Failed to flush history storage cache after rollback: %v", err)

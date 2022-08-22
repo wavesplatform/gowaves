@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -69,22 +70,30 @@ func (r *votesFeaturesRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+type featureActivationState struct {
+	activated bool
+	height    uint64
+}
+
 type features struct {
 	rw                  *blockReadWriter
 	db                  keyvalue.IterableKeyVal
 	hs                  *historyStorage
 	settings            *settings.BlockchainSettings
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
+	activationCache     map[settings.Feature]featureActivationState
 }
 
-func newFeatures(
-	rw *blockReadWriter,
-	db keyvalue.IterableKeyVal,
-	hs *historyStorage,
-	settings *settings.BlockchainSettings,
-	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
-) *features {
-	return &features{rw, db, hs, settings, definedFeaturesInfo}
+func newFeatures(rw *blockReadWriter, db keyvalue.IterableKeyVal, hs *historyStorage, stg *settings.BlockchainSettings,
+	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo) *features {
+	return &features{
+		rw:                  rw,
+		db:                  db,
+		hs:                  hs,
+		settings:            stg,
+		definedFeaturesInfo: definedFeaturesInfo,
+		activationCache:     make(map[settings.Feature]featureActivationState),
+	}
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
@@ -180,6 +189,7 @@ func (f *features) printActivationLog(featureID int16, height uint64) {
 }
 
 func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
+	f.clearCache()
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -195,10 +205,10 @@ func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, 
 
 func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, error) {
 	activationHeight, err := f.newestActivationHeight(featureID)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
-		return false, nil
-	}
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
+			return false, nil
+		}
 		return false, err
 	}
 	curBlockHeight := f.rw.addingBlockHeight()
@@ -209,34 +219,34 @@ func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, er
 }
 
 func (f *features) newestIsActivated(featureID int16) (bool, error) {
-	key := activatedFeaturesKey{featureID: featureID}
-	keyBytes, err := key.bytes()
+	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
+		return as.activated, nil
+	}
+	r, err := f.newestActivatedFeaturesRecord(featureID)
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
+			f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: false}
+			return false, nil
+		}
 		return false, err
 	}
-	_, err = f.hs.newestTopEntryData(keyBytes)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
+	f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: true, height: r.activationHeight}
 	return true, nil
 }
 
 func (f *features) isActivated(featureID int16) (bool, error) {
-	key := activatedFeaturesKey{featureID: featureID}
-	keyBytes, err := key.bytes()
+	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
+		return as.activated, nil
+	}
+	r, err := f.activatedFeaturesRecord(featureID)
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
+			f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: false}
+			return false, nil
+		}
 		return false, err
 	}
-	_, err = f.hs.topEntryData(keyBytes)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
+	f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: true, height: r.activationHeight}
 	return true, nil
 }
 
@@ -299,18 +309,32 @@ func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesR
 }
 
 func (f *features) newestActivationHeight(featureID int16) (uint64, error) {
+	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
+		if as.activated {
+			return as.height, nil
+		}
+		return 0, keyvalue.ErrNotFound
+	}
 	record, err := f.newestActivatedFeaturesRecord(featureID)
 	if err != nil {
 		return 0, err
 	}
+	f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: true, height: record.activationHeight}
 	return record.activationHeight, nil
 }
 
 func (f *features) activationHeight(featureID int16) (uint64, error) {
+	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
+		if as.activated {
+			return as.height, nil
+		}
+		return 0, keyvalue.ErrNotFound
+	}
 	record, err := f.activatedFeaturesRecord(featureID)
 	if err != nil {
 		return 0, err
 	}
+	f.activationCache[settings.Feature(featureID)] = featureActivationState{activated: true, height: record.activationHeight}
 	return record.activationHeight, nil
 }
 
@@ -496,6 +520,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 
 // Update activation list.
 func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
+	f.clearCache()
 	iter, err := f.hs.newNewestTopEntryIterator(approvedFeature)
 	if err != nil {
 		return err
@@ -572,4 +597,8 @@ func (f *features) allFeatures() ([]int16, error) {
 		list = append(list, k.featureID)
 	}
 	return list, nil
+}
+
+func (f *features) clearCache() {
+	f.activationCache = make(map[settings.Feature]featureActivationState)
 }
