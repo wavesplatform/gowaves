@@ -189,7 +189,7 @@ func (f *features) printActivationLog(featureID int16, height uint64) {
 }
 
 func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
-	f.resetCache()
+	f.clearCache()
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -520,7 +520,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 
 // Update activation list.
 func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
-	f.resetCache()
+	f.clearCache()
 	iter, err := f.hs.newNewestTopEntryIterator(approvedFeature)
 	if err != nil {
 		return err
@@ -599,6 +599,6 @@ func (f *features) allFeatures() ([]int16, error) {
 	return list, nil
 }
 
-func (f *features) resetCache() {
+func (f *features) clearCache() {
 	f.activationCache = make(map[settings.Feature]featureActivationState)
 }

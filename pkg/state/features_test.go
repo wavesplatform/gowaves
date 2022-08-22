@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -23,7 +24,8 @@ func createFeatures(t *testing.T, sets *settings.BlockchainSettings) *featuresTe
 	stor := createStorageObjects(t, true)
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
+	features, ok := stor.entities.features.(*features)
+	require.True(t, ok)
 	return &featuresTestObjects{stor, features}
 }
 
@@ -172,4 +174,34 @@ func TestAllFeatures(t *testing.T) {
 	assert.Equal(t, 2, len(features))
 	assert.Equal(t, int16(featureID1), features[0])
 	assert.Equal(t, int16(featureID2), features[1])
+}
+
+func TestRollbackActivation(t *testing.T) {
+	to := createFeatures(t, settings.MainNetSettings)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.addBlock(t, blockID1)
+	to.stor.flush(t)
+
+	activated, err := to.features.isActivated(featureID)
+	assert.NoError(t, err, "isActivated failed")
+	assert.Equal(t, false, activated)
+
+	r := &activatedFeaturesRecord{2}
+	err = to.features.activateFeature(featureID, r, blockID1)
+	assert.NoError(t, err, "activateFeature() failed")
+	to.stor.flush(t)
+
+	activated, err = to.features.isActivated(featureID)
+	assert.NoError(t, err, "isActivated failed")
+	assert.Equal(t, true, activated)
+	activationHeight, err := to.features.activationHeight(featureID)
+	assert.NoError(t, err, "activationHeight() failed")
+	assert.Equal(t, uint64(2), activationHeight)
+
+	to.stor.fullRollbackBlockClearCache(t, blockID0)
+
+	activated, err = to.features.isActivated(featureID)
+	assert.NoError(t, err, "isActivated failed")
+	assert.Equal(t, false, activated)
 }

@@ -36,6 +36,9 @@ var _ featuresState = &mockFeaturesState{}
 //			approveFeatureFunc: func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
 //				panic("mock out the approveFeature method")
 //			},
+//			clearCacheFunc: func()  {
+//				panic("mock out the clearCache method")
+//			},
 //			featureVotesFunc: func(featureID int16) (uint64, error) {
 //				panic("mock out the featureVotes method")
 //			},
@@ -99,6 +102,9 @@ type mockFeaturesState struct {
 
 	// approveFeatureFunc mocks the approveFeature method.
 	approveFeatureFunc func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error
+
+	// clearCacheFunc mocks the clearCache method.
+	clearCacheFunc func()
 
 	// featureVotesFunc mocks the featureVotes method.
 	featureVotesFunc func(featureID int16) (uint64, error)
@@ -178,6 +184,9 @@ type mockFeaturesState struct {
 			R *approvedFeaturesRecord
 			// BlockID is the blockID argument value.
 			BlockID proto.BlockID
+		}
+		// clearCache holds details about calls to the clearCache method.
+		clearCache []struct {
 		}
 		// featureVotes holds details about calls to the featureVotes method.
 		featureVotes []struct {
@@ -263,6 +272,7 @@ type mockFeaturesState struct {
 	lockallFeatures                 sync.RWMutex
 	lockapprovalHeight              sync.RWMutex
 	lockapproveFeature              sync.RWMutex
+	lockclearCache                  sync.RWMutex
 	lockfeatureVotes                sync.RWMutex
 	lockfeatureVotesAtHeight        sync.RWMutex
 	lockfinishVoting                sync.RWMutex
@@ -482,6 +492,33 @@ func (mock *mockFeaturesState) approveFeatureCalls() []struct {
 	mock.lockapproveFeature.RLock()
 	calls = mock.calls.approveFeature
 	mock.lockapproveFeature.RUnlock()
+	return calls
+}
+
+// clearCache calls clearCacheFunc.
+func (mock *mockFeaturesState) clearCache() {
+	if mock.clearCacheFunc == nil {
+		panic("mockFeaturesState.clearCacheFunc: method is nil but featuresState.clearCache was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockclearCache.Lock()
+	mock.calls.clearCache = append(mock.calls.clearCache, callInfo)
+	mock.lockclearCache.Unlock()
+	mock.clearCacheFunc()
+}
+
+// clearCacheCalls gets all the calls that were made to clearCache.
+// Check the length with:
+//
+//	len(mockedfeaturesState.clearCacheCalls())
+func (mock *mockFeaturesState) clearCacheCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockclearCache.RLock()
+	calls = mock.calls.clearCache
+	mock.lockclearCache.RUnlock()
 	return calls
 }
 

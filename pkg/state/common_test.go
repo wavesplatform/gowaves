@@ -416,6 +416,7 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	assert.NoError(t, err)
 	err = s.entities.scriptsStorage.clearCache()
 	assert.NoError(t, err)
+	s.entities.features.clearCache()
 	s.flush(t)
 }
 
