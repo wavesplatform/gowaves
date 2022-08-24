@@ -17,7 +17,7 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: latest
-          args: --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 7m
+          args: --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 10m
 
   build:
     name: ubuntu
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go 1.18
-        uses: actions/setup-go@v3.2.1
+        uses: actions/setup-go@v3.3.0
         with:
           go-version: 1.18
           check-latest: true
@@ -66,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go 1.18
-        uses: actions/setup-go@v3.2.0
+        uses: actions/setup-go@v3.3.0
         with:
           go-version: 1.18
           check-latest: true

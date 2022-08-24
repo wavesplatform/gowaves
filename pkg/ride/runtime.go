@@ -150,55 +150,17 @@ const (
 	writeSetField              = "writeSet"
 )
 
-var (
-	knownRideObjects = map[string][]string{
-		transferEntryTypeName:               {recipientField, amountField},
-		assetPairTypeName:                   {amountAssetField, priceAssetField},
-		balanceDetailsTypeName:              {availableField, regularField, generatingField, effectiveField},
-		booleanEntryTypeName:                {keyField, valueField},
-		integerEntryTypeName:                {keyField, valueField},
-		stringEntryTypeName:                 {keyField, valueField},
-		binaryEntryTypeName:                 {keyField, valueField},
-		deleteEntryTypeName:                 {keyField, valueField},
-		attachedPaymentTypeName:             {assetIDField, amountField},
-		invocationTypeName:                  {originCallerField, paymentsField, callerPublicKeyField, feeAssetIDField, originCallerPublicKeyField, transactionIDField, callerField, feeField},
-		scriptTransferTypeName:              {recipientField, amountField, assetField},
-		orderTypeName:                       {assetPairField, timestampField, bodyBytesField, amountField, matcherFeeAssetIDField, idField, senderPublicKeyField, matcherPublicKeyField, senderField, orderTypeField, proofsField, expirationField, matcherFeeField, priceField},
-		assetTypeName:                       {descriptionField, issuerField, scriptedField, issuePublicKeyField, minSponsoredFeeField, idField, decimalsField, reissuableField, nameField, quantityField},
-		genesisTransactionTypeName:          {recipientField, timestampField, amountField, versionField, idField, feeField},
-		paymentTransactionTypeName:          {recipientField, timestampField, bodyBytesField, amountField, versionField, idField, senderPublicKeyField, senderField, proofsField, feeField},
-		reissueTransactionTypeName:          {quantityField, timestampField, bodyBytesField, assetIDField, versionField, idField, senderPublicKeyField, senderField, proofsField, reissuableField, feeField},
-		burnTransactionTypeName:             {quantityField, timestampField, bodyBytesField, assetIDField, versionField, idField, senderPublicKeyField, senderField, proofsField, feeField},
-		massTransferTransactionTypeName:     {transfersCountField, timestampField, bodyBytesField, assetIDField, idField, senderPublicKeyField, attachmentField, senderField, transfersField, proofsField, feeField, totalAmountField, versionField},
-		exchangeTransactionTypeName:         {timestampField, bodyBytesField, buyOrderField, priceField, amountField, versionField, idField, sellOrderField, senderPublicKeyField, buyMatcherFeeField, senderField, feeField, proofsField, sellMatcherFeeField},
-		transferTransactionTypeName:         {recipientField, timestampField, bodyBytesField, assetIDField, feeAssetIDField, amountField, versionField, idField, senderPublicKeyField, attachmentField, senderField, proofsField, feeField},
-		setAssetScriptTransactionTypeName:   {timestampField, bodyBytesField, assetIDField, versionField, idField, senderPublicKeyField, senderField, scriptField, proofsField, feeField},
-		invokeScriptTransactionTypeName:     {paymentsField, timestampField, bodyBytesField, feeAssetIDField, idField, proofsField, feeField, dAppField, versionField, senderPublicKeyField, functionField, senderField, argsField},
-		updateAssetInfoTransactionTypeName:  {nameField, timestampField, bodyBytesField, assetIDField, descriptionField, versionField, idField, senderPublicKeyField, senderField, proofsField, feeField},
-		invokeExpressionTransactionTypeName: {timestampField, bodyBytesField, feeAssetIDField, versionField, idField, expressionField, senderPublicKeyField, senderField, proofsField, feeField},
-		issueTransactionTypeName:            {timestampField, bodyBytesField, descriptionField, versionField, idField, senderPublicKeyField, senderField, scriptField, reissuableField, feeField, nameField, quantityField, proofsField, decimalsField},
-		leaseTransactionTypeName:            {recipientField, timestampField, bodyBytesField, amountField, versionField, idField, senderPublicKeyField, senderField, proofsField, feeField},
-		leaseCancelTransactionTypeName:      {timestampField, bodyBytesField, versionField, idField, senderPublicKeyField, leaseIDField, senderField, proofsField, feeField},
-		createAliasTransactionTypeName:      {timestampField, bodyBytesField, idField, senderPublicKeyField, senderField, proofsField, feeField, aliasField, versionField},
-		setScriptTransactionTypeName:        {timestampField, bodyBytesField, versionField, idField, senderPublicKeyField, senderField, scriptField, proofsField, feeField},
-		sponsorFeeTransactionTypeName:       {timestampField, bodyBytesField, assetIDField, versionField, idField, senderPublicKeyField, senderField, proofsField, minSponsoredAssetFeeField, feeField},
-		dataTransactionTypeName:             {timestampField, bodyBytesField, dataField, versionField, idField, senderPublicKeyField, senderField, proofsField, feeField},
-		blockInfoTypeName:                   {baseTargetField, generatorField, timestampField, vrfField, heightField, generationSignatureField, generatorPublicKeyField},
-		issueTypeName:                       {isReissuableField, nonceField, descriptionField, decimalsField, compiledScriptField, nameField, quantityField},
-		reissueTypeName:                     {assetIDField, quantityField, isReissuableField},
-		burnTypeName:                        {assetIDField, quantityField},
-		sponsorFeeTypeName:                  {assetIDField, minSponsoredAssetFeeField},
-		leaseTypeName:                       {recipientField, amountField, nonceField},
-		leaseCancelTypeName:                 {leaseIDField},
-	}
-)
-
 type rideType interface {
 	instanceOf() string
 	eq(other rideType) bool
 	get(prop string) (rideType, error)
 	lines() []string
 	fmt.Stringer
+}
+
+type rideProven interface {
+	getProofs() rideList
+	setProofs(proofs rideList) rideProven
 }
 
 type rideBoolean bool
@@ -345,88 +307,6 @@ func (b rideBytes) scalaString() string {
 		return str
 	}
 	return prefix + ":" + str
-}
-
-type rideObject map[string]rideType
-
-func (o rideObject) instanceOf() string {
-	if s, ok := o[instanceField].(rideString); ok {
-		return string(s)
-	}
-	return ""
-}
-
-func (o rideObject) eq(other rideType) bool {
-	if oo, ok := other.(rideObject); ok {
-		for k, v := range o {
-			if ov, ok := oo[k]; ok {
-				if !v.eq(ov) {
-					return false
-				}
-			} else {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
-func (o rideObject) get(prop string) (rideType, error) {
-	v, ok := o[prop]
-	if !ok {
-		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
-	}
-	return v, nil
-}
-
-func (o rideObject) copy() rideObject {
-	r := make(rideObject)
-	for k, v := range o {
-		r[k] = v
-	}
-	return r
-}
-
-func fieldLines(key string, valueLines []string) []string {
-	l := len(valueLines)
-	r := make([]string, l)
-	r[0] = "\t" + key + " = " + valueLines[0]
-	for i := 1; i < l; i++ {
-		r[i] = "\t" + valueLines[i]
-	}
-	return r
-}
-
-func (o rideObject) lines() []string {
-	objectType := o.instanceOf()
-	l := len(o)
-	if l <= 1 {
-		return []string{objectType}
-	}
-	r := make([]string, 0, l+1)
-	r = append(r, objectType+"(")
-	order, ok := knownRideObjects[objectType]
-	if ok { // Order of fields is predefined, so use it to iterate over fields
-		for _, k := range order {
-			if v, ok := o[k]; ok {
-				r = append(r, fieldLines(k, v.lines())...)
-			}
-		}
-	} else { // Order of object's fields is not defined
-		for k, v := range o {
-			if k == instanceField {
-				continue
-			}
-			r = append(r, fieldLines(k, v.lines())...)
-		}
-	}
-	r = append(r, ")")
-	return r
-}
-
-func (o rideObject) String() string {
-	return strings.Join(o.lines(), "\n")
 }
 
 type rideAddress proto.WavesAddress
@@ -697,21 +577,31 @@ type (
 	rideConstructor func(environment) rideType
 )
 
+func fieldLines(key string, valueLines []string) []string {
+	l := len(valueLines)
+	r := make([]string, l)
+	r[0] = "\t" + key + " = " + valueLines[0]
+	for i := 1; i < l; i++ {
+		r[i] = "\t" + valueLines[i]
+	}
+	return r
+}
+
 //go:generate moq -out runtime_moq_test.go . environment:mockRideEnvironment
 type environment interface {
 	scheme() byte
 	height() rideInt
-	transaction() rideObject
+	transaction() rideType
 	this() rideType
-	block() rideObject
+	block() rideType
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
 	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
 	takeString(s string, n int) rideString
-	invocation() rideObject // Invocation object made of invoke transaction
-	setInvocation(inv rideObject)
+	invocation() rideType // Invocation object made of invoke transaction
+	setInvocation(inv rideType)
 	libVersion() ast.LibraryVersion
 	validateInternalPayments() bool
 	blockV5Activated() bool

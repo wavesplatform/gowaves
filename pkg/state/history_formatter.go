@@ -17,6 +17,7 @@ func newHistoryFormatter(db *stateDB) (*historyFormatter, error) {
 	return &historyFormatter{db}, nil
 }
 
+// filter removes entries from the history record that belongs to a removed by roll back blocks.
 func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
 	property, ok := properties[history.entityType]
 	if !ok {
@@ -57,6 +58,8 @@ func (hfmt *historyFormatter) calculateMinAcceptableBlockNum() (uint32, error) {
 	return minAcceptableBlockNum, nil
 }
 
+// cut removes the oldest entries from the history record.
+// cut always left one entry even if it block number is less than least acceptable block number.
 func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
 	property, ok := properties[history.entityType]
 	if !ok {

@@ -67,6 +67,18 @@ func TestEthereumInvocationTransactionInfo(t *testing.T) {
 			  {
 				"type": "string",
 				"value": "Friday"
+			  },
+			  {
+			  	"type": "Boolean",
+			  	"value": true
+			  },
+			  {
+			  	"type": "Int",
+			  	"value": 100000000
+			  },
+			  {
+			  	"type": "String",
+			  	"value": "WAVES"
 			  }
 			]
 		  },

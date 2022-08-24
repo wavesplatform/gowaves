@@ -3048,8 +3048,8 @@ type ArgumentType struct {
 
 func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 	var r Argument
-	switch argumentType.Type {
-	case "integer":
+	switch strings.ToLower(argumentType.Type) {
+	case "integer", "int":
 		r = &IntegerArgument{}
 	case "boolean":
 		r = &BooleanArgument{}

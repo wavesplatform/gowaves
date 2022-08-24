@@ -25,20 +25,18 @@ func TestRideBytesScalaString(t *testing.T) {
 		longRideBytes.scalaString())
 }
 
-func replaceFirstProof(t *testing.T, obj rideObject, sig crypto.Signature) {
-	proofs, ok := obj[proofsField].(rideList)
-	require.True(t, ok)
-	proofs[0] = rideBytes(sig.Bytes())
-	obj[proofsField] = proofs
-	if buy, ok := obj[buyOrderField]; ok {
-		replaceFirstProof(t, buy.(rideObject), sig)
+func replaceFirstProof(obj rideProven, sig crypto.Signature) {
+	p0 := rideBytes(sig.Bytes())
+	pfs := obj.getProofs()
+	if len(pfs) > 0 {
+		pfs[0] = p0
+	} else {
+		pfs = rideList{p0}
 	}
-	if sell, ok := obj[sellOrderField]; ok {
-		replaceFirstProof(t, sell.(rideObject), sig)
-	}
+	obj.setProofs(pfs)
 }
 
-func makeGenesisTransactionObject(t *testing.T, txID, recipientAddress string, amount, ts int) rideObject {
+func makeGenesisTransactionObject(t *testing.T, txID, recipientAddress string, amount, ts int) rideType {
 	id, err := crypto.NewSignatureFromBase58(txID)
 	require.NoError(t, err)
 	recipient, err := proto.NewAddressFromString(recipientAddress)
@@ -49,11 +47,11 @@ func makeGenesisTransactionObject(t *testing.T, txID, recipientAddress string, a
 	require.NoError(t, err)
 	obj, err := genesisToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	obj[idField] = rideBytes(id.Bytes())
+	obj.id = id.Bytes()
 	return obj
 }
 
-func makePaymentTransactionObject(t *testing.T, sig, senderPublicKey, recipientAddress string, amount, fee, ts int) rideObject {
+func makePaymentTransactionObject(t *testing.T, sig, senderPublicKey, recipientAddress string, amount, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -66,12 +64,12 @@ func makePaymentTransactionObject(t *testing.T, sig, senderPublicKey, recipientA
 	require.NoError(t, err)
 	obj, err := paymentToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	obj[idField] = rideBytes(s.Bytes())
-	replaceFirstProof(t, obj, s)
+	obj.id = s.Bytes()
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeReissueTransactionObject(t *testing.T, sig, senderPublicKey, assetID string, quantity, fee, ts int, reissuable bool) rideObject {
+func makeReissueTransactionObject(t *testing.T, sig, senderPublicKey, assetID string, quantity, fee, ts int, reissuable bool) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -84,11 +82,11 @@ func makeReissueTransactionObject(t *testing.T, sig, senderPublicKey, assetID st
 	require.NoError(t, err)
 	obj, err := reissueWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeBurnTransactionObject(t *testing.T, sig, senderPublicKey, assetID string, amount, fee, ts int) rideObject {
+func makeBurnTransactionObject(t *testing.T, sig, senderPublicKey, assetID string, amount, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -101,11 +99,11 @@ func makeBurnTransactionObject(t *testing.T, sig, senderPublicKey, assetID strin
 	require.NoError(t, err)
 	obj, err := burnWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeMassTransferTransactionObject(t *testing.T, sig, senderPublicKey, optionalAsset string, recipients []string, amounts []int, fee, ts int) rideObject {
+func makeMassTransferTransactionObject(t *testing.T, sig, senderPublicKey, optionalAsset string, recipients []string, amounts []int, fee, ts int) rideType {
 	require.Equal(t, len(recipients), len(amounts))
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
@@ -125,11 +123,11 @@ func makeMassTransferTransactionObject(t *testing.T, sig, senderPublicKey, optio
 	require.NoError(t, err)
 	obj, err := massTransferWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeOrderAndOrderObject(t *testing.T, sig, feeAsset, amountAsset, priceAsset, publicKey string, orderType proto.OrderType, price, amount, ts, expiration, fee int) (proto.Order, rideObject) {
+func makeOrderAndOrderObject(t *testing.T, sig, feeAsset, amountAsset, priceAsset, publicKey string, orderType proto.OrderType, price, amount, ts, expiration, fee int) (proto.Order, rideType) {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	fa, err := proto.NewOptionalAssetFromString(feeAsset)
@@ -146,11 +144,11 @@ func makeOrderAndOrderObject(t *testing.T, sig, feeAsset, amountAsset, priceAsse
 	require.NoError(t, err)
 	obj, err := orderToObject(proto.TestNetScheme, order)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return order, obj
 }
 
-func makeExchangeTransactionObject(t *testing.T, sig, digest string, buy, sell proto.Order, price, amount, buyFee, sellFee, fee, ts int) rideObject {
+func makeExchangeTransactionObject(t *testing.T, sig, digest string, buy, sell proto.Order, price, amount, buyFee, sellFee, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	d, err := crypto.NewDigestFromBase58(digest)
@@ -161,13 +159,17 @@ func makeExchangeTransactionObject(t *testing.T, sig, digest string, buy, sell p
 	require.NoError(t, err)
 	obj, err := exchangeWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
-	obj[idField] = rideBytes(d.Bytes())
-	obj[bodyBytesField] = rideBytes(d.Bytes())
+	replaceFirstProof(obj, s)
+	obj.id = d.Bytes()
+	obj.bodyBytes = d.Bytes()
+	bo := obj.buyOrder
+	replaceFirstProof(bo.(rideProven), s)
+	so := obj.sellOrder
+	replaceFirstProof(so.(rideProven), s)
 	return obj
 }
 
-func makeTransferTransactionObject(t *testing.T, sig, senderPublicKey, amountAsset, feeAsset, recipient string, amount, fee, ts int) rideObject {
+func makeTransferTransactionObject(t *testing.T, sig, senderPublicKey, amountAsset, feeAsset, recipient string, amount, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -184,11 +186,11 @@ func makeTransferTransactionObject(t *testing.T, sig, senderPublicKey, amountAss
 	require.NoError(t, err)
 	obj, err := transferWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int) rideObject {
+func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -201,11 +203,11 @@ func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBy
 	require.NoError(t, err)
 	obj, err := setScriptWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeSetAssetScriptTransactionObject(t *testing.T, sig, senderPublicKey, assetID, scriptBytes string, fee, ts int) rideObject {
+func makeSetAssetScriptTransactionObject(t *testing.T, sig, senderPublicKey, assetID, scriptBytes string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -220,11 +222,11 @@ func makeSetAssetScriptTransactionObject(t *testing.T, sig, senderPublicKey, ass
 	require.NoError(t, err)
 	obj, err := setAssetScriptWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, feeAsset, recipient, functionName, paymentAsset string, fee, ts, arg, paymentAmount int) (*proto.InvokeScriptWithProofs, rideObject) {
+func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, feeAsset, recipient, functionName, paymentAsset string, fee, ts, arg, paymentAmount int) (*proto.InvokeScriptWithProofs, rideType) {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -246,11 +248,11 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	require.NoError(t, err)
 	obj, err := invokeScriptWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return tx, obj
 }
 
-func makeUpdateAssetInfoTransactionObject(t *testing.T, sig, senderPublicKey, feeAsset, assetID, name, description string, fee, ts int) rideObject {
+func makeUpdateAssetInfoTransactionObject(t *testing.T, sig, senderPublicKey, feeAsset, assetID, name, description string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -265,11 +267,11 @@ func makeUpdateAssetInfoTransactionObject(t *testing.T, sig, senderPublicKey, fe
 	require.NoError(t, err)
 	obj, err := updateAssetInfoWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeInvokeExpressionTransactionObject(t *testing.T, sig, senderPublicKey, feeAsset, expression string, fee, ts int) rideObject {
+func makeInvokeExpressionTransactionObject(t *testing.T, sig, senderPublicKey, feeAsset, expression string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -284,11 +286,11 @@ func makeInvokeExpressionTransactionObject(t *testing.T, sig, senderPublicKey, f
 	require.NoError(t, err)
 	obj, err := invokeExpressionWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeIssueTransactionAndObject(t *testing.T, sig, senderPublicKey, name, description, scriptBytes string, quantity, decimals, fee, ts int, reissuable bool) (*proto.IssueWithProofs, rideObject) {
+func makeIssueTransactionAndObject(t *testing.T, sig, senderPublicKey, name, description, scriptBytes string, quantity, decimals, fee, ts int, reissuable bool) (*proto.IssueWithProofs, rideType) {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -301,11 +303,11 @@ func makeIssueTransactionAndObject(t *testing.T, sig, senderPublicKey, name, des
 	require.NoError(t, err)
 	obj, err := issueWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return tx, obj
 }
 
-func makeLeaseTransactionObject(t *testing.T, sig, senderPublicKey, recipient string, amount, fee, ts int) rideObject {
+func makeLeaseTransactionObject(t *testing.T, sig, senderPublicKey, recipient string, amount, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -318,11 +320,11 @@ func makeLeaseTransactionObject(t *testing.T, sig, senderPublicKey, recipient st
 	require.NoError(t, err)
 	obj, err := leaseWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeLeaseCancelTransactionObject(t *testing.T, sig, senderPublicKey, leaseID string, fee, ts int) rideObject {
+func makeLeaseCancelTransactionObject(t *testing.T, sig, senderPublicKey, leaseID string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -335,11 +337,11 @@ func makeLeaseCancelTransactionObject(t *testing.T, sig, senderPublicKey, leaseI
 	require.NoError(t, err)
 	obj, err := leaseCancelWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeCreateAliasTransactionObject(t *testing.T, sig, senderPublicKey, alias string, fee, ts int) rideObject {
+func makeCreateAliasTransactionObject(t *testing.T, sig, senderPublicKey, alias string, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -351,11 +353,11 @@ func makeCreateAliasTransactionObject(t *testing.T, sig, senderPublicKey, alias 
 	require.NoError(t, err)
 	obj, err := createAliasWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeSponsorFeeTransactionObject(t *testing.T, sig, senderPublicKey, asset string, minAssetFee, fee, ts int) rideObject {
+func makeSponsorFeeTransactionObject(t *testing.T, sig, senderPublicKey, asset string, minAssetFee, fee, ts int) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -368,11 +370,11 @@ func makeSponsorFeeTransactionObject(t *testing.T, sig, senderPublicKey, asset s
 	require.NoError(t, err)
 	obj, err := sponsorshipWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeDataTransactionObject(t *testing.T, sig, senderPublicKey string, keys, values []string, fee, ts int) rideObject {
+func makeDataTransactionObject(t *testing.T, sig, senderPublicKey string, keys, values []string, fee, ts int) rideType {
 	require.Equal(t, len(keys), len(values))
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
@@ -392,11 +394,11 @@ func makeDataTransactionObject(t *testing.T, sig, senderPublicKey string, keys, 
 	require.NoError(t, err)
 	obj, err := dataWithProofsToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
-	replaceFirstProof(t, obj, s)
+	replaceFirstProof(obj, s)
 	return obj
 }
 
-func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.WavesAddress, script []byte, tx proto.Transaction) rideObject {
+func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.WavesAddress, script []byte, tx proto.Transaction) rideType {
 	info := &proto.FullAssetInfo{
 		AssetInfo: proto.AssetInfo{
 			ID:              digest,
@@ -423,7 +425,7 @@ func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.
 	return fullAssetInfoToObject(info)
 }
 
-func makeBlockInfo(sig []byte, address proto.WavesAddress, pk crypto.PublicKey) rideObject {
+func makeBlockInfo(sig []byte, address proto.WavesAddress, pk crypto.PublicKey) rideType {
 	info := &proto.BlockInfo{
 		Timestamp:           1,
 		Height:              2,
@@ -497,12 +499,12 @@ func TestTypesStrings(t *testing.T) {
 	testDataTransaction := makeDataTransactionObject(t, sig, dig, []string{"key"}, []string{"value"}, 1, 2)
 	testAssetInfo := makeFullAssetInfo(d, pk, ad, longBytes, itx)
 	testBlockInfo := makeBlockInfo(shortBytes, ad, pk)
-	testIssueAction := newIssue("name", "description", 1, 2, true, rideUnit{}, 3)
-	testReissueAction := newReissue(shortBytes, 1, true)
-	testBurnAction := newBurn(shortBytes, 1)
-	testSponsorFee := newSponsorFee(shortBytes, 1)
-	testLease := newLease(rideRecipient(recipient1), 1, 2)
-	testLeaseCancel := newLeaseCancel(shortBytes)
+	testIssueAction := newRideIssue(rideUnit{}, "name", "description", 1, 2, 3, true)
+	testReissueAction := newRideReissue(shortBytes, 1, true)
+	testBurnAction := newRideBurn(shortBytes, 1)
+	testSponsorFee := newRideSponsorFee(shortBytes, 1)
+	testLease := newRideLease(rideRecipient(recipient1), 1, 2)
+	testLeaseCancel := newRideLeaseCancel(shortBytes)
 	for _, test := range []struct {
 		v rideType
 		s string
@@ -573,7 +575,7 @@ func TestTypesStrings(t *testing.T) {
 		{invObj, "Invocation(\n\toriginCaller = Address(\n\t\tbytes = base58'3NAG3ZUW9iH53gVNcvCRRSrbBYcJ27jm5ow'\n\t)\n\tpayments = [AttachedPayment(\n\tassetId = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\tamount = 4\n)]\n\tcallerPublicKey = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\tfeeAssetId = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\toriginCallerPublicKey = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\ttransactionId = base58'66V9DMnGSaKuHWWLA62W2kG7kSqmpCYmbsdsraHQGATT'\n\tcaller = Address(\n\t\tbytes = base58'3NAG3ZUW9iH53gVNcvCRRSrbBYcJ27jm5ow'\n\t)\n\tfee = 1\n)"},
 		{testAssetInfo, "Asset(\n\tdescription = \"description\"\n\tissuer = Address(\n\t\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\t)\n\tscripted = true\n\tissuerPublicKey = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\tminSponsoredFee = 5\n\tid = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\tdecimals = 2\n\treissuable = true\n\tname = \"name\"\n\tquantity = 1\n)"},
 		{testBlockInfo, "BlockInfo(\n\tbaseTarget = 3\n\tgenerator = Address(\n\t\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\t)\n\ttimestamp = 1\n\tvrf = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\theight = 2\n\tgenerationSignature = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\tgeneratorPublicKey = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n)"},
-		{testIssueAction, "Issue(\n\tisReissuable = true\n\tnonce = 3\n\tdescription = \"description\"\n\tdecimals = 2\n\tcompiledScript = Unit\n\tname = \"name\"\n\tquantity = 1\n)"},
+		{testIssueAction, "Issue(\n\tisReissuable = true\n\tnonce = 1\n\tdescription = \"description\"\n\tdecimals = 2\n\tcompiledScript = Unit\n\tname = \"name\"\n\tquantity = 3\n)"},
 		{testReissueAction, "Reissue(\n\tassetId = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\tquantity = 1\n\tisReissuable = true\n)"},
 		{testBurnAction, "Burn(\n\tassetId = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\tquantity = 1\n)"},
 		{testSponsorFee, "SponsorFee(\n\tassetId = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\tminSponsoredAssetFee = 1\n)"},

@@ -166,7 +166,8 @@ func main() {
 			pprofMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 			pprofMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 			pprofMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-			zap.S().Warn(http.ListenAndServe("localhost:6060", pprofMux))
+			s := &http.Server{Addr: "localhost:6060", Handler: pprofMux, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
+			zap.S().Warn(s.ListenAndServe())
 		}()
 	}
 

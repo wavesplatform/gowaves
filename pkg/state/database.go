@@ -231,6 +231,8 @@ func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
 	return nil
 }
 
+// rollback removes blocks and all associated records from state.
+// Parameter removalEdge is the ID of the block that has to be left in the state.
 func (s *stateDB) rollback(removalEdge proto.BlockID) error {
 	defer s.reset()
 	curHeight, err := s.getHeight()

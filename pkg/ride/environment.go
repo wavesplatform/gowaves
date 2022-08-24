@@ -919,14 +919,14 @@ type EvaluationEnvironment struct {
 	sch                   proto.Scheme
 	st                    types.SmartState
 	h                     rideInt
-	tx                    rideObject
+	tx                    rideType
 	id                    rideType
 	th                    rideType
 	time                  uint64
-	b                     rideObject
+	b                     rideType
 	check                 func(int) bool
 	takeStr               func(s string, n int) rideString
-	inv                   rideObject
+	inv                   rideType
 	ver                   ast.LibraryVersion
 	validatePaymentsAfter uint64
 	isBlockV5Activated    bool
@@ -1075,11 +1075,12 @@ func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto
 }
 
 func (e *EvaluationEnvironment) SetTransactionWithoutProofs(tx proto.Transaction) error {
-	err := e.SetTransaction(tx)
-	if err != nil {
+	if err := e.SetTransaction(tx); err != nil {
 		return err
 	}
-	e.tx[proofsField] = rideUnit{}
+	if err := resetProofs(e.tx); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1121,7 +1122,6 @@ func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v ast.LibraryVer
 		return err
 	}
 	e.inv = obj
-
 	return nil
 }
 
@@ -1147,7 +1147,7 @@ func (e *EvaluationEnvironment) height() rideInt {
 	return e.h
 }
 
-func (e *EvaluationEnvironment) transaction() rideObject {
+func (e *EvaluationEnvironment) transaction() rideType {
 	return e.tx
 }
 
@@ -1155,7 +1155,7 @@ func (e *EvaluationEnvironment) this() rideType {
 	return e.th
 }
 
-func (e *EvaluationEnvironment) block() rideObject {
+func (e *EvaluationEnvironment) block() rideType {
 	return e.b
 }
 
@@ -1184,11 +1184,11 @@ func (e *EvaluationEnvironment) takeString(s string, n int) rideString {
 	return e.takeStr(s, n)
 }
 
-func (e *EvaluationEnvironment) invocation() rideObject {
+func (e *EvaluationEnvironment) invocation() rideType {
 	return e.inv
 }
 
-func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
+func (e *EvaluationEnvironment) setInvocation(inv rideType) {
 	e.inv = inv
 }
 

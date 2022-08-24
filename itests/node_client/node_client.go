@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -46,29 +45,23 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) {
 	assert.Equal(t, scalaStateHash, goStateHash)
 }
 
-func (c *NodesClients) WaitForNewHeight(t *testing.T, beforeHeight client.BlocksHeight) uint64 {
-	var scalaHeight, goHeight uint64
+func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
+	currentHeight := c.ScalaClients.HttpClient.GetHeight(t)
 	for {
 		h := c.GoClients.HttpClient.GetHeight(t)
-		if h.Height > beforeHeight.Height+1 {
-			goHeight = h.Height
+		if h.Height >= currentHeight.Height+1 {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
 	for {
 		h := c.ScalaClients.HttpClient.GetHeight(t)
-		if h.Height > beforeHeight.Height+1 {
-			scalaHeight = h.Height
+		if h.Height >= currentHeight.Height+1 {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
-	if scalaHeight < goHeight {
-		return scalaHeight - 1
-	} else {
-		return goHeight - 1
-	}
+	return currentHeight.Height
 }
 
 func retry(timeout time.Duration, f func() error) error {

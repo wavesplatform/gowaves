@@ -8,8 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xenolf/lego/log"
-
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -24,7 +22,7 @@ type TestConfig struct {
 	Accounts []AccountInfo
 }
 
-func CreateScalaNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
+func CreateScalaNodeConfig(cfg *Config) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -51,7 +49,7 @@ func CreateScalaNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
 	return filepath.Clean(filepath.Join(pwd, tmpDir)), nil
 }
 
-func CreateGoNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
+func CreateGoNodeConfig(cfg *Config) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -68,7 +66,7 @@ func CreateGoNodeConfig(cfg *settings.BlockchainSettings) (string, error) {
 	}()
 	jsonWriter := json.NewEncoder(f)
 	jsonWriter.SetIndent("", "\t")
-	if err := jsonWriter.Encode(cfg); err != nil {
+	if err := jsonWriter.Encode(cfg.BlockchainSettings); err != nil {
 		return "", errors.Wrap(err, "failed to encode genesis settings")
 	}
 	return filepath.Clean(filepath.Join(pwd, tmpDir)), nil
@@ -79,11 +77,12 @@ type ConfigPaths struct {
 	ScalaConfigPath string
 }
 
-func CreateFileConfigs() (ConfigPaths, TestConfig, error) {
+func CreateFileConfigs(enableScalaMining bool) (ConfigPaths, TestConfig, error) {
 	cfg, acc, err := NewBlockchainConfig()
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
 	}
+	cfg.ScalaOpts.EnableMining = enableScalaMining
 	scalaPath, err := CreateScalaNodeConfig(cfg)
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
