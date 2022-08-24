@@ -252,7 +252,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 			return 0, errs.Extend(err, "callAssetScript")
 		}
 		if !r.Result() {
-			return 0, errs.Extend(err, "callAssetScript")
+			return 0, errs.Extend(errors.New("negative asset script result"), "callAssetScript")
 		}
 		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
 			// Exception: don't count before Ride4DApps activation.
