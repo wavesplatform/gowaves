@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
+	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -26,6 +27,13 @@ func NewNodeClient(t *testing.T, httpPort string, grpcPort string) *NodeClients 
 type NodesClients struct {
 	GoClients    *NodeClients
 	ScalaClients *NodeClients
+}
+
+func NewNodesClients(t *testing.T, ports *d.Ports) *NodesClients {
+	return &NodesClients{
+		GoClients:    NewNodeClient(t, ports.Go.RestApiPort, ports.Go.GrpcPort),
+		ScalaClients: NewNodeClient(t, ports.Scala.RestApiPort, ports.Scala.GrpcPort),
+	}
 }
 
 func (c *NodesClients) SendStartMessage(t *testing.T) {
