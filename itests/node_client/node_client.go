@@ -31,8 +31,8 @@ type NodesClients struct {
 
 func NewNodesClients(t *testing.T, ports *d.Ports) *NodesClients {
 	return &NodesClients{
-		GoClients:    NewNodeClient(t, ports.Scala.RestApiPort, ports.Scala.GrpcPort),
-		ScalaClients: NewNodeClient(t, ports.Go.RestApiPort, ports.Go.GrpcPort),
+		GoClients:    NewNodeClient(t, ports.Go.RestApiPort, ports.Go.GrpcPort),
+		ScalaClients: NewNodeClient(t, ports.Scala.RestApiPort, ports.Scala.GrpcPort),
 	}
 }
 

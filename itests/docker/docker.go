@@ -114,7 +114,7 @@ func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, su
 	if err != nil {
 		return nil, err
 	}
-	err = os.MkdirAll(filepath.Clean(filepath.Join(pwd, logDir, suiteName)), os.ModePerm)
+	err = os.MkdirAll(filepath.Join(pwd, logDir, suiteName), os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
