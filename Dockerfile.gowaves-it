@@ -32,15 +32,9 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
     STATE_PATH=/home/gowaves/  \
     WALLET_PATH=/home/gowaves/wallet/go.wallet
 
-EXPOSE 6871
-EXPOSE 6872
-EXPOSE 6873
-
 USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
-
-ENV DECLARED_ADDR="go-node:6873"
 
 # we need to wait some time due to NTP problems
 CMD sleep 5 && /app/node \
@@ -55,7 +49,7 @@ CMD sleep 5 && /app/node \
     -api-address=$API_ADDR \
     -api-key=itest-api-key \
     -declared-address=$DECLARED_ADDR \
-    -bind-address=0.0.0.0:6873 \
+    -bind-address=$BIND_ADDR \
     -build-extended-api \
     -build-state-hashes \
     -serve-extended-api \

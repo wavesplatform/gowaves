@@ -87,9 +87,7 @@ jobs:
         if: failure()
         with:
           name: itest_logs
-          path: |
-            build/logs/go-node.log
-            build/logs/scala-node.log
+          path: build/logs/
           if-no-files-found: warn
           retention-days: 5
 

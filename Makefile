@@ -39,7 +39,7 @@ gotest-coverage:
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test $$(go list ./... | grep "/itests")
+	go test -parallel 3 $$(go list ./... | grep "/itests")
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go" | grep -v ".*bn254/.*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
