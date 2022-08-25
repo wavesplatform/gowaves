@@ -247,9 +247,12 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	}
 	for _, smartAsset := range txSmartAssets {
 		// Check smart asset's script.
-		_, err := a.sc.callAssetScript(tx, smartAsset, params)
+		r, err := a.sc.callAssetScript(tx, smartAsset, params)
 		if err != nil {
 			return 0, errs.Extend(err, "callAssetScript")
+		}
+		if !r.Result() {
+			return 0, errs.Extend(errors.New("negative asset script result"), "callAssetScript")
 		}
 		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
 			// Exception: don't count before Ride4DApps activation.
