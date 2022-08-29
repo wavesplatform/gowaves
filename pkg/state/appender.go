@@ -64,6 +64,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	mode InvocationStateHandleMode,
+	stateHeight proto.Height,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
@@ -94,7 +95,11 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	ia, err := newInvokeApplier(ctx, dataDir, state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData, mode)
+	ia, err := newInvokeApplier(
+		ctx, dataDir,
+		state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData,
+		mode, stateHeight,
+	)
 	if err != nil {
 		return nil, err
 	}

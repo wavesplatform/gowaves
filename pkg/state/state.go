@@ -488,19 +488,19 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		newBlocks:                 newNewBlocks(rw, settings),
 		cancel:                    cancel,
 	}
+	height, err := state.Height()
+	if err != nil {
+		return nil, err
+	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(ctx, dataDir, state, rw, stor, settings, stateDB, atx, params.InvocationStateHandleMode)
+	appender, err := newTxAppender(ctx, dataDir, state, rw, stor, settings, stateDB, atx, params.InvocationStateHandleMode, height)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
 
-	height, err := state.Height()
-	if err != nil {
-		return nil, err
-	}
 	state.setGenesisBlock(&settings.Genesis)
 	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
 	if height == 0 {

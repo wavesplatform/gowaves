@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -110,6 +111,7 @@ func newInvokeApplier(
 	diffApplier *diffApplier,
 	buildApiData bool,
 	mode InvocationStateHandleMode,
+	stateHeight proto.Height,
 ) (*invokeApplier, error) {
 	ia := &invokeApplier{
 		state:          state,
@@ -132,7 +134,11 @@ func newInvokeApplier(
 		}
 		ia.scriptInvocationStateWriteChan = writeCh
 	case InvocationStateReadMode:
-
+		readCh, err := runInvocationStatesReader(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize, stateHeight)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to run invocations states reader")
+		}
+		ia.scriptInvocationStateReadChan = readCh
 	default:
 		return nil, errors.Errorf("invalid InvocationStateHandleMode (%d)", mode)
 	}
@@ -197,6 +203,112 @@ func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath str
 	return ch, nil
 }
 
+func runInvocationStatesReader(ctx context.Context, invocationStatesFilePath string, chanSize int, initialHeight proto.Height) (<-chan ride.AnyScriptInvocationState, error) {
+	handle := func(ctx context.Context, ch chan<- ride.AnyScriptInvocationState, iter *invocationStatesIterator) {
+		defer func() {
+			if err := iter.Close(); err != nil {
+				zap.S().Errorf("failed to close iterator of file %q: %v", invocationStatesFilePath, err)
+			}
+			close(ch)
+		}()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// continue execution
+		}
+		var (
+			next bool
+			err  error
+		)
+		for next, err = iter.Next(); next && err == nil; next, err = iter.Next() {
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- iter.Get():
+			}
+		}
+		if err != nil {
+			// TODO: Is fatal necessary here?
+			zap.S().Fatalf("failed to iterate on invocation states file %q, corrupted data: %v", invocationStatesFilePath, err)
+		}
+		// EOF
+	}
+	f, err := os.Open(invocationStatesFilePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
+	}
+	iter := newInvocationStatesIterator(f)
+	if err := iter.SkipUntil(initialHeight); err != nil {
+		return nil, errors.Wrapf(err, "failed to skip invocations states until %d height", initialHeight)
+	}
+	ch := make(chan ride.AnyScriptInvocationState, chanSize)
+	go handle(ctx, ch, iter)
+	return ch, nil
+}
+
+type invocationStatesIterator struct {
+	file              *os.File
+	reader            io.Reader
+	lastDecodedHeader invocationStatesHeader
+	lastDecodedStates ride.AnyScriptInvocationStates
+	currState         ride.AnyScriptInvocationState
+	pos               int
+}
+
+func newInvocationStatesIterator(f *os.File) *invocationStatesIterator {
+	return &invocationStatesIterator{file: f, reader: snappy.NewReader(f)}
+}
+
+func (i *invocationStatesIterator) SkipUntil(height proto.Height) error {
+	for {
+		// read header
+		if err := i.lastDecodedHeader.UnmarshalFrom(i.reader); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+		// break cycle if we reached state height
+		if proto.Height(i.lastDecodedHeader.height) > height {
+			break
+		}
+		// go ahead if we haven't reached necessary height yet
+		// discard unnecessary states
+		if _, err := io.CopyN(io.Discard, i.reader, int64(i.lastDecodedHeader.marshaledStatesBinSize)); err != nil {
+			return err
+		}
+	}
+	return i.lastDecodedStates.UnmarshalFrom(i.reader)
+}
+
+func (i *invocationStatesIterator) Next() (bool, error) {
+	if i.pos >= len(i.lastDecodedStates) {
+		// read and prepare new pack
+		if err := i.lastDecodedHeader.UnmarshalFrom(i.reader); err != nil {
+			if errors.Is(err, io.EOF) {
+				return false, nil
+			}
+			return false, err
+		}
+		if err := i.lastDecodedStates.UnmarshalFrom(i.reader); err != nil {
+			return false, err
+		}
+		i.pos = 0
+	}
+	i.currState = i.lastDecodedStates[i.pos]
+	i.pos++
+	return true, nil
+}
+
+func (i *invocationStatesIterator) Get() ride.AnyScriptInvocationState {
+	return i.currState
+}
+
+func (i *invocationStatesIterator) Close() error {
+	return i.file.Close()
+}
+
 func writeStatesOnSameHeight(w io.Writer, states ride.AnyScriptInvocationStates, height proto.Height) error {
 	marshaledStates, err := states.MarshalBinary()
 	if err != nil {
@@ -206,12 +318,11 @@ func writeStatesOnSameHeight(w io.Writer, states ride.AnyScriptInvocationStates,
 		height:                 uint32(height),
 		marshaledStatesBinSize: uint32(len(marshaledStates)),
 	}
-	headerBytes := header.MarshalToArray()
 
 	buff := bytebufferpool.Get()
 	defer bytebufferpool.Put(buff)
 	// fill buffer
-	if _, err := buff.Write(headerBytes[:]); err != nil {
+	if err := header.MarshalTo(buff); err != nil {
 		return err
 	}
 	if _, err := buff.Write(marshaledStates); err != nil {
@@ -231,19 +342,22 @@ type invocationStatesHeader struct {
 	marshaledStatesBinSize uint32
 }
 
-func (i *invocationStatesHeader) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < invocationStatesHeaderSize {
-		return errors.Errorf("insufficient invocationStatesHeader len: want %d, got %d", invocationStatesHeaderSize, l)
+func (i *invocationStatesHeader) MarshalTo(w io.Writer) error {
+	var data [invocationStatesHeaderSize]byte
+	binary.BigEndian.PutUint32(data[4:invocationStatesHeaderSize], i.marshaledStatesBinSize)
+	binary.BigEndian.PutUint32(data[:4], i.height)
+	_, err := w.Write(data[:])
+	return err
+}
+
+func (i *invocationStatesHeader) UnmarshalFrom(r io.Reader) error {
+	var data [invocationStatesHeaderSize]byte
+	if _, err := io.ReadFull(r, data[:]); err != nil {
+		return err
 	}
 	i.marshaledStatesBinSize = binary.BigEndian.Uint32(data[4:invocationStatesHeaderSize])
 	i.height = binary.BigEndian.Uint32(data[:4])
 	return nil
-}
-
-func (i *invocationStatesHeader) MarshalToArray() (data [invocationStatesHeaderSize]byte) {
-	binary.BigEndian.PutUint32(data[4:invocationStatesHeaderSize], i.marshaledStatesBinSize)
-	binary.BigEndian.PutUint32(data[:4], i.height)
-	return data
 }
 
 type payment struct {
@@ -1142,7 +1256,17 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 
 func (ia *invokeApplier) handleInvoke(tx proto.Transaction, info *fallibleValidationParams, scriptAddr proto.WavesAddress) (ride.Result, error) {
 	if ia.scriptInvocationStateReadChan != nil {
-		is := <-ia.scriptInvocationStateReadChan
+		is, ok := <-ia.scriptInvocationStateReadChan
+		if !ok {
+			id, err := tx.GetID(ia.settings.AddressSchemeCharacter)
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.Errorf(
+				"failed to read invocation state from channel on (%T) with ID %q: scriptInvocationStateReadChan was unexpectedly closed",
+				tx, base58.Encode(id),
+			)
+		}
 		if info.rideV5Activated {
 			ia.sc.increaseRecentSpentComplexityAfterRideV5(is.Result, is.Err)
 		} else {
