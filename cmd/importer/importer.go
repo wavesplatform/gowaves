@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -37,12 +38,26 @@ var (
 	// Debug.
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
+
+	invocationStateHandleMode state.InvocationStateHandleMode
 )
 
-func main() {
-	flag.Parse()
+func init() {
+	var invocationStateHandleModeString string
+	flag.StringVar(&invocationStateHandleModeString, "invocation-state-handle-mode", "", fmt.Sprintf(
+		"If set this option enables reading or saving any script result on state import process. Supported modes: %s or %s.",
+		state.InvocationStateWriteMode.String(), state.InvocationStateReadMode.String(),
+	))
 
+	flag.Parse()
 	common.SetupLogger(*logLevel)
+
+	if err := invocationStateHandleMode.UnmarshalText([]byte(invocationStateHandleModeString)); err != nil {
+		zap.S().Fatalf("invalid 'invocation-state-handle-mode' flag value %q", invocationStateHandleModeString)
+	}
+}
+
+func main() {
 	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
 
 	maxFDs, err := fdlimit.MaxFDs()
@@ -102,6 +117,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
+	params.InvocationStateHandleMode = invocationStateHandleMode
 
 	st, err := state.NewState(*dataDirPath, false, params, ss)
 	if err != nil {

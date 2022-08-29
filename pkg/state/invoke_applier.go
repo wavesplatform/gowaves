@@ -18,6 +18,54 @@ import (
 	"go.uber.org/zap"
 )
 
+type InvocationStateHandleMode byte
+
+const (
+	InvocationStateNoOpMode InvocationStateHandleMode = iota
+	InvocationStateWriteMode
+	InvocationStateReadMode
+)
+
+func (i InvocationStateHandleMode) String() string {
+	var s string
+	switch i {
+	case InvocationStateNoOpMode:
+		s = ""
+	case InvocationStateWriteMode:
+		s = "write"
+	case InvocationStateReadMode:
+		s = "read"
+	default:
+		s = fmt.Sprintf("unknown InvocationStateHandleMode value (%d)", i)
+	}
+	return s
+}
+
+func (i *InvocationStateHandleMode) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "":
+		*i = InvocationStateNoOpMode
+	case "write":
+		*i = InvocationStateWriteMode
+	case "read":
+		*i = InvocationStateReadMode
+	default:
+		return errors.Errorf("failed to UnmarshalText InvocationStateHandleMode: invalid value %q", text)
+	}
+	return nil
+}
+
+func (i InvocationStateHandleMode) MarshalText() (text []byte, err error) {
+	var s string
+	switch i {
+	case InvocationStateNoOpMode, InvocationStateWriteMode, InvocationStateReadMode:
+		s = i.String()
+	default:
+		return nil, errors.Errorf("failed to MarshalText InvocationStateHandleMode: invalid value (%d)", i)
+	}
+	return []byte(s), nil
+}
+
 type invokeApplier struct {
 	state types.SmartState
 	sc    *scriptCaller

@@ -245,6 +245,8 @@ type StateParams struct {
 	ProvideExtendedApi bool
 	// BuildStateHashes enables building and storing state hashes by height.
 	BuildStateHashes bool
+	// InvocationStateHandleMode specifies whether invocation states should be saved or read from file.
+	InvocationStateHandleMode InvocationStateHandleMode
 }
 
 func DefaultStateParams() StateParams {
@@ -254,6 +256,7 @@ func DefaultStateParams() StateParams {
 			VerificationGoroutinesNum: runtime.NumCPU() * 2,
 			Time:                      ntptime.Stub{},
 		},
+		InvocationStateHandleMode: InvocationStateNoOpMode,
 	}
 }
 
@@ -264,5 +267,6 @@ func DefaultTestingStateParams() StateParams {
 			VerificationGoroutinesNum: runtime.NumCPU() * 2,
 			Time:                      ntptime.Stub{},
 		},
+		InvocationStateHandleMode: InvocationStateNoOpMode,
 	}
 }
