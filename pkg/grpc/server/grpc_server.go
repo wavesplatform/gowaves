@@ -11,8 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
-	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -98,7 +98,7 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 	}
 
 	if opts.MaxConnections > 0 {
-		conn = netutil.LimitListener(conn, opts.MaxConnections)
+		conn = limit_listener.LimitListener(conn, opts.MaxConnections)
 		zap.S().Debugf("Set limit for number of simultaneous connections for gRPC API to %d", opts.MaxConnections)
 	}
 

@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/netutil"
-
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
@@ -20,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 )
 
@@ -287,7 +286,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 			return lErr
 		}
 
-		ln = netutil.LimitListener(ln, opts.MaxConnections)
+		ln = limit_listener.LimitListener(ln, opts.MaxConnections)
 		zap.S().Debugf("Set limit for number of simultaneous connections for REST API to %d", opts.MaxConnections)
 
 		err = apiServer.Serve(ln)
