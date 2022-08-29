@@ -374,9 +374,8 @@ type stateManager struct {
 	cancel context.CancelFunc
 }
 
-func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	err := validateSettings(settings)
-	if err != nil {
+func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (m *stateManager, err error) {
+	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
@@ -407,6 +406,13 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	if err != nil {
 		return nil, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
 	}
+	defer func() {
+		if err != nil {
+			if err := stateDB.close(); err != nil {
+				zap.S().Errorf("failed to close stateDB: %v", err)
+			}
+		}
+	}()
 	if err := checkCompatibility(stateDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
 	}
@@ -425,6 +431,13 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
+	defer func() {
+		if err != nil {
+			if err := rw.close(); err != nil {
+				zap.S().Errorf("failed to close blockReadWriter: %v", err)
+			}
+		}
+	}()
 	stateDB.setRw(rw)
 	hs, err := newHistoryStorage(db, dbBatch, stateDB, handledAmend)
 	if err != nil {
@@ -451,7 +464,19 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
+	defer func() {
+		if err != nil {
+			if err := atx.close(); err != nil {
+				zap.S().Errorf("failed to close addressTransactions: %v", err)
+			}
+		}
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
 		stateDB:                   stateDB,
