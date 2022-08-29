@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/gob"
 	"io"
@@ -36,20 +35,6 @@ func (s *AnyScriptInvocationState) marshalTo(enc *gob.Encoder) error {
 	return enc.Encode(&AnyScriptInvocationState{Result: s.Result, Err: transformedErr})
 }
 
-func (s *AnyScriptInvocationState) MarshalBinary() ([]byte, error) {
-	// TODO: check performance benefit of using bytebufferpool here
-	b := bytebufferpool.Get()
-	defer bytebufferpool.Put(b)
-	if err := s.MarshalTo(b); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), b.Bytes()...), nil
-}
-
-func (s *AnyScriptInvocationState) UnmarshalBinary(data []byte) error {
-	return gob.NewDecoder(bytes.NewReader(data)).Decode(s)
-}
-
 type AnyScriptInvocationStates []AnyScriptInvocationState
 
 func (s AnyScriptInvocationStates) MarshalBinary() ([]byte, error) {
@@ -75,17 +60,17 @@ func (s AnyScriptInvocationStates) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (s *AnyScriptInvocationStates) UnmarshalBinary(data []byte) error {
-	const sizePrefixLen = 2
-	if l := len(data); l < sizePrefixLen {
-		return errors.Errorf("insufficient AnyScriptInvocationStates len: want at least %d, got %d", sizePrefixLen, l)
+func (s *AnyScriptInvocationStates) UnmarshalFrom(r io.Reader) error {
+	var countBytes [2]byte
+	if _, err := io.ReadFull(r, countBytes[:]); err != nil {
+		return err
 	}
-	count := binary.BigEndian.Uint16(data[:sizePrefixLen])
-	r := bytes.NewReader(data[sizePrefixLen:])
+	count := binary.BigEndian.Uint16(countBytes[:])
 	states := make(AnyScriptInvocationStates, 0, count)
+	dec := gob.NewDecoder(r)
 	for i := uint16(0); i < count; i++ {
 		var state AnyScriptInvocationState
-		if err := gob.NewDecoder(r).Decode(&state); err != nil {
+		if err := dec.Decode(&state); err != nil {
 			return err
 		}
 		states = append(states, state)
