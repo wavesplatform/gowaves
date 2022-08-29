@@ -32,6 +32,9 @@ type invokeApplier struct {
 	diffApplier    *diffApplier
 
 	buildApiData bool
+
+	scriptInvocationStateWriteChan chan<- ride.AnyScriptInvocationStateWithHeight
+	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationState
 }
 
 func newInvokeApplier(
@@ -805,6 +808,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	// If BlockV5 feature is not activated, we never accept failed transactions.
 	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
+	// TODO: ignore this check in ScriptInvocationState read mode (blockchain file can't have invoke tx with failed sender's script)
 	if info.senderScripted {
 		if err := ia.sc.callAccountScriptWithTx(tx, info.appendTxParams); err != nil {
 			// Never accept invokes with failed script on transaction sender.
@@ -952,6 +956,21 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 }
 
 func (ia *invokeApplier) handleInvoke(tx proto.Transaction, info *fallibleValidationParams, scriptAddr proto.WavesAddress) (ride.Result, error) {
+	if ia.scriptInvocationStateReadChan != nil {
+		is := <-ia.scriptInvocationStateReadChan
+		if info.rideV5Activated {
+			ia.sc.increaseRecentSpentComplexityAfterRideV5(is.Result, is.Err)
+		} else {
+			if invokeTx, ok := tx.(*proto.InvokeScriptWithProofs); ok {
+				if err := ia.sc.increaseRecentSpentComplexityBeforeRideV5(scriptAddr, invokeTx.FunctionCall.Name, invokeTx.FunctionCall.Default); err != nil {
+					return nil, errors.Wrap(err, "failed to increase recent spent complexity before RideV5")
+				}
+			} else {
+				return nil, errors.Errorf("unknown tx type (%T) before RideV5 activation", tx)
+			}
+		}
+		return is.Result, is.Err
+	}
 	var (
 		tree *ast.Tree
 		err  error
@@ -970,7 +989,14 @@ func (ia *invokeApplier) handleInvoke(tx proto.Transaction, info *fallibleValida
 	default:
 		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
-	return ia.sc.invokeFunction(tree, tx, info, scriptAddr)
+	r, err := ia.sc.invokeFunction(tree, tx, info, scriptAddr)
+	if ia.scriptInvocationStateWriteChan != nil {
+		ia.scriptInvocationStateWriteChan <- ride.AnyScriptInvocationStateWithHeight{
+			Height: info.blockInfo.Height,
+			State:  ride.AnyScriptInvocationState{Result: r, Err: err},
+		}
+	}
+	return r, err
 }
 
 type invocationResult struct {
