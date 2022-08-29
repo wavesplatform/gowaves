@@ -370,6 +370,8 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+
+	cancel context.CancelFunc
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -449,6 +451,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
 		stateDB:                   stateDB,
@@ -458,10 +461,11 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		cancel:                    cancel,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx)
+	appender, err := newTxAppender(ctx, dataDir, state, rw, stor, settings, stateDB, atx, params.InvocationStateHandleMode)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2322,6 +2326,7 @@ func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 }
 
 func (s *stateManager) Close() error {
+	s.cancel()
 	if err := s.atx.close(); err != nil {
 		return wrapErr(ClosureError, err)
 	}

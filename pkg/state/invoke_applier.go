@@ -1,12 +1,19 @@
 package state
 
 import (
+	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/golang/snappy"
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -85,7 +92,14 @@ type invokeApplier struct {
 	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationState
 }
 
+const (
+	invocationStatesChanSize = 2048
+	invocationStatesFileName = "script_invocation_states"
+)
+
 func newInvokeApplier(
+	ctx context.Context,
+	dataDir string,
 	state types.SmartState,
 	sc *scriptCaller,
 	txHandler *transactionHandler,
@@ -95,8 +109,9 @@ func newInvokeApplier(
 	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
 	buildApiData bool,
-) *invokeApplier {
-	return &invokeApplier{
+	mode InvocationStateHandleMode,
+) (*invokeApplier, error) {
+	ia := &invokeApplier{
 		state:          state,
 		sc:             sc,
 		txHandler:      txHandler,
@@ -107,6 +122,128 @@ func newInvokeApplier(
 		diffApplier:    diffApplier,
 		buildApiData:   buildApiData,
 	}
+	switch mode {
+	case InvocationStateNoOpMode:
+	// no-op
+	case InvocationStateWriteMode:
+		writeCh, err := runInvocationStatesWriter(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to run invocations states writer")
+		}
+		ia.scriptInvocationStateWriteChan = writeCh
+	case InvocationStateReadMode:
+
+	default:
+		return nil, errors.Errorf("invalid InvocationStateHandleMode (%d)", mode)
+	}
+	return ia, nil
+}
+
+func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath string, chanSize int) (chan<- ride.AnyScriptInvocationStateWithHeight, error) {
+	handle := func(ctx context.Context, ch <-chan ride.AnyScriptInvocationStateWithHeight, file *os.File) {
+		w := snappy.NewBufferedWriter(file)
+		defer func() {
+			if err := w.Close(); err != nil {
+				zap.S().Errorf("failed to close snappy writer to %q file: %v", invocationStatesFilePath, err)
+			}
+			if err := file.Close(); err != nil {
+				zap.S().Errorf("failed to close %q file: %v", invocationStatesFilePath, err)
+			}
+		}()
+		var (
+			currentHeight      proto.Height
+			statesOnSameHeight ride.AnyScriptInvocationStates
+		)
+		defer func() {
+			if len(statesOnSameHeight) != 0 { // write last block statements
+				// write to the file
+				if err := writeStatesOnSameHeight(w, statesOnSameHeight, currentHeight); err != nil {
+					// TODO: Is fatal necessary here?
+					zap.S().Fatalf("failed to write state results on height %d: %v", currentHeight, err)
+				}
+			}
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case is, ok := <-ch:
+				if !ok {
+					return
+				}
+				if currentHeight != is.Height {
+					if len(statesOnSameHeight) != 0 {
+						// write to the file
+						if err := writeStatesOnSameHeight(w, statesOnSameHeight, currentHeight); err != nil {
+							// TODO: Is fatal necessary here?
+							zap.S().Fatalf("failed to write state results on height %d: %v", currentHeight, err)
+						}
+						// reuse the same buffer
+						statesOnSameHeight = statesOnSameHeight[:0]
+					}
+					// update current height
+					currentHeight = is.Height
+				}
+				statesOnSameHeight = append(statesOnSameHeight, is.State)
+			}
+		}
+	}
+	f, err := os.OpenFile(invocationStatesFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
+	}
+	ch := make(chan ride.AnyScriptInvocationStateWithHeight, chanSize)
+	go handle(ctx, ch, f)
+	return ch, nil
+}
+
+func writeStatesOnSameHeight(w io.Writer, states ride.AnyScriptInvocationStates, height proto.Height) error {
+	marshaledStates, err := states.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	header := invocationStatesHeader{
+		height:                 uint32(height),
+		marshaledStatesBinSize: uint32(len(marshaledStates)),
+	}
+	headerBytes := header.MarshalToArray()
+
+	buff := bytebufferpool.Get()
+	defer bytebufferpool.Put(buff)
+	// fill buffer
+	if _, err := buff.Write(headerBytes[:]); err != nil {
+		return err
+	}
+	if _, err := buff.Write(marshaledStates); err != nil {
+		return err
+	}
+	// write to w
+	if _, err := w.Write(buff.Bytes()); err != nil {
+		return nil
+	}
+	return nil
+}
+
+const invocationStatesHeaderSize = 4 + 4 // height(uint32) + marshaledStatesBinSize (uint32)
+
+type invocationStatesHeader struct {
+	height                 uint32
+	marshaledStatesBinSize uint32
+}
+
+func (i *invocationStatesHeader) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < invocationStatesHeaderSize {
+		return errors.Errorf("insufficient invocationStatesHeader len: want %d, got %d", invocationStatesHeaderSize, l)
+	}
+	i.marshaledStatesBinSize = binary.BigEndian.Uint32(data[4:invocationStatesHeaderSize])
+	i.height = binary.BigEndian.Uint32(data[:4])
+	return nil
+}
+
+func (i *invocationStatesHeader) MarshalToArray() (data [invocationStatesHeaderSize]byte) {
+	binary.BigEndian.PutUint32(data[4:invocationStatesHeaderSize], i.marshaledStatesBinSize)
+	binary.BigEndian.PutUint32(data[:4], i.height)
+	return data
 }
 
 type payment struct {

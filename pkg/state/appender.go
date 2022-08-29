@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mr-tron/base58/base58"
@@ -54,12 +55,15 @@ type txAppender struct {
 }
 
 func newTxAppender(
+	ctx context.Context,
+	dataDir string,
 	state types.SmartState,
 	rw *blockReadWriter,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 	stateDB *stateDB,
 	atx *addressTransactions,
+	mode InvocationStateHandleMode,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
@@ -90,7 +94,10 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia, err := newInvokeApplier(ctx, dataDir, state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData, mode)
+	if err != nil {
+		return nil, err
+	}
 	ethereumInfo := newEthInfo(stor, settings)
 	return &txAppender{
 		sc:             sc,
