@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
@@ -315,6 +316,106 @@ func TestSimpleDAppComplexity2(t *testing.T) {
 	code := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAB21lc3NhZ2UBAAAAA3B1awQAAAADcHViAQAAACD5YNOXUn1M/ChkrTwitfmd6lTogTr5Kin2wziOrP9OLgQAAAADc2lnAQAAAEDDWY/WuKhHs0AtBSX1V+rNgqDJOKCpqd11SbYDX7PnMl0Cv6DiIppUq8PhqA4/g2y/zgjwe3XOAORP032NFTSBCQAETAAAAAIJAQAAAAxCb29sZWFuRW50cnkAAAACAgAAAANhYmMJAAH0AAAAAwUAAAAHbWVzc2FnZQUAAAADc2lnBQAAAANwdWIFAAAAA25pbAAAAAAu8AfS"
 	checkFunctionCallComplexity(t, complexityTestEnvV5, code, "call", proto.Arguments{}, 205)
 	checkFunctionCallComplexity(t, complexityTestEnvV5, code, "call", proto.Arguments{}, 205)
+}
+
+func TestOnEdgeComplexity(t *testing.T) {
+	/*
+		{-#STDLIB_VERSION 6 #-}
+		{-#SCRIPT_TYPE ACCOUNT #-}
+		{-# CONTENT_TYPE DAPP #-}
+
+		 @Callable(inv)
+		 func foo(n: Int) = {
+		   let complexInt1 = 1 + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + log(1625, 2, 27, 1, 2, HALFUP) + log(1625, 2, 27, 1, 2, HALFUP) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 # 916
+		   # 82 = 1 for "n > 1", 81 for branches (without overflow)
+		   let complexInt2 = if (n > 1) then {
+		     # 81 = 2 for valueOrElse, 75 for invoke, 1 for Address, 1 for "n - 1", 1 for list, 1 for as
+		     valueOrElse(invoke(Address(base58'3MuVqVJGmFsHeuFni5RbjRmALuGCkEwzZtC'), "foo", [n - 1], []).as[Int], 0)
+		   } else {
+		     1 + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + 1 + 1 + 1 + 1 # 82
+		   }
+		   # 2 = 1 for tuple, 1 for "+"
+		   ([], complexInt1 + complexInt2)
+		 }
+	*/
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAAAAEAAQABAAEAAQABAAEAAQABAAEAAQQLY29tcGxleEludDIDCQBmAgUBbgABCQELdmFsdWVPckVsc2UCCgABQAkA/AcECQEHQWRkcmVzcwEBGgFUPTrYhPoEKSe51sN99wr1wL2VFsXraGjBAgNmb28JAMwIAgkAZQIFAW4AAQUDbmlsBQNuaWwDCQABAgUBQAIDSW50BQFABQR1bml0AAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCAAEJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAAAQABAAEAAQkAlAoCBQNuaWwJAGQCBQtjb21wbGV4SW50MQULY29tcGxleEludDIA3fsg1g==")
+	complexityTestEnvV6.thisFunc = func() rideType {
+		return rideAddress(dApp1)
+	}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "foo",
+		Arguments: proto.Arguments{},
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        dApp1PK,
+		ScriptRecipient: proto.NewRecipientFromAddress(dApp1),
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(ast.LibV6, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	complexityTestEnvV6.invocationFunc = func() rideType {
+		return testInv
+	}
+	complexityTestEnvV6.setInvocationFunc = func(inv rideType) {
+		testInv = inv
+	}
+	complexityTestEnvV6.blockV5ActivatedFunc = func() bool {
+		return true
+	}
+	complexityTestEnvV6.isProtobufTxFunc = func() bool {
+		return true
+	}
+	complexityTestEnvV6.maxDataEntriesSizeFunc = func() int {
+		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	}
+	complexityTestEnvV6.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		dApp1 = address
+	}
+	mockState := &MockSmartState{
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			return &proto.IntegerDataEntry{Key: key, Value: 1}, nil
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			return &dApp1, nil
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			return dApp1PK, nil
+		},
+		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
+			return ast.LibV6, nil
+		},
+		NewestScriptByAccountFunc: func(account proto.Recipient) (*ast.Tree, error) {
+			return tree, nil
+		},
+	}
+	testState := &WrappedState{
+		diff:                      newDiffState(mockState),
+		cle:                       complexityTestEnvV6.this().(rideAddress),
+		scheme:                    complexityTestEnvV6.scheme(),
+		rootScriptLibVersion:      ast.LibV6,
+		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
+	}
+
+	complexityTestEnvV6.stateFunc = func() types.SmartState {
+		return testState
+	}
+
+	r, err := CallFunction(complexityTestEnvV6, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
+	require.EqualError(t, err, "evaluation complexity 52001 exceeds 52000 limit for library version 6")
+	assert.Equal(t, GetEvaluationErrorType(err), RuntimeError)
+	assert.Nil(t, r)
+	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
 }
 
 func TestComplexities(t *testing.T) {
