@@ -1,11 +1,13 @@
-package integration_test
+package integration
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"strconv"
+	"testing"
 	"time"
 )
 
@@ -20,6 +22,10 @@ type IssueTestData struct {
 	Timestamp  uint64
 	ChainID    proto.Scheme
 	Expected   map[string]string
+}
+
+type IssueTxSuite struct {
+	BaseSuite
 }
 
 func NewIssueTestData(account config.AccountInfo, assetName string, assetDesc string, quantity uint64, decimals byte, reissuable bool, fee uint64,
@@ -42,16 +48,16 @@ func getCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixNano() / 1000000)
 }
 
-func getAccount(suite *ItestSuite, i int) config.AccountInfo {
-	return suite.cfg.Accounts[i]
+func getAccount(suite *IssueTxSuite, i int) config.AccountInfo {
+	return suite.Cfg.Accounts[i]
 }
 
-func getAvalibleBalanceInWaves(suite *ItestSuite, address proto.WavesAddress) int64 {
-	return suite.clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+func getAvalibleBalanceInWaves(suite *IssueTxSuite, address proto.WavesAddress) int64 {
+	return suite.Clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
 
-func getAssetBalance(suite *ItestSuite, address proto.WavesAddress, id []byte) int64 {
-	return suite.clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
+func getAssetBalance(suite *IssueTxSuite, address proto.WavesAddress, id []byte) int64 {
+	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
 }
 
 func dataChangedTimestamp(td IssueTestData) IssueTestData {
@@ -59,12 +65,12 @@ func dataChangedTimestamp(td IssueTestData) IssueTestData {
 		getCurrentTimestampInMs(), td.ChainID, td.Expected)
 }
 
-func getInvalidTxIdsInBlockchain(suite *ItestSuite, ids []*crypto.Digest, timeout time.Duration) []*crypto.Digest {
+func getInvalidTxIdsInBlockchain(suite *IssueTxSuite, ids []*crypto.Digest, timeout time.Duration) []*crypto.Digest {
 	time.Sleep(timeout)
 	for _, id := range ids {
-		_, _, err_go := suite.clients.GoClients.HttpClient.TransactionInfoRaw(*id)
-		_, _, err_scala := suite.clients.ScalaClients.HttpClient.TransactionInfoRaw(*id)
-		if (err_go != nil) && (err_scala != nil) {
+		_, _, errGo := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(*id)
+		_, _, errScala := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(*id)
+		if (errGo != nil) && (errScala != nil) {
 			ids[0] = nil
 			if len(ids) > 1 {
 				copy(ids[0:], ids[1:])
@@ -77,7 +83,7 @@ func getInvalidTxIdsInBlockchain(suite *ItestSuite, ids []*crypto.Digest, timeou
 	return ids
 }
 
-func getPositiveDataMatrix(suite *ItestSuite) map[string]IssueTestData {
+func getPositiveDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
 		"Min values, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
@@ -163,9 +169,9 @@ func getPositiveDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 	return t
 }
 
-func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
+func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		"Invalid asset name (len < min), not miner": *NewIssueTestData(
+		/*"Invalid asset name (len < min), not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"tes",
 			"t",
@@ -180,7 +186,7 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
+					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
@@ -200,7 +206,7 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
+					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
@@ -220,7 +226,7 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
+					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
@@ -240,14 +246,14 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
+					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),
+			}),*/
 		"Invalid encoding in asset name, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
-			"0061 0073 0073 0065 0074",
+			"\\u0061\\u0073\\u0073\\u0065\\u0074",
 			"test",
 			10000,
 			2,
@@ -260,12 +266,12 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
+					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid encoding in asset description, not miner": *NewIssueTestData(
+		/*"Invalid encoding in asset description, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"test",
 			"0061 0073 0073 0065 0074",
@@ -634,12 +640,12 @@ func getNegativeDataMatrix(suite *ItestSuite) map[string]IssueTestData {
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),
+			}),*/
 	}
 	return t
 }
 
-func newSignIssueTransaction(suite *ItestSuite, testdata IssueTestData) *proto.IssueWithSig {
+func newSignIssueTransaction(suite *IssueTxSuite, testdata IssueTestData) *proto.IssueWithSig {
 	tx := proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
 		testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
@@ -647,93 +653,98 @@ func newSignIssueTransaction(suite *ItestSuite, testdata IssueTestData) *proto.I
 	return tx
 }
 
-func sendAndWaitTransaction(suite *ItestSuite, tx *proto.IssueWithSig, timeout time.Duration) (error, error) {
+func sendAndWaitTransaction(suite *IssueTxSuite, tx *proto.IssueWithSig, timeout time.Duration) (error, error) {
 	bts, err := tx.MarshalBinary()
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	suite.conns.SendToEachNode(suite.T(), &txMsg)
+	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
-	err_go, err_scala := suite.clients.WaitForTransaction(suite.T(), tx.ID, timeout)
-	return err_go, err_scala
+	errGo, errScala := suite.Clients.WaitForTransaction(suite.T(), tx.ID, timeout)
+	return errGo, errScala
 }
 
-func issue(suite *ItestSuite, testdata IssueTestData, timeout time.Duration) (*proto.IssueWithSig, error, error) {
+func issue(suite *IssueTxSuite, testdata IssueTestData, timeout time.Duration) (*proto.IssueWithSig, error, error) {
 	tx := newSignIssueTransaction(suite, testdata)
-	err_go, err_scala := sendAndWaitTransaction(suite, tx, timeout)
-	return tx, err_go, err_scala
+	errGo, errScala := sendAndWaitTransaction(suite, tx, timeout)
+	return tx, errGo, errScala
 }
 
-func (suite *ItestSuite) Test_IssueTxPositive() {
+func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	testdata := getPositiveDataMatrix(suite)
 	timeout := 1 * time.Minute
 	for name, td := range testdata {
-		init_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		initBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 
-		tx, err_go, err_scala := issue(suite, td, timeout)
+		tx, errGo, errScala := issue(suite, td, timeout)
 
-		current_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
-		actual_diff_balance_in_waves := init_balance_in_waves - current_balance_in_waves
-		actual_asset_balance := getAssetBalance(suite, td.Account.Address, tx.ID.Bytes())
+		currentBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
+		actualAssetBalance := getAssetBalance(suite, td.Account.Address, tx.ID.Bytes())
 
-		expected_diff_balance_in_waves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		expected_asset_balance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
+		expectedDiffBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
+		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		suite.NoErrorf(err_go, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(err_scala, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expected_diff_balance_in_waves, actual_diff_balance_in_waves, "In case: \"%s\"", name)
-		suite.Equalf(expected_asset_balance, actual_asset_balance, "In case: \"%s\"", name)
+		suite.NoErrorf(errGo, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "In case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAssetBalance, "In case: \"%s\"", name)
 	}
 }
 
-func (suite *ItestSuite) Test_IssueTxWithSameDataPositive() {
+func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	testdata := getPositiveDataMatrix(suite)
 	timeout := 1 * time.Minute
 	for name, td := range testdata {
-		init_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		initBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 
-		tx1, err_go1, err_scala1 := issue(suite, td, timeout)
-		tx2, err_go2, err_scala2 := issue(suite, dataChangedTimestamp(td), timeout)
+		tx1, errGo1, errScala1 := issue(suite, td, timeout)
+		tx2, errGo2, errScala2 := issue(suite, dataChangedTimestamp(td), timeout)
 
-		current_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
-		actual_diff_balance_in_waves := init_balance_in_waves - current_balance_in_waves
-		actual_asset_1_balance := getAssetBalance(suite, td.Account.Address, tx1.ID.Bytes())
-		actual_asset_2_balance := getAssetBalance(suite, td.Account.Address, tx2.ID.Bytes())
-		diff_balance_in_waves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		expected_diff_balance_in_waves := 2 * diff_balance_in_waves
-		expected_asset_balance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
+		currentBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
+		actualAsset1Balance := getAssetBalance(suite, td.Account.Address, tx1.ID.Bytes())
+		actualAsset2Balance := getAssetBalance(suite, td.Account.Address, tx2.ID.Bytes())
+		diffBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
+		expectedDiffBalanceInWaves := 2 * diffBalanceInWaves
+		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		suite.NoErrorf(err_go1, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(err_scala1, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.NoErrorf(err_go2, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(err_scala2, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expected_diff_balance_in_waves, actual_diff_balance_in_waves, "In case: \"%s\"", name)
-		suite.Equalf(expected_asset_balance, actual_asset_1_balance, "In case: \"%s\"", name)
-		suite.Equalf(expected_asset_balance, actual_asset_2_balance, "In case: \"%s\"", name)
+		suite.NoErrorf(errGo1, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala1, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.NoErrorf(errGo2, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala2, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "In case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAsset1Balance, "In case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAsset2Balance, "In case: \"%s\"", name)
 	}
 }
 
-func (suite *ItestSuite) Test_IssueTxNegative() {
+func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	testdata := getNegativeDataMatrix(suite)
 	timeout := 2 * time.Second
-	var tx_ids []*crypto.Digest
+	var txIds []*crypto.Digest
 	for name, td := range testdata {
-		init_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		initBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 
-		tx, err_go, err_scala := issue(suite, td, timeout)
-		tx_ids = append(tx_ids, tx.ID)
+		tx, errGo, errScala := issue(suite, td, timeout)
+		txIds = append(txIds, tx.ID)
 
-		current_balance_in_waves := getAvalibleBalanceInWaves(suite, td.Account.Address)
-		actual_balance_in_waves := init_balance_in_waves - current_balance_in_waves
-		actual_asset_balance := getAssetBalance(suite, td.Account.Address, tx.ID.Bytes())
+		currentBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
+		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
+		actualAssetBalance := getAssetBalance(suite, td.Account.Address, tx.ID.Bytes())
 
-		expected_balance_in_waves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		expected_asset_balance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
+		expectedBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
+		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		assert.EqualErrorf(suite.T(), err_go, td.Expected["err go msg"], "In case: \"%s\"", name)
-		assert.EqualErrorf(suite.T(), err_scala, td.Expected["err scala msg"], "In case: \"%s\"", name)
-		suite.Equalf(expected_balance_in_waves, actual_balance_in_waves, "In case: \"%s\"", name)
-		suite.Equalf(expected_asset_balance, actual_asset_balance, "In case: \"%s\"", name)
+		assert.EqualErrorf(suite.T(), errGo, td.Expected["err go msg"], "In case: \"%s\"", name)
+		assert.EqualErrorf(suite.T(), errScala, td.Expected["err scala msg"], "In case: \"%s\"", name)
+		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "In case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAssetBalance, "In case: \"%s\"", name)
 	}
-	suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, tx_ids, 45*timeout)), "IDs: %#v", tx_ids)
+	suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, txIds, 45*timeout)), "IDs: %#v", txIds)
+}
+
+func TestIssueTxSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(IssueTxSuite))
 }
