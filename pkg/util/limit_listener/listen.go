@@ -16,9 +16,9 @@ func LimitListener(l net.Listener, n int) net.Listener {
 		sem:      make(chan struct{}, n),
 		done:     make(chan struct{}),
 
-		nextConnID:         0,
-		connMap:            newConnectionsMap(),
-		minReadOperTimeout: 1 * time.Second,
+		nextConnID:           0,
+		connMap:              newConnectionsMap(),
+		waitConnQuotaTimeout: 1 * time.Second,
 	}
 }
 
@@ -28,9 +28,9 @@ type limitListener struct {
 	closeOnce sync.Once     // ensures the done chan is only closed once
 	done      chan struct{} // no values sent; closed when Close is called
 
-	nextConnID         connectionID
-	minReadOperTimeout time.Duration
-	connMap            *connectionsMap
+	nextConnID           connectionID
+	waitConnQuotaTimeout time.Duration
+	connMap              *connectionsMap
 }
 
 func newConnectionsMap() *connectionsMap {
@@ -48,22 +48,24 @@ type connectionsMap struct {
 func (m *connectionsMap) setReadOperation(conn *limitListenerConn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	// In order to change insertion order we need to Delete before Set
 	m.Delete(conn.id)
 	m.Set(conn.id, &connMapElem{conn: conn, lastReadOperation: time.Now()})
 }
 
 func (m *connectionsMap) removeOldestConnection() {
-	m.mu.Lock()
 
+	m.mu.Lock()
 	el := m.Front()
 	if el == nil {
+		m.mu.Unlock()
 		return
 	}
-
+	m.Delete(el.Value.conn.id)
 	m.mu.Unlock()
-	el.Value.conn.Close()
-	println("closed force")
+
+	_ = el.Value.conn.Close()
 }
 
 func (m *connectionsMap) removeConnection(conn *limitListenerConn) {
@@ -90,12 +92,20 @@ func (l *limitListener) getNewConnID() connectionID {
 // acquired.
 func (l *limitListener) acquire() bool {
 	for {
+		timer := time.NewTimer(l.waitConnQuotaTimeout)
+		stopTimer := func() {
+			if !timer.Stop() {
+				<-timer.C
+			}
+		}
 		select {
 		case <-l.done:
+			stopTimer()
 			return false
 		case l.sem <- struct{}{}:
+			stopTimer()
 			return true
-		case <-time.After(l.minReadOperTimeout):
+		case <-timer.C:
 			l.closeForce()
 		}
 	}
@@ -132,7 +142,7 @@ func (l *limitListener) Accept() (net.Conn, error) {
 			if err != nil {
 				return nil, err
 			}
-			c.Close()
+			_ = c.Close()
 		}
 	}
 
