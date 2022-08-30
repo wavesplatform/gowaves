@@ -18,22 +18,22 @@ const (
 type EvaluationError uint
 
 type evaluationError struct {
-	errorType       EvaluationError
-	originalError   error
-	callStack       []string
-	spentComplexity int
+	ErrorType       EvaluationError
+	OriginalError   error
+	CallStack       []string
+	SpentComplexity int
 }
 
 func (e evaluationError) Error() string {
-	return e.originalError.Error()
+	return e.OriginalError.Error()
 }
 
 func (e EvaluationError) New(msg string) error {
-	return evaluationError{errorType: e, originalError: errors.New(msg)}
+	return evaluationError{ErrorType: e, OriginalError: errors.New(msg)}
 }
 
 func (e EvaluationError) Errorf(msg string, args ...interface{}) error {
-	return evaluationError{errorType: e, originalError: errors.Errorf(msg, args...)}
+	return evaluationError{ErrorType: e, OriginalError: errors.Errorf(msg, args...)}
 }
 
 func (e EvaluationError) Wrap(err error, msg string) error {
@@ -41,33 +41,33 @@ func (e EvaluationError) Wrap(err error, msg string) error {
 }
 
 func (e EvaluationError) Wrapf(err error, msg string, args ...interface{}) error {
-	return evaluationError{errorType: e, originalError: errors.Wrapf(err, msg, args...)}
+	return evaluationError{ErrorType: e, OriginalError: errors.Wrapf(err, msg, args...)}
 }
 
 func GetEvaluationErrorType(err error) EvaluationError {
 	if ee, ok := err.(evaluationError); ok {
-		return ee.errorType
+		return ee.ErrorType
 	}
 	return Undefined
 }
 
 func EvaluationErrorCallStack(err error) []string {
 	if ee, ok := err.(evaluationError); ok {
-		return ee.callStack
+		return ee.CallStack
 	}
 	return nil
 }
 
 func EvaluationErrorSpentComplexity(err error) int {
 	if ee, ok := err.(evaluationError); ok {
-		return ee.spentComplexity
+		return ee.SpentComplexity
 	}
 	return 0
 }
 
 func EvaluationErrorPush(err error, format string, args ...interface{}) error {
 	if ee, ok := err.(evaluationError); ok {
-		ee.callStack = append([]string{fmt.Sprintf(format, args...)}, ee.callStack...)
+		ee.CallStack = append([]string{fmt.Sprintf(format, args...)}, ee.CallStack...)
 		return ee
 	}
 	return errors.Wrapf(err, format, args...)
@@ -75,7 +75,7 @@ func EvaluationErrorPush(err error, format string, args ...interface{}) error {
 
 func EvaluationErrorSetComplexity(err error, complexity int) error {
 	if ee, ok := err.(evaluationError); ok {
-		ee.spentComplexity = complexity
+		ee.SpentComplexity = complexity
 		return ee
 	}
 	return err

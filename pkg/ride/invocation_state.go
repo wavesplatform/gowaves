@@ -26,7 +26,7 @@ func (s *AnyScriptInvocationState) marshalTo(enc *gob.Encoder) error {
 	if s.Err != nil {
 		switch err := s.Err.(type) {
 		case evaluationError:
-			err.originalError = errorString{err.originalError.Error()}
+			err.OriginalError = errorString{err.OriginalError.Error()}
 			transformedErr = err
 		default:
 			transformedErr = errorString{err.Error()}
