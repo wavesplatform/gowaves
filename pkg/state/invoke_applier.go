@@ -627,7 +627,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	// Resolve all aliases.
 	// It has to be done before validation because we validate addresses, not aliases.
 	if err := ia.resolveAliases(info.actions); err != nil {
-		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
+		return proto.DAppError, info.failedChanges, errors.New("failed to resolve aliases")
 	}
 	// Validate produced actions.
 	isUTF16KeyLen := !info.blockV5Activated // if RideV4 isn't activated

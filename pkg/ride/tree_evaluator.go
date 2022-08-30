@@ -202,13 +202,13 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 
 	switch res := r.(type) {
 	case rideBoolean:
-		return ScriptResult{res: bool(res), complexity: e.complexity()}, nil
+		return scriptExecutionResult{Res: bool(res), SpentComplexity: e.complexity()}, nil
 	case rideScriptResult, rideWriteSet, rideTransferSet:
 		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{actions: a, complexity: e.complexity()}, nil
+		return dAppResult{Actions: a, SpentComplexity: e.complexity()}, nil
 	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
@@ -218,7 +218,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 			}
 			actions = append(actions, a)
 		}
-		return DAppResult{actions: actions, complexity: e.complexity()}, nil
+		return dAppResult{Actions: actions, SpentComplexity: e.complexity()}, nil
 	case tuple2:
 		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
@@ -233,7 +233,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 		default:
 			return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 		}
-		return DAppResult{actions: actions, param: res.el2, complexity: e.complexity()}, nil
+		return dAppResult{Actions: actions, param: res.el2, SpentComplexity: e.complexity()}, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 	}

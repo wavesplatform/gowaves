@@ -99,10 +99,10 @@ func initGOBForAnyScriptInvocationState() {
 		error(evaluationError{}),
 		error(errorString{}),
 		// ok results
-		// in these results no need to marshal/unmarshal DAppResult.param or ScriptResult.param
+		// in these results no need to marshal/unmarshal dAppResult.param or scriptExecutionResult.param
 		// because we use it only in invoke() or reentrantInvoke(), so it's always nil in the end of script/DApp execution
-		Result(DAppResult{}),
-		Result(ScriptResult{}),
+		Result(dAppResult{}),
+		Result(scriptExecutionResult{}),
 		// Actions
 		proto.ScriptAction(&proto.AttachedPaymentScriptAction{}),
 		proto.ScriptAction(&proto.TransferScriptAction{}),

@@ -72,7 +72,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		require.NotNil(t, res, test.comment)
 
-		r, ok := res.(ScriptResult)
+		r, ok := res.(scriptExecutionResult)
 		assert.True(t, ok, test.comment)
 		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
@@ -259,7 +259,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		} else {
 			require.NoError(t, err, "Unexpected error in: "+test.name)
 			assert.NotNil(t, res, test.name)
-			r, ok := res.(ScriptResult)
+			r, ok := res.(scriptExecutionResult)
 			assert.True(t, ok, test.name)
 			assert.Equal(t, test.result, r.Result(), test.name)
 		}
@@ -279,7 +279,7 @@ func TestOverlapping(t *testing.T) {
 
 	res, err := CallVerifier(newTestEnv(t).withComplexityLimit(ast.LibV3, 2000).toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -300,7 +300,7 @@ func TestInvokeExpression(t *testing.T) {
 	res, err := CallVerifier(env, tree)
 	require.NoError(t, err)
 	require.NotNil(t, res.ScriptActions())
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -317,7 +317,7 @@ func TestUserFunctionsInExpression(t *testing.T) {
 
 	res, err := CallVerifier(newTestEnv(t).withComplexityLimit(ast.LibV5, 2000).toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -347,7 +347,7 @@ func TestDataFunctions(t *testing.T) {
 
 		res, err := CallVerifier(env, tree)
 		require.NoError(t, err, test.name)
-		r, ok := res.(ScriptResult)
+		r, ok := res.(scriptExecutionResult)
 		require.True(t, ok, test.name)
 		assert.Equal(t, test.result, r.Result(), test.name)
 	}
@@ -392,10 +392,10 @@ func TestDappDefaultFunc(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
@@ -453,7 +453,7 @@ func TestDappVerify(t *testing.T) {
 
 	res, err := CallVerifier(env, tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.False(t, r.Result())
 }
@@ -480,7 +480,7 @@ func TestDappVerifySuccessful(t *testing.T) {
 
 	res, err := CallVerifier(env, tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -503,7 +503,7 @@ func TestTransferSet(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100500)})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	scriptTransfer := proto.TransferScriptAction{
@@ -512,7 +512,7 @@ func TestTransferSet(t *testing.T) {
 		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.NoError(t, err)
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
@@ -551,10 +551,10 @@ func TestScriptResult(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100)})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	scriptTransfer := proto.TransferScriptAction{
@@ -639,7 +639,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedIssueWrites := []*proto.IssueScriptAction{
@@ -683,7 +683,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
 	assetIDIssue := expectedIssueWrites[0].ID
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
@@ -807,7 +807,7 @@ func TestInvokeBalanceValidationV6(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
@@ -821,7 +821,7 @@ func TestInvokeBalanceValidationV6(t *testing.T) {
 		{Sender: dApp2.publicKeyRef(), Recipient: dApp1.recipient(), Amount: 2000, Nonce: 0},
 	}
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
@@ -980,7 +980,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -988,7 +988,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
@@ -1072,7 +1072,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
@@ -1087,7 +1087,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
@@ -1187,7 +1187,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -1204,7 +1204,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 		{Sender: dApp1.publicKeyRef(), Recipient: dApp2.recipient(), Amount: 18, Asset: proto.OptionalAsset{}},
 	}
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 
@@ -1380,7 +1380,7 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -1396,7 +1396,7 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 		{Sender: dApp2.publicKeyRef(), Recipient: dApp1.recipient(), Amount: 3, Asset: proto.OptionalAsset{}},
 	}
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
@@ -1523,10 +1523,10 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	_, _, err = proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDiffResult := newDiffState(nil)
@@ -1625,10 +1625,10 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -1809,10 +1809,10 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -1927,10 +1927,10 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -2022,10 +2022,10 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -2313,10 +2313,10 @@ func TestActionsLimitInOneInvokeV5(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "bar", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	_, _, err = proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	/* script 2.2
@@ -2455,10 +2455,10 @@ func TestHashScriptFunc(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -2503,10 +2503,10 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "foo", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -2563,7 +2563,7 @@ func TestMatchOverwrite(t *testing.T) {
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -2588,7 +2588,7 @@ func TestFailSript1(t *testing.T) {
 
 	res, err := CallVerifier(te.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -2669,7 +2669,7 @@ func TestFailSript2(t *testing.T) {
 
 	res, err := CallVerifier(te.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -2737,10 +2737,10 @@ func TestWhaleDApp(t *testing.T) {
 
 	res, err := CallFunction(te.toEnv(), tree, "inviteuser", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -2820,10 +2820,10 @@ func TestExchangeDApp(t *testing.T) {
 
 	res, err := CallFunction(te.toEnv(), tree, "cancel", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
@@ -2935,7 +2935,7 @@ func TestBankDApp(t *testing.T) {
 
 	res, err := CallFunction(te.toEnv(), tree, "buyBack", proto.Arguments{})
 	require.NoError(t, err)
-	_, ok := res.(DAppResult)
+	_, ok := res.(dAppResult)
 	require.True(t, ok)
 }
 
@@ -3017,10 +3017,10 @@ func TestLigaDApp1(t *testing.T) {
 
 	res, err := CallFunction(te.toEnv(), tree, "stage2", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -3123,10 +3123,10 @@ func TestLigaDApp1(t *testing.T) {
 
 	res, err = CallFunction(te2.toEnv(), tree, "stage31", args2)
 	require.NoError(t, err)
-	r, ok = res.(DAppResult)
+	r, ok = res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err = proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataWrites = []*proto.DataEntryScriptAction{
@@ -3206,10 +3206,10 @@ func TestTestingDApp(t *testing.T) {
 
 	res, err := CallFunction(te.toEnv(), tree, "main", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -3241,10 +3241,10 @@ func TestDropElementDApp(t *testing.T) {
 	arguments := proto.Arguments{&proto.StringArgument{Value: "aaa,bbb,ccc"}, &proto.StringArgument{Value: "ccc"}}
 	res, err := CallFunction(env.toEnv(), tree, "dropElementInArray", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -3282,10 +3282,10 @@ func TestMathDApp(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "coxRossRubinsteinCall", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3324,10 +3324,10 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "deposit", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3369,10 +3369,10 @@ func Test8Ball(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "tellme", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3422,7 +3422,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 
 	res, err := CallVerifier(env.toEnv(), treeV3)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 
@@ -3438,7 +3438,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env = env.withComplexityLimit(ast.LibV4, 2000).withTree(issuer, treeV4)
 	res, err = CallVerifier(env.toEnv(), treeV4)
 	require.NoError(t, err)
-	r, ok = res.(ScriptResult)
+	r, ok = res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -3448,7 +3448,7 @@ func TestJSONParsing(t *testing.T) {
 	env := newTestEnv(t).withTakeStringV5().withComplexityLimit(ast.LibV4, 2000)
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -3458,7 +3458,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 	env := newTestEnv(t).withTransactionID(crypto.Digest{}).withComplexityLimit(ast.LibV4, 2000)
 	res, err := CallFunction(env.toEnv(), tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 	assert.Equal(t, 1, len(r.ScriptActions()))
 	a := r.ScriptActions()[0]
@@ -3473,7 +3473,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	env := newTestEnv(t).withTransactionID(crypto.Digest{}).withComplexityLimit(ast.LibV4, 2000)
 	res, err := CallFunction(env.toEnv(), tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 	assert.Equal(t, 1, len(r.ScriptActions()))
 	a := r.ScriptActions()[0]
@@ -3499,10 +3499,10 @@ func TestBadType(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "initDraw", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3554,10 +3554,10 @@ func TestNoDeclaration(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "settle", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3616,10 +3616,10 @@ func TestZeroReissue(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "replenishment", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3671,10 +3671,10 @@ func TestStageNet2(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "purchaseToken", arguments)
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3741,7 +3741,7 @@ func TestRecipientAddressToString(t *testing.T) {
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
@@ -3781,7 +3781,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
+	r, ok := res.(scriptExecutionResult)
 	require.True(t, ok)
 	require.True(t, r.Result())
 }
@@ -3804,10 +3804,10 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree, "swapRKMTToWAVES", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3880,10 +3880,10 @@ func TestOriginCaller(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 
@@ -3964,7 +3964,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	// No error is expected in this case
 	require.NoError(t, err)
-	require.IsType(t, DAppResult{}, res)
+	require.IsType(t, dAppResult{}, res)
 
 	// Switch on internal payments validation and reset wrapped state
 	env = env.withValidateInternalPayments().withWrappedState()
@@ -4022,10 +4022,10 @@ func TestAliasesInInvokes(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedResult := &proto.ScriptResult{
@@ -4112,11 +4112,11 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	nftOA := proto.NewOptionalAssetFromDigest(nft)
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*proto.AttachedPaymentScriptAction{{Sender: dApp1.publicKeyRef(), Recipient: dApp3.recipient(), Amount: 1, Asset: *nftOA}}, ap)
 	expectedResult := &proto.ScriptResult{
@@ -4296,11 +4296,11 @@ func TestReissueInInvoke(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
 	optionalAsset := proto.NewOptionalAssetFromDigest(asset)
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(ap))
 	expectedResult := &proto.ScriptResult{
@@ -4356,10 +4356,10 @@ func TestNegativePayments(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
-	r, ok := res.(DAppResult)
+	r, ok := res.(dAppResult)
 	require.True(t, ok)
 
-	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(ap))
 	assert.Equal(t, []*proto.AttachedPaymentScriptAction{{Sender: dApp1.publicKeyRef(), Recipient: dApp2.recipient(), Amount: -100000000, Asset: proto.NewOptionalAssetWaves()}}, ap)
@@ -5070,10 +5070,10 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 	callAndCheckResults := func() {
 		res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 		require.NoError(t, err)
-		r, ok := res.(DAppResult)
+		r, ok := res.(dAppResult)
 		require.True(t, ok)
 
-		sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+		sr, ap, err := proto.NewScriptResult(r.Actions, proto.ScriptErrorMessage{})
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(ap))
 		assert.Equal(t, expectedAttachedPaymentActions, ap)

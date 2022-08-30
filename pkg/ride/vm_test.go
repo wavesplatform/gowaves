@@ -73,7 +73,7 @@ func TestExecution(t *testing.T) {
 		res, err := script.Run(env)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, res, test.comment)
-		r, ok := res.(ScriptResult)
+		r, ok := res.(scriptExecutionResult)
 		assert.True(t, ok, test.comment)
 		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
@@ -365,7 +365,7 @@ func TestFunctions(t *testing.T) {
 		} else {
 			require.NoError(t, err, "Unexpected error in: "+test.name)
 			assert.NotNil(t, res, test.name)
-			r, ok := res.(ScriptResult)
+			r, ok := res.(scriptExecutionResult)
 			assert.True(t, ok, test.name)
 			assert.Equal(t, test.result, r.Result(), test.name)
 		}
@@ -384,7 +384,7 @@ func BenchmarkSimplestScript(b *testing.B) {
 		assert.NotNil(b, prg)
 		res, err := prg.Run(nil)
 		require.NoError(b, err)
-		r := res.(ScriptResult)
+		r := res.(scriptExecutionResult)
 		assert.True(b, r.Result())
 	}
 }
@@ -414,7 +414,7 @@ func BenchmarkEval(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		res, err := prg.Run(nil) //TODO: pass real value
 		require.NoError(b, err)
-		r := res.(ScriptResult)
+		r := res.(scriptExecutionResult)
 		assert.True(b, r.Result())
 	}
 }

@@ -30,7 +30,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	// so result of the execution and spent complexity should be considered outside.
 	rideResult, err := e.evaluate()
 	if err != nil {
-		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
+		// Evaluation failed we have to return a dAppResult that contains spent execution complexity
 		// Produced actions are not stored for failed transactions, no need to return them here
 		et := GetEvaluationErrorType(err)
 		if et == Undefined {
@@ -43,7 +43,7 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 		}
 		return nil, EvaluationErrorSetComplexity(err, e.complexity())
 	}
-	dAppResult, ok := rideResult.(DAppResult)
+	result, ok := rideResult.(dAppResult)
 	if !ok { // Unexpected result type
 		return nil, EvaluationErrorSetComplexity(
 			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
@@ -56,8 +56,8 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 	}
 	// Add actions from wrapped state
 	// Append actions of the original call to the end of actions collected in wrapped state
-	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)
-	return dAppResult, nil
+	result.Actions = append(wrappedStateActions(env.state()), result.Actions...)
+	return result, nil
 }
 
 func wrappedStateActions(state types.SmartState) []proto.ScriptAction {

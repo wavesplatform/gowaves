@@ -9,46 +9,46 @@ type Result interface {
 	userResult() rideType
 }
 
-type ScriptResult struct {
-	res        bool
-	param      rideType
-	complexity int
+type scriptExecutionResult struct {
+	Res             bool
+	SpentComplexity int
+	param           rideType
 }
 
-func (r ScriptResult) Result() bool {
-	return r.res
+func (r scriptExecutionResult) Result() bool {
+	return r.Res
 }
 
-func (r ScriptResult) userResult() rideType {
+func (r scriptExecutionResult) userResult() rideType {
 	return r.param
 }
 
-func (r ScriptResult) ScriptActions() []proto.ScriptAction {
+func (r scriptExecutionResult) ScriptActions() []proto.ScriptAction {
 	return nil
 }
 
-func (r ScriptResult) Complexity() int {
-	return r.complexity
+func (r scriptExecutionResult) Complexity() int {
+	return r.SpentComplexity
 }
 
-type DAppResult struct {
-	actions    []proto.ScriptAction
-	param      rideType
-	complexity int
+type dAppResult struct {
+	Actions         []proto.ScriptAction
+	SpentComplexity int
+	param           rideType
 }
 
-func (r DAppResult) Result() bool {
+func (r dAppResult) Result() bool {
 	return true
 }
 
-func (r DAppResult) userResult() rideType {
+func (r dAppResult) userResult() rideType {
 	return r.param
 }
 
-func (r DAppResult) ScriptActions() []proto.ScriptAction {
-	return r.actions
+func (r dAppResult) ScriptActions() []proto.ScriptAction {
+	return r.Actions
 }
 
-func (r DAppResult) Complexity() int {
-	return r.complexity
+func (r dAppResult) Complexity() int {
+	return r.SpentComplexity
 }

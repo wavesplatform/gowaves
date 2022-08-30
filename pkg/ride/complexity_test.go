@@ -76,7 +76,7 @@ func TestSimpleScriptsComplexity(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		require.NotNil(t, res, test.comment)
 
-		r, ok := res.(ScriptResult)
+		r, ok := res.(scriptExecutionResult)
 		assert.True(t, ok, test.comment)
 		assert.Equal(t, test.complexity, r.Complexity(), test.comment)
 	}
