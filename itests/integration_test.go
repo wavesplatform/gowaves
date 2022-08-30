@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,19 +33,19 @@ func (suite *ItestSuite) SetupSuite() {
 	suite.NoError(err, "couldn't create config")
 	suite.cfg = cfg
 
-	docker, err := d.NewDocker()
+	suiteName := strings.ToLower(suite.T().Name())
+	docker, err := d.NewDocker(suiteName)
 	suite.NoError(err, "couldn't create docker pool")
 	suite.docker = docker
-	err = docker.RunContainers(suite.mainCtx, paths)
+
+	ports, err := docker.RunContainers(suite.mainCtx, paths, suiteName)
 	if err != nil {
 		docker.Finish(suite.cancel)
 		suite.NoError(err, "couldn't run docker containers")
 	}
-	suite.conns = net.NewNodeConnections(suite.T())
-	suite.clients = &node_client.NodesClients{
-		GoClients:    node_client.NewNodeClient(suite.T(), d.ScalaNodeRESTApiPort, d.ScalaNodeGrpsApiPort),
-		ScalaClients: node_client.NewNodeClient(suite.T(), d.GoNodeRESTApiPort, d.GoNodeGrpsApiPort),
-	}
+
+	suite.conns = net.NewNodeConnections(suite.T(), ports)
+	suite.clients = node_client.NewNodesClients(suite.T(), ports)
 }
 
 func (suite *ItestSuite) TearDownSuite() {
@@ -82,6 +83,17 @@ func (suite *ItestSuite) Test_SendTransaction() {
 	suite.Equal(suite.cfg.Accounts[3].Amount+1000000000, uint64(b.GetAvailable()))
 }
 
-func TestItestSuite(t *testing.T) {
+func TestItest1Suite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(ItestSuite))
+}
+
+func TestItest2Suite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(ItestSuite))
+}
+
+func TestItest3Suite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(ItestSuite))
 }

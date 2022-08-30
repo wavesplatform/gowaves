@@ -19,21 +19,19 @@ import (
 const (
 	Localhost = "0.0.0.0"
 
-	GoNodeRESTApiPort = "6872"
-	GoNodeGrpsApiPort = "6871"
-	GoNodeBindPort    = "6873"
-
-	ScalaNodeRESTApiPort = "6869"
-	ScalaNodeGrpsApiPort = "6870"
-	ScalaNodeBindPort    = "6868"
-
 	tcp = "/tcp"
 
 	DefaultTimeout = 16 * time.Second
 
 	scalaContainerName = "scala-node"
 	goContainerName    = "go-node"
-	networkName        = "waves_it_network"
+	networkName        = "waves-it-network"
+)
+
+const (
+	RESTApiPort = "6869"
+	GrpcApiPort = "6870"
+	BindPort    = "6868"
 )
 
 const (
@@ -46,6 +44,17 @@ const (
 	walletPath = "wallet"
 )
 
+type Ports struct {
+	Go    *PortConfig
+	Scala *PortConfig
+}
+
+type PortConfig struct {
+	RestApiPort string
+	GrpcPort    string
+	BindPort    string
+}
+
 type Docker struct {
 	pool         *dockertest.Pool
 	network      *dockertest.Network
@@ -55,38 +64,38 @@ type Docker struct {
 	scalaLogFile *os.File
 }
 
-func NewDocker() (*Docker, error) {
+func NewDocker(suiteName string) (*Docker, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, err
 	}
-	err = removeExistsContainers(pool)
+	err = removeExistsContainers(pool, suiteName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to remove old containers")
 	}
-	net, err := pool.CreateNetwork(networkName)
+	net, err := pool.CreateNetwork(suiteName + "-" + networkName)
 	if err != nil {
 		return nil, err
 	}
 	return &Docker{pool: pool, network: net}, nil
 }
 
-func removeExistsContainers(pool *dockertest.Pool) error {
-	res, exist := pool.ContainerByName(goContainerName)
+func removeExistsContainers(pool *dockertest.Pool, suiteName string) error {
+	res, exist := pool.ContainerByName(suiteName + "-" + goContainerName)
 	if exist {
 		err := pool.Purge(res)
 		if err != nil {
 			return err
 		}
 	}
-	res, exist = pool.ContainerByName(scalaContainerName)
+	res, exist = pool.ContainerByName(suiteName + "-" + scalaContainerName)
 	if exist {
 		err := pool.Purge(res)
 		if err != nil {
 			return err
 		}
 	}
-	net, err := pool.NetworksByName(networkName)
+	net, err := pool.NetworksByName(suiteName + "-" + networkName)
 	if err != nil {
 		return err
 	}
@@ -100,18 +109,31 @@ func removeExistsContainers(pool *dockertest.Pool) error {
 	return nil
 }
 
-func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths) error {
-	goNodeRes, err := d.runGoNode(ctx, paths.GoConfigPath)
+func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, suiteName string) (*Ports, error) {
+	pwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return nil, err
+	}
+	err = os.MkdirAll(filepath.Join(pwd, logDir, suiteName), os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	goNodeRes, goPorts, err := d.runGoNode(ctx, paths.GoConfigPath, suiteName)
+	if err != nil {
+		return nil, err
 	}
 	d.goNode = goNodeRes
-	scalaNodeRes, err := d.runScalaNode(ctx, paths.ScalaConfigPath)
+	scalaNodeRes, scalaPorts, err := d.runScalaNode(ctx, paths.ScalaConfigPath, suiteName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	d.scalaNode = scalaNodeRes
-	return nil
+
+	return &Ports{
+		Go:    goPorts,
+		Scala: scalaPorts,
+	}, nil
 }
 
 func (d *Docker) Finish(cancel context.CancelFunc) {
@@ -142,26 +164,27 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	}
 }
 
-func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {
+func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string) (*dockertest.Resource, *PortConfig, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	opt := &dockertest.RunOptions{
-		Name:     goContainerName,
+		Name:     suiteName + "-" + goContainerName,
 		User:     "gowaves",
 		Hostname: "go-node",
 		Env: []string{
-			"WALLET_PASSWORD=test",
-			"GRPC_ADDR=" + Localhost + ":" + GoNodeGrpsApiPort,
-			"API_ADDR=" + Localhost + ":" + GoNodeRESTApiPort,
+			"GRPC_ADDR=" + Localhost + ":" + GrpcApiPort,
+			"API_ADDR=" + Localhost + ":" + RESTApiPort,
+			"BIND_ADDR=" + Localhost + ":" + BindPort,
+			"DECLARED_ADDR=" + "go-node:" + BindPort,
 			"PEERS=",
 			"WALLET_PASSWORD=itest",
 		},
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			GoNodeGrpsApiPort + tcp: {{HostIP: "localhost", HostPort: GoNodeGrpsApiPort}},
-			GoNodeRESTApiPort + tcp: {{HostIP: "localhost", HostPort: GoNodeRESTApiPort}},
-			GoNodeBindPort + tcp:    {{HostIP: "localhost", HostPort: GoNodeBindPort}},
+		ExposedPorts: []string{
+			GrpcApiPort,
+			RESTApiPort,
+			BindPort,
 		},
 		Mounts: []string{
 			cfgPath + ":/home/gowaves/config",
@@ -171,14 +194,15 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Res
 	}
 	res, err := d.pool.BuildAndRunWithOptions(pwd+dockerfilePath, opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
+		hc.PublishAllPorts = true
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, goNodeLogFileName)))
+	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, suiteName, goNodeLogFileName)))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	go func() {
@@ -200,9 +224,15 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Res
 	}()
 	d.goLogFile = logfile
 
+	portCfg := &PortConfig{
+		RestApiPort: res.GetPort(RESTApiPort + tcp),
+		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
+		BindPort:    res.GetPort(BindPort + tcp),
+	}
+
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
-			BaseUrl: "http://" + Localhost + ":" + GoNodeRESTApiPort + "/",
+			BaseUrl: "http://" + Localhost + ":" + portCfg.RestApiPort + "/",
 			Client:  &http.Client{Timeout: DefaultTimeout},
 			ApiKey:  "itest-api-key",
 		})
@@ -213,22 +243,17 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string) (*dockertest.Res
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return res, nil
+	return res, portCfg, nil
 }
 
-func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.Resource, error) {
+func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName string) (*dockertest.Resource, *PortConfig, error) {
 	opt := &dockertest.RunOptions{
 		Repository: "wavesplatform/wavesnode",
-		Name:       scalaContainerName,
+		Name:       suiteName + "-" + scalaContainerName,
 		Tag:        "latest",
 		Hostname:   "scala-node",
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			ScalaNodeGrpsApiPort + tcp: {{HostIP: "localhost", HostPort: ScalaNodeGrpsApiPort}},
-			ScalaNodeRESTApiPort + tcp: {{HostIP: "localhost", HostPort: ScalaNodeRESTApiPort}},
-			ScalaNodeBindPort + tcp:    {{HostIP: "localhost", HostPort: ScalaNodeBindPort}},
-		},
 		Mounts: []string{
 			cfgPath + ":/etc/waves",
 		},
@@ -236,25 +261,35 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.
 			"WAVES_LOG_LEVEL=DEBUG",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
-				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + GoNodeBindPort,
+				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + BindPort + " " +
+				"-Dwaves.network.declared-address=scala-node:" + BindPort + " " +
+				"-Dwaves.network.port=" + BindPort + " " +
+				"-Dwaves.rest-api.port=" + RESTApiPort + " " +
+				"-Dwaves.grpc.port=" + GrpcApiPort,
+		},
+		ExposedPorts: []string{
+			GrpcApiPort,
+			RESTApiPort,
+			BindPort,
 		},
 		Networks: []*dockertest.Network{d.network},
 	}
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	res, err := d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
+		hc.PublishAllPorts = true
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, scalaNodeLogFileName)))
+	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, suiteName, scalaNodeLogFileName)))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	go func() {
@@ -276,9 +311,15 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.
 	}()
 	d.scalaLogFile = logfile
 
+	portCfg := &PortConfig{
+		RestApiPort: res.GetPort(RESTApiPort + tcp),
+		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
+		BindPort:    res.GetPort(BindPort + tcp),
+	}
+
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
-			BaseUrl: "http://" + Localhost + ":" + ScalaNodeRESTApiPort + "/",
+			BaseUrl: "http://" + Localhost + ":" + portCfg.RestApiPort + "/",
 			Client:  &http.Client{Timeout: DefaultTimeout},
 			ApiKey:  "itest-api-key",
 		})
@@ -289,8 +330,8 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string) (*dockertest.
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return res, nil
+	return res, portCfg, nil
 }
