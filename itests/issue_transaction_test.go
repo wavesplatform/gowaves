@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/config"
@@ -171,7 +172,7 @@ func getPositiveDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 
 func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		/*"Invalid asset name (len < min), not miner": *NewIssueTestData(
+		"Invalid asset name (len < min), not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"tes",
 			"t",
@@ -250,7 +251,7 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 					"Invalid status code: expect 200 got 404",
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),*/
+			}),
 		"Invalid encoding in asset name, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"\\u0061\\u0073\\u0073\\u0065\\u0074",
@@ -721,13 +722,20 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	testdata := getNegativeDataMatrix(suite)
-	timeout := 2 * time.Second
+	timeout := 1 * time.Second
+
 	var txIds []*crypto.Digest
 	for name, td := range testdata {
 		initBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 
 		tx, errGo, errScala := issue(suite, td, timeout)
 		txIds = append(txIds, tx.ID)
+
+		goHeight := suite.Clients.GoClients.HttpClient.GetHeight(suite.T())
+		fmt.Println(goHeight)
+
+		scalaHeight := suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T())
+		fmt.Println(scalaHeight)
 
 		currentBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
@@ -740,8 +748,10 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		assert.EqualErrorf(suite.T(), errScala, td.Expected["err scala msg"], "In case: \"%s\"", name)
 		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "In case: \"%s\"", name)
 		suite.Equalf(expectedAssetBalance, actualAssetBalance, "In case: \"%s\"", name)
+
+		//time.Sleep(time.Millisecond * 100)
 	}
-	suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, txIds, 45*timeout)), "IDs: %#v", txIds)
+	//suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, txIds, 15*timeout)), "IDs: %#v", txIds)
 }
 
 func TestIssueTxSuite(t *testing.T) {
