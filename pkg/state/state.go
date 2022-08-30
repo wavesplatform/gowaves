@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -487,6 +488,20 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 			return nil, errors.Wrap(err, "failed to apply pre-activated features")
 		}
 	}
+
+	// check the correct blockchain is being loaded
+	genesis, err := state.BlockByHeight(1)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get genesis block from state")
+	}
+	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate genesis block id from config")
+	}
+	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
+		return nil, errors.Errorf("genesis blocks from state and config mismatch")
+	}
+
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
