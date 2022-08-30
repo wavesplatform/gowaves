@@ -487,24 +487,21 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
 			return nil, errors.Wrap(err, "failed to apply pre-activated features")
 		}
-	} else {
-		// if the blockchain isn't empty, then we check that the correct blockchain is being loaded
-		genesis, err := state.BlockByHeight(1)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get genesis block from state")
-		}
-		genesisBts, err := genesis.MarshalBinary()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal genesis from state")
-		}
-		genesisFromConfigBts, err := settings.Genesis.MarshalBinary()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal genesis from config")
-		}
-		if !bytes.Equal(genesisBts, genesisFromConfigBts) {
-			return nil, fmt.Errorf("genesis blocks from state and config mismatch")
-		}
 	}
+
+	// check the correct blockchain is being loaded
+	genesis, err := state.BlockByHeight(1)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get genesis block from state")
+	}
+	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate genesis block id from config")
+	}
+	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
+		return nil, errors.Errorf("genesis blocks from state and config mismatch")
+	}
+
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
