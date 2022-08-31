@@ -10479,8 +10479,6 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
-	//TODO: remove skip
-	t.SkipNow()
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	dApp3 := newTestAccount(t, "DAPP3")   // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
@@ -10540,12 +10538,12 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 	*/
 	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
-		withValidateInternalPayments().withThis(dApp1.address()).
+		withValidateInternalPayments().withThis(dApp1).
 		withDApp(dApp1).withAdditionalDApp(dApp2).withAdditionalDApp(dApp3).withSender(sender).
 		withInvocation("call").
-		withTree(dApp1.address(), tree1).withTree(dApp2.address(), tree2).withTree(dApp3.address(), tree3).
+		withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
 		withWrappedState()
 
@@ -10600,9 +10598,9 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 
 	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
-		withValidateInternalPayments().withThis(dApp1.address()).
+		withValidateInternalPayments().withThis(dApp1).
 		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
-		withInvocation("call").withTree(dApp1.address(), tree).withTree(dApp2.address(), tree).
+		withInvocation("test").withTree(dApp1, tree).withTree(dApp2, tree).
 		withWavesBalance(dApp1, 50_00000000).withWavesBalance(dApp2, 50_00000000).
 		withWrappedState()
 
@@ -10647,9 +10645,9 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 
 	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
-		withValidateInternalPayments().withThis(dApp1.address()).
+		withValidateInternalPayments().withThis(dApp1).
 		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
-		withInvocation("call").withTree(dApp1.address(), tree1).withTree(dApp2.address(), tree2).
+		withInvocation("call").withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
@@ -10725,9 +10723,9 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
-		withValidateInternalPayments().withThis(dApp1.address()).
+		withValidateInternalPayments().withThis(dApp1).
 		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
-		withInvocation("call").withTree(dApp1.address(), tree1).withTree(dApp2.address(), tree2).
+		withInvocation("call").withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 100_00000000, 0, 60_00000000, 40_00000000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 

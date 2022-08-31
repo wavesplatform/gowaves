@@ -303,9 +303,9 @@ func TestOnEdgeComplexity1(t *testing.T) {
 	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAAAAEAAQABAAEAAQABAAEAAQABAAEAAQQLY29tcGxleEludDIDCQBmAgUBbgABCQELdmFsdWVPckVsc2UCCgABQAkA/AcECQEHQWRkcmVzcwEBGgFUcQ97e0JWLZUBUuI05V2T+HgxB8fHAvABAgNmb28JAMwIAgkAZQIFAW4AAQUDbmlsBQNuaWwDCQABAgUBQAIDSW50BQFABQR1bml0AAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCAAEJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAAAQABAAEAAQkAlAoCBQNuaWwJAGQCBQtjb21wbGV4SW50MQULY29tcGxleEludDIApaxBJw==")
 
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
-		withRideV6Activated().withValidateInternalPayments().withThis(dApp.address()).withDApp(dApp).withSender(dApp).
-		withInvocation("foo").withIntegerEntries(dApp.address(), &proto.IntegerDataEntry{Key: "k", Value: 1}).
-		withTree(dApp.address(), tree).withWrappedState().toEnv()
+		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
+		withInvocation("foo").withIntegerEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
+		withTree(dApp, tree).withWrappedState().toEnv()
 
 	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
 	require.EqualError(t, err, "evaluation complexity 52001 exceeds 52000 limit for library version 6")
@@ -337,9 +337,9 @@ func TestOnEdgeComplexity2(t *testing.T) {
 	dApp := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAZyZXN1bHQDCQBmAgUBbgABBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAABAwkAZgIFC2NvbXBsZXhJbnQxAAAJAPwHBAkBB0FkZHJlc3MBARoBVHEPe3tCVi2VAVLiNOVdk/h4MQfHxwLwAQIDZm9vCQDMCAIJAGUCBQFuAAEFA25pbAUDbmlsAAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIAAQkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAKADAQkAdwYJAKcDAQIEMTYyNQACCQCnAwECAjI3AAEAAgUGSEFMRlVQCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAABAAEAAQkAlAoCBQNuaWwFBnJlc3VsdADR0fAN")
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
-		withRideV6Activated().withValidateInternalPayments().withThis(dApp.address()).withDApp(dApp).withSender(dApp).
-		withInvocation("foo").withIntegerEntries(dApp.address(), &proto.IntegerDataEntry{Key: "k", Value: 1}).
-		withTree(dApp.address(), tree).withWrappedState().toEnv()
+		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
+		withInvocation("foo").withIntegerEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
+		withTree(dApp, tree).withWrappedState().toEnv()
 	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
 	require.EqualError(t, err, "evaluation complexity 52001 exceeds 52000 limit for library version 6")
 	assert.Equal(t, GetEvaluationErrorType(err), RuntimeError)

@@ -254,8 +254,8 @@ func (e *testEnv) withValidateInternalPayments() *testEnv {
 	return e
 }
 
-func (e *testEnv) withThis(addr proto.WavesAddress) *testEnv {
-	e.this = addr
+func (e *testEnv) withThis(acc *testAccount) *testEnv {
+	e.this = acc.address()
 	e.me.thisFunc = func() rideType {
 		return rideAddress(e.this)
 	}
@@ -276,6 +276,9 @@ func (e *testEnv) withDApp(acc *testAccount) *testEnv {
 	e.me.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		e.dAppAddr = address
 		e.this = address
+		if e.ws != nil {
+			e.ws.cle = rideAddress(address) // We have to update wrapped state's `cle` if any
+		}
 	}
 	rcp := acc.recipient()
 	e.recipients[rcp.String()] = acc.address()
@@ -344,12 +347,12 @@ func (e *testEnv) withWrappedState() *testEnv {
 	return e
 }
 
-func (e *testEnv) withIntegerEntries(addr proto.WavesAddress, entry *proto.IntegerDataEntry) *testEnv {
-	if m, ok := e.entries[addr]; ok {
+func (e *testEnv) withIntegerEntries(acc *testAccount, entry *proto.IntegerDataEntry) *testEnv {
+	if m, ok := e.entries[acc.address()]; ok {
 		m[entry.Key] = entry
-		e.entries[addr] = m
+		e.entries[acc.address()] = m
 	} else {
-		e.entries[addr] = map[string]proto.DataEntry{entry.Key: entry}
+		e.entries[acc.address()] = map[string]proto.DataEntry{entry.Key: entry}
 	}
 	return e
 }
@@ -380,8 +383,8 @@ func (e *testEnv) withWavesBalance(acc *testAccount, balance int, other ...int) 
 	return e
 }
 
-func (e *testEnv) withTree(addr proto.WavesAddress, tree *ast.Tree) *testEnv {
-	e.trees[addr] = tree
+func (e *testEnv) withTree(acc *testAccount, tree *ast.Tree) *testEnv {
+	e.trees[acc.address()] = tree
 	return e
 }
 
