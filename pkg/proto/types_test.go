@@ -728,9 +728,9 @@ func TestIntegerDataEntryBinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		v := IntegerDataEntry{tc.key, tc.value}
-		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := v.MarshalEntry(); assert.NoError(t, err) {
 			var av IntegerDataEntry
-			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := av.UnmarshalEntry(b); assert.NoError(t, err) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
@@ -779,9 +779,9 @@ func TestBooleanDataEntryBinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		v := BooleanDataEntry{tc.key, tc.value}
-		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := v.MarshalEntry(); assert.NoError(t, err) {
 			var av BooleanDataEntry
-			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := av.UnmarshalEntry(b); assert.NoError(t, err) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
@@ -831,9 +831,9 @@ func TestBinaryDataEntryBinaryRoundTrip(t *testing.T) {
 		bv, err := base58.Decode(tc.value)
 		require.NoError(t, err)
 		v := BinaryDataEntry{tc.key, bv}
-		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := v.MarshalEntry(); assert.NoError(t, err) {
 			var av BinaryDataEntry
-			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := av.UnmarshalEntry(b); assert.NoError(t, err) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.ElementsMatch(t, bv, av.Value)
@@ -884,9 +884,9 @@ func TestStringDataEntryBinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		v := StringDataEntry{tc.key, tc.value}
-		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := v.MarshalEntry(); assert.NoError(t, err) {
 			var av StringDataEntry
-			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := av.UnmarshalEntry(b); assert.NoError(t, err) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
@@ -931,10 +931,10 @@ func TestDeleteDataEntryBinaryRoundTrip(t *testing.T) {
 		strings.Repeat("key-", 10),
 	} {
 		v := DeleteDataEntry{test}
-		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := v.MarshalEntry(); assert.NoError(t, err) {
 			assert.Equal(t, byte(0xff), b[len(b)-1])
 			var av DeleteDataEntry
-			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := av.UnmarshalEntry(b); assert.NoError(t, err) {
 				assert.Equal(t, test, av.Key)
 				assert.Equal(t, test, av.GetKey())
 				assert.Equal(t, DataDelete, av.GetValueType())

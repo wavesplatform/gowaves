@@ -2239,8 +2239,8 @@ type DataEntry interface {
 	MarshalValue() ([]byte, error)
 	UnmarshalValue([]byte) error
 
-	MarshalBinary() ([]byte, error)
-	UnmarshalBinary([]byte) error
+	MarshalEntry() ([]byte, error) // TODO: rename to MarshalBinary
+	UnmarshalEntry([]byte) error   // TODO: rename to UnmarshalBinary
 	Valid(forbidEmptyKey, utf16KeyLen bool) error
 	BinarySize() int
 	PayloadSize() int
@@ -2350,7 +2350,7 @@ func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 }
 
 // MarshalBinary marshals the integer data entry in its bytes representation.
-func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
+func (e IntegerDataEntry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
@@ -2364,7 +2364,7 @@ func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary reads binary representation of integer data entry to the structure.
-func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
+func (e *IntegerDataEntry) UnmarshalEntry(data []byte) error {
 	const minLen = 2 + 1 + 8
 	if l := len(data); l < minLen {
 		return errors.Errorf("invalid data length for IntegerDataEntry, expected not less than %d, received %d", minLen, l)
@@ -2485,7 +2485,7 @@ func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
 }
 
 // MarshalBinary writes a byte representation of the boolean data entry.
-func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
+func (e BooleanDataEntry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
@@ -2499,7 +2499,7 @@ func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary reads a byte representation of the data entry.
-func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
+func (e *BooleanDataEntry) UnmarshalEntry(data []byte) error {
 	const minLen = 2 + 1 + 1
 	if l := len(data); l < minLen {
 		return errors.Errorf("invalid data length for BooleanDataEntry, expected not less than %d, received %d", minLen, l)
@@ -2625,7 +2625,7 @@ func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
 }
 
 // MarshalBinary writes an entry to its byte representation.
-func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
+func (e BinaryDataEntry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
@@ -2639,7 +2639,7 @@ func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary reads an entry from a binary representation.
-func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
+func (e *BinaryDataEntry) UnmarshalEntry(data []byte) error {
 	const minLen = 2 + 1 + 2
 	if l := len(data); l < minLen {
 		return errors.Errorf("invalid data length for BinaryDataEntry, expected not less than %d, received %d", minLen, l)
@@ -2763,7 +2763,7 @@ func (e *StringDataEntry) UnmarshalValue(data []byte) error {
 }
 
 // MarshalBinary converts the data entry to its byte representation.
-func (e StringDataEntry) MarshalBinary() ([]byte, error) {
+func (e StringDataEntry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
@@ -2777,7 +2777,7 @@ func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary reads StringDataEntry structure from bytes.
-func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
+func (e *StringDataEntry) UnmarshalEntry(data []byte) error {
 	const minLen = 2 + 1 + 2
 	if l := len(data); l < minLen {
 		return errors.Errorf("invalid data length for StringDataEntry, expected not less than %d, received %d", minLen, l)
@@ -2887,7 +2887,7 @@ func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
 }
 
 // MarshalBinary converts the data entry to its byte representation.
-func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
+func (e DeleteDataEntry) MarshalEntry() ([]byte, error) {
 	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
@@ -2901,7 +2901,7 @@ func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary reads StringDataEntry structure from bytes.
-func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
+func (e *DeleteDataEntry) UnmarshalEntry(data []byte) error {
 	const minLen = 2 + 1
 	if l := len(data); l < minLen {
 		return errors.Errorf("invalid data length for DeleteDataEntry, expected not less than %d, received %d", minLen, l)

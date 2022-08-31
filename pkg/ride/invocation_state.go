@@ -94,6 +94,7 @@ func init() {
 }
 
 func initGOBForAnyScriptInvocationState() {
+	// TODO: implement comprehensive binary serialization and deserialization for AnyScriptInvocationState type
 	types := [...]interface{}{
 		// errors
 		error(evaluationError{}),

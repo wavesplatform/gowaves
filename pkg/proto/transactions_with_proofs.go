@@ -3208,7 +3208,7 @@ func (tx *DataWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	binary.BigEndian.PutUint16(buf[p:], uint16(n))
 	p += 2
 	for _, e := range tx.Entries {
-		eb, err := e.MarshalBinary()
+		eb, err := e.MarshalEntry()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal DataWithProofs transaction body to bytes")
 		}
@@ -3244,19 +3244,19 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 		switch t {
 		case DataInteger:
 			var ie IntegerDataEntry
-			err = ie.UnmarshalBinary(data)
+			err = ie.UnmarshalEntry(data)
 			e = &ie
 		case DataBoolean:
 			var be BooleanDataEntry
-			err = be.UnmarshalBinary(data)
+			err = be.UnmarshalEntry(data)
 			e = &be
 		case DataBinary:
 			var be BinaryDataEntry
-			err = be.UnmarshalBinary(data)
+			err = be.UnmarshalEntry(data)
 			e = &be
 		case DataString:
 			var se StringDataEntry
-			err = se.UnmarshalBinary(data)
+			err = se.UnmarshalEntry(data)
 			e = &se
 		default:
 			return errors.Errorf("unsupported ValueType %d", t)
