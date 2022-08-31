@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -433,15 +432,6 @@ func TestOverlapping(t *testing.T) {
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
-}
-
-func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
-	script, err := base64.StdEncoding.DecodeString(src)
-	require.NoError(t, err)
-	tree, err := serialization.Parse(script)
-	require.NoError(t, err)
-	require.NotNil(t, tree)
-	return script, tree
 }
 
 func TestInvokeExpression(t *testing.T) {
@@ -7905,24 +7895,6 @@ func TestAliasesInInvokes(t *testing.T) {
 		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
-}
-
-// makeAddressAndPK creates keys and an address on TestNet from given string as seed
-func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.WavesAddress) {
-	sk, pk, err := crypto.GenerateKeyPair([]byte(s))
-	require.NoError(t, err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
-	require.NoError(t, err)
-	return sk, pk, addr
-}
-
-func makeRandomTxID(t *testing.T) *crypto.Digest {
-	b := make([]byte, crypto.DigestSize)
-	_, err := rand.Read(b)
-	require.NoError(t, err)
-	d, err := crypto.NewDigestFromBytes(b)
-	require.NoError(t, err)
-	return &d
 }
 
 func TestIssueAndTransferInInvoke(t *testing.T) {
