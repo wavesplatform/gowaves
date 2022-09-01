@@ -56,20 +56,24 @@ func (a *testAccount) recipient() proto.Recipient {
 }
 
 type testEnv struct {
-	t          *testing.T
-	sender     *testAccount
-	dApp       *testAccount
-	this       proto.WavesAddress
-	dAppAddr   proto.WavesAddress
-	inv        rideType
-	me         *mockRideEnvironment
-	ms         *MockSmartState
-	ws         *WrappedState
-	recipients map[string]proto.WavesAddress
-	accounts   map[proto.WavesAddress]*testAccount
-	entries    map[proto.WavesAddress]map[string]proto.DataEntry
-	trees      map[proto.WavesAddress]*ast.Tree
-	waves      map[proto.WavesAddress]*types.WavesBalanceProfile
+	t           *testing.T
+	sender      *testAccount
+	dApp        *testAccount
+	this        proto.WavesAddress
+	dAppAddr    proto.WavesAddress
+	inv         rideType
+	me          *mockRideEnvironment
+	ms          *MockSmartState
+	ws          *WrappedState
+	recipients  map[string]proto.WavesAddress
+	accounts    map[proto.WavesAddress]*testAccount
+	entries     map[proto.WavesAddress]map[string]proto.DataEntry
+	trees       map[proto.WavesAddress]*ast.Tree
+	waves       map[proto.WavesAddress]*types.WavesBalanceProfile
+	aliases     map[proto.Alias]proto.WavesAddress
+	assets      map[crypto.Digest]*proto.AssetInfo
+	sponsorship map[crypto.Digest]bool
+	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -101,14 +105,18 @@ func newTestEnv(t *testing.T) *testEnv {
 		},
 	}
 	r := &testEnv{
-		t:          t,
-		me:         me,
-		ms:         ms,
-		recipients: map[string]proto.WavesAddress{},
-		accounts:   map[proto.WavesAddress]*testAccount{},
-		entries:    map[proto.WavesAddress]map[string]proto.DataEntry{},
-		trees:      map[proto.WavesAddress]*ast.Tree{},
-		waves:      map[proto.WavesAddress]*types.WavesBalanceProfile{},
+		t:           t,
+		me:          me,
+		ms:          ms,
+		recipients:  map[string]proto.WavesAddress{},
+		accounts:    map[proto.WavesAddress]*testAccount{},
+		entries:     map[proto.WavesAddress]map[string]proto.DataEntry{},
+		trees:       map[proto.WavesAddress]*ast.Tree{},
+		waves:       map[proto.WavesAddress]*types.WavesBalanceProfile{},
+		aliases:     map[proto.Alias]proto.WavesAddress{},
+		assets:      map[crypto.Digest]*proto.AssetInfo{},
+		sponsorship: map[crypto.Digest]bool{},
+		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
 	}
 	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
@@ -195,15 +203,56 @@ func newTestEnv(t *testing.T) *testEnv {
 		}
 		return nil, errors.Errorf("unknown recipient '%s'", account.String())
 	}
+	r.ms.NewestAddrByAliasFunc = func(alias proto.Alias) (proto.WavesAddress, error) {
+		if a, ok := r.aliases[alias]; ok {
+			return a, nil
+		}
+		return proto.WavesAddress{}, errors.Errorf("unknown alias '%s'", alias.String())
+	}
+	r.ms.NewestAssetIsSponsoredFunc = func(assetID crypto.Digest) (bool, error) {
+		if s, ok := r.sponsorship[assetID]; ok {
+			return s, nil
+		}
+		return false, errors.Errorf("unknown asset '%s'", assetID.String())
+	}
+	r.ms.NewestAssetInfoFunc = func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+		if ai, ok := r.assets[assetID]; ok {
+			return ai, nil
+		}
+		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+	}
+	r.ms.NewestAssetBalanceFunc = func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+		if addr, ok := r.recipients[account.String()]; ok {
+			if t, ok := r.tokens[addr]; ok {
+				if b, ok := t[assetID]; ok {
+					return b, nil
+				}
+				return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
+			}
+			return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+		}
+		return 0, errors.Errorf("unknown recipient '%s'", account.String())
+	}
+	r.ms.NewestAssetBalanceByAddressIDFunc = func(id proto.AddressID, a crypto.Digest) (uint64, error) {
+		addr, err := id.ToWavesAddress(r.me.scheme())
+		require.NoError(r.t, err)
+		if t, ok := r.tokens[addr]; ok {
+			if b, ok := t[a]; ok {
+				return b, nil
+			}
+			return 0, errors.Errorf("unknown asset '%s' for address '%s'", a.String(), addr.String())
+		}
+		return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+	}
 	return r
 }
 
-func (e *testEnv) withScheme(scheme byte) *testEnv {
-	e.me.schemeFunc = func() byte {
-		return scheme
-	}
-	return e
-}
+//func (e *testEnv) withScheme(scheme byte) *testEnv {
+//	e.me.schemeFunc = func() byte {
+//		return scheme
+//	}
+//	return e
+//}
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 	e.me.libVersionFunc = func() ast.LibraryVersion {
@@ -293,11 +342,19 @@ func (e *testEnv) withAdditionalDApp(acc *testAccount) *testEnv {
 	return e
 }
 
-func (e *testEnv) withInvocation(fn string) *testEnv {
+type invocationOptions struct {
+	recipient proto.Recipient
+}
+
+func (e *testEnv) withInvocation(fn string, opts ...invocationOptions) *testEnv {
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      fn,
 		Arguments: proto.Arguments{},
+	}
+	rcp := e.dApp.recipient()
+	if len(opts) != 0 {
+		rcp = opts[0].recipient
 	}
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
@@ -306,7 +363,7 @@ func (e *testEnv) withInvocation(fn string) *testEnv {
 		Proofs:          proto.NewProofs(),
 		ChainID:         proto.TestNetScheme,
 		SenderPK:        e.sender.publicKey(),
-		ScriptRecipient: e.dApp.recipient(),
+		ScriptRecipient: rcp,
 		FunctionCall:    call,
 		Payments:        proto.ScriptPayments{},
 		FeeAsset:        proto.OptionalAsset{},
@@ -385,6 +442,28 @@ func (e *testEnv) withWavesBalance(acc *testAccount, balance int, other ...int) 
 
 func (e *testEnv) withTree(acc *testAccount, tree *ast.Tree) *testEnv {
 	e.trees[acc.address()] = tree
+	return e
+}
+
+func (e *testEnv) withAlias(acc *testAccount, alias *proto.Alias) *testEnv {
+	e.aliases[*alias] = acc.address()
+	e.recipients[alias.String()] = acc.address()
+	return e
+}
+
+func (e *testEnv) withAsset(info *proto.AssetInfo, sponsored bool) *testEnv {
+	e.assets[info.ID] = info
+	e.sponsorship[info.ID] = sponsored
+	return e
+}
+
+func (e *testEnv) withAssetBalance(acc *testAccount, asset crypto.Digest, balance uint64) *testEnv {
+	if t, ok := e.tokens[acc.address()]; ok {
+		t[asset] = balance
+		e.tokens[acc.address()] = t
+	} else {
+		e.tokens[acc.address()] = map[crypto.Digest]uint64{asset: balance}
+	}
 	return e
 }
 

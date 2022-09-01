@@ -8494,9 +8494,10 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 }
 
 func TestReissueInInvoke(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
 	asset, err := crypto.NewDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
 	require.NoError(t, err)
 
@@ -8517,8 +8518,7 @@ func TestReissueInInvoke(t *testing.T) {
 		}
 	}
 	*/
-	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAAVhc3NldAEAAAAg9Y/SxOzTV4ajXPwTZa80xxl1ur65XafAcNuNl2uQEiUAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMEAAAAByRtYXRjaDAFAAAAA3JlcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAHQm9vbGVhbgQAAAABYgUAAAAHJG1hdGNoMAMFAAAAAWIJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABWFzc2V0BQAAAANuaWwFAAAAA3JlcwkAAAIAAAABAgAAAAdmYWlsISEhCQAAAgAAAAECAAAADW5vdCBhIEJvb2xlYW4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOyIF7Y="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAAVhc3NldAEAAAAg9Y/SxOzTV4ajXPwTZa80xxl1ur65XafAcNuNl2uQEiUAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMEAAAAByRtYXRjaDAFAAAAA3JlcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAHQm9vbGVhbgQAAAABYgUAAAAHJG1hdGNoMAMFAAAAAWIJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABWFzc2V0BQAAAANuaWwFAAAAA3JlcwkAAAIAAAABAgAAAAdmYWlsISEhCQAAAgAAAAECAAAADW5vdCBhIEJvb2xlYW4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOyIF7Y=")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -8530,163 +8530,19 @@ func TestReissueInInvoke(t *testing.T) {
 	@Callable(i)
 	func call() = ([Reissue(asset, 1, true), ScriptTransfer(i.caller, 1, asset)], true)
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAFYXNzZXQAAAAAAAAAAAEGCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAFYXNzZXQFAAAAA25pbAYAAAAAUOFniw=="
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAFYXNzZXQAAAAAAAAAAAEGCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAFYXNzZXQFAAAAA25pbAYAAAAAUOFniw==")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
+		withAsset(&proto.AssetInfo{ID: asset, Quantity: 10, Decimals: 0, Issuer: dApp2.address(), IssuerPublicKey: dApp2.publicKey(), Reissuable: true}, false).
+		withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			return 0, nil
-		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-			if assetID != asset {
-				return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
-			}
-			switch {
-			case account.Address.Equal(dApp1):
-				return 0, nil
-			case account.Address.Equal(dApp2):
-				return 0, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", account.String())
-			}
-		},
-		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-			switch assetID {
-			case asset:
-				return false, nil
-			default:
-				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
-			}
-		},
-		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			if assetID != asset {
-				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
-			}
-			return &proto.AssetInfo{
-				ID:              assetID,
-				Quantity:        10,
-				Decimals:        0,
-				Issuer:          dApp2,
-				IssuerPublicKey: dApp2PK,
-				Reissuable:      true,
-			}, nil
-		},
-		NewestAssetBalanceByAddressIDFunc: func(id proto.AddressID, a crypto.Digest) (uint64, error) {
-			if a != asset {
-				return 0, errors.Errorf("unxepected asset '%s'", a.String())
-			}
-			switch id {
-			case dApp1.ID():
-				return 0, nil
-			case dApp2.ID():
-				return 0, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -8697,9 +8553,9 @@ func TestReissueInInvoke(t *testing.T) {
 	assert.Equal(t, 0, len(ap))
 	expectedResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
+		Transfers:    []*proto.TransferScriptAction{{Sender: dApp2.publicKeyRef(), Recipient: dApp1.recipient(), Amount: 1, Asset: *optionalAsset}, {Recipient: sender.recipient(), Amount: 1, Asset: *optionalAsset}},
 		Issues:       make([]*proto.IssueScriptAction, 0),
-		Reissues:     []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
+		Reissues:     []*proto.ReissueScriptAction{{Sender: dApp2.publicKeyRef(), AssetID: asset, Quantity: 1, Reissuable: true}},
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		Leases:       make([]*proto.LeaseScriptAction, 0),
@@ -8710,10 +8566,9 @@ func TestReissueInInvoke(t *testing.T) {
 }
 
 func TestNegativePayments(t *testing.T) {
-	flag := false
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 	/* On dApp1 address
 	{-# STDLIB_VERSION 5 #-}
@@ -8726,8 +8581,7 @@ func TestNegativePayments(t *testing.T) {
 	    []
 	}
 	*/
-	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgAAAARjYWxsBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQA//////oKHwAFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAOvRi8Q=="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgAAAARjYWxsBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQA//////oKHwAFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAOvRi8Q==")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -8737,133 +8591,17 @@ func TestNegativePayments(t *testing.T) {
 	@Callable(i)
 	func call() = []
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K"
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return flag
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withThis(dApp1).withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch {
-			case account.Address.Equal(dApp1):
-				return 0, nil
-			case account.Address.Equal(dApp2):
-				return 100000000, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", account.String())
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{}, nil
-			case dApp2.ID():
-				return &types.WavesBalanceProfile{Balance: 100000000}, nil
-			default:
-				return nil, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -8871,7 +8609,7 @@ func TestNegativePayments(t *testing.T) {
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(ap))
-	assert.Equal(t, []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp2), Amount: -100000000, Asset: proto.NewOptionalAssetWaves()}}, ap)
+	assert.Equal(t, []*proto.AttachedPaymentScriptAction{{Sender: dApp1.publicKeyRef(), Recipient: dApp2.recipient(), Amount: -100000000, Asset: proto.NewOptionalAssetWaves()}}, ap)
 	expectedResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 		Transfers:    make([]*proto.TransferScriptAction, 0),
@@ -8885,196 +8623,15 @@ func TestNegativePayments(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 
-	flag = true
-	_, err = CallFunction(env, tree1, "call", arguments)
+	// Activate internal payments validation
+	env = env.withValidateInternalPayments()
+	_, err = CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount")
 }
 
-func TestComplexityOverflow(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-
-	/* On dApp1 address
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE DAPP #-}
-	{-# SCRIPT_TYPE ACCOUNT #-}
-
-	@Callable(i)
-	func call() = {
-	  strict a = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict b = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict c = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict d = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict e = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict f = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  strict g = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
-	  []
-	}
-	*/
-	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWEFAAAAAWEEAAAAAWIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWIFAAAAAWIEAAAAAWMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWMFAAAAAWMEAAAAAWQJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWQFAAAAAWQEAAAAAWUJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWUFAAAAAWUEAAAAAWYJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWYFAAAAAWYEAAAAAWcJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWcFAAAAAWcFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAETSeDA=="
-	_, tree1 := parseBase64Script(t, code1)
-
-	/* On dApp2 address
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE DAPP #-}
-	{-# SCRIPT_TYPE ACCOUNT #-}
-
-	let msg = base16'135212a9cf00d0a05220be7323bfa4a5ba7fc5465514007702121a9c92e46bd473062f00841af83cb7bc4b2cd58dc4d5b151244cc8293e795796835ed36822c6e09893ec991b38ada4b21a06e691afa887db4e9d7b1d2afc65ba8d2f5e6926ff53d2d44d55fa095f3fad62545c714f0f3f59e4bfe91af8'
-	let sig = base16'd971ec27c5bfc384804c8d8d6a2de9edc3d957b25e488e954a71ef4c4a87f5fb09cfdf6bd26cffc49d03048e8edb0c918061be158d737c2e11cc7210263efb85'
-	let bad = base16'44164f23a95ed2662c5b1487e8fd688be9032efa23dd2ef29b018d33f65d0043df75f3ac1d44b4bda50e8b07e0b49e2898bec80adbf7604e72ef6565bd2f8189'
-	let pk = base16'ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f'
-
-	@Callable(i)
-	func call() = {
-	  strict a = sigVerify(msg, sig, pk)
-	  strict b = sigVerify(msg, bad, pk)
-	  strict c = sigVerify(msg, sig, pk)
-	  strict d = sigVerify(msg, bad, pk)
-	  strict e = sigVerify(msg, sig, pk)
-	  strict f = sigVerify(msg, bad, pk)
-	  strict g = sigVerify(msg, sig, pk)
-	  strict h = sigVerify(msg, bad, pk)
-	  strict ii = sigVerify(msg, sig, pk)
-	  strict j = sigVerify(msg, bad, pk)
-	  strict k = sigVerify(msg, sig, pk)
-	  strict l = sigVerify(msg, bad, pk)
-	  strict m = sigVerify(msg, sig, pk)
-	  strict n = sigVerify(msg, bad, pk)
-	  strict p = sigVerify(msg, sig, pk)
-	  strict q = sigVerify(msg, bad, pk)
-	  strict r = sigVerify(msg, sig, pk)
-	  strict s = sigVerify(msg, bad, pk)
-	  strict t = sigVerify(msg, sig, pk)
-	  ([], true)
-	}
-	*/
-	code2 := "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"
-	_, tree2 := parseBase64Script(t, code2)
-
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV5
-		},
-	}
-
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch {
-			case account.Address.Equal(dApp1):
-				return 0, nil
-			case account.Address.Equal(dApp2):
-				return 100000000, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", account.String())
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	_, err = CallFunction(env, tree1, "call", arguments)
-	require.EqualError(t, err, "evaluation complexity 28113 exceeds 26000 limit for library version 5")
-}
-
 func TestDateEntryPutAfterRemoval(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
@@ -9095,118 +8652,18 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 		  (nil, getStringValue(this, "key"))
 		}
 	*/
-	code1 := "AAIFAAAAAAAAAAgIAhIAEgASAAAAAAAAAAADAAAAAWkBAAAAA3B1dAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAANrZXkCAAAAAk9LBQAAAANuaWwFAAAABHVuaXQAAAABaQEAAAAGcmVtb3ZlAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAECAAAAA2tleQUAAAADbmlsBQAAAAR1bml0AAAAAWkBAAAABGNhbGwAAAAABAAAAAJyMQkAA/wAAAAEBQAAAAR0aGlzAgAAAANwdXQFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAJyMQUAAAACcjEEAAAAAnIyCQAD/AAAAAQFAAAABHRoaXMCAAAABnJlbW92ZQUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIyBQAAAAJyMgQAAAACcjMJAAP8AAAABAUAAAAEdGhpcwIAAAADcHV0BQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjMFAAAAAnIzCQAFFAAAAAIFAAAAA25pbAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAAEdGhpcwIAAAADa2V5CQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOJiOqw="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree := parseBase64Script(t, "AAIFAAAAAAAAAAgIAhIAEgASAAAAAAAAAAADAAAAAWkBAAAAA3B1dAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAANrZXkCAAAAAk9LBQAAAANuaWwFAAAABHVuaXQAAAABaQEAAAAGcmVtb3ZlAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAECAAAAA2tleQUAAAADbmlsBQAAAAR1bml0AAAAAWkBAAAABGNhbGwAAAAABAAAAAJyMQkAA/wAAAAEBQAAAAR0aGlzAgAAAANwdXQFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAJyMQUAAAACcjEEAAAAAnIyCQAD/AAAAAQFAAAABHRoaXMCAAAABnJlbW92ZQUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIyBQAAAAJyMgQAAAACcjMJAAP8AAAABAUAAAAEdGhpcwIAAAADcHV0BQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjMFAAAAAnIzCQAFFAAAAAIFAAAAA25pbAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAAEdGhpcwIAAAADa2V5CQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOJiOqw=")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV5
-		},
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree).
+		withWavesBalance(dApp1, 0).withWavesBalance(sender, 0).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch {
-			case account.Address.Equal(dApp1):
-				return 0, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", account.String())
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{})
 	require.NoError(t, err)
 	ur, ok := res.userResult().(rideString)
 	assert.True(t, ok)
@@ -9215,15 +8672,14 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 }
 
 func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-	_, _, test := makeAddressAndPK(t, "TEST")
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	test := newTestAccount(t, "TEST")
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 		{-# CONTENT_TYPE DAPP #-}
-
 
 		@Callable(i)
 		func call(n: Int) = if (n == 0) then
@@ -9234,165 +8690,30 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 		  if (g == g) then nil else throw("Strict value is not equal to itself.")
 		}
 	*/
-	code1 := "AAIFAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAABbgMJAAAAAAAAAgUAAAABbgAAAAAAAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAFQWxpYXMAAAABAgAAAAR0ZXN0AAAAAAA7msoABQAAAAR1bml0BQAAAANuaWwEAAAAAWYJAABrAAAAAwkAAGsAAAADBQAAAAFuAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABBAAAAAFnCQAD/AAAAAQFAAAABHRoaXMCAAAABGNhbGwJAARMAAAAAgkAAGUAAAACBQAAAAFmAAAAAAAAAAABBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAABZwUAAAABZwUAAAADbmlsCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgAAAABAf0wS"
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree := parseBase64Script(t, "AAIFAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAABbgMJAAAAAAAAAgUAAAABbgAAAAAAAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAFQWxpYXMAAAABAgAAAAR0ZXN0AAAAAAA7msoABQAAAAR1bml0BQAAAANuaWwEAAAAAWYJAABrAAAAAwkAAGsAAAADBQAAAAFuAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABBAAAAAFnCQAD/AAAAAQFAAAABHRoaXMCAAAABGNhbGwJAARMAAAAAgkAAGUAAAACBQAAAAFmAAAAAAAAAAABBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAABZwUAAAABZwUAAAADbmlsCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgAAAABAf0wS")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments10 := proto.Arguments{&proto.IntegerArgument{Value: 10}}
-	call10 := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments10,
-	}
-	//arguments1 := proto.Arguments{&proto.IntegerArgument{Value: 1}}
-	//call1 := proto.FunctionCall{
-	//	Default:   false,
-	//	Name:      "call",
-	//	Arguments: arguments1,
-	//}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call10,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: noRideV6,
-		isProtobufTxFunc:    isProtobufTx,
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV5
-		},
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree).withAlias(test, proto.NewAlias(proto.TestNetScheme, "test")).
+		withWavesBalance(dApp1, 0).withWavesBalance(sender, 10_00000000).withWavesBalance(test, 0).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case sender.String():
-				return &sender, nil
-			case dApp1.String():
-				return &dApp1, nil
-			case test.String(), "alias:T:test":
-				return &test, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch {
-			case account.Address.Equal(dApp1):
-				return 0, nil
-			case account.Address.Equal(sender):
-				return 1000000000, nil
-			case account.Address.Equal(test):
-				return 0, nil
-			default:
-				return 0, errors.Errorf("unxepected account '%s'", account.String())
-			}
-		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			switch alias.Alias {
-			case "test":
-				return test, nil
-			default:
-				return proto.WavesAddress{}, errors.New("unxepected test alias")
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{}, nil
-			case sender.ID():
-				return &types.WavesBalanceProfile{Balance: 1000000000}, nil
-			case test.ID():
-				return &types.WavesBalanceProfile{}, nil
-			default:
-				return nil, errors.Errorf("unxepected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	_, err = CallFunction(env, tree1, "call", arguments10)
+	_, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 10}})
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
 
-	arguments1 := proto.Arguments{&proto.IntegerArgument{Value: 1}}
-	_, err = CallFunction(env, tree1, "call", arguments1)
+	_, err = CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 1}})
 	require.Error(t, err)
 	assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(err))
 }
 
 func TestInvokeFailForRideV4(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 	/* On dApp1 address
 	{-# STDLIB_VERSION 5 #-}
@@ -9407,8 +8728,7 @@ func TestInvokeFailForRideV4(t *testing.T) {
 	    []
 	}
 	*/
-	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABWlubmVyBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAHxaeYM="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABWlubmVyBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAHxaeYM=")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 4 #-}
@@ -9418,142 +8738,29 @@ func TestInvokeFailForRideV4(t *testing.T) {
 	@Callable(i)
 	func inner() = []
 	*/
-	code2 := "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAFaW5uZXIAAAAABQAAAANuaWwAAAAAwAitzA=="
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAFaW5uZXIAAAAABQAAAANuaWwAAAAAwAitzA==")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              &crypto.Digest{},
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		txIDFunc: func() rideType {
-			return rideBytes(tx.ID.Bytes())
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc: func() bool {
-			return true
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().withRideV6Activated().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			return 0, nil
-		},
-		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			switch id {
-			case dApp1.ID():
-				return ast.LibV5, nil
-			case dApp2.ID():
-				return ast.LibV4, nil
-			default:
-				return 0, errors.New("unexpected address ID")
-			}
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.Nil(t, res)
 	require.EqualError(t, err, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	caller := proto.NewAlias(proto.TestNetScheme, "caller")
 	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+
 	/* On dApp1 address
 	{-# STDLIB_VERSION 6 #-}
 	{-# CONTENT_TYPE DAPP #-}
@@ -9597,8 +8804,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		}
 	}
 	*/
-	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCCQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgALBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAMBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgANBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAOBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAPBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAQBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgARBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgASBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgATBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAUBQR1bml0BQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAM/iuCw="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCCQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgALBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAMBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgANBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAOBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAPBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAQBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgARBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgASBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgATBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAUBQR1bml0BQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAM/iuCw=")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -9626,166 +8832,31 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		], true)
 	}
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAACBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAQFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAFBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAcFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAIBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAoFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAALBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA0FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAOBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADwUAAAAEdW5pdAUAAAADbmlsBgAAAAB1/ySn"
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAACBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAQFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAFBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAcFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAIBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAoFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAALBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA0FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAOBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADwUAAAAEdW5pdAUAAAADbmlsBgAAAAB1/ySn")
 
-	recipient := proto.NewRecipientFromAlias(*caller)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call", invocationOptions{recipient: proto.NewRecipientFromAlias(*caller)}).
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withAlias(dApp1, caller).withAlias(dApp2, callee).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			switch alias.String() {
-			case caller.String():
-				return dApp1, nil
-			case callee.String():
-				return dApp2, nil
-			default:
-				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch account.String() {
-			case dApp1.String():
-				return 0, nil
-			case caller.String():
-				return 0, nil
-			case dApp2.String():
-				return 100_000_000_000, nil
-			case callee.String():
-				return 100_000_000_000, nil
-			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{}, nil
-			case dApp2.ID():
-				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
-			default:
-				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			switch id {
-			case dApp1.ID():
-				return ast.LibV6, nil
-			case dApp2.ID():
-				return ast.LibV5, nil
-			default:
-				return 0, errors.New("unexpected address ID")
-			}
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, 50, len(res.ScriptActions()))
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	caller := proto.NewAlias(proto.TestNetScheme, "caller")
 	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+
 	/* On dApp1 address
 	{-# STDLIB_VERSION 6 #-}
 	{-# CONTENT_TYPE DAPP #-}
@@ -9835,8 +8906,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 	  ], true)
 	}
 	*/
-	code1 := "BgIGCAISABIAAQAGY2FsbGVlCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgFpAQRjYWxsAAQDcmVzCQD9BwQFBmNhbGxlZQIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMEByRtYXRjaDAFA3JlcwMJAAECBQckbWF0Y2gwAgdCb29sZWFuBAFiBQckbWF0Y2gwAwUBYgQEcmVzMQkA/QcEBQZjYWxsZWUCDWNhbGxSZWVudHJhbnQFA25pbAUDbmlsAwkAAAIFBHJlczEFBHJlczEEByRtYXRjaDEFBHJlczEDCQABAgUHJG1hdGNoMQIHQm9vbGVhbgQCYmIFByRtYXRjaDEDBQFiCQCUCgIJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAEFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAIFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAMFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAQFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAUFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAYFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAcFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAgFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAkFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAoFBHVuaXQFA25pbAUEcmVzMQkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQENY2FsbFJlZW50cmFudAAJAJQKAgkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACgUEdW5pdAUDbmlsBgDKeoEl"
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "BgIGCAISABIAAQAGY2FsbGVlCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAgFpAQRjYWxsAAQDcmVzCQD9BwQFBmNhbGxlZQIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMEByRtYXRjaDAFA3JlcwMJAAECBQckbWF0Y2gwAgdCb29sZWFuBAFiBQckbWF0Y2gwAwUBYgQEcmVzMQkA/QcEBQZjYWxsZWUCDWNhbGxSZWVudHJhbnQFA25pbAUDbmlsAwkAAAIFBHJlczEFBHJlczEEByRtYXRjaDEFBHJlczEDCQABAgUHJG1hdGNoMQIHQm9vbGVhbgQCYmIFByRtYXRjaDEDBQFiCQCUCgIJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAEFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAIFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAMFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAQFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAUFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAYFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAcFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAgFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAkFBHVuaXQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyAAoFBHVuaXQFA25pbAUEcmVzMQkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQENY2FsbFJlZW50cmFudAAJAJQKAgkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIAAwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABgUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIABwUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACAUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACQUEdW5pdAkAzAgCCQEOU2NyaXB0VHJhbnNmZXIDCAUBaQZjYWxsZXIACgUEdW5pdAUDbmlsBgDKeoEl")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -9878,166 +8948,31 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 		], true)
 	}
 	*/
-	code2 := "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"
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "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")
 
-	recipient := proto.NewRecipientFromAlias(*caller)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call", invocationOptions{recipient: proto.NewRecipientFromAlias(*caller)}).
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withAlias(dApp1, caller).withAlias(dApp2, callee).
+		withWavesBalance(dApp1, 1000_00000000).withWavesBalance(dApp2, 1000_00000000).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			switch alias.String() {
-			case caller.String():
-				return dApp1, nil
-			case callee.String():
-				return dApp2, nil
-			default:
-				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch account.String() {
-			case dApp1.String():
-				return 100_000_000_000, nil
-			case caller.String():
-				return 100_000_000_000, nil
-			case dApp2.String():
-				return 100_000_000_000, nil
-			case callee.String():
-				return 100_000_000_000, nil
-			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
-			case dApp2.ID():
-				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
-			default:
-				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			switch id {
-			case dApp1.ID():
-				return ast.LibV6, nil
-			case dApp2.ID():
-				return ast.LibV5, nil
-			default:
-				return 0, errors.New("unexpected address ID")
-			}
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, 40, len(res.ScriptActions()))
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	caller := proto.NewAlias(proto.TestNetScheme, "caller")
 	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+
 	/* On dApp1 address
 	{-# STDLIB_VERSION 6 #-}
 	{-# CONTENT_TYPE DAPP #-}
@@ -10060,8 +8995,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 	    }
 	}
 	*/
-	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCBQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAOehhyY="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUBYgkAlAoCBQNuaWwFBHJlczEJAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAOehhyY=")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -10105,162 +9039,27 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 		], true)
 	}
 	*/
-	code2 := "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"
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAACBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAQFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAFBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAcFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAIBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAoFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAALBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA0FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAOBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAABAFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAARBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAEgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAABMFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAUBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAFQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAABYFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAXBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAGAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAABkFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAaBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAGwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAABwFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAdBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAHgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAB8FAAAABHVuaXQFAAAAA25pbAYAAAAAue2X8g==")
 
-	recipient := proto.NewRecipientFromAlias(*caller)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call", invocationOptions{recipient: proto.NewRecipientFromAlias(*caller)}).
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withAlias(dApp1, caller).withAlias(dApp2, callee).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			switch alias.String() {
-			case caller.String():
-				return dApp1, nil
-			case callee.String():
-				return dApp2, nil
-			default:
-				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
-			}
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch account.String() {
-			case dApp1.String():
-				return 0, nil
-			case caller.String():
-				return 0, nil
-			case dApp2.String():
-				return 100_000_000_000, nil
-			case callee.String():
-				return 100_000_000_000, nil
-			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{}, nil
-			case dApp2.ID():
-				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
-			default:
-				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			switch id {
-			case dApp1.ID():
-				return ast.LibV6, nil
-			case dApp2.ID():
-				return ast.LibV5, nil
-			default:
-				return 0, errors.New("unexpected address ID")
-			}
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
 
 func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
-	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 	/* On dApp1 address
 	{-# STDLIB_VERSION 6 #-}
@@ -10297,8 +9096,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 	    }
 	}
 	*/
-	code1 := "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUCYmIEBHJlczIJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMyBQRyZXMyBAckbWF0Y2gyBQRyZXMyAwkAAQIFByRtYXRjaDICB0Jvb2xlYW4EA2JiYgUHJG1hdGNoMgMFA2JiYgQEcmVzMwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFBHJlczMFBHJlczMEByRtYXRjaDMFBHJlczMDCQABAgUHJG1hdGNoMwIHQm9vbGVhbgQEYmJiYgUHJG1hdGNoMwMFBGJiYmIJAJQKAgUDbmlsBQRyZXMyCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AW2slaw=="
-	_, tree1 := parseBase64Script(t, code1)
+	_, tree1 := parseBase64Script(t, "BgIECAISAAEABmNhbGxlZQkBB0FkZHJlc3MBARoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgEBaQEEY2FsbAAEA3JlcwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFA3JlcwUDcmVzBAckbWF0Y2gwBQNyZXMDCQABAgUHJG1hdGNoMAIHQm9vbGVhbgQBYgUHJG1hdGNoMAMFAWIEBHJlczEJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMxBQRyZXMxBAckbWF0Y2gxBQRyZXMxAwkAAQIFByRtYXRjaDECB0Jvb2xlYW4EAmJiBQckbWF0Y2gxAwUCYmIEBHJlczIJAPwHBAUGY2FsbGVlAgRjYWxsBQNuaWwFA25pbAMJAAACBQRyZXMyBQRyZXMyBAckbWF0Y2gyBQRyZXMyAwkAAQIFByRtYXRjaDICB0Jvb2xlYW4EA2JiYgUHJG1hdGNoMgMFA2JiYgQEcmVzMwkA/AcEBQZjYWxsZWUCBGNhbGwFA25pbAUDbmlsAwkAAAIFBHJlczMFBHJlczMEByRtYXRjaDMFBHJlczMDCQABAgUHJG1hdGNoMwIHQm9vbGVhbgQEYmJiYgUHJG1hdGNoMwMFBGJiYmIJAJQKAgUDbmlsBQRyZXMyCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAIBAgdmYWlsISEhCQACAQINbm90IGEgYm9vbGVhbgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECB2ZhaWwhISEJAAIBAg1ub3QgYSBib29sZWFuCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQACAQIHZmFpbCEhIQkAAgECDW5vdCBhIGJvb2xlYW4JAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AW2slaw==")
 
 	/* On dApp2 address
 	{-# STDLIB_VERSION 5 #-}
@@ -10337,143 +9135,18 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 		], true)
 	}
 	*/
-	code2 := "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"
-	_, tree2 := parseBase64Script(t, code2)
+	_, tree2 := parseBase64Script(t, "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")
 
-	recipient := proto.NewRecipientFromAddress(dApp1)
-	arguments := proto.Arguments{}
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "call",
-		Arguments: arguments,
-	}
-	tx := &proto.InvokeScriptWithProofs{
-		Type:            proto.InvokeScriptTransaction,
-		Version:         1,
-		ID:              makeRandomTxID(t),
-		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
-		SenderPK:        senderPK,
-		ScriptRecipient: recipient,
-		FunctionCall:    call,
-		Payments:        proto.ScriptPayments{},
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             500000,
-		Timestamp:       1624967106278,
-	}
-	testInv, err := invocationToObject(6, proto.TestNetScheme, tx)
-	require.NoError(t, err)
-	testDAppAddress := dApp1
-	env := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		thisFunc: func() rideType {
-			return rideAddress(testDAppAddress)
-		},
-		transactionFunc: func() rideType {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
-			require.NoError(t, err)
-			return obj
-		},
-		invocationFunc: func() rideType {
-			return testInv
-		},
-		blockV5ActivatedFunc: func() bool {
-			return true
-		},
-		rideV6ActivatedFunc:    noRideV6,
-		checkMessageLengthFunc: v3check,
-		setInvocationFunc: func(inv rideType) {
-			testInv = inv
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-		},
-		isProtobufTxFunc: isProtobufTx,
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
+		withWrappedState()
 
-	mockState := &MockSmartState{
-		NewestScriptByAccountFunc: func(recipient proto.Recipient) (*ast.Tree, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return tree1, nil
-			case dApp2.String():
-				return tree2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-			switch addr {
-			case sender:
-				return senderPK, nil
-			case dApp1:
-				return dApp1PK, nil
-			case dApp2:
-				return dApp2PK, nil
-			default:
-				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
-			}
-		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			switch recipient.String() {
-			case dApp1.String():
-				return &dApp1, nil
-			case dApp2.String():
-				return &dApp2, nil
-			default:
-				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
-			}
-		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
-		},
-		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-			switch account.String() {
-			case dApp1.String():
-				return 0, nil
-			case dApp2.String():
-				return 100_000_000_000, nil
-			default:
-				return 0, errors.Errorf("unexpected account '%s'", account.String())
-			}
-		},
-		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-			switch id {
-			case dApp1.ID():
-				return &types.WavesBalanceProfile{}, nil
-			case dApp2.ID():
-				return &types.WavesBalanceProfile{Balance: 100_000_000_000}, nil
-			default:
-				return nil, errors.Errorf("unexpected account '%s'", testAddressIDString(id))
-			}
-		},
-		NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-			switch id {
-			case dApp1.ID():
-				return ast.LibV6, nil
-			case dApp2.ID():
-				return ast.LibV5, nil
-			default:
-				return 0, errors.New("unexpected address ID")
-			}
-		},
-	}
-
-	testState := initWrappedState(mockState, env, tree1.LibVersion)
-	env.stateFunc = func() types.SmartState {
-		return testState
-	}
-	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
-		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
-	}
-
-	res, err := CallFunction(env, tree1, "call", arguments)
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
 }
