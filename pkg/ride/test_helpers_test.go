@@ -342,19 +342,25 @@ func (e *testEnv) withAdditionalDApp(acc *testAccount) *testEnv {
 	return e
 }
 
-type invocationOptions struct {
-	recipient proto.Recipient
+type testInvocationOption func(*proto.InvokeScriptWithProofs)
+
+func withRecipient(recipient proto.Recipient) testInvocationOption {
+	return func(i *proto.InvokeScriptWithProofs) {
+		i.ScriptRecipient = recipient
+	}
 }
 
-func (e *testEnv) withInvocation(fn string, opts ...invocationOptions) *testEnv {
+func withTransactionID(id crypto.Digest) testInvocationOption {
+	return func(i *proto.InvokeScriptWithProofs) {
+		i.ID = &id
+	}
+}
+
+func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testEnv {
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      fn,
 		Arguments: proto.Arguments{},
-	}
-	rcp := e.dApp.recipient()
-	if len(opts) != 0 {
-		rcp = opts[0].recipient
 	}
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
@@ -363,12 +369,15 @@ func (e *testEnv) withInvocation(fn string, opts ...invocationOptions) *testEnv 
 		Proofs:          proto.NewProofs(),
 		ChainID:         proto.TestNetScheme,
 		SenderPK:        e.sender.publicKey(),
-		ScriptRecipient: rcp,
+		ScriptRecipient: e.dApp.recipient(),
 		FunctionCall:    call,
 		Payments:        proto.ScriptPayments{},
 		FeeAsset:        proto.OptionalAsset{},
 		Fee:             500000,
 		Timestamp:       1624967106278,
+	}
+	for _, opt := range opts {
+		opt(tx)
 	}
 	var err error
 	e.inv, err = invocationToObject(e.me.libVersion(), e.me.scheme(), tx)
@@ -478,16 +487,6 @@ func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
 	require.NoError(t, err)
 	require.NotNil(t, tree)
 	return script, tree
-}
-
-// makeAddressAndPK creates keys and an address on TestNet from given string as seed
-// DEPRECATED
-func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.WavesAddress) {
-	sk, pk, err := crypto.GenerateKeyPair([]byte(s))
-	require.NoError(t, err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
-	require.NoError(t, err)
-	return sk, pk, addr
 }
 
 func makeRandomTxID(t *testing.T) *crypto.Digest {
