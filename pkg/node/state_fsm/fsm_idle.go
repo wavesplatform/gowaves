@@ -83,12 +83,12 @@ func (a *IdleFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 }
 
 func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	fsm, as, err := newPeer(a, p, a.baseInfo.peers)
+	fsm, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
 	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
 		a.baseInfo.Reschedule()
 	}
 	sendScore(p, a.baseInfo.storage)
-	return fsm, as, a.Errorf(err)
+	return fsm, as, fsmErr
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {

@@ -135,11 +135,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 }
 
 func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	err := a.baseInfo.peers.NewConnection(p)
-	if err != nil {
-		return a, nil, a.Errorf(proto.NewInfoMsg(err))
-	}
-	return a, nil, nil
+	return newPeer(a, p, a.baseInfo.peers)
 }
 
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {

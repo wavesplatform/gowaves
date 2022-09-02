@@ -17,7 +17,7 @@ import (
 func newPeer(fsm FSM, p peer.Peer, peers peer_manager.PeerManager) (FSM, Async, error) {
 	err := peers.NewConnection(p)
 	if err != nil {
-		return fsm, nil, proto.NewInfoMsg(err)
+		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
 	}
 	return fsm, nil, nil
 }
