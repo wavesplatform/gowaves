@@ -90,7 +90,7 @@ type invokeApplier struct {
 	buildApiData bool
 
 	scriptInvocationStateWriteChan chan<- ride.AnyScriptInvocationStateWithHeight
-	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationState
+	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationStateWithHeight
 	cancel                         context.CancelFunc
 }
 
@@ -229,8 +229,8 @@ func runInvocationStatesReader(
 	invocationStatesFilePath string,
 	chanSize int,
 	initialHeight proto.Height,
-) (<-chan ride.AnyScriptInvocationState, <-chan struct{}, error) {
-	handle := func(ctx context.Context, ch chan<- ride.AnyScriptInvocationState, iter *invocationStatesIterator, done chan<- struct{}) {
+) (<-chan ride.AnyScriptInvocationStateWithHeight, <-chan struct{}, error) {
+	handle := func(ctx context.Context, ch chan<- ride.AnyScriptInvocationStateWithHeight, iter *invocationStatesIterator, done chan<- struct{}) {
 		defer func() {
 			if err := iter.Close(); err != nil {
 				zap.S().Errorf("failed to close iterator of file %q: %v", invocationStatesFilePath, err)
@@ -270,7 +270,7 @@ func runInvocationStatesReader(
 		return nil, nil, errors.Wrapf(err, "failed to skip invocations states until %d height", initialHeight)
 	}
 	done := make(chan struct{})
-	ch := make(chan ride.AnyScriptInvocationState, chanSize)
+	ch := make(chan ride.AnyScriptInvocationStateWithHeight, chanSize)
 	go handle(ctx, ch, iter, done)
 	return ch, done, nil
 }
@@ -329,8 +329,8 @@ func (i *invocationStatesIterator) Next() (bool, error) {
 	return true, nil
 }
 
-func (i *invocationStatesIterator) Get() ride.AnyScriptInvocationState {
-	return i.currState
+func (i *invocationStatesIterator) Get() ride.AnyScriptInvocationStateWithHeight {
+	return ride.AnyScriptInvocationStateWithHeight{State: i.currState, Height: proto.Height(i.lastDecodedHeader.height)}
 }
 
 func (i *invocationStatesIterator) Close() error {
@@ -1284,7 +1284,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 
 func (ia *invokeApplier) handleInvoke(tx proto.Transaction, info *fallibleValidationParams, scriptAddr proto.WavesAddress) (ride.Result, error) {
 	if ia.scriptInvocationStateReadChan != nil {
-		is, ok := <-ia.scriptInvocationStateReadChan
+		stateWithHeight, ok := <-ia.scriptInvocationStateReadChan
 		if !ok {
 			id, err := tx.GetID(ia.settings.AddressSchemeCharacter)
 			if err != nil {
@@ -1295,6 +1295,12 @@ func (ia *invokeApplier) handleInvoke(tx proto.Transaction, info *fallibleValida
 				tx, base58.Encode(id),
 			)
 		}
+		if stateWithHeight.Height != info.blockInfo.Height {
+			return nil, errors.Errorf("received invalid invocation state: want state on height %d, got %d",
+				info.blockInfo.Height, stateWithHeight.Height,
+			)
+		}
+		is := stateWithHeight.State
 		if info.rideV5Activated {
 			ia.sc.increaseRecentSpentComplexityAfterRideV5(is.Result, is.Err)
 		} else {
