@@ -1107,6 +1107,7 @@ func (s *stateManager) flush() error {
 	if err := s.stateDB.flush(); err != nil {
 		return err
 	}
+	// TODO: add invokeApplier flush it it works with READER mode
 	return nil
 }
 

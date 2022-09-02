@@ -173,6 +173,7 @@ func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath str
 			select {
 			case <-ctx.Done():
 				return
+			// TODO add case for file syncing
 			case is, ok := <-ch:
 				if !ok {
 					return
