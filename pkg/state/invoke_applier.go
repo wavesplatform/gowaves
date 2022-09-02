@@ -91,6 +91,7 @@ type invokeApplier struct {
 
 	scriptInvocationStateWriteChan chan<- ride.AnyScriptInvocationStateWithHeight
 	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationState
+	cancel                         context.CancelFunc
 }
 
 const (
@@ -99,7 +100,6 @@ const (
 )
 
 func newInvokeApplier(
-	ctx context.Context,
 	dataDir string,
 	state types.SmartState,
 	sc *scriptCaller,
@@ -112,8 +112,8 @@ func newInvokeApplier(
 	buildApiData bool,
 	mode InvocationStateHandleMode,
 	stateHeight proto.Height,
-) (*invokeApplier, error) {
-	ia := &invokeApplier{
+) (ia *invokeApplier, err error) {
+	ia = &invokeApplier{
 		state:          state,
 		sc:             sc,
 		txHandler:      txHandler,
@@ -124,29 +124,47 @@ func newInvokeApplier(
 		diffApplier:    diffApplier,
 		buildApiData:   buildApiData,
 	}
-	switch mode {
-	case InvocationStateNoOpMode:
-	// no-op
-	case InvocationStateWriteMode:
-		writeCh, err := runInvocationStatesWriter(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to run invocations states writer")
+	if mode != InvocationStateNoOpMode {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer func() {
+			if err != nil {
+				cancel() // prevent context leak
+			}
+		}()
+		switch mode {
+		case InvocationStateWriteMode:
+			writeCh, writerDone, err := runInvocationStatesWriter(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to run invocations states writer")
+			}
+			ia.scriptInvocationStateWriteChan = writeCh
+			ia.cancel = func() {
+				cancel()
+				<-writerDone
+			}
+		case InvocationStateReadMode:
+			readCh, readerDone, err := runInvocationStatesReader(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize, stateHeight)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to run invocations states reader")
+			}
+			ia.scriptInvocationStateReadChan = readCh
+			ia.cancel = func() {
+				cancel()
+				<-readerDone
+			}
+		default:
+			return nil, errors.Errorf("invalid InvocationStateHandleMode (%d)", mode)
 		}
-		ia.scriptInvocationStateWriteChan = writeCh
-	case InvocationStateReadMode:
-		readCh, err := runInvocationStatesReader(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize, stateHeight)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to run invocations states reader")
-		}
-		ia.scriptInvocationStateReadChan = readCh
-	default:
-		return nil, errors.Errorf("invalid InvocationStateHandleMode (%d)", mode)
 	}
 	return ia, nil
 }
 
-func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath string, chanSize int) (chan<- ride.AnyScriptInvocationStateWithHeight, error) {
-	handle := func(ctx context.Context, ch <-chan ride.AnyScriptInvocationStateWithHeight, file *os.File) {
+func runInvocationStatesWriter(
+	ctx context.Context,
+	invocationStatesFilePath string,
+	chanSize int,
+) (chan<- ride.AnyScriptInvocationStateWithHeight, <-chan struct{}, error) {
+	handle := func(ctx context.Context, ch <-chan ride.AnyScriptInvocationStateWithHeight, file *os.File, done chan<- struct{}) {
 		w := snappy.NewBufferedWriter(file)
 		defer func() {
 			if err := w.Close(); err != nil {
@@ -155,6 +173,7 @@ func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath str
 			if err := file.Close(); err != nil {
 				zap.S().Errorf("failed to close %q file: %v", invocationStatesFilePath, err)
 			}
+			close(done)
 		}()
 		var (
 			currentHeight      proto.Height
@@ -197,20 +216,27 @@ func runInvocationStatesWriter(ctx context.Context, invocationStatesFilePath str
 	}
 	f, err := os.OpenFile(invocationStatesFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
+		return nil, nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
 	}
+	done := make(chan struct{})
 	ch := make(chan ride.AnyScriptInvocationStateWithHeight, chanSize)
-	go handle(ctx, ch, f)
-	return ch, nil
+	go handle(ctx, ch, f, done)
+	return ch, done, nil
 }
 
-func runInvocationStatesReader(ctx context.Context, invocationStatesFilePath string, chanSize int, initialHeight proto.Height) (<-chan ride.AnyScriptInvocationState, error) {
-	handle := func(ctx context.Context, ch chan<- ride.AnyScriptInvocationState, iter *invocationStatesIterator) {
+func runInvocationStatesReader(
+	ctx context.Context,
+	invocationStatesFilePath string,
+	chanSize int,
+	initialHeight proto.Height,
+) (<-chan ride.AnyScriptInvocationState, <-chan struct{}, error) {
+	handle := func(ctx context.Context, ch chan<- ride.AnyScriptInvocationState, iter *invocationStatesIterator, done chan<- struct{}) {
 		defer func() {
 			if err := iter.Close(); err != nil {
 				zap.S().Errorf("failed to close iterator of file %q: %v", invocationStatesFilePath, err)
 			}
 			close(ch)
+			close(done)
 		}()
 		select {
 		case <-ctx.Done():
@@ -237,15 +263,16 @@ func runInvocationStatesReader(ctx context.Context, invocationStatesFilePath str
 	}
 	f, err := os.Open(invocationStatesFilePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
+		return nil, nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
 	}
 	iter := newInvocationStatesIterator(f)
 	if err := iter.SkipUntil(initialHeight); err != nil {
-		return nil, errors.Wrapf(err, "failed to skip invocations states until %d height", initialHeight)
+		return nil, nil, errors.Wrapf(err, "failed to skip invocations states until %d height", initialHeight)
 	}
+	done := make(chan struct{})
 	ch := make(chan ride.AnyScriptInvocationState, chanSize)
-	go handle(ctx, ch, iter)
-	return ch, nil
+	go handle(ctx, ch, iter, done)
+	return ch, done, nil
 }
 
 type invocationStatesIterator struct {
@@ -1419,4 +1446,11 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 		return false, err
 	}
 	return res.Result(), nil
+}
+
+// close invocation states writer synchronously if it's present
+func (ia *invokeApplier) close() {
+	if ia.cancel != nil {
+		ia.cancel()
+	}
 }

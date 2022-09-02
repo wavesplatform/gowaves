@@ -370,8 +370,6 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
-
-	cancel context.CancelFunc
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (m *stateManager, err error) {
@@ -471,12 +469,6 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 			}
 		}
 	}()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
 		stateDB:                   stateDB,
@@ -486,7 +478,6 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
-		cancel:                    cancel,
 	}
 	height, err := state.Height()
 	if err != nil {
@@ -494,7 +485,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(ctx, dataDir, state, rw, stor, settings, stateDB, atx, params.InvocationStateHandleMode, height)
+	appender, err := newTxAppender(dataDir, state, rw, stor, settings, stateDB, atx, params.InvocationStateHandleMode, height)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2352,7 +2343,7 @@ func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 }
 
 func (s *stateManager) Close() error {
-	s.cancel()
+	s.appender.close()
 	if err := s.atx.close(); err != nil {
 		return wrapErr(ClosureError, err)
 	}

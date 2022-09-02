@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/mr-tron/base58/base58"
@@ -55,7 +54,6 @@ type txAppender struct {
 }
 
 func newTxAppender(
-	ctx context.Context,
 	dataDir string,
 	state types.SmartState,
 	rw *blockReadWriter,
@@ -96,7 +94,7 @@ func newTxAppender(
 		return nil, err
 	}
 	ia, err := newInvokeApplier(
-		ctx, dataDir,
+		dataDir,
 		state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData,
 		mode, stateHeight,
 	)
@@ -888,4 +886,8 @@ func (a *txAppender) reset() {
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 	a.blockDiffer.reset()
+}
+
+func (a *txAppender) close() {
+	a.ia.close()
 }

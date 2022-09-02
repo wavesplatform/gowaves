@@ -66,6 +66,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 		blockDiffer: &blockDiffer{handler: txHandler, settings: &settings.BlockchainSettings{}},
 		ia:          &invokeApplier{sc: &scriptCaller{stor: &store, state: state, settings: blockchainSettings}, blockDiffer: &blockDiffer{stor: &store, handler: txHandler, settings: blockchainSettings}, state: state, txHandler: txHandler, settings: blockchainSettings, stor: &blockchainEntitiesStor, invokeDiffStor: &diffStorageWrapped{invokeDiffsStor: &diffStorage{changes: []balanceChanges{}}}},
 	}
+	t.Cleanup(txAppender.close)
 	return txAppender
 }
 func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []byte, gas uint64, scheme proto.Scheme) *proto.EthereumLegacyTx {
