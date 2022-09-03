@@ -17,16 +17,12 @@ func TestGetInfo(t *testing.T) {
 	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, sets)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewAssetsApiClient(conn)
 
