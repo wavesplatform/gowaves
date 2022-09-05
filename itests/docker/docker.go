@@ -265,7 +265,8 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 				"-Dwaves.network.declared-address=scala-node:" + BindPort + " " +
 				"-Dwaves.network.port=" + BindPort + " " +
 				"-Dwaves.rest-api.port=" + RESTApiPort + " " +
-				"-Dwaves.grpc.port=" + GrpcApiPort,
+				"-Dwaves.grpc.port=" + GrpcApiPort + " " +
+				"-Dwaves.network.enable-blacklisting=no",
 		},
 		ExposedPorts: []string{
 			GrpcApiPort,

@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"fmt"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -86,10 +84,10 @@ func getInvalidTxIdsInBlockchain(suite *IssueTxSuite, ids []*crypto.Digest, time
 
 func getPositiveDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		"Min values, not miner": *NewIssueTestData(
+		"Min values, empty description, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"test",
-			"t",
+			"",
 			1,
 			0,
 			true,
@@ -100,10 +98,10 @@ func getPositiveDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 				"waves diff balance": "100000000",
 				"asset balance":      "1",
 			}),
-		"Middle values, not miner": *NewIssueTestData(
+		"Middle values, special symbols in desc, not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"testtest",
-			"testtesttesttest",
+			"~!|#$%^&*()_+=\\\";:/?><|\\\\][{}",
 			100000000000,
 			4,
 			true,
@@ -183,12 +181,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -203,12 +197,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -223,12 +213,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -243,12 +229,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -263,55 +245,28 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
+		//Error in Node Go
 		/*"Invalid encoding in asset description, not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"0061 0073 0073 0065 0074",
-			10000,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Special symbols in asset description, not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"~!|#$%^&*()_+=\\\";:/?><|\\\\][{}",
-			10000,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
+		getAccount(suite, 2),
+		"test",
+		"\\u0061\\u0073\\u0073\\u0065\\u0074",
+		10000,
+		2,
+		true,
+		100000000,
+		getCurrentTimestampInMs(),
+		'L',
+		map[string]string{
+			"err go msg":         "transactions does not exist",
+			"err scala msg":      "transactions does not exist",
+			"waves diff balance": "0",
+			"asset balance":      "0",
+		}),*/
 		"Invalid asset description (len > max), not miner": *NewIssueTestData(
 			getAccount(suite, 2),
 			"test",
@@ -333,72 +288,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Empty string in asset description (len < min), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"",
-			10000,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid chain ID (0), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			10000,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			0,
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid chain ID (256), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			10000,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			256,
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -413,12 +304,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -433,72 +320,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid token quantity (negative), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			-1,
-			2,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid token decimals (negative), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			10000,
-			-1,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid token decimals (float), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			100000,
-			1.5,
-			true,
-			100000000,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -513,12 +336,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -533,12 +352,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -553,32 +368,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			getCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid fee (negative), not miner": *NewIssueTestData(
-			getAccount(suite, 2),
-			"test",
-			"test",
-			100000,
-			8,
-			true,
-			-1,
-			getCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -593,12 +384,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			1,
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -613,12 +400,8 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			9223372036854775807,
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
@@ -633,15 +416,11 @@ func getNegativeDataMatrix(suite *IssueTxSuite) map[string]IssueTestData {
 			9223372036854775807,
 			'L',
 			map[string]string{
-				"err go msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}: " +
-					"Invalid status code: expect 200 got 404",
-				"err scala msg": "reached retry deadline: " +
-					"{\"error\":311,\"message\":\"transactions does not exist\"}\n: " +
-					"Invalid status code: expect 200 got 404",
+				"err go msg":         "transactions does not exist",
+				"err scala msg":      "transactions does not exist",
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),*/
+			}),
 	}
 	return t
 }
@@ -659,6 +438,7 @@ func sendAndWaitTransaction(suite *IssueTxSuite, tx *proto.IssueWithSig, timeout
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
+	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(suite.T(), tx.ID, timeout)
@@ -686,10 +466,10 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 		expectedDiffBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		suite.NoErrorf(errGo, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "In case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "In case: \"%s\"", name)
+		suite.NoErrorf(errGo, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
 	}
 }
 
@@ -710,19 +490,19 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 		expectedDiffBalanceInWaves := 2 * diffBalanceInWaves
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		suite.NoErrorf(errGo1, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala1, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.NoErrorf(errGo2, "In case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala2, "In case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "In case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAsset1Balance, "In case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAsset2Balance, "In case: \"%s\"", name)
+		suite.NoErrorf(errGo1, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala1, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.NoErrorf(errGo2, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
+		suite.NoErrorf(errScala2, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
+		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAsset1Balance, "Node go in case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAsset2Balance, "Node Go in case: \"%s\"", name)
 	}
 }
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	testdata := getNegativeDataMatrix(suite)
-	timeout := 1 * time.Second
+	timeout := 3 * time.Second
 
 	var txIds []*crypto.Digest
 	for name, td := range testdata {
@@ -731,12 +511,6 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		tx, errGo, errScala := issue(suite, td, timeout)
 		txIds = append(txIds, tx.ID)
 
-		goHeight := suite.Clients.GoClients.HttpClient.GetHeight(suite.T())
-		fmt.Println(goHeight)
-
-		scalaHeight := suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T())
-		fmt.Println(scalaHeight)
-
 		currentBalanceInWaves := getAvalibleBalanceInWaves(suite, td.Account.Address)
 		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
 		actualAssetBalance := getAssetBalance(suite, td.Account.Address, tx.ID.Bytes())
@@ -744,14 +518,12 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		expectedBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
-		assert.EqualErrorf(suite.T(), errGo, td.Expected["err go msg"], "In case: \"%s\"", name)
-		assert.EqualErrorf(suite.T(), errScala, td.Expected["err scala msg"], "In case: \"%s\"", name)
-		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "In case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "In case: \"%s\"", name)
-
-		//time.Sleep(time.Millisecond * 100)
+		suite.ErrorContainsf(errGo, td.Expected["err go msg"], "Node Go in case: \"%s\"", name)
+		suite.ErrorContainsf(errScala, td.Expected["err scala msg"], "Node Scala in case: \"%s\"", name)
+		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Node Go in case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
 	}
-	//suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, txIds, 15*timeout)), "IDs: %#v", txIds)
+	suite.Equalf(0, len(getInvalidTxIdsInBlockchain(suite, txIds, 15*timeout)), "IDs: %#v", txIds)
 }
 
 func TestIssueTxSuite(t *testing.T) {

@@ -21,6 +21,7 @@ type BaseSuite struct {
 	Docker  *d.Docker
 	Conns   net.NodeConnections
 	Clients *node_client.NodesClients
+	Ports   *d.Ports
 }
 
 func (suite *BaseSuite) SetupSuite() {
@@ -40,6 +41,7 @@ func (suite *BaseSuite) SetupSuite() {
 		docker.Finish(suite.Cancel)
 		suite.NoError(err, "couldn't run Docker containers")
 	}
+	suite.Ports = ports
 
 	suite.Conns = net.NewNodeConnections(suite.T(), ports)
 	suite.Clients = node_client.NewNodesClients(suite.T(), ports)

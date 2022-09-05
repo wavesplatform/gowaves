@@ -79,6 +79,11 @@ func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
 	}
 }
 
+func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
+	c.Close()
+	*c = NewNodeConnections(t, p)
+}
+
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
 	err := c.goCon.SendMessage(m)
 	assert.NoError(t, err, "failed to send TransactionMessage to go node")
