@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 type SendTxSuite struct {
-	BaseSuite
+	fixtures.BaseSuite
 }
 
 func (suite *SendTxSuite) Test_SendTransaction() {
