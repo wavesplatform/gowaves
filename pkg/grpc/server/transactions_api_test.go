@@ -19,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/state"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -30,17 +29,12 @@ func TestGetTransactions(t *testing.T) {
 	st := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, sets)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
 	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}, 86400*1000), sets), sch)
 	require.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		err := conn.Close()
-		require.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	id, err := crypto.NewDigestFromBase58("ADXuoPsKMJ59HyLMGzLBbNQD8p2eJ93dciuBPJp3Qhx")
 	require.NoError(t, err)
@@ -111,24 +105,15 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestGetStatuses(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err = server.initServer(st, utx, sch)
+	err := server.initServer(st, utx, sch)
 	require.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		err := conn.Close()
-		require.NoError(t, err)
-		err = st.Close()
-		require.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
@@ -172,24 +157,15 @@ func TestGetStatuses(t *testing.T) {
 }
 
 func TestGetUnconfirmed(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err = server.initServer(st, utx, sch)
+	err := server.initServer(st, utx, sch)
 	require.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		err = conn.Close()
-		require.NoError(t, err)
-		err = st.Close()
-		require.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
@@ -268,24 +244,15 @@ func TestGetUnconfirmed(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
 
-	err = server.initServer(st, nil, sch)
+	err := server.initServer(st, nil, sch)
 	require.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		err = conn.Close()
-		require.NoError(t, err)
-		err = st.Close()
-		require.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	pk := keyPairs[0].Public
 

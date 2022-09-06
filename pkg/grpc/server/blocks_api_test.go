@@ -33,22 +33,14 @@ func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.Bl
 }
 
 func TestGetBlock(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
+	err := server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		err = st.Close()
-		assert.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewBlocksApiClient(conn)
 
@@ -88,22 +80,14 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestGetBlockRange(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
+	err := server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		err = st.Close()
-		assert.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewBlocksApiClient(conn)
 
@@ -166,22 +150,14 @@ func TestGetBlockRange(t *testing.T) {
 }
 
 func TestGetCurrentHeight(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
+	err := server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		err = st.Close()
-		assert.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewBlocksApiClient(conn)
 

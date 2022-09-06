@@ -82,17 +82,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}
-	dataDir := t.TempDir()
-	st, err := NewState(dataDir, true, stateParams(), settings.MainNetSettings)
-	if err != nil {
-		t.Fatalf("NewState(): %v\n", err)
-	}
-
-	t.Cleanup(func() {
-		if err := st.Close(); err != nil {
-			t.Fatalf("Failed to close state: %v\n", err)
-		}
-	})
+	st := newTestState(t, true, stateParams(), settings.MainNetSettings)
 
 	err = applyBlocks(t, blocks, st)
 	assert.NoError(t, err, "failed to apply correct blocks")
