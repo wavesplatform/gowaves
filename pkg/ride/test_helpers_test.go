@@ -3,8 +3,13 @@ package ride
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -23,6 +28,20 @@ type testAccount struct {
 
 func newTestAccount(t *testing.T, seed string) *testAccount {
 	return newTestAccountWithScheme(t, proto.TestNetScheme, seed)
+}
+
+func newTestAccountFromPublicKey(t *testing.T, scheme proto.Scheme, publicKey string) *testAccount {
+	pk, err := crypto.NewPublicKeyFromBase58(publicKey)
+	require.NoError(t, err, "failed to create test account")
+	ad, err := proto.NewAddressFromPublicKey(scheme, pk)
+	require.NoError(t, err, "failed to create test account")
+	rcp := proto.NewRecipientFromAddress(ad)
+	return &testAccount{
+		sk:  crypto.SecretKey{},
+		pk:  pk,
+		wa:  ad,
+		rcp: rcp,
+	}
 }
 
 func newTestAccountWithScheme(t *testing.T, scheme proto.Scheme, seed string) *testAccount {
@@ -71,7 +90,7 @@ type testEnv struct {
 	trees       map[proto.WavesAddress]*ast.Tree
 	waves       map[proto.WavesAddress]*types.WavesBalanceProfile
 	aliases     map[proto.Alias]proto.WavesAddress
-	assets      map[crypto.Digest]*proto.AssetInfo
+	assets      map[crypto.Digest]*proto.FullAssetInfo
 	sponsorship map[crypto.Digest]bool
 	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
 }
@@ -114,7 +133,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		trees:       map[proto.WavesAddress]*ast.Tree{},
 		waves:       map[proto.WavesAddress]*types.WavesBalanceProfile{},
 		aliases:     map[proto.Alias]proto.WavesAddress{},
-		assets:      map[crypto.Digest]*proto.AssetInfo{},
+		assets:      map[crypto.Digest]*proto.FullAssetInfo{},
 		sponsorship: map[crypto.Digest]bool{},
 		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
 	}
@@ -147,20 +166,45 @@ func newTestEnv(t *testing.T) *testEnv {
 		}
 		return 0, errors.Errorf("unknown address '%s'", a.String())
 	}
-	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-		if addr, ok := r.recipients[account.String()]; ok {
-			if entries, ok := r.entries[addr]; ok {
-				if e, ok := entries[key]; ok {
-					if ie, ok := e.(*proto.IntegerDataEntry); ok {
-						return ie, nil
-					}
-					return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
-				}
-				return nil, errors.Errorf("no entry by key '%s' at '%s'", key, addr.String())
-			}
-			return nil, errors.Errorf("no entries for address '%s'", addr.String())
+	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+		e, err := r.retrieveEntry(account, key)
+		if err != nil {
+			return nil, err
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", account.String())
+		if be, ok := e.(*proto.BinaryDataEntry); ok {
+			return be, nil
+		}
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+	}
+	r.ms.RetrieveNewestBooleanEntryFunc = func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+		e, err := r.retrieveEntry(account, key)
+		if err != nil {
+			return nil, err
+		}
+		if be, ok := e.(*proto.BooleanDataEntry); ok {
+			return be, nil
+		}
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+	}
+	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+		e, err := r.retrieveEntry(account, key)
+		if err != nil {
+			return nil, err
+		}
+		if be, ok := e.(*proto.IntegerDataEntry); ok {
+			return be, nil
+		}
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+	}
+	r.ms.RetrieveNewestStringEntryFunc = func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+		e, err := r.retrieveEntry(account, key)
+		if err != nil {
+			return nil, err
+		}
+		if be, ok := e.(*proto.StringDataEntry); ok {
+			return be, nil
+		}
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
 	}
 	r.ms.NewestWavesBalanceFunc = func(account proto.Recipient) (uint64, error) {
 		if addr, ok := r.recipients[account.String()]; ok {
@@ -217,21 +261,34 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 	r.ms.NewestAssetInfoFunc = func(assetID crypto.Digest) (*proto.AssetInfo, error) {
 		if ai, ok := r.assets[assetID]; ok {
+			return &ai.AssetInfo, nil
+		}
+		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+	}
+	r.ms.NewestFullAssetInfoFunc = func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+		if ai, ok := r.assets[assetID]; ok {
 			return ai, nil
 		}
 		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
 	}
 	r.ms.NewestAssetBalanceFunc = func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-		if addr, ok := r.recipients[account.String()]; ok {
-			if t, ok := r.tokens[addr]; ok {
-				if b, ok := t[assetID]; ok {
-					return b, nil
-				}
-				return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
+		var addr proto.WavesAddress
+		if account.Address != nil {
+			addr = *account.Address
+		} else {
+			a, ok := r.recipients[account.String()]
+			if !ok {
+				return 0, errors.Errorf("unknown recipient '%s'", account.String())
 			}
-			return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+			addr = a
 		}
-		return 0, errors.Errorf("unknown recipient '%s'", account.String())
+		if t, ok := r.tokens[addr]; ok {
+			if b, ok := t[assetID]; ok {
+				return b, nil
+			}
+			return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
+		}
+		return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
 	}
 	r.ms.NewestAssetBalanceByAddressIDFunc = func(id proto.AddressID, a crypto.Digest) (uint64, error) {
 		addr, err := id.ToWavesAddress(r.me.scheme())
@@ -247,12 +304,12 @@ func newTestEnv(t *testing.T) *testEnv {
 	return r
 }
 
-//func (e *testEnv) withScheme(scheme byte) *testEnv {
-//	e.me.schemeFunc = func() byte {
-//		return scheme
-//	}
-//	return e
-//}
+func (e *testEnv) withScheme(scheme byte) *testEnv {
+	e.me.schemeFunc = func() byte {
+		return scheme
+	}
+	return e
+}
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 	e.me.libVersionFunc = func() ast.LibraryVersion {
@@ -345,14 +402,20 @@ func (e *testEnv) withAdditionalDApp(acc *testAccount) *testEnv {
 type testInvocationOption func(*proto.InvokeScriptWithProofs)
 
 func withRecipient(recipient proto.Recipient) testInvocationOption {
-	return func(i *proto.InvokeScriptWithProofs) {
-		i.ScriptRecipient = recipient
+	return func(inv *proto.InvokeScriptWithProofs) {
+		inv.ScriptRecipient = recipient
 	}
 }
 
 func withTransactionID(id crypto.Digest) testInvocationOption {
-	return func(i *proto.InvokeScriptWithProofs) {
-		i.ID = &id
+	return func(inv *proto.InvokeScriptWithProofs) {
+		inv.ID = &id
+	}
+}
+
+func withPayments(payments ...proto.ScriptPayment) testInvocationOption {
+	return func(inv *proto.InvokeScriptWithProofs) {
+		inv.Payments = payments
 	}
 }
 
@@ -379,22 +442,84 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 	for _, opt := range opts {
 		opt(tx)
 	}
-	var err error
-	e.inv, err = invocationToObject(e.me.libVersion(), e.me.scheme(), tx)
-	require.NoError(e.t, err)
-	e.me.invocationFunc = func() rideType {
-		return e.inv
-	}
-	txo, err := transactionToObject(e.me.scheme(), tx)
-	require.NoError(e.t, err)
+	return e.withInvokeTransaction(tx)
+}
+
+func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
 	e.me.transactionFunc = func() rideType {
 		return txo
 	}
-	e.me.setInvocationFunc = func(inv rideType) {
-		e.inv = inv
+	return e
+}
+
+func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
+	txo, err := transactionToObject(proto.TestNetScheme, tx)
+	require.NoError(e.t, err, "failed to set transaction")
+	e.me.transactionFunc = func() rideType {
+		return txo
 	}
+	e.ms.NewestTransactionByIDFunc = func(id []byte) (proto.Transaction, error) {
+		return tx, nil
+	}
+	id, err := tx.GetID(e.me.scheme())
+	require.NoError(e.t, err)
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(tx.ID.Bytes())
+		return rideBytes(id)
+	}
+	return e
+}
+
+func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
+	e.me.txIDFunc = func() rideType {
+		return rideBytes(id.Bytes())
+	}
+	return e
+}
+
+func (e *testEnv) withHeight(h int) *testEnv {
+	e.me.heightFunc = func() rideInt {
+		return rideInt(h)
+	}
+	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
+		return uint64(h), nil
+	}
+	return e
+}
+
+func (e *testEnv) withDataFromJSON(s string) *testEnv {
+	var data []struct {
+		Address string `json:"address"`
+		Entry   struct {
+			Key         string  `json:"key"`
+			BoolValue   *bool   `json:"boolValue"`
+			StringVale  *string `json:"stringValue"`
+			IntValue    *string `json:"intValue"`
+			BinaryValue *string `json:"binaryValue"`
+		} `json:"entry"`
+	}
+	err := json.Unmarshal([]byte(s), &data)
+	if err != nil {
+		panic(err)
+	}
+	for _, d := range data {
+		key := d.Entry.Key
+		var entry proto.DataEntry
+		switch {
+		case d.Entry.BoolValue != nil:
+			entry = &proto.BooleanDataEntry{Key: key, Value: *d.Entry.BoolValue}
+		case d.Entry.StringVale != nil:
+			entry = &proto.StringDataEntry{Key: key, Value: *d.Entry.StringVale}
+		case d.Entry.IntValue != nil:
+			v, err := strconv.ParseInt(*d.Entry.IntValue, 10, 64)
+			require.NoError(e.t, err, "failed to add IntegerDataEntry")
+			entry = &proto.IntegerDataEntry{Key: key, Value: v}
+		case d.Entry.BinaryValue != nil:
+			entry = &proto.BinaryDataEntry{Key: key, Value: guessBytesFromString(e.t, *d.Entry.BinaryValue)}
+		}
+		ab := guessBytesFromString(e.t, d.Address)
+		addr, err := proto.NewAddressFromBytes(ab)
+		require.NoError(e.t, err)
+		e.addDataEntry(addr, entry)
 	}
 	return e
 }
@@ -412,15 +537,20 @@ func (e *testEnv) withWrappedState() *testEnv {
 	}
 	return e
 }
-
-func (e *testEnv) withIntegerEntries(acc *testAccount, entry *proto.IntegerDataEntry) *testEnv {
-	if m, ok := e.entries[acc.address()]; ok {
-		m[entry.Key] = entry
-		e.entries[acc.address()] = m
-	} else {
-		e.entries[acc.address()] = map[string]proto.DataEntry{entry.Key: entry}
+func (e *testEnv) withDataEntries(acc *testAccount, entries ...proto.DataEntry) *testEnv {
+	for _, entry := range entries {
+		e.addDataEntry(acc.address(), entry)
 	}
 	return e
+}
+
+func (e *testEnv) addDataEntry(addr proto.WavesAddress, entry proto.DataEntry) {
+	if m, ok := e.entries[addr]; ok {
+		m[entry.GetKey()] = entry
+		e.entries[addr] = m
+	} else {
+		e.entries[addr] = map[string]proto.DataEntry{entry.GetKey(): entry}
+	}
 }
 
 // withWavesBalance adds information about account's Waves balance profile.
@@ -460,9 +590,9 @@ func (e *testEnv) withAlias(acc *testAccount, alias *proto.Alias) *testEnv {
 	return e
 }
 
-func (e *testEnv) withAsset(info *proto.AssetInfo, sponsored bool) *testEnv {
+func (e *testEnv) withAsset(info *proto.FullAssetInfo) *testEnv {
 	e.assets[info.ID] = info
-	e.sponsorship[info.ID] = sponsored
+	e.sponsorship[info.ID] = info.Sponsored
 	return e
 }
 
@@ -476,8 +606,64 @@ func (e *testEnv) withAssetBalance(acc *testAccount, asset crypto.Digest, balanc
 	return e
 }
 
+func (e *testEnv) withTakeStringV5() *testEnv {
+	e.me.takeStringFunc = takeRideString
+	return e
+}
+
 func (e *testEnv) toEnv() *mockRideEnvironment {
 	return e.me
+}
+
+func (e *testEnv) retrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	var addr proto.WavesAddress
+	if account.Address != nil {
+		addr = *account.Address
+	} else {
+		a, ok := e.recipients[account.String()]
+		if !ok {
+			return nil, errors.Errorf("unknown recipient '%s'", account.String())
+		}
+		addr = a
+	}
+	if entries, ok := e.entries[addr]; ok {
+		if e, ok := entries[key]; ok {
+			return e, nil
+		}
+		return nil, errors.Errorf("no entry by key '%s' at '%s'", key, addr.String())
+	}
+	return nil, errors.Errorf("no entries for address '%s'", addr.String())
+}
+
+func (e *testEnv) withNoTransactionAtHeight() *testEnv {
+	e.ms.NewestTransactionHeightByIDFunc = func(_ []byte) (uint64, error) {
+		return 0, proto.ErrNotFound
+	}
+	e.ms.IsNotFoundFunc = func(err error) bool {
+		return true
+	}
+	return e
+}
+
+func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testEnv {
+	var err error
+	e.inv, err = invocationToObject(e.me.libVersion(), e.me.scheme(), tx)
+	require.NoError(e.t, err)
+	e.me.invocationFunc = func() rideType {
+		return e.inv
+	}
+	txo, err := transactionToObject(e.me.scheme(), tx)
+	require.NoError(e.t, err)
+	e.me.transactionFunc = func() rideType {
+		return txo
+	}
+	e.me.setInvocationFunc = func(inv rideType) {
+		e.inv = inv
+	}
+	e.me.txIDFunc = func() rideType {
+		return rideBytes(tx.ID.Bytes())
+	}
+	return e
 }
 
 func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
@@ -496,4 +682,83 @@ func makeRandomTxID(t *testing.T) *crypto.Digest {
 	d, err := crypto.NewDigestFromBytes(b)
 	require.NoError(t, err)
 	return &d
+}
+
+func guessBytesFromString(t *testing.T, s string) []byte {
+	b, err := base58.Decode(s)
+	if err != nil {
+		b, err := base64.StdEncoding.DecodeString(s)
+		if err != nil {
+			b, err := hex.DecodeString(s)
+			if err != nil {
+				t.FailNow()
+			}
+			return b
+		}
+		return b
+	}
+	return b
+}
+
+func testTransferWithProofs() *proto.TransferWithProofs {
+	var scheme byte = 'T'
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	if err != nil {
+		panic(err)
+	}
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	if err != nil {
+		panic(err)
+	}
+	tm, err := time.Parse(time.RFC3339, "2020-10-01T00:00:00+00:00")
+	if err != nil {
+		panic(err)
+	}
+	ts := uint64(tm.UnixNano() / 1000000)
+	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
+	if err != nil {
+		panic(err)
+	}
+	rcp := proto.NewRecipientFromAddress(addr)
+	att := []byte("some attachment")
+	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, att)
+	err = tx.GenerateID(scheme)
+	if err != nil {
+		panic(err)
+	}
+	err = tx.Sign(scheme, sk)
+	if err != nil {
+		panic(err)
+	}
+	return tx
+}
+
+func testTransferObject() rideType {
+	obj, err := transferWithProofsToObject(proto.TestNetScheme, testTransferWithProofs())
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+func newTestDataTransaction(t *testing.T, acc *testAccount) *proto.DataWithProofs {
+	data := proto.NewUnsignedDataWithProofs(1, acc.publicKey(), 10000, 1544715621)
+	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
+		Key:   "integer",
+		Value: 100500,
+	}))
+	require.NoError(t, data.AppendEntry(&proto.BooleanDataEntry{
+		Key:   "boolean",
+		Value: true,
+	}))
+	require.NoError(t, data.AppendEntry(&proto.BinaryDataEntry{
+		Key:   "binary",
+		Value: []byte("hello"),
+	}))
+	require.NoError(t, data.AppendEntry(&proto.StringDataEntry{
+		Key:   "string",
+		Value: "world",
+	}))
+	require.NoError(t, data.Sign(proto.TestNetScheme, acc.sk))
+	return data
 }
