@@ -29,8 +29,8 @@ func (suite *SendTxSuite) Test_SendTransaction() {
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(suite.T(), tx.ID, 1*time.Minute)
-	suite.NoError(errGo, "Get Go node error")
-	suite.NoError(errScala, "Get Scala node error")
+	suite.NoError(errGo, "Get Go Node error")
+	suite.NoError(errScala, "Get Scala Node error")
 	b := suite.Clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), suite.Cfg.Accounts[3].Address)
 	suite.Equal(suite.Cfg.Accounts[3].Amount+1000000000, uint64(b.GetAvailable()))
 }
