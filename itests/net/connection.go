@@ -79,9 +79,9 @@ func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
 	}
 }
 
-func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
+func Reconnect(t *testing.T, c NodeConnections, p *d.Ports) NodeConnections {
 	c.Close()
-	*c = NewNodeConnections(t, p)
+	return NewNodeConnections(t, p)
 }
 
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {

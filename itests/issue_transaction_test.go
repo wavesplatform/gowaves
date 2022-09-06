@@ -3,6 +3,7 @@ package integration
 import (
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/fixtures"
+	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	"github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -29,7 +30,7 @@ func sendAndWaitTransaction(suite *IssueTxSuite, tx *proto.IssueWithSig, timeout
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	suite.Conns.Reconnect(suite.T(), suite.Ports)
+	suite.Conns = net.Reconnect(suite.T(), suite.Conns, suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(suite.T(), tx.ID, timeout)
