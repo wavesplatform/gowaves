@@ -13,23 +13,15 @@ import (
 )
 
 func TestGetBaseTarget(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
 	params.StoreExtendedApiData = true
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
+	err := server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		err = st.Close()
-		assert.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewBlockchainApiClient(conn)
 
@@ -51,22 +43,14 @@ func TestGetBaseTarget(t *testing.T) {
 }
 
 func TestGetCumulativeScore(t *testing.T) {
-	dataDir := t.TempDir()
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, settings.MainNetSettings)
-	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	st := newTestState(t, true, params, settings.MainNetSettings)
+	ctx := withAutoCancel(t, context.Background())
+	sch := createTestNetWallet(t)
+	err := server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
-	conn := connect(t, grpcTestAddr)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		err = st.Close()
-		assert.NoError(t, err)
-	})
+	conn := connectAutoClose(t, grpcTestAddr)
 
 	cl := g.NewBlockchainApiClient(conn)
 
