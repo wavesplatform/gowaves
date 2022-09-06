@@ -2,7 +2,6 @@ package net
 
 import (
 	"bufio"
-
 	"net"
 	"testing"
 	"time"
@@ -68,10 +67,10 @@ type NodeConnections struct {
 	goCon    *OutgoingPeer
 }
 
-func NewNodeConnections(t *testing.T) NodeConnections {
-	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.GoNodeBindPort, proto.ProtocolVersion, "wavesL")
+func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
+	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to go node")
-	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+d.ScalaNodeBindPort, proto.ProtocolVersion, "wavesL")
+	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
 	assert.NoError(t, err, "failed to create connection to scala node")
 
 	return NodeConnections{

@@ -15,6 +15,7 @@ import (
 	"github.com/phayes/freeport"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -85,27 +86,45 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, true, params, sets)
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 	t.Cleanup(func() {
-		err = st.Close()
-		assert.NoError(t, err)
+		require.NoError(t, st.Close())
 	})
-
 	return st
 }
 
-func createWallet(ctx context.Context, st state.State, settings *settings.BlockchainSettings) types.EmbeddedWallet {
+func createTestNetWallet(t *testing.T) types.EmbeddedWallet {
 	w := wallet.NewWallet()
-	decoded, _ := base58.Decode(seed)
-	_ = w.AddSeed(decoded)
+	decoded, err := base58.Decode(seed)
+	require.NoError(t, err)
+	err = w.AddSeed(decoded)
+	require.NoError(t, err)
 	return wallet.NewEmbeddedWallet(nil, w, proto.TestNetScheme)
 }
 
-func connect(t *testing.T, addr string) *grpc.ClientConn {
+func connectAutoClose(t *testing.T, addr string) *grpc.ClientConn {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.NoError(t, err, "grpc.Dial() failed")
+	require.NoError(t, err, "grpc.Dial() failed")
+	t.Cleanup(func() {
+		require.NoError(t, conn.Close())
+	})
 	return conn
+}
+
+func withAutoCancel(t *testing.T, ctx context.Context) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+func newTestState(t *testing.T, amend bool, params state.StateParams, settings *settings.BlockchainSettings) state.State {
+	dataDir := t.TempDir()
+	st, err := state.NewState(dataDir, amend, params, settings)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, st.Close())
+	})
+	return st
 }
 
 func TestMain(m *testing.M) {

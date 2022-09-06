@@ -80,16 +80,14 @@ jobs:
         run: go mod vendor
 
       - name: Tests
-        run: make itest
+        run: make itest-ci
 
       - name: Upload itest logs
         uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: itest_logs
-          path: |
-            build/logs/go-node.log
-            build/logs/scala-node.log
+          path: build/logs/
           if-no-files-found: warn
           retention-days: 5
 
