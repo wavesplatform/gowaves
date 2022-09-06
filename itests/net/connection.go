@@ -59,6 +59,10 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) error {
 }
 
 func (a *OutgoingPeer) Close() error {
+	err := a.conn.(*net.TCPConn).SetLinger(0)
+	if err != nil {
+		return errors.Wrapf(err, "failed to discard any unsent or unacknowledged data")
+	}
 	return a.conn.Close()
 }
 
