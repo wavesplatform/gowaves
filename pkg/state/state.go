@@ -1417,6 +1417,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
+	// wait for all verifier goroutines
+	if verifyError := <-chans.errChan; verifyError != nil {
+		return nil, wrapErr(ValidationError, verifyError)
+	}
+
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(); err != nil {
