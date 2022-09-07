@@ -16,9 +16,17 @@ type PeerStorage interface {
 	AddSuspended(suspended []storage.SuspendedPeer) error
 	IsSuspendedIP(ip storage.IP, now time.Time) bool
 	IsSuspendedIPs(ips []storage.IP, now time.Time) []bool
-	DeleteSuspendedByIP(suspended []storage.SuspendedPeer) error
+	DeleteSuspendedByIP(suspended []storage.RestrictedPeer) error
 	RefreshSuspended(now time.Time) error
 	DropSuspended() error
+
+	BlackList(now time.Time) []storage.BlackListedPeer
+	AddToBlackList(blackListed []storage.BlackListedPeer) error
+	IsBlackListedIP(ip storage.IP, now time.Time) bool
+	IsBlackListedIPs(ip storage.IP, now time.Time) []bool
+	DeleteBlackListedByIP(blackListed []storage.BlackListedPeer) error
+	RefreshBlackList(now time.Time) error
+	DropBlackList() error
 
 	DropStorage() error
 }

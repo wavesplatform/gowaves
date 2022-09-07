@@ -1,12 +1,13 @@
 package api
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -39,18 +40,18 @@ func TestApp_PeersSuspended(t *testing.T) {
 	now := time.Now()
 
 	ips := []string{"13.3.4.1", "5.3.6.7"}
-	testData := []storage.SuspendedPeer{
+	testData := []storage.RestrictedPeer{
 		{
-			IP:                     storage.IPFromString(ips[0]),
-			SuspendTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
-			SuspendDuration:        time.Minute,
-			Reason:                 "some reason #1",
+			IP:                      storage.IPFromString(ips[0]),
+			RestrictTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
+			RestrictDuration:        time.Minute,
+			Reason:                  "some reason #1",
 		},
 		{
-			IP:                     storage.IPFromString(ips[1]),
-			SuspendTimestampMillis: now.Add(2*time.Minute).UnixNano() / 1_000_000,
-			SuspendDuration:        time.Minute,
-			Reason:                 "some reason #2",
+			IP:                      storage.IPFromString(ips[1]),
+			RestrictTimestampMillis: now.Add(2*time.Minute).UnixNano() / 1_000_000,
+			RestrictDuration:        time.Minute,
+			Reason:                  "some reason #2",
 		},
 	}
 
@@ -65,7 +66,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 		p := testData[i]
 		expected := SuspendedPeerInfo{
 			Hostname:  "/" + ips[i],
-			Timestamp: p.SuspendTimestampMillis,
+			Timestamp: p.RestrictTimestampMillis,
 			Reason:    p.Reason,
 		}
 		assert.Equal(t, expected, actual)

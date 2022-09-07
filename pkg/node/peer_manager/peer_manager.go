@@ -37,7 +37,9 @@ type PeerManager interface {
 	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
 	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
-	Suspended() []storage.SuspendedPeer
+	Suspended() []storage.RestrictedPeer
+	// BlackList( /* ??? */ blockTime time.Time, reason string)
+	// BlackListed() []storage.BlackListedPeer
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	KnownPeers() []storage.KnownPeer
 	UpdateKnownPeers([]storage.KnownPeer) error
@@ -158,12 +160,12 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason str
 	a.Disconnect(p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	suspended := storage.SuspendedPeer{
-		IP:                     storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
-		SuspendTimestampMillis: suspendTime.UnixMilli(),
-		SuspendDuration:        suspendDuration,
-		Reason:                 reason,
-	}
+	suspended := *storage.NewSuspendedPeer(
+		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
+		suspendTime.UnixMilli(),
+		suspendDuration,
+		reason,
+	)
 	if err := a.peerStorage.AddSuspended([]storage.SuspendedPeer{suspended}); err != nil {
 		zap.S().Errorf("[%s] Failed to suspend peer, reason %q: %v", p.ID(), reason, err)
 	} else {

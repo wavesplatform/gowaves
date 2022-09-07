@@ -143,7 +143,7 @@ func (a *App) PeersSuspended() []SuspendedPeerInfo {
 	for _, p := range suspended {
 		out = append(out, SuspendedPeerInfo{
 			Hostname:  "/" + p.IP.String(),
-			Timestamp: p.SuspendTimestampMillis,
+			Timestamp: p.RestrictTimestampMillis,
 			Reason:    p.Reason,
 		})
 	}
