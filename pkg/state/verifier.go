@@ -234,6 +234,9 @@ func verify(ctx context.Context, tasks <-chan *verifyTask, scheme proto.Scheme) 
 }
 
 func launchVerifier(ctx context.Context, chans *verifierChans, goroutinesNum int, scheme proto.Scheme) {
+	if goroutinesNum <= 0 {
+		panic("verifier launched with negative or zero goroutines number")
+	}
 	errgr, ctx := errgroup.WithContext(ctx)
 	defer func() {
 		if err := errgr.Wait(); err != nil {
