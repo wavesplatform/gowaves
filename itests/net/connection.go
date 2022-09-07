@@ -59,6 +59,10 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) error {
 }
 
 func (a *OutgoingPeer) Close() error {
+	err := a.conn.(*net.TCPConn).SetLinger(0)
+	if err != nil {
+		return errors.Wrapf(err, "failed to discard any unsent or unacknowledged data")
+	}
 	return a.conn.Close()
 }
 
@@ -77,6 +81,11 @@ func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
 		scalaCon: scalaCon,
 		goCon:    goCon,
 	}
+}
+
+func Reconnect(t *testing.T, c NodeConnections, p *d.Ports) NodeConnections {
+	c.Close()
+	return NewNodeConnections(t, p)
 }
 
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
