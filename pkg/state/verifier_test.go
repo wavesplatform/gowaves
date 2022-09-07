@@ -48,6 +48,8 @@ func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 }
 
 func TestVerifier(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Read real blocks.
 	height := uint64(75)
 	blocks, err := readBlocksFromTestPath(int(height + 1))
@@ -58,39 +60,39 @@ func TestVerifier(t *testing.T) {
 
 	// Test valid blocks.
 	chans := newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	// Test valid transactions.
 	err = verifyTransactions(txs, chans)
 	assert.NoError(t, err, "verifyTransactions() failed with valid transactions")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	// Spoil block parent.
 	backup := blocks[len(blocks)/2]
 	blocks[len(blocks)/2].Parent = proto.NewBlockIDFromSignature(crypto.Signature{})
 	err = verifyBlocks(blocks, chans)
 	assert.Error(t, err, "verifyBlocks() did not fail with wrong parent")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	blocks[len(blocks)/2] = backup
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	// Spoil block signature.
 	blocks[len(blocks)/2].BlockSignature = crypto.Signature{}
 	err = verifyBlocks(blocks, chans)
 	assert.Error(t, err, "verifyBlocks() did not fail with wrong signature")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	blocks[len(blocks)/2] = backup
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	// Test unsigned tx failure.
 	spk, err := crypto.NewPublicKeyFromBase58(testPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
@@ -102,7 +104,7 @@ func TestVerifier(t *testing.T) {
 	err = verifyTransactions(txs, chans)
 	assert.Error(t, err, "verifyTransactions() did not fail with unsigned tx")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.TestNetScheme)
+	go launchVerifier(ctx, chans, runtime.NumCPU(), proto.TestNetScheme)
 	// Test invalid tx failure.
 	invalidTx := proto.NewUnsignedGenesis(recipient, 0, 0)
 	txs = []proto.Transaction{invalidTx}
