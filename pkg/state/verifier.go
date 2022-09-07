@@ -218,17 +218,19 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 }
 
 func verify(ctx context.Context, tasks <-chan *verifyTask, scheme proto.Scheme) error {
-	for task := range tasks {
-		if err := handleTask(task, scheme); err != nil {
-			return err
-		}
+	for {
 		select {
+		case task, ok := <-tasks:
+			if !ok {
+				return nil
+			}
+			if err := handleTask(task, scheme); err != nil {
+				return err
+			}
 		case <-ctx.Done():
 			return nil
-		default:
 		}
 	}
-	return nil
 }
 
 func launchVerifier(ctx context.Context, chans *verifierChans, goroutinesNum int, scheme proto.Scheme) {
