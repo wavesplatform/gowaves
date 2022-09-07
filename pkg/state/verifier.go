@@ -2,12 +2,12 @@ package state
 
 import (
 	"context"
-	"sync"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"golang.org/x/sync/errgroup"
 )
 
 type verifyTaskType byte
@@ -234,19 +234,16 @@ func verify(ctx context.Context, tasks <-chan *verifyTask, scheme proto.Scheme) 
 }
 
 func launchVerifier(ctx context.Context, chans *verifierChans, goroutinesNum int, scheme proto.Scheme) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var wg sync.WaitGroup
+	errgr, ctx := errgroup.WithContext(ctx)
+	defer func() {
+		if err := errgr.Wait(); err != nil {
+			chans.errChan <- err
+		}
+		close(chans.errChan)
+	}()
 	for i := 0; i < goroutinesNum; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := verify(ctx, chans.tasksChan, scheme); err != nil {
-				chans.errChan <- err
-				cancel()
-			}
-		}()
+		errgr.Go(func() error {
+			return verify(ctx, chans.tasksChan, scheme)
+		})
 	}
-	wg.Wait()
-	close(chans.errChan)
 }
