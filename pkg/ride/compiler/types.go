@@ -11,3 +11,15 @@ func NewByteVector(base string, value []byte) (ByteVector, error) {
 		value: value,
 	}, nil
 }
+
+type Declaration struct {
+	name  string
+	value interface{}
+}
+
+func NewDeclaration(name string, value interface{}) Declaration {
+	return Declaration{
+		name:  name,
+		value: value,
+	}
+}

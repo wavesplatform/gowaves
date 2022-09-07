@@ -4,44 +4,16 @@ package main
 import (
     "github.com/pkg/errors"
 )
-
-func toIfaceSlice(v interface{}) []interface{} {
-    if v == nil {
-        return nil
-    }
-    return v.([]interface{})
 }
 
-}
-
-Input ← StartRule EOL? d:Directives s:Statements  r:ReturnOp  EOF {
+Program ← StartRule EOL? d:Directives Declaration+ EOF {
     if d == nil {
         return nil, errors.Errorf("header isn't correct")
     }
-    return newProgramNode(s.(StatementsNode),r.(ReturnNode), d.(Directives))
+    return newProgramNode(c.globalStore["declarations"].([]Declaration), d.(Directives))
 }
-Statements  ← s:Line+                       { return newStatementsNode(s)}
-Line        ← INDENTATION s:Statement       { return s,nil }
-ReturnOp    ← "return" _ arg:Identifier EOL { return newReturnNode(arg.(IdentifierNode))}
 
-Statement   ← s:Assignment EOL              { return s.(AssignmentNode),nil }
-    / "if" _ arg:LogicalExpression _? ":" EOL INDENT s:Statements DEDENT
-                                            { return newIfNode(arg.(LogicalExpressionNode),s.(StatementsNode)) }
-
-
-Assignment ← lvalue:Identifier _? "=" _? rvalue:AdditiveExpression
-                                            { return newAssignmentNode(lvalue.(IdentifierNode),rvalue.(AdditiveExpressionNode)) }
-
-LogicalExpression   ← arg:PrimaryExpression { return newLogicalExpressionNode(arg.(PrimaryExpressionNode)) }
-AdditiveExpression  ← arg:PrimaryExpression rest:( _ AddOp _ PrimaryExpression )*
-                                            { return newAdditiveExpressionNode(arg.(PrimaryExpressionNode),rest)}
-PrimaryExpression   ← arg:(Integer / Identifier)
-                                            { return newPrimaryExpressionNode(arg) }
-
-Integer ← [0-9]+                            { return newIntegerNode(string(c.text)) }
-Identifier ← [a-zA-Z] [a-zA-Z0-9]*          { return newIdentifierNode(string(c.text)) }
-
-AddOp ← ( '+' / '-' )                       { return string(c.text),nil }
+// Whitespaces and new line symbols
 
 _ ← [ \t]+
 
@@ -53,33 +25,28 @@ Comment ← _? "#" [^\r\n]*
 
 EOF ← !.
 
-INDENTATION ← spaces:" "* &{ return len(toIfaceSlice(spaces)) == c.state["Indentation"].(int), nil }
-
-INDENT ← #{ c.state["Indentation"] = c.state["Indentation"].(int) + 4; return nil }
-
-DEDENT ← #{ c.state["Indentation"] = c.state["Indentation"].(int) - 4; return nil }
-
 StartRule <- #{
-    c.state["Indentation"] = 0
     c.globalStore["libVersionCnt"] = 0
     c.globalStore["scriptTypeCnt"] = 0
     c.globalStore["contentTypeCnt"] = 0
+    c.globalStore["declarations"] = []Declaration{}
     return nil
 }
 
 // Types
 
-Types <- (Int / Boolean / ByteVector / String)
+Types <- (Int / Uint/ Boolean / ByteVector)
 
-Int <- [0-9]+ {
+Int <- [-]? [0-9]+ {
+    return strconv.ParseInt(string(c.text), 0, 64)
+}
+
+Uint <- [0-9]+ {
     return strconv.ParseInt(string(c.text), 0, 64)
 }
 Boolean <- "true" { return true, nil } / "false" { return false, nil }
-ByteVector <- base:("base16" / "base58" / "base64") '\''vec:[^\'\r\n]*'\'' {
+ByteVector <- base:("base16" / "base58" / "base64") '\''vec:[^'\r\n]*'\'' {
     return  NewByteVector(string(base.([]byte)), base.([]byte))
-}
-String <- '\"' s:[] '\"'  {
-
 }
 
 
@@ -144,6 +111,7 @@ ContentTypeDirective <- StartDirective _ "CONTENT_TYPE" _ arg:ContentType _ EndD
 
 // Variables
 
-Variables <- "let" _ name:word _ "=" _ value:Types EOL {
-    return NewVariable(name.(string), value)
+Declaration <- "let" _ name:Word _ "=" _ value:Types EOL &{
+    c.globalStore["declarations"] = append(c.globalStore["declarations"].([]Declaration), NewDeclaration(name.(string), value))
+    return true, nil
 }
