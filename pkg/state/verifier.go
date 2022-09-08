@@ -22,6 +22,23 @@ type verifierChans struct {
 	tasksChan chan<- *verifyTask
 }
 
+func (ch *verifierChans) trySend(task *verifyTask) error {
+	select {
+	case verifyError, ok := <-ch.errChan:
+		if !ok {
+			return errors.Errorf("sending task with task type (%d) to finished verifier", task.taskType)
+		}
+		return verifyError
+	case ch.tasksChan <- task:
+		return nil
+	}
+}
+
+func (ch *verifierChans) closeAndWait() error {
+	close(ch.tasksChan)
+	return <-ch.errChan
+}
+
 type verifyTask struct {
 	taskType    verifyTaskType
 	parentID    proto.BlockID

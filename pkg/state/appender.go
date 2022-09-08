@@ -392,12 +392,7 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 		checkOrder1: checkOrder1,
 		checkOrder2: checkOrder2,
 	}
-	select {
-	case verifyError := <-params.chans.errChan:
-		return verifyError
-	case params.chans.tasksChan <- task:
-	}
-	return nil
+	return params.chans.trySend(task)
 }
 
 type appendTxParams struct {

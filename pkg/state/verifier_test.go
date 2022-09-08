@@ -17,15 +17,11 @@ func verifyTransactions(transactions []proto.Transaction, chans *verifierChans) 
 			tx:         tx,
 			checkTxSig: true,
 		}
-		select {
-		case verifyError := <-chans.errChan:
-			return verifyError
-		case chans.tasksChan <- task:
+		if err := chans.trySend(task); err != nil {
+			return err
 		}
 	}
-	close(chans.tasksChan)
-	verifyError := <-chans.errChan
-	return verifyError
+	return chans.closeAndWait()
 }
 
 func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
@@ -36,15 +32,11 @@ func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 			parentID: blocks[i-1].BlockID(),
 			block:    &block,
 		}
-		select {
-		case verifyError := <-chans.errChan:
-			return verifyError
-		case chans.tasksChan <- task:
+		if err := chans.trySend(task); err != nil {
+			return err
 		}
 	}
-	close(chans.tasksChan)
-	verifyError := <-chans.errChan
-	return verifyError
+	return chans.closeAndWait()
 }
 
 func TestVerifier(t *testing.T) {
