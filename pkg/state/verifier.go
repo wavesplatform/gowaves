@@ -18,12 +18,8 @@ const (
 )
 
 type verifierChans struct {
-	errChan   chan error
-	tasksChan chan *verifyTask
-}
-
-func newVerifierChans() *verifierChans {
-	return &verifierChans{make(chan error), make(chan *verifyTask)}
+	errChan   <-chan error
+	tasksChan chan<- *verifyTask
 }
 
 type verifyTask struct {
@@ -233,20 +229,25 @@ func verify(ctx context.Context, tasks <-chan *verifyTask, scheme proto.Scheme) 
 	}
 }
 
-func launchVerifier(ctx context.Context, chans *verifierChans, goroutinesNum int, scheme proto.Scheme) {
+func launchVerifier(ctx context.Context, goroutinesNum int, scheme proto.Scheme) *verifierChans {
 	if goroutinesNum <= 0 {
 		panic("verifier launched with negative or zero goroutines number")
 	}
 	errgr, ctx := errgroup.WithContext(ctx)
-	defer func() {
-		if err := errgr.Wait(); err != nil {
-			chans.errChan <- err
-		}
-		close(chans.errChan)
-	}()
+	// run verifier goroutines
+	tasksChan := make(chan *verifyTask)
 	for i := 0; i < goroutinesNum; i++ {
 		errgr.Go(func() error {
-			return verify(ctx, chans.tasksChan, scheme)
+			return verify(ctx, tasksChan, scheme)
 		})
 	}
+	// run waiter goroutine
+	errChan := make(chan error, 1)
+	go func(ch chan<- error) {
+		if err := errgr.Wait(); err != nil {
+			ch <- err
+		}
+		close(ch)
+	}(errChan)
+	return &verifierChans{tasksChan: tasksChan, errChan: errChan}
 }

@@ -565,8 +565,7 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
@@ -1360,8 +1359,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	headers := make([]proto.BlockHeader, blocksNumber)
 
 	// Launch verifier that checks signatures of blocks and transactions.
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var ids []proto.BlockID
 	pos := 0
