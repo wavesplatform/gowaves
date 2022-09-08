@@ -13,7 +13,7 @@ import (
 type verifyTaskType byte
 
 const (
-	verifyBlock verifyTaskType = iota
+	verifyBlock verifyTaskType = iota + 1
 	verifyTx
 )
 
@@ -226,6 +226,8 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 			}
 			return errors.Wrapf(err, "transaction '%s' verification failed", base58.Encode(txID))
 		}
+	default:
+		return errors.Errorf("unknown verify task type (%d)", task.taskType)
 	}
 	return nil
 }
