@@ -2,9 +2,16 @@ package testdata
 
 import (
 	"github.com/wavesplatform/gowaves/itests/config"
-	integration "github.com/wavesplatform/gowaves/itests/fixtures"
-	"github.com/wavesplatform/gowaves/itests/utilities"
+	i "github.com/wavesplatform/gowaves/itests/fixtures"
+	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"math/rand"
+	"time"
+)
+
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	errMsg      = "transactions does not exist"
 )
 
 type IssueTestData struct {
@@ -36,347 +43,312 @@ func NewIssueTestData(account config.AccountInfo, assetName string, assetDesc st
 	}
 }
 
-func DataChangedTimestamp(td *IssueTestData) IssueTestData {
-	return *NewIssueTestData(td.Account, td.AssetName, td.AssetDesc, td.Quantity, td.Decimals, td.Reissuable, td.Fee,
-		utilities.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for j := range b {
+		b[j] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
 
-func GetPositiveDataMatrix(suite *integration.BaseSuite) map[string]IssueTestData {
+func GetCurrentTimestampInMs() uint64 {
+	return uint64(time.Now().UnixNano() / 1000000)
+}
+
+func DataChangedTimestamp(td *IssueTestData) IssueTestData {
+	return *NewIssueTestData(td.Account, td.AssetName, td.AssetDesc, td.Quantity, td.Decimals, td.Reissuable, td.Fee,
+		GetCurrentTimestampInMs(), td.ChainID, td.Expected)
+}
+
+func GetPositiveDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		"Min values, empty description, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
+		"Min values, empty description, NFT": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(4),
 			"",
 			1,
 			0,
-			true,
+			false,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
 				"waves diff balance": "100000000",
 				"asset balance":      "1",
 			}),
-		"Middle values, special symbols in desc, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"testtest",
-			"~!|#$%^&*()_+=\\\";:/?><|\\\\][{}",
+		"Middle values, special symbols in desc, not reissuable": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(500),
 			100000000000,
 			4,
-			true,
+			false,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
 				"waves diff balance": "100000000",
 				"asset balance":      "100000000000",
 			}),
-		"Max values, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"testtesttestest",
-			"testtesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
-				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
-				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
-				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
-				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
-				"stesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
-				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
-				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
-				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
-				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
-				"sttesttesttestt",
+		"Max values": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(16),
+			RandStringBytes(1000),
 			9223372036854775807,
 			8,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
 				"waves diff balance": "100000000",
 				"asset balance":      "9223372036854775807",
 			}),
-		"NFT, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
-			1,
-			0,
-			false,
-			100000,
-			utilities.GetCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"waves diff balance": "100000",
-				"asset balance":      "1",
-			}),
-		"Not reissuable, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"testtest",
-			"testtesttestest",
-			100000000000,
-			4,
-			false,
-			100000000,
-			utilities.GetCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"waves diff balance": "100000000",
-				"asset balance":      "100000000000",
-			}),
 	}
 	return t
 }
 
-func GetNegativeDataMatrix(suite *integration.BaseSuite) map[string]IssueTestData {
+func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		"Invalid asset name (len < min), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"tes",
-			"t",
+		"Invalid asset name (len < min)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(3),
+			RandStringBytes(1),
 			1,
 			0,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid asset name (len > max), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"testtesttesttestt",
-			"test",
+		"Invalid asset name (len > max)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(17),
+			RandStringBytes(8),
 			10000,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Empty string in asset name, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
+		"Empty string in asset name": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
 			"",
-			"test",
+			RandStringBytes(8),
 			10000,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Special symbols in asset name, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"~!|#$%^&*()_+=\\\";:/?><|\\\\][{}",
-			"test",
+		"Invalid encoding in asset name": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			"\\u0061\\u0073\\u0073\\u0065",
+			RandStringBytes(8),
 			10000,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
-				"waves diff balance": "0",
-				"asset balance":      "0",
-			}),
-		"Invalid encoding in asset name, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"\\u0061\\u0073\\u0073\\u0065\\u0074",
-			"test",
-			10000,
-			2,
-			true,
-			100000000,
-			utilities.GetCurrentTimestampInMs(),
-			'L',
-			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
 		//Error in Node Go
-		/*"Invalid encoding in asset description, not miner": *NewIssueTestData(
-		utilities.GetAccount(suite, 2),
-		"test",
+		/*"Invalid encoding in asset description": *NewIssueTestData(
+		utl.GetAccount(suite, 2),
+		RandStringBytes(8),
 		"\\u0061\\u0073\\u0073\\u0065\\u0074",
 		10000,
 		2,
 		true,
 		100000000,
-		utilities.GetCurrentTimestampInMs(),
+		GetCurrentTimestampInMs(),
 		'L',
 		map[string]string{
-			"err go msg":         "transactions does not exist",
-			"err scala msg":      "transactions does not exist",
+			"err go msg":         errMsg,
+			"err scala msg":      errMsg,
 			"waves diff balance": "0",
 			"asset balance":      "0",
 		}),*/
-		"Invalid asset description (len > max), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"testtesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
-				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
-				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
-				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
-				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
-				"stesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttest"+
-				"testtestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestteste"+
-				"sttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttes"+
-				"ttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestestt"+
-				"esttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttesttestesttesttestte"+
-				"sttesttesttesttt",
+		"Invalid asset description (len > max)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(6),
+			RandStringBytes(1001),
 			10000,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid token quantity (quantity < min), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Invalid token quantity (quantity < min)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			0,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid token quantity (quantity > max), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Invalid token quantity (quantity > max)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			9223372036854775808,
 			2,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid token decimals (decimals > max), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Invalid token decimals (decimals > max)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			9,
 			true,
 			100000000,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid fee (fee > max), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Invalid fee (fee > max)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			8,
 			true,
 			9223372036854775808,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Invalid fee (fee < min), not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		//Error
+		/*"Invalid fee (0 < fee < min)": *NewIssueTestData(
+		utl.GetAccount(suite, 2),
+		RandStringBytes(8),
+		RandStringBytes(8),
+		100000,
+		8,
+		true,
+		10,
+		GetCurrentTimestampInMs(),
+		'L',
+		map[string]string{
+			"err go msg":         errMsg,
+			"err scala msg":      errMsg,
+			"waves diff balance": "0",
+			"asset balance":      "0",
+		}),*/
+		"Invalid fee (fee = 0)": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			8,
 			true,
 			0,
-			utilities.GetCurrentTimestampInMs(),
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Timestamp more than 7200000ms in the past relative to previous block timestamp, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			8,
 			true,
 			100000000,
-			1,
+			GetCurrentTimestampInMs()-7215000,
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		"Timestamp more than 5400000ms in the future relative to previous block timestamp, not miner": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			8,
 			true,
 			100000000,
-			9223372036854775807,
+			GetCurrentTimestampInMs()+54160000,
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
 		"Creating a token when there are not enough funds on the account balance": *NewIssueTestData(
-			utilities.GetAccount(suite, 2),
-			"test",
-			"test",
+			utl.GetAccount(suite, 2),
+			RandStringBytes(8),
+			RandStringBytes(8),
 			100000,
 			8,
 			true,
-			uint64(100000000+utilities.GetAvalibleBalanceInWaves(suite, utilities.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvalibleBalanceInWaves(suite, utl.GetAccount(suite, 2).Address)),
 			9223372036854775807,
 			'L',
 			map[string]string{
-				"err go msg":         "transactions does not exist",
-				"err scala msg":      "transactions does not exist",
+				"err go msg":         errMsg,
+				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),

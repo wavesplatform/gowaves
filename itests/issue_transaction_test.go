@@ -5,7 +5,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/itests/testdata"
-	"github.com/wavesplatform/gowaves/itests/utilities"
+	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"strconv"
@@ -47,13 +47,13 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 
 		tx, errGo, errScala := issue(suite, td, timeout)
 
-		currentBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		currentBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utilities.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
+		actualAssetBalance := utl.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
 
 		expectedDiffBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
@@ -69,15 +69,15 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 
 		tx1, errGo1, errScala1 := issue(suite, td, timeout)
 		tx2, errGo2, errScala2 := issue(suite, testdata.DataChangedTimestamp(&td), timeout)
 
-		currentBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		currentBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAsset1Balance := utilities.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx1.ID.Bytes())
-		actualAsset2Balance := utilities.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx2.ID.Bytes())
+		actualAsset1Balance := utl.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx1.ID.Bytes())
+		actualAsset2Balance := utl.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx2.ID.Bytes())
 		diffBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
 		expectedDiffBalanceInWaves := 2 * diffBalanceInWaves
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
@@ -95,27 +95,28 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 	timeout := 3 * time.Second
+	txIds := make(map[string]*crypto.Digest)
 
-	var txIds []*crypto.Digest
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 
 		tx, errGo, errScala := issue(suite, td, timeout)
-		txIds = append(txIds, tx.ID)
+		txIds[name] = tx.ID
 
-		currentBalanceInWaves := utilities.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		currentBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utilities.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
+		actualAssetBalance := utl.GetAssetBalance(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
 
 		expectedBalanceInWaves, _ := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
 		expectedAssetBalance, _ := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
 
 		suite.ErrorContainsf(errGo, td.Expected["err go msg"], "Node Go in case: \"%s\"", name)
 		suite.ErrorContainsf(errScala, td.Expected["err scala msg"], "Node Scala in case: \"%s\"", name)
-		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
+		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Expected balance in Waves Node Go in case: \"%s\"", name)
+		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Expected Asset balance Node Go in case: \"%s\"", name)
 	}
-	suite.Equalf(0, len(utilities.GetInvalidTxIdsInBlockchain(&suite.BaseSuite, txIds, 15*timeout)), "IDs: %#v", txIds)
+	actualTxIds := utl.GetInvalidTxIdsInBlockchain(&suite.BaseSuite, txIds, 15*timeout)
+	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)
 }
 
 func TestIssueTxSuite(t *testing.T) {
