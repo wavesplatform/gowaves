@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -90,6 +91,7 @@ type invokeApplier struct {
 	buildApiData bool
 
 	scriptInvocationStateWriteChan chan<- ride.AnyScriptInvocationStateWithHeight
+	flusher                        chan struct{}
 	scriptInvocationStateReadChan  <-chan ride.AnyScriptInvocationStateWithHeight
 	cancel                         context.CancelFunc
 }
@@ -133,11 +135,12 @@ func newInvokeApplier(
 		}()
 		switch mode {
 		case InvocationStateWriteMode:
-			writeCh, writerDone, err := runInvocationStatesWriter(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize)
+			writeCh, flusher, writerDone, err := runInvocationStatesWriter(ctx, filepath.Join(dataDir, invocationStatesFileName), invocationStatesChanSize)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to run invocations states writer")
 			}
 			ia.scriptInvocationStateWriteChan = writeCh
+			ia.flusher = flusher
 			ia.cancel = func() {
 				cancel()
 				<-writerDone
@@ -163,43 +166,60 @@ func runInvocationStatesWriter(
 	ctx context.Context,
 	invocationStatesFilePath string,
 	chanSize int,
-) (chan<- ride.AnyScriptInvocationStateWithHeight, <-chan struct{}, error) {
-	handle := func(ctx context.Context, ch <-chan ride.AnyScriptInvocationStateWithHeight, file *os.File, done chan<- struct{}) {
-		w := snappy.NewBufferedWriter(file)
+) (chan<- ride.AnyScriptInvocationStateWithHeight, chan struct{}, <-chan struct{}, error) {
+	handle := func(ctx context.Context, ch <-chan ride.AnyScriptInvocationStateWithHeight, file *os.File, flusher chan struct{}, done chan<- struct{}) {
 		defer func() {
-			if err := w.Close(); err != nil {
-				zap.S().Errorf("failed to close snappy writer to %q file: %v", invocationStatesFilePath, err)
-			}
 			if err := file.Close(); err != nil {
 				zap.S().Errorf("failed to close %q file: %v", invocationStatesFilePath, err)
 			}
+			close(flusher)
 			close(done)
 		}()
 		var (
 			currentHeight      proto.Height
 			statesOnSameHeight ride.AnyScriptInvocationStates
+			buff               = new(bytes.Buffer)
+			w                  = snappy.NewBufferedWriter(buff)
 		)
 		defer func() {
-			if len(statesOnSameHeight) != 0 { // write last block statements
-				// write to the file
-				if err := writeStatesOnSameHeight(w, statesOnSameHeight, currentHeight); err != nil {
-					// TODO: Is fatal necessary here?
-					zap.S().Fatalf("failed to write state results on height %d: %v", currentHeight, err)
-				}
+			if err := w.Close(); err != nil {
+				zap.S().Errorf("failed to close writer: %v", err)
 			}
 		}()
 		for {
 			select {
+			// TODO: add case to handle rollback
 			case <-ctx.Done():
 				return
-			// TODO add case for file syncing
+			case <-flusher:
+				// TODO: Is fatal calls necessary here?
+				if len(statesOnSameHeight) != 0 {
+					if err := writeStatesOnSameHeight(w, statesOnSameHeight, currentHeight); err != nil {
+						zap.S().Fatalf("failed to write state results on height %d: %v", currentHeight, err)
+					}
+					// reuse the same buffer
+					statesOnSameHeight = statesOnSameHeight[:0]
+				}
+				if err := w.Flush(); err != nil {
+					zap.S().Fatalf("failed to flush writer: %v", err)
+				}
+				if buff.Len() != 0 {
+					if _, err := file.Write(buff.Bytes()); err != nil {
+						zap.S().Fatalf("failed to write data to file %q: %v", invocationStatesFilePath, err)
+					}
+					if err := file.Sync(); err != nil {
+						zap.S().Fatalf("failed to sync file %q: %v", invocationStatesFilePath, err)
+					}
+					buff.Reset()
+					w.Reset(buff)
+				}
+				flusher <- struct{}{} // flush done
 			case is, ok := <-ch:
 				if !ok {
 					return
 				}
 				if currentHeight != is.Height {
 					if len(statesOnSameHeight) != 0 {
-						// write to the file
 						if err := writeStatesOnSameHeight(w, statesOnSameHeight, currentHeight); err != nil {
 							// TODO: Is fatal necessary here?
 							zap.S().Fatalf("failed to write state results on height %d: %v", currentHeight, err)
@@ -216,12 +236,15 @@ func runInvocationStatesWriter(
 	}
 	f, err := os.OpenFile(invocationStatesFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
+		return nil, nil, nil, errors.Wrapf(err, "failed to open %q file", invocationStatesFilePath)
 	}
-	done := make(chan struct{})
-	ch := make(chan ride.AnyScriptInvocationStateWithHeight, chanSize)
-	go handle(ctx, ch, f, done)
-	return ch, done, nil
+	var (
+		flusher = make(chan struct{})
+		done    = make(chan struct{})
+		ch      = make(chan ride.AnyScriptInvocationStateWithHeight, chanSize)
+	)
+	go handle(ctx, ch, f, flusher, done)
+	return ch, flusher, done, nil
 }
 
 func runInvocationStatesReader(
@@ -1458,5 +1481,13 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 func (ia *invokeApplier) close() {
 	if ia.cancel != nil {
 		ia.cancel()
+	}
+}
+
+// flush invocation states writer synchronously if it's present
+func (ia *invokeApplier) flush() {
+	if ia.flusher != nil {
+		ia.flusher <- struct{}{} // send flushing task
+		<-ia.flusher             // wait till task ends
 	}
 }

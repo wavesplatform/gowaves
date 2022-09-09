@@ -891,3 +891,7 @@ func (a *txAppender) reset() {
 func (a *txAppender) close() {
 	a.ia.close()
 }
+
+func (a *txAppender) flush() {
+	a.ia.flush()
+}
