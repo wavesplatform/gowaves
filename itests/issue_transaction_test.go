@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/net"
@@ -96,12 +97,24 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 	timeout := 3 * time.Second
 	txIds := make(map[string]*crypto.Digest)
+	//h := utl.GetHeightGo(&suite.BaseSuite)
 
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 
+		initBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
+		/*for {
+			time.Sleep(3 * timeout)
+			if h.Height < 5 {
+				break
+			}
+		}*/
 		tx, errGo, errScala := issue(suite, td, timeout)
+		fmt.Println(tx.ID.String())
+		fmt.Println(tx)
 		txIds[name] = tx.ID
+
+		fmt.Println("Go Height", utl.GetHeightGo(&suite.BaseSuite))
+		fmt.Println("Scala Height", utl.GetHeightScala(&suite.BaseSuite))
 
 		currentBalanceInWaves := utl.GetAvalibleBalanceInWaves(&suite.BaseSuite, td.Account.Address)
 		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
@@ -115,7 +128,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Expected balance in Waves Node Go in case: \"%s\"", name)
 		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Expected Asset balance Node Go in case: \"%s\"", name)
 	}
-	actualTxIds := utl.GetInvalidTxIdsInBlockchain(&suite.BaseSuite, txIds, 15*timeout)
+	actualTxIds := utl.GetInvalidTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout)
 	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)
 }
 
