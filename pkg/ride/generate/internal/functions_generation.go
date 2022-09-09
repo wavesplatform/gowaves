@@ -78,6 +78,7 @@ func functionsV2() map[string]string {
 	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
 	m["Transfer"] = "transferObject"
+	m["BalanceDetails"] = "balanceDetails"
 	return m
 }
 
@@ -152,6 +153,7 @@ func catalogueV2() map[string]int {
 	m["DataEntry"] = 2
 	m["DataTransaction"] = 9
 	m["Transfer"] = 2
+	m["BalanceDetails"] = 4
 	return m
 }
 
@@ -181,6 +183,7 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	m["DataEntry"] = 0
 	m["DataTransaction"] = 0
 	m["Transfer"] = 0
+	m["BalanceDetails"] = 0
 	return m
 }
 
@@ -192,6 +195,7 @@ func evaluationCatalogueV2EvaluatorV2() map[string]int {
 	m["DataEntry"] = 1
 	m["DataTransaction"] = 1
 	m["Transfer"] = 1
+	m["BalanceDetails"] = 1
 	return m
 }
 
@@ -364,6 +368,7 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m["TransferSet"] = 0
 	m["ScriptTransfer"] = 0
 	m["ScriptResult"] = 0
+	m["BalanceDetails"] = 0
 	return m
 }
 
@@ -398,6 +403,7 @@ func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m["TransferSet"] = 1
 	m["ScriptTransfer"] = 1
 	m["ScriptResult"] = 1
+	m["BalanceDetails"] = 1
 	return m
 }
 
@@ -645,6 +651,7 @@ func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m["Burn"] = 0
 	m["SponsorFee"] = 0
 	m["AttachedPayment"] = 0
+	m["BalanceDetails"] = 0
 	return m
 }
 
@@ -684,6 +691,7 @@ func evaluationCatalogueV4EvaluatorV2() map[string]int {
 	m["Burn"] = 1
 	m["SponsorFee"] = 1
 	m["AttachedPayment"] = 1
+	m["BalanceDetails"] = 1
 	return m
 }
 
@@ -837,6 +845,7 @@ func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m["SponsorFee"] = 0
 	m["AttachedPayment"] = 0
 	m["LeaseCancel"] = 0
+	m["BalanceDetails"] = 0
 	return m
 }
 
@@ -875,6 +884,7 @@ func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m["SponsorFee"] = 1
 	m["AttachedPayment"] = 1
 	m["LeaseCancel"] = 1
+	m["BalanceDetails"] = 1
 	return m
 }
 
@@ -981,6 +991,7 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m["SponsorFee"] = 0
 	m["AttachedPayment"] = 0
 	m["LeaseCancel"] = 0
+	m["BalanceDetails"] = 0
 	return m
 }
 
@@ -1019,6 +1030,7 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["SponsorFee"] = 1
 	m["AttachedPayment"] = 1
 	m["LeaseCancel"] = 1
+	m["BalanceDetails"] = 1
 	return m
 }
 
