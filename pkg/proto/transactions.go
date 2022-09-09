@@ -84,7 +84,7 @@ const (
 	MaxDataTransactionVersion            = 127
 	MaxSetScriptTransactionVersion       = 127
 	MaxSponsorshipTransactionVersion     = 2
-	MaxSetAssetScriptTransactionVersion  = 2
+	MaxSetAssetScriptTransactionVersion  = 3
 	MaxInvokeScriptTransactionVersion    = 127
 	MaxUpdateAssetInfoTransactionVersion = 1
 
