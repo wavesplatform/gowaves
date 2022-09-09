@@ -782,7 +782,7 @@ func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, p
 	case 1, 2:
 		// For old transaction version function returns 8.
 		return 8, nil
-	case 3:
+	case 3, 4:
 		buy, err := exchange.GetBuyOrder()
 		if err != nil {
 			return 0, err
