@@ -565,8 +565,7 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
@@ -574,7 +573,6 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
-	close(chans.tasksChan)
 
 	if err := s.appender.applyAllDiffs(); err != nil {
 		return err
@@ -585,8 +583,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
 		return err
 	}
-	verifyError := <-chans.errChan
-	if verifyError != nil {
+	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return wrapErr(ValidationError, verifyError)
 	}
 
@@ -1360,8 +1357,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	headers := make([]proto.BlockHeader, blocksNumber)
 
 	// Launch verifier that checks signatures of blocks and transactions.
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var ids []proto.BlockID
 	pos := 0
@@ -1389,10 +1385,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			parentID: lastAppliedBlock.BlockID(),
 			block:    block,
 		}
-		select {
-		case verifyError := <-chans.errChan:
-			return nil, verifyError
-		case chans.tasksChan <- task:
+		if err := chans.trySend(task); err != nil {
+			return nil, err
 		}
 		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
 		if err != nil {
@@ -1416,7 +1410,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		lastAppliedBlock = block
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
-	close(chans.tasksChan)
+	// wait for all verifier goroutines
+	if verifyError := chans.closeAndWait(); err != nil {
+		return nil, wrapErr(ValidationError, verifyError)
+	}
+
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(); err != nil {
