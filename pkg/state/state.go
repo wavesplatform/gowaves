@@ -1428,11 +1428,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
-	// Check the result of signatures verification.
-	verifyError := <-chans.errChan
-	if verifyError != nil {
-		return nil, wrapErr(ValidationError, verifyError)
-	}
 	// After everything is validated, save all the changes to DB.
 	if err := s.flush(); err != nil {
 		return nil, wrapErr(ModificationError, err)
