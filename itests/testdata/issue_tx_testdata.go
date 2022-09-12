@@ -110,7 +110,7 @@ func GetPositiveDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 
 func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 	var t = map[string]IssueTestData{
-		/*"Invalid asset name (len < min)": *NewIssueTestData(
+		"Invalid asset name (len < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			RandStringBytes(3),
 			RandStringBytes(1),
@@ -191,7 +191,7 @@ func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 			"waves diff balance": "0",
 			"asset balance":      "0",
 		}),*/
-		/*"Invalid asset description (len > max)": *NewIssueTestData(
+		"Invalid asset description (len > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			RandStringBytes(6),
 			RandStringBytes(1001),
@@ -270,8 +270,7 @@ func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),*/
-		//Error
+			}),
 		"Invalid fee (0 < fee < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			RandStringBytes(8),
@@ -288,7 +287,7 @@ func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 				"waves diff balance": "0",
 				"asset balance":      "0",
 			}),
-		/*"Invalid fee (fee = 0)": *NewIssueTestData(
+		"Invalid fee (fee = 0)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			RandStringBytes(8),
 			RandStringBytes(8),
@@ -344,14 +343,14 @@ func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 			8,
 			true,
 			uint64(100000000+utl.GetAvalibleBalanceInWaves(suite, utl.GetAccount(suite, 2).Address)),
-			9223372036854775807,
+			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{
 				"err go msg":         errMsg,
 				"err scala msg":      errMsg,
 				"waves diff balance": "0",
 				"asset balance":      "0",
-			}),*/
+			}),
 	}
 	return t
 }
