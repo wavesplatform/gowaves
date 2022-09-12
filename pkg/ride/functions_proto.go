@@ -1761,3 +1761,11 @@ func leaseCancel(_ environment, args ...rideType) (rideType, error) {
 	}
 	return newRideLeaseCancel(id), nil
 }
+
+func balanceDetails(_ environment, args ...rideType) (rideType, error) {
+	values, err := intArgs(args, 4)
+	if err != nil {
+		return rideBalanceDetails{}, errors.Wrap(err, "balanceDetails")
+	}
+	return newRideBalanceDetails(values[0], values[1], values[2], values[3]), nil
+}
