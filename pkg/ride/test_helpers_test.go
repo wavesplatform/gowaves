@@ -93,6 +93,8 @@ type testEnv struct {
 	assets      map[crypto.Digest]*proto.FullAssetInfo
 	sponsorship map[crypto.Digest]bool
 	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
+	leasings    map[crypto.Digest]*proto.LeaseInfo
+	scripts     map[proto.WavesAddress]proto.Script
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -136,6 +138,8 @@ func newTestEnv(t *testing.T) *testEnv {
 		assets:      map[crypto.Digest]*proto.FullAssetInfo{},
 		sponsorship: map[crypto.Digest]bool{},
 		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
+		leasings:    map[crypto.Digest]*proto.LeaseInfo{},
+		scripts:     map[proto.WavesAddress]proto.Script{},
 	}
 	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
@@ -150,13 +154,14 @@ func newTestEnv(t *testing.T) *testEnv {
 		return crypto.PublicKey{}, errors.Errorf("unknown address '%s'", addr.String())
 	}
 	r.ms.NewestScriptByAccountFunc = func(account proto.Recipient) (*ast.Tree, error) {
-		if a, ok := r.recipients[account.String()]; ok {
-			if t, ok := r.trees[a]; ok {
-				return t, nil
-			}
-			return nil, errors.Errorf("unknow address '%s'", a.String())
+		addr, err := r.resolveRecipient(account)
+		if err != nil {
+			return nil, err
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", account.String())
+		if t, ok := r.trees[addr]; ok {
+			return t, nil
+		}
+		return nil, errors.Errorf("unknow address '%s'", addr.String())
 	}
 	r.ms.NewestScriptVersionByAddressIDFunc = func(id proto.AddressID) (ast.LibraryVersion, error) {
 		a, err := id.ToWavesAddress(r.me.scheme())
@@ -174,7 +179,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.BinaryDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
 	}
 	r.ms.RetrieveNewestBooleanEntryFunc = func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -184,7 +189,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.BooleanDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
 	}
 	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -194,7 +199,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.IntegerDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
 	}
 	r.ms.RetrieveNewestStringEntryFunc = func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -204,16 +209,17 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.StringDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, addr.String(), key)
+		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
 	}
 	r.ms.NewestWavesBalanceFunc = func(account proto.Recipient) (uint64, error) {
-		if addr, ok := r.recipients[account.String()]; ok {
-			if profile, ok := r.waves[addr]; ok {
-				return profile.Balance, nil
-			}
-			return 0, errors.Errorf("no balance profile for address '%s'", addr.String())
+		addr, err := r.resolveRecipient(account)
+		if err != nil {
+			return 0, err
 		}
-		return 0, errors.Errorf("unknown recipient '%s'", account.String())
+		if profile, ok := r.waves[addr]; ok {
+			return profile.Balance, nil
+		}
+		return 0, errors.Errorf("no balance profile for address '%s'", addr.String())
 	}
 	r.ms.WavesBalanceProfileFunc = func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 		addr, err := id.ToWavesAddress(r.me.scheme())
@@ -224,28 +230,29 @@ func newTestEnv(t *testing.T) *testEnv {
 		return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
 	}
 	r.ms.NewestFullWavesBalanceFunc = func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-		if addr, ok := r.recipients[account.String()]; ok {
-			if profile, ok := r.waves[addr]; ok {
-				eff := int64(profile.Balance) + profile.LeaseIn - profile.LeaseOut
-				if eff < 0 {
-					return nil, errors.New("negative effective balance")
-				}
-				spb := int64(profile.Balance) - profile.LeaseOut
-				if spb < 0 {
-					return nil, errors.New("negative spendable balance")
-				}
-				return &proto.FullWavesBalance{
-					Regular:    profile.Balance,
-					Generating: profile.Generating,
-					Available:  uint64(spb),
-					Effective:  uint64(eff),
-					LeaseIn:    uint64(profile.LeaseIn),
-					LeaseOut:   uint64(profile.LeaseOut),
-				}, nil
-			}
-			return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
+		addr, err := r.resolveRecipient(account)
+		if err != nil {
+			return nil, err
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", account.String())
+		if profile, ok := r.waves[addr]; ok {
+			eff := int64(profile.Balance) + profile.LeaseIn - profile.LeaseOut
+			if eff < 0 {
+				return nil, errors.New("negative effective balance")
+			}
+			spb := int64(profile.Balance) - profile.LeaseOut
+			if spb < 0 {
+				return nil, errors.New("negative spendable balance")
+			}
+			return &proto.FullWavesBalance{
+				Regular:    profile.Balance,
+				Generating: profile.Generating,
+				Available:  uint64(spb),
+				Effective:  uint64(eff),
+				LeaseIn:    uint64(profile.LeaseIn),
+				LeaseOut:   uint64(profile.LeaseOut),
+			}, nil
+		}
+		return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
 	}
 	r.ms.NewestAddrByAliasFunc = func(alias proto.Alias) (proto.WavesAddress, error) {
 		if a, ok := r.aliases[alias]; ok {
@@ -272,18 +279,12 @@ func newTestEnv(t *testing.T) *testEnv {
 		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
 	}
 	r.ms.NewestAssetBalanceFunc = func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-		var addr proto.WavesAddress
-		if account.Address != nil {
-			addr = *account.Address
-		} else {
-			a, ok := r.recipients[account.String()]
-			if !ok {
-				return 0, errors.Errorf("unknown recipient '%s'", account.String())
-			}
-			addr = a
+		addr, err := r.resolveRecipient(account)
+		if err != nil {
+			return 0, err
 		}
-		if t, ok := r.tokens[addr]; ok {
-			if b, ok := t[assetID]; ok {
+		if balances, ok := r.tokens[addr]; ok {
+			if b, ok := balances[assetID]; ok {
 				return b, nil
 			}
 			return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
@@ -300,6 +301,22 @@ func newTestEnv(t *testing.T) *testEnv {
 			return 0, errors.Errorf("unknown asset '%s' for address '%s'", a.String(), addr.String())
 		}
 		return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+	}
+	r.ms.NewestLeasingInfoFunc = func(id crypto.Digest) (*proto.LeaseInfo, error) {
+		if l, ok := r.leasings[id]; ok {
+			return l, nil
+		}
+		return nil, errors.Errorf("no leasing '%s'", id.String())
+	}
+	r.ms.NewestScriptBytesByAccountFunc = func(recipient proto.Recipient) (proto.Script, error) {
+		addr, err := r.resolveRecipient(recipient)
+		if err != nil {
+			return nil, err
+		}
+		if s, ok := r.scripts[addr]; ok {
+			return s, nil
+		}
+		return nil, nil
 	}
 	return r
 }
@@ -616,15 +633,9 @@ func (e *testEnv) toEnv() *mockRideEnvironment {
 }
 
 func (e *testEnv) retrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
-	var addr proto.WavesAddress
-	if account.Address != nil {
-		addr = *account.Address
-	} else {
-		a, ok := e.recipients[account.String()]
-		if !ok {
-			return nil, errors.Errorf("unknown recipient '%s'", account.String())
-		}
-		addr = a
+	addr, err := e.resolveRecipient(account)
+	if err != nil {
+		return nil, err
 	}
 	if entries, ok := e.entries[addr]; ok {
 		if e, ok := entries[key]; ok {
@@ -641,6 +652,30 @@ func (e *testEnv) withNoTransactionAtHeight() *testEnv {
 	}
 	e.ms.IsNotFoundFunc = func(err error) bool {
 		return true
+	}
+	return e
+}
+
+func (e *testEnv) resolveRecipient(rcp proto.Recipient) (proto.WavesAddress, error) {
+	if rcp.Address != nil {
+		return *rcp.Address, nil
+	}
+	if a, ok := e.recipients[rcp.String()]; ok {
+		return a, nil
+	}
+	return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", rcp.String())
+}
+
+func (e *testEnv) withUntouchedState(acc *testAccount) *testEnv {
+	e.ms.IsStateUntouchedFunc = func(recipient proto.Recipient) (bool, error) {
+		addr, err := e.resolveRecipient(recipient)
+		if err != nil {
+			return false, err
+		}
+		if addr == acc.address() {
+			return true, nil
+		}
+		return false, errors.Errorf("unexpected recipient '%s'", recipient.String())
 	}
 	return e
 }
@@ -663,6 +698,16 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	e.me.txIDFunc = func() rideType {
 		return rideBytes(tx.ID.Bytes())
 	}
+	return e
+}
+
+func (e *testEnv) withLeasing(id crypto.Digest, info *proto.LeaseInfo) *testEnv {
+	e.leasings[id] = info
+	return e
+}
+
+func (e *testEnv) withScriptBytes(acc *testAccount, script proto.Script) *testEnv {
+	e.scripts[acc.address()] = script
 	return e
 }
 
