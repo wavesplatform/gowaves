@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/itests/node_client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type ItestSuite struct {
@@ -24,24 +25,29 @@ type ItestSuite struct {
 	docker  *d.Docker
 	conns   net.NodeConnections
 	clients *node_client.NodesClients
+
+	settings *settings.BlockchainSettings
 }
 
 func (suite *ItestSuite) SetupSuite() {
+	if suite.settings == nil {
+		suite.settings = config.NewDefaultBlockchainSettings()
+	}
 	suite.mainCtx, suite.cancel = context.WithCancel(context.Background())
 	enableScalaMining := true
-	paths, cfg, err := config.CreateFileConfigs(enableScalaMining)
-	suite.NoError(err, "couldn't create config")
+	paths, cfg, err := config.CreateFileConfigs(suite.settings, enableScalaMining)
+	suite.Require().NoError(err, "couldn't create config")
 	suite.cfg = cfg
 
 	suiteName := strings.ToLower(suite.T().Name())
 	docker, err := d.NewDocker(suiteName)
-	suite.NoError(err, "couldn't create docker pool")
+	suite.Require().NoError(err, "couldn't create docker pool")
 	suite.docker = docker
 
 	ports, err := docker.RunContainers(suite.mainCtx, paths, suiteName)
 	if err != nil {
 		docker.Finish(suite.cancel)
-		suite.NoError(err, "couldn't run docker containers")
+		suite.Require().NoError(err, "couldn't run docker containers")
 	}
 
 	suite.conns = net.NewNodeConnections(suite.T(), ports)
@@ -90,10 +96,17 @@ func TestItest1Suite(t *testing.T) {
 
 func TestItest2Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ItestSuite))
+	// Example how to change settings
+	s := new(ItestSuite)
+	s.settings = config.NewDefaultBlockchainSettings()
+	s.settings.FeaturesVotingPeriod = 2
+	suite.Run(t, s)
 }
 
 func TestItest3Suite(t *testing.T) {
 	t.Parallel()
+	s := new(ItestSuite)
+	s.settings = config.NewDefaultBlockchainSettings()
+	s.settings.FeaturesVotingPeriod = 3
 	suite.Run(t, new(ItestSuite))
 }

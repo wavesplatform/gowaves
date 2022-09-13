@@ -8,6 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xenolf/lego/log"
+
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -77,8 +79,8 @@ type ConfigPaths struct {
 	ScalaConfigPath string
 }
 
-func CreateFileConfigs(enableScalaMining bool) (ConfigPaths, TestConfig, error) {
-	cfg, acc, err := NewBlockchainConfig()
+func CreateFileConfigs(blockchainSettings *settings.BlockchainSettings, enableScalaMining bool) (ConfigPaths, TestConfig, error) {
+	cfg, acc, err := NewBlockchainConfig(blockchainSettings)
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
 	}

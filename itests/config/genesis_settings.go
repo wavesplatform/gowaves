@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -81,7 +82,7 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func NewBlockchainConfig() (*Config, []AccountInfo, error) {
+func NewBlockchainConfig(blockchainSettings *settings.BlockchainSettings) (*Config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
@@ -100,15 +101,12 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 		return nil, nil, err
 	}
 
-	cfg := settings.DefaultCustomSettings
+	cfg := blockchainSettings
 	cfg.Genesis = *b
 	cfg.AddressSchemeCharacter = genSettings.Scheme
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.MinBlockTime = genSettings.MinBlockTime
 	cfg.DelayDelta = genSettings.DelayDelta
-	cfg.BlockRewardIncrement = 100000
-	cfg.BlockRewardVotingPeriod = 1000
-	cfg.InitialBlockReward = 600000000
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}
@@ -243,4 +241,28 @@ func getHit(acc AccountInfo, genSettings *GenesisSettings) (*consensus.Hit, erro
 		return nil, err
 	}
 	return hit, nil
+}
+
+// NewDefaultBlockchainSettings create default config which use for go and scala nodes
+// If you need custom settings, you need to change in testSuite
+func NewDefaultBlockchainSettings() *settings.BlockchainSettings {
+	return &settings.BlockchainSettings{
+		Type: settings.Custom,
+		FunctionalitySettings: settings.FunctionalitySettings{
+			FeaturesVotingPeriod:              1,
+			VotesForFeatureActivation:         1,
+			MaxTxTimeBackOffset:               120 * 60000,
+			MaxTxTimeForwardOffset:            90 * 60000,
+			AddressSchemeCharacter:            proto.CustomNetScheme,
+			AverageBlockDelaySeconds:          60,
+			MaxBaseTarget:                     math.MaxUint64,
+			MinUpdateAssetInfoInterval:        100000,
+			BlockRewardTerm:                   100000,
+			BlockRewardIncrement:              100000,
+			BlockRewardVotingPeriod:           1000,
+			InitialBlockReward:                600000000,
+			DoubleFeaturesPeriodsAfterHeight:  1000000,
+			SponsorshipSingleActivationPeriod: true,
+		},
+	}
 }
