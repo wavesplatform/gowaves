@@ -23,12 +23,7 @@ var (
 )
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	err := a.baseInfo.utx.Add(t)
-	if err != nil {
-		return a, nil, a.Errorf(proto.NewInfoMsg(err))
-	}
-	a.baseInfo.BroadcastTransaction(t, p)
-	return a, nil, nil
+	return transaction(a, a.baseInfo, p, t)
 }
 
 func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {

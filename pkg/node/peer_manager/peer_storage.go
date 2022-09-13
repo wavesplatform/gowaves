@@ -23,7 +23,7 @@ type PeerStorage interface {
 	BlackList(now time.Time) []storage.BlackListedPeer
 	AddToBlackList(blackListed []storage.BlackListedPeer) error
 	IsBlackListedIP(ip storage.IP, now time.Time) bool
-	IsBlackListedIPs(ip storage.IP, now time.Time) []bool
+	IsBlackListedIPs(ips []storage.IP, now time.Time) []bool
 	DeleteBlackListedByIP(blackListed []storage.BlackListedPeer) error
 	RefreshBlackList(now time.Time) error
 	DropBlackList() error

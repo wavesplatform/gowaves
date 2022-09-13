@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	suspendDuration             = 5 * time.Minute
-	clearSuspendedPeersInterval = 1 * time.Minute
+	suspendDuration              = 5 * time.Minute
+	blackListDuration            = 5 * time.Minute
+	clearRestrictedPeersInterval = 1 * time.Minute
 )
 
 type peerInfo struct {
@@ -37,9 +38,9 @@ type PeerManager interface {
 	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
 	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
-	Suspended() []storage.RestrictedPeer
-	// BlackList( /* ??? */ blockTime time.Time, reason string)
-	// BlackListed() []storage.BlackListedPeer
+	Suspended() []storage.SuspendedPeer
+	AddToBlackList(peer peer.Peer, blockTime time.Time, reason string)
+	BlackList() []storage.BlackListedPeer
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	KnownPeers() []storage.KnownPeer
 	UpdateKnownPeers([]storage.KnownPeer) error
@@ -93,9 +94,13 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		_ = p.Close()
 		return errors.New("already connected")
 	}
-	if a.suspended(p) {
+	if p.Direction() == peer.Outgoing && a.suspended(p) {
 		_ = p.Close()
 		return errors.Errorf("peer '%s' is suspended", p.ID())
+	}
+	if p.Direction() == peer.Incoming && a.blackListed(p) {
+		_ = p.Close()
+		return errors.Errorf("peer '%s' is in black list", p.ID())
 	}
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
@@ -103,14 +108,14 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 			a.version.String(),
 			p.Handshake().Version.String(),
 		)
-		a.Suspend(p, time.Now(), err.Error())
+		a.restrict(p, time.Now(), err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
 	if p.Handshake().AppName != a.networkName {
 		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
 			p.ID(), p.Handshake().AppName, a.networkName)
-		a.Suspend(p, time.Now(), err.Error())
+		a.restrict(p, time.Now(), err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
@@ -175,6 +180,27 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason str
 
 func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 	return a.peerStorage.Suspended(time.Now())
+}
+
+func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
+	a.Disconnect(p)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	blackListed := *storage.NewBlackListedPeer(
+		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
+		blockTime.UnixMilli(),
+		blackListDuration,
+		reason,
+	)
+	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
+		zap.S().Errorf("[%s] Failed to add peer to black list, reason %q: %v", p.ID(), reason, err)
+	} else {
+		zap.S().Debugf("[%s] Peer added to black list, reason: %s ", p.ID(), reason)
+	}
+}
+
+func (a *PeerManagerImpl) BlackList() []storage.BlackListedPeer {
+	return a.peerStorage.BlackList(time.Now())
 }
 
 func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
@@ -355,7 +381,7 @@ func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {
 	for {
-		timer := time.NewTimer(clearSuspendedPeersInterval)
+		timer := time.NewTimer(clearRestrictedPeersInterval)
 		select {
 		case <-ctx.Done():
 			if !timer.Stop() {
@@ -363,7 +389,7 @@ func (a *PeerManagerImpl) Run(ctx context.Context) {
 			}
 			return
 		case <-timer.C:
-			a.clearSuspended(time.Now())
+			a.clearRestrictedPeers(time.Now())
 		}
 	}
 }
@@ -404,11 +430,14 @@ func (a *PeerManagerImpl) unsafeConnectedCount() int {
 	return a.active.size()
 }
 
-func (a *PeerManagerImpl) clearSuspended(now time.Time) {
+func (a *PeerManagerImpl) clearRestrictedPeers(now time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if err := a.peerStorage.RefreshSuspended(now); err != nil {
 		zap.S().Errorf("failed to clear suspended peers: %v", err)
+	}
+	if err := a.peerStorage.RefreshBlackList(now); err != nil {
+		zap.S().Errorf("failed to clear black listed peers: %v", err)
 	}
 }
 
@@ -424,6 +453,22 @@ func (a *PeerManagerImpl) suspended(p peer.Peer) bool {
 	defer a.mu.RUnlock()
 	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
 	return a.peerStorage.IsSuspendedIP(ip, time.Now())
+}
+
+func (a *PeerManagerImpl) blackListed(p peer.Peer) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
+	return a.peerStorage.IsBlackListedIP(ip, time.Now())
+}
+
+func (a *PeerManagerImpl) restrict(p peer.Peer, duration time.Time, reason string) {
+	switch p.Direction() {
+	case peer.Incoming:
+		a.AddToBlackList(p, time.Now(), reason)
+	case peer.Outgoing:
+		a.Suspend(p, time.Now(), reason)
+	}
 }
 
 // countDirections counts connected peers by its directions and returns number of inbound and outbound connections.

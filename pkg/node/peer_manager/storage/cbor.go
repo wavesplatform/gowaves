@@ -113,6 +113,8 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 		return nil, errors.Wrapf(err, "failed to load suspended peers from file %q", suspendedFile)
 	}
 
+	// TODO(artemreyt): blacklist unmarshal
+
 	if len(storage.suspended) != 0 {
 		// Remove expired peers
 		if err := storage.RefreshSuspended(now); err != nil {
@@ -287,6 +289,10 @@ func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
 	return bs.refreshRestricted(now, suspendedFieldID)
 }
 
+func (bs *CBORStorage) RefreshBlackList(now time.Time) error {
+	return bs.refreshRestricted(now, blackListedFieldID)
+}
+
 func (bs *CBORStorage) refreshRestricted(now time.Time, restrictedID restrictedPeersID) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
@@ -336,8 +342,8 @@ func (bs *CBORStorage) IsBlackListedIP(ip IP, now time.Time) bool {
 	return bs.isRestrictedIP(ip, now, blackListedFieldID)
 }
 
-func (bs *CBORStorage) IsBlackListedIPs(ip []IP, now time.Time) []bool {
-	return bs.isRestrictedIPs(ip, now, blackListedFieldID)
+func (bs *CBORStorage) IsBlackListedIPs(ips []IP, now time.Time) []bool {
+	return bs.isRestrictedIPs(ips, now, blackListedFieldID)
 }
 
 func (bs *CBORStorage) DeleteBlackListedByIP(restricted []BlackListedPeer) error {

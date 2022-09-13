@@ -22,6 +22,27 @@ func newPeer(fsm FSM, p peer.Peer, peers peer_manager.PeerManager) (FSM, Async, 
 	return fsm, nil, nil
 }
 
+func transaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (FSM, Async, error) {
+	t, err := t.Validate(baseInfo.scheme)
+	if err != nil {
+		err = errors.Wrap(err, "Failed to validate transaction")
+		if p != nil {
+			baseInfo.peers.AddToBlackList(p, time.Now(), err.Error())
+		}
+		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
+	}
+
+	if err := baseInfo.utx.Add(t); err != nil {
+		err = errors.Wrap(err, "Failed to add transaction to utx")
+		if p != nil {
+			baseInfo.peers.AddToBlackList(p, time.Now(), err.Error())
+		}
+		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
+	}
+	baseInfo.BroadcastTransaction(t, p)
+	return fsm, nil, nil
+}
+
 // TODO handle no peers
 func peerError(fsm FSM, p peer.Peer, peers peer_manager.PeerManager, _ error) (FSM, Async, error) {
 	peers.Disconnect(p)
