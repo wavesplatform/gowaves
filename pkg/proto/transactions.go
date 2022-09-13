@@ -76,7 +76,7 @@ const (
 	MaxIssueTransactionVersion           = 127
 	MaxReissueTransactionVersion         = 3
 	MaxBurnTransactionVersion            = 3
-	MaxExchangeTransactionVersion        = 3
+	MaxExchangeTransactionVersion        = 4
 	MaxLeaseTransactionVersion           = 3
 	MaxLeaseCancelTransactionVersion     = 3
 	MaxCreateAliasTransactionVersion     = 3
@@ -84,9 +84,9 @@ const (
 	MaxDataTransactionVersion            = 127
 	MaxSetScriptTransactionVersion       = 127
 	MaxSponsorshipTransactionVersion     = 2
-	MaxSetAssetScriptTransactionVersion  = 2
+	MaxSetAssetScriptTransactionVersion  = 3
 	MaxInvokeScriptTransactionVersion    = 127
-	MaxUpdateAssetInfoTransactionVersion = 1
+	MaxUpdateAssetInfoTransactionVersion = 3
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
