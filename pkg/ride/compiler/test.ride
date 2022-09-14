@@ -1,8 +1,8 @@
-{-# STDLIB_VERSION 6 #-}
+{-# STDLIB_VERSION 6 #-} #asdasd
 {-# SCRIPT_TYPE ACCOUNT #-} #asdasdasa
 {-# CONTENT_TYPE DAPP #-} # asdasdasdasd
 
-let a = 123
-let b = true
+let a_b = 123
+let b-c = true
 
 let c = base64'asdasdasd'

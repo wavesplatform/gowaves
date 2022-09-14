@@ -1,117 +1,45 @@
-{
 package main
 
-import (
-    "github.com/pkg/errors"
-)
+type Result Peg {
 }
 
-Program ← StartRule EOL? d:Directives Declaration+ EOF {
-    if d == nil {
-        return nil, errors.Errorf("header isn't correct")
-    }
-    return newProgramNode(c.globalStore["declarations"].([]Declaration), d.(Directives))
-}
+Code <- EOL? Directives Declaration+ EOF
 
-// Whitespaces and new line symbols
+# Whitespaces and new line symbols
 
-_ ← [ \t]+
+_ <- [ \t]+
 
-EOL ← (Comment / NewLine)+
+EOL <- (Comment / NewLine)+
 
 NewLine <- _? ("\r\n" / "\n\r" / "\r" / "\n")
 
 Comment ← _? "#" [^\r\n]*
 
-EOF ← !.
+EOF <- !.
 
-StartRule <- #{
-    c.globalStore["libVersionCnt"] = 0
-    c.globalStore["scriptTypeCnt"] = 0
-    c.globalStore["contentTypeCnt"] = 0
-    c.globalStore["declarations"] = []Declaration{}
-    return nil
-}
-
-// Types
+# Types
 
 Types <- (Int / Uint/ Boolean / ByteVector)
 
-Int <- [-]? [0-9]+ {
-    return strconv.ParseInt(string(c.text), 0, 64)
-}
+Int <- [-]? [0-9]+
+Uint <- [0-9]+
+Boolean <- "true" / "false"
+ByteVector <- ("base16" / "base58" / "base64") '\''[^'\r\n]*'\''
 
-Uint <- [0-9]+ {
-    return strconv.ParseInt(string(c.text), 0, 64)
-}
-Boolean <- "true" { return true, nil } / "false" { return false, nil }
-ByteVector <- base:("base16" / "base58" / "base64") '\''vec:[^'\r\n]*'\'' {
-    return  NewByteVector(string(base.([]byte)), base.([]byte))
-}
-
-
-// Directives rules
-
-Directives <- ((StdLibVersionDirective / ScriptTypeDirective / ContentTypeDirective) EOL)+ {
-    if _, ok := c.globalStore["libVersion"]; !ok {
-        return nil, errors.Errorf("missing STDLIB_VERSION directive")
-    }
-    if _, ok := c.globalStore["scriptType"]; !ok {
-        return nil, errors.Errorf("missing SCRIPT_TYPE directive")
-    }
-    if _, ok := c.globalStore["contentType"]; !ok {
-        return nil, errors.Errorf("missing CONTENT_TYPE directive")
-    }
-    return newDirectives(c.globalStore["libVersion"].(int64), c.globalStore["scriptType"].(int64), c.globalStore["contentType"].(int64))
-}
+# Directives
+Directives <- ((StdLibVersionDirective / ScriptTypeDirective / ContentTypeDirective) EOL)+
 
 StartDirective <- "{-#"
 EndDirective <- "#-}"
 
-StdLibVersion <- ver:Int {
-    return newStdLibVersion(ver.(int64))
-}
+StdLibVersionDirective <- StartDirective _ "STDLIB_VERSION" _ Int _ EndDirective
 
-StdLibVersionDirective <- StartDirective _ "STDLIB_VERSION" _ ver:StdLibVersion _ EndDirective &{
-    c.globalStore["libVersionCnt"] = c.globalStore["libVersionCnt"].(int) + 1
-    if c.globalStore["libVersionCnt"].(int) > 1 {
-        return true, errors.Errorf("more than one STDLIB_VERSION directive")
-    }
-    c.globalStore["libVersion"] = ver.(int64)
-    return true, nil
-}
+Word <- [_a-zA-Z-] [_a-zA-Z0-9-]*
 
-Word <- [a-zA-Z_-] [a-zA-Z_0-9-]*         { return string(c.text), nil }
+ScriptTypeDirective <- StartDirective _ "SCRIPT_TYPE" _ Word _ EndDirective
 
-ScriptType <- arg:Word {
-    return newScriptType(arg.(string))
-}
+ContentTypeDirective <- StartDirective _ "CONTENT_TYPE" _ Word _ EndDirective
 
-ScriptTypeDirective <- StartDirective _ "SCRIPT_TYPE" _ arg:ScriptType _ EndDirective &{
-    c.globalStore["scriptTypeCnt"] = c.globalStore["scriptTypeCnt"].(int) + 1
-    if c.globalStore["scriptTypeCnt"].(int) > 1 {
-        return true, errors.New("more than one SCRIPT_TYPE directive")
-    }
-    c.globalStore["scriptType"] = arg.(int64)
-    return true, nil
-}
+# Variables
 
-ContentType <- arg:Word {
-    return newContentType(arg.(string))
-}
-
-ContentTypeDirective <- StartDirective _ "CONTENT_TYPE" _ arg:ContentType _ EndDirective &{
-    c.globalStore["contentTypeCnt"] = c.globalStore["contentTypeCnt"].(int) + 1
-    if c.globalStore["contentTypeCnt"].(int) > 1 {
-        return true, errors.Errorf("more than one CONTENT_TYPE directive")
-    }
-    c.globalStore["contentType"] = arg.(int64)
-    return true, nil
-}
-
-// Variables
-
-Declaration <- "let" _ name:Word _ "=" _ value:Types EOL &{
-    c.globalStore["declarations"] = append(c.globalStore["declarations"].([]Declaration), NewDeclaration(name.(string), value))
-    return true, nil
-}
+Declaration <- "let" _ Word _ "=" _ Types EOL
