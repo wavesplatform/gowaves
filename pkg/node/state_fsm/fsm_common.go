@@ -34,9 +34,6 @@ func transaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (
 
 	if err := baseInfo.utx.Add(t); err != nil {
 		err = errors.Wrap(err, "Failed to add transaction to utx")
-		if p != nil {
-			baseInfo.peers.AddToBlackList(p, time.Now(), err.Error())
-		}
 		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
 	}
 	baseInfo.BroadcastTransaction(t, p)
