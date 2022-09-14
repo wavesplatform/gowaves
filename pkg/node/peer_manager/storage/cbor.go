@@ -34,18 +34,18 @@ type CBORStorage struct {
 type restrictedPeersID byte
 
 const (
-	suspendedFieldID = restrictedPeersID(iota + 1)
-	blackListedFieldID
+	suspendedPeersID = restrictedPeersID(iota + 1)
+	blackListedPeersID
 )
 
-func (bs *CBORStorage) restrictedPeersByType(fieldType restrictedPeersID) *restrictedPeers {
-	switch fieldType {
-	case suspendedFieldID:
+func (bs *CBORStorage) restrictedPeersByType(restrictedID restrictedPeersID) *restrictedPeers {
+	switch restrictedID {
+	case suspendedPeersID:
 		return &bs.suspended
-	case blackListedFieldID:
+	case blackListedPeersID:
 		return &bs.blackList
 	default:
-		panic(fmt.Sprintf("unexpected restrictedPeersID: %v", fieldType))
+		panic(fmt.Sprintf("unexpected restrictedPeersID: %v", restrictedID))
 	}
 }
 
@@ -112,8 +112,9 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 	if err := unmarshalCborFromFile(suspendedFile, &storage.suspended); err != nil && err != io.EOF {
 		return nil, errors.Wrapf(err, "failed to load suspended peers from file %q", suspendedFile)
 	}
-
-	// TODO(artemreyt): blacklist unmarshal
+	if err := unmarshalCborFromFile(blackListFile, &storage.blackList); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to load black list peers from file %q", blackListFile)
+	}
 
 	if len(storage.suspended) != 0 {
 		// Remove expired peers
@@ -122,6 +123,14 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 				"failed to refresh suspended peers while opening peers storage with path %q", storageDir)
 		}
 	}
+	if len(storage.blackList) != 0 {
+		// Remove expired peers
+		if err := storage.RefreshBlackList(now); err != nil {
+			return nil, errors.Wrapf(err,
+				"failed to refresh black list peers while opening peers storage with path %q", storageDir)
+		}
+	}
+
 	return storage, nil
 }
 
@@ -198,12 +207,12 @@ func (bs *CBORStorage) restricted(now time.Time, restrictedID restrictedPeersID)
 }
 
 func (bs *CBORStorage) Suspended(now time.Time) []SuspendedPeer {
-	return bs.restricted(now, suspendedFieldID)
+	return bs.restricted(now, suspendedPeersID)
 }
 
 // AddSuspended adds suspended peers into peers storage with strong error guarantees.
 func (bs *CBORStorage) AddSuspended(suspended []SuspendedPeer) error {
-	return bs.addRestricted(suspended, suspendedFieldID)
+	return bs.addRestricted(suspended, suspendedPeersID)
 }
 
 func (bs *CBORStorage) addRestricted(restricted []RestrictedPeer, peersID restrictedPeersID) error {
@@ -228,7 +237,7 @@ func (bs *CBORStorage) addRestricted(restricted []RestrictedPeer, peersID restri
 }
 
 func (bs *CBORStorage) IsSuspendedIP(ip IP, now time.Time) bool {
-	return bs.isRestrictedIP(ip, now, suspendedFieldID)
+	return bs.isRestrictedIP(ip, now, suspendedPeersID)
 }
 
 func (bs *CBORStorage) isRestrictedIP(ip IP, now time.Time, peersID restrictedPeersID) bool {
@@ -238,7 +247,7 @@ func (bs *CBORStorage) isRestrictedIP(ip IP, now time.Time, peersID restrictedPe
 }
 
 func (bs *CBORStorage) IsSuspendedIPs(ips []IP, now time.Time) []bool {
-	return bs.isRestrictedIPs(ips, now, suspendedFieldID)
+	return bs.isRestrictedIPs(ips, now, suspendedPeersID)
 }
 
 func (bs *CBORStorage) isRestrictedIPs(ips []IP, now time.Time, restrictedID restrictedPeersID) []bool {
@@ -259,7 +268,7 @@ func (bs *CBORStorage) isRestrictedIPs(ips []IP, now time.Time, restrictedID res
 // DeleteSuspendedByIP removes suspended peers from peers storage with strong error guarantees.
 // Note, that only IP field in input parameter will be used.
 func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
-	return bs.deleteRestrictedByIP(suspended, suspendedFieldID)
+	return bs.deleteRestrictedByIP(suspended, suspendedPeersID)
 }
 
 func (bs *CBORStorage) deleteRestrictedByIP(restricted []RestrictedPeer, peersID restrictedPeersID) error {
@@ -286,11 +295,11 @@ func (bs *CBORStorage) deleteRestrictedByIP(restricted []RestrictedPeer, peersID
 
 // RefreshSuspended removes expired peers from suspended peers storage with strong error guarantee.
 func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
-	return bs.refreshRestricted(now, suspendedFieldID)
+	return bs.refreshRestricted(now, suspendedPeersID)
 }
 
 func (bs *CBORStorage) RefreshBlackList(now time.Time) error {
-	return bs.refreshRestricted(now, blackListedFieldID)
+	return bs.refreshRestricted(now, blackListedPeersID)
 }
 
 func (bs *CBORStorage) refreshRestricted(now time.Time, restrictedID restrictedPeersID) error {
@@ -321,7 +330,7 @@ func (bs *CBORStorage) refreshRestricted(now time.Time, restrictedID restrictedP
 
 // DropSuspended clear suspended in memory cache and truncates suspended peers storage file with strong error guarantee.
 func (bs *CBORStorage) DropSuspended() error {
-	return bs.dropRestricted(suspendedFieldID)
+	return bs.dropRestricted(suspendedPeersID)
 }
 
 func (bs *CBORStorage) dropRestricted(restrictedID restrictedPeersID) error {
@@ -331,27 +340,27 @@ func (bs *CBORStorage) dropRestricted(restrictedID restrictedPeersID) error {
 }
 
 func (bs *CBORStorage) BlackList(now time.Time) []BlackListedPeer {
-	return bs.restricted(now, blackListedFieldID)
+	return bs.restricted(now, blackListedPeersID)
 }
 
 func (bs *CBORStorage) AddToBlackList(blackListed []BlackListedPeer) error {
-	return bs.addRestricted(blackListed, blackListedFieldID)
+	return bs.addRestricted(blackListed, blackListedPeersID)
 }
 
 func (bs *CBORStorage) IsBlackListedIP(ip IP, now time.Time) bool {
-	return bs.isRestrictedIP(ip, now, blackListedFieldID)
+	return bs.isRestrictedIP(ip, now, blackListedPeersID)
 }
 
 func (bs *CBORStorage) IsBlackListedIPs(ips []IP, now time.Time) []bool {
-	return bs.isRestrictedIPs(ips, now, blackListedFieldID)
+	return bs.isRestrictedIPs(ips, now, blackListedPeersID)
 }
 
 func (bs *CBORStorage) DeleteBlackListedByIP(restricted []BlackListedPeer) error {
-	return bs.deleteRestrictedByIP(restricted, blackListedFieldID)
+	return bs.deleteRestrictedByIP(restricted, blackListedPeersID)
 }
 
 func (bs *CBORStorage) DropBlackList() error {
-	return bs.dropRestricted(blackListedFieldID)
+	return bs.dropRestricted(blackListedPeersID)
 }
 
 // DropStorage clear storage memory cache and truncates storage files.
@@ -361,11 +370,11 @@ func (bs *CBORStorage) DropStorage() error {
 	defer bs.rwMutex.Unlock()
 
 	suspendedBackup := bs.suspended
-	if err := bs.unsafeDropRestricted(suspendedFieldID); err != nil {
+	if err := bs.unsafeDropRestricted(suspendedPeersID); err != nil {
 		return errors.Wrap(err, "failed to drop suspended peers storage")
 	}
 	blackListBackup := bs.blackList
-	if err := bs.unsafeDropRestricted(blackListedFieldID); err != nil {
+	if err := bs.unsafeDropRestricted(blackListedPeersID); err != nil {
 		return errors.Wrap(err, "failed to drop black list peers storage")
 	}
 
@@ -429,9 +438,9 @@ func (bs *CBORStorage) unsafeDropKnown() error {
 
 func (bs *CBORStorage) restrictedFilePathByID(peersID restrictedPeersID) string {
 	switch peersID {
-	case suspendedFieldID:
+	case suspendedPeersID:
 		return bs.suspendedFilePath
-	case blackListedFieldID:
+	case blackListedPeersID:
 		return bs.blackListFilePath
 	default:
 		panic("unknown restricted id")
@@ -440,9 +449,9 @@ func (bs *CBORStorage) restrictedFilePathByID(peersID restrictedPeersID) string 
 
 func restrictedNameByID(peersID restrictedPeersID) string {
 	switch peersID {
-	case suspendedFieldID:
+	case suspendedPeersID:
 		return "suspended"
-	case blackListedFieldID:
+	case blackListedPeersID:
 		return "blackList"
 	default:
 		panic("unknown restricted id")

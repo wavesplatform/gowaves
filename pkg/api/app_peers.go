@@ -20,12 +20,16 @@ type PeersKnown struct {
 	Peers []Peer `json:"peers"`
 }
 
-// PeersAll is a list of all known not banned and not suspended peers with a publicly available declared address
+// PeersAll is a list of all known not banned, not suspended and not black listed peers with a publicly available declared address
 func (a *App) PeersAll() (PeersKnown, error) {
 	suspended := a.peers.Suspended()
-	suspendedIPsMap := make(map[string]struct{}, len(suspended))
+	blackList := a.peers.BlackList()
+	restrictedIPsMap := make(map[string]struct{}, len(suspended)+len(blackList))
 	for _, suspendedPeer := range suspended {
-		suspendedIPsMap[suspendedPeer.IP.String()] = struct{}{}
+		restrictedIPsMap[suspendedPeer.IP.String()] = struct{}{}
+	}
+	for _, blackListedPeer := range blackList {
+		restrictedIPsMap[blackListedPeer.IP.String()] = struct{}{}
 	}
 
 	knownPeers := a.peers.KnownPeers()
@@ -35,7 +39,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {
 		ip := knownPeer.String()
-		if _, in := suspendedIPsMap[ip]; in {
+		if _, in := restrictedIPsMap[ip]; in {
 			continue
 		}
 		// FIXME(nickeksov): add normal lastSeen field
@@ -130,18 +134,33 @@ func (a *App) PeersConnected() PeersConnectedResponse {
 	}
 }
 
-type SuspendedPeerInfo struct {
+type RestrictedPeerInfo struct {
 	Hostname  string `json:"hostname"`
 	Timestamp int64  `json:"timestamp"` // nickeskov: timestamp in millis
 	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() []SuspendedPeerInfo {
+func (a *App) PeersSuspended() []RestrictedPeerInfo {
 	suspended := a.peers.Suspended()
 
-	out := make([]SuspendedPeerInfo, 0, len(suspended))
+	out := make([]RestrictedPeerInfo, 0, len(suspended))
 	for _, p := range suspended {
-		out = append(out, SuspendedPeerInfo{
+		out = append(out, RestrictedPeerInfo{
+			Hostname:  "/" + p.IP.String(),
+			Timestamp: p.RestrictTimestampMillis,
+			Reason:    p.Reason,
+		})
+	}
+
+	return out
+}
+
+func (a *App) PeersBlackList() []RestrictedPeerInfo {
+	blackList := a.peers.BlackList()
+
+	out := make([]RestrictedPeerInfo, 0, len(blackList))
+	for _, p := range blackList {
+		out = append(out, RestrictedPeerInfo{
 			Hostname:  "/" + p.IP.String(),
 			Timestamp: p.RestrictTimestampMillis,
 			Reason:    p.Reason,

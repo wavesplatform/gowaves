@@ -373,6 +373,14 @@ func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) PeersBlackList(w http.ResponseWriter, _ *http.Request) error {
+	rs := a.app.PeersBlackList()
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersBlackList")
+	}
+	return nil
+}
+
 func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.BlocksGenerators()
 	if err != nil {
