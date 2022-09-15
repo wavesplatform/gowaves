@@ -1,12 +1,13 @@
 package testdata
 
 import (
+	"math/rand"
+	"time"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	i "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math/rand"
-	"time"
 )
 
 const (

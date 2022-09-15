@@ -1,12 +1,13 @@
-package utl
+package utilities
 
 import (
+	"time"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	i "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"time"
 )
 
 func GetAccount(suite *i.BaseSuite, i int) config.AccountInfo {

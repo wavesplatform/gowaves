@@ -1,16 +1,18 @@
-package integration
+package itests
 
 import (
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
 	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"strconv"
-	"testing"
-	"time"
 )
 
 type IssueTxSuite struct {
