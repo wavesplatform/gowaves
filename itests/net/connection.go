@@ -79,6 +79,9 @@ func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 	}
 	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
 	if err != nil {
+		if closeErr := goCon.Close(); closeErr != nil {
+			err = errors.Wrap(err, closeErr.Error())
+		}
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to scala node")
 	}
 	return NodeConnections{scalaCon: scalaCon, goCon: goCon}, nil
