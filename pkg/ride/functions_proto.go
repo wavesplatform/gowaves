@@ -1802,8 +1802,13 @@ func invocationConstructor(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[4].instanceOf())
 	}
-	feeAssetID, ok := args[5].(rideBytes)
-	if !ok {
+	var feeAssetID rideType
+	switch ta := args[5].(type) {
+	case rideBytes:
+		feeAssetID = ta
+	case rideUnit:
+		feeAssetID = ta
+	default:
 		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[5].instanceOf())
 	}
 	originCaller, ok := args[6].(rideAddress)
