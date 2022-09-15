@@ -43,7 +43,12 @@ func (suite *BaseSuite) SetupSuite() {
 	}
 	suite.Ports = ports
 
-	suite.Conns = net.NewNodeConnections(suite.T(), ports)
+	conns, err := net.NewNodeConnections(ports)
+	if err != nil {
+		docker.Finish(suite.Cancel)
+		suite.NoError(err, "failed to create new node connections")
+	}
+	suite.Conns = conns
 	suite.Clients = node_client.NewNodesClients(suite.T(), ports)
 }
 

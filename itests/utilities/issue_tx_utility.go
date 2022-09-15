@@ -43,7 +43,8 @@ func SendAndWaitTransaction(suite *i.BaseSuite, tx *proto.IssueWithSig, timeout 
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	suite.Conns = net.Reconnect(suite.T(), suite.Conns, suite.Ports)
+	suite.Conns, err = net.Reconnect(suite.Conns, suite.Ports)
+	suite.NoError(err, "failed to reconnect to nodes")
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(tx.ID, timeout)

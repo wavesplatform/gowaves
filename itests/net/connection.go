@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/xenolf/lego/log"
@@ -71,21 +72,40 @@ type NodeConnections struct {
 	goCon    *OutgoingPeer
 }
 
-func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
+func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion, "wavesL")
-	assert.NoError(t, err, "failed to create connection to go node")
-	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
-	assert.NoError(t, err, "failed to create connection to scala node")
-
-	return NodeConnections{
-		scalaCon: scalaCon,
-		goCon:    goCon,
+	if err != nil {
+		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
 	}
+	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
+	if err != nil {
+		return NodeConnections{}, errors.Wrap(err, "failed to create connection to scala node")
+	}
+	return NodeConnections{scalaCon: scalaCon, goCon: goCon}, nil
 }
 
-func Reconnect(t *testing.T, c NodeConnections, p *d.Ports) NodeConnections {
+func retry(timeout time.Duration, f func() error) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = time.Second * 2
+	bo.MaxElapsedTime = timeout
+	if err := backoff.Retry(f, bo); err != nil {
+		if bo.NextBackOff() == backoff.Stop {
+			return errors.Wrap(err, "reached retry deadline")
+		}
+		return err
+	}
+	return nil
+}
+
+func Reconnect(c NodeConnections, p *d.Ports) (NodeConnections, error) {
 	c.Close()
-	return NewNodeConnections(t, p)
+	var newConns NodeConnections
+	err := retry(1*time.Minute, func() error {
+		var err error
+		newConns, err = NewNodeConnections(p)
+		return err
+	})
+	return newConns, err
 }
 
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
