@@ -96,7 +96,8 @@ func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 
 func retry(timeout time.Duration, f func() error) error {
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = time.Second * 2
+	bo.InitialInterval = 100 * time.Millisecond
+	bo.MaxInterval = 500 * time.Millisecond
 	bo.MaxElapsedTime = timeout
 	if err := backoff.Retry(f, bo); err != nil {
 		if bo.NextBackOff() == backoff.Stop {
@@ -110,7 +111,7 @@ func retry(timeout time.Duration, f func() error) error {
 func Reconnect(c NodeConnections, p *d.Ports) (NodeConnections, error) {
 	c.Close()
 	var newConns NodeConnections
-	err := retry(1*time.Minute, func() error {
+	err := retry(1*time.Second, func() error {
 		var err error
 		newConns, err = NewNodeConnections(p)
 		return err
