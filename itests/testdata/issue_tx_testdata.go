@@ -52,7 +52,7 @@ func RandStringBytes(n int) string {
 }
 
 func GetCurrentTimestampInMs() uint64 {
-	return uint64(time.Now().UnixNano() / 1000000)
+	return uint64(time.Now().UnixMilli())
 }
 
 func DataChangedTimestamp(td *IssueTestData) IssueTestData {
@@ -342,7 +342,7 @@ func GetNegativeDataMatrix(suite *i.BaseSuite) map[string]IssueTestData {
 			100000,
 			8,
 			true,
-			uint64(100000000+utl.GetAvalibleBalanceInWaves(suite, utl.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvalibleBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			GetCurrentTimestampInMs(),
 			'L',
 			map[string]string{

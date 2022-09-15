@@ -85,7 +85,7 @@ func retry(timeout time.Duration, f func() error) error {
 	return nil
 }
 
-func (c *NodesClients) WaitForTransaction(t *testing.T, ID *crypto.Digest, timeout time.Duration) (error, error) {
+func (c *NodesClients) WaitForTransaction(ID *crypto.Digest, timeout time.Duration) (error, error) {
 	errGo := retry(timeout, func() error {
 		_, _, err := c.GoClients.HttpClient.TransactionInfoRaw(*ID)
 		return err
