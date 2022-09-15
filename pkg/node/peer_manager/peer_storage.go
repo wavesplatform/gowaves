@@ -16,7 +16,7 @@ type PeerStorage interface {
 	AddSuspended(suspended []storage.SuspendedPeer) error
 	IsSuspendedIP(ip storage.IP, now time.Time) bool
 	IsSuspendedIPs(ips []storage.IP, now time.Time) []bool
-	DeleteSuspendedByIP(suspended []storage.RestrictedPeer) error
+	DeleteSuspendedByIP(suspended []storage.SuspendedPeer) error
 	RefreshSuspended(now time.Time) error
 	DropSuspended() error
 

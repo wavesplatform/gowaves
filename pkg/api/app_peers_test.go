@@ -40,7 +40,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 	now := time.Now()
 
 	ips := []string{"13.3.4.1", "5.3.6.7"}
-	testData := []storage.RestrictedPeer{
+	testData := []storage.SuspendedPeer{
 		{
 			IP:                      storage.IPFromString(ips[0]),
 			RestrictTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
@@ -82,7 +82,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 	now := time.Now()
 
 	ips := []string{"13.3.4.1", "5.3.6.7"}
-	testData := []storage.RestrictedPeer{
+	testData := []storage.BlackListedPeer{
 		{
 			IP:                      storage.IPFromString(ips[0]),
 			RestrictTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,

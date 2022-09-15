@@ -23,7 +23,7 @@ func TestMarshalUnmarshalCborFromFile(t *testing.T) {
 		require.NoError(t, os.Remove(filename))
 	}()
 
-	expected := RestrictedPeer{
+	expected := restrictedPeer{
 		IP:                      IPFromString("13.3.4.1"),
 		RestrictTimestampMillis: time.Now().UnixNano() / 1_000_000,
 		RestrictDuration:        time.Minute * 5,
@@ -36,7 +36,7 @@ func TestMarshalUnmarshalCborFromFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// nickeskov: check marshalling
-	actual := RestrictedPeer{}
+	actual := restrictedPeer{}
 	err = cbor.NewDecoder(tmpFile).Decode(&actual)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
@@ -60,7 +60,7 @@ func TestUnmarshalCborFromEmptyFile(t *testing.T) {
 		require.NoError(t, os.Remove(filename))
 	}()
 
-	dummy := RestrictedPeer{}
+	dummy := restrictedPeer{}
 	err = unmarshalCborFromFile(tmpFile.Name(), &dummy)
 	assert.Equal(t, io.EOF, err)
 }
@@ -242,7 +242,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 		},
 	}
 
-	check := func(suspended []RestrictedPeer) {
+	check := func(suspended []restrictedPeer) {
 		var unmarshalled restrictedPeers
 		require.NoError(s.T(), unmarshalCborFromFile(s.storage.suspendedFilePath, &unmarshalled))
 		assert.Equal(s.T(), len(suspended), len(unmarshalled))
@@ -389,7 +389,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageBlackList() {
 		},
 	}
 
-	check := func(blackList []RestrictedPeer) {
+	check := func(blackList []restrictedPeer) {
 		var unmarshalled restrictedPeers
 		require.NoError(s.T(), unmarshalCborFromFile(s.storage.blackListFilePath, &unmarshalled))
 		assert.Equal(s.T(), len(blackList), len(unmarshalled))
@@ -502,7 +502,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageBlackList() {
 func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 	suspendDuration := time.Minute * 5
 	now := s.now.Truncate(time.Millisecond)
-	suspended := []RestrictedPeer{
+	suspended := []restrictedPeer{
 		{
 			IP:                      IPFromString("13.3.4.1"),
 			RestrictTimestampMillis: now.UnixNano() / 1_000_000,

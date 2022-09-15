@@ -120,7 +120,7 @@ func (mr *MockPeerStorageMockRecorder) DeleteKnown(known interface{}) *gomock.Ca
 }
 
 // DeleteSuspendedByIP mocks base method.
-func (m *MockPeerStorage) DeleteSuspendedByIP(suspended []storage.RestrictedPeer) error {
+func (m *MockPeerStorage) DeleteSuspendedByIP(suspended []storage.SuspendedPeer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteSuspendedByIP", suspended)
 	ret0, _ := ret[0].(error)

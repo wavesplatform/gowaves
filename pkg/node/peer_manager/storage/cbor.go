@@ -193,11 +193,11 @@ func (bs *CBORStorage) DropKnown() error {
 	return bs.unsafeDropKnown()
 }
 
-func (bs *CBORStorage) restricted(now time.Time, restrictedID restrictedPeersID) []RestrictedPeer {
+func (bs *CBORStorage) restricted(now time.Time, restrictedID restrictedPeersID) []restrictedPeer {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
 
-	restricted := make([]RestrictedPeer, 0, len(*bs.restrictedPeersByType(restrictedID)))
+	restricted := make([]restrictedPeer, 0, len(*bs.restrictedPeersByType(restrictedID)))
 	for _, s := range *bs.restrictedPeersByType(restrictedID) {
 		if s.IsRestricted(now) {
 			restricted = append(restricted, s)
@@ -215,7 +215,7 @@ func (bs *CBORStorage) AddSuspended(suspended []SuspendedPeer) error {
 	return bs.addRestricted(suspended, suspendedPeersID)
 }
 
-func (bs *CBORStorage) addRestricted(restricted []RestrictedPeer, peersID restrictedPeersID) error {
+func (bs *CBORStorage) addRestricted(restricted []restrictedPeer, peersID restrictedPeersID) error {
 	if len(restricted) == 0 {
 		return nil
 	}
@@ -271,7 +271,7 @@ func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
 	return bs.deleteRestrictedByIP(suspended, suspendedPeersID)
 }
 
-func (bs *CBORStorage) deleteRestrictedByIP(restricted []RestrictedPeer, peersID restrictedPeersID) error {
+func (bs *CBORStorage) deleteRestrictedByIP(restricted []restrictedPeer, peersID restrictedPeersID) error {
 	if len(restricted) == 0 {
 		return nil
 	}
@@ -306,7 +306,7 @@ func (bs *CBORStorage) refreshRestricted(now time.Time, restrictedID restrictedP
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	var backup []RestrictedPeer
+	var backup []restrictedPeer
 	for _, s := range *bs.restrictedPeersByType(restrictedID) {
 		if !s.IsRestricted(now) {
 			backup = append(backup, s)
@@ -458,7 +458,7 @@ func restrictedNameByID(peersID restrictedPeersID) string {
 	}
 }
 
-func (bs *CBORStorage) unsafeSyncRestricted(newEntries, backup []RestrictedPeer, peersID restrictedPeersID) error {
+func (bs *CBORStorage) unsafeSyncRestricted(newEntries, backup []restrictedPeer, peersID restrictedPeersID) error {
 	if err := marshalToCborAndSyncToFile(bs.restrictedFilePathByID(peersID), bs.restrictedPeersByType(peersID)); err != nil {
 		// Remove suspended from map to eliminate side effects
 		for _, s := range newEntries {
@@ -495,8 +495,8 @@ func (bs *CBORStorage) unsafeKnownIntersection(known []KnownPeer) knownPeers {
 }
 
 // unsafeRestrictedIntersection returns values from suspended map which intersects with input values
-func (bs *CBORStorage) unsafeRestrictedIntersection(restricted []RestrictedPeer, peersType restrictedPeersID) []RestrictedPeer {
-	var intersection []RestrictedPeer
+func (bs *CBORStorage) unsafeRestrictedIntersection(restricted []restrictedPeer, peersType restrictedPeersID) []restrictedPeer {
+	var intersection []restrictedPeer
 	for _, newRestricted := range restricted {
 		if storedPeer, in := (*bs.restrictedPeersByType(peersType))[newRestricted.IP]; in {
 			intersection = append(intersection, storedPeer)

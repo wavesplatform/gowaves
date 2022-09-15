@@ -42,29 +42,29 @@ func (kp *KnownPeer) String() string {
 	return ipPort.String()
 }
 
-type RestrictedPeer struct {
+type restrictedPeer struct {
 	IP                      IP            `cbor:"0,keyasint,omitemtpy"`
 	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitemtpy"`
 	RestrictDuration        time.Duration `cbor:"2,keyasint,omitemtpy"`
 	Reason                  string        `cbor:"3,keyasint,omitemtpy"`
 }
 
-func (sp *RestrictedPeer) RestrictTime() time.Time {
+func (sp *restrictedPeer) RestrictTime() time.Time {
 	return fromUnixMillis(sp.RestrictTimestampMillis)
 }
 
-func (sp *RestrictedPeer) AwakeTime() time.Time {
+func (sp *restrictedPeer) AwakeTime() time.Time {
 	return sp.RestrictTime().Add(sp.RestrictDuration)
 }
 
-func (sp *RestrictedPeer) IsRestricted(now time.Time) bool {
+func (sp *restrictedPeer) IsRestricted(now time.Time) bool {
 	awakeTime := sp.AwakeTime()
 	return awakeTime.After(now)
 }
 
-type restrictedPeers map[IP]RestrictedPeer
+type restrictedPeers map[IP]restrictedPeer
 
-type SuspendedPeer = RestrictedPeer
+type SuspendedPeer = restrictedPeer
 
 func NewSuspendedPeer(ip IP, suspendTimestampMillis int64, suspendDuration time.Duration, reason string) *SuspendedPeer {
 	return &SuspendedPeer{
@@ -77,7 +77,7 @@ func NewSuspendedPeer(ip IP, suspendTimestampMillis int64, suspendDuration time.
 
 type suspendedPeers = restrictedPeers
 
-type BlackListedPeer = RestrictedPeer
+type BlackListedPeer = restrictedPeer
 
 func NewBlackListedPeer(ip IP, blackListTimestampMillis int64, blackListDuration time.Duration, reason string) *BlackListedPeer {
 	return &BlackListedPeer{
