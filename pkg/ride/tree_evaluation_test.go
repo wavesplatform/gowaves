@@ -19,7 +19,7 @@ import (
 
 func TestSimpleScriptEvaluation(t *testing.T) {
 	te := newTestEnv(t).withProtobufTx().toEnv()
-	env := newTestEnv(t).withProtobufTx().withTransaction(testTransferWithProofs()).toEnv()
+	env := newTestEnv(t).withProtobufTx().withTransaction(testTransferWithProofs(t)).toEnv()
 	for _, test := range []struct {
 		comment string
 		source  string

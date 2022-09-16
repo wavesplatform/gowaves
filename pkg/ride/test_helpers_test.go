@@ -573,19 +573,24 @@ func (e *testEnv) addDataEntry(addr proto.WavesAddress, entry proto.DataEntry) {
 // withWavesBalance adds information about account's Waves balance profile.
 // For the sake of brevity `lease in`, `lease out` and `generating` balances can be provided as last arguments in this order.
 func (e *testEnv) withWavesBalance(acc *testAccount, balance int, other ...int) *testEnv {
-	var leaseIn int64 = 0
-	var leaseOut int64 = 0
-	var generating uint64 = 0
-	switch {
-	case len(other) >= 3:
+	var (
+		leaseIn    int64
+		leaseOut   int64
+		generating uint64
+	)
+	switch len(other) {
+	case 3:
 		leaseIn = int64(other[0])
 		leaseOut = int64(other[1])
 		generating = uint64(other[2])
-	case len(other) == 2:
+	case 2:
 		leaseIn = int64(other[0])
 		leaseOut = int64(other[1])
-	case len(other) == 1:
+	case 1:
 		leaseIn = int64(other[0])
+	case 0:
+	default:
+		e.t.Errorf("too many arguments provided as 'other' balaces")
 	}
 	e.waves[acc.address()] = &types.WavesBalanceProfile{
 		Balance:    uint64(balance),
@@ -745,41 +750,29 @@ func guessBytesFromString(t *testing.T, s string) []byte {
 	return b
 }
 
-func testTransferWithProofs() *proto.TransferWithProofs {
-	var scheme byte = 'T'
+func testTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
+	var scheme byte = proto.TestNetScheme
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	sk, pk, err := crypto.GenerateKeyPair(seed)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	tm, err := time.Parse(time.RFC3339, "2020-10-01T00:00:00+00:00")
-	if err != nil {
-		panic(err)
-	}
-	ts := uint64(tm.UnixNano() / 1000000)
+	require.NoError(t, err)
+	ts := uint64(tm.UnixMilli())
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(addr)
 	att := []byte("some attachment")
 	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, att)
 	err = tx.GenerateID(scheme)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	err = tx.Sign(scheme, sk)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	return tx
 }
 
-func testTransferObject() rideType {
-	obj, err := transferWithProofsToObject(proto.TestNetScheme, testTransferWithProofs())
+func testTransferObject(t *testing.T) rideType {
+	obj, err := transferWithProofsToObject(proto.TestNetScheme, testTransferWithProofs(t))
 	if err != nil {
 		panic(err)
 	}

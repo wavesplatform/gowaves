@@ -38,7 +38,7 @@ func TestPowBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := powBigInt(newTestEnv(t).toEnv(), test.args...)
+		r, err := powBigInt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -784,7 +784,7 @@ func TestSqrtBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sqrtBigInt(newTestEnv(t).toEnv(), test.args...)
+		r, err := sqrtBigInt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

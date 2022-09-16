@@ -367,6 +367,8 @@ func TestIntToBytes(t *testing.T) {
 }
 
 func TestPow(t *testing.T) {
+	envV1 := newTestEnv(t).toEnv()
+	envV2 := newTestEnv(t).withValidateInternalPayments().toEnv()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -385,13 +387,18 @@ func TestPow(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := pow(newTestEnv(t).toEnv(), test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
+		check := func(r rideType, err error) {
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
 		}
+		r, err := pow(envV1, test.args...)
+		check(r, err)
+		r, err = pow(envV2, test.args...)
+		check(r, err)
 	}
 }
 
@@ -477,7 +484,7 @@ func TestSqrt(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sqrt(newTestEnv(t).toEnv(), test.args...)
+		r, err := sqrt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

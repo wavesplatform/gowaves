@@ -18,10 +18,12 @@ import (
 
 func TestExecution(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
-		return testTransferWithProofs(), nil
+		return testTransferWithProofs(t), nil
 	}}
 	env := &mockRideEnvironment{
-		transactionFunc: testTransferObject,
+		transactionFunc: func() rideType {
+			return testTransferObject(t)
+		},
 		stateFunc: func() types.SmartState {
 			return state
 		},
