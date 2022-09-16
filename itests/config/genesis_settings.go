@@ -109,6 +109,10 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	cfg.BlockRewardIncrement = 100000
 	cfg.BlockRewardVotingPeriod = 1000
 	cfg.InitialBlockReward = 600000000
+	cfg.DoubleFeaturesPeriodsAfterHeight = 1000000
+	cfg.SponsorshipSingleActivationPeriod = true
+	cfg.FeaturesVotingPeriod = 1
+	cfg.VotesForFeatureActivation = 1
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/xenolf/lego/log"
-
+	"github.com/stretchr/testify/require"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -18,11 +18,18 @@ type OutgoingPeer struct {
 	conn net.Conn
 }
 
-func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (*OutgoingPeer, error) {
+func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (op *OutgoingPeer, err error) {
 	c, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to %s", address)
 	}
+	defer func() {
+		if err != nil {
+			if closeErr := c.Close(); closeErr != nil {
+				err = errors.Wrap(err, closeErr.Error())
+			}
+		}
+	}()
 	handshake := proto.Handshake{
 		AppName:      wavesNetwork,
 		Version:      ver,
@@ -67,16 +74,45 @@ type NodeConnections struct {
 	goCon    *OutgoingPeer
 }
 
-func NewNodeConnections(t *testing.T, p *d.Ports) NodeConnections {
+func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion, "wavesL")
-	assert.NoError(t, err, "failed to create connection to go node")
-	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
-	assert.NoError(t, err, "failed to create connection to scala node")
-
-	return NodeConnections{
-		scalaCon: scalaCon,
-		goCon:    goCon,
+	if err != nil {
+		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
 	}
+	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
+	if err != nil {
+		if closeErr := goCon.Close(); closeErr != nil {
+			err = errors.Wrap(err, closeErr.Error())
+		}
+		return NodeConnections{}, errors.Wrap(err, "failed to create connection to scala node")
+	}
+	return NodeConnections{scalaCon: scalaCon, goCon: goCon}, nil
+}
+
+func retry(timeout time.Duration, f func() error) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = 100 * time.Millisecond
+	bo.MaxInterval = 500 * time.Millisecond
+	bo.MaxElapsedTime = timeout
+	if err := backoff.Retry(f, bo); err != nil {
+		if bo.NextBackOff() == backoff.Stop {
+			return errors.Wrap(err, "reached retry deadline")
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
+	c.Close(t)
+	var newConns NodeConnections
+	err := retry(1*time.Second, func() error {
+		var err error
+		newConns, err = NewNodeConnections(p)
+		return err
+	})
+	require.NoError(t, err, "failed to create new connections")
+	*c = newConns
 }
 
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
@@ -87,11 +123,10 @@ func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
 	assert.NoError(t, err, "failed to send TransactionMessage to scala node")
 }
 
-func (c *NodeConnections) Close() {
-	if err := c.goCon.Close(); err != nil {
-		log.Warnf("Failed to close connection: %s", err)
-	}
-	if err := c.scalaCon.Close(); err != nil {
-		log.Warnf("Failed to close connection: %s", err)
-	}
+func (c *NodeConnections) Close(t *testing.T) {
+	err := c.goCon.Close()
+	assert.NoError(t, err, "failed to close go node connection")
+
+	err = c.scalaCon.Close()
+	assert.NoError(t, err, "failed to close scala node connection")
 }
