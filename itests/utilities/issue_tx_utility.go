@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"context"
 	"time"
 
 	"github.com/wavesplatform/gowaves/itests/config"
@@ -21,20 +22,42 @@ func GetAssetBalanceGo(suite *i.BaseSuite, address proto.WavesAddress, id []byte
 	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
 }
 
-func GetTxIdsInBlockchain(suite *i.BaseSuite, ids map[string]*crypto.Digest, timeout time.Duration) map[string]string {
-	time.Sleep(timeout)
-	txIds := make(map[string]string)
-	for name, id := range ids {
-		_, _, errGo := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(*id)
-		_, _, errScala := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(*id)
-		if errGo == nil {
-			txIds["Go "+name] = id.String()
-		}
-		if errScala == nil {
-			txIds["Scala "+name] = id.String()
+func GetTxIdsInBlockchain(suite *i.BaseSuite, ids map[string]*crypto.Digest, timeout, tick time.Duration) map[string]string {
+	var (
+		ticker      = time.NewTicker(tick)
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+		txIDs       = make(map[string]string, len(ids))
+	)
+	defer func() {
+		ticker.Stop()
+		cancel()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return txIDs
+		case <-ticker.C:
+			if len(txIDs) == len(ids) {
+				return txIDs
+			}
+			for name, id := range ids {
+				goTxID := "Go " + name
+				if _, ok := txIDs[goTxID]; !ok {
+					_, _, errGo := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(*id)
+					if errGo == nil {
+						txIDs[goTxID] = id.String()
+					}
+				}
+				scalaTxID := "Scala " + name
+				if _, ok := txIDs[scalaTxID]; !ok {
+					_, _, errScala := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(*id)
+					if errScala == nil {
+						txIDs[scalaTxID] = id.String()
+					}
+				}
+			}
 		}
 	}
-	return txIds
 }
 
 func SendAndWaitTransaction(suite *i.BaseSuite, tx *proto.IssueWithSig, timeout time.Duration) (error, error) {
