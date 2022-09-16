@@ -1769,3 +1769,56 @@ func balanceDetails(_ environment, args ...rideType) (rideType, error) {
 	}
 	return newRideBalanceDetails(values[0], values[1], values[2], values[3]), nil
 }
+
+func invocationConstructor(_ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 8); err != nil {
+		return nil, errors.Wrap(err, "invocationConstructor")
+	}
+	list, ok := args[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected type '%s'", args[0].instanceOf())
+	}
+	payments := make(rideList, len(list))
+	// TODO: Add check on payments count
+	for i, e := range list {
+		p, ok := e.(rideAttachedPayment)
+		if !ok {
+			return nil, errors.Errorf("invocationConstructor: unexpected type '%s' in attached payments list", e.instanceOf())
+		}
+		payments[i] = p
+	}
+	caller, ok := args[1].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	callerPK, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	txID, ok := args[3].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[3].instanceOf())
+	}
+	fee, ok := args[4].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[4].instanceOf())
+	}
+	var feeAssetID rideType
+	switch ta := args[5].(type) {
+	case rideBytes:
+		feeAssetID = ta
+	case rideUnit:
+		feeAssetID = ta
+	default:
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[5].instanceOf())
+	}
+	originCaller, ok := args[6].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	originCallerPK, ok := args[7].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invocationConstructor: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	return newRideInvocation(originCaller, payments, rideUnit{}, callerPK, feeAssetID, originCallerPK, txID, caller, fee), nil
+}
