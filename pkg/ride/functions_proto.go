@@ -1779,6 +1779,7 @@ func invocationConstructor(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invocationConstructor: unexpected type '%s'", args[0].instanceOf())
 	}
 	payments := make(rideList, len(list))
+	// TODO: Add check on payments count
 	for i, e := range list {
 		p, ok := e.(rideAttachedPayment)
 		if !ok {
