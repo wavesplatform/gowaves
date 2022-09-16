@@ -25,28 +25,29 @@ type BaseSuite struct {
 }
 
 func (suite *BaseSuite) SetupSuite() {
+	const enableScalaMining = true
+
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
-	enableScalaMining := true
 	paths, cfg, err := config.CreateFileConfigs(enableScalaMining)
-	suite.NoError(err, "couldn't create config")
+	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
 
 	suiteName := strings.ToLower(suite.T().Name())
 	docker, err := d.NewDocker(suiteName)
-	suite.NoError(err, "couldn't create Docker pool")
+	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
 	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName)
 	if err != nil {
 		docker.Finish(suite.Cancel)
-		suite.NoError(err, "couldn't run Docker containers")
+		suite.Require().NoError(err, "couldn't run Docker containers")
 	}
 	suite.Ports = ports
 
 	conns, err := net.NewNodeConnections(ports)
 	if err != nil {
 		docker.Finish(suite.Cancel)
-		suite.NoError(err, "failed to create new node connections")
+		suite.Require().NoError(err, "failed to create new node connections")
 	}
 	suite.Conns = conns
 	suite.Clients = node_client.NewNodesClients(suite.T(), ports)
