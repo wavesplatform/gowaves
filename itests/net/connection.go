@@ -19,11 +19,18 @@ type OutgoingPeer struct {
 	conn net.Conn
 }
 
-func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (*OutgoingPeer, error) {
+func NewConnection(declAddr proto.TCPAddr, address string, ver proto.Version, wavesNetwork string) (op *OutgoingPeer, err error) {
 	c, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to %s", address)
 	}
+	defer func() {
+		if err != nil {
+			if closeErr := c.Close(); closeErr != nil {
+				err = errors.Wrap(err, closeErr.Error())
+			}
+		}
+	}()
 	handshake := proto.Handshake{
 		AppName:      wavesNetwork,
 		Version:      ver,
