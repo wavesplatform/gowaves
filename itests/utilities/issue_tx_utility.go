@@ -5,7 +5,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	i "github.com/wavesplatform/gowaves/itests/fixtures"
-	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -43,8 +42,7 @@ func SendAndWaitTransaction(suite *i.BaseSuite, tx *proto.IssueWithSig, timeout 
 	suite.NoError(err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
-	suite.Conns, err = net.Reconnect(suite.Conns, suite.Ports)
-	suite.NoError(err, "failed to reconnect to nodes")
+	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(tx.ID, timeout)

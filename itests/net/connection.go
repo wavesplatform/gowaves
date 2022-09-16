@@ -9,8 +9,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/xenolf/lego/log"
-
+	"github.com/stretchr/testify/require"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -108,15 +107,16 @@ func retry(timeout time.Duration, f func() error) error {
 	return nil
 }
 
-func Reconnect(c NodeConnections, p *d.Ports) (NodeConnections, error) {
-	c.Close()
+func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
+	c.Close(t)
 	var newConns NodeConnections
 	err := retry(1*time.Second, func() error {
 		var err error
 		newConns, err = NewNodeConnections(p)
 		return err
 	})
-	return newConns, err
+	require.NoError(t, err, "failed to create new connections")
+	*c = newConns
 }
 
 func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
@@ -127,11 +127,10 @@ func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
 	assert.NoError(t, err, "failed to send TransactionMessage to scala node")
 }
 
-func (c *NodeConnections) Close() {
-	if err := c.goCon.Close(); err != nil {
-		log.Warnf("Failed to close connection: %s", err)
-	}
-	if err := c.scalaCon.Close(); err != nil {
-		log.Warnf("Failed to close connection: %s", err)
-	}
+func (c *NodeConnections) Close(t *testing.T) {
+	err := c.goCon.Close()
+	assert.NoError(t, err, "failed to close go node connection")
+
+	err = c.scalaCon.Close()
+	assert.NoError(t, err, "failed to close scala node connection")
 }

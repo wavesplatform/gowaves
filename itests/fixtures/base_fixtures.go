@@ -57,7 +57,7 @@ func (suite *BaseSuite) TearDownSuite() {
 	suite.Clients.StateHashCmp(suite.T(), height)
 
 	suite.Docker.Finish(suite.Cancel)
-	suite.Conns.Close()
+	suite.Conns.Close(suite.T())
 }
 
 func (suite *BaseSuite) SetupTest() {
