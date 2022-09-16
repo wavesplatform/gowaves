@@ -112,7 +112,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Expected balance in Waves Node Go in case: \"%s\"", name)
 		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Expected Asset balance Node Go in case: \"%s\"", name)
 	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout)
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)
 }
 
