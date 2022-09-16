@@ -33,13 +33,13 @@ func GetTxIdsInBlockchain(suite *i.BaseSuite, ids map[string]*crypto.Digest, tim
 		cancel()
 	}()
 	for {
+		if len(txIDs) == len(ids) { // fast path
+			return txIDs
+		}
 		select {
 		case <-ctx.Done():
 			return txIDs
 		case <-ticker.C:
-			if len(txIDs) == len(ids) {
-				return txIDs
-			}
 			for name, id := range ids {
 				goTxID := "Go " + name
 				if _, ok := txIDs[goTxID]; !ok {
