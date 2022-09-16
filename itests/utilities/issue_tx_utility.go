@@ -27,14 +27,14 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest, tim
 	var (
 		ticker      = time.NewTicker(tick)
 		ctx, cancel = context.WithTimeout(context.Background(), timeout)
-		txIDs       = make(map[string]string, len(ids))
+		txIDs       = make(map[string]string, 2*len(ids))
 	)
 	defer func() {
 		ticker.Stop()
 		cancel()
 	}()
 	for {
-		if len(txIDs) == len(ids) { // fast path
+		if len(txIDs) == 2*len(ids) { // fast path
 			return txIDs
 		}
 		select {
