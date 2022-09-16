@@ -2,7 +2,6 @@ package utilities
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -67,13 +66,9 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	require.NoError(suite.T(), err, "failed to marshal tx")
 	txMsg := proto.TransactionMessage{Transaction: bts}
 	idBytes, err := tx.GetID(scheme)
-	if err != nil {
-		panic(fmt.Sprintf("failed to get txID: %v", err))
-	}
+	require.NoError(suite.T(), err, "failed to get txID")
 	id, err := crypto.NewDigestFromBytes(idBytes)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create new digest from bytes: %v", err))
-	}
+	require.NoError(suite.T(), err, "failed to create new digest from bytes")
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
