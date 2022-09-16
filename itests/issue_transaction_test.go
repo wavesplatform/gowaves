@@ -29,7 +29,7 @@ func newSignIssueTransaction(suite *IssueTxSuite, testdata testdata.IssueTestDat
 
 func issue(suite *IssueTxSuite, testdata testdata.IssueTestData, timeout time.Duration) (*proto.IssueWithSig, error, error) {
 	tx := newSignIssueTransaction(suite, testdata)
-	errGo, errScala := utl.SendAndWaitTransaction(&suite.BaseSuite, tx, timeout)
+	errGo, errScala := utl.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
 	return tx, errGo, errScala
 }
 
