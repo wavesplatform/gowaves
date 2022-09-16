@@ -60,7 +60,6 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest, tim
 			}
 		}
 	}
-	return txIds
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (error, error) {
