@@ -1,8 +1,16 @@
-{-# STDLIB_VERSION 6 #-} #asdasd
-{-# SCRIPT_TYPE ACCOUNT #-} #asdasdasa
-{-# CONTENT_TYPE DAPP #-} # asdasdasdasd
+# asdasdasd
+{-# STDLIB_VERSION 6 #-} #  asdasdasd
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
 
-let a_b = 123
-let b-c = true
+let b = "asd"
 
-let c = base64'asdasdasd'
+let f = base58'asdasdasdasdasd'
+
+let c = true
+
+let a = 1 + 12312
+
+let asd = [1  + 123, 124, 3284]
+
+let jfj = -123

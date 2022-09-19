@@ -2,8 +2,11 @@ package main
 
 //go:generate peg -output=compiler.peg.go compiler.peg
 
+// Install https://github.com/pointlander/peg
+// go install github.com/pointlander/peg@latest
+// Using see peg -h
+
 import (
-	"fmt"
 	"log"
 	"os"
 )
@@ -22,8 +25,5 @@ func main() {
 	if err := res.Parse(); err != nil {
 		log.Fatal(err)
 	}
-	ast := res.AST()
-	fmt.Printf("%v/n", ast)
-	fmt.Printf("%v/n", translatePositions(res.buffer, []int{int(ast.up.token32.end)})[int(ast.up.token32.end)])
 	res.PrintSyntaxTree()
 }

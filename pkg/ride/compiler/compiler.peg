@@ -1,45 +1,102 @@
+# Go part
 package main
 
 type Result Peg {
 }
 
-Code <- EOL? Directives Declaration+ EOF
+# Start PEG
+
+# Main rules
+Code <- _? (Directive _)* (Declaration _)* EOF
 
 # Whitespaces and new line symbols
 
-_ <- [ \t]+
-
-EOL <- (Comment / NewLine)+
-
-NewLine <- _? ("\r\n" / "\n\r" / "\r" / "\n")
-
-Comment ← _? "#" [^\r\n]*
+WS <- [ \t]+
+NewLine <- [ \t\n\r\f]+
+Comment <- "#" !"-}" [^\r\n]*
+WhiteSpace <- (NewLine / Comment)*
+_ <- WhiteSpace
 
 EOF <- !.
 
-# Types
-
-Types <- (Int / Uint/ Boolean / ByteVector)
-
-Int <- [-]? [0-9]+
-Uint <- [0-9]+
-Boolean <- "true" / "false"
-ByteVector <- ("base16" / "base58" / "base64") '\''[^'\r\n]*'\''
-
 # Directives
-Directives <- ((StdLibVersionDirective / ScriptTypeDirective / ContentTypeDirective) EOL)+
 
-StartDirective <- "{-#"
-EndDirective <- "#-}"
+DirectiveWord <- [_a-zA-Z0-9-]+
+Directive <- "{-#" WS DirectiveWord WS DirectiveWord WS "#-}"
 
-StdLibVersionDirective <- StartDirective _ "STDLIB_VERSION" _ Int _ EndDirective
+# Declarations
 
-Word <- [_a-zA-Z-] [_a-zA-Z0-9-]*
+Declaration <- Variable
 
-ScriptTypeDirective <- StartDirective _ "SCRIPT_TYPE" _ Word _ EndDirective
+Variable <- "let" _ IdentifierAtom _ "=" _ Expr
 
-ContentTypeDirective <- StartDirective _ "CONTENT_TYPE" _ Word _ EndDirective
+# Operators
+OrOp <- "||"
+AndOp <- "&&"
 
-# Variables
+EqGroupOp <- EqOp / NeOp
+EqOp <- "=="
+NeOp <- "!="
 
-Declaration <- "let" _ Word _ "=" _ Types EOL
+CompareGroupOp <- GtOp / GeOp / LtOp / LeOp
+GtOp <- ">" !"="
+GeOp <- ">="
+LtOp <- "<" !"="
+LeOp <- "<="
+
+ConsOp <- "::"
+
+SumGroupOp <- SumOp / SubOp
+SumOp <- '+'
+SubOp <- '-'
+
+MultGroupOp <- MulOp / DivOp / ModOp
+MulOp <- '*'
+DivOp <- '/'
+ModOp <- '%'
+
+UnaryOp <- PositiveOp / NegativeOp  / NotOp
+PositiveOp <- '+'
+NegativeOp <- '-'
+NotOp <- '!'
+
+# Types
+ReservedWords <- "let" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func"
+
+ConstAtom <- IntegerAtom / StringAtom / ByteVectorAtom / BooleanAtom / ListAtom
+IdentifierAtom <- (!ReservedWords Char (Char / Digit)*) / (ReservedWords (Char / Digit) (Char / Digit)*)
+ReferenceAtom <- (!ReservedWords Char (Char / Digit)*) / (ReservedWords (Char / Digit) (Char / Digit)*)
+GenericTypesAtom <- OneGenericTypeAtom ((_ "|" _ GenericTypesAtom) / OneGenericTypeAtom)?
+OneGenericTypeAtom <- Char (Char / Digit)* (_ "[" _ OneTypeAtom _ "]" _)?
+TypesAtom <- OneTypeAtom ((_ "|" _ TypesAtom) / OneTypeAtom)?
+OneTypeAtom <- Char (Char / Digit)*
+
+ByteVectorAtom <- "base" ("58" / "64" / "16") "'" [^\']* "'"
+
+BooleanAtom <- "true" / "false"
+
+StringAtom <- "\"" (UnicodeCharAtom / EscapedCharAtom / CharAtom)* "\""
+UnicodeCharAtom <- "\\u" HexDigit HexDigit HexDigit HexDigit
+HexDigit <- Char / Digit
+EscapedCharAtom <- "\\" .
+CharAtom <- [^\"]
+Char <- [a-zA-Z]
+
+IntegerAtom <- Digit+
+Digit <- [0-9]
+
+ListAtom <- "[" _ ListAtomSeq _ "]"
+ListAtomSeq <- Expr ((_ "," _ ListAtomSeq) / Expr)?
+
+# Expressions
+AtomExpr <- UnaryOp? _ ConstAtom
+MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
+SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
+ConsOpAtom <- SumGroupOpAtom (_ ConsOp _ SumGroupOpAtom)*
+CompareGroupOpAtom <- ConsOpAtom (_ CompareGroupOp _ ConsOpAtom)*
+EqualityGroupOpAtom <- CompareGroupOpAtom (_ EqGroupOp _ CompareGroupOpAtom)*
+AndOpAtom <- EqualityGroupOpAtom (_ AndOp _ EqualityGroupOpAtom)*
+OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
+
+Expr <- OrOpAtom
+ParExpr <- "(" _ Expr _ ")"
