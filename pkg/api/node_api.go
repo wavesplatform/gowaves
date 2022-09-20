@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	defaultTimeout = 30 * time.Second
-
-	maxDebugMessageLength = 100
+	defaultTimeout              = 30 * time.Second
+	postMessageSizeLimit  int64 = 1 << 20 // 1 MB
+	maxDebugMessageLength       = 100
 )
 
 type NodeApi struct {
@@ -41,15 +41,18 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) error {
-	// TODO: use io.LimitReader
-	b, err := io.ReadAll(r.Body)
+func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) error {
+	b, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast: failed to read request body")
 	}
-	err = a.app.TransactionsBroadcast(r.Context(), b)
+	tx, err := a.app.TransactionsBroadcast(r.Context(), b)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast")
+	}
+	err = json.NewEncoder(w).Encode(tx)
+	if err != nil {
+		return errors.Wrap(err, "TransactionsBroadcast: failed to marshal tx to JSON and write to ResponseWriter")
 	}
 	return nil
 }
