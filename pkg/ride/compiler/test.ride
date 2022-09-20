@@ -3,14 +3,43 @@
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 
+let ad = if true then 3 else 4
+
+let asd = FOLD<10>(10, 10, asd)
+
+let asdasd = -10
+
+let jnsad = test[123]
+
+let GetFuncCall = sad.asdasd()
+
+let FuncCall = asd()
+
 let b = "asd"
 
 let f = base58'asdasdasdasdasd'
 
 let c = true
 
-let a = 1 + 12312
+let a = -(1 + 12312)
 
 let asd = [1  + 123, 124, 3284]
 
-let jfj = -123
+let sdf = someFuncCall(10, 100, 1000)
+
+let asd = asd.asdasd
+
+let jfj = {
+    let asdasd = 123123 : 1000
+}
+
+func someFunc(someArg1: Int, someArd2: String) = {
+    let k = 1000
+    true
+}
+
+@Verifier(tx)
+func verify() = {
+    sigVerify(tx.bodyBytes, tx.proofs[0], base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
+    #true
+}

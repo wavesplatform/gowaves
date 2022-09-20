@@ -7,8 +7,9 @@ type Result Peg {
 # Start PEG
 
 # Main rules
-Code <- _? (Directive _)* (Declaration _)* EOF
-
+Code <- DAppRoot / ScriptRoot
+DAppRoot <- _ (Directive _)* (_ Declaration)* (_ AnnotatedFunc)* _ EOF
+ScriptRoot <- _ (Directive _)* (_ Declaration)* _ BlockDecExprSep? _ Expr _ EOF
 # Whitespaces and new line symbols
 
 WS <- [ \t]+
@@ -26,9 +27,18 @@ Directive <- "{-#" WS DirectiveWord WS DirectiveWord WS "#-}"
 
 # Declarations
 
-Declaration <- Variable
+Declaration <- Variable / Func
 
 Variable <- "let" _ IdentifierAtom _ "=" _ Expr
+
+Func <- "func" _ IdentifierAtom _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
+FuncArg <- IdentifierAtom _ ":" _ GenericTypesAtom
+FuncArgSeq <- FuncArg ((_ "," _ FuncArgSeq) / FuncArg)?
+
+AnnotatedFunc <- AnnotationSeq _ Func
+Annotation <- "@" IdentifierAtom _ "(" _ IdentifierAtomSeq _ ")"
+IdentifierAtomSeq <- IdentifierAtom (( _ "," _ IdentifierAtomSeq) / IdentifierAtom)?
+AnnotationSeq <- Annotation (( _ AnnotationSeq) / Annotation)?
 
 # Operators
 OrOp <- "||"
@@ -85,11 +95,11 @@ Char <- [a-zA-Z]
 IntegerAtom <- Digit+
 Digit <- [0-9]
 
-ListAtom <- "[" _ ListAtomSeq _ "]"
-ListAtomSeq <- Expr ((_ "," _ ListAtomSeq) / Expr)?
+ListAtom <- "[" _ ExprSeq? _ "]"
+ExprSeq <- Expr ((_ "," _ ExprSeq) / Expr)?
 
 # Expressions
-AtomExpr <- UnaryOp? _ ConstAtom
+AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / ConstAtom)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ConsOpAtom <- SumGroupOpAtom (_ ConsOp _ SumGroupOpAtom)*
@@ -100,3 +110,24 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 
 Expr <- OrOpAtom
 ParExpr <- "(" _ Expr _ ")"
+
+GettableExpr <- (ParExpr / Block / FunctionCall / ReferenceAtom) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAtomAccess))))*
+FunctionCallAccess <- FunctionCall
+IdentifierAtomAccess <- IdentifierAtom
+ListAccess <- "[" _ (Expr / ReferenceAtom) _ "]"
+
+Block <- "{" (_ Declaration)* _ BlockDecExprSep? _ Expr _ "}"
+BlockWithoutPar <- (_ Declaration)* _ BlockDecExprSep? _ Expr
+BlockDecExprSep <- ":"
+
+FunctionCall <- IdentifierAtom _ "(" _ ExprSeq? _ ")"
+
+FoldMacro <- "FOLD" _ "<" _ IntegerAtom _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ ReferenceAtom _ ")"
+
+IfWithError <- If / FailedIfWithoutElse
+If <- "if" _ Expr _ "then" _ Expr _ "else" _ Expr
+FailedIfWithoutElse <- "if" _ Expr _ "then" _ Expr
+
+Match <- "match" _ Expr _ "{" (_ MatchCase)+ _ "}"
+MatchCase <- "case" _ ((IdentifierAtom _ (":" _ TypesAtom)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
+DefaultMatchCasePart <- "{" _ (":" _ TypesAtom)?
