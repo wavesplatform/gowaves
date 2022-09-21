@@ -79,11 +79,13 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	}
 
 	delay := time.NewTimer(5 * time.Second)
-	select {
-	case <-ctx.Done():
+	defer func() {
 		if !delay.Stop() {
 			<-delay.C
 		}
+	}()
+	select {
+	case <-ctx.Done():
 		return nil, errors.Wrap(ctx.Err(), "ctx cancelled from client")
 	case <-delay.C:
 		return nil, errors.New("timeout waiting response from internal")
