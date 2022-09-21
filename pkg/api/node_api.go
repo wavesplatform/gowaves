@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	defaultTimeout = 30 * time.Second
-
-	maxDebugMessageLength = 100
+	defaultTimeout              = 30 * time.Second
+	postMessageSizeLimit  int64 = 1 << 20 // 1 MB
+	maxDebugMessageLength       = 100
 )
 
 type NodeApi struct {
@@ -42,13 +42,16 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) error {
-	// TODO: use io.LimitReader
-	b, err := io.ReadAll(r.Body)
+func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) error {
+	b, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast: failed to read request body")
 	}
-	err = a.app.TransactionsBroadcast(r.Context(), b)
+	tx, err := a.app.TransactionsBroadcast(r.Context(), b)
+	if err != nil {
+		return errors.Wrap(err, "TransactionsBroadcast")
+	}
+	err = trySendJson(w, tx)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast")
 	}
@@ -96,9 +99,9 @@ func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error 
 			"TransactionsInfo: expected NotFound in state error, but received other error = %s", s,
 		)
 	}
-	err = json.NewEncoder(w).Encode(tx)
+	err = trySendJson(w, tx)
 	if err != nil {
-		return errors.Wrap(err, "TransactionsInfo: failed to marshal tx to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "TransactionsInfo")
 	}
 	return nil
 }
@@ -108,9 +111,9 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksLast: failed to get last block")
 	}
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to marshal block to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "BlocksLast")
 	}
 	return nil
 }
@@ -120,7 +123,7 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to get first block")
 	}
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -169,7 +172,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	apiBlock := newAPIBlock(block, height)
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -213,7 +216,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
 	apiBlock := newAPIBlock(block, height)
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
 	}

@@ -1312,10 +1312,10 @@ func TestAddressFromPublicKeyStrict(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideBytes(mustBytesFromBase64("qhZIsJQ2+At/RHmPBsLuG3sMSZJfQTDhJOgzPtisRUg="))}, false, rideAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))},
-		{[]rideType{rideBytes(mustBytesFromBase64("0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
-		{[]rideType{rideBytes(mustBytesFromBase64("yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu8A/w=="))}, true, nil},
-		{[]rideType{rideBytes(mustBytesFromBase64("yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+7/8="))}, true, nil},
+		{[]rideType{rideBytes(guessBytesFromString(t, "qhZIsJQ2+At/RHmPBsLuG3sMSZJfQTDhJOgzPtisRUg="))}, false, rideAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))},
+		{[]rideType{rideBytes(guessBytesFromString(t, "0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
+		{[]rideType{rideBytes(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu8A/w=="))}, true, nil},
+		{[]rideType{rideBytes(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+7/8="))}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},

@@ -53,21 +53,21 @@ func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services)
 	}, nil
 }
 
-func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {
+func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transaction, error) {
 	tt := proto.TransactionTypeVersion{}
 	err := json.Unmarshal(b, &tt)
 	if err != nil {
-		return &BadRequestError{err}
+		return nil, &BadRequestError{err}
 	}
 
 	realType, err := proto.GuessTransactionType(&tt)
 	if err != nil {
-		return &BadRequestError{err}
+		return nil, &BadRequestError{err}
 	}
 
 	err = json.Unmarshal(b, realType)
 	if err != nil {
-		return &BadRequestError{err}
+		return nil, &BadRequestError{err}
 	}
 
 	respCh := make(chan error, 1)
@@ -75,16 +75,25 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {
 	select {
 	case a.services.InternalChannel <- messages.NewBroadcastTransaction(respCh, realType):
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), "failed to send internal")
+		return nil, errors.Wrap(ctx.Err(), "failed to send internal")
 	}
 
+	delay := time.NewTimer(5 * time.Second)
+	defer func() {
+		if !delay.Stop() {
+			<-delay.C
+		}
+	}()
 	select {
 	case <-ctx.Done():
-		return errors.Wrap(ctx.Err(), "ctx cancelled from client")
-	case <-time.After(5 * time.Second):
-		return errors.New("timeout waiting response from internal")
+		return nil, errors.Wrap(ctx.Err(), "ctx cancelled from client")
+	case <-delay.C:
+		return nil, errors.New("timeout waiting response from internal")
 	case err := <-respCh:
-		return err
+		if err != nil {
+			return nil, err
+		}
+		return realType, nil
 	}
 }
 

@@ -258,14 +258,15 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 			cfgPath + ":/etc/waves",
 		},
 		Env: []string{
-			"WAVES_LOG_LEVEL=DEBUG",
+			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
 				"-Dwaves.network.known-peers.0=" + d.goNode.GetIPInNetwork(d.network) + ":" + BindPort + " " +
 				"-Dwaves.network.declared-address=scala-node:" + BindPort + " " +
 				"-Dwaves.network.port=" + BindPort + " " +
 				"-Dwaves.rest-api.port=" + RESTApiPort + " " +
-				"-Dwaves.grpc.port=" + GrpcApiPort,
+				"-Dwaves.grpc.port=" + GrpcApiPort + " " +
+				"-Dwaves.network.enable-blacklisting=no",
 		},
 		ExposedPorts: []string{
 			GrpcApiPort,
