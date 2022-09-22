@@ -77,10 +77,12 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	case <-ctx.Done():
 		return nil, errors.Wrap(ctx.Err(), "failed to send internal")
 	}
-
-	delay := time.NewTimer(5 * time.Second)
+	var (
+		delay = time.NewTimer(5 * time.Second)
+		fired bool
+	)
 	defer func() {
-		if !delay.Stop() {
+		if !delay.Stop() && !fired {
 			<-delay.C
 		}
 	}()
@@ -88,6 +90,7 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	case <-ctx.Done():
 		return nil, errors.Wrap(ctx.Err(), "ctx cancelled from client")
 	case <-delay.C:
+		fired = true
 		return nil, errors.New("timeout waiting response from internal")
 	case err := <-respCh:
 		if err != nil {
