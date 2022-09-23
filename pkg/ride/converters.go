@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(scheme byte, tx proto.Transaction) (rideType, error) {
+func transactionToObject(scheme proto.Scheme, invokeExpressionActivated bool, tx proto.Transaction) (rideType, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)

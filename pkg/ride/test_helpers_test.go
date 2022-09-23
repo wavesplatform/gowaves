@@ -98,13 +98,9 @@ type testEnv struct {
 }
 
 func newTestEnv(t *testing.T) *testEnv {
-	ms := &MockSmartState{}
 	me := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		stateFunc: func() types.SmartState {
-			return ms
 		},
 		blockV5ActivatedFunc: func() bool {
 			return false
@@ -124,11 +120,14 @@ func newTestEnv(t *testing.T) *testEnv {
 		rideV6ActivatedFunc: func() bool {
 			return false
 		},
+		invokeExpressionActivatedFunc: func() bool {
+			return false
+		},
 	}
 	r := &testEnv{
 		t:           t,
 		me:          me,
-		ms:          ms,
+		ms:          &MockSmartState{},
 		recipients:  map[string]proto.WavesAddress{},
 		accounts:    map[proto.WavesAddress]*testAccount{},
 		entries:     map[proto.WavesAddress]map[string]proto.DataEntry{},
@@ -140,6 +139,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
 		leasings:    map[crypto.Digest]*proto.LeaseInfo{},
 		scripts:     map[proto.WavesAddress]proto.Script{},
+	}
+	r.me.stateFunc = func() types.SmartState {
+		return r.ms
 	}
 	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
@@ -447,7 +449,7 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 		Version:         1,
 		ID:              makeRandomTxID(e.t),
 		Proofs:          proto.NewProofs(),
-		ChainID:         proto.TestNetScheme,
+		ChainID:         e.me.scheme(),
 		SenderPK:        e.sender.publicKey(),
 		ScriptRecipient: e.dApp.recipient(),
 		FunctionCall:    call,
@@ -470,7 +472,8 @@ func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
 }
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
-	txo, err := transactionToObject(proto.TestNetScheme, tx)
+	// TODO: hardcoded scheme
+	txo, err := transactionToObject(proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
 	require.NoError(e.t, err, "failed to set transaction")
 	e.me.transactionFunc = func() rideType {
 		return txo
@@ -692,7 +695,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	e.me.invocationFunc = func() rideType {
 		return e.inv
 	}
-	txo, err := transactionToObject(e.me.scheme(), tx)
+	txo, err := transactionToObject(e.me.scheme(), e.me.invokeExpressionActivated(), tx)
 	require.NoError(e.t, err)
 	e.me.transactionFunc = func() rideType {
 		return txo
@@ -751,7 +754,7 @@ func guessBytesFromString(t *testing.T, s string) []byte {
 }
 
 func testTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
-	var scheme byte = proto.TestNetScheme
+	var scheme = proto.TestNetScheme
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	require.NoError(t, err)
 	sk, pk, err := crypto.GenerateKeyPair(seed)
@@ -769,14 +772,6 @@ func testTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
 	err = tx.Sign(scheme, sk)
 	require.NoError(t, err)
 	return tx
-}
-
-func testTransferObject(t *testing.T) rideType {
-	obj, err := transferWithProofsToObject(proto.TestNetScheme, testTransferWithProofs(t))
-	if err != nil {
-		panic(err)
-	}
-	return obj
 }
 
 func newTestDataTransaction(t *testing.T, acc *testAccount) *proto.DataWithProofs {
