@@ -17,20 +17,7 @@ import (
 //go:generate moq -pkg ride -out smart_state_moq_test.go ../types SmartState:MockSmartState
 
 func TestExecution(t *testing.T) {
-	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
-		return testTransferWithProofs(t), nil
-	}}
-	env := &mockRideEnvironment{
-		transactionFunc: func() rideType {
-			return testTransferObject(t)
-		},
-		stateFunc: func() types.SmartState {
-			return state
-		},
-		schemeFunc: func() byte {
-			return 'T'
-		},
-	}
+	env := newTestEnv(t).withTransaction(testTransferWithProofs(t)).toEnv()
 	for _, test := range []struct {
 		comment string
 		source  string
