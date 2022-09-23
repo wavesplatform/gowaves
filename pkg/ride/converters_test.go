@@ -2848,3 +2848,34 @@ func TestArgumentsConversion(t *testing.T) {
 		assert.ElementsMatch(t, test.res, r)
 	}
 }
+
+func TestSetScriptRideObjectScriptField(t *testing.T) {
+	const (
+		dig = "7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN"
+		sig = "3dPbXLoVS7JNAQpdnyYo3fL1GHZCDBPGsTXgQU2wCAKPzMPHqPjJbaBhk9GJqF8mpGcbf4FgUgD1U8owEGg5efv2"
+	)
+	bigString := strings.Repeat("1", proto.MaxContractScriptSizeV1V5)
+	bigPlusString := bigString + "1"
+	mustDecodeBase58 := func(s string) []byte {
+		res, err := base58.Decode(s)
+		require.NoError(t, err)
+		return res
+	}
+	tests := []struct {
+		expectedScriptField       rideType
+		scriptBytes               string
+		invokeExpressionActivated bool
+	}{
+		{rideUnit{}, "", false},
+		{rideBytes(mustDecodeBase58(dig)), dig, false},
+		{rideBytes(mustDecodeBase58(bigString)), bigString, false},
+		{rideUnit{}, bigPlusString, false},
+		{rideBytes(mustDecodeBase58(bigPlusString)), bigPlusString, true},
+	}
+	for _, tc := range tests {
+		testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, tc.scriptBytes, 1, 2, tc.invokeExpressionActivated)
+		actualScriptField, err := testSetScriptTransaction.get(scriptField)
+		require.NoError(t, err)
+		assert.Equal(t, tc.expectedScriptField, actualScriptField)
+	}
+}
