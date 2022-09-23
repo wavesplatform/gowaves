@@ -16,76 +16,79 @@ var _ environment = &mockRideEnvironment{}
 
 // mockRideEnvironment is a mock implementation of environment.
 //
-//	func TestSomethingThatUsesenvironment(t *testing.T) {
+// 	func TestSomethingThatUsesenvironment(t *testing.T) {
 //
-//		// make and configure a mocked environment
-//		mockedenvironment := &mockRideEnvironment{
-//			blockFunc: func() rideType {
-//				panic("mock out the block method")
-//			},
-//			blockV5ActivatedFunc: func() bool {
-//				panic("mock out the blockV5Activated method")
-//			},
-//			checkMessageLengthFunc: func(n int) bool {
-//				panic("mock out the checkMessageLength method")
-//			},
-//			heightFunc: func() rideInt {
-//				panic("mock out the height method")
-//			},
-//			internalPaymentsValidationHeightFunc: func() uint64 {
-//				panic("mock out the internalPaymentsValidationHeight method")
-//			},
-//			invocationFunc: func() rideType {
-//				panic("mock out the invocation method")
-//			},
-//			isProtobufTxFunc: func() bool {
-//				panic("mock out the isProtobufTx method")
-//			},
-//			libVersionFunc: func() ast.LibraryVersion {
-//				panic("mock out the libVersion method")
-//			},
-//			maxDataEntriesSizeFunc: func() int {
-//				panic("mock out the maxDataEntriesSize method")
-//			},
-//			rideV6ActivatedFunc: func() bool {
-//				panic("mock out the rideV6Activated method")
-//			},
-//			schemeFunc: func() byte {
-//				panic("mock out the scheme method")
-//			},
-//			setInvocationFunc: func(inv rideType)  {
-//				panic("mock out the setInvocation method")
-//			},
-//			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
-//				panic("mock out the setNewDAppAddress method")
-//			},
-//			stateFunc: func() types.SmartState {
-//				panic("mock out the state method")
-//			},
-//			takeStringFunc: func(s string, n int) rideString {
-//				panic("mock out the takeString method")
-//			},
-//			thisFunc: func() rideType {
-//				panic("mock out the this method")
-//			},
-//			timestampFunc: func() uint64 {
-//				panic("mock out the timestamp method")
-//			},
-//			transactionFunc: func() rideType {
-//				panic("mock out the transaction method")
-//			},
-//			txIDFunc: func() rideType {
-//				panic("mock out the txID method")
-//			},
-//			validateInternalPaymentsFunc: func() bool {
-//				panic("mock out the validateInternalPayments method")
-//			},
-//		}
+// 		// make and configure a mocked environment
+// 		mockedenvironment := &mockRideEnvironment{
+// 			blockFunc: func() rideType {
+// 				panic("mock out the block method")
+// 			},
+// 			blockV5ActivatedFunc: func() bool {
+// 				panic("mock out the blockV5Activated method")
+// 			},
+// 			checkMessageLengthFunc: func(n int) bool {
+// 				panic("mock out the checkMessageLength method")
+// 			},
+// 			heightFunc: func() rideInt {
+// 				panic("mock out the height method")
+// 			},
+// 			internalPaymentsValidationHeightFunc: func() uint64 {
+// 				panic("mock out the internalPaymentsValidationHeight method")
+// 			},
+// 			invocationFunc: func() rideType {
+// 				panic("mock out the invocation method")
+// 			},
+// 			invokeExpressionActivatedFunc: func() bool {
+// 				panic("mock out the invokeExpressionActivated method")
+// 			},
+// 			isProtobufTxFunc: func() bool {
+// 				panic("mock out the isProtobufTx method")
+// 			},
+// 			libVersionFunc: func() ast.LibraryVersion {
+// 				panic("mock out the libVersion method")
+// 			},
+// 			maxDataEntriesSizeFunc: func() int {
+// 				panic("mock out the maxDataEntriesSize method")
+// 			},
+// 			rideV6ActivatedFunc: func() bool {
+// 				panic("mock out the rideV6Activated method")
+// 			},
+// 			schemeFunc: func() byte {
+// 				panic("mock out the scheme method")
+// 			},
+// 			setInvocationFunc: func(inv rideType)  {
+// 				panic("mock out the setInvocation method")
+// 			},
+// 			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
+// 				panic("mock out the setNewDAppAddress method")
+// 			},
+// 			stateFunc: func() types.SmartState {
+// 				panic("mock out the state method")
+// 			},
+// 			takeStringFunc: func(s string, n int) rideString {
+// 				panic("mock out the takeString method")
+// 			},
+// 			thisFunc: func() rideType {
+// 				panic("mock out the this method")
+// 			},
+// 			timestampFunc: func() uint64 {
+// 				panic("mock out the timestamp method")
+// 			},
+// 			transactionFunc: func() rideType {
+// 				panic("mock out the transaction method")
+// 			},
+// 			txIDFunc: func() rideType {
+// 				panic("mock out the txID method")
+// 			},
+// 			validateInternalPaymentsFunc: func() bool {
+// 				panic("mock out the validateInternalPayments method")
+// 			},
+// 		}
 //
-//		// use mockedenvironment in code that requires environment
-//		// and then make assertions.
+// 		// use mockedenvironment in code that requires environment
+// 		// and then make assertions.
 //
-//	}
+// 	}
 type mockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideType
@@ -104,6 +107,9 @@ type mockRideEnvironment struct {
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideType
+
+	// invokeExpressionActivatedFunc mocks the invokeExpressionActivated method.
+	invokeExpressionActivatedFunc func() bool
 
 	// isProtobufTxFunc mocks the isProtobufTx method.
 	isProtobufTxFunc func() bool
@@ -169,6 +175,9 @@ type mockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
+		// invokeExpressionActivated holds details about calls to the invokeExpressionActivated method.
+		invokeExpressionActivated []struct {
+		}
 		// isProtobufTx holds details about calls to the isProtobufTx method.
 		isProtobufTx []struct {
 		}
@@ -226,6 +235,7 @@ type mockRideEnvironment struct {
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
+	lockinvokeExpressionActivated        sync.RWMutex
 	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
@@ -257,8 +267,7 @@ func (mock *mockRideEnvironment) block() rideType {
 
 // blockCalls gets all the calls that were made to block.
 // Check the length with:
-//
-//	len(mockedenvironment.blockCalls())
+//     len(mockedenvironment.blockCalls())
 func (mock *mockRideEnvironment) blockCalls() []struct {
 } {
 	var calls []struct {
@@ -284,8 +293,7 @@ func (mock *mockRideEnvironment) blockV5Activated() bool {
 
 // blockV5ActivatedCalls gets all the calls that were made to blockV5Activated.
 // Check the length with:
-//
-//	len(mockedenvironment.blockV5ActivatedCalls())
+//     len(mockedenvironment.blockV5ActivatedCalls())
 func (mock *mockRideEnvironment) blockV5ActivatedCalls() []struct {
 } {
 	var calls []struct {
@@ -314,8 +322,7 @@ func (mock *mockRideEnvironment) checkMessageLength(n int) bool {
 
 // checkMessageLengthCalls gets all the calls that were made to checkMessageLength.
 // Check the length with:
-//
-//	len(mockedenvironment.checkMessageLengthCalls())
+//     len(mockedenvironment.checkMessageLengthCalls())
 func (mock *mockRideEnvironment) checkMessageLengthCalls() []struct {
 	N int
 } {
@@ -343,8 +350,7 @@ func (mock *mockRideEnvironment) height() rideInt {
 
 // heightCalls gets all the calls that were made to height.
 // Check the length with:
-//
-//	len(mockedenvironment.heightCalls())
+//     len(mockedenvironment.heightCalls())
 func (mock *mockRideEnvironment) heightCalls() []struct {
 } {
 	var calls []struct {
@@ -370,8 +376,7 @@ func (mock *mockRideEnvironment) internalPaymentsValidationHeight() uint64 {
 
 // internalPaymentsValidationHeightCalls gets all the calls that were made to internalPaymentsValidationHeight.
 // Check the length with:
-//
-//	len(mockedenvironment.internalPaymentsValidationHeightCalls())
+//     len(mockedenvironment.internalPaymentsValidationHeightCalls())
 func (mock *mockRideEnvironment) internalPaymentsValidationHeightCalls() []struct {
 } {
 	var calls []struct {
@@ -397,8 +402,7 @@ func (mock *mockRideEnvironment) invocation() rideType {
 
 // invocationCalls gets all the calls that were made to invocation.
 // Check the length with:
-//
-//	len(mockedenvironment.invocationCalls())
+//     len(mockedenvironment.invocationCalls())
 func (mock *mockRideEnvironment) invocationCalls() []struct {
 } {
 	var calls []struct {
@@ -406,6 +410,32 @@ func (mock *mockRideEnvironment) invocationCalls() []struct {
 	mock.lockinvocation.RLock()
 	calls = mock.calls.invocation
 	mock.lockinvocation.RUnlock()
+	return calls
+}
+
+// invokeExpressionActivated calls invokeExpressionActivatedFunc.
+func (mock *mockRideEnvironment) invokeExpressionActivated() bool {
+	if mock.invokeExpressionActivatedFunc == nil {
+		panic("mockRideEnvironment.invokeExpressionActivatedFunc: method is nil but environment.invokeExpressionActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinvokeExpressionActivated.Lock()
+	mock.calls.invokeExpressionActivated = append(mock.calls.invokeExpressionActivated, callInfo)
+	mock.lockinvokeExpressionActivated.Unlock()
+	return mock.invokeExpressionActivatedFunc()
+}
+
+// invokeExpressionActivatedCalls gets all the calls that were made to invokeExpressionActivated.
+// Check the length with:
+//     len(mockedenvironment.invokeExpressionActivatedCalls())
+func (mock *mockRideEnvironment) invokeExpressionActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinvokeExpressionActivated.RLock()
+	calls = mock.calls.invokeExpressionActivated
+	mock.lockinvokeExpressionActivated.RUnlock()
 	return calls
 }
 
@@ -424,8 +454,7 @@ func (mock *mockRideEnvironment) isProtobufTx() bool {
 
 // isProtobufTxCalls gets all the calls that were made to isProtobufTx.
 // Check the length with:
-//
-//	len(mockedenvironment.isProtobufTxCalls())
+//     len(mockedenvironment.isProtobufTxCalls())
 func (mock *mockRideEnvironment) isProtobufTxCalls() []struct {
 } {
 	var calls []struct {
@@ -451,8 +480,7 @@ func (mock *mockRideEnvironment) libVersion() ast.LibraryVersion {
 
 // libVersionCalls gets all the calls that were made to libVersion.
 // Check the length with:
-//
-//	len(mockedenvironment.libVersionCalls())
+//     len(mockedenvironment.libVersionCalls())
 func (mock *mockRideEnvironment) libVersionCalls() []struct {
 } {
 	var calls []struct {
@@ -478,8 +506,7 @@ func (mock *mockRideEnvironment) maxDataEntriesSize() int {
 
 // maxDataEntriesSizeCalls gets all the calls that were made to maxDataEntriesSize.
 // Check the length with:
-//
-//	len(mockedenvironment.maxDataEntriesSizeCalls())
+//     len(mockedenvironment.maxDataEntriesSizeCalls())
 func (mock *mockRideEnvironment) maxDataEntriesSizeCalls() []struct {
 } {
 	var calls []struct {
@@ -505,8 +532,7 @@ func (mock *mockRideEnvironment) rideV6Activated() bool {
 
 // rideV6ActivatedCalls gets all the calls that were made to rideV6Activated.
 // Check the length with:
-//
-//	len(mockedenvironment.rideV6ActivatedCalls())
+//     len(mockedenvironment.rideV6ActivatedCalls())
 func (mock *mockRideEnvironment) rideV6ActivatedCalls() []struct {
 } {
 	var calls []struct {
@@ -532,8 +558,7 @@ func (mock *mockRideEnvironment) scheme() byte {
 
 // schemeCalls gets all the calls that were made to scheme.
 // Check the length with:
-//
-//	len(mockedenvironment.schemeCalls())
+//     len(mockedenvironment.schemeCalls())
 func (mock *mockRideEnvironment) schemeCalls() []struct {
 } {
 	var calls []struct {
@@ -562,8 +587,7 @@ func (mock *mockRideEnvironment) setInvocation(inv rideType) {
 
 // setInvocationCalls gets all the calls that were made to setInvocation.
 // Check the length with:
-//
-//	len(mockedenvironment.setInvocationCalls())
+//     len(mockedenvironment.setInvocationCalls())
 func (mock *mockRideEnvironment) setInvocationCalls() []struct {
 	Inv rideType
 } {
@@ -594,8 +618,7 @@ func (mock *mockRideEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 
 // setNewDAppAddressCalls gets all the calls that were made to setNewDAppAddress.
 // Check the length with:
-//
-//	len(mockedenvironment.setNewDAppAddressCalls())
+//     len(mockedenvironment.setNewDAppAddressCalls())
 func (mock *mockRideEnvironment) setNewDAppAddressCalls() []struct {
 	Address proto.WavesAddress
 } {
@@ -623,8 +646,7 @@ func (mock *mockRideEnvironment) state() types.SmartState {
 
 // stateCalls gets all the calls that were made to state.
 // Check the length with:
-//
-//	len(mockedenvironment.stateCalls())
+//     len(mockedenvironment.stateCalls())
 func (mock *mockRideEnvironment) stateCalls() []struct {
 } {
 	var calls []struct {
@@ -655,8 +677,7 @@ func (mock *mockRideEnvironment) takeString(s string, n int) rideString {
 
 // takeStringCalls gets all the calls that were made to takeString.
 // Check the length with:
-//
-//	len(mockedenvironment.takeStringCalls())
+//     len(mockedenvironment.takeStringCalls())
 func (mock *mockRideEnvironment) takeStringCalls() []struct {
 	S string
 	N int
@@ -686,8 +707,7 @@ func (mock *mockRideEnvironment) this() rideType {
 
 // thisCalls gets all the calls that were made to this.
 // Check the length with:
-//
-//	len(mockedenvironment.thisCalls())
+//     len(mockedenvironment.thisCalls())
 func (mock *mockRideEnvironment) thisCalls() []struct {
 } {
 	var calls []struct {
@@ -713,8 +733,7 @@ func (mock *mockRideEnvironment) timestamp() uint64 {
 
 // timestampCalls gets all the calls that were made to timestamp.
 // Check the length with:
-//
-//	len(mockedenvironment.timestampCalls())
+//     len(mockedenvironment.timestampCalls())
 func (mock *mockRideEnvironment) timestampCalls() []struct {
 } {
 	var calls []struct {
@@ -740,8 +759,7 @@ func (mock *mockRideEnvironment) transaction() rideType {
 
 // transactionCalls gets all the calls that were made to transaction.
 // Check the length with:
-//
-//	len(mockedenvironment.transactionCalls())
+//     len(mockedenvironment.transactionCalls())
 func (mock *mockRideEnvironment) transactionCalls() []struct {
 } {
 	var calls []struct {
@@ -767,8 +785,7 @@ func (mock *mockRideEnvironment) txID() rideType {
 
 // txIDCalls gets all the calls that were made to txID.
 // Check the length with:
-//
-//	len(mockedenvironment.txIDCalls())
+//     len(mockedenvironment.txIDCalls())
 func (mock *mockRideEnvironment) txIDCalls() []struct {
 } {
 	var calls []struct {
@@ -794,8 +811,7 @@ func (mock *mockRideEnvironment) validateInternalPayments() bool {
 
 // validateInternalPaymentsCalls gets all the calls that were made to validateInternalPayments.
 // Check the length with:
-//
-//	len(mockedenvironment.validateInternalPaymentsCalls())
+//     len(mockedenvironment.validateInternalPaymentsCalls())
 func (mock *mockRideEnvironment) validateInternalPaymentsCalls() []struct {
 } {
 	var calls []struct {

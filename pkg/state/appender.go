@@ -395,16 +395,19 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 	return params.chans.trySend(task)
 }
 
+// appendTxParams contains params which are necessary for tx or block appending
+// TODO: create features provider instead of passing new params
 type appendTxParams struct {
-	chans            *verifierChans // can be nil if validatingUtx == true
-	checkerInfo      *checkerInfo
-	blockInfo        *proto.BlockInfo
-	block            *proto.BlockHeader
-	acceptFailed     bool
-	blockV5Activated bool
-	rideV5Activated  bool
-	rideV6Activated  bool
-	validatingUtx    bool // if validatingUtx == false then chans MUST be initialized with non nil value
+	chans                     *verifierChans // can be nil if validatingUtx == true
+	checkerInfo               *checkerInfo
+	blockInfo                 *proto.BlockInfo
+	block                     *proto.BlockHeader
+	acceptFailed              bool
+	blockV5Activated          bool
+	rideV5Activated           bool
+	rideV6Activated           bool
+	invokeExpressionActivated bool // TODO: check feature naming
+	validatingUtx             bool // if validatingUtx == false then chans MUST be initialized with non nil value
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -604,18 +607,23 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	if err != nil {
+		return err
+	}
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
-			chans:            params.chans,
-			checkerInfo:      checkerInfo,
-			blockInfo:        blockInfo,
-			block:            params.block,
-			acceptFailed:     blockV5Activated,
-			blockV5Activated: blockV5Activated,
-			rideV5Activated:  rideV5Activated,
-			rideV6Activated:  rideV6Activated,
-			validatingUtx:    false,
+			chans:                     params.chans,
+			checkerInfo:               checkerInfo,
+			blockInfo:                 blockInfo,
+			block:                     params.block,
+			acceptFailed:              blockV5Activated,
+			blockV5Activated:          blockV5Activated,
+			rideV5Activated:           rideV5Activated,
+			rideV6Activated:           rideV6Activated,
+			invokeExpressionActivated: invokeExpressionActivated,
+			validatingUtx:             false,
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -830,16 +838,21 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockV5' is activated")
 	}
+	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
+	}
 	appendTxArgs := &appendTxParams{
-		chans:            nil, // nil because validatingUtx == true
-		checkerInfo:      checkerInfo,
-		blockInfo:        blockInfo,
-		block:            block,
-		acceptFailed:     acceptFailed,
-		blockV5Activated: blockV5Activated,
-		rideV5Activated:  rideV5Activated,
-		rideV6Activated:  rideV6Activated,
-		validatingUtx:    true,
+		chans:                     nil, // nil because validatingUtx == true
+		checkerInfo:               checkerInfo,
+		blockInfo:                 blockInfo,
+		block:                     block,
+		acceptFailed:              acceptFailed,
+		blockV5Activated:          blockV5Activated,
+		rideV5Activated:           rideV5Activated,
+		rideV6Activated:           rideV6Activated,
+		invokeExpressionActivated: invokeExpressionActivated,
+		validatingUtx:             true,
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {
