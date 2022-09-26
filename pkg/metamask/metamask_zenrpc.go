@@ -89,7 +89,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 			"Eth_GetBlockByNumber": {
 				Description: `Eth_GetBlockByNumber returns information about a block by block number.
 - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-- filter: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
+- filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "blockOrTag",
@@ -98,7 +98,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 						Type:        smd.String,
 					},
 					{
-						Name:        "filter",
+						Name:        "filterTxObj",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.Boolean,
@@ -387,12 +387,12 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_GetBlockByNumber:
 		var args = struct {
-			BlockOrTag string `json:"blockOrTag"`
-			Filter     bool   `json:"filter"`
+			BlockOrTag  string `json:"blockOrTag"`
+			FilterTxObj bool   `json:"filterTxObj"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"blockOrTag", "filter"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"blockOrTag", "filterTxObj"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -403,7 +403,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_GetBlockByNumber(args.BlockOrTag, args.Filter))
+		resp.Set(s.Eth_GetBlockByNumber(args.BlockOrTag, args.FilterTxObj))
 
 	case RPC.RPCService.Eth_GasPrice:
 		resp.Set(s.Eth_GasPrice())

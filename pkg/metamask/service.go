@@ -115,18 +115,37 @@ func (s RPCService) Eth_GetBalance(address, blockOrTag string) (string, error) {
 }
 
 type GetBlockByNumberResponse struct {
-	Number string `json:"number"`
+	Number *string `json:"number"`
 }
 
 // Eth_GetBlockByNumber returns information about a block by block number.
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 //   - filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions */
-func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) GetBlockByNumberResponse {
+func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) (GetBlockByNumberResponse, error) {
 	zap.S().Debugf("Eth_GetBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filterTxObj)
-	// scala's node crunch
-	return GetBlockByNumberResponse{
-		Number: blockOrTag,
+	var n proto.Height
+	switch blockOrTag {
+	case "earliest":
+		n = 1
+	case "latest":
+		h, err := s.nodeRPCApp.State.Height()
+		if err != nil {
+			return GetBlockByNumberResponse{}, err
+		}
+		n = h
+	case "pending":
+		return GetBlockByNumberResponse{Number: nil}, nil
+	default:
+		u, err := hexUintToUint64(blockOrTag)
+		if err != nil {
+			return GetBlockByNumberResponse{}, errors.New("Request parameter is not number nor supported tag")
+		}
+		n = u
 	}
+	out := uint64ToHexString(n)
+	return GetBlockByNumberResponse{
+		Number: &out,
+	}, nil
 }
 
 // Eth_GasPrice returns the current price per gas in wei
@@ -347,7 +366,7 @@ func (s RPCService) Eth_GetCode(address, blockOrTag string) (string, error) {
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_GetTransactionCount(address, blockOrTag string) string {
 	zap.S().Debugf("Eth_GetTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
-	return int64ToHexString(common.UnixMillisFromTime(s.nodeRPCApp.Time.Now()))
+	return uint64ToHexString(uint64(common.UnixMillisFromTime(s.nodeRPCApp.Time.Now())))
 }
 
 // Eth_SendRawTransaction creates new message call transaction or a contract creation for signed transactions.
