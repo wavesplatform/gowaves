@@ -76,6 +76,7 @@ type scriptBasicInfoRecord struct {
 	ScriptLen      uint32             `cbor:"1,keyasint,omitemtpy"`
 	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitemtpy"`
 	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
+	IsDApp         bool               `cbor:"4,keyasint,omitemtpy"`
 }
 
 func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
@@ -92,6 +93,7 @@ func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptB
 		ScriptLen:      scriptLen,
 		LibraryVersion: tree.LibVersion,
 		HasVerifier:    tree.HasVerifier(),
+		IsDApp:         tree.IsDApp(),
 	}
 	return info, tree, nil
 }
