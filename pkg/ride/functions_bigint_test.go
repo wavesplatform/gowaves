@@ -13,15 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var env environment = &mockRideEnvironment{
-	validateInternalPaymentsFunc: func() bool {
-		return false
-	},
-	rideV6ActivatedFunc: func() bool {
-		return false
-	},
-}
-
 func TestPowBigInt(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
@@ -47,7 +38,7 @@ func TestPowBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := powBigInt(env, test.args...)
+		r, err := powBigInt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -793,7 +784,7 @@ func TestSqrtBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sqrtBigInt(env, test.args...)
+		r, err := sqrtBigInt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

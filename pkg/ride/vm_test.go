@@ -4,9 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"testing"
-	"time"
 
-	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,18 +17,7 @@ import (
 //go:generate moq -pkg ride -out smart_state_moq_test.go ../types SmartState:MockSmartState
 
 func TestExecution(t *testing.T) {
-	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
-		return testTransferWithProofs(), nil
-	}}
-	env := &mockRideEnvironment{
-		transactionFunc: testTransferObject,
-		stateFunc: func() types.SmartState {
-			return state
-		},
-		schemeFunc: func() byte {
-			return 'T'
-		},
-	}
+	env := newTestEnv(t).withTransaction(testTransferWithProofs(t)).toEnv()
 	for _, test := range []struct {
 		comment string
 		source  string
@@ -426,45 +413,4 @@ func BenchmarkEval(b *testing.B) {
 		r := res.(ScriptResult)
 		assert.True(b, r.Result())
 	}
-}
-
-func testTransferWithProofs() *proto.TransferWithProofs {
-	var scheme byte = 'T'
-	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	if err != nil {
-		panic(err)
-	}
-	sk, pk, err := crypto.GenerateKeyPair(seed)
-	if err != nil {
-		panic(err)
-	}
-	tm, err := time.Parse(time.RFC3339, "2020-10-01T00:00:00+00:00")
-	if err != nil {
-		panic(err)
-	}
-	ts := uint64(tm.UnixNano() / 1000000)
-	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
-	if err != nil {
-		panic(err)
-	}
-	rcp := proto.NewRecipientFromAddress(addr)
-	att := []byte("some attachment")
-	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, att)
-	err = tx.GenerateID(scheme)
-	if err != nil {
-		panic(err)
-	}
-	err = tx.Sign(scheme, sk)
-	if err != nil {
-		panic(err)
-	}
-	return tx
-}
-
-func testTransferObject() rideType {
-	obj, err := transferWithProofsToObject('T', testTransferWithProofs())
-	if err != nil {
-		panic(err)
-	}
-	return obj
 }

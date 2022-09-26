@@ -71,7 +71,7 @@ vendor:
 
 vetcheck:
 	go list ./... | grep -v bn254 | xargs go vet
-	golangci-lint run --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254
+	golangci-lint run --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 5m
 
 build-chaincmp-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp

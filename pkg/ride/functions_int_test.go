@@ -367,6 +367,8 @@ func TestIntToBytes(t *testing.T) {
 }
 
 func TestPow(t *testing.T) {
+	envV1 := newTestEnv(t).toEnv()
+	envV2 := newTestEnv(t).withValidateInternalPayments().toEnv()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -385,13 +387,18 @@ func TestPow(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := pow(env, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
+		check := func(r rideType, err error) {
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
 		}
+		r, err := pow(envV1, test.args...)
+		check(r, err)
+		r, err = pow(envV2, test.args...)
+		check(r, err)
 	}
 }
 
@@ -442,6 +449,7 @@ func TestLog(t *testing.T) {
 
 // TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D reproduces pow(x, 0.5) failure in transaction 6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D on MainNet
 func TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D(t *testing.T) {
+	env := newTestEnv(t).toEnv()
 	r3, err := fraction(env, rideInt(50), rideInt(10_000), rideInt(50)) // (50 * 10_000) / 50 = 10_000
 	require.NoError(t, err)
 	r4, err := mul(env, rideInt(100_000), rideInt(10_000)) // 100_000 * 10_000 = 1_000_000_000
@@ -476,7 +484,7 @@ func TestSqrt(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sqrt(env, test.args...)
+		r, err := sqrt(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

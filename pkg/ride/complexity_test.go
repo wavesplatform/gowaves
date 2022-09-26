@@ -1,61 +1,16 @@
 package ride
 
 import (
-	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
-	"github.com/wavesplatform/gowaves/pkg/types"
-)
-
-var (
-	complexityTestEnvV5 = &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{}
-		},
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV5
-		},
-		rideV6ActivatedFunc: func() bool {
-			return false
-		},
-	}
-	complexityTestEnvV6 = &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{}
-		},
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV6
-		},
-		rideV6ActivatedFunc: func() bool {
-			return true
-		},
-	}
 )
 
 func checkVerifierSpentComplexity(t *testing.T, env environment, code string, complexity int, comment string) {
-	src, err := base64.StdEncoding.DecodeString(code)
-	require.NoError(t, err, comment)
-	tree, err := serialization.Parse(src)
-	require.NoError(t, err, comment)
-	assert.NotNil(t, tree, comment)
-
+	_, tree := parseBase64Script(t, code)
 	r, err := CallVerifier(env, tree)
 	require.NoError(t, err, comment)
 	require.NotNil(t, r, comment)
@@ -63,17 +18,67 @@ func checkVerifierSpentComplexity(t *testing.T, env environment, code string, co
 	assert.Equal(t, complexity, r.Complexity(), comment)
 }
 
-func checkFunctionCallComplexity(t *testing.T, env environment, code, fn string, fa proto.Arguments, complexity int) {
-	src, err := base64.StdEncoding.DecodeString(code)
-	require.NoError(t, err)
-	tree, err := serialization.Parse(src)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
+func checkVerifierSpentComplexityV5(t *testing.T, code string, complexity int, comment string) {
+	env := newTestEnv(t).withLibVersion(ast.LibV5).toEnv()
+	checkVerifierSpentComplexity(t, env, code, complexity, comment)
+}
 
+func checkVerifierSpentComplexityV6(t *testing.T, code string, complexity int, comment string) {
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withRideV6Activated().toEnv()
+	checkVerifierSpentComplexity(t, env, code, complexity, comment)
+}
+
+func checkFunctionCallComplexity(t *testing.T, env environment, code, fn string, fa proto.Arguments, complexity int) {
+	_, tree := parseBase64Script(t, code)
 	r, err := CallFunction(env, tree, fn, fa)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, complexity, r.Complexity())
+}
+
+func checkFunctionCallComplexityV5(t *testing.T, code, fn string, fa proto.Arguments, complexity int) {
+	env := newTestEnv(t).withLibVersion(ast.LibV5).toEnv()
+	checkFunctionCallComplexity(t, env, code, fn, fa, complexity)
+}
+
+func checkFunctionCallComplexityV6(t *testing.T, code, fn string, fa proto.Arguments, complexity int) {
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withRideV6Activated().toEnv()
+	checkFunctionCallComplexity(t, env, code, fn, fa, complexity)
+}
+
+func TestSimpleScriptsComplexity(t *testing.T) {
+	env := newTestEnv(t).withTransaction(testTransferWithProofs(t)).toEnv()
+	for _, test := range []struct {
+		comment    string
+		source     string
+		complexity int
+	}{
+		{`V4: let a = 1 + 10 + 100; let b = 1000 + a + 10000; let c = a + b + 100000; c + a == 111333`, "BAQAAAABYQkAAGQAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAoAAAAAAAAAAGQEAAAAAWIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAPoBQAAAAFhAAAAAAAAACcQBAAAAAFjCQAAZAAAAAIJAABkAAAAAgUAAAABYQUAAAABYgAAAAAAAAGGoAkAAAAAAAACCQAAZAAAAAIFAAAAAWMFAAAAAWEAAAAAAAABsuVAqr8m", 13},
+		{`V4: func f(a: Int, b: Int) = {let c = a + b; let d = a - b; c * d - 1}; f(1, 2) == -4`, "BAoBAAAAAWYAAAACAAAAAWEAAAABYgQAAAABYwkAAGQAAAACBQAAAAFhBQAAAAFiBAAAAAFkCQAAZQAAAAIFAAAAAWEFAAAAAWIJAABlAAAAAgkAAGgAAAACBQAAAAFjBQAAAAFkAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFmAAAAAgAAAAAAAAAAAQAAAAAAAAAAAgD//////////Pwcs2o=", 11},
+		{`V4:  let x = 1 + 1 + 1; let a = 1 + 1; func f(a: Int, b: Int) = a - b + x; let b = 4; func g(a: Int, b: Int) = a * b; let expected = (a - b + x) * (b - a + x); let actual = g(f(a, b), f(b, a)); actual == expected && actual == expected && x == 3 && a == 2 && b == 4`, "BAQAAAABeAkAAGQAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAAEEAAAAAWEJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQoBAAAAAWYAAAACAAAAAWEAAAABYgkAAGQAAAACCQAAZQAAAAIFAAAAAWEFAAAAAWIFAAAAAXgEAAAAAWIAAAAAAAAAAAQKAQAAAAFnAAAAAgAAAAFhAAAAAWIJAABoAAAAAgUAAAABYQUAAAABYgQAAAAIZXhwZWN0ZWQJAABoAAAAAgkAAGQAAAACCQAAZQAAAAIFAAAAAWEFAAAAAWIFAAAAAXgJAABkAAAAAgkAAGUAAAACBQAAAAFiBQAAAAFhBQAAAAF4BAAAAAZhY3R1YWwJAQAAAAFnAAAAAgkBAAAAAWYAAAACBQAAAAFhBQAAAAFiCQEAAAABZgAAAAIFAAAAAWIFAAAAAWEDAwMDCQAAAAAAAAIFAAAABmFjdHVhbAUAAAAIZXhwZWN0ZWQJAAAAAAAAAgUAAAAGYWN0dWFsBQAAAAhleHBlY3RlZAcJAAAAAAAAAgUAAAABeAAAAAAAAAAAAwcJAAAAAAAAAgUAAAABYQAAAAAAAAAAAgcJAAAAAAAAAgUAAAABYgAAAAAAAAAABAd/cU2j", 47},
+		{`V4:  let x = 1 + 1 + 1 + 1 + 1; let y = x + 1; func f(x: Int) = x + 1; func g(x: Int) = x + 1 + 1; func h(x: Int) = x + 1 + 1 + 1; f(g(h(y))) == x + x + 2`, "BAQAAAABeAkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABBAAAAAF5CQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEKAQAAAAFmAAAAAQAAAAF4CQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEKAQAAAAFnAAAAAQAAAAF4CQAAZAAAAAIJAABkAAAAAgUAAAABeAAAAAAAAAAAAQAAAAAAAAAAAQoBAAAAAWgAAAABAAAAAXgJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAAEJAAAAAAAAAgkBAAAAAWYAAAABCQEAAAABZwAAAAEJAQAAAAFoAAAAAQUAAAABeQkAAGQAAAACCQAAZAAAAAIFAAAAAXgFAAAAAXgAAAAAAAAAAAJBsCoy", 21},
+		{`V4:  let x = 1 + 1 + 1; let y = {let z = 1; z}; y + x == 4`, "BAQAAAABeAkAAGQAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAAEEAAAAAXkEAAAAAXoAAAAAAAAAAAEFAAAAAXoJAAAAAAAAAgkAAGQAAAACBQAAAAF5BQAAAAF4AAAAAAAAAAAECwZAYA==", 7},
+		{`V4:  let address = Address(base58'aaaa'); address.bytes == base58'aaaa'`, "BAQAAAAHYWRkcmVzcwkBAAAAB0FkZHJlc3MAAAABAQAAAANj+GcJAAAAAAAAAggFAAAAB2FkZHJlc3MAAAAFYnl0ZXMBAAAAA2P4Z/7QEyM=", 3},
+		{`V4:  let x = (1, 2, 3); x._2 == 2`, "BAQAAAABeAkABRUAAAADAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAADCQAAAAAAAAIIBQAAAAF4AAAAAl8yAAAAAAAAAAACXAdyJg==", 4},
+		{`V4:  let a = 1 + 1; let b = a; func g() = {let a1 = 2 + 2 + 2; let c = a1; c + b + a1}; g() + a == 16`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZwAAAAAEAAAAAmExCQAAZAAAAAIJAABkAAAAAgAAAAAAAAAAAgAAAAAAAAAAAgAAAAAAAAAAAgQAAAABYwUAAAACYTEJAABkAAAAAgkAAGQAAAACBQAAAAFjBQAAAAFiBQAAAAJhMQkAAAAAAAACCQAAZAAAAAIJAQAAAAFnAAAAAAUAAAABYQAAAAAAAAAAEGbAh7s=", 13},
+		{`V4:  let a = 1 + 1; let b = a; func g() = {let c = 2 + 2; let d = c; d + b + c}; g() + a == 12`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZwAAAAAEAAAAAWMJAABkAAAAAgAAAAAAAAAAAgAAAAAAAAAAAgQAAAABZAUAAAABYwkAAGQAAAACCQAAZAAAAAIFAAAAAWQFAAAAAWIFAAAAAWMJAAAAAAAAAgkAAGQAAAACCQEAAAABZwAAAAAFAAAAAWEAAAAAAAAAAAxjZ1Td", 12},
+		{`V4:  let a = 1 + 1; let b = a; func f() = {let c = 1 + 1; c + b}; a + f() == 6`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZgAAAAAEAAAAAWMJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQkAAGQAAAACBQAAAAFjBQAAAAFiCQAAAAAAAAIJAABkAAAAAgUAAAABYQkBAAAAAWYAAAAAAAAAAAAAAAAGZR1Q1A==", 9},
+		{`V4:  let a = 1 + 1; let b = a; func f() = {let c = 1 + 1; c + b}; f() + a == 6`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZgAAAAAEAAAAAWMJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQkAAGQAAAACBQAAAAFjBQAAAAFiCQAAAAAAAAIJAABkAAAAAgkBAAAAAWYAAAAABQAAAAFhAAAAAAAAAAAGeznbzA==", 9},
+		{`V4: let a = 1 + 1; let b = a; a + b == 4`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCQAAAAAAAAIJAABkAAAAAgUAAAABYQUAAAABYgAAAAAAAAAABClbyII=", 6},
+		{`V4: let a = 1 + 1; let b = a; b + a == 4`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCQAAAAAAAAIJAABkAAAAAgUAAAABYgUAAAABYQAAAAAAAAAABApVv5E=", 6},
+		{`V4: let a = 1 + 1; let b = a; func f() = b; a + f() == 4`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZgAAAAAFAAAAAWIJAAAAAAAAAgkAAGQAAAACBQAAAAFhCQEAAAABZgAAAAAAAAAAAAAAAASZ9mVe", 6},
+		{`V4: let a = 1 + 1; let b = a; func f() = b; f() + a == 4`, "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZgAAAAAFAAAAAWIJAAAAAAAAAgkAAGQAAAACCQEAAAABZgAAAAAFAAAAAWEAAAAAAAAAAASvoK6u", 6},
+	} {
+		_, tree := parseBase64Script(t, test.source)
+
+		res, err := CallVerifier(env, tree)
+		require.NoError(t, err, test.comment)
+		require.NotNil(t, res, test.comment)
+
+		r, ok := res.(ScriptResult)
+		assert.True(t, ok, test.comment)
+		assert.Equal(t, test.complexity, r.Complexity(), test.comment)
+	}
 }
 
 func TestMultipleLets(t *testing.T) {
@@ -88,8 +93,8 @@ func TestMultipleLets(t *testing.T) {
 		c + a == 111333
 	*/
 	code := "BAQAAAABYQkAAGQAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAoAAAAAAAAAAGQEAAAAAWIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAPoBQAAAAFhAAAAAAAAACcQBAAAAAFjCQAAZAAAAAIJAABkAAAAAgUAAAABYQUAAAABYgAAAAAAAAGGoAkAAAAAAAACCQAAZAAAAAIFAAAAAWMFAAAAAWEAAAAAAAABsuVAqr8m"
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 13, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 8, "")
+	checkVerifierSpentComplexityV5(t, code, 13, "")
+	checkVerifierSpentComplexityV6(t, code, 8, "")
 }
 
 func TestUserFunction(t *testing.T) {
@@ -106,8 +111,8 @@ func TestUserFunction(t *testing.T) {
 		f(1, 2) == -4
 	*/
 	code := "BAoBAAAAAWYAAAACAAAAAWEAAAABYgQAAAABYwkAAGQAAAACBQAAAAFhBQAAAAFiBAAAAAFkCQAAZQAAAAIFAAAAAWEFAAAAAWIJAABlAAAAAgkAAGgAAAACBQAAAAFjBQAAAAFkAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFmAAAAAgAAAAAAAAAAAQAAAAAAAAAAAgD//////////Pwcs2o="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 11, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 5, "")
+	checkVerifierSpentComplexityV5(t, code, 11, "")
+	checkVerifierSpentComplexityV6(t, code, 5, "")
 }
 
 func TestMultipleUserFunctionsAndRefs(t *testing.T) {
@@ -130,8 +135,8 @@ func TestMultipleUserFunctionsAndRefs(t *testing.T) {
 		b == 4                                     # 2  Total: 32 + 4 + 3 + 3 + 2 + 2 (x value) + 1 (a value) = 47
 	*/
 	code := "BAQAAAABeAkAAGQAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAAEEAAAAAWEJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQoBAAAAAWYAAAACAAAAAWEAAAABYgkAAGQAAAACCQAAZQAAAAIFAAAAAWEFAAAAAWIFAAAAAXgEAAAAAWIAAAAAAAAAAAQKAQAAAAFnAAAAAgAAAAFhAAAAAWIJAABoAAAAAgUAAAABYQUAAAABYgQAAAAIZXhwZWN0ZWQJAABoAAAAAgkAAGQAAAACCQAAZQAAAAIFAAAAAWEFAAAAAWIFAAAAAXgJAABkAAAAAgkAAGUAAAACBQAAAAFiBQAAAAFhBQAAAAF4BAAAAAZhY3R1YWwJAQAAAAFnAAAAAgkBAAAAAWYAAAACBQAAAAFhBQAAAAFiCQEAAAABZgAAAAIFAAAAAWIFAAAAAWEDAwMDCQAAAAAAAAIFAAAABmFjdHVhbAUAAAAIZXhwZWN0ZWQJAAAAAAAAAgUAAAAGYWN0dWFsBQAAAAhleHBlY3RlZAcJAAAAAAAAAgUAAAABeAAAAAAAAAAAAwcJAAAAAAAAAgUAAAABYQAAAAAAAAAAAgcJAAAAAAAAAgUAAAABYgAAAAAAAAAABAd/cU2j"
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 47, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 18, "")
+	checkVerifierSpentComplexityV5(t, code, 47, "")
+	checkVerifierSpentComplexityV6(t, code, 18, "")
 }
 
 func TestLetOverlapThroughFunctionParam(t *testing.T) {
@@ -148,8 +153,8 @@ func TestLetOverlapThroughFunctionParam(t *testing.T) {
 		f(g(h(y))) == x + x + 2           # Total: 2 (f) + 3 (g) + 4(h) + 1 (y ref) + 2 (y value) + 1 (==) + 2 (2 x ref) + 4 (x value) + 2 (2 +)
 	*/
 	code := "BAQAAAABeAkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABAAAAAAAAAAABBAAAAAF5CQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEKAQAAAAFmAAAAAQAAAAF4CQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEKAQAAAAFnAAAAAQAAAAF4CQAAZAAAAAIJAABkAAAAAgUAAAABeAAAAAAAAAAAAQAAAAAAAAAAAQoBAAAAAWgAAAABAAAAAXgJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAXgAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAAEJAAAAAAAAAgkBAAAAAWYAAAABCQEAAAABZwAAAAEJAQAAAAFoAAAAAQUAAAABeQkAAGQAAAACCQAAZAAAAAIFAAAAAXgFAAAAAXgAAAAAAAAAAAJBsCoy"
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 21, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 14, "")
+	checkVerifierSpentComplexityV5(t, code, 21, "")
+	checkVerifierSpentComplexityV6(t, code, 14, "")
 }
 
 func TestLetOverlapInsideLetValueBlock(t *testing.T) {
@@ -161,8 +166,8 @@ func TestLetOverlapInsideLetValueBlock(t *testing.T) {
 		6 == if (2 > 1) then 1 + 2 + 3 else 3 + 4
 	*/
 	code := "BAkAAAAAAAACAAAAAAAAAAAGAwkAAGYAAAACAAAAAAAAAAACAAAAAAAAAAABCQAAZAAAAAIJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAgAAAAAAAAAAAwkAAGQAAAACAAAAAAAAAAADAAAAAAAAAAAEc4rTAQ=="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 5, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 4, "")
+	checkVerifierSpentComplexityV5(t, code, 5, "")
+	checkVerifierSpentComplexityV6(t, code, 4, "")
 }
 
 func TestGetterComplexity(t *testing.T) {
@@ -175,8 +180,8 @@ func TestGetterComplexity(t *testing.T) {
 		address.bytes == base58'aaaa'
 	*/
 	code := "BAQAAAAHYWRkcmVzcwkBAAAAB0FkZHJlc3MAAAABAQAAAANj+GcJAAAAAAAAAggFAAAAB2FkZHJlc3MAAAAFYnl0ZXMBAAAAA2P4Z/7QEyM="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 3, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 2, "")
+	checkVerifierSpentComplexityV5(t, code, 3, "")
+	checkVerifierSpentComplexityV6(t, code, 2, "")
 }
 
 func TestLetContextComplexity(t *testing.T) {
@@ -196,8 +201,8 @@ func TestLetContextComplexity(t *testing.T) {
 		g() + a == 16               # Total: 13
 	*/
 	code := "BAQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABBAAAAAFiBQAAAAFhCgEAAAABZwAAAAAEAAAAAmExCQAAZAAAAAIJAABkAAAAAgAAAAAAAAAAAgAAAAAAAAAAAgAAAAAAAAAAAgQAAAABYwUAAAACYTEJAABkAAAAAgkAAGQAAAACBQAAAAFjBQAAAAFiBQAAAAJhMQkAAAAAAAACCQAAZAAAAAIJAQAAAAFnAAAAAAUAAAABYQAAAAAAAAAAEGbAh7s="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 13, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 7, "")
+	checkVerifierSpentComplexityV5(t, code, 13, "")
+	checkVerifierSpentComplexityV6(t, code, 7, "")
 }
 
 func TestStrictComplexity(t *testing.T) {
@@ -213,8 +218,8 @@ func TestStrictComplexity(t *testing.T) {
 		testFunc() == 100542
 	*/
 	code := "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAGQAAAACAAAAAAAAAYiUAAAAAAAAAAAqAwkAAAAAAAACBQAAAAFhBQAAAAFhBQAAAAFhCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAAAAAACCQEAAAAIdGVzdEZ1bmMAAAAAAAAAAAAAAYi+iKfaDQ=="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 7, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 3, "")
+	checkVerifierSpentComplexityV5(t, code, 7, "")
+	checkVerifierSpentComplexityV6(t, code, 3, "")
 }
 
 func TestStrictThrow(t *testing.T) {
@@ -230,13 +235,8 @@ func TestStrictThrow(t *testing.T) {
 		testFunc()
 	*/
 	code := "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAAIAAAABAgAAABVTdHJpY3QgZXhlY3V0ZWQgZXJyb3IDCQAAAAAAAAIFAAAAAWEFAAAAAWEGCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkBAAAACHRlc3RGdW5jAAAAABn7LqM="
-	src, err := base64.StdEncoding.DecodeString(code)
-	require.NoError(t, err)
-	tree, err := serialization.Parse(src)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
-
-	_, err = CallVerifier(env, tree)
+	_, tree := parseBase64Script(t, code)
+	_, err := CallVerifier(newTestEnv(t).toEnv(), tree)
 	require.Errorf(t, err, "Strict executed error")
 }
 
@@ -254,8 +254,8 @@ func TestUnusedStrictComplexity(t *testing.T) {
 		testFunc() == "42"
 	*/
 	code := "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAADAAAAAAAAAAAEAAAAAAAAAAAFAAAAAAAAAAAFAAAAAAAAAAAGAAAAAAAAAAAHAAAAAAAAAAAIAAAAAAAAAAAJAAAAAAAAAYiUBAAAAAF6AgAAAAI0MgUAAAABegkAAAAAAAACCQEAAAAIdGVzdEZ1bmMAAAAAAgAAAAI0MsUmBxw="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 2, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 2, "") // Zero complexity user function adds one
+	checkVerifierSpentComplexityV5(t, code, 2, "")
+	checkVerifierSpentComplexityV6(t, code, 2, "") // Zero complexity user function adds one
 
 	/*
 		{-# STDLIB_VERSION 4 #-}
@@ -270,8 +270,8 @@ func TestUnusedStrictComplexity(t *testing.T) {
 		testFunc() == "42"
 	*/
 	code = "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAADAAAAAAAAAAAEAAAAAAAAAAAFAAAAAAAAAAAFAAAAAAAAAAAGAAAAAAAAAAAHAAAAAAAAAAAIAAAAAAAAAAAJAAAAAAAAAYiUAwkAAAAAAAACBQAAAAFhBQAAAAFhBAAAAAF6AgAAAAI0MgUAAAABegkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAAAAAAAAgkBAAAACHRlc3RGdW5jAAAAAAIAAAACNDLeu/hu"
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 16, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 12, "")
+	checkVerifierSpentComplexityV5(t, code, 16, "")
+	checkVerifierSpentComplexityV6(t, code, 12, "")
 }
 
 func TestSimpleDAppComplexity1(t *testing.T) {
@@ -289,10 +289,10 @@ func TestSimpleDAppComplexity1(t *testing.T) {
 		func verify() = true
 	*/
 	code := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAAA2FiYwYFAAAAA25pbAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAGzqWv4w=="
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 0, "")
-	checkFunctionCallComplexity(t, complexityTestEnvV5, code, "call", proto.Arguments{}, 2)
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 0, "")
-	checkFunctionCallComplexity(t, complexityTestEnvV6, code, "call", proto.Arguments{}, 2)
+	checkVerifierSpentComplexityV5(t, code, 0, "")
+	checkFunctionCallComplexityV5(t, code, "call", proto.Arguments{}, 2)
+	checkVerifierSpentComplexityV6(t, code, 0, "")
+	checkFunctionCallComplexityV6(t, code, "call", proto.Arguments{}, 2)
 }
 
 func TestSimpleDAppComplexity2(t *testing.T) {
@@ -301,20 +301,85 @@ func TestSimpleDAppComplexity2(t *testing.T) {
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 
-
 		@Callable(i)
 		func call() = {
-		 let message = base58'emsY'
-		 let pub = base58'HnU9jfhpMcQNaG5yQ46eR43RnkWKGxerw2zVrbpnbGof'
-		 let sig = base58'4uXfw7162zaopAkTNa7eo6YK2mJsTiHGJL3dCtRRH63z1nrdoHBHyhbvrfZovkxf2jKsi2vPsaP2XykfZmUiwPeg'
-
-
-		  [BooleanEntry("abc", sigVerify(message, sig, pub))]
+			let message = base58'emsY'
+			let pub = base58'HnU9jfhpMcQNaG5yQ46eR43RnkWKGxerw2zVrbpnbGof'
+			let sig = base58'4uXfw7162zaopAkTNa7eo6YK2mJsTiHGJL3dCtRRH63z1nrdoHBHyhbvrfZovkxf2jKsi2vPsaP2XykfZmUiwPeg'
+			[BooleanEntry("abc", sigVerify(message, sig, pub))]
 		}
 	*/
 	code := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAB21lc3NhZ2UBAAAAA3B1awQAAAADcHViAQAAACD5YNOXUn1M/ChkrTwitfmd6lTogTr5Kin2wziOrP9OLgQAAAADc2lnAQAAAEDDWY/WuKhHs0AtBSX1V+rNgqDJOKCpqd11SbYDX7PnMl0Cv6DiIppUq8PhqA4/g2y/zgjwe3XOAORP032NFTSBCQAETAAAAAIJAQAAAAxCb29sZWFuRW50cnkAAAACAgAAAANhYmMJAAH0AAAAAwUAAAAHbWVzc2FnZQUAAAADc2lnBQAAAANwdWIFAAAAA25pbAAAAAAu8AfS"
-	checkFunctionCallComplexity(t, complexityTestEnvV5, code, "call", proto.Arguments{}, 205)
-	checkFunctionCallComplexity(t, complexityTestEnvV5, code, "call", proto.Arguments{}, 205)
+	checkFunctionCallComplexityV5(t, code, "call", proto.Arguments{}, 205)
+	checkFunctionCallComplexityV6(t, code, "call", proto.Arguments{}, 202)
+}
+
+func TestOnEdgeComplexity1(t *testing.T) {
+	/*
+		{-#STDLIB_VERSION 6 #-}
+		{-#SCRIPT_TYPE ACCOUNT #-}
+		{-# CONTENT_TYPE DAPP #-}
+
+		 @Callable(inv)
+		 func foo(n: Int) = {
+		   let complexInt1 = 1 + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + log(1625, 2, 27, 1, 2, HALFUP) + log(1625, 2, 27, 1, 2, HALFUP) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 # 916
+		   # 82 = 1 for "n > 1", 81 for branches (without overflow)
+		   let complexInt2 = if (n > 1) then {
+		     # 81 = 2 for valueOrElse, 75 for invoke, 1 for Address, 1 for "n - 1", 1 for list, 1 for as
+		     valueOrElse(invoke(Address(base58'3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz'), "foo", [n - 1], []).as[Int], 0)
+		   } else {
+		     1 + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + 1 + 1 + 1 + 1 # 82
+		   }
+		   # 2 = 1 for tuple, 1 for "+"
+		   ([], complexInt1 + complexInt2)
+		 }
+	*/
+	dApp := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAAAAEAAQABAAEAAQABAAEAAQABAAEAAQQLY29tcGxleEludDIDCQBmAgUBbgABCQELdmFsdWVPckVsc2UCCgABQAkA/AcECQEHQWRkcmVzcwEBGgFUcQ97e0JWLZUBUuI05V2T+HgxB8fHAvABAgNmb28JAMwIAgkAZQIFAW4AAQUDbmlsBQNuaWwDCQABAgUBQAIDSW50BQFABQR1bml0AAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCAAEJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAAAQABAAEAAQkAlAoCBQNuaWwJAGQCBQtjb21wbGV4SW50MQULY29tcGxleEludDIApaxBJw==")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
+		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
+		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
+		withTree(dApp, tree).withWrappedState().toEnv()
+
+	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
+	require.EqualError(t, err, "evaluation complexity 52001 exceeds 52000 limit for library version 6")
+	assert.Equal(t, GetEvaluationErrorType(err), RuntimeError)
+	assert.Nil(t, r)
+	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
+}
+
+func TestOnEdgeComplexity2(t *testing.T) {
+	/*
+		{-#STDLIB_VERSION 6 #-}
+		{-#SCRIPT_TYPE ACCOUNT #-}
+		{-# CONTENT_TYPE DAPP #-}
+
+		 @Callable(inv)
+		 func foo(n: Int) = {
+		   let result = if (n > 1) then { # 1
+		     let complexInt1 = 1 + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + log(1625, 2, 27, 1, 2, HALFUP) + log(1625, 2, 27, 1, 2, HALFUP) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + valueOrElse(getInteger("k"), 0) + 1
+		     if (complexInt1 > 0) # 79 = 1 for ">", 78 for branches
+		       # 78 = 75 for invoke, 1 for Address, 1 for list, 1 for "n - 1"
+		       then invoke(Address(base58'3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz'), "foo", [n - 1], [])
+		       else 0
+		   } else {
+		     1 + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + toInt(log(parseBigIntValue("1625"), 2, parseBigIntValue("27"), 1, 2, HALFUP)) + 1 + 1 + 1
+		   }
+		   ([], result) # 1
+		 }
+	*/
+	dApp := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAZyZXN1bHQDCQBmAgUBbgABBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAABAwkAZgIFC2NvbXBsZXhJbnQxAAAJAPwHBAkBB0FkZHJlc3MBARoBVHEPe3tCVi2VAVLiNOVdk/h4MQfHxwLwAQIDZm9vCQDMCAIJAGUCBQFuAAEFA25pbAUDbmlsAAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIAAQkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAKADAQkAdwYJAKcDAQIEMTYyNQACCQCnAwECAjI3AAEAAgUGSEFMRlVQCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAABAAEAAQkAlAoCBQNuaWwFBnJlc3VsdADR0fAN")
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
+		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
+		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
+		withTree(dApp, tree).withWrappedState().toEnv()
+	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
+	require.EqualError(t, err, "evaluation complexity 52001 exceeds 52000 limit for library version 6")
+	assert.Equal(t, GetEvaluationErrorType(err), RuntimeError)
+	assert.Nil(t, r)
+	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
 }
 
 func TestComplexities(t *testing.T) {
@@ -392,8 +457,8 @@ func TestComplexities(t *testing.T) {
 		{`V4: containsElement([base58'', base58''],base58'')`, "BAkBAAAAD2NvbnRhaW5zRWxlbWVudAAAAAIJAARMAAAAAgEAAAAACQAETAAAAAIBAAAAAAUAAAADbmlsAQAAAAAXL3j5", 15, 7},
 		{`V5: pow((100), 4, 5, 1, 2, FLOOR) == 10`, "BQkAAAAAAAACCQAAbAAAAAYAAAAAAAAAAGQAAAAAAAAAAAQAAAAAAAAAAAUAAAAAAAAAAAEAAAAAAAAAAAIFAAAABUZMT09SAAAAAAAAAAAK3GfUhw==", 102, 101},
 	} {
-		checkVerifierSpentComplexity(t, complexityTestEnvV5, test.source, test.complexityV5, test.comment)
-		checkVerifierSpentComplexity(t, complexityTestEnvV6, test.source, test.complexityV6, test.comment)
+		checkVerifierSpentComplexityV5(t, test.source, test.complexityV5, test.comment)
+		checkVerifierSpentComplexityV6(t, test.source, test.complexityV6, test.comment)
 	}
 }
 
@@ -409,8 +474,8 @@ func TestFold(t *testing.T) {
 	*/
 
 	code := "BQoBAAAAA3N1bQAAAAIAAAAFYWNjdW0AAAAEbmV4dAkAAGQAAAACBQAAAAVhY2N1bQUAAAAEbmV4dAQAAAADYXJyCQAETAAAAAIAAAAAAAAAAAEJAARMAAAAAgAAAAAAAAAAAgkABEwAAAACAAAAAAAAAAADCQAETAAAAAIAAAAAAAAAAAQJAARMAAAAAgAAAAAAAAAABQUAAAADbmlsCQAAAAAAAAIKAAAAAAIkbAUAAAADYXJyCgAAAAACJHMJAAGQAAAAAQUAAAACJGwKAAAAAAUkYWNjMAAAAAAAAAAAAAoBAAAAATEAAAACAAAAAiRhAAAAAiRpAwkAAGcAAAACBQAAAAIkaQUAAAACJHMFAAAAAiRhCQEAAAADc3VtAAAAAgUAAAACJGEJAAGRAAAAAgUAAAACJGwFAAAAAiRpCgEAAAABMgAAAAIAAAACJGEAAAACJGkDCQAAZwAAAAIFAAAAAiRpBQAAAAIkcwUAAAACJGEJAAACAAAAAQIAAAATTGlzdCBzaXplIGV4Y2VlZHMgNQkBAAAAATIAAAACCQEAAAABMQAAAAIJAQAAAAExAAAAAgkBAAAAATEAAAACCQEAAAABMQAAAAIJAQAAAAExAAAAAgUAAAAFJGFjYzAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAIAAAAAAAAAAAMAAAAAAAAAAAQAAAAAAAAAAAUAAAAAAAAAAA/IH77b"
-	checkVerifierSpentComplexity(t, complexityTestEnvV5, code, 77, "")
-	checkVerifierSpentComplexity(t, complexityTestEnvV6, code, 29, "")
+	checkVerifierSpentComplexityV5(t, code, 77, "")
+	checkVerifierSpentComplexityV6(t, code, 29, "")
 }
 
 func TestUserFunctionsArguments(t *testing.T) {
@@ -429,7 +494,80 @@ func TestUserFunctionsArguments(t *testing.T) {
 		{`let a = 1 + 2;let b = 3 + 4;let c = 5 + 6;func A(x: Int, y: Int, z: Int) = x + y; A(a, b, c) == 10`, "BQQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAACBAAAAAFiCQAAZAAAAAIAAAAAAAAAAAMAAAAAAAAAAAQEAAAAAWMJAABkAAAAAgAAAAAAAAAABQAAAAAAAAAABgoBAAAAAUEAAAADAAAAAXgAAAABeQAAAAF6CQAAZAAAAAIFAAAAAXgFAAAAAXkJAAAAAAAAAgkBAAAAAUEAAAADBQAAAAFhBQAAAAFiBQAAAAFjAAAAAAAAAAAKOeIr0Q==", 10, 5},
 		{`let a = 1 + 2;let b = 3 + 4;let c = 5 + 6;func A(x: Int, y: Int, z: Int) = x + x; A(a+1, b+2, c+3) == 8`, "BQQAAAABYQkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAACBAAAAAFiCQAAZAAAAAIAAAAAAAAAAAMAAAAAAAAAAAQEAAAAAWMJAABkAAAAAgAAAAAAAAAABQAAAAAAAAAABgoBAAAAAUEAAAADAAAAAXgAAAABeQAAAAF6CQAAZAAAAAIFAAAAAXgFAAAAAXgJAAAAAAAAAgkBAAAAAUEAAAADCQAAZAAAAAIFAAAAAWEAAAAAAAAAAAEJAABkAAAAAgUAAAABYgAAAAAAAAAAAgkAAGQAAAACBQAAAAFjAAAAAAAAAAADAAAAAAAAAAAIY2FB4Q==", 13, 8},
 	} {
-		checkVerifierSpentComplexity(t, complexityTestEnvV5, test.source, test.complexityV5, test.comment)
-		checkVerifierSpentComplexity(t, complexityTestEnvV6, test.source, test.complexityV6, test.comment)
+		checkVerifierSpentComplexityV5(t, test.source, test.complexityV5, test.comment)
+		checkVerifierSpentComplexityV6(t, test.source, test.complexityV6, test.comment)
 	}
+}
+
+func TestComplexityOverflow(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = {
+	  strict a = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict b = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict c = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict d = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict e = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict f = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  strict g = invoke(Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'),  "call", [], [])
+	  []
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWEFAAAAAWEEAAAAAWIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWIFAAAAAWIEAAAAAWMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWMFAAAAAWMEAAAAAWQJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWQFAAAAAWQEAAAAAWUJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWUFAAAAAWUEAAAAAWYJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWYFAAAAAWYEAAAAAWcJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAWcFAAAAAWcFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAETSeDA==")
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let msg = base16'135212a9cf00d0a05220be7323bfa4a5ba7fc5465514007702121a9c92e46bd473062f00841af83cb7bc4b2cd58dc4d5b151244cc8293e795796835ed36822c6e09893ec991b38ada4b21a06e691afa887db4e9d7b1d2afc65ba8d2f5e6926ff53d2d44d55fa095f3fad62545c714f0f3f59e4bfe91af8'
+	let sig = base16'd971ec27c5bfc384804c8d8d6a2de9edc3d957b25e488e954a71ef4c4a87f5fb09cfdf6bd26cffc49d03048e8edb0c918061be158d737c2e11cc7210263efb85'
+	let bad = base16'44164f23a95ed2662c5b1487e8fd688be9032efa23dd2ef29b018d33f65d0043df75f3ac1d44b4bda50e8b07e0b49e2898bec80adbf7604e72ef6565bd2f8189'
+	let pk = base16'ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f'
+
+	@Callable(i)
+	func call() = {
+	  strict a = sigVerify(msg, sig, pk)
+	  strict b = sigVerify(msg, bad, pk)
+	  strict c = sigVerify(msg, sig, pk)
+	  strict d = sigVerify(msg, bad, pk)
+	  strict e = sigVerify(msg, sig, pk)
+	  strict f = sigVerify(msg, bad, pk)
+	  strict g = sigVerify(msg, sig, pk)
+	  strict h = sigVerify(msg, bad, pk)
+	  strict ii = sigVerify(msg, sig, pk)
+	  strict j = sigVerify(msg, bad, pk)
+	  strict k = sigVerify(msg, sig, pk)
+	  strict l = sigVerify(msg, bad, pk)
+	  strict m = sigVerify(msg, sig, pk)
+	  strict n = sigVerify(msg, bad, pk)
+	  strict p = sigVerify(msg, sig, pk)
+	  strict q = sigVerify(msg, bad, pk)
+	  strict r = sigVerify(msg, sig, pk)
+	  strict s = sigVerify(msg, bad, pk)
+	  strict t = sigVerify(msg, sig, pk)
+	  ([], true)
+	}
+	*/
+	_, tree2 := parseBase64Script(t, "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")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
+		withWrappedState()
+
+	_, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	require.EqualError(t, err, "evaluation complexity 28113 exceeds 26000 limit for library version 5")
 }

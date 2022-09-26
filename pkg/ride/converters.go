@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(scheme byte, tx proto.Transaction) (rideType, error) {
+func transactionToObject(scheme proto.Scheme, invokeExpressionActivated bool, tx proto.Transaction) (rideType, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)
@@ -54,7 +54,7 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideType, error) {
 	case *proto.DataWithProofs:
 		return dataWithProofsToObject(scheme, transaction)
 	case *proto.SetScriptWithProofs:
-		return setScriptWithProofsToObject(scheme, transaction)
+		return setScriptWithProofsToObject(scheme, invokeExpressionActivated, transaction)
 	case *proto.SponsorshipWithProofs:
 		return sponsorshipWithProofsToObject(scheme, transaction)
 	case *proto.SetAssetScriptWithProofs:
@@ -731,7 +731,7 @@ func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideDataTran
 	), nil
 }
 
-func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (rideSetScriptTransaction, error) {
+func setScriptWithProofsToObject(scheme byte, invokeExpressionActivated bool, tx *proto.SetScriptWithProofs) (rideSetScriptTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
@@ -741,7 +741,7 @@ func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (ri
 		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
 	}
 	var sf rideType = rideUnit{}
-	if len(tx.Script) > 0 {
+	if l := len(tx.Script); l > 0 && (l <= proto.MaxContractScriptSizeV1V5 || invokeExpressionActivated) {
 		sf = rideBytes(common.Dup(tx.Script))
 	}
 	return newRideSetScriptTransaction(

@@ -389,7 +389,7 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	obj, err := transactionToObject(env.scheme(), tx)
+	obj, err := transactionToObject(env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -819,7 +819,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	obj, err := transactionToObject(env.scheme(), tx)
+	obj, err := transactionToObject(env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}
