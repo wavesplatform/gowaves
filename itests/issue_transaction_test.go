@@ -5,32 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 
-	"github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type IssueTxSuite struct {
-	fixtures.BaseSuite
-}
-
-func newSignIssueTransaction(suite *IssueTxSuite, testdata testdata.IssueTestData) *proto.IssueWithSig {
-	tx := proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
-		testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
-	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
-	require.NoError(suite.T(), err, "failed to create proofs from signature")
-	return tx
-}
-
-func issue(suite *IssueTxSuite, testdata testdata.IssueTestData, timeout time.Duration) (*proto.IssueWithSig, error, error) {
-	tx := newSignIssueTransaction(suite, testdata)
-	errGo, errScala := utl.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
-	return tx, errGo, errScala
+	issue_utilities.CommonIssueTxSuite
 }
 
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
@@ -39,7 +23,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	for name, td := range tdmatrix {
 		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
 
-		tx, errGo, errScala := issue(suite, td, timeout)
+		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
 
 		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
@@ -63,8 +47,8 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	for name, td := range tdmatrix {
 		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
 
-		tx1, errGo1, errScala1 := issue(suite, td, timeout)
-		tx2, errGo2, errScala2 := issue(suite, testdata.DataChangedTimestamp(&td), timeout)
+		tx1, errGo1, errScala1 := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
+		tx2, errGo2, errScala2 := issue_utilities.Issue(&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
 
 		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
@@ -95,7 +79,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 
 		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
 
-		tx, errGo, errScala := issue(suite, td, timeout)
+		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
 		txIds[name] = tx.ID
 
 		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)

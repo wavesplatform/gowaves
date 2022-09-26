@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"context"
+	"math/rand"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +11,22 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
+
+const (
+	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+)
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for j := range b {
+		b[j] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
+func GetCurrentTimestampInMs() uint64 {
+	return uint64(time.Now().UnixMilli())
+}
 
 func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
