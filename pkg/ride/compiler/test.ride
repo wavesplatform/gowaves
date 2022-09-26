@@ -1,7 +1,9 @@
 # asdasdasd
+{-# STDLIB_VERSION aasd #-} #  asdasdasd
 {-# STDLIB_VERSION 6 #-} #  asdasdasd
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
+{-# asdasd ASSET #-}
 
 let ad = if true then 3 else 4
 
@@ -30,7 +32,9 @@ let sdf = someFuncCall(10, 100, 1000)
 let asd = asd.asdasd
 
 let jfj = {
-    let asdasd = 123123 : 1000
+    let asdasd = 123123
+    -1000
+    1000
 }
 
 func someFunc(someArg1: Int, someArd2: String) = {

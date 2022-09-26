@@ -7,6 +7,7 @@ package main
 // Using see peg -h
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -25,5 +26,9 @@ func main() {
 	if err := res.Parse(); err != nil {
 		log.Fatal(err)
 	}
-	res.PrintSyntaxTree()
+	astParser := NewASTParser(res.AST(), res.buffer)
+	astParser.Parse()
+	for _, err := range astParser.ErrorsList {
+		fmt.Println(err.Error())
+	}
 }
