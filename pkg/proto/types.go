@@ -23,6 +23,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -2954,6 +2955,14 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 		version = int32(scriptBytes[2])
 	}
 	return version, nil
+}
+
+type ScriptBasicInfo struct {
+	PK             crypto.PublicKey
+	ScriptLen      uint32
+	LibraryVersion ast.LibraryVersion
+	HasVerifier    bool
+	IsDApp         bool
 }
 
 type Script []byte

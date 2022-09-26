@@ -101,6 +101,7 @@ type StateInfo interface {
 	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
 	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
 	// Script information.
+	ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error)
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
 	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
