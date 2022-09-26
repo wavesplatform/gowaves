@@ -80,6 +80,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 // 			resetFunc: func()  {
 // 				panic("mock out the reset method")
 // 			},
+// 			scriptBasicInfoByAddressIDFunc: func(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+// 				panic("mock out the scriptBasicInfoByAddressID method")
+// 			},
 // 			scriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
 // 				panic("mock out the scriptByAddr method")
 // 			},
@@ -167,6 +170,9 @@ type mockScriptStorageState struct {
 
 	// resetFunc mocks the reset method.
 	resetFunc func()
+
+	// scriptBasicInfoByAddressIDFunc mocks the scriptBasicInfoByAddressID method.
+	scriptBasicInfoByAddressIDFunc func(addressID proto.AddressID) (scriptBasicInfoRecord, error)
 
 	// scriptByAddrFunc mocks the scriptByAddr method.
 	scriptByAddrFunc func(addr proto.WavesAddress) (*ast.Tree, error)
@@ -279,6 +285,11 @@ type mockScriptStorageState struct {
 		// reset holds details about calls to the reset method.
 		reset []struct {
 		}
+		// scriptBasicInfoByAddressID holds details about calls to the scriptBasicInfoByAddressID method.
+		scriptBasicInfoByAddressID []struct {
+			// AddressID is the addressID argument value.
+			AddressID proto.AddressID
+		}
 		// scriptByAddr holds details about calls to the scriptByAddr method.
 		scriptByAddr []struct {
 			// Addr is the addr argument value.
@@ -351,6 +362,7 @@ type mockScriptStorageState struct {
 	locknewestScriptBytesByAsset         sync.RWMutex
 	lockprepareHashes                    sync.RWMutex
 	lockreset                            sync.RWMutex
+	lockscriptBasicInfoByAddressID       sync.RWMutex
 	lockscriptByAddr                     sync.RWMutex
 	lockscriptByAsset                    sync.RWMutex
 	lockscriptBytesByAddr                sync.RWMutex
@@ -947,6 +959,37 @@ func (mock *mockScriptStorageState) resetCalls() []struct {
 	mock.lockreset.RLock()
 	calls = mock.calls.reset
 	mock.lockreset.RUnlock()
+	return calls
+}
+
+// scriptBasicInfoByAddressID calls scriptBasicInfoByAddressIDFunc.
+func (mock *mockScriptStorageState) scriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	if mock.scriptBasicInfoByAddressIDFunc == nil {
+		panic("mockScriptStorageState.scriptBasicInfoByAddressIDFunc: method is nil but scriptStorageState.scriptBasicInfoByAddressID was just called")
+	}
+	callInfo := struct {
+		AddressID proto.AddressID
+	}{
+		AddressID: addressID,
+	}
+	mock.lockscriptBasicInfoByAddressID.Lock()
+	mock.calls.scriptBasicInfoByAddressID = append(mock.calls.scriptBasicInfoByAddressID, callInfo)
+	mock.lockscriptBasicInfoByAddressID.Unlock()
+	return mock.scriptBasicInfoByAddressIDFunc(addressID)
+}
+
+// scriptBasicInfoByAddressIDCalls gets all the calls that were made to scriptBasicInfoByAddressID.
+// Check the length with:
+//     len(mockedscriptStorageState.scriptBasicInfoByAddressIDCalls())
+func (mock *mockScriptStorageState) scriptBasicInfoByAddressIDCalls() []struct {
+	AddressID proto.AddressID
+} {
+	var calls []struct {
+		AddressID proto.AddressID
+	}
+	mock.lockscriptBasicInfoByAddressID.RLock()
+	calls = mock.calls.scriptBasicInfoByAddressID
+	mock.lockscriptBasicInfoByAddressID.RUnlock()
 	return calls
 }
 

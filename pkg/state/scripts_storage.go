@@ -19,6 +19,8 @@ const (
 	maxCacheBytes = maxCacheSize * scriptSize
 )
 
+var errEmptyScript = errors.New("empty script")
+
 func scriptBytesToTree(script proto.Script) (*ast.Tree, error) {
 	tree, err := serialization.Parse(script)
 	if err != nil {
@@ -507,9 +509,25 @@ func (ss *scriptsStorage) newestScriptBasicInfoByAddressID(addressID proto.Addre
 		return scriptBasicInfoRecord{}, err
 	}
 	if !info.scriptExists() {
-		return scriptBasicInfoRecord{}, errors.New("empty script")
+		return scriptBasicInfoRecord{}, errEmptyScript
 	}
-	return info, err
+	return info, nil
+}
+
+func (ss *scriptsStorage) scriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addressID}}
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
+	if err != nil {
+		return scriptBasicInfoRecord{}, err
+	}
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return scriptBasicInfoRecord{}, err
+	}
+	if !info.scriptExists() {
+		return scriptBasicInfoRecord{}, errEmptyScript
+	}
+	return info, nil
 }
 
 // scriptByAddr returns script of corresponding proto.WavesAddress.
