@@ -356,7 +356,8 @@ func (s RPCService) Eth_GetCode(address, blockOrTag string) (string, error) {
 		zap.S().Errorf("Eth_GetCode: failed to get script info by account, addr=%q: %v", wavesAddr.String(), err)
 		return "", err
 	default:
-		// it's a DApp
+		// it's a DApp or verifier
+		// TODO: return "0x" if it's smart account (account has only verifier => script without DApp, so it's not a DApp)
 		return "0xff", nil
 	}
 }
