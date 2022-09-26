@@ -20,6 +20,8 @@ type scriptStorageState interface {
 	newestScriptBytesByAsset(assetID proto.AssetID) (proto.Script, error)
 	newestScriptBytesByAddr(addr proto.WavesAddress) (proto.Script, error)
 	setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
+	newestAccountIsDApp(addr proto.WavesAddress) (bool, error)
+	accountIsDApp(addr proto.WavesAddress) (bool, error)
 	newestAccountHasVerifier(addr proto.WavesAddress) (bool, error)
 	accountHasVerifier(addr proto.WavesAddress) (bool, error)
 	newestAccountHasScript(addr proto.WavesAddress) (bool, error)
