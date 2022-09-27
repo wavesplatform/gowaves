@@ -2141,6 +2141,31 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	return infos, nil
 }
 
+func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	hasScript, err := s.stor.scriptsStorage.accountHasScript(*addr)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !hasScript {
+		return nil, proto.ErrNotFound
+	}
+	info, err := s.stor.scriptsStorage.scriptBasicInfoByAddressID(addr.ID())
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return &proto.ScriptBasicInfo{
+		PK:             info.PK,
+		ScriptLen:      info.ScriptLen,
+		LibraryVersion: info.LibraryVersion,
+		HasVerifier:    info.HasVerifier,
+		IsDApp:         info.IsDApp,
+	}, nil
+}
+
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {

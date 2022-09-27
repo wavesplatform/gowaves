@@ -1077,10 +1077,15 @@ func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createSetScriptWithProofs(t *testing.T) *proto.SetScriptWithProofs {
+func createSetScriptWithProofs(t *testing.T, customScriptBytes ...[]byte) *proto.SetScriptWithProofs {
+	require.Less(t, len(customScriptBytes), 2, "len(customScriptBytes) should be 0 or 1")
+	scriptBytes := testGlobal.scriptBytes
+	if len(customScriptBytes) != 0 {
+		scriptBytes = customScriptBytes[0]
+	}
 	feeConst, ok := feeConstants[proto.SetScriptTransaction]
 	assert.Equal(t, ok, true)
-	tx := proto.NewUnsignedSetScriptWithProofs(1, 'W', testGlobal.senderInfo.pk, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
+	tx := proto.NewUnsignedSetScriptWithProofs(1, proto.TestNetScheme, testGlobal.senderInfo.pk, scriptBytes, FeeUnit*feeConst, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

@@ -733,6 +733,21 @@ func (mr *MockStateInfoMockRecorder) ScoreAtHeight(height interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScoreAtHeight", reflect.TypeOf((*MockStateInfo)(nil).ScoreAtHeight), height)
 }
 
+// ScriptBasicInfoByAccount mocks base method.
+func (m *MockStateInfo) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptBasicInfoByAccount", account)
+	ret0, _ := ret[0].(*proto.ScriptBasicInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptBasicInfoByAccount indicates an expected call of ScriptBasicInfoByAccount.
+func (mr *MockStateInfoMockRecorder) ScriptBasicInfoByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptBasicInfoByAccount", reflect.TypeOf((*MockStateInfo)(nil).ScriptBasicInfoByAccount), account)
+}
+
 // ScriptInfoByAccount mocks base method.
 func (m *MockStateInfo) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	m.ctrl.T.Helper()
@@ -1933,6 +1948,21 @@ func (m *MockState) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 func (mr *MockStateMockRecorder) ScoreAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScoreAtHeight", reflect.TypeOf((*MockState)(nil).ScoreAtHeight), height)
+}
+
+// ScriptBasicInfoByAccount mocks base method.
+func (m *MockState) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScriptBasicInfoByAccount", account)
+	ret0, _ := ret[0].(*proto.ScriptBasicInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ScriptBasicInfoByAccount indicates an expected call of ScriptBasicInfoByAccount.
+func (mr *MockStateMockRecorder) ScriptBasicInfoByAccount(account interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScriptBasicInfoByAccount", reflect.TypeOf((*MockState)(nil).ScriptBasicInfoByAccount), account)
 }
 
 // ScriptInfoByAccount mocks base method.
