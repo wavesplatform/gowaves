@@ -12,6 +12,7 @@ import (
 	"github.com/semrush/zenrpc/v2"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
@@ -347,18 +348,33 @@ func (s RPCService) Eth_GetCode(address, blockOrTag string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, err = s.nodeRPCApp.State.ScriptInfoByAccount(proto.Recipient{Address: &wavesAddr})
+
+	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.Recipient{Address: &wavesAddr})
 	switch {
 	case state.IsNotFound(err):
-		// it's not a DApp
-		return "0x", nil
+		// account has no script, trying fetch data as asset
+		assetID := proto.AssetID(ethAddr)
+		_, err := s.nodeRPCApp.State.AssetInfo(assetID)
+		switch {
+		case errors.Is(err, errs.UnknownAsset{}):
+			// address has no script and it's not an asset
+			return "0x", nil
+		case err != nil:
+			zap.S().Errorf("Eth_GetCode: failed to get asset info by assetID=%q: %v", assetID.String(), err)
+			return "", err
+		default:
+			// it's an asset
+			return "0xff", nil
+		}
 	case err != nil:
 		zap.S().Errorf("Eth_GetCode: failed to get script info by account, addr=%q: %v", wavesAddr.String(), err)
 		return "", err
-	default:
-		// it's a DApp or verifier
-		// TODO: return "0x" if it's smart account (account has only verifier => script without DApp, so it's not a DApp)
+	case si.IsDApp:
+		// it's a DApp
 		return "0xff", nil
+	default:
+		// account has an expression script, but it's not a DApp
+		return "0x", nil
 	}
 }
 
