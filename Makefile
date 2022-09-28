@@ -13,7 +13,7 @@ export GO111MODULE=on
 
 all: vendor vetcheck fmtcheck build gotest mod-clean
 
-ci: vendor vetcheck fmtcheck build release-node gotest mod-clean
+ci: vendor vetcheck fmtcheck build release-node gotest-race-coverage mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
@@ -33,7 +33,7 @@ build-forkdetector-linux-arm:
 gotest:
 	go test -cover $$(go list ./... | grep -v "/itests")
 
-gotest-coverage:
+gotest-race-coverage:
 	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
 
 itest:
