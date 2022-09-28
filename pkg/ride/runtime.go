@@ -606,6 +606,7 @@ type environment interface {
 	validateInternalPayments() bool
 	blockV5Activated() bool
 	rideV6Activated() bool
+	invokeExpressionActivated() bool // TODO: check naming
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 	isProtobufTx() bool

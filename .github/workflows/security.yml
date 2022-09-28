@@ -74,3 +74,5 @@ jobs:
         run: go list -m all > go.list
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@v1.0.2
+      - name: govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...

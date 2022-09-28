@@ -26,6 +26,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 //			accountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
 //				panic("mock out the accountHasVerifier method")
 //			},
+//			accountIsDAppFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the accountIsDApp method")
+//			},
 //			clearCacheFunc: func() error {
 //				panic("mock out the clearCache method")
 //			},
@@ -50,6 +53,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 //			newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
 //				panic("mock out the newestAccountHasVerifier method")
 //			},
+//			newestAccountIsDAppFunc: func(addr proto.WavesAddress) (bool, error) {
+//				panic("mock out the newestAccountIsDApp method")
+//			},
 //			newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 //				panic("mock out the newestIsSmartAsset method")
 //			},
@@ -73,6 +79,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 //			},
 //			resetFunc: func()  {
 //				panic("mock out the reset method")
+//			},
+//			scriptBasicInfoByAddressIDFunc: func(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+//				panic("mock out the scriptBasicInfoByAddressID method")
 //			},
 //			scriptByAddrFunc: func(addr proto.WavesAddress) (*ast.Tree, error) {
 //				panic("mock out the scriptByAddr method")
@@ -108,6 +117,9 @@ type mockScriptStorageState struct {
 	// accountHasVerifierFunc mocks the accountHasVerifier method.
 	accountHasVerifierFunc func(addr proto.WavesAddress) (bool, error)
 
+	// accountIsDAppFunc mocks the accountIsDApp method.
+	accountIsDAppFunc func(addr proto.WavesAddress) (bool, error)
+
 	// clearCacheFunc mocks the clearCache method.
 	clearCacheFunc func() error
 
@@ -132,6 +144,9 @@ type mockScriptStorageState struct {
 	// newestAccountHasVerifierFunc mocks the newestAccountHasVerifier method.
 	newestAccountHasVerifierFunc func(addr proto.WavesAddress) (bool, error)
 
+	// newestAccountIsDAppFunc mocks the newestAccountIsDApp method.
+	newestAccountIsDAppFunc func(addr proto.WavesAddress) (bool, error)
+
 	// newestIsSmartAssetFunc mocks the newestIsSmartAsset method.
 	newestIsSmartAssetFunc func(assetID proto.AssetID) (bool, error)
 
@@ -155,6 +170,9 @@ type mockScriptStorageState struct {
 
 	// resetFunc mocks the reset method.
 	resetFunc func()
+
+	// scriptBasicInfoByAddressIDFunc mocks the scriptBasicInfoByAddressID method.
+	scriptBasicInfoByAddressIDFunc func(addressID proto.AddressID) (scriptBasicInfoRecord, error)
 
 	// scriptByAddrFunc mocks the scriptByAddr method.
 	scriptByAddrFunc func(addr proto.WavesAddress) (*ast.Tree, error)
@@ -189,6 +207,11 @@ type mockScriptStorageState struct {
 			// Addr is the addr argument value.
 			Addr proto.WavesAddress
 		}
+		// accountIsDApp holds details about calls to the accountIsDApp method.
+		accountIsDApp []struct {
+			// Addr is the addr argument value.
+			Addr proto.WavesAddress
+		}
 		// clearCache holds details about calls to the clearCache method.
 		clearCache []struct {
 		}
@@ -218,6 +241,11 @@ type mockScriptStorageState struct {
 		}
 		// newestAccountHasVerifier holds details about calls to the newestAccountHasVerifier method.
 		newestAccountHasVerifier []struct {
+			// Addr is the addr argument value.
+			Addr proto.WavesAddress
+		}
+		// newestAccountIsDApp holds details about calls to the newestAccountIsDApp method.
+		newestAccountIsDApp []struct {
 			// Addr is the addr argument value.
 			Addr proto.WavesAddress
 		}
@@ -256,6 +284,11 @@ type mockScriptStorageState struct {
 		}
 		// reset holds details about calls to the reset method.
 		reset []struct {
+		}
+		// scriptBasicInfoByAddressID holds details about calls to the scriptBasicInfoByAddressID method.
+		scriptBasicInfoByAddressID []struct {
+			// AddressID is the addressID argument value.
+			AddressID proto.AddressID
 		}
 		// scriptByAddr holds details about calls to the scriptByAddr method.
 		scriptByAddr []struct {
@@ -311,6 +344,7 @@ type mockScriptStorageState struct {
 	}
 	lockaccountHasScript                 sync.RWMutex
 	lockaccountHasVerifier               sync.RWMutex
+	lockaccountIsDApp                    sync.RWMutex
 	lockclearCache                       sync.RWMutex
 	lockcommitUncertain                  sync.RWMutex
 	lockdropUncertain                    sync.RWMutex
@@ -319,6 +353,7 @@ type mockScriptStorageState struct {
 	lockisSmartAsset                     sync.RWMutex
 	locknewestAccountHasScript           sync.RWMutex
 	locknewestAccountHasVerifier         sync.RWMutex
+	locknewestAccountIsDApp              sync.RWMutex
 	locknewestIsSmartAsset               sync.RWMutex
 	locknewestScriptBasicInfoByAddressID sync.RWMutex
 	locknewestScriptByAddr               sync.RWMutex
@@ -327,6 +362,7 @@ type mockScriptStorageState struct {
 	locknewestScriptBytesByAsset         sync.RWMutex
 	lockprepareHashes                    sync.RWMutex
 	lockreset                            sync.RWMutex
+	lockscriptBasicInfoByAddressID       sync.RWMutex
 	lockscriptByAddr                     sync.RWMutex
 	lockscriptByAsset                    sync.RWMutex
 	lockscriptBytesByAddr                sync.RWMutex
@@ -397,6 +433,38 @@ func (mock *mockScriptStorageState) accountHasVerifierCalls() []struct {
 	mock.lockaccountHasVerifier.RLock()
 	calls = mock.calls.accountHasVerifier
 	mock.lockaccountHasVerifier.RUnlock()
+	return calls
+}
+
+// accountIsDApp calls accountIsDAppFunc.
+func (mock *mockScriptStorageState) accountIsDApp(addr proto.WavesAddress) (bool, error) {
+	if mock.accountIsDAppFunc == nil {
+		panic("mockScriptStorageState.accountIsDAppFunc: method is nil but scriptStorageState.accountIsDApp was just called")
+	}
+	callInfo := struct {
+		Addr proto.WavesAddress
+	}{
+		Addr: addr,
+	}
+	mock.lockaccountIsDApp.Lock()
+	mock.calls.accountIsDApp = append(mock.calls.accountIsDApp, callInfo)
+	mock.lockaccountIsDApp.Unlock()
+	return mock.accountIsDAppFunc(addr)
+}
+
+// accountIsDAppCalls gets all the calls that were made to accountIsDApp.
+// Check the length with:
+//
+//	len(mockedscriptStorageState.accountIsDAppCalls())
+func (mock *mockScriptStorageState) accountIsDAppCalls() []struct {
+	Addr proto.WavesAddress
+} {
+	var calls []struct {
+		Addr proto.WavesAddress
+	}
+	mock.lockaccountIsDApp.RLock()
+	calls = mock.calls.accountIsDApp
+	mock.lockaccountIsDApp.RUnlock()
 	return calls
 }
 
@@ -633,6 +701,38 @@ func (mock *mockScriptStorageState) newestAccountHasVerifierCalls() []struct {
 	mock.locknewestAccountHasVerifier.RLock()
 	calls = mock.calls.newestAccountHasVerifier
 	mock.locknewestAccountHasVerifier.RUnlock()
+	return calls
+}
+
+// newestAccountIsDApp calls newestAccountIsDAppFunc.
+func (mock *mockScriptStorageState) newestAccountIsDApp(addr proto.WavesAddress) (bool, error) {
+	if mock.newestAccountIsDAppFunc == nil {
+		panic("mockScriptStorageState.newestAccountIsDAppFunc: method is nil but scriptStorageState.newestAccountIsDApp was just called")
+	}
+	callInfo := struct {
+		Addr proto.WavesAddress
+	}{
+		Addr: addr,
+	}
+	mock.locknewestAccountIsDApp.Lock()
+	mock.calls.newestAccountIsDApp = append(mock.calls.newestAccountIsDApp, callInfo)
+	mock.locknewestAccountIsDApp.Unlock()
+	return mock.newestAccountIsDAppFunc(addr)
+}
+
+// newestAccountIsDAppCalls gets all the calls that were made to newestAccountIsDApp.
+// Check the length with:
+//
+//	len(mockedscriptStorageState.newestAccountIsDAppCalls())
+func (mock *mockScriptStorageState) newestAccountIsDAppCalls() []struct {
+	Addr proto.WavesAddress
+} {
+	var calls []struct {
+		Addr proto.WavesAddress
+	}
+	mock.locknewestAccountIsDApp.RLock()
+	calls = mock.calls.newestAccountIsDApp
+	mock.locknewestAccountIsDApp.RUnlock()
 	return calls
 }
 
@@ -879,6 +979,38 @@ func (mock *mockScriptStorageState) resetCalls() []struct {
 	mock.lockreset.RLock()
 	calls = mock.calls.reset
 	mock.lockreset.RUnlock()
+	return calls
+}
+
+// scriptBasicInfoByAddressID calls scriptBasicInfoByAddressIDFunc.
+func (mock *mockScriptStorageState) scriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	if mock.scriptBasicInfoByAddressIDFunc == nil {
+		panic("mockScriptStorageState.scriptBasicInfoByAddressIDFunc: method is nil but scriptStorageState.scriptBasicInfoByAddressID was just called")
+	}
+	callInfo := struct {
+		AddressID proto.AddressID
+	}{
+		AddressID: addressID,
+	}
+	mock.lockscriptBasicInfoByAddressID.Lock()
+	mock.calls.scriptBasicInfoByAddressID = append(mock.calls.scriptBasicInfoByAddressID, callInfo)
+	mock.lockscriptBasicInfoByAddressID.Unlock()
+	return mock.scriptBasicInfoByAddressIDFunc(addressID)
+}
+
+// scriptBasicInfoByAddressIDCalls gets all the calls that were made to scriptBasicInfoByAddressID.
+// Check the length with:
+//
+//	len(mockedscriptStorageState.scriptBasicInfoByAddressIDCalls())
+func (mock *mockScriptStorageState) scriptBasicInfoByAddressIDCalls() []struct {
+	AddressID proto.AddressID
+} {
+	var calls []struct {
+		AddressID proto.AddressID
+	}
+	mock.lockscriptBasicInfoByAddressID.RLock()
+	calls = mock.calls.scriptBasicInfoByAddressID
+	mock.lockscriptBasicInfoByAddressID.RUnlock()
 	return calls
 }
 

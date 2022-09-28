@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"math/big"
 	"testing"
 
@@ -405,8 +406,25 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 
-	tx := createSetScriptWithProofs(t)
-	err := to.tp.performSetScriptWithProofs(tx, defaultPerformerInfo())
+	/*
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func call() = nil
+
+		@Verifier(tx)
+		func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+	*/
+	const scriptWithVerifierAndDApp = "BgIECAISAAABAWkBBGNhbGwABQNuaWwBAnR4AQZ2ZXJpZnkACQD0AwMIBQJ0eAlib2R5Qnl0ZXMJAJEDAggFAnR4BnByb29mcwAACAUCdHgPc2VuZGVyUHVibGljS2V5HBD+0Q=="
+	scriptBytes, err := base64.StdEncoding.DecodeString(scriptWithVerifierAndDApp)
+	require.NoError(t, err)
+	expectedScriptAST, err := scriptBytesToTree(scriptBytes)
+	require.NoError(t, err)
+
+	tx := createSetScriptWithProofs(t, scriptBytes)
+	err = to.tp.performSetScriptWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performSetScriptWithProofs() failed")
 
 	addr := testGlobal.senderInfo.addr
@@ -415,17 +433,23 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	accountHasScript, err := to.stor.entities.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
+	accountIsDApp, err := to.stor.entities.scriptsStorage.newestAccountIsDApp(addr)
+	assert.NoError(t, err, "newestAccountIsDApp() failed")
+	assert.Equal(t, true, accountIsDApp)
 	accountHasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
+	scriptAST, err := to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, expectedScriptAST, scriptAST)
 
 	// Test stable before flushing.
 	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, false, accountHasScript)
+	accountIsDApp, err = to.stor.entities.scriptsStorage.accountIsDApp(addr)
+	assert.NoError(t, err, "accountIsDApp() failed")
+	assert.Equal(t, false, accountIsDApp)
 	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, false, accountHasVerifier)
@@ -438,23 +462,29 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	accountHasScript, err = to.stor.entities.scriptsStorage.newestAccountHasScript(addr)
 	assert.NoError(t, err, "newestAccountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
+	accountIsDApp, err = to.stor.entities.scriptsStorage.newestAccountIsDApp(addr)
+	assert.NoError(t, err, "newestAccountIsDApp() failed")
+	assert.Equal(t, true, accountIsDApp)
 	accountHasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr)
 	assert.NoError(t, err, "newestAccountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
+	scriptAST, err = to.stor.entities.scriptsStorage.newestScriptByAddr(addr)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, expectedScriptAST, scriptAST)
 
 	// Test stable after flushing.
 	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr)
 	assert.NoError(t, err, "accountHasScript() failed")
 	assert.Equal(t, true, accountHasScript)
+	accountIsDApp, err = to.stor.entities.scriptsStorage.accountIsDApp(addr)
+	assert.NoError(t, err, "accountIsDApp() failed")
+	assert.Equal(t, true, accountIsDApp)
 	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAddr(addr)
+	scriptAST, err = to.stor.entities.scriptsStorage.scriptByAddr(addr)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, expectedScriptAST, scriptAST)
 }
 
 func TestPerformSetAssetScriptWithProofs(t *testing.T) {
