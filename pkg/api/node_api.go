@@ -18,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 )
 
@@ -258,7 +259,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
+func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
 	if opts == nil {
 		opts = DefaultRunOptions()
 	}
@@ -278,16 +279,28 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		}
 	}()
 
-	err = apiServer.ListenAndServe()
+	if opts.MaxConnections > 0 {
+		if address == "" {
+			address = ":http"
+		}
+
+		ln, lErr := net.Listen("tcp", address)
+		if lErr != nil {
+			return lErr
+		}
+
+		ln = limit_listener.LimitListener(ln, opts.MaxConnections)
+		zap.S().Debugf("Set limit for number of simultaneous connections for REST API to %d", opts.MaxConnections)
+
+		err = apiServer.Serve(ln)
+	} else {
+		err = apiServer.ListenAndServe()
+	}
+
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
-}
-
-func Run(ctx context.Context, address string, n *NodeApi) error {
-	// TODO(nickeskov): add run flags in CLI flags
-	return RunWithOpts(ctx, address, n, nil)
 }
 
 func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) error {

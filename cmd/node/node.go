@@ -63,7 +63,9 @@ var (
 	cfgPath                               = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 	apiAddr                               = flag.String("api-address", "", "Address for REST API")
 	apiKey                                = flag.String("api-key", "", "Api key")
+	apiMaxConnections                     = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	grpcApiMaxConnections                 = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
 	enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
 	metaMaskServiceAddr                   = flag.String("metamask-address", "127.0.0.1:8545", "Address for ethereum compatible RPC API for MetaMask.")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
@@ -419,7 +421,7 @@ func main() {
 	webApi := api.NewNodeApi(app, st, n)
 	go func() {
 		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
-		err := api.Run(ctx, conf.HttpAddr, webApi)
+		err := api.Run(ctx, conf.HttpAddr, webApi, apiRunOptsFromCLIFlags())
 		if err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
 		}
@@ -441,7 +443,7 @@ func main() {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
 		go func() {
-			err := grpcServer.Run(ctx, conf.GrpcAddr)
+			err := grpcServer.Run(ctx, conf.GrpcAddr, grpcApiRunOptsFromCLIFlags())
 			if err != nil {
 				zap.S().Errorf("grpcServer.Run(): %v", err)
 			}
@@ -487,6 +489,19 @@ func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 		}
 		return nil
 	}
+}
+
+func apiRunOptsFromCLIFlags() *api.RunOptions {
+	// TODO: add more run flags to CLI flags
+	opts := api.DefaultRunOptions()
+	opts.MaxConnections = *apiMaxConnections
+	return opts
+}
+
+func grpcApiRunOptsFromCLIFlags() *server.RunOptions {
+	opts := server.DefaultRunOptions()
+	opts.MaxConnections = *grpcApiMaxConnections
+	return opts
 }
 
 func applyIntegrationSettings(blockchainSettings *settings.BlockchainSettings) *settings.BlockchainSettings {

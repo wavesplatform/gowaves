@@ -136,7 +136,7 @@ func TestMain(m *testing.M) {
 	grpcTestAddr = fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
+		if err := server.Run(ctx, grpcTestAddr, nil); err != nil {
 			log.Fatalf("server.Run(): %v\n", err)
 		}
 	}()
