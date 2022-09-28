@@ -35,13 +35,13 @@ type limitListener struct {
 
 func newConnectionsMap() *connectionsMap {
 	return &connectionsMap{
-		OrderedMap: orderedmap.NewOrderedMap[connectionID, *connMapElem](),
+		OrderedMap: orderedmap.NewOrderedMap[connectionID, *limitListenerConn](),
 		mu:         sync.Mutex{},
 	}
 }
 
 type connectionsMap struct {
-	*orderedmap.OrderedMap[connectionID, *connMapElem]
+	*orderedmap.OrderedMap[connectionID, *limitListenerConn]
 	mu sync.Mutex
 }
 
@@ -51,7 +51,7 @@ func (m *connectionsMap) setReadOperation(conn *limitListenerConn) {
 
 	// In order to change insertion order we need to Delete before Set
 	m.Delete(conn.id)
-	m.Set(conn.id, &connMapElem{conn: conn, lastReadOperation: time.Now()})
+	m.Set(conn.id, conn)
 }
 
 func (m *connectionsMap) removeOldestConnection() {
@@ -62,21 +62,16 @@ func (m *connectionsMap) removeOldestConnection() {
 		m.mu.Unlock()
 		return
 	}
-	m.Delete(el.Value.conn.id)
+	m.Delete(el.Value.id)
 	m.mu.Unlock()
 
-	_ = el.Value.conn.Close()
+	_ = el.Value.Close()
 }
 
 func (m *connectionsMap) removeConnection(conn *limitListenerConn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Delete(conn.id)
-}
-
-type connMapElem struct {
-	conn              *limitListenerConn
-	lastReadOperation time.Time
 }
 
 type connectionID uint64
