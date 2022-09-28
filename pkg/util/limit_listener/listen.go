@@ -79,7 +79,7 @@ type connMapElem struct {
 	lastReadOperation time.Time
 }
 
-type connectionID = uint64
+type connectionID uint64
 
 func (l *limitListener) getNewConnID() connectionID {
 	res := l.nextConnID
