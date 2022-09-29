@@ -274,7 +274,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 				},
 				Returns: smd.JSONSchema{
 					Description: ``,
-					Optional:    false,
+					Optional:    true,
 					Type:        smd.Object,
 					Properties: map[string]smd.Property{
 						"transactionHash": {

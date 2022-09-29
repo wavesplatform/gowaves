@@ -468,14 +468,14 @@ type GetTransactionReceiptResponse struct {
 	Status            string                 `json:"status"`
 }
 
-func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (GetTransactionReceiptResponse, error) {
+func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetTransactionReceiptResponse, error) {
 	txID := crypto.Digest(ethTxID)
 	tx, txIsFailed, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
 	if state.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
 		)
-		return GetTransactionReceiptResponse{}, errors.Errorf("transaction with ethID=%q not found", ethTxID)
+		return nil, errors.Errorf("transaction with ethID=%q is not found", ethTxID)
 	}
 	ethTx, ok := tx.(*proto.EthereumTransaction)
 	if !ok {
@@ -484,7 +484,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 			txID, ethTxID,
 		)
 		// according to the scala node implementation
-		return GetTransactionReceiptResponse{}, nil
+		return nil, nil
 	}
 
 	to := ethTx.To()
@@ -494,7 +494,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 			"Eth_GetTransactionReceipt: failed to get sender (from) for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return GetTransactionReceiptResponse{}, errors.New("failed to get sender from tx")
+		return nil, errors.New("failed to get sender from tx")
 	}
 
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
@@ -503,27 +503,20 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 			"Eth_GetTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return GetTransactionReceiptResponse{}, errors.New("failed to get blockNumber for transaction")
+		return nil, errors.New("failed to get blockNumber for transaction")
 	}
 
-	blockHeader, err := s.nodeRPCApp.State.HeaderByHeight(blockHeight)
-	if err != nil {
-		zap.S().Errorf(
-			"Eth_GetTransactionReceipt: failed to get block header for tx with ID=%q or ethID=%q: %v",
-			txID, ethTxID, err,
-		)
-		return GetTransactionReceiptResponse{}, errors.New("failed to get blockHeader for transaction")
-	}
+	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
 	txStatus := "0x1"
 	if txIsFailed {
 		txStatus = "0x0"
 	}
 	gasLimit := uint64ToHexString(tx.GetFee())
 
-	return GetTransactionReceiptResponse{
+	return &GetTransactionReceiptResponse{
 		TransactionHash:   ethTxID,
-		TransactionIndex:  "0x01",                                          // according to the scala node implementation
-		BlockHash:         proto.EncodeToHexString(blockHeader.ID.Bytes()), // should be always 32bytes
+		TransactionIndex:  "0x01",                                              // according to the scala node implementation
+		BlockHash:         proto.EncodeToHexString(lastBlockHeader.ID.Bytes()), // should be always 32bytes
 		BlockNumber:       uint64ToHexString(blockHeight),
 		From:              from,
 		To:                to,
