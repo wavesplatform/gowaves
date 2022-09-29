@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"fmt"
@@ -83,6 +83,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 	}
 	if curNode != nil && curNode.pegRule == ruleDirective {
 		curNode = p.parseDirectives(curNode)
+		_ = curNode
 	}
 }
 

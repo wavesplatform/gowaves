@@ -1,7 +1,7 @@
 # Go part
-package main
+package compiler
 
-type Result Peg {
+type Parser Peg {
 }
 
 # Start PEG
@@ -14,7 +14,7 @@ ScriptRoot <- _ (Directive _)* (_ Declaration)* _ BlockDecExprSep? _ Expr _ EOF
 
 WS <- [ \t]+
 NewLine <- [ \t\n\r\f]+
-Comment <- "#" !"-}" [^\r\n]*
+Comment <- "#" !"-}" [^\r\n]+[\r\n]
 WhiteSpace <- (NewLine / Comment)*
 _ <- WhiteSpace
 
@@ -22,8 +22,11 @@ EOF <- !.
 
 # Directives
 
-DirectiveWord <- [_a-zA-Z0-9-]+
-Directive <- "{-#" WS DirectiveWord WS DirectiveWord WS "#-}"
+DirectiveName <- [A-Z]+[_A-Z]*
+UpperCaseString <- [A-Z]+
+IntString <- [0-9]+
+PathString <- [_a-zA-Z0-9-/,.]+
+Directive <- "{-#" WS DirectiveName WS (IntString / UpperCaseString / PathString) WS "#-}"
 
 # Declarations
 
