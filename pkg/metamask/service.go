@@ -528,3 +528,84 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 		Status:            txStatus,
 	}, nil
 }
+
+type GetTransactionByHashResponse struct {
+	Hash             proto.EthereumHash      `json:"hash"`
+	Nonce            string                  `json:"nonce"`
+	BlockHash        string                  `json:"blockHash"`
+	BlockNumber      string                  `json:"blockNumber"`
+	TransactionIndex string                  `json:"transactionIndex"`
+	From             proto.EthereumAddress   `json:"from"`
+	To               *proto.EthereumAddress  `json:"to"`
+	Value            string                  `json:"value"`
+	GasPrice         string                  `json:"gasPrice"`
+	Gas              string                  `json:"gas"`
+	Input            string                  `json:"input"`
+	V                string                  `json:"v"`
+	StandardV        string                  `json:"standardV"`
+	R                string                  `json:"r"`
+	Raw              string                  `json:"raw"`
+	PublicKey        proto.EthereumPublicKey `json:"publickey"`
+}
+
+func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTransactionByHashResponse, error) {
+	txID := crypto.Digest(ethTxID)
+	tx, err := s.nodeRPCApp.State.TransactionByID(txID.Bytes())
+	if state.IsNotFound(err) {
+		zap.S().Debugf("Eth_GetTransactionByHash: transaction with ID=%q or ethID=%q cannot be found",
+			txID, ethTxID,
+		)
+		return nil, errors.Errorf("transaction with ethID=%q is not found", ethTxID)
+	}
+	ethTx, ok := tx.(*proto.EthereumTransaction)
+	if !ok {
+		zap.S().Debugf(
+			"Eth_GetTransactionByHash: transaction with ID=%q or ethID=%q is not 'EthereumTransaction'",
+			txID, ethTxID,
+		)
+		// according to the scala node implementation
+		return nil, nil
+	}
+
+	to := ethTx.To()
+	fromPK, err := ethTx.FromPK()
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_GetTransactionByHash: failed to get sender (from) public key for tx with ID=%q or ethID=%q: %v",
+			txID, ethTxID, err,
+		)
+		return nil, errors.New("failed to get sender from tx")
+	}
+
+	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_GetTransactionByHash: failed to get block height for tx with ID=%q or ethID=%q: %v",
+			txID, ethTxID, err,
+		)
+		return nil, errors.New("failed to get blockNumber for transaction")
+	}
+
+	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
+
+	gasLimit := uint64ToHexString(tx.GetFee())
+
+	return &GetTransactionByHashResponse{
+		Hash:             ethTxID,
+		Nonce:            "0x1",
+		BlockHash:        proto.EncodeToHexString(lastBlockHeader.ID.Bytes()),
+		BlockNumber:      uint64ToHexString(blockHeight),
+		TransactionIndex: "0x1",
+		From:             fromPK.EthereumAddress(),
+		To:               to,
+		Value:            "0x10",
+		GasPrice:         gasLimit, // according to the scala node implementation
+		Gas:              gasLimit,
+		Input:            "0x20",
+		V:                "0x30",
+		StandardV:        "0x40",
+		R:                "0x50",
+		Raw:              "0x60",
+		PublicKey:        *fromPK,
+	}, nil
+}
