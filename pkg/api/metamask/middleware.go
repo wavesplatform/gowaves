@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func zenrpcZapLoggerMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
+func APILogMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
 	return func(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
 		var (
 			start = time.Now()
@@ -20,8 +20,8 @@ func zenrpcZapLoggerMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
 		}
 		response := handler(ctx, method, params)
 		zap.S().Debugf(
-			"MetaMaskRPC: ip=%s method=%s.%s duration=%v params=%s err=%v",
-			ip, zenrpc.NamespaceFromContext(ctx), method, time.Since(start), params, response.Error,
+			"MetaMaskRPC: ip=%q method=\"%s.%s\" duration=%v params=%q response=%q",
+			ip, zenrpc.NamespaceFromContext(ctx), method, time.Since(start), params, response.JSON(),
 		)
 		return response
 	}

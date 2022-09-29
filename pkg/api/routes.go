@@ -6,6 +6,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
+	"github.com/semrush/zenrpc/v2"
+	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 	"go.uber.org/zap"
 )
 
@@ -136,6 +138,15 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 		r.Route("/eth", func(r chi.Router) {
 			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
+			if opts.EnableMetaMaskAPI {
+				service := metamask.NewRPCService(&a.app.services)
+				rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
+				if opts.EnableMetaMaskAPILog {
+					rpc.Use(metamask.APILogMiddleware)
+				}
+				rpc.Register("", service)
+				r.Handle("/", rpc)
+			}
 		})
 
 		// enable or disable history sync

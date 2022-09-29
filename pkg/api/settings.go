@@ -18,6 +18,8 @@ type RunOptions struct {
 	EnableHeartbeatRoute bool
 	RouteNotFoundHandler func(w http.ResponseWriter, r *http.Request)
 	MaxConnections       int
+	EnableMetaMaskAPI    bool
+	EnableMetaMaskAPILog bool
 }
 
 type RateLimiterOptions struct {
@@ -37,6 +39,8 @@ func DefaultRunOptions() *RunOptions {
 			zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		},
-		MaxConnections: DefaultMaxConnections,
+		MaxConnections:       DefaultMaxConnections,
+		EnableMetaMaskAPI:    false,
+		EnableMetaMaskAPILog: false,
 	}
 }
