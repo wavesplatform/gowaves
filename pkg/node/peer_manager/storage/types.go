@@ -50,7 +50,7 @@ type restrictedPeer struct {
 }
 
 func (sp *restrictedPeer) RestrictTime() time.Time {
-	return fromUnixMillis(sp.RestrictTimestampMillis)
+	return time.UnixMilli(sp.RestrictTimestampMillis)
 }
 
 func (sp *restrictedPeer) AwakeTime() time.Time {
@@ -122,10 +122,4 @@ func (a knownPeers) OldestFirst(limit int) []KnownPeer {
 		r[i] = ps[i].peer
 	}
 	return r
-}
-
-func fromUnixMillis(timestampMillis int64) time.Time {
-	sec := timestampMillis / 1_000
-	nsec := (timestampMillis % 1_000) * 1_000_000
-	return time.Unix(sec, nsec)
 }
