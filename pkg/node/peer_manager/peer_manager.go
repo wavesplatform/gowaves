@@ -2,6 +2,7 @@ package peer_manager
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"net"
 	"sync"
@@ -471,11 +472,13 @@ func (a *PeerManagerImpl) blackListed(p peer.Peer, now time.Time) bool {
 }
 
 func (a *PeerManagerImpl) restrict(p peer.Peer, now time.Time, reason string) {
-	switch p.Direction() {
+	switch d := p.Direction(); d {
 	case peer.Incoming:
 		a.AddToBlackList(p, now, reason)
 	case peer.Outgoing:
 		a.Suspend(p, now, reason)
+	default:
+		panic(fmt.Sprintf("BUG, CREATE REPORT: can't restrict peer because of unexpected peer direction (%d)", d))
 	}
 }
 
