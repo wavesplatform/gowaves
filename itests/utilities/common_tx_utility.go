@@ -3,11 +3,13 @@ package utilities
 import (
 	"context"
 	"math/rand"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
+	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -78,18 +80,38 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest, tim
 	}
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (error, error) {
+func marshalTransaction(t *testing.T, tx proto.Transaction, scheme proto.Scheme) ([]byte, crypto.Digest) {
 	bts, err := tx.MarshalBinary()
-	require.NoError(suite.T(), err, "failed to marshal tx")
-	txMsg := proto.TransactionMessage{Transaction: bts}
+	require.NoError(t, err, "failed to marshal tx")
 	idBytes, err := tx.GetID(scheme)
-	require.NoError(suite.T(), err, "failed to get txID")
+	require.NoError(t, err, "failed to get txID")
 	id, err := crypto.NewDigestFromBytes(idBytes)
-	require.NoError(suite.T(), err, "failed to create new digest from bytes")
+	require.NoError(t, err, "failed to create new digest from bytes")
+	return bts, id
+}
+
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (error, error) {
+	bts, id := marshalTransaction(suite.T(), tx, scheme)
+	txMsg := proto.TransactionMessage{Transaction: bts}
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(&id, timeout)
 	return errGo, errScala
+}
+
+func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (
+	*client.Response, error, *client.Response, error) {
+	_, id := marshalTransaction(suite.T(), tx, scheme)
+
+	respGo, err := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
+	suite.NoError(err, "failed to broadcast transaction to Go node")
+
+	respScala, err := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
+	suite.NoError(err, "failed to broadcast transaction to Scala node")
+
+	errGo, errScala := suite.Clients.WaitForTransaction(&id, timeout)
+
+	return respGo, errGo, respScala, errScala
 }
