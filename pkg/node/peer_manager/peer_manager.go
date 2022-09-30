@@ -389,15 +389,13 @@ func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 }
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {
+	ticker := time.NewTicker(clearRestrictedPeersInterval)
+	defer ticker.Stop()
 	for {
-		timer := time.NewTimer(clearRestrictedPeersInterval)
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
 			return
-		case <-timer.C:
+		case <-ticker.C:
 			a.clearRestrictedPeers(time.Now())
 		}
 	}
