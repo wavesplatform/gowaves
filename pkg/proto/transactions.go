@@ -130,6 +130,8 @@ var (
 		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
 	}
 
+	// ProtobufTransactionsVersions map shows whether transaction can be marshaled as protobuf data or not.
+	// Value of ProtobufTransactionsVersions is minimum required transaction version to protobuf marshaling.
 	ProtobufTransactionsVersions = map[TransactionType]byte{
 		GenesisTransaction:          2,
 		PaymentTransaction:          2,
@@ -149,7 +151,7 @@ var (
 		InvokeScriptTransaction:     2,
 		InvokeExpressionTransaction: 1,
 		UpdateAssetInfoTransaction:  1,
-		// EthereumMetamaskTransaction should not be added because it doesn't exist as protobuf transaction
+		EthereumMetamaskTransaction: 1,
 	}
 )
 
