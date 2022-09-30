@@ -43,13 +43,13 @@ func TestApp_PeersSuspended(t *testing.T) {
 	testData := []storage.SuspendedPeer{
 		{
 			IP:                      storage.IPFromString(ips[0]),
-			RestrictTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
+			RestrictTimestampMillis: now.Add(time.Minute).UnixMilli(),
 			RestrictDuration:        time.Minute,
 			Reason:                  "some reason #1",
 		},
 		{
 			IP:                      storage.IPFromString(ips[1]),
-			RestrictTimestampMillis: now.Add(2*time.Minute).UnixNano() / 1_000_000,
+			RestrictTimestampMillis: now.Add(2 * time.Minute).UnixMilli(),
 			RestrictDuration:        time.Minute,
 			Reason:                  "some reason #2",
 		},
@@ -85,13 +85,13 @@ func TestApp_PeersBlackList(t *testing.T) {
 	testData := []storage.BlackListedPeer{
 		{
 			IP:                      storage.IPFromString(ips[0]),
-			RestrictTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
+			RestrictTimestampMillis: now.Add(time.Minute).UnixMilli(),
 			RestrictDuration:        time.Minute,
 			Reason:                  "some reason #1",
 		},
 		{
 			IP:                      storage.IPFromString(ips[1]),
-			RestrictTimestampMillis: now.Add(2*time.Minute).UnixNano() / 1_000_000,
+			RestrictTimestampMillis: now.Add(2 * time.Minute).UnixMilli(),
 			RestrictDuration:        time.Minute,
 			Reason:                  "some reason #2",
 		},
@@ -102,7 +102,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
 	require.NoError(t, err)
 
-	blackList := app.PeersBlackList()
+	blackList := app.PeersBlackListed()
 
 	for i, actual := range blackList {
 		p := testData[i]

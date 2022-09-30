@@ -60,7 +60,7 @@ type SyncFsm struct {
 }
 
 func (a *SyncFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	return transaction(a, a.baseInfo, p, t)
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
 // MicroBlock ignores new microblocks while syncing.
@@ -226,7 +226,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	})
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
-			a.baseInfo.peers.AddToBlackList(conf.peerSyncWith, time.Now(), err.Error())
+			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {
 			metrics.FSMKeyBlockDeclined("sync", b, err)

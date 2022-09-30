@@ -23,7 +23,7 @@ var (
 )
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	return transaction(a, a.baseInfo, p, t)
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
 func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {

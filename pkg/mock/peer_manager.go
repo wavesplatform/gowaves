@@ -77,6 +77,20 @@ func (mr *MockPeerManagerMockRecorder) BlackList() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlackList", reflect.TypeOf((*MockPeerManager)(nil).BlackList))
 }
 
+// ClearBlackList mocks base method.
+func (m *MockPeerManager) ClearBlackList() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearBlackList")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearBlackList indicates an expected call of ClearBlackList.
+func (mr *MockPeerManagerMockRecorder) ClearBlackList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearBlackList", reflect.TypeOf((*MockPeerManager)(nil).ClearBlackList))
+}
+
 // Close mocks base method.
 func (m *MockPeerManager) Close() {
 	m.ctrl.T.Helper()

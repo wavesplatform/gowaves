@@ -35,7 +35,7 @@ type IdleFsm struct {
 }
 
 func (a *IdleFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	return transaction(a, a.baseInfo, p, t)
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
 func (a *IdleFsm) Halt() (FSM, Async, error) {

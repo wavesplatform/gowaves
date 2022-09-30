@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -155,7 +156,7 @@ func (a *App) PeersSuspended() []RestrictedPeerInfo {
 	return out
 }
 
-func (a *App) PeersBlackList() []RestrictedPeerInfo {
+func (a *App) PeersBlackListed() []RestrictedPeerInfo {
 	blackList := a.peers.BlackList()
 
 	out := make([]RestrictedPeerInfo, 0, len(blackList))
@@ -168,6 +169,20 @@ func (a *App) PeersBlackList() []RestrictedPeerInfo {
 	}
 
 	return out
+}
+
+type PeersClearBlackListResponse struct {
+	Result string `json:"result"`
+}
+
+func (a *App) PeersClearBlackList() PeersClearBlackListResponse {
+	resp := PeersClearBlackListResponse{}
+	if err := a.peers.ClearBlackList(); err != nil {
+		resp.Result = fmt.Sprintf("failed to clear blacklist: %s", err.Error())
+	} else {
+		resp.Result = "blacklist cleared"
+	}
+	return resp
 }
 
 type PeersSpawnedResponse struct {

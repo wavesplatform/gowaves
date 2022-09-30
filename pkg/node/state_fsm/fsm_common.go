@@ -22,7 +22,7 @@ func newPeer(fsm FSM, p peer.Peer, peers peer_manager.PeerManager) (FSM, Async, 
 	return fsm, nil, nil
 }
 
-func transaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (FSM, Async, error) {
+func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	t, err := t.Validate(baseInfo.scheme)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to validate transaction")

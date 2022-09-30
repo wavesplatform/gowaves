@@ -66,8 +66,8 @@ type restrictedPeers map[IP]restrictedPeer
 
 type SuspendedPeer = restrictedPeer
 
-func NewSuspendedPeer(ip IP, suspendTimestampMillis int64, suspendDuration time.Duration, reason string) *SuspendedPeer {
-	return &SuspendedPeer{
+func NewSuspendedPeer(ip IP, suspendTimestampMillis int64, suspendDuration time.Duration, reason string) SuspendedPeer {
+	return SuspendedPeer{
 		IP:                      ip,
 		RestrictTimestampMillis: suspendTimestampMillis,
 		RestrictDuration:        suspendDuration,
@@ -79,8 +79,8 @@ type suspendedPeers = restrictedPeers
 
 type BlackListedPeer = restrictedPeer
 
-func NewBlackListedPeer(ip IP, blackListTimestampMillis int64, blackListDuration time.Duration, reason string) *BlackListedPeer {
-	return &BlackListedPeer{
+func NewBlackListedPeer(ip IP, blackListTimestampMillis int64, blackListDuration time.Duration, reason string) BlackListedPeer {
+	return BlackListedPeer{
 		IP:                      ip,
 		RestrictTimestampMillis: blackListTimestampMillis,
 		RestrictDuration:        blackListDuration,

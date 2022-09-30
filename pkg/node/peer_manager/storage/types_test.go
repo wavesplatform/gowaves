@@ -11,7 +11,7 @@ import (
 
 func TestFromUnixMillis(t *testing.T) {
 	ts := time.Now().Truncate(time.Millisecond)
-	tsMillis := ts.UnixNano() / 1_000_000
+	tsMillis := ts.UnixMilli()
 
 	require.Equal(t, ts.String(), fromUnixMillis(tsMillis).String())
 }

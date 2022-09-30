@@ -41,6 +41,7 @@ type PeerManager interface {
 	Suspended() []storage.SuspendedPeer
 	AddToBlackList(peer peer.Peer, blockTime time.Time, reason string)
 	BlackList() []storage.BlackListedPeer
+	ClearBlackList() error
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	KnownPeers() []storage.KnownPeer
 	UpdateKnownPeers([]storage.KnownPeer) error
@@ -94,28 +95,31 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		_ = p.Close()
 		return errors.New("already connected")
 	}
-	if p.Direction() == peer.Outgoing && a.suspended(p) {
+
+	now := time.Now()
+	if p.Direction() == peer.Outgoing && a.suspended(p, now) {
 		_ = p.Close()
 		return errors.Errorf("peer '%s' is suspended", p.ID())
 	}
-	if p.Direction() == peer.Incoming && a.blackListed(p) {
+	if p.Direction() == peer.Incoming && a.blackListed(p, now) {
 		_ = p.Close()
 		return errors.Errorf("peer '%s' is in black list", p.ID())
 	}
+
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
 			"versions are too different, current %s, connected %s",
 			a.version.String(),
 			p.Handshake().Version.String(),
 		)
-		a.restrict(p, time.Now(), err.Error())
+		a.restrict(p, now, err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
 	if p.Handshake().AppName != a.networkName {
 		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
 			p.ID(), p.Handshake().AppName, a.networkName)
-		a.restrict(p, time.Now(), err.Error())
+		a.restrict(p, now, err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
@@ -130,7 +134,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		if !p.Handshake().DeclaredAddr.Empty() {
 			known := storage.KnownPeer(proto.TCPAddr(p.Handshake().DeclaredAddr).ToIpPort())
 			// TODO(nickeskov): maybe log error?
-			_ = a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, time.Now())
+			_ = a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, now)
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
@@ -165,7 +169,7 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason str
 	a.Disconnect(p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	suspended := *storage.NewSuspendedPeer(
+	suspended := storage.NewSuspendedPeer(
 		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
 		suspendTime.UnixMilli(),
 		suspendDuration,
@@ -186,7 +190,7 @@ func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reaso
 	a.Disconnect(p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	blackListed := *storage.NewBlackListedPeer(
+	blackListed := storage.NewBlackListedPeer(
 		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
 		blockTime.UnixMilli(),
 		blackListDuration,
@@ -201,6 +205,10 @@ func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reaso
 
 func (a *PeerManagerImpl) BlackList() []storage.BlackListedPeer {
 	return a.peerStorage.BlackList(time.Now())
+}
+
+func (a *PeerManagerImpl) ClearBlackList() error {
+	return a.peerStorage.DropBlackList()
 }
 
 func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
@@ -448,26 +456,26 @@ func (a *PeerManagerImpl) addConnected(peer peer.Peer) {
 	a.active.add(peer)
 }
 
-func (a *PeerManagerImpl) suspended(p peer.Peer) bool {
+func (a *PeerManagerImpl) suspended(p peer.Peer, now time.Time) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
-	return a.peerStorage.IsSuspendedIP(ip, time.Now())
+	return a.peerStorage.IsSuspendedIP(ip, now)
 }
 
-func (a *PeerManagerImpl) blackListed(p peer.Peer) bool {
+func (a *PeerManagerImpl) blackListed(p peer.Peer, now time.Time) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
-	return a.peerStorage.IsBlackListedIP(ip, time.Now())
+	return a.peerStorage.IsBlackListedIP(ip, now)
 }
 
-func (a *PeerManagerImpl) restrict(p peer.Peer, duration time.Time, reason string) {
+func (a *PeerManagerImpl) restrict(p peer.Peer, now time.Time, reason string) {
 	switch p.Direction() {
 	case peer.Incoming:
-		a.AddToBlackList(p, time.Now(), reason)
+		a.AddToBlackList(p, now, reason)
 	case peer.Outgoing:
-		a.Suspend(p, time.Now(), reason)
+		a.Suspend(p, now, reason)
 	}
 }
 
