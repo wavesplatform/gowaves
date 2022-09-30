@@ -444,7 +444,7 @@ func (bs *CBORStorage) restrictedFilePathByID(restrictedID restrictedPeersID) st
 	case blackListedPeersID:
 		return bs.blackListFilePath
 	default:
-		panic("unknown restricted id")
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
 	}
 }
 
@@ -455,7 +455,7 @@ func restrictedNameByID(restrictedID restrictedPeersID) string {
 	case blackListedPeersID:
 		return "blackList"
 	default:
-		panic("unknown restricted id")
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
 	}
 }
 
