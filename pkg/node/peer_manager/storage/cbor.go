@@ -49,6 +49,17 @@ func (bs *CBORStorage) restrictedPeersByType(restrictedID restrictedPeersID) *re
 	}
 }
 
+func (bs *CBORStorage) clearRestrictedPeersByType(restrictedID restrictedPeersID) {
+	switch restrictedID {
+	case suspendedPeersID:
+		bs.suspended = restrictedPeers{}
+	case blackListedPeersID:
+		bs.blackList = restrictedPeers{}
+	default:
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
+	}
+}
+
 func NewCBORStorage(baseDir string, now time.Time) (*CBORStorage, error) {
 	storageDir := filepath.Join(baseDir, peersStorageDir)
 	return newCBORStorageInDir(storageDir, now, peersStorageCurrentVersion)
@@ -479,8 +490,8 @@ func (bs *CBORStorage) unsafeDropRestricted(restrictedID restrictedPeersID) erro
 	if err := os.Truncate(bs.restrictedFilePathByID(restrictedID), 0); err != nil {
 		return errors.Wrapf(err, "failed to drop suspended storage file %q", bs.suspendedFilePath)
 	}
-	// Clear map
-	*bs.restrictedPeersByType(restrictedID) = restrictedPeers{}
+	// Clear chosen restrictedPeers map
+	bs.clearRestrictedPeersByType(restrictedID)
 	return nil
 }
 
