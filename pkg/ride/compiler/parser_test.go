@@ -80,6 +80,7 @@ func TestStringDirectives(t *testing.T) {
 		{`{-# CONTENT_TYPE account #-}`, false, "Directive<*>;DirectiveName<CONTENT_TYPE>;PathString<account>"},
 		{`{-# CONTENT-TYPE ACCOUNT #-}`, true, "\nparse error near DirectiveName (line 1 symbol 5 - line 1 symbol 12):\n\"CONTENT\"\n"},
 		{`{-# IMPORT lib3.ride,dir\lib4.ride #-}`, true, "\nparse error near PathString (line 1 symbol 12 - line 1 symbol 25):\n\"lib3.ride,dir\"\n"},
+		{`{-# IMPORT lib3.ride #-} # comment`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride>"},
 	} {
 		ast, _, err := buildAST(t, test.src)
 		if test.fail {

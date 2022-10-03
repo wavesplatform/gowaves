@@ -14,8 +14,8 @@ ScriptRoot <- _ (Directive _)* (_ Declaration)* _ BlockDecExprSep? _ Expr _ EOF
 
 WS <- [ \t]+
 NewLine <- [ \t\n\r\f]+
-Comment <- "#" !"-}" [^\r\n]+[\r\n]
-WhiteSpace <- (NewLine / Comment)*
+Comment <- '#' [^\r^\n]*
+WhiteSpace <- (Comment / NewLine)*
 _ <- WhiteSpace
 
 EOF <- !.
@@ -70,7 +70,7 @@ ModOp <- '%'
 
 UnaryOp <- PositiveOp / NegativeOp  / NotOp
 PositiveOp <- '+'
-NegativeOp <- '-'
+NegativeOp <- '-'!'#'
 NotOp <- '!'
 
 # Types
