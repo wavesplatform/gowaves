@@ -39,6 +39,18 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 	return m.recorder
 }
 
+// AddToBlackList mocks base method.
+func (m *MockPeerManager) AddToBlackList(peer peer.Peer, blockTime time.Time, reason string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddToBlackList", peer, blockTime, reason)
+}
+
+// AddToBlackList indicates an expected call of AddToBlackList.
+func (mr *MockPeerManagerMockRecorder) AddToBlackList(peer, blockTime, reason interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddToBlackList", reflect.TypeOf((*MockPeerManager)(nil).AddToBlackList), peer, blockTime, reason)
+}
+
 // AskPeers mocks base method.
 func (m *MockPeerManager) AskPeers() {
 	m.ctrl.T.Helper()
@@ -49,6 +61,34 @@ func (m *MockPeerManager) AskPeers() {
 func (mr *MockPeerManagerMockRecorder) AskPeers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AskPeers", reflect.TypeOf((*MockPeerManager)(nil).AskPeers))
+}
+
+// BlackList mocks base method.
+func (m *MockPeerManager) BlackList() []storage.BlackListedPeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlackList")
+	ret0, _ := ret[0].([]storage.BlackListedPeer)
+	return ret0
+}
+
+// BlackList indicates an expected call of BlackList.
+func (mr *MockPeerManagerMockRecorder) BlackList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlackList", reflect.TypeOf((*MockPeerManager)(nil).BlackList))
+}
+
+// ClearBlackList mocks base method.
+func (m *MockPeerManager) ClearBlackList() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearBlackList")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearBlackList indicates an expected call of ClearBlackList.
+func (mr *MockPeerManagerMockRecorder) ClearBlackList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearBlackList", reflect.TypeOf((*MockPeerManager)(nil).ClearBlackList))
 }
 
 // Close mocks base method.
