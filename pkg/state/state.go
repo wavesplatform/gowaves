@@ -1900,11 +1900,11 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 }
 
 func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, status, err := s.rw.readTransaction(id)
+	tx, failed, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, false, wrapErr(RetrievalError, err)
 	}
-	return tx, status, nil
+	return tx, failed, nil
 }
 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
