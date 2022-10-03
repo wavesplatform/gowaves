@@ -116,10 +116,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/all", wrapper(a.PeersAll))
 			r.Get("/connected", wrapper(a.PeersConnected))
 			r.Get("/suspended", wrapper(a.PeersSuspended))
+			r.Get("/blacklisted", wrapper(a.PeersBlackListed))
 
 			rAuth := r.With(checkAuthMiddleware)
 
 			rAuth.Post("/connect", wrapper(a.PeersConnect))
+			rAuth.Post("/clearblacklist", wrapper(a.PeersClearBlackList))
 		})
 
 		r.Route("/debug", func(r chi.Router) {

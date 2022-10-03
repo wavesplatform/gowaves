@@ -63,6 +63,48 @@ func (mr *MockPeerStorageMockRecorder) AddSuspended(suspended interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSuspended", reflect.TypeOf((*MockPeerStorage)(nil).AddSuspended), suspended)
 }
 
+// AddToBlackList mocks base method.
+func (m *MockPeerStorage) AddToBlackList(blackListed []storage.BlackListedPeer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddToBlackList", blackListed)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddToBlackList indicates an expected call of AddToBlackList.
+func (mr *MockPeerStorageMockRecorder) AddToBlackList(blackListed interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddToBlackList", reflect.TypeOf((*MockPeerStorage)(nil).AddToBlackList), blackListed)
+}
+
+// BlackList mocks base method.
+func (m *MockPeerStorage) BlackList(now time.Time) []storage.BlackListedPeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlackList", now)
+	ret0, _ := ret[0].([]storage.BlackListedPeer)
+	return ret0
+}
+
+// BlackList indicates an expected call of BlackList.
+func (mr *MockPeerStorageMockRecorder) BlackList(now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlackList", reflect.TypeOf((*MockPeerStorage)(nil).BlackList), now)
+}
+
+// DeleteBlackListedByIP mocks base method.
+func (m *MockPeerStorage) DeleteBlackListedByIP(blackListed []storage.BlackListedPeer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteBlackListedByIP", blackListed)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteBlackListedByIP indicates an expected call of DeleteBlackListedByIP.
+func (mr *MockPeerStorageMockRecorder) DeleteBlackListedByIP(blackListed interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBlackListedByIP", reflect.TypeOf((*MockPeerStorage)(nil).DeleteBlackListedByIP), blackListed)
+}
+
 // DeleteKnown mocks base method.
 func (m *MockPeerStorage) DeleteKnown(known []storage.KnownPeer) error {
 	m.ctrl.T.Helper()
@@ -89,6 +131,20 @@ func (m *MockPeerStorage) DeleteSuspendedByIP(suspended []storage.SuspendedPeer)
 func (mr *MockPeerStorageMockRecorder) DeleteSuspendedByIP(suspended interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSuspendedByIP", reflect.TypeOf((*MockPeerStorage)(nil).DeleteSuspendedByIP), suspended)
+}
+
+// DropBlackList mocks base method.
+func (m *MockPeerStorage) DropBlackList() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DropBlackList")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DropBlackList indicates an expected call of DropBlackList.
+func (mr *MockPeerStorageMockRecorder) DropBlackList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropBlackList", reflect.TypeOf((*MockPeerStorage)(nil).DropBlackList))
 }
 
 // DropKnown mocks base method.
@@ -133,6 +189,34 @@ func (mr *MockPeerStorageMockRecorder) DropSuspended() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropSuspended", reflect.TypeOf((*MockPeerStorage)(nil).DropSuspended))
 }
 
+// IsBlackListedIP mocks base method.
+func (m *MockPeerStorage) IsBlackListedIP(ip storage.IP, now time.Time) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsBlackListedIP", ip, now)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsBlackListedIP indicates an expected call of IsBlackListedIP.
+func (mr *MockPeerStorageMockRecorder) IsBlackListedIP(ip, now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBlackListedIP", reflect.TypeOf((*MockPeerStorage)(nil).IsBlackListedIP), ip, now)
+}
+
+// IsBlackListedIPs mocks base method.
+func (m *MockPeerStorage) IsBlackListedIPs(ips []storage.IP, now time.Time) []bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsBlackListedIPs", ips, now)
+	ret0, _ := ret[0].([]bool)
+	return ret0
+}
+
+// IsBlackListedIPs indicates an expected call of IsBlackListedIPs.
+func (mr *MockPeerStorageMockRecorder) IsBlackListedIPs(ips, now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsBlackListedIPs", reflect.TypeOf((*MockPeerStorage)(nil).IsBlackListedIPs), ips, now)
+}
+
 // IsSuspendedIP mocks base method.
 func (m *MockPeerStorage) IsSuspendedIP(ip storage.IP, now time.Time) bool {
 	m.ctrl.T.Helper()
@@ -173,6 +257,20 @@ func (m *MockPeerStorage) Known(limit int) []storage.KnownPeer {
 func (mr *MockPeerStorageMockRecorder) Known(limit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Known", reflect.TypeOf((*MockPeerStorage)(nil).Known), limit)
+}
+
+// RefreshBlackList mocks base method.
+func (m *MockPeerStorage) RefreshBlackList(now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RefreshBlackList", now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RefreshBlackList indicates an expected call of RefreshBlackList.
+func (mr *MockPeerStorageMockRecorder) RefreshBlackList(now interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshBlackList", reflect.TypeOf((*MockPeerStorage)(nil).RefreshBlackList), now)
 }
 
 // RefreshSuspended mocks base method.
