@@ -66,6 +66,7 @@ var (
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	grpcApiMaxConnections                 = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
 	enableMetaMaskAPI                     = flag.Bool("enable-metamask", true, "Enables/disables metamask API")
+	enableMetaMaskAPILog                  = flag.Bool("enable-metamask-log", false, "Enables/disables metamask API logging.")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
@@ -479,6 +480,7 @@ func apiRunOptsFromCLIFlags() *api.RunOptions {
 	if *enableMetaMaskAPI {
 		if *buildExtendedApi {
 			opts.EnableMetaMaskAPI = *enableMetaMaskAPI
+			opts.EnableMetaMaskAPILog = *enableMetaMaskAPILog
 		} else {
 			zap.S().Warn("'enable-metamask' flag requires activated 'build-extended-api' flag")
 		}
