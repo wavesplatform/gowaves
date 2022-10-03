@@ -24,7 +24,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
-	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
@@ -66,8 +65,7 @@ var (
 	apiMaxConnections                     = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	grpcApiMaxConnections                 = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
-	enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
-	metaMaskServiceAddr                   = flag.String("metamask-address", "127.0.0.1:8545", "Address for ethereum compatible RPC API for MetaMask.")
+	enableMetaMaskAPI                     = flag.Bool("enable-metamask", true, "Enables/disables metamask API")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
@@ -136,8 +134,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
 	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
-	zap.S().Debugf("enable-metamask: %v", *enableMetaMaskService)
-	zap.S().Debugf("metamask-address: %v", *metaMaskServiceAddr)
+	zap.S().Debugf("enable-metamask: %v", *enableMetaMaskAPI)
 }
 
 func main() {
@@ -450,22 +447,6 @@ func main() {
 		}()
 	}
 
-	if *enableMetaMaskService {
-		if *buildExtendedApi {
-			service := metamask.NewRPCService(&svs)
-			go func() {
-				zap.S().Infof("Starting metamask service on %s...", *metaMaskServiceAddr)
-				// TODO(nickeskov): add parameter for `enableRpcServiceLog`
-				err := metamask.RunMetaMaskService(ctx, *metaMaskServiceAddr, service, true)
-				if err != nil {
-					zap.S().Errorf("metamask service: %v", err)
-				}
-			}()
-		} else {
-			zap.S().Warn("'enable-grpc-api' flag requires activated 'build-extended-api' flag")
-		}
-	}
-
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
@@ -495,6 +476,13 @@ func apiRunOptsFromCLIFlags() *api.RunOptions {
 	// TODO: add more run flags to CLI flags
 	opts := api.DefaultRunOptions()
 	opts.MaxConnections = *apiMaxConnections
+	if *enableMetaMaskAPI {
+		if *buildExtendedApi {
+			opts.EnableMetaMaskAPI = *enableMetaMaskAPI
+		} else {
+			zap.S().Warn("'enable-metamask' flag requires activated 'build-extended-api' flag")
+		}
+	}
 	return opts
 }
 

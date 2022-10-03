@@ -1703,15 +1703,38 @@ func (o *OrderV4) Valid() (bool, error) {
 func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
 	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode)
 	return &EthereumOrderV4{
-		SenderPK:        senderPK,
+		SenderPK:        ethereumPublicKeyBase58Wrapper{inner: senderPK},
 		Eip712Signature: EthereumSignature{},
 		OrderV4:         *orderV4,
 	}
 }
 
+type ethereumPublicKeyBase58Wrapper struct {
+	inner *EthereumPublicKey
+}
+
+func (w *ethereumPublicKeyBase58Wrapper) MarshalJSON() ([]byte, error) {
+	data := w.inner.SerializeXYCoordinates()
+	return B58Bytes(data).MarshalJSON()
+}
+
+func (w *ethereumPublicKeyBase58Wrapper) UnmarshalJSON(bytes []byte) error {
+	pkBytes := B58Bytes{}
+	err := pkBytes.UnmarshalJSON(bytes)
+	if err != nil {
+		return err
+	}
+	inner := new(EthereumPublicKey)
+	if err := inner.UnmarshalBinary(pkBytes); err != nil {
+		return err
+	}
+	w.inner = inner
+	return nil
+}
+
 type EthereumOrderV4 struct {
-	SenderPK        *EthereumPublicKey `json:"senderPublicKey"`
-	Eip712Signature EthereumSignature  `json:"eip712Signature,omitempty"`
+	SenderPK        ethereumPublicKeyBase58Wrapper `json:"senderPublicKey"`
+	Eip712Signature EthereumSignature              `json:"eip712Signature,omitempty"`
 	OrderV4
 }
 
@@ -1725,11 +1748,11 @@ func (o *EthereumOrderV4) Valid() (bool, error) {
 
 func (o *EthereumOrderV4) GetSenderPKBytes() []byte {
 	// 64 bytes of uncompressed ethereum public key
-	return o.SenderPK.SerializeXYCoordinates()
+	return o.SenderPK.inner.SerializeXYCoordinates()
 }
 
 func (o *EthereumOrderV4) GetSender(_ Scheme) (Address, error) {
-	return o.SenderPK.EthereumAddress(), nil
+	return o.SenderPK.inner.EthereumAddress(), nil
 }
 
 func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
@@ -1754,7 +1777,7 @@ func (o *EthereumOrderV4) GenerateSenderPK(scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK")
 	}
-	o.SenderPK = pk
+	o.SenderPK = ethereumPublicKeyBase58Wrapper{inner: pk}
 	return nil
 }
 
@@ -1765,7 +1788,7 @@ func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	}
 	// TODO(nickeskov): Should we validate 'V' signature value?
 	_, r, s := o.Eip712Signature.AsVRS()
-	return VerifyEthereumSignature(o.SenderPK, r, s, hash[:]), nil
+	return VerifyEthereumSignature(o.SenderPK.inner, r, s, hash[:]), nil
 }
 
 func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
@@ -1804,7 +1827,7 @@ func (o *EthereumOrderV4) EthereumSign(scheme Scheme, sk *EthereumPrivateKey) (e
 		return errors.Wrapf(err, "failed to convert '%x' bytes to EthereumSignature", eip712SignatureBytes)
 	}
 	o.Eip712Signature = eip712Signature
-	o.SenderPK = sk.EthereumPublicKey()
+	o.SenderPK = ethereumPublicKeyBase58Wrapper{inner: sk.EthereumPublicKey()}
 	err = o.GenerateID(scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed generate ID for EthereumOrderV4")
