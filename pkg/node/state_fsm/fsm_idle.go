@@ -35,12 +35,7 @@ type IdleFsm struct {
 }
 
 func (a *IdleFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	err := a.baseInfo.utx.Add(t)
-	if err != nil {
-		return a, nil, proto.NewInfoMsg(err)
-	}
-	a.baseInfo.BroadcastTransaction(t, p)
-	return a, nil, nil
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
 func (a *IdleFsm) Halt() (FSM, Async, error) {
@@ -83,12 +78,12 @@ func (a *IdleFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 }
 
 func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	fsm, as, err := newPeer(a, p, a.baseInfo.peers)
+	fsm, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
 	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
 		a.baseInfo.Reschedule()
 	}
 	sendScore(p, a.baseInfo.storage)
-	return fsm, as, a.Errorf(err)
+	return fsm, as, fsmErr
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {

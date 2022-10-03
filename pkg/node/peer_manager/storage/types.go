@@ -42,27 +42,53 @@ func (kp *KnownPeer) String() string {
 	return ipPort.String()
 }
 
-type SuspendedPeer struct {
-	IP                     IP            `cbor:"0,keyasint,omitemtpy"`
-	SuspendTimestampMillis int64         `cbor:"1,keyasint,omitemtpy"`
-	SuspendDuration        time.Duration `cbor:"2,keyasint,omitemtpy"`
-	Reason                 string        `cbor:"3,keyasint,omitemtpy"`
+type restrictedPeer struct {
+	IP                      IP            `cbor:"0,keyasint,omitemtpy"`
+	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitemtpy"`
+	RestrictDuration        time.Duration `cbor:"2,keyasint,omitemtpy"`
+	Reason                  string        `cbor:"3,keyasint,omitemtpy"`
 }
 
-func (sp *SuspendedPeer) SuspendTime() time.Time {
-	return fromUnixMillis(sp.SuspendTimestampMillis)
+func (sp *restrictedPeer) RestrictTime() time.Time {
+	return time.UnixMilli(sp.RestrictTimestampMillis)
 }
 
-func (sp *SuspendedPeer) AwakeTime() time.Time {
-	return sp.SuspendTime().Add(sp.SuspendDuration)
+func (sp *restrictedPeer) AwakeTime() time.Time {
+	return sp.RestrictTime().Add(sp.RestrictDuration)
 }
 
-func (sp *SuspendedPeer) IsSuspended(now time.Time) bool {
+func (sp *restrictedPeer) IsRestricted(now time.Time) bool {
 	awakeTime := sp.AwakeTime()
 	return awakeTime.After(now)
 }
 
-type suspendedPeers map[IP]SuspendedPeer
+type restrictedPeers map[IP]restrictedPeer
+
+type SuspendedPeer = restrictedPeer
+
+func NewSuspendedPeer(ip IP, suspendTimestampMillis int64, suspendDuration time.Duration, reason string) SuspendedPeer {
+	return SuspendedPeer{
+		IP:                      ip,
+		RestrictTimestampMillis: suspendTimestampMillis,
+		RestrictDuration:        suspendDuration,
+		Reason:                  reason,
+	}
+}
+
+type suspendedPeers = restrictedPeers
+
+type BlackListedPeer = restrictedPeer
+
+func NewBlackListedPeer(ip IP, blackListTimestampMillis int64, blackListDuration time.Duration, reason string) BlackListedPeer {
+	return BlackListedPeer{
+		IP:                      ip,
+		RestrictTimestampMillis: blackListTimestampMillis,
+		RestrictDuration:        blackListDuration,
+		Reason:                  reason,
+	}
+}
+
+type blackListedPeers = restrictedPeers
 
 type pair struct {
 	peer KnownPeer
@@ -96,10 +122,4 @@ func (a knownPeers) OldestFirst(limit int) []KnownPeer {
 		r[i] = ps[i].peer
 	}
 	return r
-}
-
-func fromUnixMillis(timestampMillis int64) time.Time {
-	sec := timestampMillis / 1_000
-	nsec := (timestampMillis % 1_000) * 1_000_000
-	return time.Unix(sec, nsec)
 }

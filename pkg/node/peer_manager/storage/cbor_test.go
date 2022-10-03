@@ -24,10 +24,10 @@ func TestMarshalUnmarshalCborFromFile(t *testing.T) {
 	}()
 
 	expected := SuspendedPeer{
-		IP:                     IPFromString("13.3.4.1"),
-		SuspendTimestampMillis: time.Now().UnixNano() / 1_000_000,
-		SuspendDuration:        time.Minute * 5,
-		Reason:                 "some reason",
+		IP:                      IPFromString("13.3.4.1"),
+		RestrictTimestampMillis: time.Now().UnixMilli(),
+		RestrictDuration:        time.Minute * 5,
+		Reason:                  "some reason",
 	}
 
 	err = marshalToCborAndSyncToFile(tmpFile.Name(), &expected)
@@ -217,28 +217,28 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 	now := s.now.Truncate(time.Millisecond)
 	suspended := []SuspendedPeer{
 		{
-			IP:                     IPFromString("13.3.4.1"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration,
-			Reason:                 "some reason #1",
+			IP:                      IPFromString("13.3.4.1"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration,
+			Reason:                  "some reason #1",
 		},
 		{
-			IP:                     IPFromString("3.54.1.9"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration,
-			Reason:                 "some reason #2",
+			IP:                      IPFromString("3.54.1.9"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration,
+			Reason:                  "some reason #2",
 		},
 		{
-			IP:                     IPFromString("23.43.7.43"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration + time.Minute*2,
-			Reason:                 "some reason #3",
+			IP:                      IPFromString("23.43.7.43"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration + time.Minute*2,
+			Reason:                  "some reason #3",
 		},
 		{
-			IP:                     IPFromString("42.54.1.6"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration + time.Minute*2,
-			Reason:                 "some reason #4",
+			IP:                      IPFromString("42.54.1.6"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration + time.Minute*2,
+			Reason:                  "some reason #4",
 		},
 	}
 
@@ -354,7 +354,147 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 		}()
 
 		s.storage.suspendedFilePath = badFilePath
-		err = s.storage.unsafeSyncSuspended(nil, nil)
+		err = s.storage.unsafeSyncRestricted(nil, nil, suspendedPeersID)
+		require.Error(s.T(), err)
+	})
+}
+
+func (s *binaryStorageCborSuite) TestCBORStorageBlackList() {
+	blackListDuration := time.Minute * 5
+	now := s.now.Truncate(time.Millisecond)
+	blackList := []BlackListedPeer{
+		{
+			IP:                      IPFromString("13.3.4.1"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        blackListDuration,
+			Reason:                  "some reason #1",
+		},
+		{
+			IP:                      IPFromString("3.54.1.9"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        blackListDuration,
+			Reason:                  "some reason #2",
+		},
+		{
+			IP:                      IPFromString("23.43.7.43"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        blackListDuration + time.Minute*2,
+			Reason:                  "some reason #3",
+		},
+		{
+			IP:                      IPFromString("42.54.1.6"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        blackListDuration + time.Minute*2,
+			Reason:                  "some reason #4",
+		},
+	}
+
+	check := func(blackList []BlackListedPeer) {
+		var unmarshalled blackListedPeers
+		require.NoError(s.T(), unmarshalCborFromFile(s.storage.blackListFilePath, &unmarshalled))
+		assert.Equal(s.T(), len(blackList), len(unmarshalled))
+
+		for _, expected := range blackList {
+			_, in := unmarshalled[expected.IP]
+			require.True(s.T(), in)
+		}
+
+		cachedBlackList := make(blackListedPeers)
+		for _, blackListedPeer := range s.storage.BlackList(now) {
+			cachedBlackList[blackListedPeer.IP] = blackListedPeer
+		}
+
+		for k := range cachedBlackList {
+			_, in := unmarshalled[k]
+			require.True(s.T(), in)
+		}
+	}
+
+	s.Run("add and get black listed peers", func() {
+		require.NoError(s.T(), s.storage.AddToBlackList(nil))
+
+		err := s.storage.AddToBlackList(blackList)
+		require.NoError(s.T(), err)
+		check(blackList)
+	})
+
+	s.Run("ip is black listed", func() {
+		for _, peer := range blackList {
+			require.True(s.T(), s.storage.IsBlackListedIP(peer.IP, now))
+		}
+	})
+
+	s.Run("ips are black listed", func() {
+		empty := s.storage.IsBlackListedIPs(nil, now)
+		assert.Empty(s.T(), empty)
+
+		ips := make([]IP, 0, len(blackList))
+		for _, peer := range blackList {
+			ips = append(ips, peer.IP)
+		}
+		res := s.storage.IsBlackListedIPs(ips, now.Add(blackListDuration))
+		assert.False(s.T(), res[0])
+		assert.False(s.T(), res[1])
+		assert.True(s.T(), res[2])
+		assert.True(s.T(), res[3])
+	})
+
+	s.Run("delete and get black listed peers", func() {
+		defer func() {
+			require.NoError(s.T(), s.storage.AddToBlackList(blackList))
+		}()
+
+		require.NoError(s.T(), s.storage.DeleteBlackListedByIP(nil))
+
+		err := s.storage.DeleteBlackListedByIP(blackList[:1])
+		require.NoError(s.T(), err)
+		check(blackList[1:])
+	})
+
+	s.Run("refresh black listed peers", func() {
+		err := s.storage.RefreshBlackList(now.Add(blackListDuration))
+		require.NoError(s.T(), err)
+		check(blackList[2:])
+	})
+
+	s.Run("new cbor storage with black list refreshing", func() {
+		defer func() {
+			require.NoError(s.T(), s.storage.AddToBlackList(blackList))
+		}()
+
+		newNow := now.Add(blackListDuration)
+		storage, err := newCBORStorageInDir(s.storage.storageDir, newNow, peersStorageCurrentVersion)
+		require.NoError(s.T(), err)
+		s.storage = storage
+
+		testMap := make(blackListedPeers)
+		for _, peer := range s.storage.BlackList(newNow) {
+			testMap[peer.IP] = peer
+		}
+
+		for _, peer := range blackList[2:] {
+			inMapPeer, in := testMap[peer.IP]
+			assert.True(s.T(), in)
+			assert.Equal(s.T(), peer, inMapPeer)
+		}
+	})
+
+	s.Run("unsafe sync black listed peers bad storage file", func() {
+		defer func(blackListStorageFile string) {
+			require.NoError(s.T(), os.Remove(s.storage.blackListFilePath))
+			s.storage.blackListFilePath = blackListStorageFile
+		}(s.storage.blackListFilePath)
+
+		badFilePath := filepath.Join(s.storage.storageDir, "test_invalid_black_list_storage_file")
+		f, err := os.OpenFile(badFilePath, os.O_CREATE, 0100)
+		require.NoError(s.T(), err)
+		defer func() {
+			require.NoError(s.T(), f.Chmod(0644))
+			require.NoError(s.T(), f.Close())
+		}()
+
+		s.storage.blackListFilePath = badFilePath
+		err = s.storage.unsafeSyncRestricted(nil, nil, blackListedPeersID)
 		require.Error(s.T(), err)
 	})
 }
@@ -364,28 +504,28 @@ func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 	now := s.now.Truncate(time.Millisecond)
 	suspended := []SuspendedPeer{
 		{
-			IP:                     IPFromString("13.3.4.1"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration,
-			Reason:                 "some reason #1",
+			IP:                      IPFromString("13.3.4.1"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration,
+			Reason:                  "some reason #1",
 		},
 		{
-			IP:                     IPFromString("3.54.1.9"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration,
-			Reason:                 "some reason #2",
+			IP:                      IPFromString("3.54.1.9"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration,
+			Reason:                  "some reason #2",
 		},
 		{
-			IP:                     IPFromString("23.43.7.43"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration + time.Minute*2,
-			Reason:                 "some reason #3",
+			IP:                      IPFromString("23.43.7.43"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration + time.Minute*2,
+			Reason:                  "some reason #3",
 		},
 		{
-			IP:                     IPFromString("42.54.1.6"),
-			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
-			SuspendDuration:        suspendDuration + time.Minute*2,
-			Reason:                 "some reason #4",
+			IP:                      IPFromString("42.54.1.6"),
+			RestrictTimestampMillis: now.UnixMilli(),
+			RestrictDuration:        suspendDuration + time.Minute*2,
+			Reason:                  "some reason #4",
 		},
 	}
 

@@ -85,11 +85,11 @@ func CreateFileConfigs(enableScalaMining bool) (ConfigPaths, TestConfig, error) 
 	cfg.ScalaOpts.EnableMining = enableScalaMining
 	scalaPath, err := CreateScalaNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create scala-node config")
 	}
 	goPath, err := CreateGoNodeConfig(cfg)
 	if err != nil {
-		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create scala-node config")
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
 	}
 	return ConfigPaths{ScalaConfigPath: scalaPath, GoConfigPath: goPath}, TestConfig{Accounts: acc}, nil
 }
