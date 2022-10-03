@@ -392,15 +392,6 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 		return proto.EthereumHash{}, err
 	}
 
-	if err := s.nodeRPCApp.UtxPool.Add(&tx); err != nil {
-		zap.S().Warnf(
-			"Eth_SendRawTransaction: failed to add ethereum transaction (ethTxID=%q, to=%q, from=%q) to UTXPool: %v",
-			ethTxID.String(), to.String(), from.String(), err,
-		)
-		// TODO(nickeskov): what is correct response?
-		return proto.EthereumHash{}, err
-	}
-
 	respCh := make(chan error, 1)
 	// TODO(nickeskov): add context?
 	s.nodeRPCApp.InternalChannel <- messages.NewBroadcastTransaction(respCh, &tx)
