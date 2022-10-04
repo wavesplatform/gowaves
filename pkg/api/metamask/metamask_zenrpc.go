@@ -91,7 +91,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 			"Eth_GetBlockByNumber": {
 				Description: `Eth_GetBlockByNumber returns information about a block by block number.
 - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-- filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
+- filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "blockOrTag",
@@ -119,7 +119,9 @@ func (RPCService) SMD() smd.ServiceInfo {
 				},
 			},
 			"Eth_GetBlockByHash": {
-				Description: ``,
+				Description: `Eth_GetBlockByHash returns block by provided blockID.
+- blockIDBytes: block id in hexadecimal notation.
+- filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions.`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "blockIDBytes",
@@ -127,6 +129,12 @@ func (RPCService) SMD() smd.ServiceInfo {
 						Description: ``,
 						Type:        smd.Object,
 						Properties:  map[string]smd.Property{},
+					},
+					{
+						Name:        "filterTxObj",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Boolean,
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -534,10 +542,11 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 	case RPC.RPCService.Eth_GetBlockByHash:
 		var args = struct {
 			BlockIDBytes proto.HexBytes `json:"blockIDBytes"`
+			FilterTxObj  bool           `json:"filterTxObj"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"blockIDBytes"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"blockIDBytes", "filterTxObj"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -548,7 +557,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_GetBlockByHash(args.BlockIDBytes))
+		resp.Set(s.Eth_GetBlockByHash(args.BlockIDBytes, args.FilterTxObj))
 
 	case RPC.RPCService.Eth_GasPrice:
 		resp.Set(s.Eth_GasPrice())

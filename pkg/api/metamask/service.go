@@ -91,7 +91,7 @@ type GetBlockByNumberResponse struct {
 
 // Eth_GetBlockByNumber returns information about a block by block number.
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-//   - filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions */
+//   - filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions
 func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) (GetBlockByNumberResponse, error) {
 	zap.S().Debugf("Eth_GetBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filterTxObj)
 	var n proto.Height
@@ -123,7 +123,11 @@ type GetBlockByHashResponse struct {
 	BaseFeePerGas string `json:"baseFeePerGas"`
 }
 
-func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes) (*GetBlockByHashResponse, error) {
+// Eth_GetBlockByHash returns block by provided blockID.
+//   - blockIDBytes: block id in hexadecimal notation.
+//   - filterTxObj: if true it returns the full transaction objects, if false only the hashes of the transactions.
+func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes, filterTxObj bool) (*GetBlockByHashResponse, error) {
+	zap.S().Debugf("Eth_GetBlockByHash was called: blockIDBytes %q, filter \"%t\"", blockIDBytes, filterTxObj)
 	blockID, err := proto.NewBlockIDFromBytes(blockIDBytes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse blockID from blockIDBytes %q", blockIDBytes.String())
