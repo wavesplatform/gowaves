@@ -119,6 +119,26 @@ func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) (G
 	}, nil
 }
 
+type GetBlockByHashResponse struct {
+	BaseFeePerGas string `json:"baseFeePerGas"`
+}
+
+func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes) (*GetBlockByHashResponse, error) {
+	blockID, err := proto.NewBlockIDFromBytes(blockIDBytes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse blockID from blockIDBytes %q", blockIDBytes.String())
+	}
+	_, err = s.nodeRPCApp.State.BlockIDToHeight(blockID)
+	switch {
+	case state.IsNotFound(err):
+		return nil, nil // according to the scala node implementation
+	case err != nil:
+		return nil, errors.Wrapf(err, "failed to fetch heigh of block by blockID %q", blockID.String())
+	default:
+		return &GetBlockByHashResponse{BaseFeePerGas: "0x0"}, nil
+	}
+}
+
 // Eth_GasPrice returns the current price per gas in wei
 func (s RPCService) Eth_GasPrice() string {
 	return uint64ToHexString(proto.EthereumGasPrice)

@@ -13,14 +13,15 @@ import (
 )
 
 var RPC = struct {
-	RPCService struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GasPrice, Eth_EstimateGas, Eth_Call, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction, Eth_GetTransactionReceipt, Eth_GetTransactionByHash string }
+	RPCService struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GetBlockByHash, Eth_GasPrice, Eth_EstimateGas, Eth_Call, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction, Eth_GetTransactionReceipt, Eth_GetTransactionByHash string }
 }{
-	RPCService: struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GasPrice, Eth_EstimateGas, Eth_Call, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction, Eth_GetTransactionReceipt, Eth_GetTransactionByHash string }{
+	RPCService: struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GetBlockByHash, Eth_GasPrice, Eth_EstimateGas, Eth_Call, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction, Eth_GetTransactionReceipt, Eth_GetTransactionByHash string }{
 		Eth_BlockNumber:           "eth_blocknumber",
 		Net_Version:               "net_version",
 		Eth_ChainId:               "eth_chainid",
 		Eth_GetBalance:            "eth_getbalance",
 		Eth_GetBlockByNumber:      "eth_getblockbynumber",
+		Eth_GetBlockByHash:        "eth_getblockbyhash",
 		Eth_GasPrice:              "eth_gasprice",
 		Eth_EstimateGas:           "eth_estimategas",
 		Eth_Call:                  "eth_call",
@@ -111,6 +112,29 @@ func (RPCService) SMD() smd.ServiceInfo {
 					Type:        smd.Object,
 					Properties: map[string]smd.Property{
 						"number": {
+							Description: ``,
+							Type:        smd.String,
+						},
+					},
+				},
+			},
+			"Eth_GetBlockByHash": {
+				Description: ``,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "blockIDBytes",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Object,
+						Properties:  map[string]smd.Property{},
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    true,
+					Type:        smd.Object,
+					Properties: map[string]smd.Property{
+						"baseFeePerGas": {
 							Description: ``,
 							Type:        smd.String,
 						},
@@ -506,6 +530,25 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 		}
 
 		resp.Set(s.Eth_GetBlockByNumber(args.BlockOrTag, args.FilterTxObj))
+
+	case RPC.RPCService.Eth_GetBlockByHash:
+		var args = struct {
+			BlockIDBytes proto.HexBytes `json:"blockIDBytes"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"blockIDBytes"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_GetBlockByHash(args.BlockIDBytes))
 
 	case RPC.RPCService.Eth_GasPrice:
 		resp.Set(s.Eth_GasPrice())
