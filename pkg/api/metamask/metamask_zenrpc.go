@@ -67,7 +67,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 			"Eth_GetBalance": {
 				Description: `Eth_GetBalance returns the balance of the account of given address
 - address: 20 Bytes - address to check for balance
-- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "address",
@@ -196,7 +196,9 @@ func (RPCService) SMD() smd.ServiceInfo {
 				},
 			},
 			"Eth_Call": {
-				Description: ``,
+				Description: `Eth_Call returns information about assets.
+- params: the tx call object
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "params",
@@ -220,6 +222,12 @@ func (RPCService) SMD() smd.ServiceInfo {
 								Properties: map[string]smd.Property{},
 							},
 						},
+					},
+					{
+						Name:        "blockOrTag",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -583,11 +591,12 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_Call:
 		var args = struct {
-			Params ethCallParams `json:"params"`
+			Params     ethCallParams `json:"params"`
+			BlockOrTag string        `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"params"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"params", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -598,7 +607,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_Call(args.Params))
+		resp.Set(s.Eth_Call(args.Params, args.BlockOrTag))
 
 	case RPC.RPCService.Eth_GetCode:
 		var args = struct {

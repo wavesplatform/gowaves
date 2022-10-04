@@ -62,7 +62,7 @@ func (s RPCService) Eth_ChainId() string {
 
 // Eth_GetBalance returns the balance of the account of given address
 //   - address: 20 Bytes - address to check for balance
-//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_GetBalance(address, blockOrTag string) (string, error) {
 	zap.S().Debugf("Eth_GetBalance was called: address %q, blockOrTag %q", address, blockOrTag)
 
@@ -252,7 +252,11 @@ var (
 	erc20SupportsInterfaceSelector = ethabi.Signature("supportsInterface(bytes4)").Selector() // "0x01ffc9a7"
 )
 
-func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
+// Eth_Call returns information about assets.
+//   - params: the tx call object
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+func (s RPCService) Eth_Call(params ethCallParams, blockOrTag string) (string, error) {
+	zap.S().Debugf("Eth_Call was called: params %q, blockOrTag %q", params, blockOrTag)
 	val, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
 	if err != nil {
 		zap.S().Debugf("Eth_Call: %v", err)
@@ -262,7 +266,6 @@ func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 }
 
 func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fastrlp.Value, error) {
-	zap.S().Debugf("Eth_Call was called with %q", params.String())
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
