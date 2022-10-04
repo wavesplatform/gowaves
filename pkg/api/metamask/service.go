@@ -380,6 +380,7 @@ func (s RPCService) Eth_GetTransactionCount(address, blockOrTag string) string {
 //   - signedTxData: The signed transaction data.
 func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumHash, error) {
 	// TODO(nickeskov): what this method should return in case of error?
+	const broadcastTimeout = 5 * time.Second
 
 	data, err := proto.DecodeFromHexString(signedTxData)
 	if err != nil {
@@ -416,14 +417,18 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 	// TODO(nickeskov): add context?
 	s.nodeRPCApp.InternalChannel <- messages.NewBroadcastTransaction(respCh, &tx)
 
+	timer := time.NewTimer(broadcastTimeout)
 	select {
-	case <-time.After(5 * time.Second):
+	case <-timer.C:
 		zap.S().Errorf(
 			"Eth_SendRawTransaction: timeout waiting response from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q)",
 			ethTxID.String(), to.String(), from.String(),
 		)
 		return proto.EthereumHash{}, errors.New("timeout waiting response from internal FSM")
 	case err := <-respCh:
+		if !timer.Stop() {
+			<-timer.C
+		}
 		if err != nil {
 			zap.S().Debugf("Eth_SendRawTransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
 				ethTxID.String(), to.String(), from.String(), err,
@@ -494,7 +499,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 	}
 	gasLimit := uint64ToHexString(tx.GetFee())
 
-	return &GetTransactionReceiptResponse{
+	resp := &GetTransactionReceiptResponse{
 		TransactionHash:   ethTxID,
 		TransactionIndex:  "0x01",                                              // according to the scala node implementation
 		BlockHash:         proto.EncodeToHexString(lastBlockHeader.ID.Bytes()), // should be always 32bytes
@@ -507,7 +512,8 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 		Logs:              []string{},
 		LogsBloom:         proto.EthereumHash{},
 		Status:            txStatus,
-	}, nil
+	}
+	return resp, nil
 }
 
 type GetTransactionByHashResponse struct {
@@ -571,7 +577,7 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 
 	gasLimit := uint64ToHexString(tx.GetFee())
 
-	return &GetTransactionByHashResponse{
+	resp := &GetTransactionByHashResponse{
 		Hash:             ethTxID,
 		Nonce:            "0x1",
 		BlockHash:        proto.EncodeToHexString(lastBlockHeader.ID.Bytes()),
@@ -588,5 +594,6 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 		R:                "0x50",
 		Raw:              "0x60",
 		PublicKey:        *fromPK,
-	}, nil
+	}
+	return resp, nil
 }
