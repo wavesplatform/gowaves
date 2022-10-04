@@ -82,7 +82,7 @@ func (s RPCService) Eth_GetBalance(address, blockOrTag string) (string, error) {
 		// todo log err
 		return "", err
 	}
-	return bigIntToHexString(proto.WaveletToEthereumWei(amount)), nil // 0.159
+	return bigIntToHexString(proto.WaveletToEthereumWei(amount)), nil
 }
 
 type GetBlockByNumberResponse struct {
@@ -363,7 +363,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 
 	data, err := proto.DecodeFromHexString(signedTxData)
 	if err != nil {
-		zap.S().Errorf("Eth_SendRawTransaction: failed to decode ethereum transaction: %v", err)
+		zap.S().Debugf("Eth_SendRawTransaction: failed to decode ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
 	}
 
@@ -372,7 +372,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 	var tx proto.EthereumTransaction
 	err = tx.DecodeCanonical(data)
 	if err != nil {
-		zap.S().Errorf("Eth_SendRawTransaction: failed to unmarshal rlp encoded ethereum transaction: %v", err)
+		zap.S().Debugf("Eth_SendRawTransaction: failed to unmarshal rlp encoded ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
 	}
 
@@ -385,7 +385,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 	to := tx.To()
 	from, err := tx.From()
 	if err != nil {
-		zap.S().Errorf(
+		zap.S().Debugf(
 			"Eth_SendRawTransaction: failed to get sender of ethereum transaction (ethTxID=%q, to=%q): %v",
 			ethTxID.String(), to.String(), err,
 		)
@@ -405,7 +405,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 		return proto.EthereumHash{}, errors.New("timeout waiting response from internal FSM")
 	case err := <-respCh:
 		if err != nil {
-			zap.S().Errorf("Eth_SendRawTransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
+			zap.S().Debugf("Eth_SendRawTransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
 				ethTxID.String(), to.String(), from.String(), err,
 			)
 			return proto.EthereumHash{}, err
