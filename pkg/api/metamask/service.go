@@ -181,7 +181,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 	}
 	switch txKind {
 	case state.EthereumTransferWavesKind:
-		return fmt.Sprintf("%d", proto.MinFee), nil
+		return uint64ToHexString(proto.MinFee), nil
 	case state.EthereumTransferAssetsKind:
 		fee := proto.MinFee
 		assetID := (*proto.AssetID)(req.To)
@@ -193,7 +193,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		if asset.Scripted {
 			fee += proto.MinFeeScriptedAsset
 		}
-		return fmt.Sprintf("%d", fee), nil
+		return uint64ToHexString(uint64(fee)), nil
 	case state.EthereumInvokeKind:
 		fee := proto.MinFeeInvokeScript
 
@@ -226,7 +226,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 				fee += proto.MinFeeScriptedAsset
 			}
 		}
-		return fmt.Sprintf("%d", fee), nil
+		return uint64ToHexString(uint64(fee)), nil
 	default:
 		return "", errors.Errorf("unexpected ethereum tx kind")
 	}
