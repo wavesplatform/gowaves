@@ -299,12 +299,17 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 		}
 		return ethabi.Int(info.Decimals).EncodeToABI(), nil
 	case erc20BalanceSelector:
-		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
+		const (
+			// ethabi.SelectorSize + 4 bytes padding = 16
+			// example value from metamask: "0x70a082310000000000000000000000007fd3a8438edf428eeb1dafe75afd5f64dd5017bf"
+			selectorSizeWithPadding = 16
+		)
+		if len(callData) != selectorSizeWithPadding+proto.EthereumAddressSize {
 			return nil, errors.Errorf("invalid call data for %q ERC20 method, call data %q",
 				erc20BalanceSelector.String(), params.Data,
 			)
 		}
-		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
+		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[selectorSizeWithPadding:])
 		if err != nil {
 			return nil, err
 		}
