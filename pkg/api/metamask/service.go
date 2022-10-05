@@ -323,7 +323,7 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 	case erc20SupportsInterfaceSelector:
 		return ethabi.Bool(false).EncodeToABI(), nil
 	default:
-		return nil, errors.Errorf("unexpected call, %s", params.String())
+		return nil, nil // according to the scala node implementation ("0x" in the result will be returned)
 	}
 }
 
