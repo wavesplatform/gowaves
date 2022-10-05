@@ -31,16 +31,10 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
 		actualAssetBalance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
 
-		expectedDiffBalanceInWaves, err := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected diff balance")
-		expectedAssetBalance, err := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected asset balance")
-
 		suite.NoErrorf(errWtGo, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
 		suite.NoErrorf(errWtScala, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
-
+		suite.Equalf(td.Expected.WavesDiffBalance, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
+		suite.Equalf(td.Expected.AssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
 	}
 }
 
@@ -62,19 +56,16 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
 		actualAsset1Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx1.TxID.Bytes())
 		actualAsset2Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx2.TxID.Bytes())
-		diffBalanceInWaves, err := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected diff balance")
-		expectedDiffBalanceInWaves := 2 * diffBalanceInWaves
-		expectedAssetBalance, err := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected asset balance")
+		// TODO(nickeskov): explain why we multiply expected value two times
+		expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
 
 		suite.NoErrorf(errWtGo1, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
 		suite.NoErrorf(errWtScala1, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
 		suite.NoErrorf(errWtGo2, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
 		suite.NoErrorf(errWtScala2, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
 		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAsset1Balance, "Node go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAsset2Balance, "Node Go in case: \"%s\"", name)
+		suite.Equalf(td.Expected.AssetBalance, actualAsset1Balance, "Node go in case: \"%s\"", name)
+		suite.Equalf(td.Expected.AssetBalance, actualAsset2Balance, "Node Go in case: \"%s\"", name)
 	}
 }
 

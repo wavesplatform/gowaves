@@ -14,7 +14,7 @@ type CommonIssueTxSuite struct {
 	f.BaseSuite
 }
 
-func NewSignIssueTransaction(suite *CommonIssueTxSuite, testdata testdata.IssueTestData) *proto.IssueWithSig {
+func NewSignIssueTransaction[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T]) *proto.IssueWithSig {
 	tx := proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
 		testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
@@ -22,13 +22,13 @@ func NewSignIssueTransaction(suite *CommonIssueTxSuite, testdata testdata.IssueT
 	return tx
 }
 
-func Issue(suite *CommonIssueTxSuite, testdata testdata.IssueTestData, timeout time.Duration) (*proto.IssueWithSig, error, error) {
+func Issue[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (*proto.IssueWithSig, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
 	errGo, errScala := utilities.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
 	return tx, errGo, errScala
 }
 
-func IssueBroadcast(suite *CommonIssueTxSuite, testdata testdata.IssueTestData, timeout time.Duration) (
+func IssueBroadcast[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (
 	utilities.BroadcastedTransaction, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
 	brdCstTx, errGo, errScala := utilities.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)

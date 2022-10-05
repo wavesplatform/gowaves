@@ -13,7 +13,7 @@ const (
 	errName      = "invalid name"
 )
 
-type IssueTestData struct {
+type IssueTestData[T any] struct {
 	Account    config.AccountInfo
 	AssetName  string
 	AssetDesc  string
@@ -23,12 +23,22 @@ type IssueTestData struct {
 	Fee        uint64
 	Timestamp  uint64
 	ChainID    proto.Scheme
-	Expected   map[string]string
+	Expected   T
 }
 
-func NewIssueTestData(account config.AccountInfo, assetName string, assetDesc string, quantity uint64, decimals byte,
-	reissuable bool, fee uint64, timestamp uint64, chainID proto.Scheme, expected map[string]string) *IssueTestData {
-	return &IssueTestData{
+// expectedValuesMap is just a wrapper for usual map.
+// TODO(nickeskov): replace it with a new struct with all necessary fields
+type expectedValuesMap map[string]string
+
+type ExpectedValuesPositive struct {
+	WavesDiffBalance int64
+	AssetBalance     int64
+	_                struct{} // this field is necessary to force using explicit struct initialization
+}
+
+func NewIssueTestData[T any](account config.AccountInfo, assetName string, assetDesc string, quantity uint64, decimals byte,
+	reissuable bool, fee uint64, timestamp uint64, chainID proto.Scheme, expected T) *IssueTestData[T] {
+	return &IssueTestData[T]{
 		Account:    account,
 		AssetName:  assetName,
 		AssetDesc:  assetDesc,
@@ -42,13 +52,13 @@ func NewIssueTestData(account config.AccountInfo, assetName string, assetDesc st
 	}
 }
 
-func DataChangedTimestamp(td *IssueTestData) IssueTestData {
+func DataChangedTimestamp[T any](td *IssueTestData[T]) IssueTestData[T] {
 	return *NewIssueTestData(td.Account, td.AssetName, td.AssetDesc, td.Quantity, td.Decimals, td.Reissuable, td.Fee,
 		utl.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
 }
 
-func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
-	var t = map[string]IssueTestData{
+func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
+	var t = map[string]IssueTestData[ExpectedValuesPositive]{
 		"Min values, empty description, NFT": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(4),
@@ -59,9 +69,9 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
-				"waves diff balance": "100000000",
-				"asset balance":      "1",
+			ExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetBalance:     1,
 			}),
 		"Middle values, special symbols in desc, not reissuable": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -73,9 +83,9 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
-				"waves diff balance": "100000000",
-				"asset balance":      "100000000000",
+			ExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetBalance:     100000000000,
 			}),
 		"Max values": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -87,16 +97,16 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
-				"waves diff balance": "100000000",
-				"asset balance":      "9223372036854775807",
+			ExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetBalance:     9223372036854775807,
 			}),
 	}
 	return t
 }
 
-func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
-	var t = map[string]IssueTestData{
+func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expectedValuesMap] {
+	var t = map[string]IssueTestData[expectedValuesMap]{
 		"Invalid asset name (len < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(3),
@@ -107,7 +117,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -125,7 +135,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -143,7 +153,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -161,7 +171,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -180,7 +190,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 		100000000,
 		utl.GetCurrentTimestampInMs(),
 		'L',
-		map[string]string{
+		expectedValuesMap{
 			"err go msg":         errMsg,
 			"err scala msg":      errMsg,
 		    "err brdcst msg go":    errBrdCstMsg,
@@ -198,7 +208,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -216,7 +226,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -234,7 +244,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -252,7 +262,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -270,7 +280,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			9223372036854775808,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -288,7 +298,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			10,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -306,7 +316,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			0,
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -324,7 +334,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs()-7215000,
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -342,7 +352,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			100000000,
 			utl.GetCurrentTimestampInMs()+54160000,
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
@@ -360,7 +370,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData {
 			uint64(100000000+utl.GetAvalibleBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			utl.GetCurrentTimestampInMs(),
 			'L',
-			map[string]string{
+			expectedValuesMap{
 				"err go msg":           errMsg,
 				"err scala msg":        errMsg,
 				"err brdcst msg go":    errBrdCstMsg,
