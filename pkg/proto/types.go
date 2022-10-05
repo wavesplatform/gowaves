@@ -3085,7 +3085,7 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &IntegerArgument{}
 	case "boolean":
 		r = &BooleanArgument{}
-	case "binary":
+	case "binary", "bytevector":
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
