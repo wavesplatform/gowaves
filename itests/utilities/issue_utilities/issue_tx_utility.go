@@ -7,7 +7,6 @@ import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	"github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -30,8 +29,8 @@ func Issue(suite *CommonIssueTxSuite, testdata testdata.IssueTestData, timeout t
 }
 
 func IssueBroadcast(suite *CommonIssueTxSuite, testdata testdata.IssueTestData, timeout time.Duration) (
-	*proto.IssueWithSig, *client.Response, error, *client.Response, error) {
+	utilities.BroadcastedTransaction, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
-	respGo, errGo, respScala, errScala := utilities.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
-	return tx, respGo, errGo, respScala, errScala
+	brdCstTx, errGo, errScala := utilities.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
+	return brdCstTx, errGo, errScala
 }

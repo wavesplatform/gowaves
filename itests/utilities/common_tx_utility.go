@@ -18,6 +18,25 @@ const (
 	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 )
 
+type BroadcastedTransaction struct {
+	TxID             crypto.Digest
+	ResponseGo       *client.Response
+	ErrorBrdCstGo    error
+	ResponseScala    *client.Response
+	ErrorBrdCstScala error
+}
+
+func NewBroadcastedTransaction(txId crypto.Digest, responseGo *client.Response, errBrdCstGo error,
+	responseScala *client.Response, errBrdCstScala error) *BroadcastedTransaction {
+	return &BroadcastedTransaction{
+		TxID:             txId,
+		ResponseGo:       responseGo,
+		ErrorBrdCstGo:    errBrdCstGo,
+		ResponseScala:    responseScala,
+		ErrorBrdCstScala: errBrdCstScala,
+	}
+}
+
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for j := range b {
@@ -102,16 +121,12 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 }
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (
-	*client.Response, error, *client.Response, error) {
+	BroadcastedTransaction, error, error) {
 	_, id := marshalTransaction(suite.T(), tx, scheme)
 
-	respGo, err := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
-	suite.NoError(err, "failed to broadcast transaction to Go node")
+	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
+	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
+	errWtGo, errWtScala := suite.Clients.WaitForTransaction(&id, timeout)
 
-	respScala, err := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
-	suite.NoError(err, "failed to broadcast transaction to Scala node")
-
-	errGo, errScala := suite.Clients.WaitForTransaction(&id, timeout)
-
-	return respGo, errGo, respScala, errScala
+	return *NewBroadcastedTransaction(id, respGo, errBrdCstGo, respScala, errBrdCstScala), errWtGo, errWtScala
 }
