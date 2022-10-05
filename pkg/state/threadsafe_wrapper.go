@@ -272,6 +272,12 @@ func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, a
 	return a.s.NFTList(account, limit, afterAssetID)
 }
 
+func (a *ThreadSafeReadWrapper) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.ScriptBasicInfoByAccount(account)
+}
+
 func (a *ThreadSafeReadWrapper) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

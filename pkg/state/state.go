@@ -1900,11 +1900,11 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 }
 
 func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, status, err := s.rw.readTransaction(id)
+	tx, failed, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, false, wrapErr(RetrievalError, err)
 	}
-	return tx, status, nil
+	return tx, failed, nil
 }
 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
@@ -2139,6 +2139,31 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 		infos[i] = info
 	}
 	return infos, nil
+}
+
+func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	hasScript, err := s.stor.scriptsStorage.accountHasScript(*addr)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !hasScript {
+		return nil, proto.ErrNotFound
+	}
+	info, err := s.stor.scriptsStorage.scriptBasicInfoByAddressID(addr.ID())
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return &proto.ScriptBasicInfo{
+		PK:             info.PK,
+		ScriptLen:      info.ScriptLen,
+		LibraryVersion: info.LibraryVersion,
+		HasVerifier:    info.HasVerifier,
+		IsDApp:         info.IsDApp,
+	}, nil
 }
 
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {

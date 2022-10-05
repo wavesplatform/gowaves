@@ -6,6 +6,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
+	"github.com/semrush/zenrpc/v2"
+	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 	"go.uber.org/zap"
 )
 
@@ -116,10 +118,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/all", wrapper(a.PeersAll))
 			r.Get("/connected", wrapper(a.PeersConnected))
 			r.Get("/suspended", wrapper(a.PeersSuspended))
+			r.Get("/blacklisted", wrapper(a.PeersBlackListed))
 
 			rAuth := r.With(checkAuthMiddleware)
 
 			rAuth.Post("/connect", wrapper(a.PeersConnect))
+			rAuth.Post("/clearblacklist", wrapper(a.PeersClearBlackList))
 		})
 
 		r.Route("/debug", func(r chi.Router) {
@@ -134,6 +138,15 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 		r.Route("/eth", func(r chi.Router) {
 			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
+			if opts.EnableMetaMaskAPI {
+				service := metamask.NewRPCService(&a.app.services)
+				rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
+				if opts.EnableMetaMaskAPILog {
+					rpc.Use(metamask.APILogMiddleware)
+				}
+				rpc.Register("", service)
+				r.Handle("/", rpc)
+			}
 		})
 
 		// enable or disable history sync

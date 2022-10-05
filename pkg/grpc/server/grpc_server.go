@@ -11,9 +11,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+)
+
+const (
+	DefaultMaxConnections = 128
 )
 
 type Server struct {
@@ -24,6 +29,16 @@ type Server struct {
 	services   services.Services
 	handlers   GrpcHandlers
 	grpcServer *grpc.Server
+}
+
+type RunOptions struct {
+	MaxConnections int
+}
+
+func DefaultRunOptions() *RunOptions {
+	return &RunOptions{
+		MaxConnections: DefaultMaxConnections,
+	}
 }
 
 func NewServer(services services.Services) (*Server, error) {
@@ -53,7 +68,11 @@ func (s *Server) initServer(state state.StateInfo, utx types.UtxPool, sch types.
 	return nil
 }
 
-func (s *Server) Run(ctx context.Context, address string) error {
+func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) error {
+	if opts == nil {
+		opts = DefaultRunOptions()
+	}
+
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime:             10 * time.Second,
@@ -77,6 +96,12 @@ func (s *Server) Run(ctx context.Context, address string) error {
 	if err != nil {
 		return errors.Errorf("net.Listen: %v", err)
 	}
+
+	if opts.MaxConnections > 0 {
+		conn = limit_listener.LimitListener(conn, opts.MaxConnections)
+		zap.S().Debugf("Set limit for number of simultaneous connections for gRPC API to %d", opts.MaxConnections)
+	}
+
 	defer func(conn net.Listener) {
 		err := conn.Close()
 		if err != nil {

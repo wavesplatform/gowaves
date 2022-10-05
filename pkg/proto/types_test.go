@@ -1686,7 +1686,7 @@ func TestEthereumOrderV4(t *testing.T) {
 		require.NoError(t, err)
 
 		ethOrder := EthereumOrderV4{
-			SenderPK:        &testEthSenderPK,
+			SenderPK:        ethereumPublicKeyBase58Wrapper{inner: &testEthSenderPK},
 			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
 				PriceMode:       OrderPriceModeFixedDecimals,
@@ -1811,7 +1811,7 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 		// generate valid senderPK
 		err = order.GenerateSenderPK(tc.scheme)
 		require.NoError(t, err)
-		require.Equal(t, tc.ethSenderPKHex, order.SenderPK.String())
+		require.Equal(t, tc.ethSenderPKHex, order.SenderPK.inner.String())
 
 		// verify check with valid senderPK
 		valid, err = order.Verify(tc.scheme)
