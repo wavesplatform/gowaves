@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
-	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -257,15 +256,15 @@ var (
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_Call(params ethCallParams, blockOrTag string) (string, error) {
 	zap.S().Debugf("Eth_Call was called: params %q, blockOrTag %q", params, blockOrTag)
-	val, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
+	abiVal, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
 	if err != nil {
 		zap.S().Debugf("Eth_Call: %v", err)
 		return "0x", err
 	}
-	return proto.EncodeToHexString(val.MarshalTo(nil)), nil
+	return proto.EncodeToHexString(abiVal), nil
 }
 
-func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fastrlp.Value, error) {
+func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]byte, error) {
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
@@ -282,7 +281,6 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fas
 	}
 
 	var (
-		arena        fastrlp.Arena
 		shortAssetID = proto.AssetID(params.To)
 	)
 	switch selector {
@@ -292,14 +290,14 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fas
 			zap.S().Debugf("Eth_Call: failed to fetch full asset info, %s: %v", params.String(), err)
 			return nil, err
 		}
-		return arena.NewString(fullInfo.Name), nil
+		return ethabi.String(fullInfo.Name).EncodeToABI(), nil
 	case erc20DecimalsSelector:
 		info, err := state.AssetInfo(shortAssetID)
 		if err != nil {
 			zap.S().Debugf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
 			return nil, err
 		}
-		return arena.NewUint(uint64(info.Decimals)), nil
+		return ethabi.Int(info.Decimals).EncodeToABI(), nil
 	case erc20BalanceSelector:
 		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
 			return nil, errors.Errorf("invalid call data for %q ERC20 method, call data %q",
@@ -321,9 +319,9 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) (*fas
 			)
 			return nil, err
 		}
-		return arena.NewUint(accountBalance), nil
+		return ethabi.Int(accountBalance).EncodeToABI(), nil
 	case erc20SupportsInterfaceSelector:
-		return arena.NewBool(false), nil
+		return ethabi.Bool(false).EncodeToABI(), nil
 	default:
 		return nil, errors.Errorf("unexpected call, %s", params.String())
 	}
