@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strconv"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-	"strconv"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
@@ -101,7 +102,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 	if curNode != nil && curNode.pegRule == ruleDeclaration {
 		curNode = p.parseDeclarations(curNode)
 	}
-
+	_ = curNode // TODO: This line added to evade linter error, remove it later
 }
 
 func (p *ASTParser) parseDirectives(node *node32) *node32 {
@@ -472,6 +473,7 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, string) {
 	} else if unaryOp == ruleNotOp {
 		expr = ast.NewFunctionCallNode(ast.NativeFunction("!"), []ast.Node{expr})
 	} else if unaryOp == rulePositiveOp {
+		_ = 1 // TODO: This line added to evade linter error, remove it later
 		// TODO: check type == int
 	}
 	return expr, varType

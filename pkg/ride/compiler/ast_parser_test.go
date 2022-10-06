@@ -58,7 +58,7 @@ func verify() = {
     #true
 }
 `
-	ast, buf, err := buildAST(t, src)
+	ast, buf, err := buildAST(t, src, true)
 
 	require.NoError(t, err)
 	astParser := NewASTParser(ast, buf)

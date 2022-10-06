@@ -8,56 +8,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func buildAST(t *testing.T, src string) (*node32, []rune, error) {
+func buildAST(t *testing.T, src string, pretty bool) (*node32, []rune, error) {
 	p := Parser{Buffer: src}
-	p.Pretty = true
+	p.Pretty = pretty
 	err := p.Init()
 	require.NoError(t, err)
 	err = p.Parse()
 	if err != nil {
 		return nil, nil, err
 	}
-	p.PrintSyntaxTree()
+	if pretty {
+		p.PrintSyntaxTree()
+	}
 	return p.AST(), p.buffer, nil
 }
 
-func astLookUp(node *node32, buffer string, rule string) (*node32, string, bool) {
-	for node != nil {
-		rs := rul3s[node.pegRule]
-		if rs == rule {
-			quote := string([]rune(buffer)[node.begin:node.end])
-			return node, quote, true
-		}
-		if node.up != nil {
-			return astLookUp(node.up, buffer, rule)
-		}
-		node = node.next
+type nodeExpectation struct {
+	name  string
+	value string
+}
+
+func newNodeExpectation(t *testing.T, s string) nodeExpectation {
+	valueBegin := strings.Index(s, "<")
+	valueEnd := strings.LastIndex(s, ">")
+	if valueBegin == -1 || valueEnd == -1 {
+		assert.Fail(t, "invalid node expectation %q", s)
 	}
-	return nil, "", false
+	name := strings.TrimSpace(s[:valueBegin])
+	value := strings.TrimSpace(s[valueBegin+1 : valueEnd])
+	if name == "" || value == "" {
+		assert.Fail(t, "invalid node expectation %q", s)
+	}
+	return nodeExpectation{name: name, value: value}
 }
 
 func checkAST(t *testing.T, expected string, ast *node32, buffer string) {
-	nodes := strings.Split(expected, ";")
-	for _, node := range nodes {
-		valueBegin := strings.Index(node, "<")
-		valueEnd := strings.LastIndex(node, ">")
-		if valueBegin == -1 || valueEnd == -1 {
-			assert.Fail(t, "invalid expected node %q", node, buffer)
-		}
-		name := node[:valueBegin]
-		value := node[valueBegin+1 : valueEnd]
-		if name == "" || value == "" {
-			assert.Fail(t, "invalid expected node %q", node, buffer)
-		}
-		var (
-			val string
-			ok  bool
-		)
-		ast, val, ok = astLookUp(ast, buffer, name)
-		assert.True(t, ok, buffer)
-		assert.NotNil(t, node, buffer)
-		if value != "*" {
-			assert.Equal(t, value, val, buffer)
+	exps := make([]nodeExpectation, 0)
+	for _, s := range strings.Split(expected, ";") {
+		exps = append(exps, newNodeExpectation(t, s))
+	}
+	i := 0
+
+	discovered := map[*node32]struct{}{}
+	stack := make([]*node32, 0)
+	stack = append(stack, ast)
+	for len(stack) > 0 {
+		var n *node32
+		n, stack = stack[0], stack[1:]
+		if _, ok := discovered[n]; !ok {
+			discovered[n] = struct{}{}
+			rs := rul3s[n.pegRule]
+			exp := exps[i]
+			if rs == exp.name {
+				quote := string([]rune(buffer)[n.begin:n.end])
+				if exp.value != "*" {
+					require.Equal(t, exp.value, quote, buffer)
+				}
+				i++
+				if i == len(exps) {
+					return
+				}
+			}
+			if n.next != nil {
+				stack = append([]*node32{n.next}, stack...)
+			}
+			if n.up != nil {
+				stack = append([]*node32{n.up}, stack...)
+			}
 		}
 	}
 }
@@ -83,8 +100,17 @@ func TestStringDirectives(t *testing.T) {
 		{`{-# CONTENT-TYPE ACCOUNT #-}`, true, "\nparse error near DirectiveName (line 1 symbol 5 - line 1 symbol 12):\n\"CONTENT\"\n"},
 		{`{-# IMPORT lib3.ride,dir\lib4.ride #-}`, true, "\nparse error near PathString (line 1 symbol 12 - line 1 symbol 25):\n\"lib3.ride,dir\"\n"},
 		{`{-# IMPORT lib3.ride #-} # comment`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride>"},
+		{`	{-# STDLIB_VERSION 6 #-}
+				{-# IMPORT lib3.ride,lib4.ride #-} # comment
+				{-# CONTENT_TYPE ACCOUNT #-}
+				{-# SCRIPT_TYPE DAPP #-}
+			`, false,
+			"Directive<*>;DirectiveName<STDLIB_VERSION>;IntString<6>;" +
+				"Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride,lib4.ride>;" +
+				"Directive<*>;DirectiveName<CONTENT_TYPE>;UpperCaseString<ACCOUNT>;" +
+				"Directive<*>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<DAPP>"},
 	} {
-		ast, _, err := buildAST(t, test.src)
+		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
 			assert.EqualError(t, err, test.expected, test.src)
 		} else {
