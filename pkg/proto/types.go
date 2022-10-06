@@ -217,7 +217,7 @@ func (v ByteVector) encodeBase64() string {
 	return base64EncodingPrefix + base64.StdEncoding.EncodeToString(v)
 }
 
-// MarshalJSON writes HexBytes Value as JSON string
+// MarshalJSON writes ByteVector Value as JSON string
 func (v ByteVector) MarshalJSON() ([]byte, error) {
 	s := v.String()
 	var sb bytes.Buffer
