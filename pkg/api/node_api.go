@@ -171,7 +171,10 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	apiBlock := newAPIBlock(block, height)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
 	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
@@ -215,7 +218,10 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
-	apiBlock := newAPIBlock(block, height)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
 	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
