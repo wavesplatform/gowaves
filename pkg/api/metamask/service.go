@@ -59,27 +59,20 @@ func (s RPCService) Eth_ChainId() string {
 	return uint64ToHexString(uint64(s.nodeRPCApp.Scheme))
 }
 
-// Eth_GetBalance returns the balance of the account of given address
+// Eth_GetBalance returns the balance in wei of the account of given address. 1 ether is equivalent to 1 x 10^18 wei
 //   - address: 20 Bytes - address to check for balance
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-func (s RPCService) Eth_GetBalance(address, blockOrTag string) (string, error) {
-	zap.S().Debugf("Eth_GetBalance was called: address %q, blockOrTag %q", address, blockOrTag)
-
-	// return balance in wei. 1 ether is equivalent to 1 x 10^18 wei (
-	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
-	if err != nil {
-		// todo log err
-		return "", err
-	}
+func (s RPCService) Eth_GetBalance(ethAddr proto.EthereumAddress, blockOrTag string) (string, error) {
+	zap.S().Debugf("Eth_GetBalance was called: ethAddr %q, blockOrTag %q", ethAddr, blockOrTag)
 	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.Scheme)
 	if err != nil {
 		// todo log err
-		return "", err
+		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
 	amount, err := s.nodeRPCApp.State.WavesBalance(proto.Recipient{Address: &wavesAddr})
 	if err != nil {
 		// todo log err
-		return "", err
+		return "", errors.Wrapf(err, "failed to get waves balance for address %q", wavesAddr)
 	}
 	return bigIntToHexString(proto.WaveletToEthereumWei(amount)), nil
 }

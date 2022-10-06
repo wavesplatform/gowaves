@@ -65,15 +65,16 @@ func (RPCService) SMD() smd.ServiceInfo {
 				},
 			},
 			"Eth_GetBalance": {
-				Description: `Eth_GetBalance returns the balance of the account of given address
+				Description: `Eth_GetBalance returns the balance in wei of the account of given address. 1 ether is equivalent to 1 x 10^18 wei
 - address: 20 Bytes - address to check for balance
 - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "address",
+						Name:        "ethAddr",
 						Optional:    false,
 						Description: ``,
-						Type:        smd.String,
+						Type:        smd.Object,
+						Properties:  map[string]smd.Property{},
 					},
 					{
 						Name:        "blockOrTag",
@@ -509,12 +510,12 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_GetBalance:
 		var args = struct {
-			Address    string `json:"address"`
-			BlockOrTag string `json:"blockOrTag"`
+			EthAddr    proto.EthereumAddress `json:"ethAddr"`
+			BlockOrTag string                `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"address", "blockOrTag"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"ethAddr", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -525,7 +526,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_GetBalance(args.Address, args.BlockOrTag))
+		resp.Set(s.Eth_GetBalance(args.EthAddr, args.BlockOrTag))
 
 	case RPC.RPCService.Eth_GetBlockByNumber:
 		var args = struct {
