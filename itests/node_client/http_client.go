@@ -64,10 +64,10 @@ func (c *HttpClient) TransactionInfo(t *testing.T, ID crypto.Digest) proto.Trans
 	return info
 }
 
-func (c *HttpClient) TransactionInfoRaw(ID crypto.Digest) (proto.Transaction, *client.Response, error) {
+func (c *HttpClient) TransactionInfoRaw(id crypto.Digest) (proto.Transaction, *client.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
-	return c.cli.Transactions.Info(ctx, ID)
+	return c.cli.Transactions.Info(ctx, id)
 }
 
 func (c *HttpClient) TransactionBroadcast(transaction proto.Transaction) (*client.Response, error) {

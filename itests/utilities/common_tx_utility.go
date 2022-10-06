@@ -121,7 +121,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
-	errGo, errScala := suite.Clients.WaitForTransaction(&id, timeout)
+	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
 	return errGo, errScala
 }
 
@@ -131,7 +131,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
-	errWtGo, errWtScala := suite.Clients.WaitForTransaction(&id, timeout)
+	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 
 	return *NewBroadcastedTransaction(id, respGo, errBrdCstGo, respScala, errBrdCstScala), errWtGo, errWtScala
 }
