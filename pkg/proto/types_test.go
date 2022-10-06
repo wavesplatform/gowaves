@@ -2022,8 +2022,6 @@ func TestByteVectorJSONRoundTrip(t *testing.T) {
 		{bv: ByteVector(big), js: bigBase64},
 	} {
 		if b, err := json.Marshal(test.bv); assert.NoError(t, err) {
-			s := string(b)
-			fmt.Println(len(s))
 			assert.Equal(t, test.js, string(b))
 			bv := ByteVector{}
 			if err := json.Unmarshal(b, &bv); assert.NoError(t, err) {
