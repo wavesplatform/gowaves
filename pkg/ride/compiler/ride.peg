@@ -84,7 +84,9 @@ OneGenericTypeAtom <- Char (Char / Digit)* (_ "[" _ OneTypeAtom _ "]" _)?
 TypesAtom <- OneTypeAtom ((_ "|" _ TypesAtom) / OneTypeAtom)?
 OneTypeAtom <- Char (Char / Digit)*
 
-ByteVectorAtom <- "base" ("58" / "64" / "16") "'" [^\']* "'"
+ByteVectorAtom <- "base" ByteVectorBase "'" ByteVectorValue "'"
+ByteVectorBase <- "58" / "64" / "16"
+ByteVectorValue <-  [^\']*
 
 BooleanAtom <- "true" / "false"
 

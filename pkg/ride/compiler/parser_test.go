@@ -10,12 +10,14 @@ import (
 
 func buildAST(t *testing.T, src string) (*node32, []rune, error) {
 	p := Parser{Buffer: src}
+	p.Pretty = true
 	err := p.Init()
 	require.NoError(t, err)
 	err = p.Parse()
 	if err != nil {
 		return nil, nil, err
 	}
+	p.PrintSyntaxTree()
 	return p.AST(), p.buffer, nil
 }
 

@@ -8,33 +8,32 @@ import (
 )
 
 func TestSimpleAST(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	src := `# asdasdasd
-{-# STDLIB_VERSION aasd #-} #  asdasdasd
 {-# STDLIB_VERSION 6 #-} #  asdasdasd
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
-{-# asdasd ASSET #-}
 
-let ad = if true then 3 else 4
+#let ad = if true then 3 else 4
 
-let asd = FOLD<10>(10, 10, asd)
+#let asd = FOLD<10>(10, 10, asd)
+#let asd = 5
 
-let asdasd = -10
+#let asdasd = -10
 
-let jnsad = test[123]
+#let jnsad = test[123]
 
-let GetFuncCall = sad.asdasd()
+#let GetFuncCall = sad.asdasd()
 
-let FuncCall = asd()
+#let FuncCall = asd()
 
-let b = "asd"
+#let b = "asd"
 
-let f = base58'asdasdasdasdasd'
+#let f = base58'asdasdasdasdasd'
 
-let c = true
+#let c = true
 
-let a = -(1 + 12312)
+#let a = -(1 + 12312)
 
 let asd = [1  + 123, 124, 3284]
 
@@ -60,6 +59,7 @@ func verify() = {
 }
 `
 	ast, buf, err := buildAST(t, src)
+
 	require.NoError(t, err)
 	astParser := NewASTParser(ast, buf)
 	astParser.Parse()
