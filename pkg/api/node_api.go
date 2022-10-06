@@ -130,6 +130,18 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) error {
+	lastBlockHeader, err := a.app.BlocksHeadersLast()
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to get last block header")
+	}
+	err = trySendJson(w, lastBlockHeader)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",

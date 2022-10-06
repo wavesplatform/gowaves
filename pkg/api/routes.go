@@ -102,6 +102,10 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/first", wrapper(a.BlocksFirst))
 			r.Get("/at/{height}", wrapper(a.BlockAt))
 			r.Get("/{id}", wrapper(a.BlockIDAt))
+
+			r.Route("/headers", func(r chi.Router) {
+				r.Get("/last", wrapper(a.BlocksHeadersLast))
+			})
 		})
 
 		r.Route("/addresses", func(r chi.Router) {

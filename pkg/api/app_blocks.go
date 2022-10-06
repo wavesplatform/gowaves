@@ -28,6 +28,21 @@ func newAPIBlock(block *proto.Block, scheme proto.Scheme, height proto.Height) (
 	}, nil
 }
 
+func newAPIBlockFromHeader(header proto.BlockHeader, scheme proto.Scheme, height proto.Height) (*Block, error) {
+	generator, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate address from public key %q", header.GenPublicKey)
+	}
+	return &Block{
+		Block: &proto.Block{
+			BlockHeader:  header,
+			Transactions: nil,
+		},
+		Generator: generator,
+		Height:    height,
+	}, nil
+}
+
 func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
 	score, err := a.state.ScoreAtHeight(at)
 	if err != nil {
@@ -46,6 +61,18 @@ func (a *App) BlocksLast() (*Block, error) {
 		return nil, errors.Wrapf(err, "failed to get %d block from state", h)
 	}
 	return newAPIBlock(block, a.services.Scheme, h)
+}
+
+func (a *App) BlocksHeadersLast() (*Block, error) {
+	h, err := a.state.Height()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get state height")
+	}
+	blockHeader, err := a.state.HeaderByHeight(h)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get %d block header from state", h)
+	}
+	return newAPIBlockFromHeader(*blockHeader, a.services.Scheme, h)
 }
 
 func (a *App) BlocksFirst() (*Block, error) {
