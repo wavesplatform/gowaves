@@ -3488,6 +3488,7 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 
 // MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
 func (a BinaryArgument) MarshalJSON() ([]byte, error) {
+	// TODO: support marshal BinaryArgument to JSON with `ByteVector` type field
 	return json.Marshal(&struct {
 		T string     `json:"type"`
 		V ByteVector `json:"value"`
