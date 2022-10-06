@@ -243,10 +243,11 @@ func (RPCService) SMD() smd.ServiceInfo {
 - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "address",
+						Name:        "ethAddr",
 						Optional:    false,
 						Description: ``,
-						Type:        smd.String,
+						Type:        smd.Object,
+						Properties:  map[string]smd.Property{},
 					},
 					{
 						Name:        "blockOrTag",
@@ -612,12 +613,12 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_GetCode:
 		var args = struct {
-			Address    string `json:"address"`
-			BlockOrTag string `json:"blockOrTag"`
+			EthAddr    proto.EthereumAddress `json:"ethAddr"`
+			BlockOrTag string                `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"address", "blockOrTag"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"ethAddr", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -628,7 +629,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_GetCode(args.Address, args.BlockOrTag))
+		resp.Set(s.Eth_GetCode(args.EthAddr, args.BlockOrTag))
 
 	case RPC.RPCService.Eth_GetTransactionCount:
 		var args = struct {

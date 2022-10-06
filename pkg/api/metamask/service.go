@@ -328,18 +328,13 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 // Eth_GetCode returns the compiled smart contract code, if any, at a given address.
 //   - address: 20 Bytes - address to check for balance
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-func (s RPCService) Eth_GetCode(address, blockOrTag string) (string, error) {
+func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string) (string, error) {
 	// TODO(nickeskov): what this method should send in case of error?
+	zap.S().Debugf("Eth_GetCode was called: ethAddr %q, blockOrTag %q", ethAddr, blockOrTag)
 
-	zap.S().Debugf("Eth_GetCode was called: address %q, blockOrTag %q", address, blockOrTag)
-
-	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
-	if err != nil {
-		return "", err
-	}
 	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.Scheme)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
 
 	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.Recipient{Address: &wavesAddr})
