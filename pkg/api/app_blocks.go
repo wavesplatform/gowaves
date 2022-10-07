@@ -17,9 +17,9 @@ type Block struct {
 }
 
 func newAPIBlock(block *proto.Block, scheme proto.Scheme, height proto.Height) (*Block, error) {
-	generator, err := proto.NewAddressFromPublicKey(scheme, block.GenPublicKey)
+	generator, err := proto.NewAddressFromPublicKey(scheme, block.GeneratorPublicKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate address from public key %q", block.GenPublicKey)
+		return nil, errors.Wrapf(err, "failed to generate address from public key %q", block.GeneratorPublicKey)
 	}
 	return &Block{
 		Block:     block,
@@ -29,9 +29,9 @@ func newAPIBlock(block *proto.Block, scheme proto.Scheme, height proto.Height) (
 }
 
 func newAPIBlockFromHeader(header proto.BlockHeader, scheme proto.Scheme, height proto.Height) (*Block, error) {
-	generator, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	generator, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate address from public key %q", header.GenPublicKey)
+		return nil, errors.Wrapf(err, "failed to generate address from public key %q", header.GeneratorPublicKey)
 	}
 	return &Block{
 		Block: &proto.Block{
@@ -111,7 +111,7 @@ func (a *App) BlocksGenerators() (Generators, error) {
 
 		out = append(out, Generator{
 			Height: i,
-			PubKey: block.GenPublicKey,
+			PubKey: block.GeneratorPublicKey,
 		})
 	}
 

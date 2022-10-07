@@ -117,7 +117,7 @@ func (im *Importer) readBlocks(f io.Reader) error {
 					zap.S().Errorf("Block %s has invalid signature. Aborting.", b.BlockID().String())
 					return err
 				}
-				trades, issues, assets, accounts, aliases, err := im.extractTransactions(b.Transactions, b.GenPublicKey)
+				trades, issues, assets, accounts, aliases, err := im.extractTransactions(b.Transactions, b.GeneratorPublicKey)
 				if err != nil {
 					return err
 				}

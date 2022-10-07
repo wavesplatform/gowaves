@@ -17,7 +17,7 @@ type BlockInfo struct {
 }
 
 func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64, vrf []byte) (*BlockInfo, error) {
-	generator, err := NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	generator, err := NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64, vrf []
 		BaseTarget:          header.BaseTarget,
 		GenerationSignature: header.GenSignature,
 		Generator:           generator,
-		GeneratorPublicKey:  header.GenPublicKey,
+		GeneratorPublicKey:  header.GeneratorPublicKey,
 		VRF:                 vrf,
 	}, nil
 }

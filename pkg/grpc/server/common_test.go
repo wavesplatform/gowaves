@@ -54,7 +54,7 @@ func globalPathFromLocal(path string) (string, error) {
 
 func signBlock(t *testing.T, block *proto.Block, scheme proto.Scheme) {
 	pk := crypto.MustPublicKeyFromBase58(minerPkStr)
-	block.GenPublicKey = pk
+	block.GeneratorPublicKey = pk
 	sk := crypto.MustSecretKeyFromBase58(minerSkStr)
 	err := block.Sign(scheme, sk)
 	assert.NoError(t, err)

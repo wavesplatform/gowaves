@@ -1353,7 +1353,7 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		ConsensusBlockLength: uint32(consensus.BinarySize()),
 		NxtConsensus:         consensus,
 		TransactionCount:     len(block.Transactions),
-		GenPublicKey:         c.publicKey(block.Header.Generator),
+		GeneratorPublicKey:   c.publicKey(block.Header.Generator),
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
 	}

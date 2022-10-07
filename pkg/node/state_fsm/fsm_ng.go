@@ -266,7 +266,7 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block,
 		return nil, errors.Errorf("microblock '%s' has invalid signature", micro.TotalBlockID.String())
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
-	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GenPublicKey, top.NxtConsensus, top.Version, top.Features, top.RewardVote, a.baseInfo.scheme)
+	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus, top.Version, top.Features, top.RewardVote, a.baseInfo.scheme)
 	if err != nil {
 		return nil, err
 	}
