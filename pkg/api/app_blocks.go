@@ -29,18 +29,11 @@ func newAPIBlock(block *proto.Block, scheme proto.Scheme, height proto.Height) (
 }
 
 func newAPIBlockFromHeader(header proto.BlockHeader, scheme proto.Scheme, height proto.Height) (*Block, error) {
-	generator, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate address from public key %q", header.GeneratorPublicKey)
+	block := &proto.Block{
+		BlockHeader:  header,
+		Transactions: nil,
 	}
-	return &Block{
-		Block: &proto.Block{
-			BlockHeader:  header,
-			Transactions: nil,
-		},
-		Generator: generator,
-		Height:    height,
-	}, nil
+	return newAPIBlock(block, scheme, height)
 }
 
 func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
