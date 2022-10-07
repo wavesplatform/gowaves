@@ -170,7 +170,7 @@ func (s *Synchronizer) recvBlockRange(h int, delta int, stream g.BlocksApi_GetBl
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}
 		headersIDs = append(headersIDs, header.ID)
-		headersGenPublicKeys = append(headersGenPublicKeys, header.GenPublicKey)
+		headersGenPublicKeys = append(headersGenPublicKeys, header.GeneratorPublicKey)
 
 		txs, err := cnv.BlockTransactions(block.Block)
 		if err != nil {

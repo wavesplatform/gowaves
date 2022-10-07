@@ -71,7 +71,7 @@ func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 		if err := block.UnmarshalBinary(bb, proto.MainNetScheme); err != nil {
 			return nil, err
 		}
-		if !crypto.Verify(block.GenPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
+		if !crypto.Verify(block.GeneratorPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
 			return nil, errors.Errorf("block %d has invalid signature", i)
 		}
 		blocks = append(blocks, block)

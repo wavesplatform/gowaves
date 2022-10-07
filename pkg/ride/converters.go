@@ -118,7 +118,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 }
 
 func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
-	address, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
 	}
@@ -129,7 +129,7 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	return newRideBlockInfo(
 		vf,
 		common.Dup(header.GenSignature.Bytes()),
-		common.Dup(header.GenPublicKey.Bytes()),
+		common.Dup(header.GeneratorPublicKey.Bytes()),
 		rideInt(header.BaseTarget),
 		rideInt(header.Timestamp),
 		rideInt(height),

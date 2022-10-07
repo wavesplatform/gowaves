@@ -51,7 +51,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		transactions,
 		blockApplyOn.Timestamp,
 		blockApplyOn.Parent,
-		blockApplyOn.GenPublicKey,
+		blockApplyOn.GeneratorPublicKey,
 		blockApplyOn.NxtConsensus,
 		blockApplyOn.Version,
 		blockApplyOn.Features,
