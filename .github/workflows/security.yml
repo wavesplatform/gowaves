@@ -71,7 +71,7 @@ jobs:
           check-latest: true
           cache: true
       - name: Run go list
-        run: go list -m all > go.list
+        run: go list -json -deps ./... > go.list
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@v1.0.2
       - name: govulncheck
