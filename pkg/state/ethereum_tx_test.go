@@ -19,18 +19,16 @@ import (
 )
 
 func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.SmartState, assetsUncertain map[proto.AssetID]assetInfo, scheme proto.Scheme) txAppender {
-	var feautures = &mockFeaturesState{
+	activatedFeatures := map[settings.Feature]struct{}{
+		settings.SmartAccounts:  {},
+		settings.FeeSponsorship: {},
+		settings.Ride4DApps:     {},
+		settings.RideV6:         {},
+	}
+	feat := &mockFeaturesState{
 		newestIsActivatedFunc: func(featureID int16) (bool, error) {
-			if featureID == int16(settings.SmartAccounts) {
-				return true, nil
-			}
-			if featureID == int16(settings.Ride4DApps) {
-				return true, nil
-			}
-			if featureID == int16(settings.RideV6) {
-				return true, nil
-			}
-			return false, nil
+			_, ok := activatedFeatures[settings.Feature(featureID)]
+			return ok, nil
 		},
 		newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
 			const (
@@ -45,14 +43,18 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			)
 		},
 	}
-	stor := createStorageObjects(t, true)
+	sett := *settings.MainNetSettings
+	sett.SponsorshipSingleActivationPeriod = true
+	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{
+		Settings: &sett,
+	})
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
 		assetsUncertain = make(map[proto.AssetID]assetInfo)
 	}
 	newAssets.uncertainAssetInfo = assetsUncertain
 
-	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feautures, settings: &settings.BlockchainSettings{}}, assets: newAssets}
+	store := blockchainEntitiesStorage{features: feat, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feat, settings: &sett}, assets: newAssets}
 	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1, AddressSchemeCharacter: scheme}}
 	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
 	assert.NoError(t, err)
@@ -241,6 +243,9 @@ func TestEthereumInvoke(t *testing.T) {
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
 	}
 	state := &AnotherMockSmartState{
 		AddingBlockHeightFunc: func() (uint64, error) {
@@ -282,7 +287,7 @@ func TestEthereumInvoke(t *testing.T) {
 	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 	// fee test
-	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.TestNetScheme)
+	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.MainNetScheme)
 	tx = proto.NewEthereumTransaction(txDataForFeeCheck, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
