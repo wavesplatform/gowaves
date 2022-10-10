@@ -30,8 +30,6 @@ type IssueTestData[T any] struct {
 	Expected   T
 }
 
-// ExpectedValuesNegative is just a wrapper for usual map.
-// TODO(nickeskov): replace it with a new struct with all necessary fields
 type ExpectedValuesNegative struct {
 	ErrGoMsg          string
 	ErrScalaMsg       string

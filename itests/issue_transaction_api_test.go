@@ -109,7 +109,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala)
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
-	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestIssueTxApiSuite(t *testing.T) {
