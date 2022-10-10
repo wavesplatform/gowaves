@@ -85,8 +85,13 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 }
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
+	storage := &mockScriptStorageState{
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
+	}
 	//assetsUncertain := newAssets
-	txAppender := defaultTxAppender(t, nil, nil, nil, proto.TestNetScheme)
+	txAppender := defaultTxAppender(t, storage, nil, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
