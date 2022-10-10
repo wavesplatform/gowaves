@@ -386,6 +386,9 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
 	}
 	state := &AnotherMockSmartState{
 		AddingBlockHeightFunc: func() (uint64, error) {
