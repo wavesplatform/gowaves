@@ -35,6 +35,7 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.SetAssetScriptTransaction:   1000 - 4,
 	proto.InvokeScriptTransaction:     5,
 	proto.UpdateAssetInfoTransaction:  1,
+	proto.EthereumMetamaskTransaction: 0, // special case, should be handled with corresponding EthTxKind
 	proto.InvokeExpressionTransaction: 5,
 }
 
@@ -68,7 +69,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 	txType := tx.GetTypeInfo().Type
 	baseFee, ok := feeConstants[txType]
 	if !ok {
-		return 0, errors.Errorf("bad tx type %v\n", txType)
+		return 0, errors.Errorf("bad tx type (%v)", txType)
 	}
 	fee := baseFee
 	switch txType {
@@ -160,6 +161,22 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		stxBytesForFee := len(stx.Script)
 
 		fee += uint64((stxBytesForFee - 1) / proto.KiB)
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return 0, errors.New("failed to convert interface to EthereumTransaction")
+		}
+		switch kind := ethTx.TxKind.(type) {
+		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
+			fee = feeConstants[proto.TransferTransaction]
+		case *proto.EthereumInvokeScriptTxKind:
+			fee = feeConstants[proto.InvokeScriptTransaction]
+		default:
+			return 0, errors.Errorf("unknown ethereum tx kind (%T)", kind)
+		}
+	}
+	if fee == 0 && txType != proto.GenesisTransaction {
+		return 0, errors.Errorf("zero fee allowed only for genesis transaction, but not for tx with type (%d)", txType)
 	}
 	return fee, nil
 }
