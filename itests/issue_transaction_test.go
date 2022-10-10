@@ -1,7 +1,6 @@
 package itests
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -21,18 +20,24 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
 		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
-		suite.NoErrorf(errGo, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(td.Expected.WavesDiffBalance, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+
+		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
+
+		utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name)
 	}
 }
 
@@ -40,25 +45,31 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
 		tx1, errGo1, errScala1 := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
-		tx2, errGo2, errScala2 := issue_utilities.Issue(&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
+		tx2, errGo2, errScala2 := issue_utilities.Issue(
+			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAsset1Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, tx1.ID.Bytes())
-		actualAsset2Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, tx2.ID.Bytes())
-		// TODO(nickeskov): explain why we multiply expected value two times
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+
+		actualAsset1BalanceGo, actualAsset1BalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, tx1.ID.Bytes())
+		actualAsset2BalanceGo, actualAsset2BalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, tx2.ID.Bytes())
+		//Since the issue transaction is called twice, the expected balance difference also is doubled.
 		expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
 
-		suite.NoErrorf(errGo1, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala1, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.NoErrorf(errGo2, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errScala2, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAsset1Balance, "Node go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAsset2Balance, "Node Go in case: \"%s\"", name)
+		utl.ExistenceTxInfoCheck(suite.T(), errGo1, errScala1, name)
+		utl.ExistenceTxInfoCheck(suite.T(), errGo2, errScala2, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), expectedDiffBalanceInWaves, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset1BalanceGo, actualAsset1BalanceScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset2BalanceGo, actualAsset2BalanceScala, name)
 	}
 }
 
@@ -69,24 +80,24 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 
 	for name, td := range tdmatrix {
 
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
 		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
 		txIds[name] = tx.ID
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
-		expectedBalanceInWaves, err := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected diff balance")
-		expectedAssetBalance, err := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected asset balance")
+		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, tx.ID.Bytes())
 
-		suite.ErrorContainsf(errGo, td.Expected["err go msg"], "Node Go in case: \"%s\"", name)
-		suite.ErrorContainsf(errScala, td.Expected["err scala msg"], "Node Scala in case: \"%s\"", name)
-		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Expected balance in Waves Node Go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Expected Asset balance Node Go in case: \"%s\"", name)
+		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errGo, errScala, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name)
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)

@@ -30,9 +30,17 @@ type IssueTestData[T any] struct {
 	Expected   T
 }
 
-// expectedValuesMap is just a wrapper for usual map.
+// ExpectedValuesNegative is just a wrapper for usual map.
 // TODO(nickeskov): replace it with a new struct with all necessary fields
-type expectedValuesMap map[string]string
+type ExpectedValuesNegative struct {
+	ErrGoMsg          string
+	ErrScalaMsg       string
+	ErrBrdCstGoMsg    string
+	ErrBrdCstScalaMsg string
+	WavesDiffBalance  int64
+	AssetBalance      int64
+	_                 struct{} // this field is necessary to force using explicit struct initialization
+}
 
 type ExpectedValuesPositive struct {
 	WavesDiffBalance int64
@@ -109,8 +117,8 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 	return t
 }
 
-func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expectedValuesMap] {
-	var t = map[string]IssueTestData[expectedValuesMap]{
+func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
+	var t = map[string]IssueTestData[ExpectedValuesNegative]{
 		"Invalid asset name (len < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(3),
@@ -121,13 +129,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": errName,
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: errName,
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid asset name (len > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -139,13 +147,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": errName,
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: errName,
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Empty string in asset name": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -157,13 +165,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": errName,
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: errName,
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid encoding in asset name": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -175,13 +183,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": errName,
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: errName,
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		//Error in Node Go
 		/*"Invalid encoding in asset description": *NewIssueTestData(
@@ -194,13 +202,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 		100000000,
 		utl.GetCurrentTimestampInMs(),
 		testChainID,
-		expectedValuesMap{
-			"err go msg":         errMsg,
-			"err scala msg":      errMsg,
-		    "err brdcst msg go":    errBrdCstMsg,
-		    "err brdcst msg scala": "",
-			"waves diff balance": "0",
-			"asset balance":      "0",
+		ExpectedValuesNegative{
+			ErrGoMsg:         errMsg,
+			ErrScalaMsg:      errMsg,
+		    ErrBrdCstGoMsg:    errBrdCstMsg,
+		    ErrBrdCstScalaMsg: "",
+			WavesDiffBalance: 0,
+			AssetBalance:      0,
 		}),*/
 		"Invalid asset description (len > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -212,13 +220,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "Too big sequence requested",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Too big sequence requested",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid token quantity (quantity < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -230,13 +238,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "non-positive amount: 0 of assets",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "non-positive amount: 0 of assets",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid token quantity (quantity > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -248,13 +256,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "failed to parse json message",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid token decimals (decimals > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -266,13 +274,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "invalid decimals value: 9, decimals should be in interval [0; 8]",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "invalid decimals value: 9, decimals should be in interval [0; 8]",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid fee (fee > max)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -284,13 +292,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			9223372036854775808,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "failed to parse json message",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid fee (0 < fee < min)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -302,13 +310,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			10,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "Fee for IssueTransaction (10 in WAVES) does not exceed minimal value of 100000000 WAVES",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Fee for IssueTransaction (10 in WAVES) does not exceed minimal value of 100000000 WAVES",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Invalid fee (fee = 0)": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -320,13 +328,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			0,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "insufficient fee",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "insufficient fee",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -338,13 +346,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs()-7215000,
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "is more than 7200000ms in the past relative to previous block timestamp",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -356,13 +364,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000000,
 			utl.GetCurrentTimestampInMs()+54160000,
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "is more than 5400000ms in the future relative to block timestamp",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 		"Creating a token when there are not enough funds on the account balance": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
@@ -371,16 +379,16 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[expected
 			100000,
 			8,
 			true,
-			uint64(100000000+utl.GetAvalibleBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			expectedValuesMap{
-				"err go msg":           errMsg,
-				"err scala msg":        errMsg,
-				"err brdcst msg go":    errBrdCstMsg,
-				"err brdcst msg scala": "Accounts balance errors",
-				"waves diff balance":   "0",
-				"asset balance":        "0",
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Accounts balance errors",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
 	}
 	return t

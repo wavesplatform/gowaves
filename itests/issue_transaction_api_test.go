@@ -1,7 +1,7 @@
 package itests
 
 import (
-	"strconv"
+	"net/http"
 	"testing"
 	"time"
 
@@ -20,21 +20,25 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
 		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
 
-		suite.Equalf(brdCstTx.ResponseGo.StatusCode, 200, "Status Code for Node Go Response not equal 200")
-		suite.Equalf(brdCstTx.ResponseScala.StatusCode, 200, "Status Code for Node Scala Response not equal 200")
+		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name)
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
-		suite.NoErrorf(errWtGo, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errWtScala, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(td.Expected.WavesDiffBalance, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAssetBalance, "Node Go in case: \"%s\"", name)
+		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
+
+		utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name)
 	}
 }
 
@@ -42,30 +46,34 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	timeout := 1 * time.Minute
 	for name, td := range tdmatrix {
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
 
 		brdCstTx1, errWtGo1, errWtScala1 := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
-		brdCstTx2, errWtGo2, errWtScala2 := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
+		brdCstTx2, errWtGo2, errWtScala2 := issue_utilities.IssueBroadcast(
+			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
 
-		suite.Equalf(brdCstTx1.ResponseGo.StatusCode, 200, "Status Code for Node Go Response not equal 200")
-		suite.Equalf(brdCstTx2.ResponseGo.StatusCode, 200, "Status Code for Node Go Response not equal 200")
-		suite.Equalf(brdCstTx1.ResponseScala.StatusCode, 200, "Status Code for Node Scala Response not equal 200")
-		suite.Equalf(brdCstTx2.ResponseScala.StatusCode, 200, "Status Code for Node Scala Response not equal 200")
+		utl.StatusCodesCheck(suite.T(), brdCstTx1, http.StatusOK, http.StatusOK, name)
+		utl.StatusCodesCheck(suite.T(), brdCstTx2, http.StatusOK, http.StatusOK, name)
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAsset1Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx1.TxID.Bytes())
-		actualAsset2Balance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx2.TxID.Bytes())
-		// TODO(nickeskov): explain why we multiply expected value two times
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+
+		actualAsset1BalanceGo, actualAsset1BalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, brdCstTx1.TxID.Bytes())
+		actualAsset2BalanceGo, actualAsset2BalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, brdCstTx2.TxID.Bytes())
+		//Since the issue transaction is called twice, the expected balance difference also is doubled.
 		expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
 
-		suite.NoErrorf(errWtGo1, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errWtScala1, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.NoErrorf(errWtGo2, "Node Go in case: \"%s\": Failed to get TransactionInfo from go node", name)
-		suite.NoErrorf(errWtScala2, "Node Scala in case: \"%s\": Failed to get TransactionInfo from scala node", name)
-		suite.Equalf(expectedDiffBalanceInWaves, actualDiffBalanceInWaves, "Node Go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAsset1Balance, "Node go in case: \"%s\"", name)
-		suite.Equalf(td.Expected.AssetBalance, actualAsset2Balance, "Node Go in case: \"%s\"", name)
+		utl.ExistenceTxInfoCheck(suite.T(), errWtGo1, errWtScala1, name)
+		utl.ExistenceTxInfoCheck(suite.T(), errWtGo2, errWtScala2, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), expectedDiffBalanceInWaves, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset1BalanceGo, actualAsset1BalanceScala, name)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset2BalanceGo, actualAsset2BalanceScala, name)
 	}
 }
 
@@ -75,30 +83,30 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 
 	for name, td := range tdmatrix {
-
-		initBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
+		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite,
+			td.Account.Address)
 
 		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
-		suite.Equalf(500, brdCstTx.ResponseGo.StatusCode, "Case: \"%s\", Status Code for Node Go Response not equal 500", name)
-		suite.Equalf(400, brdCstTx.ResponseScala.StatusCode, "Case: \"%s\", Status Code for Node Scala Response not equal 400", name)
-		suite.ErrorContainsf(brdCstTx.ErrorBrdCstGo, td.Expected["err brdcst msg go"], "Node Go in case: \"%s\"", name)
-		suite.ErrorContainsf(brdCstTx.ErrorBrdCstScala, td.Expected["err brdcst msg scala"], "Node Scala in case: \"%s\"", name)
+
+		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name)
+		utl.ErrorMessageCheck(
+			suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+			brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name)
 
 		txIds[name] = &brdCstTx.TxID
 
-		currentBalanceInWaves := utl.GetAvalibleBalanceInWavesGo(&suite.BaseSuite, td.Account.Address)
-		actualBalanceInWaves := initBalanceInWaves - currentBalanceInWaves
-		actualAssetBalance := utl.GetAssetBalanceGo(&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
+		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address)
+		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
 
-		expectedBalanceInWaves, err := strconv.ParseInt(td.Expected["waves diff balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected diff balance")
-		expectedAssetBalance, err := strconv.ParseInt(td.Expected["asset balance"], 10, 64)
-		suite.NoErrorf(err, "failed to parse expected asset balance")
-
-		suite.ErrorContainsf(errWtGo, td.Expected["err go msg"], "Node Go in case: \"%s\"", name)
-		suite.ErrorContainsf(errWtScala, td.Expected["err scala msg"], "Node Scala in case: \"%s\"", name)
-		suite.Equalf(expectedBalanceInWaves, actualBalanceInWaves, "Expected balance in Waves Node Go in case: \"%s\"", name)
-		suite.Equalf(expectedAssetBalance, actualAssetBalance, "Expected Asset balance Node Go in case: \"%s\"", name)
+		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name)
+		utl.WavesDiffBalanceCheck(
+			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala)
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 	suite.Equalf(0, len(actualTxIds), "IDs: %#v", actualTxIds)

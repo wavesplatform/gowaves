@@ -53,15 +53,36 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
 }
 
-func GetAvalibleBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
+func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
 	return suite.Clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+}
+
+func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddress) int64 {
+	return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+}
+
+func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
+	wavesBalanceGo := GetAvailableBalanceInWavesGo(suite, address)
+	wavesBalanceScala := GetAvailableBalanceInWavesScala(suite, address)
+	return wavesBalanceGo, wavesBalanceScala
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, id []byte) int64 {
 	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
 }
 
-func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest, timeout, tick time.Duration) map[string]string {
+func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, id []byte) int64 {
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
+}
+
+func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, id []byte) (int64, int64) {
+	assetBalanceGo := GetAssetBalanceGo(suite, address, id)
+	assetBalanceScala := GetAssetBalanceScala(suite, address, id)
+	return assetBalanceGo, assetBalanceScala
+}
+
+func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,
+	timeout, tick time.Duration) map[string]string {
 	var (
 		ticker      = time.NewTicker(tick)
 		ctx, cancel = context.WithTimeout(context.Background(), timeout)
@@ -113,7 +134,8 @@ func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
 	return bts
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (error, error) {
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
+	timeout time.Duration) (error, error) {
 	bts := marshalTransaction(suite.T(), tx)
 	id := extractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
