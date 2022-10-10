@@ -204,7 +204,7 @@ func (cv *Validator) generatingBalance(height uint64, addr proto.WavesAddress) (
 }
 
 func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
-	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, header.GenPublicKey)
+	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
 		return 0, err
 	}
@@ -252,9 +252,9 @@ func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockchainHe
 	if err != nil {
 		return errors.Wrap(err, "failed to validate miner address")
 	}
-	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
 	if err != nil {
-		return errors.Wrapf(err, "faield to get miner address from pub key %q", block.GenPublicKey.String())
+		return errors.Wrapf(err, "faield to get miner address from pub key %q", block.GeneratorPublicKey.String())
 	}
 	blockMinerHasScript, err := cv.state.NewestAccountHasScript(minerAddr)
 	if err != nil {
@@ -327,7 +327,7 @@ func (cv *Validator) generateAndCheckNextHitSource(height uint64, header *proto.
 		if err != nil {
 			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 		}
-		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
 		if err != nil {
 			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
 		}
@@ -341,7 +341,7 @@ func (cv *Validator) generateAndCheckNextHitSource(height uint64, header *proto.
 		if err != nil {
 			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 		}
-		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
 		if err != nil {
 			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
 		}
@@ -363,7 +363,7 @@ func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, head
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
-		hitSource, err = gsp.HitSource(header.GenPublicKey, prevHitSource)
+		hitSource, err = gsp.HitSource(header.GeneratorPublicKey, prevHitSource)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}

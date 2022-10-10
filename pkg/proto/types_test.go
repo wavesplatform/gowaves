@@ -1326,15 +1326,17 @@ func TestBinaryArgumentBinaryRoundTrip(t *testing.T) {
 }
 
 func TestBinaryArgumentJSONRoundTrip(t *testing.T) {
-	tests := []string{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "1", "111111111111111"}
-	for _, tc := range tests {
-		bv, err := base58.Decode(tc)
+	for _, test := range []string{
+		"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc",
+		"1",
+		"111111111111111",
+	} {
+		bv, err := base58.Decode(test)
 		require.NoError(t, err)
 		v := BinaryArgument{bv}
 		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
 			js := string(b)
-			s := fmt.Sprintf("\"base64:%s\"", base64.StdEncoding.EncodeToString(bv))
-			ejs := fmt.Sprintf("{\"type\":\"binary\",\"value\":%s}", s)
+			ejs := fmt.Sprintf("{\"type\":\"binary\",\"value\":\"%s\"}", test)
 			assert.Equal(t, ejs, js)
 			var av BinaryArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
@@ -1425,13 +1427,13 @@ func TestArgumentsJSONRoundTrip(t *testing.T) {
 		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true}]",
 			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}},
 		},
-		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]",
+		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc\"}]",
 			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}},
 		},
 		{"[{\"type\":\"string\",\"value\":\"blah-blah\"}]",
 			Arguments{&StringArgument{Value: "blah-blah"}},
 		},
-		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]",
+		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]",
 			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}},
 		},
 	}
@@ -1592,12 +1594,12 @@ func TestFunctionCallJSONRoundTrip(t *testing.T) {
 	}{
 		{fc: FunctionCall{Name: "foo", Arguments: Arguments{&IntegerArgument{Value: 12345}}}, js: "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":12345}]}"},
 		{fc: FunctionCall{Name: "bar", Arguments: Arguments{&BooleanArgument{Value: true}}}, js: "{\"function\":\"bar\",\"args\":[{\"type\":\"boolean\",\"value\":true}]}"},
-		{fc: FunctionCall{Name: "baz", Arguments: Arguments{&BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"baz\",\"args\":[{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]}"},
+		{fc: FunctionCall{Name: "baz", Arguments: Arguments{&BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"baz\",\"args\":[{\"type\":\"binary\",\"value\":\"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc\"}]}"},
 		{fc: FunctionCall{Name: "foobar0", Arguments: Arguments{&StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar0\",\"args\":[{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
 		{fc: FunctionCall{Name: "foobar1", Arguments: Arguments{}}, js: "{\"function\":\"foobar1\",\"args\":[]}"},
 		{fc: FunctionCall{Name: "foobar2", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}}}, js: "{\"function\":\"foobar2\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true}]}"},
-		{fc: FunctionCall{Name: "foobar3", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"foobar3\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]}"},
-		{fc: FunctionCall{Name: "foobar4", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar4\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
+		{fc: FunctionCall{Name: "foobar3", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"foobar3\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc\"}]}"},
+		{fc: FunctionCall{Name: "foobar4", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar4\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
 		{fc: FunctionCall{Name: "foobar5", Arguments: Arguments{&ListArgument{Items: []Argument{&StringArgument{Value: "bar"}, &StringArgument{Value: "baz"}}}}}, js: "{\"function\":\"foobar5\",\"args\":[{\"type\":\"list\",\"value\":[{\"type\":\"string\",\"value\":\"bar\"},{\"type\":\"string\",\"value\":\"baz\"}]}]}"},
 	}
 	for _, tc := range tests {
@@ -2004,6 +2006,27 @@ func TestOrderPriceMode_Valid(t *testing.T) {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err)
+		}
+	}
+}
+
+func TestByteVectorJSONRoundTrip(t *testing.T) {
+	big := make([]byte, 2046)
+	bigBase64 := "\"base64:" + strings.Repeat("A", 2728) + "\""
+	for _, test := range []struct {
+		bv ByteVector
+		js string
+	}{
+		{bv: ByteVector{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}, js: `"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"`},
+		{bv: ByteVector{}, js: `""`},
+		{bv: ByteVector(big), js: bigBase64},
+	} {
+		if b, err := json.Marshal(test.bv); assert.NoError(t, err) {
+			assert.Equal(t, test.js, string(b))
+			bv := ByteVector{}
+			if err := json.Unmarshal(b, &bv); assert.NoError(t, err) {
+				assert.Equal(t, test.bv, bv)
+			}
 		}
 	}
 }

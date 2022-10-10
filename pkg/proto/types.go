@@ -60,6 +60,8 @@ const (
 	MaxBalanceScriptActionsV3                = 100
 	MaxAttachedPaymentsScriptActions         = 100
 	MaxAssetScriptActionsV3                  = 30
+	base64EncodingSizeLimit                  = 1024
+	base64EncodingPrefix                     = "base64:"
 )
 
 type Timestamp = uint64
@@ -195,6 +197,87 @@ func (b *HexBytes) UnmarshalJSON(value []byte) error {
 
 func (b HexBytes) Bytes() []byte {
 	return b
+}
+
+type ByteVector []byte
+
+// String represents underlying bytes as Base58 string or Base64 string with additional prefix.
+func (v ByteVector) String() string {
+	if len(v) < base64EncodingSizeLimit {
+		return v.encodeBase58()
+	}
+	return v.encodeBase64()
+}
+
+func (v ByteVector) encodeBase58() string {
+	return base58.Encode(v)
+}
+
+func (v ByteVector) encodeBase64() string {
+	return base64EncodingPrefix + base64.StdEncoding.EncodeToString(v)
+}
+
+// MarshalJSON writes ByteVector Value as JSON string
+func (v ByteVector) MarshalJSON() ([]byte, error) {
+	s := v.String()
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes(), nil
+}
+
+// UnmarshalJSON reads ByteVector from JSON string
+func (v *ByteVector) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == jsonNull {
+		*v = nil
+		return nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal ByteVector from JSON")
+	}
+	if s == "" {
+		*v = []byte{}
+		return nil
+	}
+	if strings.HasPrefix(s, base64EncodingPrefix) {
+		s = strings.TrimPrefix(s, base64EncodingPrefix)
+		err := v.decodeFromBase64String(s)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode ByteVector from Base64 string")
+		}
+		return nil
+	}
+	err = v.decodeFromBase58String(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode ByteVector from Base58 string")
+	}
+	return nil
+}
+
+func (v *ByteVector) decodeFromBase64String(s string) error {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	*v = b
+	return nil
+}
+
+func (v *ByteVector) decodeFromBase58String(s string) error {
+	b, err := base58.Decode(s)
+	if err != nil {
+		return err
+	}
+	*v = b
+	return nil
+}
+
+func (v ByteVector) Bytes() []byte {
+	return v
 }
 
 // OptionalAsset represents an optional asset identification
@@ -3085,7 +3168,7 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &IntegerArgument{}
 	case "boolean":
 		r = &BooleanArgument{}
-	case "binary":
+	case "binary", "bytevector":
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
@@ -3405,17 +3488,18 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 
 // MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
 func (a BinaryArgument) MarshalJSON() ([]byte, error) {
+	// TODO: support marshal BinaryArgument to JSON with `ByteVector` type field
 	return json.Marshal(&struct {
-		T string `json:"type"`
-		V Script `json:"value"`
+		T string     `json:"type"`
+		V ByteVector `json:"value"`
 	}{a.GetValueType().String(), a.Value})
 }
 
 // UnmarshalJSON converts JSON to a BinaryArgument structure. Value should be stored as BASE64 sting in JSON.
 func (a *BinaryArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
-		T string `json:"type"`
-		V Script `json:"value"`
+		T string     `json:"type"`
+		V ByteVector `json:"value"`
 	}{}
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize binary data entry from JSON")

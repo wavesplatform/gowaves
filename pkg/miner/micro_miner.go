@@ -130,7 +130,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		newTransactions,
 		minedBlock.Timestamp,
 		minedBlock.Parent,
-		minedBlock.GenPublicKey,
+		minedBlock.GeneratorPublicKey,
 		minedBlock.NxtConsensus,
 		minedBlock.Version,
 		minedBlock.Features,

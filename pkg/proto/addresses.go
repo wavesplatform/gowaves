@@ -151,7 +151,10 @@ func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
 }
 
 func (ea *EthereumAddress) UnmarshalJSON(bytes []byte) error {
-	hexString := strings.Trim(string(bytes), "\"")
+	hexString, err := strconv.Unquote(string(bytes))
+	if err != nil {
+		return errors.Wrap(err, "quotes are required")
+	}
 	addr, err := NewEthereumAddressFromHexString(hexString)
 	if err != nil {
 		return err

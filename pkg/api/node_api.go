@@ -130,6 +130,18 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) error {
+	lastBlockHeader, err := a.app.BlocksHeadersLast()
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to get last block header")
+	}
+	err = trySendJson(w, lastBlockHeader)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
@@ -171,7 +183,10 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	apiBlock := newAPIBlock(block, height)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
 	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
@@ -215,7 +230,10 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
-	apiBlock := newAPIBlock(block, height)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
 	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
