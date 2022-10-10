@@ -136,6 +136,9 @@ func TestEthereumTransferAssets(t *testing.T) {
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
 	}
 
 	appendTxParams := defaultAppendTxParams()
