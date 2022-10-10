@@ -65,6 +65,27 @@ func isNFT(features featuresState, params assetParams) (bool, error) {
 	return nftActivated, nil
 }
 
+func isSmartAssetsFree(tx proto.Transaction, rideV5Activated bool) (bool, error) {
+	if !rideV5Activated {
+		return false, nil
+	}
+	switch tx.GetTypeInfo().Type {
+	// TODO: add case with proto.InvokeExpressionTransaction after this tx type support
+	case proto.InvokeScriptTransaction:
+		return true, nil
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return false, errors.New("failed to convert interface to EthereumTransaction")
+		}
+		if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// minFeeInUnits returns minimal fee in units and error
 func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, error) {
 	txType := tx.GetTypeInfo().Type
 	baseFee, ok := feeConstants[txType]
@@ -189,15 +210,13 @@ type txCosts struct {
 	total            uint64
 }
 
-func newTxCosts(smartAssets, smartAccounts uint64, isRideV5Activated bool, complexity int, isAccountScripted bool) *txCosts {
+func newTxCosts(smartAssets, smartAccounts uint64, isSmartAssetsFree, isSmartAccountFree bool) *txCosts {
 	smartAssetsFee := smartAssets * scriptExtraFee
 	smartAccountsFee := smartAccounts * scriptExtraFee
-
-	if isRideV5Activated {
-		smartAssetsFee = 0 // since RideV5 we have to erase extra fee for smart asset scripts
+	if isSmartAssetsFree {
+		smartAssetsFee = 0
 	}
-
-	if isAccountScripted && isRideV5Activated && complexity <= FreeVerifierComplexity {
+	if isSmartAccountFree {
 		smartAccountsFee = 0
 	}
 	return &txCosts{
@@ -269,7 +288,12 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 			smartAssets += 1
 		}
 	}
-	return newTxCosts(smartAssets, smartAccounts, params.rideV5Activated, complexity, accountScripted), nil
+	smartAssetsFree, err := isSmartAssetsFree(tx, params.rideV5Activated)
+	if err != nil {
+		return nil, err
+	}
+	smartAccountFree := accountScripted && params.rideV5Activated && complexity <= FreeVerifierComplexity
+	return newTxCosts(smartAssets, smartAccounts, smartAssetsFree, smartAccountFree), nil
 }
 
 func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (*txCosts, error) {
