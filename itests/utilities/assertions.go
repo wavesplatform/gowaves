@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +10,7 @@ import (
 func makeErrorMessage(errMsg string, args ...interface{}) string {
 	if len(args) > 0 {
 		for i := 0; i < len(args); i++ {
-			msg := args[i].(string)
+			msg := fmt.Sprintf("%v", args[i])
 			errMsg += msg
 		}
 	}
