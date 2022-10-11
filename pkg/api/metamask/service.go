@@ -191,38 +191,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		}
 		return uint64ToHexString(uint64(fee)), nil
 	case state.EthereumInvokeKind:
-		fee := proto.MinFeeInvokeScript
-
-		scriptAddr, err := req.To.ToWavesAddress(s.nodeRPCApp.Scheme)
-		if err != nil {
-			return "", err
-		}
-		tree, err := s.nodeRPCApp.State.NewestScriptByAccount(proto.NewRecipientFromAddress(scriptAddr))
-		if err != nil {
-			return "", errors.Wrap(err, "failed to get tree by script")
-		}
-		db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
-		if err != nil {
-			return "", err
-		}
-		decodedData, err := db.ParseCallDataRide(data)
-		if err != nil {
-			return "", errors.Errorf("failed to parse ethereum data, %v", err)
-		}
-		for _, payment := range decodedData.Payments {
-			if !payment.PresentAssetID {
-				continue // it's waves asset, skip
-			}
-			assetID := proto.AssetIDFromDigest(payment.AssetID)
-			asset, err := s.nodeRPCApp.State.AssetInfo(assetID)
-			if err != nil {
-				return "", errors.Errorf("failed to get asset info, %v", err)
-			}
-			if asset.Scripted {
-				fee += proto.MinFeeScriptedAsset
-			}
-		}
-		return uint64ToHexString(uint64(fee)), nil
+		return uint64ToHexString(proto.MinFeeInvokeScript), nil
 	default:
 		return "", errors.Errorf("unexpected ethereum tx kind")
 	}
