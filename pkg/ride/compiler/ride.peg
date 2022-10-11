@@ -10,13 +10,12 @@ type Parser Peg {
 Code <- DAppRoot / ScriptRoot
 DAppRoot <- _ (Directive _)* (_ Declaration)* (_ AnnotatedFunc)* _ EOF
 ScriptRoot <- _ (Directive _)* (_ Declaration)* _ BlockDecExprSep? _ Expr _ EOF
-# Whitespaces and new line symbols
 
-WS <- [ \t]+
-NewLine <- [ \t\n\r\f]+
+# Whitespaces and new line symbols
+WS <- [ \t]
+EOL <- [\n\r\f]
 Comment <- '#' [^\r^\n]*
-WhiteSpace <- (Comment / NewLine)*
-_ <- WhiteSpace
+_ <- (Comment / (WS / EOL)+)*
 
 EOF <- !.
 
@@ -26,7 +25,7 @@ DirectiveName <- [A-Z]+[_A-Z]*
 UpperCaseString <- [A-Z]+
 IntString <- [0-9]+
 PathString <- [_a-zA-Z0-9-/,.]+
-Directive <- "{-#" WS DirectiveName WS (IntString / UpperCaseString / PathString) WS "#-}"
+Directive <- "{-#" WS+ DirectiveName WS+ (IntString / UpperCaseString / PathString) WS+ "#-}"
 
 # Declarations
 
@@ -77,28 +76,26 @@ NotOp <- '!'
 ReservedWords <- "let" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func"
 
 ConstAtom <- IntegerAtom / StringAtom / ByteVectorAtom / BooleanAtom / ListAtom
-IdentifierAtom <- (!ReservedWords Char (Char / Digit)*) / (ReservedWords (Char / Digit) (Char / Digit)*)
-ReferenceAtom <- (!ReservedWords Char (Char / Digit)*) / (ReservedWords (Char / Digit) (Char / Digit)*)
+IdentifierAtom <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)
 GenericTypesAtom <- OneGenericTypeAtom ((_ "|" _ GenericTypesAtom) / OneGenericTypeAtom)?
-OneGenericTypeAtom <- Char (Char / Digit)* (_ "[" _ OneTypeAtom _ "]" _)?
+OneGenericTypeAtom <- [A-Za-z][A-Za-z0-9]* (_ "[" _ OneTypeAtom _ "]" _)?
 TypesAtom <- OneTypeAtom ((_ "|" _ TypesAtom) / OneTypeAtom)?
-OneTypeAtom <- Char (Char / Digit)*
+OneTypeAtom <- [A-Za-z][A-Za-z0-9]*
 
-ByteVectorAtom <- "base" ByteVectorBase "'" ByteVectorValue "'"
-ByteVectorBase <- "58" / "64" / "16"
-ByteVectorValue <-  [^\']*
+# ByteVector encodings
+Base16 <- "base16'" [0-9ABCDEFabcdef]* "'"
+Base58 <- "base58'" [123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]* "'"
+Base64 <- "base64'" [ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]* "'"
+ByteVectorAtom <- Base16 / Base58 / Base64
 
 BooleanAtom <- "true" / "false"
 
 StringAtom <- "\"" (UnicodeCharAtom / EscapedCharAtom / CharAtom)* "\""
-UnicodeCharAtom <- "\\u" HexDigit HexDigit HexDigit HexDigit
-HexDigit <- Char / Digit
+UnicodeCharAtom <- "\\u" [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
 EscapedCharAtom <- "\\" .
 CharAtom <- [^\"]
-Char <- [a-zA-Z]
 
-IntegerAtom <- Digit+
-Digit <- [0-9]
+IntegerAtom <- [0-9]+
 
 ListAtom <- "[" _ ExprSeq? _ "]"
 ExprSeq <- Expr ((_ "," _ ExprSeq) / Expr)?
@@ -116,10 +113,10 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 Expr <- OrOpAtom
 ParExpr <- "(" _ Expr _ ")"
 
-GettableExpr <- (ParExpr / Block / FunctionCall / ReferenceAtom) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAtomAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / IdentifierAtom) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAtomAccess))))*
 FunctionCallAccess <- FunctionCall
 IdentifierAtomAccess <- IdentifierAtom
-ListAccess <- "[" _ (Expr / ReferenceAtom) _ "]"
+ListAccess <- "[" _ (Expr / IdentifierAtom) _ "]"
 
 Block <- "{" (_ Declaration)* _ BlockDecExprSep? _ Expr _ "}"
 BlockWithoutPar <- (_ Declaration)* _ BlockDecExprSep? _ Expr
@@ -127,7 +124,7 @@ BlockDecExprSep <- ":"
 
 FunctionCall <- IdentifierAtom _ "(" _ ExprSeq? _ ")"
 
-FoldMacro <- "FOLD" _ "<" _ IntegerAtom _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ ReferenceAtom _ ")"
+FoldMacro <- "FOLD" _ "<" _ IntegerAtom _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ IdentifierAtom _ ")"
 
 IfWithError <- If / FailedIfWithoutElse
 If <- "if" _ Expr _ "then" _ Expr _ "else" _ Expr

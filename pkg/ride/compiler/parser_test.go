@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -77,9 +78,12 @@ func checkAST(t *testing.T, expected string, ast *node32, buffer string) {
 			}
 		}
 	}
+	if len(exps[i:]) > 0 {
+		assert.Fail(t, fmt.Sprintf("unmet expectations: %v", exps[i:]))
+	}
 }
 
-func TestStringDirectives(t *testing.T) {
+func TestDirectives(t *testing.T) {
 	for _, test := range []struct {
 		src      string
 		fail     bool
@@ -114,6 +118,119 @@ func TestStringDirectives(t *testing.T) {
 		if test.fail {
 			assert.EqualError(t, err, test.expected, test.src)
 		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestByteVector(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`base16''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16''>"},
+		{`base58''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58''>"},
+		{`base64''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64''>"},
+		{`base16'cafeBEBE12345'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16'cafeBEBE12345'>"},
+		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
+		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
+		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
+		{`base16'cafeBEBE12345'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16'cafeBEBE12345'>"},
+		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
+		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
+		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
+		{`base16'JFK'`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base16\"\n"},
+		{`base58'IO0'`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base58\"\n"},
+		{`base64'BASE64_-`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base64\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestString(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`"some string"`, false, "ConstAtom<*>;StringAtom<\"some string\">"},
+		{`"this is \u01F4A9"`, false, "ConstAtom<*>;StringAtom<\"this is \\u01F4A9\">;UnicodeCharAtom<\\u01F4>;CharAtom<A>;CharAtom<9>"},
+		{`"esc\t\"x\"\n"`, false, "ConstAtom<*>;StringAtom<\"esc\\t\\\"x\\\"\\n\">;CharAtom<e>;CharAtom<s>;CharAtom<c>;EscapedCharAtom<\\t>;EscapedCharAtom<\\\">;CharAtom<x>;EscapedCharAtom<\\\">;EscapedCharAtom<\\n>"},
+		{`"Hello, 世界! Привет!"`, false, "ConstAtom<*>;StringAtom<\"Hello, 世界! Привет!\">"},
+		{`"some string`, true, "\nparse error near CharAtom (line 1 symbol 12 - line 1 symbol 13):\n\"g\"\n"},
+		{`"Hello, 世界! Привет!"`, false, "ConstAtom<*>;StringAtom<\"Hello, 世界! Привет!\">"},
+		{`Hello, 世界! Привет!"`, true, "\nparse error near IdentifierAtom (line 1 symbol 1 - line 1 symbol 6):\n\"Hello\"\n"},
+		{`"Hello, 世界! Привет!`, true, "\nparse error near CharAtom (line 1 symbol 19 - line 1 symbol 20):\n\"!\"\n"},
+		{`"Hello, 世界!" Привет!"`, true, "\nparse error near WS (line 1 symbol 13 - line 1 symbol 14):\n\" \"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestBoolean(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`true`, false, "ConstAtom<*>;BooleanAtom<true>"},
+		{`false`, false, "ConstAtom<*>;BooleanAtom<false>"},
+		{`trueFalse123`, false, "GettableExpr<*>;IdentifierAtom<trueFalse123>;ReservedWords<true>"},
+		{`false&^(*`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 6):\n\"false\"\n"},
+		{`true!@#`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 5):\n\"true\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestDefinitions(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`let x = 1`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;ConstAtom<*>;IntegerAtom<1>"},
+		{`let x = "xxx"`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;ConstAtom<*>;StringAtom<\"xxx\">"},
+		{`let x = y`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;GettableExpr<*>;IdentifierAtom<y>"},
+		{`let x = `, true, "\nparse error near WS (line 1 symbol 8 - line 1 symbol 9):\n\" \"\n"},
+		// From Scala implementation:
+		{`func f a: Int) = a`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},
+		{`func f(a: Int = a`, true, "\nparse error near WS (line 1 symbol 14 - line 1 symbol 15):\n\" \"\n"},
+		{`func f(a: Int) a`, true, "\nparse error near WS (line 1 symbol 15 - line 1 symbol 16):\n\" \"\n"},
+		{`func f(a Int) = a`, true, "\nparse error near WS (line 1 symbol 9 - line 1 symbol 10):\n\" \"\n"},
+		{`func f(a, b, c) = a`, true, "\nparse error near IdentifierAtom (line 1 symbol 8 - line 1 symbol 9):\n\"a\"\n"},
+		{`func f(a Int, b: String, c) a`, true, "\nparse error near WS (line 1 symbol 9 - line 1 symbol 10):\n\" \"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
 			checkAST(t, test.expected, ast, test.src)
 		}
 	}
