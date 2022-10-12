@@ -354,6 +354,22 @@ type testStorageObjects struct {
 }
 
 func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
+	return createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: amend})
+}
+
+type testStorageObjectsOptions struct {
+	Amend    bool
+	Scheme   proto.Scheme
+	Settings *settings.BlockchainSettings
+}
+
+func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
+	if options.Settings == nil {
+		options.Settings = settings.MainNetSettings
+	}
+	if options.Scheme == 0 {
+		options.Scheme = proto.MainNetScheme
+	}
 	db, err := keyvalue.NewKeyVal(t.TempDir(), defaultTestKeyValParams())
 	require.NoError(t, err)
 	// no need to close db because stateDB closes it
@@ -367,17 +383,17 @@ func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
 		assert.NoError(t, stateDB.close())
 	})
 
-	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, proto.MainNetScheme)
+	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, options.Scheme)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, rw.close())
 	})
 	stateDB.setRw(rw)
 
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, amend)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
 	require.NoError(t, err)
 
-	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw, false)
+	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, false)
 	require.NoError(t, err)
 
 	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}

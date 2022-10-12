@@ -467,10 +467,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "account has verifier")
 	}
 
-	if _, ok := senderAddr.(proto.WavesAddress); ok {
-		if err := a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-			return errs.Extend(err, "tx signature or data verification failed")
-		}
+	if err := a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
+		return errs.Extend(err, "tx signature or data verification failed")
 	}
 
 	// Check tx against state, check tx scripts, calculate balance changes.
