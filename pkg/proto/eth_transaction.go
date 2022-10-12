@@ -29,12 +29,6 @@ const (
 	UndefinedTxType
 )
 
-const (
-	EthereumTransferMinFee      uint64 = 100_000
-	EthereumScriptedAssetMinFee uint64 = 400_000
-	EthereumInvokeMinFee        uint64 = 500_000
-)
-
 func (e EthereumTxType) String() string {
 	switch e {
 	case EthereumLegacyTxType:
