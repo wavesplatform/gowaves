@@ -35,12 +35,12 @@ Variable <- "let" _ IdentifierAtom _ "=" _ Expr
 
 Func <- "func" _ IdentifierAtom _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
 FuncArg <- IdentifierAtom _ ":" _ GenericTypesAtom
-FuncArgSeq <- FuncArg ((_ "," _ FuncArgSeq) / FuncArg)?
+FuncArgSeq <- FuncArg (_ "," _ FuncArgSeq)?
 
 AnnotatedFunc <- AnnotationSeq _ Func
 Annotation <- "@" IdentifierAtom _ "(" _ IdentifierAtomSeq _ ")"
-IdentifierAtomSeq <- IdentifierAtom (( _ "," _ IdentifierAtomSeq) / IdentifierAtom)?
-AnnotationSeq <- Annotation (( _ AnnotationSeq) / Annotation)?
+IdentifierAtomSeq <- IdentifierAtom ( _ "," _ IdentifierAtomSeq)?
+AnnotationSeq <- Annotation ( _ AnnotationSeq)?
 
 # Operators
 OrOp <- "||"

@@ -14,7 +14,9 @@ func TestSimpleAST(t *testing.T) {
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 
-#let ad = if true then 3 else 4
+let kmsdc = sigVerify(base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
+
+#let ad = if true then 3 else false
 
 #let asd = FOLD<10>(10, 10, asd)
 #let asd = 5
@@ -58,7 +60,7 @@ func verify() = {
     #true
 }
 `
-	ast, buf, err := buildAST(t, src, true)
+	ast, buf, err := buildAST(t, src, false)
 
 	require.NoError(t, err)
 	astParser := NewASTParser(ast, buf)

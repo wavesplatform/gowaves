@@ -1,0 +1,67 @@
+{
+  "funcs": {
+    "keccak256": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "ByteVector",
+      "id": "501"
+    },
+    "blake2b256": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "ByteVector",
+      "id": "502"
+    },
+    "sha256": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "ByteVector",
+      "id": "503"
+    },
+    "sigVerify": {
+      "arguments": [
+        ["ByteVector"], ["ByteVector"], ["ByteVector"]
+      ],
+      "return_type": "Boolean",
+      "id": "500"
+    },
+    "toBase58String": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "String",
+      "id": "600"
+    },
+    "fromBase58String": {
+      "arguments": [
+        ["String"]
+      ],
+      "return_type": "ByteVector",
+      "id": "601"
+    },
+    "toBase64String": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "String",
+      "id": "602"
+    },
+    "fromBase64String": {
+      "arguments": [
+        ["String"]
+      ],
+      "return_type": "ByteVector",
+      "id": "603"
+    },
+    "transactionHeightById": {
+      "arguments": [
+        ["ByteVector"]
+      ],
+      "return_type": "Int",
+      "id": "1001"
+    }
+  }
+}

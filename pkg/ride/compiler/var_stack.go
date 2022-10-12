@@ -1,5 +1,7 @@
 package compiler
 
+import s "github.com/wavesplatform/gowaves/pkg/ride/compiler/signatures"
+
 type VarStack struct {
 	up *VarStack
 
@@ -31,7 +33,7 @@ func (s *VarStack) GetVariable(name string) (Variable, bool) {
 
 type Variable struct {
 	Name string
-	Type string
+	Type s.Type
 }
 
 type Func struct {
