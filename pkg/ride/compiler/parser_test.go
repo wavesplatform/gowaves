@@ -267,13 +267,26 @@ func TestDefinitions(t *testing.T) {
 		{`let x = "xxx"`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;ConstAtom<*>;StringAtom<\"xxx\">"},
 		{`let x = y`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;GettableExpr<*>;IdentifierAtom<y>"},
 		{`let x = `, true, "\nparse error near WS (line 1 symbol 8 - line 1 symbol 9):\n\" \"\n"},
-		// From Scala implementation:
+		{`let x y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
+		{`let x == y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
+		{`let x != y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
+		{`let func = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"func\"\n"},
+		{`func a() = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<a>;Expr<*>"},
+		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<aaa>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<b>;OneGenericTypeAtom<String>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<c>;OneGenericTypeAtom<Boolean>;Expr<*>"},
 		{`func f a: Int) = a`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},
 		{`func f(a: Int = a`, true, "\nparse error near WS (line 1 symbol 14 - line 1 symbol 15):\n\" \"\n"},
 		{`func f(a: Int) a`, true, "\nparse error near WS (line 1 symbol 15 - line 1 symbol 16):\n\" \"\n"},
 		{`func f(a Int) = a`, true, "\nparse error near WS (line 1 symbol 9 - line 1 symbol 10):\n\" \"\n"},
 		{`func f(a, b, c) = a`, true, "\nparse error near IdentifierAtom (line 1 symbol 8 - line 1 symbol 9):\n\"a\"\n"},
 		{`func f(a Int, b: String, c) a`, true, "\nparse error near WS (line 1 symbol 9 - line 1 symbol 10):\n\" \"\n"},
+		{`func let() = true`, true, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 9):\n\"let\"\n"},
+		{`let x = # xxx
+true
+`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;Comment<*>;Expr<*>;BooleanAtom<true>"},
+		{`func xxx 
+					(a: Int, b: Int) = # xxx
+true
+`, false, "Declaration<*>;Func<*>;IdentifierAtom<xxx>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<b>;OneGenericTypeAtom<Int>;Comment<*>;Expr<*>;BooleanAtom<true>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
