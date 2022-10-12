@@ -85,13 +85,13 @@ func retry(timeout time.Duration, f func() error) error {
 	return nil
 }
 
-func (c *NodesClients) WaitForTransaction(ID *crypto.Digest, timeout time.Duration) (error, error) {
+func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duration) (error, error) {
 	errGo := retry(timeout, func() error {
-		_, _, err := c.GoClients.HttpClient.TransactionInfoRaw(*ID)
+		_, _, err := c.GoClients.HttpClient.TransactionInfoRaw(id)
 		return err
 	})
 	errScala := retry(timeout, func() error {
-		_, _, err := c.ScalaClients.HttpClient.TransactionInfoRaw(*ID)
+		_, _, err := c.ScalaClients.HttpClient.TransactionInfoRaw(id)
 		return err
 	})
 	return errGo, errScala
