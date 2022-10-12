@@ -1,9 +1,12 @@
 package signatures
 
 import (
+	"embed"
 	"encoding/json"
-	"os"
 )
+
+//go:embed funcs.json
+var embedded embed.FS
 
 type Type string
 
@@ -30,13 +33,12 @@ type FunctionParams struct {
 }
 
 func mustLoadFuncs() *FunctionsSignatures {
-	f, err := os.Open("/Users/ailin/Projects/gowaves/pkg/ride/compiler/signatures/funcs.json")
+	f, err := embedded.ReadFile("funcs.json")
 	if err != nil {
 		panic(err)
 	}
-	jsonParser := json.NewDecoder(f)
 	s := &FunctionsSignatures{}
-	if err = jsonParser.Decode(s); err != nil {
+	if err = json.Unmarshal(f, s); err != nil {
 		panic(err)
 	}
 	return s
