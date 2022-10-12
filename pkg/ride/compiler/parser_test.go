@@ -184,6 +184,28 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestInt(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`12345`, false, "ConstAtom<*>;IntegerAtom<12345>"},
+		{`00000`, false, "ConstAtom<*>;IntegerAtom<00000>"},
+		{`01abc`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 3):\n\"01\"\n"},
+		{`123!@#`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 4):\n\"123\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
 func TestBoolean(t *testing.T) {
 	for _, test := range []struct {
 		src      string
@@ -195,6 +217,34 @@ func TestBoolean(t *testing.T) {
 		{`trueFalse123`, false, "GettableExpr<*>;IdentifierAtom<trueFalse123>;ReservedWords<true>"},
 		{`false&^(*`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 6):\n\"false\"\n"},
 		{`true!@#`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 5):\n\"true\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestList(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`[]`, false, "ConstAtom<*>;ListAtom<[]>"},
+		{`[[1], [[2], [3]]]`, false, "ConstAtom<*>;ListAtom<*>;ListAtom<*>;IntegerAtom<1>;ListAtom<*>;ListAtom<*>;IntegerAtom<2>;ListAtom<*>;IntegerAtom<3>"},
+		{`[12]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>"},
+		{`[12, true, "xxx"]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>;ConstAtom<*>;BooleanAtom<true>;ConstAtom<*>;StringAtom<\"xxx\">"},
+		{`[12, [true, "xxx"]]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>;ListAtom<*>;ConstAtom<*>;BooleanAtom<true>;ConstAtom<*>;StringAtom<\"xxx\">"},
+		{`[12, true "xxx"]`, true, "\nparse error near WS (line 1 symbol 10 - line 1 symbol 11):\n\" \"\n"},
+		{`[12 true, "xxx"]`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
+		{`[12, true, "xxx"`, true, "\nparse error near StringAtom (line 1 symbol 12 - line 1 symbol 17):\n\"\\\"xxx\\\"\"\n"},
+		{`12, true, "xxx"]`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 3):\n\"12\"\n"},
+		{`12, true, "xxx"]`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 3):\n\"12\"\n"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {

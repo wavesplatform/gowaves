@@ -98,7 +98,7 @@ CharAtom <- [^\"]
 IntegerAtom <- [0-9]+
 
 ListAtom <- "[" _ ExprSeq? _ "]"
-ExprSeq <- Expr ((_ "," _ ExprSeq) / Expr)?
+ExprSeq <- Expr (_ "," _ ExprSeq)?
 
 # Expressions
 AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / ConstAtom)
