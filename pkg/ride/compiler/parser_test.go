@@ -271,6 +271,8 @@ func TestDefinitions(t *testing.T) {
 		{`let x == y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
 		{`let x != y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
 		{`let func = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"func\"\n"},
+		{`strict x = true `, false, "Declaration<*>;StrictVariable<*>;IdentifierAtom<x>;ConstAtom<*>;BooleanAtom<true>"},
+		{`let strict = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"strict\"\n"},
 		{`func a() = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<a>;Expr<*>"},
 		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<aaa>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<b>;OneGenericTypeAtom<String>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<c>;OneGenericTypeAtom<Boolean>;Expr<*>"},
 		{`func f a: Int) = a`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},

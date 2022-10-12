@@ -29,9 +29,10 @@ Directive <- "{-#" WS+ DirectiveName WS+ (IntString / UpperCaseString / PathStri
 
 # Declarations
 
-Declaration <- Variable / Func
+Declaration <- Variable / StrictVariable / Func
 
 Variable <- "let" _ IdentifierAtom _ "=" _ Expr
+StrictVariable <- "strict" _ IdentifierAtom _ "=" _ Expr
 
 Func <- "func" _ IdentifierAtom _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
 FuncArg <- IdentifierAtom _ ":" _ GenericTypesAtom
@@ -73,7 +74,7 @@ NegativeOp <- '-'!'#'
 NotOp <- '!'
 
 # Types
-ReservedWords <- "let" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func"
+ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func"
 
 ConstAtom <- IntegerAtom / StringAtom / ByteVectorAtom / BooleanAtom / ListAtom
 IdentifierAtom <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)
