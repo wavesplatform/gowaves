@@ -74,7 +74,7 @@ NegativeOp <- '-'!'#'
 NotOp <- '!'
 
 # Types
-ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func"
+ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
 
 ConstAtom <- IntegerAtom / StringAtom / ByteVectorAtom / BooleanAtom / ListAtom
 IdentifierAtom <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)

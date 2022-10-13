@@ -300,3 +300,42 @@ true
 		}
 	}
 }
+
+func TestReservedWords(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		expected string
+	}{
+		{`func let() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 9):\n\"let\"\n"},
+		{`func strict() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 12):\n\"strict\"\n"},
+		{`func base16() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 12):\n\"base16\"\n"},
+		{`func base58() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 12):\n\"base58\"\n"},
+		{`func base64() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 12):\n\"base64\"\n"},
+		{`func true() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"true\"\n"},
+		{`func false() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 11):\n\"false\"\n"},
+		{`func if() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 8):\n\"if\"\n"},
+		{`func then() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"then\"\n"},
+		{`func else() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"else\"\n"},
+		{`func match() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 11):\n\"match\"\n"},
+		{`func case() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"case\"\n"},
+		{`func func() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"func\"\n"},
+		{`func FOLD() = true`, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 10):\n\"FOLD\"\n"},
+		{`let let = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 8):\n\"let\"\n"},
+		{`strict strict = true`, "\nparse error near ReservedWords (line 1 symbol 8 - line 1 symbol 14):\n\"strict\"\n"},
+		{`let base16 = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"base16\"\n"},
+		{`let base58 = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"base58\"\n"},
+		{`let base64 = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"base64\"\n"},
+		{`let true = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"true\"\n"},
+		{`let false = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 10):\n\"false\"\n"},
+		{`let if = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 7):\n\"if\"\n"},
+		{`let then = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"then\"\n"},
+		{`let else = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"else\"\n"},
+		{`let match = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 10):\n\"match\"\n"},
+		{`let case = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"case\"\n"},
+		{`let func = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"func\"\n"},
+		{`let FOLD = true`, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"FOLD\"\n"},
+	} {
+		_, _, err := buildAST(t, test.src, false)
+		assert.EqualError(t, err, test.expected, test.src)
+	}
+}
