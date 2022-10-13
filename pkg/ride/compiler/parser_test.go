@@ -62,7 +62,7 @@ func checkAST(t *testing.T, expected string, ast *node32, buffer string) {
 			exp := exps[i]
 			if rs == exp.name {
 				quote := string([]rune(buffer)[n.begin:n.end])
-				if exp.value != "*" {
+				if exp.value != "." {
 					require.Equal(t, exp.value, quote, buffer)
 				}
 				i++
@@ -89,30 +89,30 @@ func TestDirectives(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`{-# STDLIB_VERSION 6 #-}`, false, "Directive<*>;DirectiveName<STDLIB_VERSION>;IntString<6>"},
-		{`{-# STDLIB_VERSION XXX #-}`, false, "Directive<*>;DirectiveName<STDLIB_VERSION>;UpperCaseString<XXX>"},
-		{`{-# CONTENT_TYPE DAPP #-}`, false, "Directive<*>;DirectiveName<CONTENT_TYPE>;UpperCaseString<DAPP>"},
-		{`{-# SCRIPT_TYPE ACCOUNT #-}`, false, "Directive<*>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<ACCOUNT>"},
-		{`{-#	SCRIPT_TYPE 	 ACCOUNT      #-}`, false, "Directive<*>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<ACCOUNT>"},
-		{`{-# IMPORT lib1 #-}`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib1>"},
-		{`{-# IMPORT lib1,my_lib2 #-}`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib1,my_lib2>"},
-		{`{-# IMPORT lib3.ride,dir/lib4.ride #-}`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride,dir/lib4.ride>"},
+		{`{-# STDLIB_VERSION 6 #-}`, false, "Directive<.>;DirectiveName<STDLIB_VERSION>;IntString<6>"},
+		{`{-# STDLIB_VERSION XXX #-}`, false, "Directive<.>;DirectiveName<STDLIB_VERSION>;UpperCaseString<XXX>"},
+		{`{-# CONTENT_TYPE DAPP #-}`, false, "Directive<.>;DirectiveName<CONTENT_TYPE>;UpperCaseString<DAPP>"},
+		{`{-# SCRIPT_TYPE ACCOUNT #-}`, false, "Directive<.>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<ACCOUNT>"},
+		{`{-#	SCRIPT_TYPE 	 ACCOUNT      #-}`, false, "Directive<.>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<ACCOUNT>"},
+		{`{-# IMPORT lib1 #-}`, false, "Directive<.>;DirectiveName<IMPORT>;PathString<lib1>"},
+		{`{-# IMPORT lib1,my_lib2 #-}`, false, "Directive<.>;DirectiveName<IMPORT>;PathString<lib1,my_lib2>"},
+		{`{-# IMPORT lib3.ride,dir/lib4.ride #-}`, false, "Directive<.>;DirectiveName<IMPORT>;PathString<lib3.ride,dir/lib4.ride>"},
 		{`{-# STDLIB_version 123 #-}`, true, "\nparse error near DirectiveName (line 1 symbol 5 - line 1 symbol 12):\n\"STDLIB_\"\n"},
 		{`{-# NAME #-}`, true, "\nparse error near WS (line 1 symbol 9 - line 1 symbol 10):\n\" \"\n"},
 		{`{-# 123 #-}`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
-		{`{-# CONTENT_TYPE account #-}`, false, "Directive<*>;DirectiveName<CONTENT_TYPE>;PathString<account>"},
+		{`{-# CONTENT_TYPE account #-}`, false, "Directive<.>;DirectiveName<CONTENT_TYPE>;PathString<account>"},
 		{`{-# CONTENT-TYPE ACCOUNT #-}`, true, "\nparse error near DirectiveName (line 1 symbol 5 - line 1 symbol 12):\n\"CONTENT\"\n"},
 		{`{-# IMPORT lib3.ride,dir\lib4.ride #-}`, true, "\nparse error near PathString (line 1 symbol 12 - line 1 symbol 25):\n\"lib3.ride,dir\"\n"},
-		{`{-# IMPORT lib3.ride #-} # comment`, false, "Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride>"},
+		{`{-# IMPORT lib3.ride #-} # comment`, false, "Directive<.>;DirectiveName<IMPORT>;PathString<lib3.ride>"},
 		{`	{-# STDLIB_VERSION 6 #-}
 				{-# IMPORT lib3.ride,lib4.ride #-} # comment
 				{-# CONTENT_TYPE ACCOUNT #-}
 				{-# SCRIPT_TYPE DAPP #-}
 			`, false,
-			"Directive<*>;DirectiveName<STDLIB_VERSION>;IntString<6>;" +
-				"Directive<*>;DirectiveName<IMPORT>;PathString<lib3.ride,lib4.ride>;" +
-				"Directive<*>;DirectiveName<CONTENT_TYPE>;UpperCaseString<ACCOUNT>;" +
-				"Directive<*>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<DAPP>"},
+			"Directive<.>;DirectiveName<STDLIB_VERSION>;IntString<6>;" +
+				"Directive<.>;DirectiveName<IMPORT>;PathString<lib3.ride,lib4.ride>;" +
+				"Directive<.>;DirectiveName<CONTENT_TYPE>;UpperCaseString<ACCOUNT>;" +
+				"Directive<.>;DirectiveName<SCRIPT_TYPE>;UpperCaseString<DAPP>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
@@ -131,17 +131,17 @@ func TestByteVector(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`base16''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16''>"},
-		{`base58''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58''>"},
-		{`base64''`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64''>"},
-		{`base16'cafeBEBE12345'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16'cafeBEBE12345'>"},
-		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
-		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
-		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
-		{`base16'cafeBEBE12345'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base16<base16'cafeBEBE12345'>"},
-		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
-		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
-		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<*>;ByteVectorAtom<*>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
+		{`base16''`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base16<base16''>"},
+		{`base58''`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base58<base58''>"},
+		{`base64''`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base64<base64''>"},
+		{`base16'cafeBEBE12345'`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base16<base16'cafeBEBE12345'>"},
+		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
+		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
+		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
+		{`base16'cafeBEBE12345'`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base16<base16'cafeBEBE12345'>"},
+		{`base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base58<base58'3aU8VJHZeWTaNLXCDwaDuqairhwih1Vf3PKgn3H98xXcTxM3Y9ePxbpX4f3ByhatR2Z8ouRgagiMNAEgzavbbG3m'>"},
+		{`base64'SGVsbG8gd29ybGQhISE='`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base64<base64'SGVsbG8gd29ybGQhISE='>"},
+		{`base64'SGVsbG8gd29ybGQhIQ=='`, false, "ConstAtom<.>;ByteVectorAtom<.>;Base64<base64'SGVsbG8gd29ybGQhIQ=='>"},
 		{`base16'JFK'`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base16\"\n"},
 		{`base58'IO0'`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base58\"\n"},
 		{`base64'BASE64_-`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 7):\n\"base64\"\n"},
@@ -163,12 +163,12 @@ func TestString(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`"some string"`, false, "ConstAtom<*>;StringAtom<\"some string\">"},
-		{`"this is \u01F4A9"`, false, "ConstAtom<*>;StringAtom<\"this is \\u01F4A9\">;UnicodeCharAtom<\\u01F4>;CharAtom<A>;CharAtom<9>"},
-		{`"esc\t\"x\"\n"`, false, "ConstAtom<*>;StringAtom<\"esc\\t\\\"x\\\"\\n\">;CharAtom<e>;CharAtom<s>;CharAtom<c>;EscapedCharAtom<\\t>;EscapedCharAtom<\\\">;CharAtom<x>;EscapedCharAtom<\\\">;EscapedCharAtom<\\n>"},
-		{`"Hello, 世界! Привет!"`, false, "ConstAtom<*>;StringAtom<\"Hello, 世界! Привет!\">"},
+		{`"some string"`, false, "ConstAtom<.>;StringAtom<\"some string\">"},
+		{`"this is \u01F4A9"`, false, "ConstAtom<.>;StringAtom<\"this is \\u01F4A9\">;UnicodeCharAtom<\\u01F4>;CharAtom<A>;CharAtom<9>"},
+		{`"esc\t\"x\"\n"`, false, "ConstAtom<.>;StringAtom<\"esc\\t\\\"x\\\"\\n\">;CharAtom<e>;CharAtom<s>;CharAtom<c>;EscapedCharAtom<\\t>;EscapedCharAtom<\\\">;CharAtom<x>;EscapedCharAtom<\\\">;EscapedCharAtom<\\n>"},
+		{`"Hello, 世界! Привет!"`, false, "ConstAtom<.>;StringAtom<\"Hello, 世界! Привет!\">"},
 		{`"some string`, true, "\nparse error near CharAtom (line 1 symbol 12 - line 1 symbol 13):\n\"g\"\n"},
-		{`"Hello, 世界! Привет!"`, false, "ConstAtom<*>;StringAtom<\"Hello, 世界! Привет!\">"},
+		{`"Hello, 世界! Привет!"`, false, "ConstAtom<.>;StringAtom<\"Hello, 世界! Привет!\">"},
 		{`Hello, 世界! Привет!"`, true, "\nparse error near IdentifierAtom (line 1 symbol 1 - line 1 symbol 6):\n\"Hello\"\n"},
 		{`"Hello, 世界! Привет!`, true, "\nparse error near CharAtom (line 1 symbol 19 - line 1 symbol 20):\n\"!\"\n"},
 		{`"Hello, 世界!" Привет!"`, true, "\nparse error near WS (line 1 symbol 13 - line 1 symbol 14):\n\" \"\n"},
@@ -190,8 +190,8 @@ func TestInt(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`12345`, false, "ConstAtom<*>;IntegerAtom<12345>"},
-		{`00000`, false, "ConstAtom<*>;IntegerAtom<00000>"},
+		{`12345`, false, "ConstAtom<.>;IntegerAtom<12345>"},
+		{`00000`, false, "ConstAtom<.>;IntegerAtom<00000>"},
 		{`01abc`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 3):\n\"01\"\n"},
 		{`123!@#`, true, "\nparse error near IntegerAtom (line 1 symbol 1 - line 1 symbol 4):\n\"123\"\n"},
 	} {
@@ -212,9 +212,9 @@ func TestBoolean(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`true`, false, "ConstAtom<*>;BooleanAtom<true>"},
-		{`false`, false, "ConstAtom<*>;BooleanAtom<false>"},
-		{`trueFalse123`, false, "GettableExpr<*>;IdentifierAtom<trueFalse123>;ReservedWords<true>"},
+		{`true`, false, "ConstAtom<.>;BooleanAtom<true>"},
+		{`false`, false, "ConstAtom<.>;BooleanAtom<false>"},
+		{`trueFalse123`, false, "GettableExpr<.>;IdentifierAtom<trueFalse123>;ReservedWords<true>"},
 		{`false&^(*`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 6):\n\"false\"\n"},
 		{`true!@#`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 5):\n\"true\"\n"},
 	} {
@@ -235,11 +235,11 @@ func TestList(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`[]`, false, "ConstAtom<*>;ListAtom<[]>"},
-		{`[[1], [[2], [3]]]`, false, "ConstAtom<*>;ListAtom<*>;ListAtom<*>;IntegerAtom<1>;ListAtom<*>;ListAtom<*>;IntegerAtom<2>;ListAtom<*>;IntegerAtom<3>"},
-		{`[12]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>"},
-		{`[12, true, "xxx"]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>;ConstAtom<*>;BooleanAtom<true>;ConstAtom<*>;StringAtom<\"xxx\">"},
-		{`[12, [true, "xxx"]]`, false, "ConstAtom<*>;ListAtom<*>;ConstAtom<*>;IntegerAtom<12>;ListAtom<*>;ConstAtom<*>;BooleanAtom<true>;ConstAtom<*>;StringAtom<\"xxx\">"},
+		{`[]`, false, "ConstAtom<.>;ListAtom<[]>"},
+		{`[[1], [[2], [3]]]`, false, "ConstAtom<.>;ListAtom<.>;ListAtom<.>;IntegerAtom<1>;ListAtom<.>;ListAtom<.>;IntegerAtom<2>;ListAtom<.>;IntegerAtom<3>"},
+		{`[12]`, false, "ConstAtom<.>;ListAtom<.>;ConstAtom<.>;IntegerAtom<12>"},
+		{`[12, true, "xxx"]`, false, "ConstAtom<.>;ListAtom<.>;ConstAtom<.>;IntegerAtom<12>;ConstAtom<.>;BooleanAtom<true>;ConstAtom<.>;StringAtom<\"xxx\">"},
+		{`[12, [true, "xxx"]]`, false, "ConstAtom<.>;ListAtom<.>;ConstAtom<.>;IntegerAtom<12>;ListAtom<.>;ConstAtom<.>;BooleanAtom<true>;ConstAtom<.>;StringAtom<\"xxx\">"},
 		{`[12, true "xxx"]`, true, "\nparse error near WS (line 1 symbol 10 - line 1 symbol 11):\n\" \"\n"},
 		{`[12 true, "xxx"]`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
 		{`[12, true, "xxx"`, true, "\nparse error near StringAtom (line 1 symbol 12 - line 1 symbol 17):\n\"\\\"xxx\\\"\"\n"},
@@ -263,18 +263,18 @@ func TestDefinitions(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`let x = 1`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;ConstAtom<*>;IntegerAtom<1>"},
-		{`let x = "xxx"`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;ConstAtom<*>;StringAtom<\"xxx\">"},
-		{`let x = y`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;GettableExpr<*>;IdentifierAtom<y>"},
+		{`let x = 1`, false, "Declaration<.>;Variable<.>;IdentifierAtom<x>;ConstAtom<.>;IntegerAtom<1>"},
+		{`let x = "xxx"`, false, "Declaration<.>;Variable<.>;IdentifierAtom<x>;ConstAtom<.>;StringAtom<\"xxx\">"},
+		{`let x = y`, false, "Declaration<.>;Variable<.>;IdentifierAtom<x>;GettableExpr<.>;IdentifierAtom<y>"},
 		{`let x = `, true, "\nparse error near WS (line 1 symbol 8 - line 1 symbol 9):\n\" \"\n"},
 		{`let x y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
 		{`let x == y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
 		{`let x != y `, true, "\nparse error near WS (line 1 symbol 6 - line 1 symbol 7):\n\" \"\n"},
 		{`let func = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 9):\n\"func\"\n"},
-		{`strict x = true `, false, "Declaration<*>;StrictVariable<*>;IdentifierAtom<x>;ConstAtom<*>;BooleanAtom<true>"},
+		{`strict x = true `, false, "Declaration<.>;StrictVariable<.>;IdentifierAtom<x>;ConstAtom<.>;BooleanAtom<true>"},
 		{`let strict = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"strict\"\n"},
-		{`func a() = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<a>;Expr<*>"},
-		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<*>;Func<*>;IdentifierAtom<aaa>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<b>;OneGenericTypeAtom<String>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<c>;OneGenericTypeAtom<Boolean>;Expr<*>"},
+		{`func a() = 1`, false, "Declaration<.>;Func<.>;IdentifierAtom<a>;Expr<.>"},
+		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<.>;Func<.>;IdentifierAtom<aaa>;FuncArgSeq<.>;FuncArg<.>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<.>;FuncArg<.>;IdentifierAtom<b>;OneGenericTypeAtom<String>;FuncArgSeq<.>;FuncArg<.>;IdentifierAtom<c>;OneGenericTypeAtom<Boolean>;Expr<.>"},
 		{`func f a: Int) = a`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},
 		{`func f(a: Int = a`, true, "\nparse error near WS (line 1 symbol 14 - line 1 symbol 15):\n\" \"\n"},
 		{`func f(a: Int) a`, true, "\nparse error near WS (line 1 symbol 15 - line 1 symbol 16):\n\" \"\n"},
@@ -284,11 +284,11 @@ func TestDefinitions(t *testing.T) {
 		{`func let() = true`, true, "\nparse error near ReservedWords (line 1 symbol 6 - line 1 symbol 9):\n\"let\"\n"},
 		{`let x = # xxx
 true
-`, false, "Declaration<*>;Variable<*>;IdentifierAtom<x>;Comment<*>;Expr<*>;BooleanAtom<true>"},
+`, false, "Declaration<.>;Variable<.>;IdentifierAtom<x>;Comment<.>;Expr<.>;BooleanAtom<true>"},
 		{`func xxx 
 					(a: Int, b: Int) = # xxx
 true
-`, false, "Declaration<*>;Func<*>;IdentifierAtom<xxx>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<*>;FuncArg<*>;IdentifierAtom<b>;OneGenericTypeAtom<Int>;Comment<*>;Expr<*>;BooleanAtom<true>"},
+`, false, "Declaration<.>;Func<.>;IdentifierAtom<xxx>;FuncArgSeq<.>;FuncArg<.>;IdentifierAtom<a>;OneGenericTypeAtom<Int>;FuncArgSeq<.>;FuncArg<.>;IdentifierAtom<b>;OneGenericTypeAtom<Int>;Comment<.>;Expr<.>;BooleanAtom<true>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
@@ -337,5 +337,42 @@ func TestReservedWords(t *testing.T) {
 	} {
 		_, _, err := buildAST(t, test.src, false)
 		assert.EqualError(t, err, test.expected, test.src)
+	}
+}
+
+func TestMathExpressions(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`1 + 2`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>"},
+		{`1 - 2`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SubOp<->;ConstAtom<.>;IntegerAtom<2>"},
+		{`1 * 2`, false, "Expr<.>;MultGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;MultGroupOp<.>;MulOp<*>;ConstAtom<.>;IntegerAtom<2>"},
+		{`1 / 2`, false, "Expr<.>;MultGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;MultGroupOp<.>;DivOp</>;ConstAtom<.>;IntegerAtom<2>"},
+		{`1 + 2 + 3`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<3>"},
+		{`1+2+3`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<3>"},
+		{`1 + (2 * 3)`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;MultGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<2>;MultGroupOp<.>;MulOp<*>;ConstAtom<.>;IntegerAtom<3>"},
+		{`1 + (2 * 3) / 4`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;MultGroupOpAtom<.>;MultGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<2>;MultGroupOp<.>;MulOp<*>;ConstAtom<.>;IntegerAtom<3>;MultGroupOp<.>;DivOp</>;ConstAtom<.>;IntegerAtom<4>"},
+		{`(1 + 2) * (3 - 4)`, false, "Expr<.>;MultGroupOpAtom<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;MultGroupOp<.>;MulOp<*>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<3>;SumGroupOp<.>;SubOp<->;ConstAtom<.>;IntegerAtom<4>"},
+		{`(1) + (2) * (3) - (4)`, false, "Expr<.>;MultGroupOpAtom<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;MultGroupOp<.>;MulOp<*>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<3>;SumGroupOp<.>;SubOp<->;ConstAtom<.>;IntegerAtom<4>"},
+		{`((1) + ((2) * (3)) - (4))`, false, "Expr<.>;MultGroupOpAtom<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;MultGroupOp<.>;MulOp<*>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<3>;SumGroupOp<.>;SubOp<->;ConstAtom<.>;IntegerAtom<4>"},
+		{`(1 + 2) * (3 - 4`, true, "\nparse error near IntegerAtom (line 1 symbol 16 - line 1 symbol 17):\n\"4\"\n"},
+		{`(1  2) * (3 - 4)`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
+		{`(12 * (3 - 4)`, true, "\nparse error near ParExpr (line 1 symbol 7 - line 1 symbol 14):\n\"(3 - 4)\"\n"},
+		{`(1 + 2) (3 - 4)`, true, "\nparse error near WS (line 1 symbol 8 - line 1 symbol 9):\n\" \"\n"},
+		{`1 +    2      
+					+ 3`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<3>"},
+		{`1 +    2      
+					- 3`, false, "Expr<.>;SumGroupOpAtom<.>;ConstAtom<.>;IntegerAtom<1>;SumGroupOp<.>;SumOp<+>;ConstAtom<.>;IntegerAtom<2>;SumGroupOp<.>;SubOp<->;ConstAtom<.>;IntegerAtom<3>"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
 	}
 }
