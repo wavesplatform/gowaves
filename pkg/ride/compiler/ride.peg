@@ -9,7 +9,7 @@ type Parser Peg {
 # Main rules
 Code <- DAppRoot / ScriptRoot
 DAppRoot <- _ (Directive _)* (_ Declaration)* (_ AnnotatedFunc)* _ EOF
-ScriptRoot <- _ (Directive _)* (_ Declaration)* _ BlockDecExprSep? _ Expr _ EOF
+ScriptRoot <- _ (Directive _)* (_ Declaration)* _ Expr _ EOF
 
 # Whitespaces and new line symbols
 WS <- [ \t]
@@ -29,18 +29,18 @@ Directive <- "{-#" WS+ DirectiveName WS+ (IntString / UpperCaseString / PathStri
 
 # Declarations
 
-Declaration <- Variable / StrictVariable / Func
+Declaration <- (Variable / StrictVariable / Func) _ ";"?
 
-Variable <- "let" _ IdentifierAtom _ "=" _ Expr
-StrictVariable <- "strict" _ IdentifierAtom _ "=" _ Expr
+Variable <- "let" _ Identifier _ "=" _ Expr
+StrictVariable <- "strict" _ Identifier _ "=" _ Expr
 
-Func <- "func" _ IdentifierAtom _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
-FuncArg <- IdentifierAtom _ ":" _ GenericTypesAtom
+Func <- "func" _ Identifier _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
+FuncArg <- Identifier _ ":" _ GenericTypesAtom
 FuncArgSeq <- FuncArg (_ "," _ FuncArgSeq)?
 
 AnnotatedFunc <- AnnotationSeq _ Func
-Annotation <- "@" IdentifierAtom _ "(" _ IdentifierAtomSeq _ ")"
-IdentifierAtomSeq <- IdentifierAtom ( _ "," _ IdentifierAtomSeq)?
+Annotation <- "@" Identifier _ "(" _ IdentifierSeq _ ")"
+IdentifierSeq <- Identifier ( _ "," _ IdentifierSeq)?
 AnnotationSeq <- Annotation ( _ AnnotationSeq)?
 
 # Operators
@@ -76,8 +76,8 @@ NotOp <- '!'
 # Types
 ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
 
-ConstAtom <- IntegerAtom / StringAtom / ByteVectorAtom / BooleanAtom / ListAtom
-IdentifierAtom <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)
+Const <- Integer / String / ByteVector / Boolean / List
+Identifier <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)
 GenericTypesAtom <- OneGenericTypeAtom ((_ "|" _ GenericTypesAtom) / OneGenericTypeAtom)?
 OneGenericTypeAtom <- [A-Za-z][A-Za-z0-9]* (_ "[" _ OneTypeAtom _ "]" _)?
 TypesAtom <- OneTypeAtom ((_ "|" _ TypesAtom) / OneTypeAtom)?
@@ -87,22 +87,22 @@ OneTypeAtom <- [A-Za-z][A-Za-z0-9]*
 Base16 <- "base16'" [0-9ABCDEFabcdef]* "'"
 Base58 <- "base58'" [123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]* "'"
 Base64 <- "base64'" [ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]* "'"
-ByteVectorAtom <- Base16 / Base58 / Base64
+ByteVector <- Base16 / Base58 / Base64
 
-BooleanAtom <- "true" / "false"
+Boolean <- "true" / "false"
 
-StringAtom <- "\"" (UnicodeCharAtom / EscapedCharAtom / CharAtom)* "\""
-UnicodeCharAtom <- "\\u" [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
-EscapedCharAtom <- "\\" .
-CharAtom <- [^\"]
+String <- "\"" (UnicodeChar / EscapedChar / Char)* "\""
+UnicodeChar <- "\\u" [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
+EscapedChar <- "\\" .
+Char <- [^\"]
 
-IntegerAtom <- [0-9]+
+Integer <- [0-9]+
 
-ListAtom <- "[" _ ExprSeq? _ "]"
+List <- "[" _ ExprSeq? _ "]"
 ExprSeq <- Expr (_ "," _ ExprSeq)?
 
 # Expressions
-AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / ConstAtom)
+AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ConsOpAtom <- SumGroupOpAtom (_ ConsOp _ SumGroupOpAtom)*
@@ -114,23 +114,22 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 Expr <- OrOpAtom
 ParExpr <- "(" _ Expr _ ")"
 
-GettableExpr <- (ParExpr / Block / FunctionCall / IdentifierAtom) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAtomAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / Identifier) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAccess))))*
 FunctionCallAccess <- FunctionCall
-IdentifierAtomAccess <- IdentifierAtom
-ListAccess <- "[" _ (Expr / IdentifierAtom) _ "]"
+IdentifierAccess <- Identifier
+ListAccess <- "[" _ (Expr / Identifier) _ "]"
 
-Block <- "{" (_ Declaration)* _ BlockDecExprSep? _ Expr _ "}"
-BlockWithoutPar <- (_ Declaration)* _ BlockDecExprSep? _ Expr
-BlockDecExprSep <- ":"
+Block <- "{" (_ Declaration)* _ Expr _ "}"
+BlockWithoutPar <- (_ Declaration)* _ Expr
 
-FunctionCall <- IdentifierAtom _ "(" _ ExprSeq? _ ")"
+FunctionCall <- Identifier _ "(" _ ExprSeq? _ ")"
 
-FoldMacro <- "FOLD" _ "<" _ IntegerAtom _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ IdentifierAtom _ ")"
+FoldMacro <- "FOLD" _ "<" _ Integer _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ Identifier _ ")"
 
 IfWithError <- If / FailedIfWithoutElse
 If <- "if" _ Expr _ "then" _ Expr _ "else" _ Expr
 FailedIfWithoutElse <- "if" _ Expr _ "then" _ Expr
 
 Match <- "match" _ Expr _ "{" (_ MatchCase)+ _ "}"
-MatchCase <- "case" _ ((IdentifierAtom _ (":" _ TypesAtom)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
+MatchCase <- "case" _ ((Identifier _ (":" _ TypesAtom)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
 DefaultMatchCasePart <- "{" _ (":" _ TypesAtom)?

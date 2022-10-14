@@ -468,7 +468,7 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 		expr, varType = p.ruleIfWithErrorHandler(curNode)
 	case ruleMatch:
 		break
-	case ruleConstAtom:
+	case ruleConst:
 		expr, varType = p.ruleConstAtomHandler(curNode)
 	}
 	if unaryOp == ruleNegativeOp {
@@ -487,15 +487,15 @@ func (p *ASTParser) ruleConstAtomHandler(node *node32) (ast.Node, s.Type) {
 	var expr ast.Node
 	var varType s.Type
 	switch curNode.pegRule {
-	case ruleIntegerAtom:
+	case ruleInteger:
 		expr, varType = p.ruleIntegerAtomHandler(curNode)
-	case ruleStringAtom:
+	case ruleString:
 		expr, varType = p.ruleStringAtomHandler(curNode)
-	case ruleByteVectorAtom:
+	case ruleByteVector:
 		expr, varType = p.ruleByteVectorAtomHandler(curNode)
-	case ruleBooleanAtom:
+	case ruleBoolean:
 		expr, varType = p.ruleBooleanAtomHandler(curNode)
-	case ruleListAtom:
+	case ruleList:
 		expr, varType = p.ruleListAtomHandler(curNode)
 	}
 	return expr, varType
@@ -616,7 +616,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleBlock:
 	case ruleFunctionCall:
 		expr, varType = p.ruleFunctionCallHandler(curNode)
-	case ruleIdentifierAtom:
+	case ruleIdentifier:
 	}
 	return expr, varType
 }
