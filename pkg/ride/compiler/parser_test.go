@@ -438,3 +438,33 @@ func TestIdentifiers(t *testing.T) {
 		}
 	}
 }
+
+func TestAnnotations(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`@Annotation(foo)func f() = []`, false, "AnnotatedFunc<.>;AnnotationSeq<.>;Annotation<.>;Identifier<Annotation>;IdentifierSeq<.>;Identifier<foo>;Func<.>;Identifier<f>"},
+		{`@Annotation(foo) @Notation(bar, baz) func f() = []`, false, "AnnotatedFunc<.>;AnnotationSeq<.>;Annotation<.>;Identifier<Annotation>;IdentifierSeq<.>;Identifier<foo>;Annotation<.>;Identifier<Notation>;IdentifierSeq<.>;Identifier<bar>;Identifier<baz>;Func<.>;Identifier<f>"},
+		{`@Annotation()func f() = []`, true, "\nparse error near Identifier (line 1 symbol 2 - line 1 symbol 12):\n\"Annotation\"\n"},
+		{`@(x)func f() = []`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
+		{`@ func f() = []`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
+		{`@func func f() = []`, true, "\nparse error near ReservedWords (line 1 symbol 2 - line 1 symbol 6):\n\"func\"\n"},
+		{`@@Annotation(foo)func f() = []`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
+		{`@Annotation(foo func f() = []`, true, "\nparse error near WS (line 1 symbol 16 - line 1 symbol 17):\n\" \"\n"},
+		{`@Annotation foo) func f() = []`, true, "\nparse error near WS (line 1 symbol 12 - line 1 symbol 13):\n\" \"\n"},
+		{`@Annotation(foo) @Notation(bar,) func f() = []`, true, "\nparse error near Identifier (line 1 symbol 28 - line 1 symbol 31):\n\"bar\"\n"},
+		{`@Annotation(foo @Notation bar,baz) func f() = []`, true, "\nparse error near WS (line 1 symbol 16 - line 1 symbol 17):\n\" \"\n"},
+		{`@Annotation(foo, @Notation, bar,baz) func f() = []`, true, "\nparse error near WS (line 1 symbol 17 - line 1 symbol 18):\n\" \"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
