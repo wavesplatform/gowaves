@@ -14,7 +14,18 @@ func TestSimpleAST(t *testing.T) {
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
 
-let kmsdc = sigVerify(base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
+func someFunc(a : String) = {
+  let aa = 100
+  let c = a
+  1440 * 30
+}
+
+let maxAuctionDuration = {
+  let aa = someFunc("asd")
+  let c = "12123"
+  1440 * 30
+} 
+#let kmsdc = sigVerify(base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
 
 #let ad = if true then 3 else false
 
@@ -47,11 +58,6 @@ let jfj = {
     let asdasd = 123123
     -1000
     1000
-}
-
-func someFunc(someArg1: Int, someArd2: String) = {
-    let k = 1000
-    true
 }
 
 @Verifier(tx)

@@ -5,7 +5,8 @@ import s "github.com/wavesplatform/gowaves/pkg/ride/compiler/signatures"
 type VarStack struct {
 	up *VarStack
 
-	vars []Variable
+	vars  []Variable
+	funcs []s.FunctionParams
 }
 
 func NewVarStack(upperStack *VarStack) *VarStack {
@@ -15,20 +16,36 @@ func NewVarStack(upperStack *VarStack) *VarStack {
 	}
 }
 
-func (s *VarStack) Push(variable Variable) {
-	s.vars = append(s.vars, variable)
+func (st *VarStack) PushVariable(variable Variable) {
+	st.vars = append(st.vars, variable)
 }
 
-func (s *VarStack) GetVariable(name string) (Variable, bool) {
-	for i := len(s.vars) - 1; i >= 0; i-- {
-		if name == s.vars[i].Name {
-			return s.vars[i], true
+func (st *VarStack) PushFunc(f s.FunctionParams) {
+	st.funcs = append(st.funcs, f)
+}
+
+func (st *VarStack) GetVariable(name string) (Variable, bool) {
+	for i := len(st.vars) - 1; i >= 0; i-- {
+		if name == st.vars[i].Name {
+			return st.vars[i], true
 		}
 	}
-	if s.up == nil {
+	if st.up == nil {
 		return Variable{}, false
 	}
-	return s.up.GetVariable(name)
+	return st.up.GetVariable(name)
+}
+
+func (st *VarStack) GetFunc(name string) (s.FunctionParams, bool) {
+	for i := len(st.funcs) - 1; i >= 0; i-- {
+		if name == st.funcs[i].ID {
+			return st.funcs[i], true
+		}
+	}
+	if st.up == nil {
+		return s.FunctionParams{}, false
+	}
+	return st.up.GetFunc(name)
 }
 
 type Variable struct {
@@ -38,5 +55,6 @@ type Variable struct {
 
 type Func struct {
 	Name    string
-	RetType string
+	Args    []s.Type
+	RetType s.Type
 }

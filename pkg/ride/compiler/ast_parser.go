@@ -50,8 +50,9 @@ type ASTParser struct {
 	Tree   *ast.Tree
 	buffer []rune
 
-	ErrorsList  []error
-	globalStack *VarStack
+	ErrorsList   []error
+	globalStack  *VarStack
+	currentStack *VarStack
 }
 
 func NewASTParser(node *node32, buffer []rune) ASTParser {
@@ -68,6 +69,7 @@ func NewASTParser(node *node32, buffer []rune) ASTParser {
 }
 
 func (p *ASTParser) Parse() {
+	p.currentStack = p.globalStack
 	switch p.node.pegRule {
 	case ruleCode:
 		p.ruleCodeHandler(p.node.up)
@@ -193,7 +195,8 @@ func (p *ASTParser) parseDeclarations(node *node32) *node32 {
 	curNode := node
 	for {
 		if curNode != nil && curNode.pegRule == ruleDeclaration {
-			p.ruleDeclarationHandler(curNode.up)
+			expr, _ := p.ruleDeclarationHandler(curNode.up)
+			p.Tree.Declarations = append(p.Tree.Declarations, expr)
 			curNode = curNode.next
 		}
 		if curNode != nil && curNode.pegRule == rule_ {
@@ -206,28 +209,28 @@ func (p *ASTParser) parseDeclarations(node *node32) *node32 {
 	return curNode
 }
 
-func (p *ASTParser) ruleDeclarationHandler(node *node32) {
+func (p *ASTParser) ruleDeclarationHandler(node *node32) (ast.Node, s.Type) {
 	switch node.pegRule {
 	case ruleVariable:
-		p.ruleVariableHandler(node)
+		return p.ruleVariableHandler(node)
 	case ruleFunc:
-		break
+		return p.ruleFuncHandler(node)
 	default:
 		panic(errors.Errorf("wrong type of rule in Declaration: %s", rul3s[node.pegRule]))
-
 	}
+	return nil, s.Undefined
 }
 
-func (p *ASTParser) ruleVariableHandler(node *node32) {
+func (p *ASTParser) ruleVariableHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
 	// get Variable Name
 	varName := string(p.buffer[curNode.begin:curNode.end])
-	if _, ok := p.globalStack.GetVariable(varName); ok {
+	if _, ok := p.currentStack.GetVariable(varName); ok {
 		p.addError(fmt.Sprintf("variable \"%s\" is exist", varName), curNode.token32)
-		return
+		return nil, s.Undefined
 	}
 	curNode = curNode.next
 
@@ -238,11 +241,12 @@ func (p *ASTParser) ruleVariableHandler(node *node32) {
 		curNode = curNode.next
 	}
 	expr, varType := p.ruleExprHandler(curNode)
-	p.Tree.Declarations = append(p.Tree.Declarations, ast.NewAssignmentNode(varName, expr, nil))
-	p.globalStack.Push(Variable{
+	expr = ast.NewAssignmentNode(varName, expr, nil)
+	p.currentStack.PushVariable(Variable{
 		Name: varName,
 		Type: varType,
 	})
+	return expr, varType
 }
 
 func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
@@ -369,6 +373,7 @@ func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return expr, varType
 	}
+	resListType := s.ListType{Type: varType}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -377,14 +382,19 @@ func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleSumGroupOpAtomHandler(curNode)
+		nextExpr, nextVarType := p.ruleSumGroupOpAtomHandler(curNode)
+		if !s.ListOfAny.Comp(varType) {
+			p.addError(fmt.Sprintf("expression must be \"List\" but \"%s\"", varType), curNode.token32)
+			return nil, s.Undefined
+		}
+		resListType.AppendList(nextVarType)
 		expr = ast.NewFunctionCallNode(ast.NativeFunction("cons"), []ast.Node{expr, nextExpr})
 		curNode = curNode.next
 		if curNode == nil {
 			break
 		}
 	}
-	return expr, s.ListType
+	return expr, resListType
 }
 
 func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -546,16 +556,19 @@ func (p *ASTParser) ruleListAtomHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *ASTParser) ruleListExprSeqHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
-	elem, _ := p.ruleExprHandler(curNode)
+	listType := s.UnionType{Types: map[string]s.Type{}}
+	elem, varType := p.ruleExprHandler(curNode)
+	listType.AppendType(varType)
 	curNode = curNode.next
 	if curNode == nil {
-		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, nil}), s.ListType
+		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, nil}), s.ListType{Type: listType}
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	secondElem, _ := p.ruleListExprSeqHandler(curNode)
-	return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, secondElem}), s.ListType
+	secondElem, varType := p.ruleListExprSeqHandler(curNode)
+	listType.AppendType(varType)
+	return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, secondElem}), s.ListType{Type: listType}
 }
 
 func (p *ASTParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -574,7 +587,7 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	if curNode.pegRule == ruleFailedIfWithoutElse {
 		p.addError("If without else", curNode.token32)
-		return nil, ""
+		return nil, s.Undefined
 	}
 	curNode = curNode.up
 	if curNode.pegRule == rule_ {
@@ -614,6 +627,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleParExpr:
 		expr, varType = p.ruleParExprHandler(curNode)
 	case ruleBlock:
+		expr, varType = p.ruleBlockHandler(curNode)
 	case ruleFunctionCall:
 		expr, varType = p.ruleFunctionCallHandler(curNode)
 	case ruleIdentifier:
@@ -638,10 +652,13 @@ type FuncArgument struct {
 func (p *ASTParser) ruleFunctionCallHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	funcName := string(p.buffer[curNode.begin:curNode.end])
-	funcSign, ok := s.Funcs.Funcs[funcName]
+	funcSign, ok := p.currentStack.GetFunc(funcName)
 	if !ok {
-		p.addError(fmt.Sprintf("udefined function: \"%s\"", funcName), curNode.token32)
-		return nil, s.Undefined
+		funcSign, ok = s.Funcs.Funcs[funcName]
+		if !ok {
+			p.addError(fmt.Sprintf("udefined function: \"%s\"", funcName), curNode.token32)
+			return nil, s.Undefined
+		}
 	}
 	curNode = curNode.next
 	if curNode.pegRule == rule_ {
@@ -652,30 +669,18 @@ func (p *ASTParser) ruleFunctionCallHandler(node *node32) (ast.Node, s.Type) {
 	}
 	args := p.ruleArgSeqHandler(curNode)
 	if len(args) != len(funcSign.Arguments) {
-		p.addError(fmt.Sprintf("to many arguments in call: \"%s\"", funcName), curNode.token32)
-		return nil, s.Type(funcSign.ReturnType)
+		p.addError(fmt.Sprintf("Function \"%s\" requires %d arguments, but %d are provided", funcName, len(funcSign.Arguments), len(args)), curNode.token32)
+		return nil, funcSign.ReturnType
 	}
 	var funcArgs []ast.Node
 	for i, arg := range args {
-		if checkTypes(arg.Type, funcSign.Arguments[i]) {
+		if funcSign.Arguments[i].Comp(arg.Type) {
 			funcArgs = append(funcArgs, arg.Node)
 			continue
 		}
 		p.addError(fmt.Sprintf("Cannot use type %s as the type %v", arg.Type, funcSign.Arguments[i]), arg.ASTNode.token32)
 	}
-	return ast.NewFunctionCallNode(ast.NativeFunction(funcSign.ID), funcArgs), s.Type(funcSign.ReturnType)
-}
-
-func checkTypes(t s.Type, argTypes []string) bool {
-	for _, a := range argTypes {
-		if s.Type(a) == s.Any {
-			return true
-		}
-		if t == s.Type(a) {
-			return true
-		}
-	}
-	return false
+	return ast.NewFunctionCallNode(ast.NativeFunction(funcSign.ID), funcArgs), funcSign.ReturnType
 }
 
 func (p *ASTParser) ruleArgSeqHandler(node *node32) []FuncArgument {
@@ -701,6 +706,119 @@ func (p *ASTParser) ruleArgSeqHandler(node *node32) []FuncArgument {
 		curNode = curNode.up
 	}
 	return result
+}
+
+func (p *ASTParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
+	p.currentStack = NewVarStack(p.currentStack)
+	curNode := node.up
+	expr, varType := p.ruleBlockDeclHandler(curNode)
+	p.currentStack = p.currentStack.up
+	return expr, varType
+}
+
+func (p *ASTParser) ruleBlockDeclHandler(node *node32) (ast.Node, s.Type) {
+	curNode := node
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	var expr ast.Node
+	var varType s.Type
+	if curNode.pegRule == ruleDeclaration {
+		expr, varType = p.ruleDeclarationHandler(curNode.up)
+		if expr == nil {
+			return nil, varType
+		}
+		curNode = curNode.next
+	} else {
+		return p.ruleExprHandler(curNode)
+	}
+	blockExpr, varType := p.ruleBlockDeclHandler(curNode)
+	expr.SetBlock(blockExpr)
+	return expr, varType
+
+}
+
+func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type) {
+	p.currentStack = NewVarStack(p.currentStack)
+	curNode := node.up
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	funcName := string(p.buffer[curNode.begin:curNode.end])
+	if _, ok := p.currentStack.GetFunc(funcName); ok {
+		p.addError(fmt.Sprintf("function \"%s\" exist", funcName), curNode.token32)
+	}
+	if _, ok := s.Funcs.Funcs[funcName]; ok {
+		p.addError(fmt.Sprintf("function \"%s\" exist in standart library", funcName), curNode.token32)
+	}
+	curNode = curNode.next
+	var argsNode *node32
+	for {
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+			continue
+		}
+		if curNode.pegRule == ruleFuncArgSeq {
+			argsNode = curNode
+			curNode = curNode.next
+		}
+		if curNode.pegRule == ruleExpr {
+			break
+		}
+	}
+	argsNames, argsTypes := p.ruleFuncArgSeqHandler(argsNode)
+	expr, varType := p.ruleExprHandler(curNode)
+	p.currentStack.up.PushFunc(s.FunctionParams{
+		ID:         funcName,
+		Arguments:  argsTypes,
+		ReturnType: varType,
+	})
+	p.currentStack = p.currentStack.up
+	return &ast.FunctionDeclarationNode{
+		Name:                funcName,
+		Arguments:           argsNames,
+		Body:                expr,
+		Block:               nil,
+		InvocationParameter: "",
+	}, varType
+}
+
+func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
+	curNode := node.up
+	argName, argType := p.ruleFuncArgHandler(curNode)
+	curNode = curNode.next
+	argsNames := []string{argName}
+	argsTypes := []s.Type{argType}
+	if curNode == nil {
+		return argsNames, argsTypes
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	nextArgsNames, nextArgsTypes := p.ruleFuncArgSeqHandler(curNode)
+	return append(argsNames, nextArgsNames...), append(argsTypes, nextArgsTypes...)
+}
+
+func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
+	curNode := node.up
+	argName := string(p.buffer[curNode.begin:curNode.end])
+	// TODO(anton): check if name exist args
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	argType := s.ParseType(string(p.buffer[curNode.begin:curNode.end]))
+	p.currentStack.PushVariable(Variable{
+		Name: argName,
+		Type: argType,
+	})
+	return argName, argType
 }
 
 func (p *ASTParser) ruleScriptRootHandler(node *node32) {
