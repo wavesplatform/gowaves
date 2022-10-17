@@ -457,6 +457,14 @@ func TestAnnotations(t *testing.T) {
 		{`@Annotation(foo) @Notation(bar,) func f() = []`, true, "\nparse error near Identifier (line 1 symbol 28 - line 1 symbol 31):\n\"bar\"\n"},
 		{`@Annotation(foo @Notation bar,baz) func f() = []`, true, "\nparse error near WS (line 1 symbol 16 - line 1 symbol 17):\n\" \"\n"},
 		{`@Annotation(foo, @Notation, bar,baz) func f() = []`, true, "\nparse error near WS (line 1 symbol 17 - line 1 symbol 18):\n\" \"\n"},
+		{`@Annotation(foo #comment
+)  #comment
+#comment
+func #comment
+f( a: #comment
+Type #comment
+) #comment
+= []`, false, "AnnotatedFunc<.>;AnnotationSeq<.>;Annotation<.>;Identifier<Annotation>;IdentifierSeq<.>;Identifier<foo>;Func<.>;Identifier<f>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
