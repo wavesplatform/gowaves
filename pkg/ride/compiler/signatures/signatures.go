@@ -146,7 +146,7 @@ func (t *UnionType) AppendType(rideType Type) {
 func (t UnionType) String() string {
 	var res string
 	cnt := 0
-	for k, _ := range t.Types {
+	for k := range t.Types {
 		res += k
 		cnt++
 		if cnt < len(t.Types) {

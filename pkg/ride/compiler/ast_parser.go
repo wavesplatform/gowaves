@@ -218,7 +218,6 @@ func (p *ASTParser) ruleDeclarationHandler(node *node32) (ast.Node, s.Type) {
 	default:
 		panic(errors.Errorf("wrong type of rule in Declaration: %s", rul3s[node.pegRule]))
 	}
-	return nil, s.Undefined
 }
 
 func (p *ASTParser) ruleVariableHandler(node *node32) (ast.Node, s.Type) {
