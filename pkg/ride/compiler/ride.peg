@@ -77,7 +77,7 @@ NotOp <- '!'
 ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
 
 Const <- Integer / String / ByteVector / Boolean / List
-Identifier <- (!ReservedWords [A-Za-z][A-Za-z0-9]*) / (ReservedWords [A-Za-z0-9]+)
+Identifier <- (!ReservedWords [A-Za-z_][A-Za-z0-9_]*) / (ReservedWords [A-Za-z0-9_]+)
 GenericTypesAtom <- OneGenericTypeAtom ((_ "|" _ GenericTypesAtom) / OneGenericTypeAtom)?
 OneGenericTypeAtom <- [A-Za-z][A-Za-z0-9]* (_ "[" _ OneTypeAtom _ "]" _)?
 TypesAtom <- OneTypeAtom ((_ "|" _ TypesAtom) / OneTypeAtom)?

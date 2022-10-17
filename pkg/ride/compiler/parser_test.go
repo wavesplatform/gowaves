@@ -408,3 +408,33 @@ func TestExpressionSeparator(t *testing.T) {
 		}
 	}
 }
+
+func TestIdentifiers(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`let123`, false, "Identifier<let123>"},
+		{`abc`, false, "Identifier<abc>"},
+		{`ABC`, false, "Identifier<ABC>"},
+		{`Abc`, false, "Identifier<Abc>"},
+		{`aBc`, false, "Identifier<aBc>"},
+		{`a_b_c`, false, "Identifier<a_b_c>"},
+		// TODO: Consecutive underscores are not allowed in Scala parser V1, consider adding style rule on this.
+		{`A__B___C`, false, "Identifier<A__B___C>"},
+		{`_a_b_c`, false, "Identifier<_a_b_c>"},
+		{`let_123`, false, "Identifier<let_123>"},
+		{`let`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 4):\n\"let\"\n"},
+		{`let 123 = true`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
