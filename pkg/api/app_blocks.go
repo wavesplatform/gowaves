@@ -6,6 +6,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const blocksSequenceLimit = 100
+
 type Score struct {
 	Score string `json:"score"`
 }
@@ -78,6 +80,35 @@ func (a *App) BlocksHeadersByID(id proto.BlockID) (*Block, error) {
 		return nil, errors.Wrapf(err, "failed to get block height by ID=%q", id.String())
 	}
 	return a.BlocksHeadersAt(height)
+}
+
+func (a *App) BlocksHeadersFromTo(from, to proto.Height) ([]*Block, error) {
+	if from > to || to-from >= blocksSequenceLimit {
+		return nil, errors.Errorf("invalid 'from'=%d and 'to'=%d params", from, to)
+	}
+	if from == 0 {
+		if to == 0 {
+			header, err := a.BlocksHeadersLast()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get last block header")
+			}
+			return []*Block{header}, nil
+		}
+		return []*Block{}, nil
+	}
+	currHeight, err := a.state.Height()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get state height")
+	}
+	seq := make([]*Block, 0, to-from+1)
+	for h := from; h <= to && h <= currHeight; h++ {
+		header, err := a.BlocksHeadersAt(h)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get block header at height %d", h)
+		}
+		seq = append(seq, header)
+	}
+	return seq, nil
 }
 
 func (a *App) BlocksFirst() (*Block, error) {
