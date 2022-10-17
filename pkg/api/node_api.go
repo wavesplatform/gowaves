@@ -162,6 +162,30 @@ func (a *NodeApi) BlocksHeadersAt(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
+func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non-zero length
+	s := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
+		}
+		return blockIDAtInvalidLenErr(s)
+	}
+	header, err := a.app.BlocksHeadersByID(id)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlockHeadersID: failed to get block header by ID=%q", s)
+	}
+	err = trySendJson(w, header)
+	if err != nil {
+		return errors.Wrap(err, "BlockHeadersID: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",

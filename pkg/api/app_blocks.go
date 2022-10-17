@@ -72,6 +72,14 @@ func (a *App) BlocksHeadersAt(h proto.Height) (*Block, error) {
 	return newAPIBlockFromHeader(*blockHeader, a.services.Scheme, h)
 }
 
+func (a *App) BlocksHeadersByID(id proto.BlockID) (*Block, error) {
+	height, err := a.state.BlockIDToHeight(id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get block height by ID=%q", id.String())
+	}
+	return a.BlocksHeadersAt(height)
+}
+
 func (a *App) BlocksFirst() (*Block, error) {
 	const genesisHeight = 1
 	block, err := a.state.BlockByHeight(genesisHeight)
