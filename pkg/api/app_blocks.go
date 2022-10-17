@@ -61,6 +61,10 @@ func (a *App) BlocksHeadersLast() (*Block, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get state height")
 	}
+	return a.BlocksHeadersAt(h)
+}
+
+func (a *App) BlocksHeadersAt(h proto.Height) (*Block, error) {
 	blockHeader, err := a.state.HeaderByHeight(h)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %d block header from state", h)

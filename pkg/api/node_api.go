@@ -142,6 +142,26 @@ func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) erro
 	return nil
 }
 
+func (a *NodeApi) BlocksHeadersAt(w http.ResponseWriter, r *http.Request) error {
+	heightParam := chi.URLParam(r, "height")
+	h, err := strconv.ParseUint(heightParam, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'height' url param")
+	}
+	header, err := a.app.BlocksHeadersAt(h)
+	if err != nil {
+		if state.IsInvalidInput(err) || state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlocksHeadersAt: failed to get block header at height %d", h)
+	}
+	err = trySendJson(w, header)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersAt: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
