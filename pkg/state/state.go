@@ -565,8 +565,7 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
@@ -574,7 +573,6 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
-	close(chans.tasksChan)
 
 	if err := s.appender.applyAllDiffs(); err != nil {
 		return err
@@ -585,8 +583,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
 		return err
 	}
-	verifyError := <-chans.errChan
-	if verifyError != nil {
+	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return wrapErr(ValidationError, verifyError)
 	}
 
@@ -650,7 +647,7 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 		return nil, err
 	}
 	gsp := consensus.VRFGenerationSignatureProvider
-	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, refHitSource, blockHeader.GenSignature)
+	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GeneratorPublicKey, refHitSource, blockHeader.GenSignature)
 	if err != nil {
 		return nil, err
 	}
@@ -1360,8 +1357,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	headers := make([]proto.BlockHeader, blocksNumber)
 
 	// Launch verifier that checks signatures of blocks and transactions.
-	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
+	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var ids []proto.BlockID
 	pos := 0
@@ -1389,10 +1385,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			parentID: lastAppliedBlock.BlockID(),
 			block:    block,
 		}
-		select {
-		case verifyError := <-chans.errChan:
-			return nil, verifyError
-		case chans.tasksChan <- task:
+		if err := chans.trySend(task); err != nil {
+			return nil, err
 		}
 		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
 		if err != nil {
@@ -1416,7 +1410,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		lastAppliedBlock = block
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
-	close(chans.tasksChan)
+	// wait for all verifier goroutines
+	if verifyError := chans.closeAndWait(); err != nil {
+		return nil, wrapErr(ValidationError, verifyError)
+	}
+
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(); err != nil {
@@ -1429,11 +1427,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
-	}
-	// Check the result of signatures verification.
-	verifyError := <-chans.errChan
-	if verifyError != nil {
-		return nil, wrapErr(ValidationError, verifyError)
 	}
 	// After everything is validated, save all the changes to DB.
 	if err := s.flush(); err != nil {
@@ -1907,11 +1900,11 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 }
 
 func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, status, err := s.rw.readTransaction(id)
+	tx, failed, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, false, wrapErr(RetrievalError, err)
 	}
-	return tx, status, nil
+	return tx, failed, nil
 }
 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
@@ -2146,6 +2139,31 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 		infos[i] = info
 	}
 	return infos, nil
+}
+
+func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	hasScript, err := s.stor.scriptsStorage.accountHasScript(*addr)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !hasScript {
+		return nil, proto.ErrNotFound
+	}
+	info, err := s.stor.scriptsStorage.scriptBasicInfoByAddressID(addr.ID())
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return &proto.ScriptBasicInfo{
+		PK:             info.PK,
+		ScriptLen:      info.ScriptLen,
+		LibraryVersion: info.LibraryVersion,
+		HasVerifier:    info.HasVerifier,
+		IsDApp:         info.IsDApp,
+	}, nil
 }
 
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,17 +16,48 @@ import (
 
 const (
 	// if you change peers storage data format, you have to increment peersStorageCurrentVersion
-	peersStorageCurrentVersion = 1
+	peersStorageCurrentVersion = 2
 	peersStorageDir            = "peers_storage"
 )
 
 type CBORStorage struct {
 	rwMutex           sync.RWMutex
 	storageDir        string
-	suspended         suspendedPeers
+	suspended         restrictedPeers
+	blackList         restrictedPeers
 	suspendedFilePath string
+	blackListFilePath string
 	known             knownPeers // Map of all ever known peers with a publicly available declared address and the last connection attempt timestamp.
 	knownFilePath     string
+}
+
+type restrictedPeersID byte
+
+const (
+	suspendedPeersID = restrictedPeersID(iota + 1)
+	blackListedPeersID
+)
+
+func (bs *CBORStorage) restrictedPeersByType(restrictedID restrictedPeersID) restrictedPeers {
+	switch restrictedID {
+	case suspendedPeersID:
+		return bs.suspended
+	case blackListedPeersID:
+		return bs.blackList
+	default:
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
+	}
+}
+
+func (bs *CBORStorage) clearRestrictedPeersByType(restrictedID restrictedPeersID) {
+	switch restrictedID {
+	case suspendedPeersID:
+		bs.suspended = restrictedPeers{}
+	case blackListedPeersID:
+		bs.blackList = restrictedPeers{}
+	default:
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
+	}
 }
 
 func NewCBORStorage(baseDir string, now time.Time) (*CBORStorage, error) {
@@ -46,11 +78,17 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 	if err := createFileIfNotExist(suspendedFile); err != nil {
 		return nil, errors.Wrap(err, "failed to create suspended peers storage file")
 	}
+	blackListFile := blackListFilePath(storageDir)
+	if err := createFileIfNotExist(blackListFile); err != nil {
+		return nil, errors.Wrapf(err, "failed to create black list peers storage file")
+	}
 
 	storage := &CBORStorage{
 		storageDir:        storageDir,
 		suspended:         suspendedPeers{},
+		blackList:         blackListedPeers{},
 		suspendedFilePath: suspendedFile,
+		blackListFilePath: blackListFile,
 		known:             knownPeers{},
 		knownFilePath:     knownFile,
 	}
@@ -85,6 +123,9 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 	if err := unmarshalCborFromFile(suspendedFile, &storage.suspended); err != nil && err != io.EOF {
 		return nil, errors.Wrapf(err, "failed to load suspended peers from file %q", suspendedFile)
 	}
+	if err := unmarshalCborFromFile(blackListFile, &storage.blackList); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to load black list peers from file %q", blackListFile)
+	}
 
 	if len(storage.suspended) != 0 {
 		// Remove expired peers
@@ -93,6 +134,14 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 				"failed to refresh suspended peers while opening peers storage with path %q", storageDir)
 		}
 	}
+	if len(storage.blackList) != 0 {
+		// Remove expired peers
+		if err := storage.RefreshBlackList(now); err != nil {
+			return nil, errors.Wrapf(err,
+				"failed to refresh black list peers while opening peers storage with path %q", storageDir)
+		}
+	}
+
 	return storage, nil
 }
 
@@ -155,22 +204,30 @@ func (bs *CBORStorage) DropKnown() error {
 	return bs.unsafeDropKnown()
 }
 
-func (bs *CBORStorage) Suspended(now time.Time) []SuspendedPeer {
+func (bs *CBORStorage) restricted(now time.Time, restrictedID restrictedPeersID) []restrictedPeer {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
 
-	suspended := make([]SuspendedPeer, 0, len(bs.suspended))
-	for _, s := range bs.suspended {
-		if s.IsSuspended(now) {
-			suspended = append(suspended, s)
+	restricted := make([]restrictedPeer, 0, len(bs.restrictedPeersByType(restrictedID)))
+	for _, s := range bs.restrictedPeersByType(restrictedID) {
+		if s.IsRestricted(now) {
+			restricted = append(restricted, s)
 		}
 	}
-	return suspended
+	return restricted
+}
+
+func (bs *CBORStorage) Suspended(now time.Time) []SuspendedPeer {
+	return bs.restricted(now, suspendedPeersID)
 }
 
 // AddSuspended adds suspended peers into peers storage with strong error guarantees.
 func (bs *CBORStorage) AddSuspended(suspended []SuspendedPeer) error {
-	if len(suspended) == 0 {
+	return bs.addRestricted(suspended, suspendedPeersID)
+}
+
+func (bs *CBORStorage) addRestricted(restricted []restrictedPeer, restrictedID restrictedPeersID) error {
+	if len(restricted) == 0 {
 		return nil
 	}
 
@@ -178,25 +235,33 @@ func (bs *CBORStorage) AddSuspended(suspended []SuspendedPeer) error {
 	defer bs.rwMutex.Unlock()
 
 	// Save old values in backup
-	backup := bs.unsafeSuspendedIntersection(suspended)
+	backup := bs.unsafeRestrictedIntersection(restricted, restrictedID)
 	// Add new values into suspended map
-	for _, s := range suspended {
-		bs.suspended[s.IP] = s
+	for _, s := range restricted {
+		bs.restrictedPeersByType(restrictedID)[s.IP] = s
 	}
 
-	if err := bs.unsafeSyncSuspended(suspended, backup); err != nil {
-		return errors.Wrap(err, "failed to add suspended peers")
+	if err := bs.unsafeSyncRestricted(restricted, backup, restrictedID); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to add %s peers", restrictedNameByID(restrictedID)))
 	}
 	return nil
 }
 
 func (bs *CBORStorage) IsSuspendedIP(ip IP, now time.Time) bool {
+	return bs.isRestrictedIP(ip, now, suspendedPeersID)
+}
+
+func (bs *CBORStorage) isRestrictedIP(ip IP, now time.Time, restrictedID restrictedPeersID) bool {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
-	return bs.unsafeIsSuspendedIP(ip, now)
+	return bs.unsafeIsRestrictedIP(ip, now, restrictedID)
 }
 
 func (bs *CBORStorage) IsSuspendedIPs(ips []IP, now time.Time) []bool {
+	return bs.isRestrictedIPs(ips, now, suspendedPeersID)
+}
+
+func (bs *CBORStorage) isRestrictedIPs(ips []IP, now time.Time, restrictedID restrictedPeersID) []bool {
 	if len(ips) == 0 {
 		return nil
 	}
@@ -204,17 +269,21 @@ func (bs *CBORStorage) IsSuspendedIPs(ips []IP, now time.Time) []bool {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
 
-	isSuspended := make([]bool, 0, len(ips))
+	isRestricted := make([]bool, 0, len(ips))
 	for _, ip := range ips {
-		isSuspended = append(isSuspended, bs.unsafeIsSuspendedIP(ip, now))
+		isRestricted = append(isRestricted, bs.unsafeIsRestrictedIP(ip, now, restrictedID))
 	}
-	return isSuspended
+	return isRestricted
 }
 
 // DeleteSuspendedByIP removes suspended peers from peers storage with strong error guarantees.
 // Note, that only IP field in input parameter will be used.
 func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
-	if len(suspended) == 0 {
+	return bs.deleteRestrictedByIP(suspended, suspendedPeersID)
+}
+
+func (bs *CBORStorage) deleteRestrictedByIP(restricted []restrictedPeer, restrictedID restrictedPeersID) error {
+	if len(restricted) == 0 {
 		return nil
 	}
 
@@ -222,14 +291,14 @@ func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
 	defer bs.rwMutex.Unlock()
 
 	// Save old values in backup
-	backup := bs.unsafeSuspendedIntersection(suspended)
+	backup := bs.unsafeRestrictedIntersection(restricted, restrictedID)
 	// Delete entries from known map
-	for _, s := range suspended {
-		delete(bs.suspended, s.IP)
+	for _, s := range restricted {
+		delete(bs.restrictedPeersByType(restrictedID), s.IP)
 	}
 
 	// newEntries is nil because there is no new entries
-	if err := bs.unsafeSyncSuspended(nil, backup); err != nil {
+	if err := bs.unsafeSyncRestricted(nil, backup, restrictedID); err != nil {
 		return errors.Wrap(err, "failed to delete suspended peers")
 	}
 	return nil
@@ -237,14 +306,22 @@ func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
 
 // RefreshSuspended removes expired peers from suspended peers storage with strong error guarantee.
 func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
+	return bs.refreshRestricted(now, suspendedPeersID)
+}
+
+func (bs *CBORStorage) RefreshBlackList(now time.Time) error {
+	return bs.refreshRestricted(now, blackListedPeersID)
+}
+
+func (bs *CBORStorage) refreshRestricted(now time.Time, restrictedID restrictedPeersID) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	var backup []SuspendedPeer
-	for _, s := range bs.suspended {
-		if !s.IsSuspended(now) {
+	var backup []restrictedPeer
+	for _, s := range bs.restrictedPeersByType(restrictedID) {
+		if !s.IsRestricted(now) {
 			backup = append(backup, s)
-			delete(bs.suspended, s.IP)
+			delete(bs.restrictedPeersByType(restrictedID), s.IP)
 		}
 	}
 	if len(backup) == 0 {
@@ -252,10 +329,10 @@ func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
 		return nil
 	}
 
-	if err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); err != nil {
+	if err := marshalToCborAndSyncToFile(bs.restrictedFilePathByID(restrictedID), bs.restrictedPeersByType(restrictedID)); err != nil {
 		// Restore previous values into map to eliminate side effects
 		for _, b := range backup {
-			bs.suspended[b.IP] = b
+			bs.restrictedPeersByType(restrictedID)[b.IP] = b
 		}
 		return errors.Wrap(err, "failed to refresh suspended peers and sync storage")
 	}
@@ -264,9 +341,38 @@ func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
 
 // DropSuspended clear suspended in memory cache and truncates suspended peers storage file with strong error guarantee.
 func (bs *CBORStorage) DropSuspended() error {
+	return bs.dropRestricted(suspendedPeersID)
+}
+
+func (bs *CBORStorage) dropRestricted(restrictedID restrictedPeersID) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
-	return bs.unsafeDropSuspended()
+	return bs.unsafeDropRestricted(restrictedID)
+}
+
+func (bs *CBORStorage) BlackList(now time.Time) []BlackListedPeer {
+	return bs.restricted(now, blackListedPeersID)
+}
+
+// AddToBlackList adds suspended peers into peers storage with strong error guarantees.
+func (bs *CBORStorage) AddToBlackList(blackListed []BlackListedPeer) error {
+	return bs.addRestricted(blackListed, blackListedPeersID)
+}
+
+func (bs *CBORStorage) IsBlackListedIP(ip IP, now time.Time) bool {
+	return bs.isRestrictedIP(ip, now, blackListedPeersID)
+}
+
+func (bs *CBORStorage) IsBlackListedIPs(ips []IP, now time.Time) []bool {
+	return bs.isRestrictedIPs(ips, now, blackListedPeersID)
+}
+
+func (bs *CBORStorage) DeleteBlackListedByIP(restricted []BlackListedPeer) error {
+	return bs.deleteRestrictedByIP(restricted, blackListedPeersID)
+}
+
+func (bs *CBORStorage) DropBlackList() error {
+	return bs.dropRestricted(blackListedPeersID)
 }
 
 // DropStorage clear storage memory cache and truncates storage files.
@@ -276,16 +382,24 @@ func (bs *CBORStorage) DropStorage() error {
 	defer bs.rwMutex.Unlock()
 
 	suspendedBackup := bs.suspended
-	if err := bs.unsafeDropSuspended(); err != nil {
+	if err := bs.unsafeDropRestricted(suspendedPeersID); err != nil {
 		return errors.Wrap(err, "failed to drop suspended peers storage")
+	}
+	blackListBackup := bs.blackList
+	if err := bs.unsafeDropRestricted(blackListedPeersID); err != nil {
+		return errors.Wrap(err, "failed to drop black list peers storage")
 	}
 
 	if err := bs.unsafeDropKnown(); err != nil {
 		bs.suspended = suspendedBackup
+		bs.blackList = blackListBackup
 		// It's almost impossible case, but if it happens we have inconsistency in suspended peers,
 		// but honestly it's not fatal error
 		if syncErr := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); syncErr != nil {
 			return errors.Wrapf(err, "failed to sync suspended peers storage from backup: %v", syncErr)
+		}
+		if syncErr := marshalToCborAndSyncToFile(bs.blackListFilePath, bs.blackList); syncErr != nil {
+			return errors.Wrapf(err, "failed to sync black list peers storage from backup: %v", syncErr)
 		}
 		return errors.Wrap(err, "failed to drop known peers storage")
 	}
@@ -334,28 +448,50 @@ func (bs *CBORStorage) unsafeDropKnown() error {
 	return nil
 }
 
-func (bs *CBORStorage) unsafeSyncSuspended(newEntries, backup []SuspendedPeer) error {
-	if err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); err != nil {
+func (bs *CBORStorage) restrictedFilePathByID(restrictedID restrictedPeersID) string {
+	switch restrictedID {
+	case suspendedPeersID:
+		return bs.suspendedFilePath
+	case blackListedPeersID:
+		return bs.blackListFilePath
+	default:
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
+	}
+}
+
+func restrictedNameByID(restrictedID restrictedPeersID) string {
+	switch restrictedID {
+	case suspendedPeersID:
+		return "suspended"
+	case blackListedPeersID:
+		return "blackList"
+	default:
+		panic(fmt.Sprintf("unexpected restrictedPeersID (%d)", restrictedID))
+	}
+}
+
+func (bs *CBORStorage) unsafeSyncRestricted(newEntries, backup []restrictedPeer, restrictedID restrictedPeersID) error {
+	if err := marshalToCborAndSyncToFile(bs.restrictedFilePathByID(restrictedID), bs.restrictedPeersByType(restrictedID)); err != nil {
 		// Remove suspended from map to eliminate side effects
 		for _, s := range newEntries {
-			delete(bs.suspended, s.IP)
+			delete(bs.restrictedPeersByType(restrictedID), s.IP)
 		}
 		// Restore state before error from backup
 		for _, s := range backup {
-			bs.suspended[s.IP] = s
+			bs.restrictedPeersByType(restrictedID)[s.IP] = s
 		}
-		return errors.Wrap(err, "failed to marshal suspended peers and sync storage")
+		return errors.Wrap(err, fmt.Sprintf("failed to marshal %s peers and sync storage", restrictedNameByID(restrictedID)))
 	}
 	return nil
 }
 
-func (bs *CBORStorage) unsafeDropSuspended() error {
+func (bs *CBORStorage) unsafeDropRestricted(restrictedID restrictedPeersID) error {
 	// Truncate suspendedStorageFile to zero size
-	if err := os.Truncate(bs.suspendedFilePath, 0); err != nil {
+	if err := os.Truncate(bs.restrictedFilePathByID(restrictedID), 0); err != nil {
 		return errors.Wrapf(err, "failed to drop suspended storage file %q", bs.suspendedFilePath)
 	}
-	// Clear map
-	bs.suspended = suspendedPeers{}
+	// Clear chosen restrictedPeers map
+	bs.clearRestrictedPeersByType(restrictedID)
 	return nil
 }
 
@@ -370,24 +506,24 @@ func (bs *CBORStorage) unsafeKnownIntersection(known []KnownPeer) knownPeers {
 	return intersection
 }
 
-// unsafeSuspendedIntersection returns values from suspended map which intersects with input values
-func (bs *CBORStorage) unsafeSuspendedIntersection(suspended []SuspendedPeer) []SuspendedPeer {
-	var intersection []SuspendedPeer
-	for _, newSuspended := range suspended {
-		if storedPeer, in := bs.suspended[newSuspended.IP]; in {
+// unsafeRestrictedIntersection returns values from suspended map which intersects with input values
+func (bs *CBORStorage) unsafeRestrictedIntersection(restricted []restrictedPeer, peersType restrictedPeersID) []restrictedPeer {
+	var intersection []restrictedPeer
+	for _, newRestricted := range restricted {
+		if storedPeer, in := bs.restrictedPeersByType(peersType)[newRestricted.IP]; in {
 			intersection = append(intersection, storedPeer)
 		}
-		bs.suspended[newSuspended.IP] = newSuspended
+		bs.suspended[newRestricted.IP] = newRestricted
 	}
 	return intersection
 }
 
-func (bs *CBORStorage) unsafeIsSuspendedIP(ip IP, now time.Time) bool {
-	s, in := bs.suspended[ip]
+func (bs *CBORStorage) unsafeIsRestrictedIP(ip IP, now time.Time, restrictedID restrictedPeersID) bool {
+	s, in := bs.restrictedPeersByType(restrictedID)[ip]
 	if !in {
 		return false
 	}
-	return s.IsSuspended(now)
+	return s.IsRestricted(now)
 }
 
 func marshalToCborAndSyncToFile(filePath string, value interface{}) error {
@@ -425,6 +561,10 @@ func knownFilePath(storageDir string) string {
 
 func suspendedFilePath(storageDir string) string {
 	return filepath.Join(storageDir, "peers_suspended.cbor")
+}
+
+func blackListFilePath(storageDir string) string {
+	return filepath.Join(storageDir, "peers_black_list.cbor")
 }
 
 func storageVersionFilePath(storageDir string) string {

@@ -377,3 +377,10 @@ func TestDigest_Marshal(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, d, d1)
 }
+
+func TestDigest_Hex(t *testing.T) {
+	s := "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD"
+	d, err := NewDigestFromBase58(s)
+	require.NoError(t, err)
+	require.Equal(t, "9c50225b3c88651cd7ddf9268941cfa6d8737edea0f0ed49c380334953361634", d.Hex())
+}

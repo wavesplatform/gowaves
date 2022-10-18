@@ -41,6 +41,9 @@ func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 	to := &invokeApplierTestObjects{state}
 	to.activateFeature(t, int16(settings.SmartAccounts))
 	to.activateFeature(t, int16(settings.Ride4DApps))
+	t.Cleanup(func() {
+		assert.NoError(t, to.state.Close(), "state.Close() failed")
+	})
 	return to
 }
 
@@ -310,11 +313,6 @@ func verify() = {
 func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 
-	t.Cleanup(func() {
-		err := to.state.Close()
-		assert.NoError(t, err, "state.Close() failed")
-	})
-
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "dapp.base64", testGlobal.recipientInfo)
 
@@ -354,11 +352,6 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 
 func TestApplyInvokeScriptTransfers(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		assert.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "dapp.base64", testGlobal.recipientInfo)
@@ -419,11 +412,6 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 func TestApplyInvokeScriptWithIssues(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
-
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
@@ -455,11 +443,6 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 
 func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
@@ -507,11 +490,6 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 
 func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
@@ -575,11 +553,6 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
-
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
@@ -632,11 +605,6 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 
 func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
@@ -693,11 +661,6 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 // TestFailedApplyInvokeScript in this test we
 func TestFailedApplyInvokeScript(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
@@ -762,11 +725,6 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	infoBefore := to.fallibleValidationParams(t)
 	infoBefore.acceptFailed = true
@@ -857,11 +815,6 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 	to.activateFeature(t, int16(settings.RideV5))
 	to.activateFeature(t, int16(settings.RideV6))
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
@@ -985,11 +938,6 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 	to.activateFeature(t, int16(settings.RideV5))
 
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
-
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride5_leasing.base64", testGlobal.recipientInfo)
 
@@ -1030,11 +978,6 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 	to := createInvokeApplierTestObjects(t)
 	to.activateFeature(t, int16(settings.RideV5))
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "ride5_leasing.base64", testGlobal.recipientInfo)
@@ -1141,11 +1084,6 @@ func TestFailRejectOnThrow(t *testing.T) {
 	*/
 
 	to := createInvokeApplierTestObjects(t)
-
-	t.Cleanup(func() {
-		err := to.state.Close()
-		require.NoError(t, err, "state.Close() failed")
-	})
 
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true

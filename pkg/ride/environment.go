@@ -363,7 +363,14 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	timestamp := env.timestamp()
 
-	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight(), env.blockV5Activated(), env.rideV6Activated())
+	localEnv, err := NewEnvironment(
+		env.scheme(),
+		env.state(),
+		env.internalPaymentsValidationHeight(),
+		env.blockV5Activated(),
+		env.rideV6Activated(),
+		env.invokeExpressionActivated(),
+	)
 	if err != nil {
 		return false, err
 	}
@@ -916,39 +923,41 @@ func (ws *WrappedState) ApplyToState(
 }
 
 type EvaluationEnvironment struct {
-	sch                   proto.Scheme
-	st                    types.SmartState
-	h                     rideInt
-	tx                    rideType
-	id                    rideType
-	th                    rideType
-	time                  uint64
-	b                     rideType
-	check                 func(int) bool
-	takeStr               func(s string, n int) rideString
-	inv                   rideType
-	ver                   ast.LibraryVersion
-	validatePaymentsAfter uint64
-	isBlockV5Activated    bool
-	isRideV6Activated     bool
-	isProtobufTransaction bool
-	mds                   int
+	sch                         proto.Scheme
+	st                          types.SmartState
+	h                           rideInt
+	tx                          rideType
+	id                          rideType
+	th                          rideType
+	time                        uint64
+	b                           rideType
+	check                       func(int) bool
+	takeStr                     func(s string, n int) rideString
+	inv                         rideType
+	ver                         ast.LibraryVersion
+	validatePaymentsAfter       uint64
+	isBlockV5Activated          bool
+	isRideV6Activated           bool
+	isInvokeExpressionActivated bool
+	isProtobufTransaction       bool
+	mds                         int
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64, blockV5, rideV6 bool) (*EvaluationEnvironment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64, blockV5, rideV6, invokeExpression bool) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 	return &EvaluationEnvironment{
-		sch:                   scheme,
-		st:                    state,
-		h:                     rideInt(height),
-		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
-		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
-		validatePaymentsAfter: internalPaymentsValidationHeight,
-		isBlockV5Activated:    blockV5,
-		isRideV6Activated:     rideV6,
+		sch:                         scheme,
+		st:                          state,
+		h:                           rideInt(height),
+		check:                       func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		takeStr:                     func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		validatePaymentsAfter:       internalPaymentsValidationHeight,
+		isBlockV5Activated:          blockV5,
+		isRideV6Activated:           rideV6,
+		isInvokeExpressionActivated: invokeExpression,
 	}, nil
 }
 
@@ -1016,6 +1025,10 @@ func NewEnvironmentWithWrappedState(
 		isRideV6Activated:     env.isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) invokeExpressionActivated() bool {
+	return e.isInvokeExpressionActivated
 }
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {
@@ -1099,7 +1112,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 		return err
 	}
 	e.id = rideBytes(id)
-	obj, err := transactionToObject(e.sch, tx)
+	obj, err := transactionToObject(e.sch, e.isInvokeExpressionActivated, tx)
 	if err != nil {
 		return err
 	}

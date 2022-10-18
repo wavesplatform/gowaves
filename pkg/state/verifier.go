@@ -2,28 +2,41 @@ package state
 
 import (
 	"context"
-	"sync"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"golang.org/x/sync/errgroup"
 )
 
 type verifyTaskType byte
 
 const (
-	verifyBlock verifyTaskType = iota
+	verifyBlock verifyTaskType = iota + 1
 	verifyTx
 )
 
 type verifierChans struct {
-	errChan   chan error
-	tasksChan chan *verifyTask
+	errChan   <-chan error
+	tasksChan chan<- *verifyTask
 }
 
-func newVerifierChans() *verifierChans {
-	return &verifierChans{make(chan error), make(chan *verifyTask)}
+func (ch *verifierChans) trySend(task *verifyTask) error {
+	select {
+	case verifyError, ok := <-ch.errChan:
+		if !ok {
+			return errors.Errorf("sending task with task type (%d) to finished verifier", task.taskType)
+		}
+		return verifyError
+	case ch.tasksChan <- task:
+		return nil
+	}
+}
+
+func (ch *verifierChans) closeAndWait() error {
+	close(ch.tasksChan)
+	return <-ch.errChan
 }
 
 type verifyTask struct {
@@ -213,38 +226,47 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 			}
 			return errors.Wrapf(err, "transaction '%s' verification failed", base58.Encode(txID))
 		}
+	default:
+		return errors.Errorf("unknown verify task type (%d)", task.taskType)
 	}
 	return nil
 }
 
 func verify(ctx context.Context, tasks <-chan *verifyTask, scheme proto.Scheme) error {
-	for task := range tasks {
-		if err := handleTask(task, scheme); err != nil {
-			return err
-		}
+	for {
 		select {
+		case task, ok := <-tasks:
+			if !ok {
+				return nil
+			}
+			if err := handleTask(task, scheme); err != nil {
+				return err
+			}
 		case <-ctx.Done():
 			return nil
-		default:
 		}
 	}
-	return nil
 }
 
-func launchVerifier(ctx context.Context, chans *verifierChans, goroutinesNum int, scheme proto.Scheme) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var wg sync.WaitGroup
-	for i := 0; i < goroutinesNum; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := verify(ctx, chans.tasksChan, scheme); err != nil {
-				chans.errChan <- err
-				cancel()
-			}
-		}()
+func launchVerifier(ctx context.Context, goroutinesNum int, scheme proto.Scheme) *verifierChans {
+	if goroutinesNum <= 0 {
+		panic("verifier launched with negative or zero goroutines number")
 	}
-	wg.Wait()
-	close(chans.errChan)
+	errgr, ctx := errgroup.WithContext(ctx)
+	// run verifier goroutines
+	tasksChan := make(chan *verifyTask)
+	for i := 0; i < goroutinesNum; i++ {
+		errgr.Go(func() error {
+			return verify(ctx, tasksChan, scheme)
+		})
+	}
+	// run waiter goroutine
+	errChan := make(chan error, 1)
+	go func(ch chan<- error) {
+		if err := errgr.Wait(); err != nil {
+			ch <- err
+		}
+		close(ch)
+	}(errChan)
+	return &verifierChans{tasksChan: tasksChan, errChan: errChan}
 }

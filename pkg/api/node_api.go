@@ -18,13 +18,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 )
 
 const (
-	defaultTimeout = 30 * time.Second
-
-	maxDebugMessageLength = 100
+	defaultTimeout              = 30 * time.Second
+	postMessageSizeLimit  int64 = 1 << 20 // 1 MB
+	maxDebugMessageLength       = 100
 )
 
 type NodeApi struct {
@@ -41,13 +42,16 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) error {
-	// TODO: use io.LimitReader
-	b, err := io.ReadAll(r.Body)
+func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) error {
+	b, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast: failed to read request body")
 	}
-	err = a.app.TransactionsBroadcast(r.Context(), b)
+	tx, err := a.app.TransactionsBroadcast(r.Context(), b)
+	if err != nil {
+		return errors.Wrap(err, "TransactionsBroadcast")
+	}
+	err = trySendJson(w, tx)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast")
 	}
@@ -95,9 +99,9 @@ func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error 
 			"TransactionsInfo: expected NotFound in state error, but received other error = %s", s,
 		)
 	}
-	err = json.NewEncoder(w).Encode(tx)
+	err = trySendJson(w, tx)
 	if err != nil {
-		return errors.Wrap(err, "TransactionsInfo: failed to marshal tx to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "TransactionsInfo")
 	}
 	return nil
 }
@@ -107,9 +111,9 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksLast: failed to get last block")
 	}
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to marshal block to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "BlocksLast")
 	}
 	return nil
 }
@@ -119,9 +123,21 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to get first block")
 	}
-	err = json.NewEncoder(w).Encode(apiBlock)
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) error {
+	lastBlockHeader, err := a.app.BlocksHeadersLast()
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to get last block header")
+	}
+	err = trySendJson(w, lastBlockHeader)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersLast: failed to marshal block header to JSON and write to ResponseWriter")
 	}
 	return nil
 }
@@ -167,8 +183,11 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	apiBlock := newAPIBlock(block, height)
-	err = json.NewEncoder(w).Encode(apiBlock)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -211,8 +230,11 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
-	apiBlock := newAPIBlock(block, height)
-	err = json.NewEncoder(w).Encode(apiBlock)
+	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to create API block")
+	}
+	err = trySendJson(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -255,7 +277,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
+func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
 	if opts == nil {
 		opts = DefaultRunOptions()
 	}
@@ -275,16 +297,28 @@ func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptio
 		}
 	}()
 
-	err = apiServer.ListenAndServe()
+	if opts.MaxConnections > 0 {
+		if address == "" {
+			address = ":http"
+		}
+
+		ln, lErr := net.Listen("tcp", address)
+		if lErr != nil {
+			return lErr
+		}
+
+		ln = limit_listener.LimitListener(ln, opts.MaxConnections)
+		zap.S().Debugf("Set limit for number of simultaneous connections for REST API to %d", opts.MaxConnections)
+
+		err = apiServer.Serve(ln)
+	} else {
+		err = apiServer.ListenAndServe()
+	}
+
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
-}
-
-func Run(ctx context.Context, address string, n *NodeApi) error {
-	// TODO(nickeskov): add run flags in CLI flags
-	return RunWithOpts(ctx, address, n, nil)
 }
 
 func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) error {
@@ -353,6 +387,22 @@ func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersSuspended()
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "PeersSuspended")
+	}
+	return nil
+}
+
+func (a *NodeApi) PeersBlackListed(w http.ResponseWriter, _ *http.Request) error {
+	rs := a.app.PeersBlackListed()
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersBlackListed")
+	}
+	return nil
+}
+
+func (a *NodeApi) PeersClearBlackList(w http.ResponseWriter, _ *http.Request) error {
+	rs := a.app.PeersClearBlackList()
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersBlackListed")
 	}
 	return nil
 }

@@ -224,7 +224,7 @@ func UnixMillisToTime(ts int64) time.Time {
 }
 
 func UnixMillisFromTime(t time.Time) int64 {
-	return t.UnixNano() / 1_000_000
+	return t.UnixMilli()
 }
 
 // ReplaceInvalidUtf8Chars replaces invalid utf8 characters with '?' to reproduce JVM behaviour.

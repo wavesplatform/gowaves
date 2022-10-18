@@ -38,6 +38,9 @@ var _ environment = &mockRideEnvironment{}
 //			invocationFunc: func() rideType {
 //				panic("mock out the invocation method")
 //			},
+//			invokeExpressionActivatedFunc: func() bool {
+//				panic("mock out the invokeExpressionActivated method")
+//			},
 //			isProtobufTxFunc: func() bool {
 //				panic("mock out the isProtobufTx method")
 //			},
@@ -105,6 +108,9 @@ type mockRideEnvironment struct {
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideType
 
+	// invokeExpressionActivatedFunc mocks the invokeExpressionActivated method.
+	invokeExpressionActivatedFunc func() bool
+
 	// isProtobufTxFunc mocks the isProtobufTx method.
 	isProtobufTxFunc func() bool
 
@@ -169,6 +175,9 @@ type mockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
+		// invokeExpressionActivated holds details about calls to the invokeExpressionActivated method.
+		invokeExpressionActivated []struct {
+		}
 		// isProtobufTx holds details about calls to the isProtobufTx method.
 		isProtobufTx []struct {
 		}
@@ -226,6 +235,7 @@ type mockRideEnvironment struct {
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
+	lockinvokeExpressionActivated        sync.RWMutex
 	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
@@ -406,6 +416,33 @@ func (mock *mockRideEnvironment) invocationCalls() []struct {
 	mock.lockinvocation.RLock()
 	calls = mock.calls.invocation
 	mock.lockinvocation.RUnlock()
+	return calls
+}
+
+// invokeExpressionActivated calls invokeExpressionActivatedFunc.
+func (mock *mockRideEnvironment) invokeExpressionActivated() bool {
+	if mock.invokeExpressionActivatedFunc == nil {
+		panic("mockRideEnvironment.invokeExpressionActivatedFunc: method is nil but environment.invokeExpressionActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinvokeExpressionActivated.Lock()
+	mock.calls.invokeExpressionActivated = append(mock.calls.invokeExpressionActivated, callInfo)
+	mock.lockinvokeExpressionActivated.Unlock()
+	return mock.invokeExpressionActivatedFunc()
+}
+
+// invokeExpressionActivatedCalls gets all the calls that were made to invokeExpressionActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.invokeExpressionActivatedCalls())
+func (mock *mockRideEnvironment) invokeExpressionActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinvokeExpressionActivated.RLock()
+	calls = mock.calls.invokeExpressionActivated
+	mock.lockinvokeExpressionActivated.RUnlock()
 	return calls
 }
 

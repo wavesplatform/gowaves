@@ -394,77 +394,45 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 	if !ok {
 		return nil, errors.New("failed to cast 'Transaction' interface to 'EthereumTransaction' type")
 	}
+	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errs.Extend(err, "invalid timestamp in ethereum transaction")
+	}
+
+	var smartAssets []crypto.Digest
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
-		// check fee
-		if tx.GetFee() < proto.EthereumTransferMinFee {
-			return nil, errors.Errorf("the fee for ethereum transfer waves tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
-		}
-
-		// check if the amount is 0
 		if tx.Value() == nil {
+			return nil, errors.New("amount of ethereum transfer waves is nil")
+		}
+		res, err := proto.EthereumWeiToWavelet(tx.Value())
+		if err != nil {
+			return nil, errors.Errorf("failed to convert wei amount from ethreum transaction to wavelets. value is %s", tx.Value().String())
+		}
+		if res == 0 {
 			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
 		}
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-		if ok := res.IsInt64(); !ok {
-			return nil, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
-		}
-		if res.Int64() == 0 {
-			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
-		}
-
-		return nil, nil
 	case *proto.EthereumTransferAssetsErc20TxKind:
-		// check fee
-		minFee := proto.EthereumTransferMinFee
-
 		if kind.Arguments.Amount == 0 {
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
-
-		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(kind.Asset.ID))
-		if err != nil {
-			return nil, errors.Errorf("failed to get asset info, %v", err)
-		}
-		if isSmart {
-			minFee += proto.EthereumScriptedAssetMinFee
-		}
-
-		if tx.GetFee() < minFee {
-			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", minFee, tx.GetFee())
-		}
-
 		allAssets := []proto.OptionalAsset{kind.Asset}
-		smartAssets, err := tc.smartAssets(allAssets)
+		smartAssets, err = tc.smartAssets(allAssets)
 		if err != nil {
 			return nil, err
 		}
-
-		return smartAssets, nil
 	case *proto.EthereumInvokeScriptTxKind:
-		// check fee
-		minFee := proto.EthereumInvokeMinFee
-
-		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
-			return nil, errs.Extend(err, "invalid timestamp")
-		}
-		decodedData := tx.TxKind.DecodedData()
-		abiPayments := decodedData.Payments
-
+		var (
+			decodedData = tx.TxKind.DecodedData()
+			abiPayments = decodedData.Payments
+		)
 		if len(abiPayments) > 10 {
-			return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
+			return nil, errors.New("no more than 10 payments is allowed since RideV5 activation")
 		}
+
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
 		for _, p := range abiPayments {
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
 			if optAsset.Present {
-				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(optAsset.ID))
-				if err != nil {
-					return nil, err
-				}
-				if isSmart {
-					minFee += proto.EthereumScriptedAssetMinFee
-				}
 				if err := tc.checkAsset(&optAsset); err != nil {
 					return nil, errs.Extend(err, "bad payment asset")
 				}
@@ -473,21 +441,18 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			// we don't have to check WAVES asset because it can't be scripted and always exists
 			paymentAssets = append(paymentAssets, optAsset)
 		}
-
-		if tx.GetFee() < minFee {
-			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
-		}
-
-		smartAssets, err := tc.smartAssets(paymentAssets)
+		smartAssets, err = tc.smartAssets(paymentAssets)
 		if err != nil {
 			return nil, err
 		}
-
-		return smartAssets, nil
-
 	default:
-		return nil, errors.New("failed to check ethereum transaction, wrong kind of tx")
+		return nil, errors.Errorf("failed to check ethereum transaction, wrong kind (%T) of tx", kind)
 	}
+	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Wrap(err, "failed fee validation for ethereum transaction")
+	}
+	return smartAssets, nil
 }
 
 func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {

@@ -190,18 +190,21 @@ func makeTransferTransactionObject(t *testing.T, sig, senderPublicKey, amountAss
 	return obj
 }
 
-func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int) rideType {
+func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int, invokeExpressionActivated bool) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
 	require.NoError(t, err)
-	script, err := base58.Decode(scriptBytes)
-	require.NoError(t, err)
+	var script []byte
+	if scriptBytes != "" {
+		script, err = base58.Decode(scriptBytes)
+		require.NoError(t, err)
+	}
 	tx := proto.NewUnsignedSetScriptWithProofs(2, proto.TestNetScheme, senderPK, script, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := setScriptWithProofsToObject(proto.TestNetScheme, tx)
+	obj, err := setScriptWithProofsToObject(proto.TestNetScheme, invokeExpressionActivated, tx)
 	require.NoError(t, err)
 	replaceFirstProof(obj, s)
 	return obj
@@ -494,7 +497,7 @@ func TestTypesStrings(t *testing.T) {
 	testLeaseTransaction := makeLeaseTransactionObject(t, sig, dig, a, 1, 2, 3)
 	testLeaseCancelTransaction := makeLeaseCancelTransactionObject(t, sig, dig, dig, 1, 2)
 	testCreateAliasTransaction := makeCreateAliasTransactionObject(t, sig, dig, "str", 1, 2)
-	testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, dig, 1, 2)
+	testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, dig, 1, 2, false)
 	testSponsorFeeTransaction := makeSponsorFeeTransactionObject(t, sig, dig, dig, 1, 2, 3)
 	testDataTransaction := makeDataTransactionObject(t, sig, dig, []string{"key"}, []string{"value"}, 1, 2)
 	testAssetInfo := makeFullAssetInfo(d, pk, ad, longBytes, itx)

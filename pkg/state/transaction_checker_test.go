@@ -884,7 +884,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Script = scriptBytes
 	// Big script, RideV6 feature is not activated
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
-	assert.EqualError(t, err, "checkScript() tx CHkPmr2rRLoj8CBuK1fMah2Z8pboMQZRtPsvXvHBFur8: script size 32857 is greater than limit of 32768")
+	assert.EqualError(t, err, "checkScript() tx HRXWrnrRy1f7Ur3SNXTtVkNFHNgoqUkpQTB8foqVbptx: script size 32857 is greater than limit of 32768")
 	// RideV6 feature is active, but fee is not enough
 	to.stor.activateFeature(t, int16(settings.RideV6))
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)

@@ -175,7 +175,7 @@ func FSMKeyBlockReceived(fsm string, block *proto.Block, source string) {
 		return
 	}
 	t := emptyTags().node().fsm(fsm).block().received()
-	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent).source(source).blockTS(block.Timestamp).genPK(block.GenPublicKey)
+	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent).source(source).blockTS(block.Timestamp).genPK(block.GeneratorPublicKey)
 	reportFSM(t, f)
 }
 

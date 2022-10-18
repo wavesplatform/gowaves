@@ -103,7 +103,7 @@ func TestReplaceInvalidUtf8Chars(t *testing.T) {
 
 func TestUnixMillisUtils(t *testing.T) {
 	ts := time.Now().Truncate(time.Millisecond)
-	tsMillis := ts.UnixNano() / 1_000_000
+	tsMillis := ts.UnixMilli()
 
 	require.Equal(t, tsMillis, UnixMillisFromTime(ts))
 	require.Equal(t, ts.String(), UnixMillisToTime(tsMillis).String())

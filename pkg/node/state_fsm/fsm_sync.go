@@ -60,12 +60,7 @@ type SyncFsm struct {
 }
 
 func (a *SyncFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	err := a.baseInfo.utx.Add(t)
-	if err != nil {
-		return a, nil, a.Errorf(proto.NewInfoMsg(err))
-	}
-	a.baseInfo.BroadcastTransaction(t, p)
-	return a, nil, nil
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
 // MicroBlock ignores new microblocks while syncing.
@@ -135,11 +130,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 }
 
 func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	err := a.baseInfo.peers.NewConnection(p)
-	if err != nil {
-		return a, nil, a.Errorf(proto.NewInfoMsg(err))
-	}
-	return a, nil, nil
+	return newPeer(a, p, a.baseInfo.peers)
 }
 
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {

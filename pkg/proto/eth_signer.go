@@ -33,18 +33,15 @@ func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
 // EthereumPublicKey is an Ethereum ecdsa.PublicKey.
 type EthereumPublicKey btcec.PublicKey
 
-// MarshalJSON marshal EthereumPublicKey in base58 encoding.
-// This method doesn't recognize hex encoding according to the scala node implementation.
+// MarshalJSON marshal EthereumPublicKey in hex encoding.
 func (epk EthereumPublicKey) MarshalJSON() ([]byte, error) {
-	// nickeskov: can't fail
-	data, _ := epk.MarshalBinary()
-	return B58Bytes(data).MarshalJSON()
+	data := epk.SerializeXYCoordinates()
+	return HexBytes(data).MarshalJSON()
 }
 
-// UnmarshalJSON unmarshal EthereumPublicKey from base58 encoding.
-// This method doesn't recognize hex encoding according to the scala node implementation.
+// UnmarshalJSON unmarshal EthereumPublicKey from hex encoding.
 func (epk *EthereumPublicKey) UnmarshalJSON(bytes []byte) error {
-	pkBytes := B58Bytes{}
+	pkBytes := HexBytes{}
 	err := pkBytes.UnmarshalJSON(bytes)
 	if err != nil {
 		return err

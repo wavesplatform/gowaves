@@ -174,7 +174,7 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) 
 	var minerDiff txDiff
 	var minerAddr proto.WavesAddress
 	if hasParent {
-		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
+		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GeneratorPublicKey)
 		if err != nil {
 			return txDiff{}, err
 		}

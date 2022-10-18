@@ -19,6 +19,8 @@ const (
 	maxCacheBytes = maxCacheSize * scriptSize
 )
 
+var errEmptyScript = errors.New("empty script")
+
 func scriptBytesToTree(script proto.Script) (*ast.Tree, error) {
 	tree, err := serialization.Parse(script)
 	if err != nil {
@@ -76,6 +78,7 @@ type scriptBasicInfoRecord struct {
 	ScriptLen      uint32             `cbor:"1,keyasint,omitemtpy"`
 	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitemtpy"`
 	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
+	IsDApp         bool               `cbor:"4,keyasint,omitemtpy"`
 }
 
 func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
@@ -92,6 +95,7 @@ func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptB
 		ScriptLen:      scriptLen,
 		LibraryVersion: tree.LibVersion,
 		HasVerifier:    tree.HasVerifier(),
+		IsDApp:         tree.IsDApp(),
 	}
 	return info, tree, nil
 }
@@ -372,6 +376,45 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 	return ss.setScript(accountScript, &key, dbItem, blockID)
 }
 
+// newestAccountIsDApp checks that account is DApp.
+// Note that only real proto.WavesAddress account can be a DApp.
+func (ss *scriptsStorage) newestAccountIsDApp(addr proto.WavesAddress) (bool, error) {
+	key := accountScriptKey{addr.ID()}
+	keyBytes := key.bytes()
+	if script, has := ss.cache.get(keyBytes); has {
+		return script.IsDApp(), nil
+	}
+	infoKey := scriptBasicInfoKey{scriptKey: &key}
+	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
+	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+		return false, nil
+	}
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account is not DApp
+		return false, nil
+	}
+	return info.IsDApp, nil
+}
+
+func (ss *scriptsStorage) accountIsDApp(addr proto.WavesAddress) (bool, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
+	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+		return false, nil
+	}
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return false, err
+	}
+	if !info.scriptExists() { // Script doesn't exist, so account is not DApp
+		return false, nil
+	}
+	return info.IsDApp, nil
+}
+
 // newestAccountHasVerifier checks that account has verifier.
 // Note that only real proto.WavesAddress account can have a verifier.
 func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (bool, error) {
@@ -466,9 +509,25 @@ func (ss *scriptsStorage) newestScriptBasicInfoByAddressID(addressID proto.Addre
 		return scriptBasicInfoRecord{}, err
 	}
 	if !info.scriptExists() {
-		return scriptBasicInfoRecord{}, errors.New("empty script")
+		return scriptBasicInfoRecord{}, errEmptyScript
 	}
-	return info, err
+	return info, nil
+}
+
+func (ss *scriptsStorage) scriptBasicInfoByAddressID(addressID proto.AddressID) (scriptBasicInfoRecord, error) {
+	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addressID}}
+	recordBytes, err := ss.hs.topEntryData(key.bytes())
+	if err != nil {
+		return scriptBasicInfoRecord{}, err
+	}
+	var info scriptBasicInfoRecord
+	if err := info.unmarshalBinary(recordBytes); err != nil {
+		return scriptBasicInfoRecord{}, err
+	}
+	if !info.scriptExists() {
+		return scriptBasicInfoRecord{}, errEmptyScript
+	}
+	return info, nil
 }
 
 // scriptByAddr returns script of corresponding proto.WavesAddress.

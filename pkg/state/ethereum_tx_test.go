@@ -19,18 +19,16 @@ import (
 )
 
 func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.SmartState, assetsUncertain map[proto.AssetID]assetInfo, scheme proto.Scheme) txAppender {
-	var feautures = &mockFeaturesState{
+	activatedFeatures := map[settings.Feature]struct{}{
+		settings.SmartAccounts:  {},
+		settings.FeeSponsorship: {},
+		settings.Ride4DApps:     {},
+		settings.RideV6:         {},
+	}
+	feat := &mockFeaturesState{
 		newestIsActivatedFunc: func(featureID int16) (bool, error) {
-			if featureID == int16(settings.SmartAccounts) {
-				return true, nil
-			}
-			if featureID == int16(settings.Ride4DApps) {
-				return true, nil
-			}
-			if featureID == int16(settings.RideV6) {
-				return true, nil
-			}
-			return false, nil
+			_, ok := activatedFeatures[settings.Feature(featureID)]
+			return ok, nil
 		},
 		newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
 			const (
@@ -45,14 +43,18 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			)
 		},
 	}
-	stor := createStorageObjects(t, true)
+	sett := *settings.MainNetSettings
+	sett.SponsorshipSingleActivationPeriod = true
+	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{
+		Settings: &sett,
+	})
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
 		assetsUncertain = make(map[proto.AssetID]assetInfo)
 	}
 	newAssets.uncertainAssetInfo = assetsUncertain
 
-	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feautures, settings: &settings.BlockchainSettings{}}, assets: newAssets}
+	store := blockchainEntitiesStorage{features: feat, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feat, settings: &sett}, assets: newAssets}
 	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1, AddressSchemeCharacter: scheme}}
 	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
 	assert.NoError(t, err)
@@ -83,8 +85,13 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 }
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
+	storage := &mockScriptStorageState{
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
+	}
 	//assetsUncertain := newAssets
-	txAppender := defaultTxAppender(t, nil, nil, nil, proto.TestNetScheme)
+	txAppender := defaultTxAppender(t, storage, nil, nil, proto.TestNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
@@ -127,6 +134,9 @@ func TestEthereumTransferAssets(t *testing.T) {
 			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
+			return false, nil
+		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
 			return false, nil
 		},
 	}
@@ -241,6 +251,9 @@ func TestEthereumInvoke(t *testing.T) {
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
 			return false, nil
 		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
+			return false, nil
+		},
 	}
 	state := &AnotherMockSmartState{
 		AddingBlockHeightFunc: func() (uint64, error) {
@@ -282,7 +295,7 @@ func TestEthereumInvoke(t *testing.T) {
 	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 	// fee test
-	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.TestNetScheme)
+	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.MainNetScheme)
 	tx = proto.NewEthereumTransaction(txDataForFeeCheck, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
@@ -304,7 +317,7 @@ func TestTransferZeroAmount(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.Error(t, err)
+	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestTransferTestNetTestnet(t *testing.T) {
@@ -322,7 +335,7 @@ func TestTransferTestNetTestnet(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.Error(t, err)
+	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestTransferCheckFee(t *testing.T) {
@@ -340,7 +353,7 @@ func TestTransferCheckFee(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
-	require.Error(t, err)
+	require.EqualError(t, err, "the amount of ethereum transfer waves is 0, which is forbidden")
 }
 
 func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
@@ -371,6 +384,9 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
+			return false, nil
+		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
 			return false, nil
 		},
 	}
@@ -439,6 +455,9 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
 		},
 		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
+			return false, nil
+		},
+		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
 			return false, nil
 		},
 	}

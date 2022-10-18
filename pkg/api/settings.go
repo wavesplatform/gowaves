@@ -6,6 +6,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	DefaultMaxConnections = 128
+)
+
 type RunOptions struct {
 	RateLimiterOpts      *RateLimiterOptions
 	LogHttpRequestOpts   bool
@@ -13,6 +17,9 @@ type RunOptions struct {
 	UseRealIPMiddleware  bool
 	EnableHeartbeatRoute bool
 	RouteNotFoundHandler func(w http.ResponseWriter, r *http.Request)
+	MaxConnections       int
+	EnableMetaMaskAPI    bool
+	EnableMetaMaskAPILog bool
 }
 
 type RateLimiterOptions struct {
@@ -32,5 +39,8 @@ func DefaultRunOptions() *RunOptions {
 			zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		},
+		MaxConnections:       DefaultMaxConnections,
+		EnableMetaMaskAPI:    false,
+		EnableMetaMaskAPILog: false,
 	}
 }

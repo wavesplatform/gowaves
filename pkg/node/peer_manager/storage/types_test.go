@@ -2,19 +2,11 @@ package storage
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-func TestFromUnixMillis(t *testing.T) {
-	ts := time.Now().Truncate(time.Millisecond)
-	tsMillis := ts.UnixNano() / 1_000_000
-
-	require.Equal(t, ts.String(), fromUnixMillis(tsMillis).String())
-}
 
 func TestIpFromIpPort(t *testing.T) {
 	ip := IpFromIpPort(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("13.3.4.1:2345")))

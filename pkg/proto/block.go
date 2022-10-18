@@ -170,7 +170,7 @@ type BlockHeader struct {
 	NxtConsensus           `json:"nxt-consensus"`
 	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
 	TransactionCount       int              `json:"transactionCount"`
-	GenPublicKey           crypto.PublicKey `json:"genPublicKey"`
+	GeneratorPublicKey     crypto.PublicKey `json:"generatorPublicKey"`
 	BlockSignature         crypto.Signature `json:"signature"`
 	TransactionsRoot       B58Bytes         `json:"transactionsRoot,omitempty"`
 
@@ -243,7 +243,7 @@ func (b *BlockHeader) MarshalHeaderToProtobuf(scheme Scheme) ([]byte, error) {
 
 func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, error) {
 	ref := b.Parent.Bytes()
-	pkBytes := b.GenPublicKey.Bytes()
+	pkBytes := b.GeneratorPublicKey.Bytes()
 	features := make([]uint32, len(b.Features))
 	for i := range b.Features {
 		features[i] = uint32(b.Features[i])
@@ -324,7 +324,7 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	} else {
 		res = append(res, byte(b.TransactionCount))
 	}
-	res = append(res, b.GenPublicKey[:]...)
+	res = append(res, b.GeneratorPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
 
 	return res, nil
@@ -379,7 +379,7 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 		b.TransactionCount = int(data[121])
 		b.Features = []int16{}
 	}
-	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
+	copy(b.GeneratorPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
 	if err := b.GenerateBlockID(scheme); err != nil {
 		return errors.Wrap(err, "failed to generate block ID")
@@ -494,7 +494,7 @@ func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 		}
 		bb = buf.Bytes()
 	}
-	return crypto.Verify(b.GenPublicKey, b.BlockSignature, bb), nil
+	return crypto.Verify(b.GeneratorPublicKey, b.BlockSignature, bb), nil
 }
 
 func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
@@ -640,7 +640,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 		}
 	}
 
-	s.Bytes(b.GenPublicKey[:])
+	s.Bytes(b.GeneratorPublicKey[:])
 	return s.N(), nil
 }
 
@@ -708,7 +708,7 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 		b.Features = []int16{}
 	}
 
-	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
+	copy(b.GeneratorPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
 	if err := b.GenerateBlockID(scheme); err != nil {
 		return errors.Wrap(err, "failed to generate block ID")
@@ -747,7 +747,7 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 			ConsensusBlockLength: uint32(consensusLength),
 			NxtConsensus:         nxtConsensus,
 			TransactionCount:     transactions.Count(),
-			GenPublicKey:         publicKey,
+			GeneratorPublicKey:   publicKey,
 		},
 		Transactions: transactions,
 	}
