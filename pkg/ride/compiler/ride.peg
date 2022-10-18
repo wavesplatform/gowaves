@@ -77,7 +77,7 @@ NotOp <- '!'
 ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
 
 Const <- Integer / String / ByteVector / Boolean / List
-Identifier <- (!ReservedWords [A-Za-z_][A-Za-z0-9_]*) / (ReservedWords [A-Za-z0-9_]+)
+Identifier <- (!ReservedWords ([A-Za-z] / [_] &[A-Za-z]) ([A-Za-z0-9] / ([_] ![_]))*) / (ReservedWords (([A-Za-z0-9]) / ([_] ![_]))+)
 GenericTypesAtom <- OneGenericTypeAtom (_ "|" _ GenericTypesAtom)?
 OneGenericTypeAtom <- [A-Za-z][A-Za-z0-9]* (_ "[" _ OneTypeAtom _ "]" _)?
 TypesAtom <- OneTypeAtom (_ "|" _ TypesAtom)?
@@ -96,7 +96,7 @@ UnicodeChar <- "\\u" [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-
 EscapedChar <- "\\" .
 Char <- [^\"]
 
-Integer <- [0-9]+
+Integer <- ([0-9] ([_] &[0-9])?)+
 
 List <- "[" _ ExprSeq? _ "]"
 ExprSeq <- Expr (_ "," _ ExprSeq)?

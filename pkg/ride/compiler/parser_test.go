@@ -421,12 +421,22 @@ func TestIdentifiers(t *testing.T) {
 		{`Abc`, false, "Identifier<Abc>"},
 		{`aBc`, false, "Identifier<aBc>"},
 		{`a_b_c`, false, "Identifier<a_b_c>"},
-		// TODO: Consecutive underscores are not allowed in Scala parser V1, consider adding style rule on this.
-		{`A__B___C`, false, "Identifier<A__B___C>"},
+		{`a_b_c_`, false, "Identifier<a_b_c_>"},
 		{`_a_b_c`, false, "Identifier<_a_b_c>"},
+		{`_a_b_c_`, false, "Identifier<_a_b_c_>"},
+		{`_a2`, false, "Identifier<_a2>"},
+		{`_a_2`, false, "Identifier<_a_2>"},
+		{`_a_2_`, false, "Identifier<_a_2_>"},
 		{`let_123`, false, "Identifier<let_123>"},
+		{`let_1_a_b_c`, false, "Identifier<let_1_a_b_c>"},
+		{`let_1_a_b_c_`, false, "Identifier<let_1_a_b_c_>"},
 		{`let`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 4):\n\"let\"\n"},
+		{`let__1_a_b_c_`, true, "\nparse error near ReservedWords (line 1 symbol 1 - line 1 symbol 4):\n\"let\"\n"},
+		{`let_1_a__b_c_`, true, "\nparse error near Identifier (line 1 symbol 1 - line 1 symbol 8):\n\"let_1_a\"\n"},
+		{`let_1_a_b_c__`, true, "\nparse error near Identifier (line 1 symbol 1 - line 1 symbol 12):\n\"let_1_a_b_c\"\n"},
+		{`A__B___C`, true, "\nparse error near Identifier (line 1 symbol 1 - line 1 symbol 2):\n\"A\"\n"},
 		{`let 123 = true`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
+		{`_1two`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
@@ -465,6 +475,41 @@ f( a: #comment
 Type #comment
 ) #comment
 = []`, false, "AnnotatedFunc<.>;AnnotationSeq<.>;Annotation<.>;Identifier<Annotation>;IdentifierSeq<.>;Identifier<foo>;Func<.>;Identifier<f>"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestHugeScript(t *testing.T) {
+	sb := strings.Builder{}
+	for i := 0; i < 10000; i++ {
+		sb.WriteString(fmt.Sprintf("let i%d = true\n", i))
+	}
+	sb.WriteString("i9999\n")
+	ast, _, err := buildAST(t, sb.String(), false)
+	require.Nil(t, err)
+	require.NotNil(t, ast)
+}
+
+func TestUnderscoreInNumbers(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`1000000`, false, "Integer<1000000>"},
+		{`1_000_000`, false, "Integer<1_000_000>"},
+		{`1_0_0_0_0_0_0`, false, "Integer<1_0_0_0_0_0_0>"},
+		{`1_0_0_0_0_0_0_`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 14):\n\"1_0_0_0_0_0_0\"\n"},
+		{`100__000`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 4):\n\"100\"\n"},
+		{`_100`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
