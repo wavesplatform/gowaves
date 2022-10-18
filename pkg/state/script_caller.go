@@ -325,7 +325,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		abiPayments := transaction.TxKind.DecodedData().Payments
 		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
 		for _, p := range abiPayments {
-			if p.Amount <= 0 {
+			if p.Amount <= 0 && info.checkerInfo.height > a.settings.InvokeNoZeroPaymentsAfterHeight {
 				return nil, errors.Errorf("invalid payment amount '%d'", p.Amount)
 			}
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
