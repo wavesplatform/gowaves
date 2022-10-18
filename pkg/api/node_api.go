@@ -142,6 +142,77 @@ func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) erro
 	return nil
 }
 
+func (a *NodeApi) BlocksHeadersAt(w http.ResponseWriter, r *http.Request) error {
+	heightParam := chi.URLParam(r, "height")
+	h, err := strconv.ParseUint(heightParam, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'height' url param")
+	}
+	header, err := a.app.BlocksHeadersAt(h)
+	if err != nil {
+		if state.IsInvalidInput(err) || state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlocksHeadersAt: failed to get block header at height %d", h)
+	}
+	err = trySendJson(w, header)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersAt: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non-zero length
+	s := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
+		}
+		return blockIDAtInvalidLenErr(s)
+	}
+	header, err := a.app.BlocksHeadersByID(id)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlockHeadersID: failed to get block header by ID=%q", s)
+	}
+	err = trySendJson(w, header)
+	if err != nil {
+		return errors.Wrap(err, "BlockHeadersID: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request) error {
+	var (
+		fromParam = chi.URLParam(r, "from")
+		toParam   = chi.URLParam(r, "to")
+	)
+	from, err := strconv.ParseUint(fromParam, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'from' url param")
+	}
+	to, err := strconv.ParseUint(toParam, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'to' url param")
+	}
+	if from > to || to-from >= blocksSequenceLimit {
+		return apiErrs.TooBigArrayAllocation
+	}
+	seq, err := a.app.BlocksHeadersFromTo(from, to)
+	if err != nil {
+		return errors.Wrapf(err, "BlocksHeadersSeqFromTo: failed to get block sequence from %d to %d", from, to)
+	}
+	err = trySendJson(w, seq)
+	if err != nil {
+		return errors.Wrap(err, "BlocksHeadersSeqFromTo: failed to marshal block header to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
