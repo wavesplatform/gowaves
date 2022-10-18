@@ -36,7 +36,7 @@ StrictVariable <- "strict" _ Identifier _ "=" _ Expr
 
 Func <- "func" _ Identifier _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
 FuncArgSeq <- FuncArg (_ "," _ FuncArgSeq)?
-FuncArg <- Identifier _ ":" _ GenericTypesAtom
+FuncArg <- Identifier _ ":" _ Types
 
 AnnotatedFunc <- AnnotationSeq _ Func
 Annotation <- "@" Identifier _ "(" _ IdentifierSeq _ ")"
@@ -73,15 +73,16 @@ PositiveOp <- '+'
 NegativeOp <- '-'!'#'
 NotOp <- '!'
 
-# Types
 ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
 
 Const <- Integer / String / ByteVector / Boolean / List
 Identifier <- (!ReservedWords ([A-Za-z] / [_] &[A-Za-z]) ([A-Za-z0-9] / ([_] ![_]))*) / (ReservedWords (([A-Za-z0-9]) / ([_] ![_]))+)
-GenericTypesAtom <- OneGenericTypeAtom (_ "|" _ GenericTypesAtom)?
-OneGenericTypeAtom <- [A-Za-z][A-Za-z0-9]* (_ "[" _ OneTypeAtom _ "]" _)?
-TypesAtom <- OneTypeAtom (_ "|" _ TypesAtom)?
-OneTypeAtom <- [A-Za-z][A-Za-z0-9]*
+
+# Types
+Type <- [A-Za-z][A-Za-z0-9]*
+GenericType <- Type _ "[" _ Types _ "]"
+TupleType <- "(" _ Types _ ("," _ Types)+ _ ")"
+Types <- (GenericType / TupleType / Type) (_ "|" _ Types)?
 
 # ByteVector encodings
 Base16 <- "base16'" [0-9ABCDEFabcdef]* "'"
@@ -131,5 +132,5 @@ If <- "if" _ Expr _ "then" _ Expr _ "else" _ Expr
 FailedIfWithoutElse <- "if" _ Expr _ "then" _ Expr
 
 Match <- "match" _ Expr _ "{" (_ MatchCase)+ _ "}"
-MatchCase <- "case" _ ((Identifier _ (":" _ TypesAtom)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
-DefaultMatchCasePart <- "{" _ (":" _ TypesAtom)?
+MatchCase <- "case" _ ((Identifier _ (":" _ Types)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
+DefaultMatchCasePart <- "{" _ (":" _ Types)?

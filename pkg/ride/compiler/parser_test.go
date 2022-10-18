@@ -45,7 +45,7 @@ func newNodeExpectation(t *testing.T, s string) nodeExpectation {
 
 func checkAST(t *testing.T, expected string, ast *node32, buffer string) {
 	exps := make([]nodeExpectation, 0)
-	for _, s := range strings.Split(expected, ";") {
+	for _, s := range strings.Split(strings.TrimSuffix(expected, ";"), ";") {
 		exps = append(exps, newNodeExpectation(t, s))
 	}
 	i := 0
@@ -274,7 +274,7 @@ func TestDefinitions(t *testing.T) {
 		{`strict x = true `, false, "Declaration<.>;StrictVariable<.>;Identifier<x>;Const<.>;Boolean<true>"},
 		{`let strict = true `, true, "\nparse error near ReservedWords (line 1 symbol 5 - line 1 symbol 11):\n\"strict\"\n"},
 		{`func a() = 1`, false, "Declaration<.>;Func<.>;Identifier<a>;Expr<.>"},
-		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<.>;Func<.>;Identifier<aaa>;FuncArgSeq<.>;FuncArg<.>;Identifier<a>;OneGenericTypeAtom<Int>;FuncArgSeq<.>;FuncArg<.>;Identifier<b>;OneGenericTypeAtom<String>;FuncArgSeq<.>;FuncArg<.>;Identifier<c>;OneGenericTypeAtom<Boolean>;Expr<.>"},
+		{`func aaa(a: Int, b: String, c: Boolean) = 1`, false, "Declaration<.>;Func<.>;Identifier<aaa>;FuncArgSeq<.>;FuncArg<.>;Identifier<a>;Type<Int>;FuncArgSeq<.>;FuncArg<.>;Identifier<b>;Type<String>;FuncArgSeq<.>;FuncArg<.>;Identifier<c>;Type<Boolean>;Expr<.>"},
 		{`func f a: Int) = a`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},
 		{`func f(a: Int = a`, true, "\nparse error near WS (line 1 symbol 14 - line 1 symbol 15):\n\" \"\n"},
 		{`func f(a: Int) a`, true, "\nparse error near WS (line 1 symbol 15 - line 1 symbol 16):\n\" \"\n"},
@@ -288,7 +288,7 @@ true
 		{`func xxx 
 					(a: Int, b: Int) = # xxx
 true
-`, false, "Declaration<.>;Func<.>;Identifier<xxx>;FuncArgSeq<.>;FuncArg<.>;Identifier<a>;OneGenericTypeAtom<Int>;FuncArgSeq<.>;FuncArg<.>;Identifier<b>;OneGenericTypeAtom<Int>;Comment<.>;Expr<.>;Boolean<true>"},
+`, false, "Declaration<.>;Func<.>;Identifier<xxx>;FuncArgSeq<.>;FuncArg<.>;Identifier<a>;Type<Int>;FuncArgSeq<.>;FuncArg<.>;Identifier<b>;Type<Int>;Comment<.>;Expr<.>;Boolean<true>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
@@ -510,6 +510,73 @@ func TestUnderscoreInNumbers(t *testing.T) {
 		{`1_0_0_0_0_0_0_`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 14):\n\"1_0_0_0_0_0_0\"\n"},
 		{`100__000`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 4):\n\"100\"\n"},
 		{`_100`, true, "\nparse error near Unknown (line 1 symbol 1 - line 1 symbol 1):\n\"\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestDeclarationsOrder(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`let x = 1 @Callable(i) func f()=[]`, false, "Declaration<.>;Variable<.>;Identifier<x>;AnnotatedFunc<.>;Annotation<.>;Identifier<Callable>;Identifier<i>;Func<.>;Identifier<f>"},
+		{`@Callable(i) func f()=[] let x = 1`, true, "\nparse error near WS (line 1 symbol 25 - line 1 symbol 26):\n\" \"\n"},
+		{`func a() = 1 @Callable(i) func f()=[]`, false, "Declaration<.>;Func<.>;Identifier<a>;AnnotatedFunc<.>;Annotation<.>;Identifier<Callable>;Identifier<i>;Func<.>;Identifier<f>"},
+		{`@Callable(i) func f()=[] func a() = 1`, true, "\nparse error near WS (line 1 symbol 25 - line 1 symbol 26):\n\" \"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestUnaryExpressions(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`e :: acc`, false, "Expr<.>;GettableExpr<.>;Identifier<e>;ConsOp<::>;GettableExpr<.>;Identifier<acc>"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestTypes(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`func f(x: Int) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;Type<Int>"},
+		{`func f(x: Int|String) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;Type<Int>;Types<.>;Type<String>"},
+		{`func f(x: List[String]) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;GenericType<.>;Type<List>;Types<.>;Type<String>"},
+		{`func f(x: List[String | Int]) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;GenericType<.>;Type<List>;Types<.>;Type<String>;Types<.>;Type<Int>"},
+		{`func f(x: List[List[String]]) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;GenericType<.>;Type<List>;Types<.>;GenericType<.>;Type<List>;Types<.>;Type<String>"},
+		{`func f(x: (Int, String)) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;TupleType<.>;Type<Int>;Types<.>;Type<String>"},
+		{`func f(x: List[(Int, String)]) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;GenericType<.>;Type<List>;Types<.>;TupleType<.>;Types<.>;Type<Int>;Types<.>;Type<String>"},
+		{`func f(x: List[Boolean | (Int, String)]) = true`, false, "FuncArgSeq<.>;FuncArg<.>;Types<.>;GenericType<.>;Type<List>;Types<.>;Type<Boolean>;Types<.>;TupleType<.>;Types<.>;Type<Int>;Types<.>;Type<String>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
