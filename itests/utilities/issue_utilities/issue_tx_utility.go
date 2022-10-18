@@ -10,11 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type CommonIssueTxSuite struct {
-	f.BaseSuite
-}
-
-func NewSignIssueTransaction[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T]) *proto.IssueWithSig {
+func NewSignIssueTransaction[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T]) *proto.IssueWithSig {
 	tx := proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
 		testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
@@ -22,15 +18,15 @@ func NewSignIssueTransaction[T any](suite *CommonIssueTxSuite, testdata testdata
 	return tx
 }
 
-func Issue[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (*proto.IssueWithSig, error, error) {
+func Issue[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (*proto.IssueWithSig, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
-	errGo, errScala := utilities.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
+	errGo, errScala := utilities.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 	return tx, errGo, errScala
 }
 
-func IssueBroadcast[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (
+func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (
 	utilities.BroadcastedTransaction, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
-	brdCstTx, errGo, errScala := utilities.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
+	brdCstTx, errGo, errScala := utilities.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 	return brdCstTx, errGo, errScala
 }

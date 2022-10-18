@@ -41,6 +41,12 @@ func AssetBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
 
+func AssetDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
+	errMsg := makeErrorMessage("Difference balance in Assets mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
 func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, actualErrGo,
 	actualErrScala error, args ...interface{}) {
 	errMsg := makeErrorMessage("Error message mismatch", args...)

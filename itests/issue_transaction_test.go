@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -13,7 +14,7 @@ import (
 )
 
 type IssueTxSuite struct {
-	issue_utilities.CommonIssueTxSuite
+	f.BaseSuite
 }
 
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
@@ -23,7 +24,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 
-		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
+		tx, errGo, errScala := issue_utilities.Issue(&suite.BaseSuite, td, timeout)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -48,9 +49,9 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 
-		tx1, errGo1, errScala1 := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
+		tx1, errGo1, errScala1 := issue_utilities.Issue(&suite.BaseSuite, td, timeout)
 		tx2, errGo2, errScala2 := issue_utilities.Issue(
-			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
+			&suite.BaseSuite, testdata.DataChangedTimestamp(&td), timeout)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -83,7 +84,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 
-		tx, errGo, errScala := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
+		tx, errGo, errScala := issue_utilities.Issue(&suite.BaseSuite, td, timeout)
 		txIds[name] = tx.ID
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(

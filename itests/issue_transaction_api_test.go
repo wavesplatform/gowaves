@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
@@ -13,7 +14,7 @@ import (
 )
 
 type IssueTxApiSuite struct {
-	issue_utilities.CommonIssueTxSuite
+	f.BaseSuite
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
@@ -23,7 +24,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 
-		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
+		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.BaseSuite, td, timeout)
 
 		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name)
 
@@ -49,9 +50,9 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 
-		brdCstTx1, errWtGo1, errWtScala1 := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
+		brdCstTx1, errWtGo1, errWtScala1 := issue_utilities.IssueBroadcast(&suite.BaseSuite, td, timeout)
 		brdCstTx2, errWtGo2, errWtScala2 := issue_utilities.IssueBroadcast(
-			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
+			&suite.BaseSuite, testdata.DataChangedTimestamp(&td), timeout)
 
 		utl.StatusCodesCheck(suite.T(), brdCstTx1, http.StatusOK, http.StatusOK, name)
 		utl.StatusCodesCheck(suite.T(), brdCstTx2, http.StatusOK, http.StatusOK, name)
@@ -87,7 +88,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 			&suite.BaseSuite,
 			td.Account.Address)
 
-		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
+		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.BaseSuite, td, timeout)
 
 		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name)
 		utl.ErrorMessageCheck(
