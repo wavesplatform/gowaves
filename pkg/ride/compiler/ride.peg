@@ -31,7 +31,7 @@ Directive <- "{-#" WS+ DirectiveName WS+ (IntString / UpperCaseString / PathStri
 
 Declaration <- (Variable / StrictVariable / Func) _ ";"?
 
-Variable <- "let" _ Identifier _ "=" _ Expr
+Variable <- "let" _ (Identifier / TupleRef) _ "=" _ Expr
 StrictVariable <- "strict" _ Identifier _ "=" _ Expr
 
 Func <- "func" _ Identifier _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
@@ -103,7 +103,7 @@ List <- "[" _ ExprSeq? _ "]"
 ExprSeq <- Expr (_ "," _ ExprSeq)?
 
 # Expressions
-AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const)
+AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const / Tuple)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ConsOpAtom <- SumGroupOpAtom (_ ConsOp _ SumGroupOpAtom)*
@@ -115,7 +115,7 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 Expr <- OrOpAtom
 ParExpr <- "(" _ Expr _ ")"
 
-GettableExpr <- (ParExpr / Block / FunctionCall / Identifier) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / Identifier) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
 FunctionCallAccess <- FunctionCall
 IdentifierAccess <- Identifier
 ListAccess <- "[" _ (Expr / Identifier) _ "]"
@@ -134,3 +134,7 @@ FailedIfWithoutElse <- "if" _ Expr _ "then" _ Expr
 Match <- "match" _ Expr _ "{" (_ MatchCase)+ _ "}"
 MatchCase <- "case" _ ((Identifier _ (":" _ Types)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
 DefaultMatchCasePart <- "{" _ (":" _ Types)?
+
+Tuple <- "(" _ AtomExpr (_ "," _ AtomExpr)+ _ ")"
+TupleRef <- "(" _ Identifier (_ "," _ Identifier)+ _ ")"
+TupleAccess <- "_" [0-9]+

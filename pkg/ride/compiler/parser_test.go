@@ -588,3 +588,27 @@ func TestTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestTuples(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`func f() = (true, "xxx", 123)`, false, "Expr<.>;Tuple<.>;Const<.>;Boolean<true>;Const<.>;String<\"xxx\">;Const<.>;Integer<123>"},
+		{`func f() = {let x = true; (x, "xxx", 123)}`, false, "Expr<.>;Expr<.>;Tuple<.>;GettableExpr<.>;Identifier<x>;Const<.>;String<\"xxx\">;Const<.>;Integer<123>"},
+		{`func f() = (x, 123, {1+1}, (1, 2))`, false, "Expr<.>;Tuple<.>;GettableExpr<.>;Identifier<x>;Const<.>;Integer<123>;Block<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;Integer<2>"},
+		{`func f() = (x, 123, {1+1}, (1, 2))`, false, "Expr<.>;Tuple<.>;GettableExpr<.>;Identifier<x>;Const<.>;Integer<123>;Block<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;Integer<2>"},
+		{`let (a, b, c) = f()`, false, "Declaration<.>;Variable<.>;TupleRef<.>;Identifier<a>;Identifier<b>;Identifier<c>;Expr<.>"},
+		{`x._1`, false, "Expr<.>;GettableExpr<.>;Identifier<x>;TupleAccess<_1>"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
