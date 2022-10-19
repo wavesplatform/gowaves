@@ -69,7 +69,7 @@ func DataChangedTimestamp[T any](td *IssueTestData[T]) IssueTestData[T] {
 
 func GetCommonIssueData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
 	var t = map[string]IssueTestData[ExpectedValuesPositive]{
-		"not reissuable": *NewIssueTestData(
+		"NFT": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(4),
 			"",

@@ -28,9 +28,12 @@ type ReissueExpectedValuesPositive struct {
 }
 
 type ReissueExpectedValuesNegative struct {
-	ErrGoMsg    string
-	ErrScalaMsg string
-	_           struct{}
+	WavesDiffBalance int64
+	AssetDiffBalance int64
+	Reissuable       bool
+	ErrGoMsg         string
+	ErrScalaMsg      string
+	_                struct{}
 }
 
 func NewReissueTestData[T any](version byte, account config.AccountInfo, assetID crypto.Digest, fee uint64, timestamp uint64,
@@ -62,7 +65,177 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			ReissueExpectedValuesPositive{
 				WavesDiffBalance: 100000,
 				AssetDiffBalance: 1,
+				Reissuable:       false,
+			}),
+		/*"Max values for quantity": *NewReissueTestData(
+		1,
+		utl.GetAccount(suite, 2),
+		assetID,
+		9223372036854775808,
+		utl.GetCurrentTimestampInMs(),
+		testChainID,
+		9223372036854775807,
+		true,
+		ReissueExpectedValuesPositive{
+			WavesDiffBalance: 100000,
+			AssetDiffBalance: 1,
+			Reissuable:       false,
+		}),*/
+	}
+	return t
+}
+
+func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
+	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
+		"Reissue NFT": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			1,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       false,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+	}
+	return t
+}
+
+func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
+	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
+		"Invalid token quantity (quantity > max)": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			9223372036854775808,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
 				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Invalid token quantity (quantity < min>)": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			0,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Invalid fee (fee > max)": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			9223372036854775808,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Invalid fee (0 < fee < min)": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			10,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Invalid fee (fee = 0)": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			0,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Reissue token when there are not enough funds on the account balance": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs()-7215000,
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			}),
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs()+54160000,
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance: 0,
+				AssetDiffBalance: 0,
+				Reissuable:       true,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
 			}),
 	}
 	return t
