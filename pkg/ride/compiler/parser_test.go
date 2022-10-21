@@ -33,12 +33,12 @@ func newNodeExpectation(t *testing.T, s string) nodeExpectation {
 	valueBegin := strings.Index(s, "<")
 	valueEnd := strings.LastIndex(s, ">")
 	if valueBegin == -1 || valueEnd == -1 {
-		assert.Fail(t, "invalid node expectation %q", s)
+		require.Fail(t, fmt.Sprintf("invalid node expectation %q", s))
 	}
 	name := strings.TrimSpace(s[:valueBegin])
 	value := strings.TrimSpace(s[valueBegin+1 : valueEnd])
 	if name == "" || value == "" {
-		assert.Fail(t, "invalid node expectation %q", s)
+		require.Fail(t, fmt.Sprintf("invalid node expectation %q", s))
 	}
 	return nodeExpectation{name: name, value: value}
 }
