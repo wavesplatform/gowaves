@@ -65,22 +65,43 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			ReissueExpectedValuesPositive{
 				WavesDiffBalance: 100000,
 				AssetDiffBalance: 1,
+				Reissuable:       true,
+			}),
+		"Middle values for fee and quantity": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000000,
+			false,
+			ReissueExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetDiffBalance: 10000000000,
 				Reissuable:       false,
 			}),
-		/*"Max values for quantity": *NewReissueTestData(
-		1,
-		utl.GetAccount(suite, 2),
-		assetID,
-		9223372036854775808,
-		utl.GetCurrentTimestampInMs(),
-		testChainID,
-		9223372036854775807,
-		true,
-		ReissueExpectedValuesPositive{
-			WavesDiffBalance: 100000,
-			AssetDiffBalance: 1,
-			Reissuable:       false,
-		}),*/
+	}
+	return t
+}
+
+func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesPositive] {
+	var assetBalance = utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetID.Bytes())
+	var t = map[string]ReissueTestData[ReissueExpectedValuesPositive]{
+		"Max values for quantity": *NewReissueTestData(
+			1,
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			uint64(9223372036854775807-assetBalance),
+			true,
+			ReissueExpectedValuesPositive{
+				WavesDiffBalance: 100000,
+				AssetDiffBalance: int64(9223372036854775807 - assetBalance),
+				Reissuable:       true,
+			}),
 	}
 	return t
 }

@@ -11,14 +11,14 @@ func makeErrorMessage(errMsg string, args ...interface{}) string {
 	if len(args) > 0 {
 		for i := 0; i < len(args); i++ {
 			msg := fmt.Sprintf("%v", args[i])
-			errMsg += msg
+			errMsg += " " + msg
 		}
 	}
 	return errMsg
 }
 
 func StatusCodesCheck(t *testing.T, b BroadcastedTransaction, goCode, scalaCode int, args ...interface{}) {
-	errMsg := makeErrorMessage("Response code mismatch", args...)
+	errMsg := makeErrorMessage("Response code mismatch: ", args...)
 	assert.Equalf(t, b.ResponseGo.StatusCode, goCode, "Node Go: "+errMsg)
 	assert.Equalf(t, b.ResponseScala.StatusCode, scalaCode, "Node Scala: "+errMsg)
 }
