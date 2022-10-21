@@ -62,6 +62,7 @@ type FunctionalitySettings struct {
 	MinimalGeneratingBalanceCheckAfterTime              uint64 `json:"minimal_generating_balance_check_after_time"`
 	InternalInvokePaymentsValidationAfterHeight         uint64 `json:"internal_invoke_payments_validation_after_height"`
 	InternalInvokeCorrectFailRejectBehaviourAfterHeight uint64 `json:"internal_invoke_correct_fail_reject_behaviour_after_height"`
+	InvokeNoZeroPaymentsAfterHeight                     uint64 `json:"invoke_no_zero_payments_after_height"`
 
 	// Diff in milliseconds.
 	MaxTxTimeBackOffset    uint64 `json:"max_tx_time_back_offset"`

@@ -431,6 +431,9 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
 		for _, p := range abiPayments {
+			if p.Amount <= 0 && info.height > tc.settings.InvokeNoZeroPaymentsAfterHeight {
+				return nil, errors.Errorf("invalid payment amount '%d'", p.Amount)
+			}
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
 			if optAsset.Present {
 				if err := tc.checkAsset(&optAsset); err != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"strings"
@@ -38,6 +39,10 @@ type Digest [DigestSize]byte
 
 func (d Digest) String() string {
 	return base58.Encode(d[:])
+}
+
+func (d Digest) Hex() string {
+	return hex.EncodeToString(d[:])
 }
 
 func (d Digest) ShortString() string {
