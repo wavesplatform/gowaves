@@ -25,39 +25,39 @@ DirectiveName <- [A-Z]+[_A-Z]*
 UpperCaseString <- [A-Z]+
 IntString <- [0-9]+
 PathString <- [_a-zA-Z0-9-/,.]+
-Directive <- "{-#" WS+ DirectiveName WS+ (IntString / UpperCaseString / PathString) WS+ "#-}"
+Directive <- '{-#' WS+ DirectiveName WS+ (IntString / UpperCaseString / PathString) WS+ '#-}'
 
 # Declarations
 
-Declaration <- (Variable / StrictVariable / Func) _ ";"?
+Declaration <- (Variable / StrictVariable / Func) _ ';'?
 
-Variable <- "let" _ (Identifier / TupleRef) _ "=" _ Expr
-StrictVariable <- "strict" _ Identifier _ "=" _ Expr
+Variable <- 'let' _ (Identifier / TupleRef) _ '=' _ Expr
+StrictVariable <- 'strict' _ Identifier _ '=' _ Expr
 
-Func <- "func" _ Identifier _ "(" _ FuncArgSeq? _ ")" _ "=" _ Expr
-FuncArgSeq <- FuncArg (_ "," _ FuncArgSeq)?
-FuncArg <- Identifier _ ":" _ Types
+Func <- 'func' _ Identifier _ '(' _ FuncArgSeq? _ ')' _ '=' _ Expr
+FuncArgSeq <- FuncArg (_ ',' _ FuncArgSeq)?
+FuncArg <- Identifier _ ':' _ Types
 
 AnnotatedFunc <- AnnotationSeq _ Func
-Annotation <- "@" Identifier _ "(" _ IdentifierSeq _ ")"
-IdentifierSeq <- Identifier ( _ "," _ IdentifierSeq)?
+Annotation <- '@' Identifier _ '(' _ IdentifierSeq _ ')'
+IdentifierSeq <- Identifier ( _ ',' _ IdentifierSeq)?
 AnnotationSeq <- Annotation ( _ AnnotationSeq)?
 
 # Operators
-OrOp <- "||"
-AndOp <- "&&"
+OrOp <- '||'
+AndOp <- '&&'
 
 EqGroupOp <- EqOp / NeOp
-EqOp <- "=="
-NeOp <- "!="
+EqOp <- '=='
+NeOp <- '!='
 
 CompareGroupOp <- GtOp / GeOp / LtOp / LeOp
-GtOp <- ">" !"="
-GeOp <- ">="
-LtOp <- "<" !"="
-LeOp <- "<="
+GtOp <- '>' !'='
+GeOp <- '>='
+LtOp <- '<' !'='
+LeOp <- '<='
 
-ConsOp <- "::"
+ConsOp <- '::'
 
 SumGroupOp <- SumOp / SubOp
 SumOp <- '+'
@@ -73,34 +73,34 @@ PositiveOp <- '+'
 NegativeOp <- '-'!'#'
 NotOp <- '!'
 
-ReservedWords <- "let" / "strict" / "base16" / "base58" / "base64" / "true" / "false" / "if" / "then" / "else" / "match" / "case" / "func" / "FOLD"
+ReservedWords <- 'let' / 'strict' / 'base16' / 'base58' / 'base64' / 'true' / 'false' / 'if' / 'then' / 'else' / 'match' / 'case' / 'func' / 'FOLD'
 
 Const <- Integer / String / ByteVector / Boolean / List
 Identifier <- (!ReservedWords ([A-Za-z] / [_] &[A-Za-z]) ([A-Za-z0-9] / ([_] ![_]))*) / (ReservedWords (([A-Za-z0-9]) / ([_] ![_]))+)
 
 # Types
 Type <- [A-Za-z][A-Za-z0-9]*
-GenericType <- Type _ "[" _ Types _ "]"
-TupleType <- "(" _ Types _ ("," _ Types)+ _ ")"
-Types <- (GenericType / TupleType / Type) (_ "|" _ Types)?
+GenericType <- Type _ '[' _ Types _ ']'
+TupleType <- '(' _ Types _ (',' _ Types)+ _ ')'
+Types <- (GenericType / TupleType / Type) (_ '|' _ Types)?
 
 # ByteVector encodings
-Base16 <- "base16'" [0-9ABCDEFabcdef]* "'"
-Base58 <- "base58'" [123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]* "'"
-Base64 <- "base64'" [ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]* "'"
+Base16 <- 'base16\'' [0-9ABCDEFabcdef]* '\''
+Base58 <- 'base58\'' [123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]* '\''
+Base64 <- 'base64\'' [ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=]* '\''
 ByteVector <- Base16 / Base58 / Base64
 
-Boolean <- "true" / "false"
+Boolean <- 'true' / 'false'
 
-String <- "\"" (UnicodeChar / EscapedChar / Char)* "\""
-UnicodeChar <- "\\u" [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
-EscapedChar <- "\\" .
+String <- '\"' (UnicodeChar / EscapedChar / Char)* '\"'
+UnicodeChar <- '\\u' [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
+EscapedChar <- '\\' .
 Char <- [^\"]
 
 Integer <- ([0-9] ([_] &[0-9])?)+
 
-List <- "[" _ ExprSeq? _ "]"
-ExprSeq <- Expr (_ "," _ ExprSeq)?
+List <- '[' _ ExprSeq? _ ']'
+ExprSeq <- Expr (_ ',' _ ExprSeq)?
 
 # Expressions
 AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const / Tuple)
@@ -113,28 +113,28 @@ AndOpAtom <- EqualityGroupOpAtom (_ AndOp _ EqualityGroupOpAtom)*
 OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 
 Expr <- OrOpAtom
-ParExpr <- "(" _ Expr _ ")"
+ParExpr <- '(' _ Expr _ ')'
 
-GettableExpr <- (ParExpr / Block / FunctionCall / Identifier) (_ (ListAccess / ("." _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / Identifier) (_ (ListAccess / ('.' _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
 FunctionCallAccess <- FunctionCall
 IdentifierAccess <- Identifier
-ListAccess <- "[" _ (Expr / Identifier) _ "]"
+ListAccess <- '[' _ (Expr / Identifier) _ ']'
 
-Block <- "{" (_ Declaration)* _ Expr _ "}"
+Block <- '{' (_ Declaration)* _ Expr _ '}'
 BlockWithoutPar <- (_ Declaration)* _ Expr
 
-FunctionCall <- Identifier _ "(" _ ExprSeq? _ ")"
+FunctionCall <- Identifier _ '(' _ ExprSeq? _ ')'
 
-FoldMacro <- "FOLD" _ "<" _ Integer _ ">" _ "(" _ Expr _ "," _ Expr _ "," _ Identifier _ ")"
+FoldMacro <- 'FOLD' _ '<' _ Integer _ '>' _ '(' _ Expr _ ',' _ Expr _ ',' _ Identifier _ ')'
 
 IfWithError <- If / FailedIfWithoutElse
-If <- "if" _ Expr _ "then" _ Expr _ "else" _ Expr
-FailedIfWithoutElse <- "if" _ Expr _ "then" _ Expr
+If <- 'if' _ Expr _ 'then' _ Expr _ 'else' _ Expr
+FailedIfWithoutElse <- 'if' _ Expr _ 'then' _ Expr
 
-Match <- "match" _ Expr _ "{" (_ MatchCase)+ _ "}"
-MatchCase <- "case" _ ((Identifier _ (":" _ Types)?) / DefaultMatchCasePart) _ "=>" _ BlockWithoutPar
-DefaultMatchCasePart <- "{" _ (":" _ Types)?
+Match <- 'match' _ Expr _ '{' (_ MatchCase)+ _ '}'
+MatchCase <- 'case' _ ((Identifier _ (':' _ Types)?) / DefaultMatchCasePart) _ '=>' _ BlockWithoutPar
+DefaultMatchCasePart <- '{' _ (':' _ Types)?
 
-Tuple <- "(" _ AtomExpr (_ "," _ AtomExpr)+ _ ")"
-TupleRef <- "(" _ Identifier (_ "," _ Identifier)+ _ ")"
-TupleAccess <- "_" [0-9]+
+Tuple <- '(' _ AtomExpr (_ ',' _ AtomExpr)+ _ ')'
+TupleRef <- '(' _ Identifier (_ ',' _ Identifier)+ _ ')'
+TupleAccess <- '_' [0-9]+
