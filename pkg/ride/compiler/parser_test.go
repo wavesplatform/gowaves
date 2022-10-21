@@ -235,16 +235,20 @@ func TestList(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`[]`, false, "Const<.>;List<[]>"},
-		{`[[1], [[2], [3]]]`, false, "Const<.>;List<.>;List<.>;Integer<1>;List<.>;List<.>;Integer<2>;List<.>;Integer<3>"},
-		{`[12]`, false, "Const<.>;List<.>;Const<.>;Integer<12>"},
-		{`[12, true, "xxx"]`, false, "Const<.>;List<.>;Const<.>;Integer<12>;Const<.>;Boolean<true>;Const<.>;String<\"xxx\">"},
-		{`[12, [true, "xxx"]]`, false, "Const<.>;List<.>;Const<.>;Integer<12>;List<.>;Const<.>;Boolean<true>;Const<.>;String<\"xxx\">"},
+		{`[]`, false, "List<[]>"},
+		{`[[1], [[2], [3]]]`, false, "List<.>;List<.>;Integer<1>;List<.>;List<.>;Integer<2>;List<.>;Integer<3>"},
+		{`[12]`, false, "List<.>;Const<.>;Integer<12>"},
+		{`[12, true, "xxx"]`, false, "List<.>;Const<.>;Integer<12>;Const<.>;Boolean<true>;Const<.>;String<\"xxx\">"},
+		{`[12, [true, "xxx"]]`, false, "List<.>;Const<.>;Integer<12>;List<.>;Const<.>;Boolean<true>;Const<.>;String<\"xxx\">"},
 		{`[12, true "xxx"]`, true, "\nparse error near WS (line 1 symbol 10 - line 1 symbol 11):\n\" \"\n"},
 		{`[12 true, "xxx"]`, true, "\nparse error near WS (line 1 symbol 4 - line 1 symbol 5):\n\" \"\n"},
 		{`[12, true, "xxx"`, true, "\nparse error near String (line 1 symbol 12 - line 1 symbol 17):\n\"\\\"xxx\\\"\"\n"},
 		{`12, true, "xxx"]`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 3):\n\"12\"\n"},
 		{`12, true, "xxx"]`, true, "\nparse error near Integer (line 1 symbol 1 - line 1 symbol 3):\n\"12\"\n"},
+		{`let x = []`, false, "Variable<.>;Identifier<x>;List<.>"},
+		{`let x = [1, 2, 3]`, false, "Variable<.>;Identifier<x>;List<.>;Integer<1>;Integer<2>;Integer<3>"},
+		{`x[0]`, false, "GettableExpr<.>;Identifier<x>;ListAccess<.>;Const<.>;Integer<0>"},
+		{`[1, 2, 3][0]`, false, "GettableExpr<.>;List<.>;Integer<1>;Integer<2>;Integer<3>;ListAccess<.>;Const<.>;Integer<0>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
@@ -628,6 +632,7 @@ func TestTuples(t *testing.T) {
 		{`func f() = (x, 123, {1+1}, (1, 2))`, false, "Expr<.>;Tuple<.>;GettableExpr<.>;Identifier<x>;Const<.>;Integer<123>;Block<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;Integer<2>"},
 		{`func f() = (x, 123, {1+1}, (1, 2))`, false, "Expr<.>;Tuple<.>;GettableExpr<.>;Identifier<x>;Const<.>;Integer<123>;Block<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;Integer<2>"},
 		{`let (a, b, c) = f()`, false, "Declaration<.>;Variable<.>;TupleRef<.>;Identifier<a>;Identifier<b>;Identifier<c>;Expr<.>"},
+		{`strict (a, b, c) = f()`, false, "Declaration<.>;StrictVariable<.>;TupleRef<.>;Identifier<a>;Identifier<b>;Identifier<c>;Expr<.>"},
 		{`x._1`, false, "Expr<.>;GettableExpr<.>;Identifier<x>;TupleAccess<_1>"},
 		{`func f() = (1, 2, 4`, true, "\nparse error near Integer (line 1 symbol 19 - line 1 symbol 20):\n\"4\"\n"},
 		{`func f() = 1, 2, 4`, true, "\nparse error near Integer (line 1 symbol 12 - line 1 symbol 13):\n\"1\"\n"},
@@ -646,6 +651,51 @@ func TestTuples(t *testing.T) {
 		{`x.__1`, true, "\nparse error near Identifier (line 1 symbol 1 - line 1 symbol 2):\n\"x\"\n"},
 		{`x._1_`, true, "\nparse error near TupleAccess (line 1 symbol 3 - line 1 symbol 5):\n\"_1\"\n"},
 		{`x.1`, true, "\nparse error near Identifier (line 1 symbol 1 - line 1 symbol 2):\n\"x\"\n"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
+
+func TestMatching(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`match false {case x: Boolean => true case _ => false }`, false, "Match<.>;Const<.>;Boolean<false>;Case<.>;ValuePattern<.>;Identifier<x>;Type<Boolean>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match false {case _: Boolean => true case _ => false }`, false, "Match<.>;Const<.>;Boolean<false>;Case<.>;ValuePattern<.>;Placeholder<.>;Type<Boolean>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case x: (Int, String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;ValuePattern<.>;Identifier<x>;TupleType<.>;Type<Int>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case _: (Int, String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;ValuePattern<.>;Placeholder<.>;TupleType<.>;Type<Int>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (x: Int, y: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Identifier<x>;Type<Int>;Identifier<y>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_: Int, y: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Type<Int>;Identifier<y>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_: Int, _: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Type<Int>;Placeholder<.>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (x: Int, _: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Identifier<x>;Type<Int>;Placeholder<.>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (x: Int, _) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Identifier<x>;Type<Int>;Placeholder<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_: Int, _) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Type<Int>;Placeholder<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_, y: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Identifier<y>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_, _: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Placeholder<.>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_, _) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Placeholder<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (x: Int, "y") => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Identifier<x>;Type<Int>;Const<.>;String<\"y\">;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_: Int, "y") => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Type<Int>;Const<.>;String<\"y\">;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (_, "y") => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Placeholder<.>;Const<.>;String<\"y\">;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (100, y: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Const<.>;Integer<100>;Identifier<y>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (100, _: String) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Const<.>;Integer<100>;Placeholder<.>;Type<String>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (100, _) => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Const<.>;Integer<100>;Placeholder<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (100, "y") => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Const<.>;Integer<100>;Const<.>;String<\"y\">;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match (1, "x") {case (1+2, "y"+"z") => true case _ => false }`, false, "Match<.>;Tuple<.>;Const<.>;Integer<1>;Const<.>;String<\"x\">;Case<.>;TuplePattern<.>;Expr<.>;Const<.>;Integer<1>;Const<.>;Integer<2>;Expr<.>;Const<.>;String<\"y\">;Const<.>;String<\"z\">;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = 1+2) => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;Expr<1+2>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = x) => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;Identifier<x>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = {let z = 1; z})  => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;Block<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = [1, 2, 3][0])  => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;List<.>;ListAccess<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = {f()})  => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;Block<.>;FunctionCall<.>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
+		{`match tx {case LeaseCancelTransaction(leaseId = base58'', fee = {x})  => true case _ => false }`, false, "Match<.>;Identifier<tx>;Case<.>;ObjectPattern<.>;Identifier<LeaseCancelTransaction>;ObjectFieldsPattern<.>;Identifier<leaseId>;Base58<.>;ObjectFieldsPattern<.>;Identifier<fee>;Block<.>;Identifier<x>;BlockWithoutPar<.>;Case<.>;Placeholder<.>;BlockWithoutPar<.>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {
