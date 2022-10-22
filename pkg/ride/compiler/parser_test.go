@@ -707,3 +707,27 @@ func TestMatching(t *testing.T) {
 		}
 	}
 }
+
+func TestBasicExpressions(t *testing.T) {
+	for _, test := range []struct {
+		src      string
+		fail     bool
+		expected string
+	}{
+		{`1 == 0 || 3 == 2`, false, "Expr<.>;Const<1>;EqOp<.>;Const<0>;OrOp<.>;Const<3>;EqOp<.>;Const<2>"},
+		{`1 == 0 => 3 == 2`, true, "\nparse error near WS (line 1 symbol 7 - line 1 symbol 8):\n\" \"\n"},
+		{`1 => 0`, true, "\nparse error near WS (line 1 symbol 2 - line 1 symbol 3):\n\" \"\n"},
+		{`3 + 2 > 2 + 1`, false, "Expr<.>;Const<3>;SumOp<.>;Const<2>;GtOp<.>;Const<2>;SumOp<.>;Const<1>"},
+		{`1 >= 0 || 3 > 2`, false, "Expr<.>;Const<1>;GeOp<.>;Const<0>;OrOp<.>;Const<3>;GtOp<.>;Const<2>"},
+		{`false || sigVerify(base64'TElLRQ==', base58'222', base16'abcdf1')`, false, "Expr<.>;Boolean<false>;OrOp<.>;FunctionCall<.>;Identifier<.>;Base64<base64'TElLRQ=='>;Base58<base58'222'>;Base16<base16'abcdf1'>"},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.EqualError(t, err, test.expected, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+			checkAST(t, test.expected, ast, test.src)
+		}
+	}
+}
