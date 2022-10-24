@@ -150,15 +150,15 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 	switch dirName {
 	case stdlibVersionDirectiveName:
 		p.checkDirectiveCnt(node, stdlibVersionDirectiveName, directiveCnt)
-		version, err := strconv.Atoi(dirValue)
+		version, err := strconv.ParseInt(dirValue, 10, 8)
 		if err != nil {
 			p.addError(fmt.Sprintf("failed to parse version \"%s\" : %s", dirValue, err), dirValueNode.token32)
 			break
 		}
-		if version > 6 {
+		if version > 6 || version < 1 {
 			p.addError(fmt.Sprintf("invalid %s \"%s\"", stdlibVersionDirectiveName, dirValue), dirValueNode.token32)
 		}
-		p.Tree.LibVersion = ast.LibraryVersion(version)
+		p.Tree.LibVersion = ast.LibraryVersion(byte(version))
 	case contentTypeDirectiveName:
 		p.checkDirectiveCnt(node, contentTypeDirectiveName, directiveCnt)
 		switch dirValue {
