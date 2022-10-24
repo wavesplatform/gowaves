@@ -30,7 +30,7 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
 			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
 
-		rtx, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -41,7 +41,7 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtx.ID.String())
+		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID)
 		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
 		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
 	}
@@ -60,7 +60,7 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
 			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
 
-		rtx, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -71,7 +71,7 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtx.ID.String())
+		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID.String())
 		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
 		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
 	}
@@ -91,8 +91,8 @@ func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
 			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
 
-		rtx, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
-		txIds[name] = rtx.ID
+		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+		txIds[name] = &rtxID
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -124,8 +124,8 @@ func (suite *ReissueTxSuite) Test_ReissueNegative() {
 			&suite.BaseSuite, td.Account.Address)
 		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
 			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		rtx, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
-		txIds[name] = rtx.ID
+		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+		txIds[name] = &rtxID
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
 		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo

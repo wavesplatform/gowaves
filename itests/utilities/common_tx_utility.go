@@ -120,7 +120,7 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,
 	}
 }
 
-func extractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto.Digest {
+func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto.Digest {
 	idBytes, err := tx.GetID(scheme)
 	require.NoError(t, err, "failed to get txID")
 	id, err := crypto.NewDigestFromBytes(idBytes)
@@ -137,7 +137,7 @@ func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
 	timeout time.Duration) (error, error) {
 	bts := marshalTransaction(suite.T(), tx)
-	id := extractTxID(suite.T(), tx, scheme)
+	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
@@ -149,7 +149,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (
 	BroadcastedTransaction, error, error) {
-	id := extractTxID(suite.T(), tx, scheme)
+	id := ExtractTxID(suite.T(), tx, scheme)
 
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
