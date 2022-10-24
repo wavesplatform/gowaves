@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -104,6 +105,12 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 	}
 	if curNode != nil && curNode.pegRule == ruleDeclaration {
 		curNode = p.parseDeclarations(curNode)
+	}
+	if curNode.pegRule == rule_ {
+		curNode = node.next
+	}
+	if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
+		curNode = p.parseAnnotatedFunc(curNode)
 	}
 	_ = curNode // TODO: This line added to evade linter error, remove it later
 }
@@ -512,6 +519,9 @@ func (p *ASTParser) ruleConstAtomHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *ASTParser) ruleIntegerAtomHandler(node *node32) (ast.Node, s.Type) {
 	value := string(p.buffer[node.begin:node.end])
+	if strings.Contains(value, "_") {
+		value = strings.ReplaceAll(value, "_", "")
+	}
 	number, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		p.addError(fmt.Sprintf("failing to parse Integer: %s", err), node.token32)
@@ -783,6 +793,10 @@ func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
+	if node == nil {
+		return []string{}, []s.Type{}
+	}
+	// TODO(anton): add Tuple
 	curNode := node.up
 	argName, argType := p.ruleFuncArgHandler(curNode)
 	curNode = curNode.next
@@ -818,6 +832,77 @@ func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 		Type: argType,
 	})
 	return argName, argType
+}
+
+func (p *ASTParser) parseAnnotatedFunc(node *node32) *node32 {
+	curNode := node
+	for {
+		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
+			expr, _ := p.ruleAnnotatedFunc(curNode.up)
+			p.Tree.Functions = append(p.Tree.Declarations, expr)
+			curNode = curNode.next
+		}
+		if curNode != nil && curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		if curNode == nil || (curNode.pegRule != rule_ && curNode.pegRule != ruleAnnotatedFunc) {
+			break
+		}
+	}
+	return curNode
+}
+
+func (p *ASTParser) ruleAnnotatedFunc(node *node32) (ast.Node, s.Type) {
+	curNode := node
+	annotation, _ := p.ruleAnnotationSeqHandler(curNode)
+	if annotation == "" {
+		return nil, s.Undefined
+	}
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	expr, _ := p.ruleFuncHandler(curNode)
+	switch annotation {
+	case "Callable":
+		p.Tree.Functions = append(p.Tree.Functions, expr)
+	case "Verifier":
+		if p.Tree.Verifier != nil {
+			p.addError("More than one Verifier", node.token32)
+		}
+		f := expr.(*ast.FunctionDeclarationNode)
+		p.Tree.Verifier = f.Body
+	}
+
+	// TODO(anton): add callable with specific flag in stack
+	return nil, s.Undefined
+}
+
+func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
+	curNode := node.up
+	annotationNode := curNode.up
+	name := string(p.buffer[annotationNode.begin:annotationNode.end])
+	if name != "Callable" && name != "Verifier" {
+		p.addError(fmt.Sprintf("Undefinded annotation \"%s\"", name), annotationNode.token32)
+		return "", ""
+	}
+	if annotationNode.pegRule == rule_ {
+		annotationNode = annotationNode.next
+	}
+	if annotationNode.pegRule == rule_ {
+		annotationNode = annotationNode.next
+	}
+	annotationNode = annotationNode.next.up
+	varName := string(p.buffer[annotationNode.begin:annotationNode.end])
+	annotationNode = annotationNode.next
+	if annotationNode != nil {
+		p.addError(fmt.Sprintf("More then one variable in annotation: \"%s\"", name), annotationNode.token32)
+	}
+	curNode = curNode.next
+	if curNode != nil {
+		p.addError("More then one annotation", curNode.token32)
+	}
+	return name, varName
 }
 
 func (p *ASTParser) ruleScriptRootHandler(node *node32) {

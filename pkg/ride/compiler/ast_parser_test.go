@@ -22,7 +22,7 @@ func someFunc(a : String) = {
 
 let maxAuctionDuration = {
   let aa = someFunc("asd")
-  let c = "12123"
+  let c = "12_123"
   1440 * 30
 } 
 #let kmsdc = sigVerify(base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9', base58'FYCT9GxhR2igEeyf9SWGi85bebBVaTAf9WUihEQnnBa9')
