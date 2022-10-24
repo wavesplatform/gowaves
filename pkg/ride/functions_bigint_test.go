@@ -261,6 +261,7 @@ func TestModuloBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		{[]rideType{rideBigInt{v: decode2CBigInt(crypto.MustBytesFromBase58("EGhEd4At3siPKgnKdgEgtZvBUFNYn7EoKnsSx35HwJ4a"))}, toRideBigInt(100)}, false, toRideBigInt(-53)},
 	} {
 		r, err := moduloBigInt(nil, test.args...)
 		if test.fail {
