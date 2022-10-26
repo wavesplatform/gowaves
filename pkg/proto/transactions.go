@@ -1541,7 +1541,17 @@ func (l Lease) Valid(scheme Scheme) (bool, error) {
 	if !validJVMLong(l.Amount + l.Fee) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	//TODO: check that sender and recipient is not the same
+	if rcpAddr := l.Recipient.Address; rcpAddr != nil {
+		sender, err := NewAddressFromPublicKey(scheme, l.SenderPK)
+		if err != nil {
+			return false, errors.Wrapf(err, "failed to generate address from pk=%q and scheme=%q", l.SenderPK, scheme)
+		}
+		if sender == *rcpAddr {
+			return false, errors.Errorf("addr %q trying to lease money to itself", sender)
+		}
+	}
+	// check that sender and recipient is not the same in case when Recipient is alias you can find in transactionChecker
+	// here we can't do it because we don't have access to state
 	return true, nil
 }
 
