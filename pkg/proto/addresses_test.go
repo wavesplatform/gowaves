@@ -133,6 +133,16 @@ func TestIncorrectAlias(t *testing.T) {
 	}
 }
 
+func TestCorrectAlias(t *testing.T) {
+	aliases := []string{"alias", "qwerty", "correct"}
+	for _, alias := range aliases {
+		a := NewAlias(TestNetScheme, alias)
+		v, err := a.Valid()
+		assert.True(t, v)
+		assert.NoError(t, err)
+	}
+}
+
 func TestAliasFromBytes(t *testing.T) {
 	const (
 		alias      = "blah-blah-blah"

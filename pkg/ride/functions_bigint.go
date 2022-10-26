@@ -231,10 +231,7 @@ func moduloBigInt(_ environment, args ...rideType) (rideType, error) {
 	if i2.Cmp(zeroBigInt) == 0 {
 		return nil, errors.New("moduloBigInt: division by zero")
 	}
-	//(a % b + b) % b
-	r0 := i1.Rem(i1, i2)
-	r1 := r0.Add(r0, i2)
-	r := r1.Rem(r1, i2)
+	r := i1.Rem(i1, i2)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("moduloBigInt: %s result is out of range", r.String())
 	}

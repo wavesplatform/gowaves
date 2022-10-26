@@ -8,7 +8,7 @@ require (
 	github.com/btcsuite/btcd v0.22.2
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
-	github.com/coocood/freecache v1.2.2
+	github.com/coocood/freecache v1.2.3
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.4.0
@@ -32,7 +32,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.9.1
 	github.com/umbracle/fastrlp v0.1.0
