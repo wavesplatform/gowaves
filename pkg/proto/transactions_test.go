@@ -4814,7 +4814,8 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		}
 		return r
 	}
-	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	addr := MustAddressFromString("3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn")
+	addrWithOtherScheme := MustAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
 	tests := []struct {
 		asset      string
 		transfers  []MassTransferEntry
@@ -4827,6 +4828,7 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", repeat(MassTransferEntry{NewRecipientFromAddress(addr), 100}, 101), 10, "", "Number of transfers 202 is greater than 100"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 + 1}, {NewRecipientFromAddress(addr), 20}}, 20, "", "at least one of the transfers amount is bigger than JVM long"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 / 2}, {NewRecipientFromAddress(addr), math.MaxInt64 / 2}}, 1000, "", "sum of amounts of transfers and transaction fee is bigger than JVM long"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 100}, {NewRecipientFromAddress(addrWithOtherScheme), 100}}, 1000, "", "invalid recipient: invalid scheme 'W', expected 'T'"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 10}, {NewRecipientFromAddress(addr), 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
 	}
 	for _, tc := range tests {
