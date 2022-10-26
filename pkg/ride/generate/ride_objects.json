@@ -317,7 +317,7 @@
         },
         {
           "name": "payments",
-          "types": ["rideList[rideAttachedPayment, rideList[rideInt, rideBoolean]]"],
+          "types": ["rideList[rideAttachedPayment|rideList[rideInt|rideBoolean]]"],
           "order": 1,
           "constructorOrder": 0
         },
@@ -456,7 +456,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 10
         },
         {
@@ -582,7 +582,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": -1
         },
         {
@@ -673,7 +673,7 @@
       ]
     },
     {
-      "name": "transferEntry",
+      "name": "transfer",
       "fields": [
         {
           "name": "recipient",
@@ -718,7 +718,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -769,7 +769,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 5
         },
         {
@@ -820,7 +820,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 7
         },
         {
@@ -840,7 +840,7 @@
         },
         {
           "name": "data",
-          "types": ["rideList"],
+          "types": ["rideList[rideBinaryEntry|rideBooleanEntry|rideDeleteEntry|rideIntegerEntry|rideStringEntry]"],
           "order": 2
         },
         {
@@ -871,7 +871,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 12
         },
         {
@@ -987,7 +987,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -1043,7 +1043,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 5
         },
         {
@@ -1083,12 +1083,12 @@
         },
         {
           "name": "payments",
-          "types": ["rideList"],
+          "types": ["rideList[rideAttachedPayment]"],
           "order": 0
         },
         {
           "name": "args",
-          "types": ["rideList"],
+          "types": ["rideList[rideBoolean|rideBytes|rideInt|rideList[rideBoolean|rideBytes|rideInt|rideString]|rideString]"],
           "order": 12
         },
         {
@@ -1119,7 +1119,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 12
         },
         {
@@ -1195,7 +1195,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 7
         },
         {
@@ -1246,7 +1246,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -1302,7 +1302,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 9
         },
         {
@@ -1332,7 +1332,7 @@
         },
         {
           "name": "transfers",
-          "types": ["rideList"],
+          "types": ["rideList[rideTransferEntry]"],
           "order": 8
         },
         {
@@ -1373,7 +1373,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -1434,7 +1434,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -1490,7 +1490,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 8
         },
         {
@@ -1546,7 +1546,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 7
         },
         {
@@ -1597,7 +1597,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 7
         },
         {
@@ -1678,7 +1678,7 @@
         },
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 11
         },
         {
@@ -1724,7 +1724,7 @@
       "fields": [
         {
           "name": "proofs",
-          "types": ["rideList"],
+          "types": ["rideList[rideBytes]"],
           "order": 9
         },
         {

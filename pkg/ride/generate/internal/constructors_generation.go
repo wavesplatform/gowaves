@@ -26,15 +26,13 @@ func extractConstructorArguments(name string, args []actionField) ([]actionField
 	return arguments, nil
 }
 
-// TODO: FINISH IT TODAY
-func checkListElementsTypes(cd *Coder, argument actionField, info *listTypeInfo) {
-
-	cd.Line("for i, elem := range %s {", arg.Name)
+func checkListElementsTypes(cd *Coder, listVarName string, info *listTypeInfo) {
+	cd.Line("for i, elem := range %s {", listVarName)
 	cd.Line("switch elem {")
 	for _, tInfo := range info.ElementTypes() {
 		cd.Line("case %s: ", tInfo.String())
 		if lInfo, ok := tInfo.(*listTypeInfo); ok {
-			checkListElementsTypes(cd, argument, lInfo)
+			checkListElementsTypes(cd, "elem", lInfo)
 		}
 	}
 	cd.Line("}")
@@ -78,7 +76,7 @@ func GenerateConstructors(fn string) {
 
 				// add checks for list elements
 				if listInfo, ok := info.(*listTypeInfo); ok {
-					checkListElementsTypes(cd, arg, listInfo)
+					checkListElementsTypes(cd, arg.Name, listInfo)
 				}
 			} else {
 				cd.Line("var %s rideType", arg.Name)
