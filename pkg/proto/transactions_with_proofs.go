@@ -2742,7 +2742,7 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *MassTransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
@@ -2763,6 +2763,9 @@ func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 		total += t.Amount
 		if !validJVMLong(total) {
 			return tx, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
+		}
+		if ok, err := t.Recipient.Valid(scheme); !ok {
+			return tx, errors.Wrap(err, "invalid recipient")
 		}
 	}
 	if tx.attachmentSize() > maxAttachmentLengthBytes {
