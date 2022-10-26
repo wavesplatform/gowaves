@@ -507,7 +507,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 // Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
+func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -517,7 +517,7 @@ func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Amount) {
 		return tx, errors.New("amount is too big")
 	}
-	if ok, err := tx.Recipient.validVersionAndChecksum(); !ok {
+	if ok, err := tx.Recipient.Valid(scheme); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	return tx, nil
