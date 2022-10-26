@@ -62,9 +62,9 @@ func TestGenesisBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			err = tx.Sign(TestNetScheme, sk)
+			err = tx.Sign(MainNetScheme, sk)
 			assert.Nil(t, err)
-			_, err := tx.Validate(TestNetScheme)
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			txBytes, err := tx.MarshalBinary()
 			assert.Nil(t, err)
@@ -91,9 +91,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate(TestNetScheme)
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
-			if err := tx.GenerateSigID(TestNetScheme); assert.NoError(t, err) {
+			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
 				assert.Equal(t, tc.amount, tx.Amount)
 				assert.Equal(t, tc.recipient, tx.Recipient.String())
@@ -101,9 +101,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 				b, err := tx.MarshalBinary()
 				assert.NoError(t, err)
 				var at Genesis
-				err = at.UnmarshalBinary(b, TestNetScheme)
+				err = at.UnmarshalBinary(b, MainNetScheme)
 				assert.NoError(t, err)
-				err = at.GenerateID(TestNetScheme)
+				err = at.GenerateID(MainNetScheme)
 				assert.NoError(t, err)
 				assert.Equal(t, *tx, at)
 			}
@@ -156,21 +156,29 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 
 func TestGenesisValidations(t *testing.T) {
 	tests := []struct {
+		scheme  Scheme
 		address string
 		amount  uint64
 		err     string
 	}{
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid WavesAddress checksum"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue, ""},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 1, "amount is too big"},
+		{TestNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW': invalid scheme 'W', expected 'T'"},
+		{MainNetScheme, "3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g", 1000, "invalid recipient address '3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g': invalid scheme 'T', expected 'W'"},
+		{MainNetScheme, "3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE", 1000, "invalid recipient address '3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE': invalid WavesAddress checksum"},
+		{MainNetScheme, "2JCiMDURsukbNXQddDVHrVefRRXo4kKjLNAp", 1000, "invalid recipient address '2JCiMDURsukbNXQddDVHrVefRRXo4kKjLNAp': unsupported address version 42"},
 	}
 	for _, tc := range tests {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedGenesis(addr, tc.amount, 0)
-		assert.NotNil(t, tx)
-		_, err = tx.Validate(TestNetScheme)
-		assert.EqualError(t, err, tc.err)
+		_, err = tx.Validate(tc.scheme)
+		if tc.err != "" {
+			assert.EqualError(t, err, tc.err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 }
 
