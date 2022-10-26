@@ -371,6 +371,7 @@ func (a *WavesAddress) Valid() (bool, error) {
 	if a[0] != wavesAddressVersion {
 		return false, errors.Errorf("unsupported address version %d", a[0])
 	}
+	// TODO: add WavesAddress scheme validation (a[1] == expectedScheme)
 	hb := a[:wavesAddressHeaderSize+wavesAddressBodySize]
 	ec, err := addressChecksum(hb)
 	if err != nil {
@@ -537,9 +538,12 @@ func NewAlias(scheme byte, alias string) *Alias {
 }
 
 // Valid validates the Alias checking it length, version and symbols.
-func (a Alias) Valid() (bool, error) {
+func (a Alias) Valid(scheme Scheme) (bool, error) {
 	if v := a.Version; v != aliasVersion {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
+	}
+	if s := a.Scheme; s != scheme {
+		return false, errs.NewTxValidationError(fmt.Sprintf("invalid scheme %q, expected %q", s, scheme))
 	}
 	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
 		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
@@ -617,12 +621,12 @@ func (r Recipient) ToProtobuf() (*g.Recipient, error) {
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
-func (r Recipient) Valid() (bool, error) {
+func (r Recipient) Valid(scheme Scheme) (bool, error) {
 	switch {
 	case r.Address != nil:
 		return r.Address.Valid()
 	case r.Alias != nil:
-		return r.Alias.Valid()
+		return r.Alias.Valid(scheme)
 	default:
 		return false, errors.New("empty recipient")
 	}

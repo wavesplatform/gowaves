@@ -334,7 +334,7 @@ func FromCreateAliasWithSig(scheme byte, tx *proto.CreateAliasWithSig) (AliasBin
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)
-		ok, err := a.Valid()
+		ok, err := a.Valid(scheme)
 		if !ok {
 			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasWithSig")
 		}
@@ -347,7 +347,7 @@ func FromCreateAliasWithProofs(scheme byte, tx *proto.CreateAliasWithProofs) (Al
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)
-		ok, err := a.Valid()
+		ok, err := a.Valid(scheme)
 		if !ok {
 			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasWithProofs")
 		}

@@ -277,11 +277,11 @@ func (tx TransferWithSig) GetProofs() *ProofsV1 {
 	return NewProofsFromSignature(tx.Signature)
 }
 
-func (tx *TransferWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *TransferWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid()
+	ok, err := tx.Transfer.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
@@ -1508,11 +1508,11 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx *LeaseWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *LeaseWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
-	ok, err := tx.Lease.Valid()
+	ok, err := tx.Lease.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
@@ -1970,11 +1970,11 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *CreateAliasWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid()
+	ok, err := tx.CreateAlias.Valid(scheme)
 	if !ok {
 		return tx, err
 	}

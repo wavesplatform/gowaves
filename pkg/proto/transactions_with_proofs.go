@@ -516,15 +516,15 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *TransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid()
+	ok, err := tx.Transfer.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: validate script and scheme
+	//TODO: validate script
 	return tx, nil
 }
 
@@ -1841,15 +1841,14 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *LeaseWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
-	ok, err := tx.Lease.Valid()
+	ok, err := tx.Lease.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: add scheme validation
 	return tx, nil
 }
 
@@ -2333,15 +2332,15 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *CreateAliasWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid()
+	ok, err := tx.CreateAlias.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: add script and scheme validations
+	//TODO: add script validations
 	return tx, nil
 }
 

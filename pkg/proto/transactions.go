@@ -1138,7 +1138,7 @@ func (tr Transfer) GetTimestamp() uint64 {
 	return tr.Timestamp
 }
 
-func (tr Transfer) Valid() (bool, error) {
+func (tr Transfer) Valid(scheme Scheme) (bool, error) {
 	if tr.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
@@ -1157,7 +1157,7 @@ func (tr Transfer) Valid() (bool, error) {
 	if tr.attachmentSize() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
 	}
-	if ok, err := tr.Recipient.Valid(); !ok {
+	if ok, err := tr.Recipient.Valid(scheme); !ok {
 		return false, errors.Wrapf(err, "invalid recipient '%s'", tr.Recipient.String())
 	}
 	return true, nil
@@ -1522,8 +1522,8 @@ func (l Lease) GetTimestamp() uint64 {
 	return l.Timestamp
 }
 
-func (l Lease) Valid() (bool, error) {
-	if ok, err := l.Recipient.Valid(); !ok {
+func (l Lease) Valid(scheme Scheme) (bool, error) {
+	if ok, err := l.Recipient.Valid(scheme); !ok {
 		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
 	}
 	if l.Amount == 0 {
@@ -1687,14 +1687,14 @@ func (ca CreateAlias) GetTimestamp() uint64 {
 	return ca.Timestamp
 }
 
-func (ca CreateAlias) Valid() (bool, error) {
+func (ca CreateAlias) Valid(scheme Scheme) (bool, error) {
 	if ca.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(ca.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	ok, err := ca.Alias.Valid()
+	ok, err := ca.Alias.Valid(scheme)
 	if !ok {
 		return false, err
 	}
