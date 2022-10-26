@@ -334,7 +334,7 @@ func TestPaymentFromMainNet(t *testing.T) {
 	}
 }
 
-func BenchmarkPaymentFromMainNet(t *testing.B) {
+func BenchmarkPayment_MarshalBinary(t *testing.B) {
 	t.ReportAllocs()
 	tc := struct {
 		sig       string
@@ -344,19 +344,21 @@ func BenchmarkPaymentFromMainNet(t *testing.B) {
 		amount    uint64
 		fee       uint64
 	}{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3P7NaMWCosRTbVwTfiiU6M6tHpQ6DuNFtYp", 20999990, 1}
+	var b []byte
+	sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+	spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+	rcp, err := NewAddressFromString(tc.recipient)
+	require.NoError(t, err)
+	tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
+	tx.Signature = &sig
+	tx.ID = &sig
 	t.ResetTimer()
-	t.StopTimer()
 	for i := 0; i < t.N; i++ {
-		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
-		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
-			tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
-			tx.Signature = &sig
-			tx.ID = &sig
-			t.StartTimer()
-			_, _ = tx.MarshalBinary()
-			t.StopTimer()
-		}
+		b, err = tx.MarshalBinary()
+	}
+	t.StopTimer()
+	if err != nil || len(b) == 0 {
+		t.FailNow()
 	}
 }
 
