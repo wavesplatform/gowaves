@@ -639,7 +639,7 @@ func (r Recipient) ToProtobuf() (*g.Recipient, error) {
 func (r Recipient) Valid(scheme Scheme) (bool, error) {
 	switch {
 	case r.Address != nil:
-		return r.Address.validVersionAndChecksum()
+		return r.Address.Valid(scheme)
 	case r.Alias != nil:
 		return r.Alias.Valid(scheme)
 	default:
