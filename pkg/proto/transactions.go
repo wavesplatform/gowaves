@@ -1524,7 +1524,7 @@ func (l Lease) GetTimestamp() uint64 {
 
 func (l Lease) Valid(scheme Scheme) (bool, error) {
 	if ok, err := l.Recipient.Valid(scheme); !ok {
-		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
+		return false, errors.Wrap(err, "invalid recipient")
 	}
 	if l.Amount == 0 {
 		return false, errors.New("amount should be positive")
