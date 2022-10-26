@@ -517,7 +517,7 @@ func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Amount) {
 		return tx, errors.New("amount is too big")
 	}
-	if ok, err := tx.Recipient.Valid(); !ok {
+	if ok, err := tx.Recipient.validVersionAndChecksum(); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	return tx, nil
@@ -760,7 +760,7 @@ func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}
-	if ok, err := tx.Recipient.Valid(); !ok {
+	if ok, err := tx.Recipient.validVersionAndChecksum(); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	if tx.Amount == 0 {
