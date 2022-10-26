@@ -11,7 +11,7 @@ func makeErrorMessage(errMsg string, args ...interface{}) string {
 	if len(args) > 0 {
 		for i := 0; i < len(args); i++ {
 			msg := fmt.Sprintf("%v", args[i])
-			errMsg += msg
+			errMsg += " " + msg
 		}
 	}
 	return errMsg

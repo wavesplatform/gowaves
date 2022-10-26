@@ -2,6 +2,8 @@ package utilities
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"math/rand"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ import (
 )
 
 const (
-	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	CommonSymbolSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 )
 
 type BroadcastedTransaction struct {
@@ -37,12 +39,20 @@ func NewBroadcastedTransaction(txId crypto.Digest, responseGo *client.Response, 
 	}
 }
 
-func RandStringBytes(n int) string {
+func RandStringBytes(n int, symbolSet string) string {
 	b := make([]byte, n)
 	for j := range b {
-		b[j] = letterBytes[rand.Intn(len(letterBytes))]
+		b[j] = symbolSet[rand.Intn(len(symbolSet))]
 	}
 	return string(b)
+}
+
+func GetTransactionJson(suite *f.BaseSuite, tx proto.Transaction) string {
+	jsonStr, err := json.Marshal(tx)
+	if err != nil {
+		suite.T().Errorf("Failed to create tx JSON: %s", err)
+	}
+	return string(jsonStr)
 }
 
 func GetCurrentTimestampInMs() uint64 {
@@ -120,7 +130,7 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,
 	}
 }
 
-func extractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto.Digest {
+func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto.Digest {
 	idBytes, err := tx.GetID(scheme)
 	require.NoError(t, err, "failed to get txID")
 	id, err := crypto.NewDigestFromBytes(idBytes)
@@ -137,7 +147,8 @@ func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
 	timeout time.Duration) (error, error) {
 	bts := marshalTransaction(suite.T(), tx)
-	id := extractTxID(suite.T(), tx, scheme)
+	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
+	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
@@ -149,7 +160,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (
 	BroadcastedTransaction, error, error) {
-	id := extractTxID(suite.T(), tx, scheme)
+	id := ExtractTxID(suite.T(), tx, scheme)
 
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
