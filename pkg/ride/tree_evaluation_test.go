@@ -934,6 +934,36 @@ func TestInvokeFailedBalanceValidationV6(t *testing.T) {
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 }
 
+func TestInvocation(t *testing.T) {
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+
+	// {-# STDLIB_VERSION 6 #-}
+	// {-# CONTENT_TYPE DAPP #-}
+	// {-# SCRIPT_TYPE ACCOUNT #-}
+
+	// @Callable(i)
+	// func f() = {
+	//     let splitInv = Invocation([AttachedPayment(unit, 100)], i.caller, i.callerPublicKey, i.transactionId, i.fee, i.feeAssetId, i.originCaller, i.originCallerPublicKey)
+	// 	   let b = BalanceDetails(4, 4, 4, 4)
+	//     [
+	//         StringEntry("sksks", "dkdkd")
+	//     ]
+
+	// }
+
+	_, tree1 := parseBase64Script(t, "BgIECAISAAABAWkBAWYABAhzcGxpdEludgkBCkludm9jYXRpb24ICQDMCAIJAQ9BdHRhY2hlZFBheW1lbnQCBQR1bml0AGQFA25pbAgFAWkGY2FsbGVyCAUBaQ9jYWxsZXJQdWJsaWNLZXkIBQFpDXRyYW5zYWN0aW9uSWQIBQFpA2ZlZQgFAWkKZmVlQXNzZXRJZAgFAWkMb3JpZ2luQ2FsbGVyCAUBaRVvcmlnaW5DYWxsZXJQdWJsaWNLZXkEAWIJAQ5CYWxhbmNlRGV0YWlscwQABAAEAAQABAkAzAgCCQELU3RyaW5nRW50cnkCAgVza3NrcwIFZGtka2QFA25pbAD3pqHS")
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withRideV6Activated().
+		withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree1).
+		withInvocation("test").
+		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
+		withWrappedState()
+
+	_, err := CallFunction(env.toEnv(), tree1, "f", proto.Arguments{})
+	require.NoError(t, err)
+}
+
 func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz

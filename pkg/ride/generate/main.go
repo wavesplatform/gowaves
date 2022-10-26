@@ -10,4 +10,5 @@ func main() {
 	internal.GenerateFunctionFamilies("function_families.gen.go")
 	internal.GenerateObjects("objects.gen.go")
 	internal.GenerateTuples("tuples.gen.go")
+	internal.GenerateConstructors("constructors.gen.go")
 }

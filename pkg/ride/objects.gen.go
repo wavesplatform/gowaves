@@ -12,7 +12,7 @@ type rideFullAsset struct {
 	name            rideString
 	issuePublicKey  rideBytes
 	id              rideBytes
-	minSponsoredFee rideInt
+	minSponsoredFee rideType
 	decimals        rideInt
 	quantity        rideInt
 	issuer          rideAddress
@@ -21,7 +21,7 @@ type rideFullAsset struct {
 	sponsored       rideBoolean
 }
 
-func newRideFullAsset(description rideString, name rideString, issuePublicKey rideBytes, id rideBytes, minSponsoredFee rideInt, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean, sponsored rideBoolean) rideFullAsset {
+func newRideFullAsset(description rideString, name rideString, issuePublicKey rideBytes, id rideBytes, minSponsoredFee rideType, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean, sponsored rideBoolean) rideFullAsset {
 	return rideFullAsset{
 		description:     description,
 		name:            name,

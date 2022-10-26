@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-func getType(types []string) string {
+func getType(types typeInfos) string {
 	if len(types) == 1 {
-		return types[0]
+		return types[0].String()
 	}
 	return "rideType"
 }

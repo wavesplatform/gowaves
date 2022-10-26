@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,17 +13,88 @@ import (
 const configPath = "/generate/ride_objects.json"
 
 type actionField struct {
-	Name  string   `json:"name"`
-	Types []string `json:"types"`
-	Order int      `json:"order"`
+	Name             string    `json:"name"`
+	Types            typeInfos `json:"types"`
+	Order            int       `json:"order"`            // order for string representation
+	ConstructorOrder int       `json:"constructorOrder"` // order for constructor
+}
+
+type typeInfos []typeInfo
+
+func (infos *typeInfos) UnmarshalJSON(data []byte) error {
+	var rawTypes []string // mb *string?
+	if err := json.Unmarshal(data, &rawTypes); err != nil {
+		return errors.Wrap(err, "typeInfos raw types unmarshal")
+	}
+
+	typeInfoList := make([]typeInfo, len(rawTypes))
+	for i, name := range rawTypes {
+		typeInfoList[i] = guessInfoType(name)
+	}
+
+	if err := json.Unmarshal(data, &typeInfoList); err != nil {
+		return errors.Wrap(err, "typeInfoList unmarshal")
+	}
+	*infos = typeInfoList
+
+	return nil
+}
+
+func guessInfoType(typeName string) typeInfo {
+	switch typeName {
+	case "rideList":
+		return &listTypeInfo{}
+	default:
+		return &simpleTypeInfo{}
+	}
+}
+
+type typeInfo interface {
+	fmt.Stringer
+	json.Unmarshaler
+}
+
+type simpleTypeInfo struct {
+	name string
+}
+
+func (info *simpleTypeInfo) String() string {
+	return info.name
+}
+
+func (info *simpleTypeInfo) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &info.name); err != nil {
+		return errors.Wrap(err, "unmarshal type name")
+	}
+	return nil
+}
+
+type listTypeInfo struct {
+	elementsTypes typeInfos
+}
+
+func (info *listTypeInfo) String() string {
+	return "rideList"
+}
+
+func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &info.elementsTypes); err != nil {
+		return errors.Wrap(err, "elementsTypes list unmarshal")
+	}
+	return nil
+}
+
+func (info listTypeInfo) ElementTypes() typeInfos {
+	return info.elementsTypes
 }
 
 type actionsObject struct {
 	Name   string        `json:"name"`
 	Fields []actionField `json:"fields"`
 
-	StructName string `json:"struct_name"`
-	SetProofs  bool   `json:"set_proofs"`
+	StructName     string `json:"struct_name"`
+	SetProofs      bool   `json:"set_proofs"`
+	GenConstructor bool   `json:"generateConstructor"`
 }
 
 type rideObjects struct {

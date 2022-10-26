@@ -3,61 +3,74 @@
     {
       "name": "asset",
       "struct_name": "FullAsset",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "description",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 9
         },
         {
           "name": "name",
           "types": ["rideString"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 8
+
         },
         {
           "name": "issuePublicKey",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 4
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 0
         },
         {
           "name": "minSponsoredFee",
-          "types": ["rideInt"],
-          "order": 4
+          "types": ["rideInt", "rideUnit"],
+          "order": 4,
+          "constructorOrder": 7
         },
         {
           "name": "decimals",
           "types": ["rideInt"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 2
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 1
         },
         {
           "name": "issuer",
           "types": ["rideAddress"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 3
         },
         {
           "name": "reissuable",
           "types": ["rideBoolean"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 5
         },
         {
           "name": "scripted",
           "types": ["rideBoolean"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 6
         },
         {
           "name": "sponsored",
           "types": ["rideBoolean"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         }
       ]
     },
@@ -294,51 +307,61 @@
     },
     {
       "name": "invocation",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "originCaller",
           "types": ["rideUnit", "rideAddress"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 6
         },
         {
           "name": "payments",
-          "types": ["rideUnit", "attachedPayment", "rideList"],
-          "order": 1
+          "types": ["rideList[rideAttachedPayment, rideList[rideInt, rideBoolean]]"],
+          "order": 1,
+          "constructorOrder": 0
         },
         {
           "name": "payment",
           "types": ["rideUnit", "rideType"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "callerPublicKey",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 5
         },
         {
           "name": "originCallerPublicKey",
           "types": ["rideBytes", "rideUnit"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 7
         },
         {
           "name": "transactionID",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 3
         },
         {
           "name": "caller",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 1
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 4
         }
       ]
     },
