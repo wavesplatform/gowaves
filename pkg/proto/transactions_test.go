@@ -1138,12 +1138,14 @@ func TestTransferWithProofsValidations(t *testing.T) {
 	}{
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 0, "The attachment", "fee should be positive"},
-		{"alias:W:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
-		{"alias:W:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
-		{"alias:W:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
+		{"alias:T:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
+		{"alias:T:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
+		{"alias:T:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
-		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:T:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:T:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:W:invalid-scheme", 1000, 10, "The attachment", "invalid recipient 'alias:W:invalid-scheme': invalid scheme 'W', expected 'T'"},
+		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': invalid scheme 'W', expected 'T'"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
