@@ -2136,6 +2136,7 @@ func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 }
 
 func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
+	const ignoreChainID Scheme = 0
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
 		Version   byte              `json:"version,omitempty"`
@@ -2155,7 +2156,7 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	tx.ID = tmp.ID
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = Alias{aliasVersion, MainNetScheme, tmp.Alias}
+	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
