@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -1438,12 +1439,6 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 }
 
 func BenchmarkTransferWithProofsBinary(t *testing.B) {
-	t.ResetTimer()
-	t.StopTimer()
-	t.ReportAllocs()
-
-	buf := bytes.NewBuffer(make([]byte, 1024*1024))
-
 	tc := struct {
 		scheme              byte
 		amountAsset         string
@@ -1458,27 +1453,31 @@ func BenchmarkTransferWithProofsBinary(t *testing.B) {
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
-	for i := 0; i < t.N; i++ {
-		ts := uint64(time.Now().UnixNano() / 1000000)
-		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
-		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
-		aa, err := NewOptionalAssetFromString(tc.amountAsset)
-		require.NoError(t, err)
-		fa, err := NewOptionalAssetFromString(tc.feeAsset)
-		require.NoError(t, err)
-		att := []byte(tc.attachment)
-		tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
-		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
-			if r, err := tx.Verify(tc.scheme, pk); assert.NoError(t, err) {
-				assert.True(t, r)
-			}
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	addr, err := NewAddressFromPublicKey(tc.scheme, pk)
+	require.NoError(t, err)
+	rcp := NewRecipientFromAddress(addr)
+	aa, err := NewOptionalAssetFromString(tc.amountAsset)
+	require.NoError(t, err)
+	fa, err := NewOptionalAssetFromString(tc.feeAsset)
+	require.NoError(t, err)
+	att := []byte(tc.attachment)
+	tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
+	if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
+		if r, err := tx.Verify(tc.scheme, pk); assert.NoError(t, err) {
+			assert.True(t, r)
 		}
-		buf.Reset()
-		s := serializer.New(buf)
-		t.StartTimer()
-		_ = tx.Serialize(s)
-		t.StopTimer()
+	}
+	s := serializer.New(io.Discard)
+
+	t.ReportAllocs()
+	t.ResetTimer()
+	for i := 0; i < t.N; i++ {
+		err = tx.Serialize(s)
+	}
+	t.StopTimer()
+	if err != nil {
+		t.FailNow()
 	}
 }
 
