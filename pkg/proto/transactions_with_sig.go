@@ -2162,6 +2162,15 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (tx *CreateAliasWithSig) MarshalJSON() ([]byte, error) {
+	type shadowed CreateAliasWithSig
+	tmp := struct {
+		Alias string `json:"alias"`
+		*shadowed
+	}{tx.Alias.Alias, (*shadowed)(tx)}
+	return json.Marshal(tmp)
+}
+
 func (tx *CreateAliasWithSig) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }

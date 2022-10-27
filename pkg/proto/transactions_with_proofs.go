@@ -2598,6 +2598,15 @@ func (tx *CreateAliasWithProofs) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (tx *CreateAliasWithProofs) MarshalJSON() ([]byte, error) {
+	type shadowed CreateAliasWithProofs
+	tmp := struct {
+		Alias string `json:"alias"`
+		*shadowed
+	}{tx.Alias.Alias, (*shadowed)(tx)}
+	return json.Marshal(tmp)
+}
+
 type MassTransferEntry struct {
 	Recipient Recipient `json:"recipient"`
 	Amount    uint64    `json:"amount"`

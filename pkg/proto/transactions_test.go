@@ -6656,3 +6656,23 @@ func TestEthereumGetSenderAndFromPK(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ethereumAddr, actualAddr)
 }
+
+func TestShadowedCreateAliasWithProofs_DoesNotImplementJSONMarshaler(t *testing.T) {
+	// this test is necessary check for correct shadowing in CreateAliasWithProofs.MarshalJSON method
+	type shadowed CreateAliasWithProofs
+	var v shadowed
+	_, typeImplements := interface{}(v).(json.Marshaler)
+	require.False(t, typeImplements, "type must not implement Marshaler")
+	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	require.False(t, pointerImlements, "pointer must not implement Marshaler")
+}
+
+func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) {
+	// this test is necessary check for correct shadowing in CreateAliasWithSig.MarshalJSON method
+	type shadowed CreateAliasWithSig
+	var v shadowed
+	_, typeImplements := interface{}(v).(json.Marshaler)
+	require.False(t, typeImplements, "type must not implement Marshaler")
+	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	require.False(t, pointerImlements, "pointer must not implement Marshaler")
+}
