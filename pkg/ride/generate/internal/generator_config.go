@@ -20,6 +20,11 @@ type actionField struct {
 	ConstructorOrder int       `json:"constructorOrder"` // order for constructor
 }
 
+type typeInfo interface {
+	fmt.Stringer
+	json.Unmarshaler
+}
+
 type typeInfos []typeInfo
 
 func (infos *typeInfos) UnmarshalJSON(data []byte) error {
@@ -46,11 +51,6 @@ func guessInfoType(typeName string) typeInfo {
 		return &listTypeInfo{}
 	}
 	return &simpleTypeInfo{}
-}
-
-type typeInfo interface {
-	fmt.Stringer
-	json.Unmarshaler
 }
 
 type simpleTypeInfo struct {
@@ -82,8 +82,8 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 		return errors.Wrap(err, "listTypeInfo unmarshal raw string")
 	}
 
-	if !strings.HasPrefix(source, "rideList") {
-		return errors.Errorf("'rideList' is missing: %s", source)
+	if !strings.HasPrefix(source, info.String()) {
+		return errors.Errorf("'%s' is missing: %s", info.String(), source)
 	}
 	source = strings.ReplaceAll(string(data), " ", "")
 

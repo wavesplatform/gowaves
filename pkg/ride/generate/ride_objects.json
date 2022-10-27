@@ -76,101 +76,121 @@
     },
     {
       "name": "asset",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "issuePublicKey",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 4
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 0
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 1
         },
         {
           "name": "decimals",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 2
         },
         {
           "name": "issuer",
           "types": ["rideAddress"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "scripted",
           "types": ["rideBoolean"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 6
         },
         {
           "name": "sponsored",
           "types": ["rideBoolean"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": 7
         },
         {
           "name": "reissuable",
           "types": ["rideBoolean"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 5
         }
       ]
     },
     {
       "name": "assetPair",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "amountAsset",
           "types": ["rideUnit", "rideBytes"],
-          "order" : 0
+          "order" : 0,
+          "constructorOrder": 0
         },
         {
           "name": "priceAsset",
           "types": ["rideUnit", "rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "attachedPayment",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "balanceDetails",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "available",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "regular",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         },
         {
           "name": "generating",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         },
         {
           "name": "effective",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 3
         }
       ]
     },

@@ -10,6 +10,7 @@ import (
 func extractConstructorArguments(name string, args []actionField) ([]actionField, error) {
 	arguments := []actionField{}
 	seenOrders := map[int]bool{}
+
 	for _, field := range args {
 		if field.ConstructorOrder == -1 {
 			continue
@@ -20,14 +21,17 @@ func extractConstructorArguments(name string, args []actionField) ([]actionField
 		seenOrders[field.ConstructorOrder] = true
 		arguments = append(arguments, field)
 	}
+
 	for i := 0; i < len(seenOrders); i++ {
 		if !seenOrders[i] {
 			return nil, errors.Errorf("constructor_order %d is missing", i)
 		}
 	}
+
 	sort.Slice(arguments, func(i, j int) bool {
 		return arguments[i].ConstructorOrder < arguments[j].ConstructorOrder
 	})
+
 	return arguments, nil
 }
 
@@ -37,12 +41,19 @@ func checkListElementsTypes(cd *Coder, constructorName string, topListVarName st
 	helper = func(listVarName string, info *listTypeInfo) {
 		cd.Line("for _, elem := range %s {", listVarName)
 		cd.Line("switch t := elem.(type) {")
+
+		onelineTypes := make([]string, 0, len(info.ElementTypes()))
 		for _, tInfo := range info.ElementTypes() {
-			cd.Line("case %s: ", tInfo.String())
-			if lInfo, ok := tInfo.(*listTypeInfo); ok {
-				helper("t", lInfo)
+			switch t := tInfo.(type) {
+			case *listTypeInfo:
+				cd.Line("case %s: ", t.String())
+				helper("t", t)
+			default:
+				onelineTypes = append(onelineTypes, t.String())
 			}
 		}
+
+		cd.Line("case %s:", strings.Join(onelineTypes, ","))
 		cd.Line("default:")
 		cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' in %s list\", t.instanceOf())", constructorName, topListVarName)
 		cd.Line("}")
@@ -107,12 +118,13 @@ func GenerateConstructors(fn string) {
 		argsStr := make([]string, len(act.Fields))
 		for i, field := range act.Fields {
 			if field.ConstructorOrder == -1 {
-				// generate default value
+				cd.Line("// default values for internal fields")
 				cd.Line("var %s %s", field.Name, getType(field.Types))
 			}
 			argsStr[i] = field.Name
 		}
 
+		cd.Line("")
 		cd.Line("return newRide%s(%s), nil", act.StructName, strings.Join(argsStr, ", "))
 		cd.Line("}")
 		cd.Line("")
