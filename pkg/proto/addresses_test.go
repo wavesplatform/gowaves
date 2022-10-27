@@ -94,14 +94,26 @@ func TestAddressFromBytes(t *testing.T) {
 }
 
 func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
+	var addr WavesAddress
 	seed := make([]byte, 32)
 	_, _ = rand.Read(seed)
 	_, pk, err := crypto.GenerateKeyPair(seed)
 	if err != nil {
 		b.Fatalf("crypto.GenerateKeyPair(): %v", err)
 	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _ = NewAddressFromPublicKey(TestNetScheme, pk)
+		addr, err = NewAddressFromPublicKey(TestNetScheme, pk)
+	}
+	b.StopTimer()
+
+	if err != nil {
+		b.Fatal(err.Error())
+	}
+	if MustAddressFromPublicKey(TestNetScheme, pk) != addr {
+		b.Fatal("different addresses")
 	}
 }
 
