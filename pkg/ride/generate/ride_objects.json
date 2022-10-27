@@ -196,92 +196,110 @@
     },
     {
       "name": "binaryEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "key",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "value",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "blockInfo",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "vrf",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 6
         },
         {
           "name": "generationSignature",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 3
         },
         {
           "name": "generatorPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 5
         },
         {
           "name": "baseTarget",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 2
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 0
         },
 
         {
           "name": "height",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 1
         },
         {
           "name": "generator",
           "types": ["rideAddress"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 4
         }
       ]
     },
     {
       "name": "booleanEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "key",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "value",
           "types": ["rideBoolean"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "burn",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "dataEntry",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "value",
@@ -297,31 +315,37 @@
     },
     {
       "name": "deleteEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "value",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "key",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         }
       ]
     },
     {
       "name": "integerEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "key",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "value",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
@@ -331,7 +355,7 @@
       "fields": [
         {
           "name": "originCaller",
-          "types": ["rideUnit", "rideAddress"],
+          "types": ["rideAddress"],
           "order": 0,
           "constructorOrder": 6
         },
@@ -387,172 +411,206 @@
     },
     {
       "name": "issue",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "compiledScript",
           "types": ["rideBytes", "rideUnit"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         },
         {
           "name": "name",
           "types": ["rideString"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 0
         },
         {
           "name": "description",
           "types": ["rideString"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 1
         },
         {
           "name": "nonce",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 6
         },
         {
           "name": "decimals",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 3
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 2
         },
         {
           "name": "isReissuable",
           "types": ["rideBoolean"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 4
         }
       ]
     },
     {
       "name": "leaseCancel",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "leaseID",
           "types": ["rideBytes"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         }
       ]
     },
     {
       "name": "lease",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         },
         {
           "name": "nonce",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         }
       ]
     },
     {
       "name": "order",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetPair",
           "types": ["rideType"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 2
         },
         {
           "name": "orderType",
           "types": ["rideType"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 3
         },
         {
           "name": "matcherFeeAssetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 9
         },
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 13
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 12
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 0
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 11
         },
         {
           "name": "matcherPublicKey",
           "types": ["rideBytes"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 1
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 5
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 6
         },
         {
           "name": "expiration",
           "types": ["rideInt"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 7
         },
         {
           "name": "matcherFee",
           "types": ["rideInt"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 8
         },
         {
           "name": "price",
           "types": ["rideInt"],
-          "order": 13
+          "order": 13,
+          "constructorOrder": 4
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 10
         }
       ]
     },
     {
       "name": "reissue",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         },
         {
           "name": "isReissuable",
           "types": ["rideBoolean"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         }
       ]
     },
     {
       "name": "scriptResult",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "writeSet",
@@ -568,147 +626,176 @@
     },
     {
       "name": "scriptTransfer",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "recipient",
           "types": ["rideRecipient", "rideAlias", "rideAddress", "rideAddressLike"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "asset",
           "types": ["rideBytes", "rideUnit"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "scriptTransfer",
       "struct_name": "FullScriptTransfer",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "attachment",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "bodyBytes",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "feeAssetID",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "fee",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "version",
           "types": ["rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "asset",
           "types": ["rideBytes", "rideUnit"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         },
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         }
       ]
     },
     {
       "name": "sponsorFee",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "minSponsoredAssetFee",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "stringEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "key",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "value",
           "types": ["rideString"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
-      "name": "transfer",
+      "name": "transferEntry",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "recipient",
           "types": ["rideRecipient", "rideAlias", "rideAddress", "rideAddressLike"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 1
         }
       ]
     },
     {
       "name": "transferSet",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "transfers",
@@ -719,6 +806,7 @@
     },
     {
       "name": "writeSet",
+      "generateConstructor": false,
       "fields": [
         {
           "name": "data",
@@ -730,280 +818,335 @@
     {
       "name": "burnTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "bodyBytes",
           "types": ["rideBytes", "rideUnit"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 8
         },
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 9
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 7
         },
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 2
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 4
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 3
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 6
         }
       ]
     },
     {
       "name": "createAliasTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 8
         },
         {
           "name": "alias",
           "types": ["rideString"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 0
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 1
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 6
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 2
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 4
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         }
       ]
     },
     {
       "name": "dataTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 8
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 1
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 6
         },
         {
           "name": "data",
           "types": ["rideList[rideBinaryEntry|rideBooleanEntry|rideDeleteEntry|rideIntegerEntry|rideStringEntry]"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 0 
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 4
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 2
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 5
         }
       ]
     },
     {
       "name": "exchangeTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 13
         },
         {
           "name": "buyOrder",
           "types": ["rideType"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 0
         },
         {
           "name": "sellOrder",
           "types": ["rideType"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 6
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 12
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 11
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 8
         },
         {
           "name": "price",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 2
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 3
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 9
         },
         {
           "name": "buyMatcherFee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 4
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 7
         },
         {
           "name": "sellMatcherFee",
           "types": ["rideInt"],
-          "order": 13
+          "order": 13,
+          "constructorOrder": 5
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 10
         }
       ]
     },
     {
       "name": "genesisTransaction",
+      "generateConstructor": true,
       "fields": [
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 2
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": 6
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 4
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 0
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 5
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 3
         }
       ]
     },
     {
       "name": "invokeExpressionTransaction",
       "set_proofs": true,
+      "generateConstructor": false,
       "fields": [
         {
           "name": "proofs",
@@ -1151,671 +1294,803 @@
     {
       "name": "issueTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 13
         },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 5
         },
         {
           "name": "description",
           "types": ["rideString"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 2
         },
         {
           "name": "name",
           "types": ["rideString"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 1
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 12
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 6
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 11
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 8
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 9
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 7
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 0
         },
         {
           "name": "decimals",
           "types": ["rideInt"],
-          "order": 13
+          "order": 13,
+          "constructorOrder": 4
         },
         {
           "name": "reissuable",
           "types": ["rideBoolean"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 3
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 10
         }
       ]
     },
     {
       "name": "leaseCancelTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 8
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 6
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 1
         },
         {
           "name": "leaseID",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 0
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 4
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 2
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 5
         }
       ]
     },
     {
       "name": "leaseTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 9
         },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 1
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 8
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 2
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 7
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 4
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 0
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 3 
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 6
         }
       ]
     },
     {
       "name": "massTransferTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 12
         },
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 0
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 11
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 10
         },
         {
           "name": "attachment",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 4
         },
         {
           "name": "transfers",
           "types": ["rideList[rideTransferEntry]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 2
         },
         {
           "name": "transfersCount",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 6
         },
         {
           "name": "totalAmount",
           "types": ["rideInt"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 1
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 8
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 9
         }
       ]
     },
     {
       "name": "paymentTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 9
         },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 1
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 8
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 2
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 7
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 4
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 0
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 5
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 3
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 6
         }
       ]
     },
     {
       "name": "reissueTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "bodyBytes",
           "types": ["rideBytes", "rideUnit"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 9
         },
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 10
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 8
         },
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 3
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 5
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 6
         },
         {
           "name": "quantity",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 0
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 4
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 7
         },
         {
           "name": "reissuable",
           "types": ["rideBoolean"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 2
         }
       ]
     },
     {
       "name": "setAssetScriptTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 9
         },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 0
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 8
         },
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 1
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 2
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 7
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 4
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 5
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 3
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 6
         }
       ]
     },
     {
       "name": "setScriptTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 8
         },
         {
           "name": "script",
           "types": ["rideBytes", "rideUnit"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 0
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 1
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 6
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 4
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 2
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 5
         }
       ]
     },
     {
       "name": "sponsorFeeTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 9
         },
         {
           "name": "minSponsoredAssetFee",
           "types": ["rideInt", "rideUnit"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 1
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 8
         },
         {
           "name": "assetID",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 0
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 2
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 7
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 4
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 5
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order":9
+          "order": 9,
+          "constructorOrder": 3
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 6
         }
       ]
     },
     {
       "name": "transferTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 2
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes", "rideUnit"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 11
         },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 0
         },
         {
           "name": "version",
           "types": ["rideInt", "rideUnit"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 8
         },
         {
           "name": "attachment",
           "types": ["rideBytes", "rideUnit"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 4
         },
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 12
         },
         {
           "name": "fee",
           "types": ["rideInt", "rideUnit"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 6
         },
         {
           "name": "recipient",
           "types": ["rideRecipient"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 3
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 5
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 10
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 7
         },
         {
           "name": "amount",
           "types": ["rideInt"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 1
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 9
         }
       ]
     },
     {
       "name": "updateAssetInfoTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 10
         },
         {
           "name": "assetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 0
         },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1 
         },
         {
           "name": "name",
           "types": ["rideString"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 1
         },
         {
           "name": "description",
           "types": ["rideString"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 2 
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 9
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 3
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 8
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 5
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 6
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 4
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 7
         }
       ]
     }

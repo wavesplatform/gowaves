@@ -889,8 +889,8 @@ func (o rideIntegerEntry) String() string {
 }
 
 type rideInvocation struct {
-	originCaller          rideType
-	payments              rideType
+	originCaller          rideAddress
+	payments              rideList
 	payment               rideType
 	callerPublicKey       rideBytes
 	feeAssetID            rideType
@@ -900,7 +900,7 @@ type rideInvocation struct {
 	fee                   rideInt
 }
 
-func newRideInvocation(originCaller rideType, payments rideType, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocation {
+func newRideInvocation(originCaller rideAddress, payments rideList, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocation {
 	return rideInvocation{
 		originCaller:          originCaller,
 		payments:              payments,
