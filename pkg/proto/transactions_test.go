@@ -163,8 +163,8 @@ func TestGenesisValidations(t *testing.T) {
 		err     string
 	}{
 		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
-		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue, ""},
-		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 1, "amount is too big"},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", math.MaxInt64, ""},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", math.MaxInt64 + 1, "amount is too big"},
 		{TestNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW': invalid scheme 'W', expected 'T'"},
 		{MainNetScheme, "3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g", 1000, "invalid recipient address '3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g': invalid scheme 'T', expected 'W'"},
 		{MainNetScheme, "3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE", 1000, "invalid recipient address '3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE': invalid WavesAddress checksum"},

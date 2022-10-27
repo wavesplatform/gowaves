@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -57,7 +58,6 @@ const (
 	MaxAssetNameLen          = 16
 	MinAssetNameLen          = 4
 	MaxDecimals              = 8
-	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + WavesAddressSize + 8
 	paymentBodyLen = 1 + 8 + crypto.PublicKeySize + WavesAddressSize + 8 + 8
@@ -1767,5 +1767,5 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 }
 
 func validJVMLong(x uint64) bool {
-	return x <= maxLongValue
+	return x <= math.MaxInt64
 }
