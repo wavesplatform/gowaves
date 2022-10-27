@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -22,18 +23,18 @@ type actionField struct {
 type typeInfos []typeInfo
 
 func (infos *typeInfos) UnmarshalJSON(data []byte) error {
-	var rawTypes []*string // mb *string?
+	var rawTypes []string
 	if err := json.Unmarshal(data, &rawTypes); err != nil {
 		return errors.Wrap(err, "typeInfos raw types unmarshal")
 	}
 
 	typeInfoList := make([]typeInfo, len(rawTypes))
 	for i, name := range rawTypes {
-		typeInfoList[i] = guessInfoType(*name)
+		typeInfoList[i] = guessInfoType(name)
 	}
 
 	if err := json.Unmarshal(data, &typeInfoList); err != nil {
-		return errors.Wrapf(err, "typeInfoList unmarshal(%s)", data)
+		return errors.Wrapf(err, "typeInfoList unmarshal(%s)", strings.Join(rawTypes, ","))
 	}
 	*infos = typeInfoList
 
@@ -100,7 +101,7 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 			opened++
 		case ']':
 			if opened == 0 {
-				return errors.New("bad bracket sequence")
+				return errors.Errorf("bad bracket sequence: %s", source)
 			}
 			opened--
 		case '|':
@@ -112,15 +113,13 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 	}
 	typeNames = append(typeNames, source[begin:end])
 	if opened != 0 {
-		return errors.New("bad bracket sequence")
+		return errors.Errorf("bad bracket sequence:%s", source)
 	}
 
 	var jsonStr strings.Builder
 	jsonStr.WriteByte('[')
 	for i, name := range typeNames {
-		jsonStr.WriteByte('"')
-		jsonStr.WriteString(name)
-		jsonStr.WriteByte('"')
+		jsonStr.WriteString(strconv.Quote(name))
 		if i != len(typeNames)-1 {
 			jsonStr.WriteByte(',')
 		}

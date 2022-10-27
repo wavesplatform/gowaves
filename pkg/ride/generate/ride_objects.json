@@ -317,7 +317,7 @@
         },
         {
           "name": "payments",
-          "types": ["rideList[rideAttachedPayment|rideList[rideInt|rideBoolean]]"],
+          "types": ["rideList[rideAttachedPayment]"],
           "order": 1,
           "constructorOrder": 0
         },
@@ -692,7 +692,7 @@
       "fields": [
         {
           "name": "transfers",
-          "types": ["rideList"],
+          "types": ["rideList[rideTransfer]"],
           "order": 0
         }
       ]
@@ -702,7 +702,7 @@
       "fields": [
         {
           "name": "data",
-          "types": ["rideList"],
+          "types": ["rideList[rideBinaryEntry|rideBooleanEntry|rideDeleteEntry|rideIntegerEntry|rideStringEntry]"],
           "order": 0
         }
       ]
@@ -1040,76 +1040,91 @@
     {
       "name": "invokeScriptTransaction",
       "set_proofs": true,
+      "generateConstructor": true,
       "fields": [
         {
           "name": "proofs",
           "types": ["rideList[rideBytes]"],
-          "order": 5
+          "order": 5,
+          "constructorOrder": 12
         },
         {
           "name": "feeAssetID",
           "types": ["rideBytes", "rideUnit"],
-          "order": 3
+          "order": 3,
+          "constructorOrder": 1
         },
         {
           "name": "payment",
           "types": ["rideUnit", "rideAttachedPayment"],
-          "order": -1
+          "order": -1,
+          "constructorOrder": -1
         },
         {
           "name": "dApp",
           "types": ["rideRecipient"],
-          "order": 7
+          "order": 7,
+          "constructorOrder": 0
         },
         {
           "name": "function",
           "types": ["rideString"],
-          "order": 10
+          "order": 10,
+          "constructorOrder": 2
         },
         {
           "name": "bodyBytes",
           "types": ["rideBytes"],
-          "order": 2
+          "order": 2,
+          "constructorOrder": 10
         },
         {
           "name": "id",
           "types": ["rideBytes"],
-          "order": 4
+          "order": 4,
+          "constructorOrder": 4
         },
         {
           "name": "senderPublicKey",
           "types": ["rideBytes"],
-          "order": 9
+          "order": 9,
+          "constructorOrder": 9
         },
         {
           "name": "payments",
           "types": ["rideList[rideAttachedPayment]"],
-          "order": 0
+          "order": 0,
+          "constructorOrder": 11
         },
         {
           "name": "args",
           "types": ["rideList[rideBoolean|rideBytes|rideInt|rideList[rideBoolean|rideBytes|rideInt|rideString]|rideString]"],
-          "order": 12
+          "order": 12,
+          "constructorOrder": 3
         },
         {
           "name": "timestamp",
           "types": ["rideInt"],
-          "order": 1
+          "order": 1,
+          "constructorOrder": 6
         },
         {
           "name": "fee",
           "types": ["rideInt"],
-          "order": 6
+          "order": 6,
+          "constructorOrder": 5
         },
         {
           "name": "version",
           "types": ["rideInt"],
-          "order": 8
+          "order": 8,
+          "constructorOrder": 7
         },
         {
           "name": "sender",
           "types": ["rideAddress"],
-          "order": 11
+          "order": 11,
+          "constructorOrder": 8
         }
       ]
     },
