@@ -458,7 +458,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if err := proto.ValidateAttachedPaymentScriptAction(res, restrictions, env.validateInternalPayments(), env.rideV6Activated()); err != nil {
+	if err := proto.ValidateAttachedPaymentScriptAction(res, restrictions, env.validateInternalPayments()); err != nil {
 		return err
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
