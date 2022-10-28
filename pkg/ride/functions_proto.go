@@ -218,6 +218,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
+	// Check payments itself. We don't validate result balances in following function,
+	// but apply payments to wrapped state as is.
 	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
@@ -254,6 +256,15 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	ws.totalComplexity += res.Complexity()
+
+	// Check payments result balances here.
+	err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
+	if err != nil {
+		if GetEvaluationErrorType(err) == Undefined {
+			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		}
+		return nil, err
+	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {

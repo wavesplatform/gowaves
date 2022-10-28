@@ -5522,5 +5522,5 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 	env = env.withRideV6Activated().withWrappedState()
 	res, err = CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.Nil(t, res)
-	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: not enough money in the DApp, balance of DApp with address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz is 4000000000 and it tried to transfer asset WAVES to 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1, amount of 5000000000")
+	require.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -1000000000")
 }

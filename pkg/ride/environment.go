@@ -105,6 +105,15 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 	return b.checkedRegularBalance()
 }
 
+func (ws *WrappedState) uncheckedAssetBalance(addr proto.WavesAddress, assetID crypto.Digest) (int64, error) {
+	key := assetBalanceKey{id: addr.ID(), asset: assetID}
+	b, err := ws.diff.loadAssetBalance(key)
+	if err != nil {
+		return 0, err
+	}
+	return int64(b), nil
+}
+
 func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
 	addr, err := ws.NewestRecipientToAddress(account)
 	if err != nil {
@@ -116,6 +125,10 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		return 0, err
 	}
 	return b.checked()
+}
+
+func (ws *WrappedState) uncheckedWavesBalance(addr proto.WavesAddress) (diffBalance, error) {
+	return ws.diff.loadWavesBalance(addr.ID())
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -450,7 +463,10 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return true, nil
 }
 
-func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env environment, restrictions proto.ActionsValidationRestrictions) error {
+func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, env environment, restrictions proto.ActionsValidationRestrictions) error {
+	if err := proto.ValidateAttachedPaymentScriptAction(res, restrictions, env.validateInternalPayments()); err != nil {
+		return err
+	}
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
@@ -458,30 +474,42 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-	if err := proto.ValidateAttachedPaymentScriptAction(res, restrictions, env.validateInternalPayments()); err != nil {
-		return err
+	return nil
+}
+
+func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment, addr proto.WavesAddress, payments proto.ScriptPayments) error {
+	assets := map[proto.OptionalAsset]struct{}{}
+	for _, payment := range payments {
+		assets[payment.Asset] = struct{}{}
 	}
-	senderRcp := proto.NewRecipientFromAddress(sender)
-	var balance uint64
-	if res.Asset.Present {
-		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID)
-	} else {
-		if env.rideV6Activated() {
-			allBalance, err := ws.NewestFullWavesBalance(senderRcp)
+	var (
+		err     error
+		balance int64
+	)
+	for asset := range assets {
+		if asset.Present {
+			balance, err = ws.uncheckedAssetBalance(addr, asset.ID)
+		} else {
+			fullBalance, err := ws.uncheckedWavesBalance(addr)
 			if err != nil {
 				return err
 			}
-			balance = allBalance.Available
-		} else {
-			balance, err = ws.NewestWavesBalance(senderRcp)
+			if env.rideV6Activated() {
+				balance, err = fullBalance.spendableBalance()
+				if err != nil {
+					return err
+				}
+			} else {
+				balance = fullBalance.balance
+			}
 		}
-	}
-	if err != nil {
-		return err
-	}
-	if (env.validateInternalPayments() || env.rideV6Activated()) && balance < uint64(res.Amount) {
-		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
-			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+		if err != nil {
+			return err
+		}
+		if (env.validateInternalPayments() || env.rideV6Activated()) && balance < 0 {
+			return errors.Errorf("not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
+				asset.String(), addr.String(), balance)
+		}
 	}
 	return nil
 }
@@ -702,11 +730,11 @@ func (ws *WrappedState) ApplyToState(
 			ws.diff.putDataEntry(a.Entry, addr)
 
 		case *proto.AttachedPaymentScriptAction:
-			senderAddress, err := proto.NewAddressFromPublicKey(ws.scheme, *a.Sender)
+			err = ws.validatePaymentAction(a, env, restrictions)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
-			err = ws.validatePaymentAction(a, senderAddress, env, restrictions) // TODO: Optimize double balance check inside this function and outside
+			senderAddress, err := proto.NewAddressFromPublicKey(ws.scheme, *a.Sender)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
@@ -714,6 +742,7 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
+			// No balance validation done below
 			if a.Asset.Present { // Update asset balance
 				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
 					return nil, errors.Wrap(err, "failed to apply attached payment")
