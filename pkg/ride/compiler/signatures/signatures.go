@@ -1,10 +1,13 @@
 package signatures
 
+//go:generate peg -output=type.peg.go type.peg
+
 import (
 	"embed"
 	"encoding/json"
 	"reflect"
-	"strings"
+
+	"github.com/pkg/errors"
 )
 
 //go:embed funcs.json
@@ -59,31 +62,80 @@ func mustLoadFuncs() *FunctionsSignatures {
 }
 
 func ParseType(t string) Type {
-	// TODO(anton): check Type was declared
-	types := strings.ReplaceAll(t, " ", "")
-	if strings.HasPrefix(types, "List[") {
-		return parseList(types)
+	p := Types{Buffer: t}
+	err := p.Init()
+	if err != nil {
+		panic(err)
 	}
-	if strings.Contains(types, "|") {
-		return parseUnion(types)
+	err = p.Parse()
+	if err != nil {
+		panic(err)
 	}
-	return SimpleType{types}
+	node := p.AST()
+	return handleTypes(node.up, t)
 }
 
-func parseList(t string) Type {
-	listType := strings.TrimPrefix(t, "List[")
-	listType = strings.TrimSuffix(listType, "]")
-	return ListType{ParseType(listType)}
+func handleTypes(node *node32, t string) Type {
+	curNode := node.up
+	var T Type
+	switch curNode.pegRule {
+	case ruleGenericType:
+		T = handleGeneric(curNode, t)
+	case ruleTupleType:
+		T = handleTupleType(curNode, t)
+	case ruleType:
+		// check Types
+		T = SimpleType{t[curNode.begin:curNode.end]}
+	}
+	curNode = curNode.next
+	if curNode == nil {
+		return T
+	}
+
+	resType := UnionType{Types: map[string]Type{}}
+	resType.AppendType(T)
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	resType.AppendType(handleTypes(curNode, t))
+	return resType
 }
 
-func parseUnion(t string) Type {
-	unionTypes := strings.Split(t, "|")
-	res := map[string]Type{}
-	for _, i := range unionTypes {
-		T := ParseType(i)
-		res[T.String()] = T
+func handleTupleType(node *node32, t string) Type {
+	curNode := node.up
+	var tupleTypes []Type
+	for {
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		if curNode.pegRule == ruleTypes {
+			tupleTypes = append(tupleTypes, handleTypes(curNode, t))
+			curNode = curNode.next
+		}
+		if curNode == nil {
+			break
+		}
 	}
-	return UnionType{Types: res}
+	return TupleType{tupleTypes}
+}
+
+func handleGeneric(node *node32, t string) Type {
+	curNode := node.up
+	name := t[curNode.begin:curNode.end]
+	if name != "List" {
+		panic(errors.Errorf("Generig type should be List, but \"%s\"", name))
+	}
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	return ListType{Type: handleTypes(curNode, t)}
 }
 
 var (
@@ -189,4 +241,28 @@ func (t *ListType) AppendList(rideType Type) {
 	resType := UnionType{Types: map[string]Type{}}
 	resType.AppendType(t.Type)
 	resType.AppendType(T.Type)
+}
+
+type TupleType struct {
+	Types []Type
+}
+
+func (t TupleType) Comp(rideType Type) bool {
+	if T, ok := rideType.(TupleType); ok {
+		return reflect.DeepEqual(t, T)
+	}
+	return false
+}
+
+func (t TupleType) String() string {
+	var res string
+	res += "("
+	for i, k := range t.Types {
+		res += k.String()
+		if i < len(t.Types)-1 {
+			res += ", "
+		}
+	}
+	res += ")"
+	return res
 }
