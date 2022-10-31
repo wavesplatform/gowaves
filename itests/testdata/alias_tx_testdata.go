@@ -251,3 +251,22 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 	}
 	return t
 }
+
+func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesNegative] {
+	var t = map[string]AliasTestData[AliasExpectedValuesNegative]{
+		"Values for same alias": *NewAliasTestData(
+			utl.GetAccount(suite, 2),
+			utl.RandStringBytes(15, AliasSymbolSet),
+			100000000000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			AliasExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    "",
+				ErrBrdCstScalaMsg: "",
+				WavesDiffBalance:  0,
+			}),
+	}
+	return t
+}
