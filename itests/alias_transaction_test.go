@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,11 +18,36 @@ type AliasTxSuite struct {
 }
 
 func (suite *AliasTxSuite) Test_AliasPositive() {
-	versions := testdata.GetVersions(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
+			fmt.Println("Name: ", name, "Version: ", i, "Alias: ", td.Alias)
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+
+			txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
+
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
+			utl.WavesDiffBalanceCheck(
+				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
+				name, "version:", i)
+		}
+	}
+}
+
+func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
+	versions := testdata.GetVersions()
+	timeout := 30 * time.Second
+	for _, i := range versions {
+		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i))
+		for name, td := range tdmatrix {
+			fmt.Println("Name: ", name, "Version: ", i, "Alias: ", td.Alias)
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 
@@ -40,12 +66,13 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 }
 
 func (suite *AliasTxSuite) Test_AliasNegative() {
-	versions := testdata.GetVersions(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 5 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
 		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
+			fmt.Println("Name: ", name, "Version: ", i, "Alias: ", td.Alias)
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 

@@ -28,7 +28,8 @@ func NewSignAliasTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 	return tx
 }
 
-func Alias[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (crypto.Digest, error, error) {
+func Alias[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
+	crypto.Digest, error, error) {
 	tx := NewSignAliasTransaction(suite, version, testdata)
 	errGo, errScala := utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 	return utl.ExtractTxID(suite.T(), tx, testdata.ChainID), errGo, errScala
