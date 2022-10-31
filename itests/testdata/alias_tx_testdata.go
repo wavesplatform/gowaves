@@ -26,6 +26,10 @@ type AliasExpectedValuesPositive struct {
 	_                struct{}
 }
 
+func (a AliasExpectedValuesPositive) Positive() bool {
+	return true
+}
+
 type AliasExpectedValuesNegative struct {
 	ErrGoMsg          string
 	ErrScalaMsg       string
@@ -33,6 +37,10 @@ type AliasExpectedValuesNegative struct {
 	ErrBrdCstScalaMsg string
 	WavesDiffBalance  int64
 	_                 struct{}
+}
+
+func (a AliasExpectedValuesNegative) Positive() bool {
+	return false
 }
 
 func NewAliasTestData[T any](account config.AccountInfo, alias string, fee uint64, timestamp uint64,
