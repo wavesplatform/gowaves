@@ -227,7 +227,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs()-7215000,
-			0,
+			testChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -240,7 +240,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs()+54160000,
-			0,
+			testChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
