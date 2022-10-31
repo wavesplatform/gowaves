@@ -42,6 +42,31 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	}
 }
 
+func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
+	versions := testdata.GetVersions()
+	timeout := 30 * time.Second
+	for _, i := range versions {
+		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i))
+		for name, td := range tdmatrix {
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+
+			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
+
+			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name, "version: ", i)
+
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name, "version:", i, brdCstTx.TxID.String())
+			utl.WavesDiffBalanceCheck(
+				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
+				name, "version:", i)
+		}
+	}
+}
+
 func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	versions := testdata.GetVersions()
 	timeout := 5 * time.Second
