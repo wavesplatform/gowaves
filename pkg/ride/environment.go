@@ -478,17 +478,14 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 }
 
 func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment, addr proto.WavesAddress, payments proto.ScriptPayments) error {
-	assets := map[proto.OptionalAsset]struct{}{}
 	for _, payment := range payments {
-		assets[payment.Asset] = struct{}{}
-	}
-	var (
-		err     error
-		balance int64
-	)
-	for asset := range assets {
-		if asset.Present {
-			balance, err = ws.uncheckedAssetBalance(addr, asset.ID)
+		var balance int64
+		if payment.Asset.Present {
+			var err error
+			balance, err = ws.uncheckedAssetBalance(addr, payment.Asset.ID)
+			if err != nil {
+				return err
+			}
 		} else {
 			fullBalance, err := ws.uncheckedWavesBalance(addr)
 			if err != nil {
@@ -503,12 +500,9 @@ func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment
 				balance = fullBalance.balance
 			}
 		}
-		if err != nil {
-			return err
-		}
 		if (env.validateInternalPayments() || env.rideV6Activated()) && balance < 0 {
 			return errors.Errorf("not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
-				asset.String(), addr.String(), balance)
+				payment.Asset.String(), addr.String(), balance)
 		}
 	}
 	return nil
