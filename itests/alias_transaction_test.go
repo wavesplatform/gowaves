@@ -59,7 +59,9 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 				&suite.BaseSuite, td.Account.Address)
 			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
+			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress, addrByAliasGo, addrByAliasScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
 				name, "version:", i)
@@ -143,7 +145,8 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 
 func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	versions := testdata.GetVersions()
-	timeout := 5 * time.Second
+	timeout := 15 * time.Second
+	n := 4
 	for _, i := range versions {
 		tdmatrix := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
 		txIds := make(map[string]*crypto.Digest)
@@ -170,14 +173,17 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 		actualDiffBalanceInWavesGo2 := initBalanceInWavesGo2 - currentBalanceInWavesGo2
 		actualDiffBalanceInWavesScala2 := initBalanceInWavesScala2 - currentBalanceInWavesScala2
 
+		utl.ExistenceTxInfoCheck(suite.T(), errGo1, errScala1, "Account2", "version:", i, txId1.String())
 		utl.WavesDiffBalanceCheck(suite.T(), tdmatrix["Account2"].Expected.WavesDiffBalanceAfterFirstTx, actualDiffBalanceInWavesGo1, actualDiffBalanceInWavesScala1)
 		utl.WavesDiffBalanceCheck(suite.T(), tdmatrix["Account3"].Expected.WavesDiffBalance, actualDiffBalanceInWavesGo2, actualDiffBalanceInWavesScala2)
 
-		utl.ErrorMessageCheck(suite.T(), tdmatrix["Account2"].Expected.ErrGoMsg, tdmatrix["Account2"].Expected.ErrScalaMsg, errGo1, errScala1)
-		utl.ErrorMessageCheck(suite.T(), tdmatrix["Account3"].Expected.ErrGoMsg, tdmatrix["Account3"].Expected.ErrScalaMsg, errGo2, errScala2)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 2*timeout, timeout)
 
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
-		fmt.Println("Actual IDs: ", actualTxIds)
+		if i == 3 {
+			n = 2
+			utl.ErrorMessageCheck(suite.T(), tdmatrix["Account3"].Expected.ErrGoMsg, tdmatrix["Account3"].Expected.ErrScalaMsg, errGo2, errScala2)
+		}
+		suite.Lenf(actualTxIds, n, "IDs: %#v", actualTxIds, "Version: %#v", i)
 	}
 }
 
