@@ -234,6 +234,18 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return nil, err
 	}
+	checkPaymentsAfterApplication := func() error {
+		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
+		if err != nil && GetEvaluationErrorType(err) == Undefined {
+			err = InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		}
+		return err
+	}
+	if env.invokeExpressionActivated() { // Check payments result balances here after invoke expression activation.
+		if err := checkPaymentsAfterApplication(); err != nil {
+			return nil, err
+		}
+	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
@@ -264,13 +276,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	ws.totalComplexity += res.Complexity()
 
-	// Check payments result balances here.
-	err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
-	if err != nil {
-		if GetEvaluationErrorType(err) == Undefined {
-			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+	if !env.invokeExpressionActivated() { // Check payments result balances here before invoke expression activation.
+		if err := checkPaymentsAfterApplication(); err != nil {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
