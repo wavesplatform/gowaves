@@ -22,6 +22,7 @@ type AliasTestData[T any] struct {
 }
 
 type AliasExpectedValuesPositive struct {
+	ExpectedAddress  []byte
 	WavesDiffBalance int64
 	_                struct{}
 }
@@ -37,6 +38,16 @@ type AliasExpectedValuesNegative struct {
 	ErrBrdCstScalaMsg string
 	WavesDiffBalance  int64
 	_                 struct{}
+}
+
+type SameAliasExpectedValuesNegative struct {
+	ErrGoMsg                     string
+	ErrScalaMsg                  string
+	ErrBrdCstGoMsg               string
+	ErrBrdCstScalaMsg            string
+	WavesDiffBalanceAfterFirstTx int64
+	WavesDiffBalance             int64
+	_                            struct{}
 }
 
 func (a AliasExpectedValuesNegative) Positive() bool {
@@ -59,6 +70,10 @@ func GetVersions() []byte {
 	return []byte{1, 2, 3}
 }
 
+func AliasDataChangedTimestamp[T any](td *AliasTestData[T]) AliasTestData[T] {
+	return *NewAliasTestData(td.Account, td.Alias, td.Fee, utl.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
+}
+
 func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesPositive] {
 	var t = map[string]AliasTestData[AliasExpectedValuesPositive]{
 		"Valid alias 4 bytes": *NewAliasTestData(
@@ -68,6 +83,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
+				ExpectedAddress:  utl.GetAccount(suite, 2).Address.Body(),
 				WavesDiffBalance: 100000,
 			}),
 		"Valid alias 15 bytes, middle values for fee": *NewAliasTestData(
@@ -77,6 +93,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
+				ExpectedAddress:  utl.GetAccount(suite, 2).Address.Body(),
 				WavesDiffBalance: 100000000000,
 			}),
 	}
@@ -92,6 +109,7 @@ func GetAliasMaxPositiveDataMatrix(suite *f.BaseSuite, accNumber int) map[string
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
+				ExpectedAddress:  utl.GetAccount(suite, accNumber).Address.Body(),
 				WavesDiffBalance: utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address),
 			}),
 	}
@@ -260,20 +278,56 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 	return t
 }
 
-func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesNegative] {
-	var t = map[string]AliasTestData[AliasExpectedValuesNegative]{
+func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[SameAliasExpectedValuesNegative] {
+	var t = map[string]AliasTestData[SameAliasExpectedValuesNegative]{
 		"Values for same alias": *NewAliasTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(15, AliasSymbolSet),
-			100000000000,
+			100000,
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
-			AliasExpectedValuesNegative{
-				ErrGoMsg:          errMsg,
-				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
-				WavesDiffBalance:  0,
+			SameAliasExpectedValuesNegative{
+				ErrGoMsg:                     errMsg,
+				ErrScalaMsg:                  errMsg,
+				ErrBrdCstGoMsg:               "",
+				ErrBrdCstScalaMsg:            "",
+				WavesDiffBalanceAfterFirstTx: 100000,
+				WavesDiffBalance:             0,
+			}),
+	}
+	return t
+}
+
+func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[SameAliasExpectedValuesNegative] {
+	alias := utl.RandStringBytes(15, AliasSymbolSet)
+	var t = map[string]AliasTestData[SameAliasExpectedValuesNegative]{
+		"Account2": *NewAliasTestData(
+			utl.GetAccount(suite, 2),
+			alias,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			SameAliasExpectedValuesNegative{
+				ErrGoMsg:                     errMsg,
+				ErrScalaMsg:                  errMsg,
+				ErrBrdCstGoMsg:               "",
+				ErrBrdCstScalaMsg:            "",
+				WavesDiffBalanceAfterFirstTx: 100000,
+				WavesDiffBalance:             0,
+			}),
+		"Account3": *NewAliasTestData(
+			utl.GetAccount(suite, 3),
+			alias,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			SameAliasExpectedValuesNegative{
+				ErrGoMsg:                     errMsg,
+				ErrScalaMsg:                  errMsg,
+				ErrBrdCstGoMsg:               "",
+				ErrBrdCstScalaMsg:            "",
+				WavesDiffBalanceAfterFirstTx: 100000,
+				WavesDiffBalance:             0,
 			}),
 	}
 	return t

@@ -41,6 +41,12 @@ func AssetBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
 
+func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
+	errMsg := makeErrorMessage("Address mismatch alias", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala"+errMsg)
+}
+
 func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, actualErrGo,
 	actualErrScala error, args ...interface{}) {
 	errMsg := makeErrorMessage("Error message mismatch", args...)

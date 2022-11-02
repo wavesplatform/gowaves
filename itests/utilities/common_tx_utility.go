@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -47,12 +48,15 @@ func RandStringBytes(n int, symbolSet string) string {
 	return string(b)
 }
 
-func GetTransactionJson(suite *f.BaseSuite, tx proto.Transaction) string {
+func GetTransactionJsonOrErrMsg(tx proto.Transaction) string {
+	var result string
 	jsonStr, err := json.Marshal(tx)
 	if err != nil {
-		suite.T().Errorf("Failed to create tx JSON: %s", err)
+		result = fmt.Sprintf("Failed to create tx JSON: %s", err)
+	} else {
+		result = string(jsonStr)
 	}
-	return string(jsonStr)
+	return result
 }
 
 func GetCurrentTimestampInMs() uint64 {
@@ -61,6 +65,20 @@ func GetCurrentTimestampInMs() uint64 {
 
 func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
+}
+
+func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
+	fmt.Println(suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias).String())
+	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias).Value
+}
+
+func GetAddressByAliasScala(suite *f.BaseSuite, alias string) []byte {
+	fmt.Println(suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias).String())
+	return suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias).Value
+}
+
+func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
+	return GetAddressByAliasGo(suite, alias), GetAddressByAliasScala(suite, alias)
 }
 
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
@@ -72,9 +90,7 @@ func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddr
 }
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
-	wavesBalanceGo := GetAvailableBalanceInWavesGo(suite, address)
-	wavesBalanceScala := GetAvailableBalanceInWavesScala(suite, address)
-	return wavesBalanceGo, wavesBalanceScala
+	return GetAvailableBalanceInWavesGo(suite, address), GetAvailableBalanceInWavesScala(suite, address)
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, id []byte) int64 {
@@ -86,9 +102,7 @@ func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, id []b
 }
 
 func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, id []byte) (int64, int64) {
-	assetBalanceGo := GetAssetBalanceGo(suite, address, id)
-	assetBalanceScala := GetAssetBalanceScala(suite, address, id)
-	return assetBalanceGo, assetBalanceScala
+	return GetAssetBalanceGo(suite, address, id), GetAssetBalanceScala(suite, address, id)
 }
 
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,
