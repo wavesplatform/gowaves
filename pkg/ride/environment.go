@@ -648,33 +648,78 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction, libVersion a
 }
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
-	for id, diff := range ws.diff.wavesBalances {
-		if diff.balance < 0 {
-			addr, err := id.ToWavesAddress(ws.scheme)
-			if err != nil {
-				return errors.Wrap(err, "failed to validate balances")
+	if changed := ws.diff.changedBalances; changed != nil {
+		for accountBalance := range changed {
+			var err error
+			if accountBalance.asset.Present {
+				err = ws.validateAssetBalance(accountBalance.account, accountBalance.asset.ID)
+			} else {
+				err = ws.validateWavesBalance(accountBalance.account, rideV6Activated)
 			}
-			return errors.Errorf("the Waves balance of address %s is %d which is negative", addr.String(), diff.balance)
-		}
-		if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
-			_, err := diff.checkedSpendableBalance()
 			if err != nil {
-				addr, err2 := id.ToWavesAddress(ws.scheme)
-				if err2 != nil {
-					return errors.Wrap(err, "failed to validate balances")
-				}
-				return errors.Wrapf(err, "failed validation of address %s", addr.String())
+				return err
+			}
+		}
+	} else { // validate all balances if changedBalances are not specified
+		for addID := range ws.diff.wavesBalances {
+			if err := ws.validateWavesBalance(addID, rideV6Activated); err != nil {
+				return err
+			}
+		}
+		for key := range ws.diff.assetBalances {
+			if err := ws.validateAssetBalance(key.id, key.asset); err != nil {
+				return err
 			}
 		}
 	}
-	for k, b := range ws.diff.assetBalances {
-		if _, err := b.checked(); err != nil {
-			addr, err2 := k.id.ToWavesAddress(ws.scheme)
+	return nil
+}
+
+func (ws *WrappedState) validateWavesBalance(addrID proto.AddressID, rideV6Activated bool) error {
+	diff, ok := ws.diff.wavesBalances[addrID]
+	if !ok {
+		addr, addrErr := addrID.ToWavesAddress(ws.scheme)
+		if addrErr != nil {
+			return errors.Wrap(addrErr, "failed to transform addrID to WavesAddress")
+		}
+		return errors.Errorf("failed to find waves balance diff by addr %q", addr)
+	}
+	if diff.balance < 0 {
+		addr, err := addrID.ToWavesAddress(ws.scheme)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate balances")
+		}
+		return errors.Errorf("the Waves balance of address %s is %d which is negative", addr.String(), diff.balance)
+	}
+	if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
+		_, err := diff.checkedSpendableBalance()
+		if err != nil {
+			addr, err2 := addrID.ToWavesAddress(ws.scheme)
 			if err2 != nil {
 				return errors.Wrap(err, "failed to validate balances")
 			}
-			return errors.Wrapf(err, "failed validation of address %s of asset %s", addr.String(), k.asset.String())
+			return errors.Wrapf(err, "failed validation of address %s", addr.String())
 		}
+	}
+	return nil
+}
+
+func (ws *WrappedState) validateAssetBalance(addrID proto.AddressID, asset crypto.Digest) error {
+	key := assetBalanceKey{id: addrID, asset: asset}
+	diff, ok := ws.diff.assetBalances[key]
+	if !ok {
+		addr, addrErr := addrID.ToWavesAddress(ws.scheme)
+		if addrErr != nil {
+			return errors.Wrap(addrErr, "failed to transform addrID to WavesAddress")
+		}
+		return errors.Errorf("failed to find asset %q balance diff by addr %q", asset, addr)
+	}
+	if _, err := diff.checked(); err != nil {
+		addr, addrErr := addrID.ToWavesAddress(ws.scheme)
+		if addrErr != nil {
+			return errors.Wrap(addrErr, "failed to transform addrID to WavesAddress")
+		}
+		return errors.Wrapf(err, "failed validation of address %s of asset %s", addr.String(), asset.String())
 	}
 	return nil
 }
@@ -961,7 +1006,7 @@ type EvaluationEnvironment struct {
 	validatePaymentsAfter       uint64
 	isBlockV5Activated          bool
 	isRideV6Activated           bool
-	isInvokeExpressionActivated bool
+	isInvokeExpressionActivated bool // isInvokeExpression is feature after RideV6, i.e. isInvokeExpressionActivated == nodeVersion >= 1.5.0
 	isProtobufTransaction       bool
 	mds                         int
 }

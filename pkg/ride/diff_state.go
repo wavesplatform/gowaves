@@ -168,15 +168,39 @@ func (b assetBalance) checked() (uint64, error) {
 	return uint64(b), nil
 }
 
+type changedAccountBalance struct {
+	account proto.AddressID
+	asset   proto.OptionalAsset
+}
+
+type changedBalances map[changedAccountBalance]struct{}
+
+func (b changedBalances) AddWavesBalanceChange(account proto.AddressID) {
+	key := changedAccountBalance{
+		account: account,
+		asset:   proto.NewOptionalAssetWaves(),
+	}
+	b[key] = struct{}{}
+}
+
+func (b changedBalances) AddAssetBalanceChange(account proto.AddressID, asset crypto.Digest) {
+	key := changedAccountBalance{
+		account: account,
+		asset:   *proto.NewOptionalAssetFromDigest(asset),
+	}
+	b[key] = struct{}{}
+}
+
 type diffState struct {
-	state         types.SmartState
-	data          map[dataEntryKey]proto.DataEntry
-	wavesBalances map[proto.AddressID]diffBalance
-	assetBalances map[assetBalanceKey]assetBalance
-	sponsorships  map[crypto.Digest]diffSponsorship
-	newAssetsInfo map[crypto.Digest]diffNewAssetInfo
-	oldAssetsInfo map[crypto.Digest]diffOldAssetInfo
-	leases        map[crypto.Digest]lease
+	state           types.SmartState
+	data            map[dataEntryKey]proto.DataEntry
+	wavesBalances   map[proto.AddressID]diffBalance
+	assetBalances   map[assetBalanceKey]assetBalance
+	sponsorships    map[crypto.Digest]diffSponsorship
+	newAssetsInfo   map[crypto.Digest]diffNewAssetInfo
+	oldAssetsInfo   map[crypto.Digest]diffOldAssetInfo
+	leases          map[crypto.Digest]lease
+	changedBalances changedBalances
 }
 
 func newDiffState(state types.SmartState) diffState {
@@ -190,6 +214,12 @@ func newDiffState(state types.SmartState) diffState {
 		oldAssetsInfo: map[crypto.Digest]diffOldAssetInfo{},
 		leases:        map[crypto.Digest]lease{},
 	}
+}
+
+func (ds *diffState) replaceChangedBalances(new changedBalances) changedBalances {
+	old := ds.changedBalances
+	ds.changedBalances = new
+	return old
 }
 
 func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
@@ -214,6 +244,9 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 }
 
 func (ds *diffState) addWavesBalance(key proto.AddressID, amount int64) error {
+	if ds.changedBalances != nil {
+		ds.changedBalances.AddWavesBalanceChange(key)
+	}
 	if diff, ok := ds.wavesBalances[key]; ok {
 		err := diff.addBalance(amount)
 		if err != nil {
@@ -242,6 +275,9 @@ func (ds *diffState) loadAssetBalance(key assetBalanceKey) (assetBalance, error)
 }
 
 func (ds *diffState) addAssetBalance(key assetBalanceKey, amount int64) error {
+	if ds.changedBalances != nil {
+		ds.changedBalances.AddAssetBalanceChange(key.id, key.asset)
+	}
 	if b, ok := ds.assetBalances[key]; ok {
 		r, err := b.add(amount)
 		if err != nil {
@@ -288,6 +324,10 @@ func (ds *diffState) loadLease(leaseID crypto.Digest) (lease, error) {
 
 // changeLeaseBalances changes sender's leaseOut and receiver's leaseIn by leasing amount
 func (ds *diffState) changeLeaseBalances(sender, receiver proto.AddressID, amount int64) error {
+	if ds.changedBalances != nil {
+		ds.changedBalances.AddWavesBalanceChange(sender)
+		ds.changedBalances.AddWavesBalanceChange(receiver)
+	}
 	senderDiff, err := ds.loadWavesBalance(sender)
 	if err != nil {
 		return err
