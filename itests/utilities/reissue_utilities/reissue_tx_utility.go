@@ -11,14 +11,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func NewSignReissueTransaction[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T]) proto.Transaction {
+func NewSignReissueTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.ReissueTestData[T]) proto.Transaction {
 	var tx proto.Transaction
-	if testdata.Version == 1 {
+	if version == 1 {
 		tx = proto.NewUnsignedReissueWithSig(
 			testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Reissuable,
 			testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedReissueWithProofs(testdata.Version, testdata.ChainID, testdata.Account.PublicKey,
+		tx = proto.NewUnsignedReissueWithProofs(version, testdata.ChainID, testdata.Account.PublicKey,
 			testdata.AssetID, testdata.Quantity, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
@@ -26,8 +26,8 @@ func NewSignReissueTransaction[T any](suite *f.BaseSuite, testdata testdata.Reis
 	return tx
 }
 
-func Reissue[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], timeout time.Duration) (crypto.Digest, error, error) {
-	tx := NewSignReissueTransaction(suite, testdata)
+func Reissue[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration) (crypto.Digest, error, error) {
+	tx := NewSignReissueTransaction(suite, version, testdata)
 	errGo, errScala := utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 	txID := utl.ExtractTxID(suite.T(), tx, testdata.ChainID)
 	return txID, errGo, errScala

@@ -18,129 +18,137 @@ type ReissueTxSuite struct {
 }
 
 func (suite *ReissueTxSuite) Test_ReissuePositive() {
-	issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 30 * time.Second
-	itx, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], timeout)
-	utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itx.ID.String())
+	for _, i := range versions {
+		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		itxID, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], i, timeout)
+		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itxID.String(), "version", i)
+		tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itxID)
+		for name, td := range tdmatrix {
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
 
-	tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, *itx.ID)
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
+			rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, i, timeout)
 
-		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
+			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
-		currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
-		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
-
-		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID)
-		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
+			utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID, "version", i)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name, "version", i)
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name, "version", i)
+		}
 	}
 }
 
 func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
-	issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 15 * time.Second
-	itx, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], timeout)
-	utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itx.ID.String())
+	for _, i := range versions {
+		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		itxID, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], i, timeout)
+		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itxID.String(), "version", i)
+		tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, itxID)
+		for name, td := range tdmatrix {
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
 
-	tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, *itx.ID)
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
+			rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, i, timeout)
 
-		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
+			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
-		currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
-		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
-
-		utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID.String())
-		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
+			utl.ExistenceTxInfoCheck(suite.T(), rErrGo, rErrScala, name, rtxID.String())
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name, "version", i)
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name, "version", i)
+		}
 	}
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
-	issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 15 * time.Second
-	itx, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["NFT"], timeout)
-	utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itx.ID.String())
+	for _, i := range versions {
+		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		itxID, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["NFT"], i, timeout)
+		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itxID.String(), "version", i)
+		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itxID)
+		txIds := make(map[string]*crypto.Digest)
+		for name, td := range tdmatrix {
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
 
-	tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, *itx.ID)
-	txIds := make(map[string]*crypto.Digest)
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
+			rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, i, timeout)
+			txIds[name] = &rtxID
 
-		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
-		txIds[name] = &rtxID
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
+			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
-		currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
-		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
-
-		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, rErrGo, rErrScala)
-		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, rErrGo, rErrScala)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name, "version", i)
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name, "version", i)
+		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, timeout, timeout)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, timeout, timeout)
-	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNegative() {
-	issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 3 * time.Second
-	itx, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], 5*timeout)
-	utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itx.ID.String())
+	for _, i := range versions {
+		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		itxID, iErrGo, iErrScala := issue_utilities.Issue(&suite.BaseSuite, issuedata["reissuable"], i, 5*timeout)
+		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), iErrGo, iErrScala, "Issue: "+itxID.String(), "version", i)
+		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itxID)
+		txIds := make(map[string]*crypto.Digest)
+		for name, td := range tdmatrix {
+			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+			rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, i, timeout)
+			txIds[name] = &rtxID
+			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address)
+			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
+			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
+			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-	tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, *itx.ID)
-	txIds := make(map[string]*crypto.Digest)
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		rtxID, rErrGo, rErrScala := reissue_utilities.Reissue(&suite.BaseSuite, td, timeout)
-		txIds[name] = &rtxID
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
-		currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, itx.ID.Bytes())
-		actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
-		actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
-
-		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, rErrGo, rErrScala)
-		utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, rErrGo, rErrScala)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name, "version", i)
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo, actualDiffAssetBalanceScala, name, "version", i)
+		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 5*timeout, timeout)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 5*timeout, timeout)
-	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestReissueTxSuite(t *testing.T) {
