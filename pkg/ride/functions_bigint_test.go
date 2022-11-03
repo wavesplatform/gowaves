@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	rideMath "github.com/wavesplatform/gowaves/pkg/ride/math"
 
 	"github.com/stretchr/testify/assert"
@@ -250,15 +251,17 @@ func TestModuloBigInt(t *testing.T) {
 		r    rideType
 	}{
 		{[]rideType{toRideBigInt(10), toRideBigInt(6)}, false, toRideBigInt(4)},
-		{[]rideType{toRideBigInt(-10), toRideBigInt(6)}, false, toRideBigInt(2)},
-		{[]rideType{toRideBigInt(10), toRideBigInt(-6)}, false, toRideBigInt(-2)},
+		{[]rideType{toRideBigInt(-10), toRideBigInt(6)}, false, toRideBigInt(-4)},
+		{[]rideType{toRideBigInt(10), toRideBigInt(-6)}, false, toRideBigInt(4)},
 		{[]rideType{toRideBigInt(-10), toRideBigInt(-6)}, false, toRideBigInt(-4)},
 		{[]rideType{toRideBigInt(2), toRideBigInt(2)}, false, toRideBigInt(0)},
+		{[]rideType{rideBigInt{v: decode2CBigInt(crypto.MustBytesFromBase58("A98D6oABd9yshGm29dpxXzSeMi1LhCBSPeGxm7MHVB1c"))}, toRideBigInt(330)}, false, toRideBigInt(-243)},
 		{[]rideType{toRideBigInt(10), toRideBigInt(0)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		{[]rideType{rideBigInt{v: decode2CBigInt(crypto.MustBytesFromBase58("EGhEd4At3siPKgnKdgEgtZvBUFNYn7EoKnsSx35HwJ4a"))}, toRideBigInt(100)}, false, toRideBigInt(-53)},
 	} {
 		r, err := moduloBigInt(nil, test.args...)
 		if test.fail {
