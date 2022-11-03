@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/pkg/errors"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
 
 type ContentType byte
 
@@ -19,7 +23,24 @@ func NewContentType(b byte) (ContentType, error) {
 	}
 }
 
-type LibraryVersion byte
+type libraryVersionType = byte
+
+type LibraryVersion libraryVersionType
+
+func (lv *LibraryVersion) UnmarshalJSON(data []byte) error {
+	var version libraryVersionType
+	if err := json.Unmarshal(data, &version); err != nil {
+		return errors.Wrap(err, "unmarshal LibraryVersion failed")
+	}
+
+	v, err := NewLibraryVersion(version)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal LibraryVersion failed")
+	}
+
+	*lv = v
+	return nil
+}
 
 const (
 	LibV1 LibraryVersion = iota + 1
@@ -38,4 +59,8 @@ func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	default:
 		return 0, errors.Errorf("unsupported library version '%d'", b)
 	}
+}
+
+func CurrentMaxLibraryVersion() LibraryVersion {
+	return LibV6
 }

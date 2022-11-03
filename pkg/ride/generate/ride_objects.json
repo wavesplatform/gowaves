@@ -3,7 +3,6 @@
     {
       "name": "asset",
       "struct_name": "FullAsset",
-      "generateConstructor": true,
       "fields": [
         {
           "name": "description",
@@ -76,7 +75,7 @@
     },
     {
       "name": "asset",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "issuePublicKey",
@@ -130,7 +129,6 @@
     },
     {
       "name": "assetPair",
-      "generateConstructor": true,
       "fields": [
         {
           "name": "amountAsset",
@@ -148,7 +146,6 @@
     },
     {
       "name": "attachedPayment",
-      "generateConstructor": true,
       "fields": [
         {
           "name": "assetID",
@@ -166,7 +163,6 @@
     },
     {
       "name": "balanceDetails",
-      "generateConstructor": true,
       "fields": [
         {
           "name": "available",
@@ -196,7 +192,7 @@
     },
     {
       "name": "binaryEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "key",
@@ -214,7 +210,7 @@
     },
     {
       "name": "blockInfo",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "vrf",
@@ -263,7 +259,7 @@
     },
     {
       "name": "booleanEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "key",
@@ -281,7 +277,7 @@
     },
     {
       "name": "burn",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "assetID",
@@ -299,7 +295,7 @@
     },
     {
       "name": "dataEntry",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "value",
@@ -315,7 +311,7 @@
     },
     {
       "name": "deleteEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "value",
@@ -333,7 +329,7 @@
     },
     {
       "name": "integerEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "key",
@@ -351,7 +347,7 @@
     },
     {
       "name": "invocation",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "originCaller",
@@ -411,7 +407,7 @@
     },
     {
       "name": "issue",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "compiledScript",
@@ -459,7 +455,7 @@
     },
     {
       "name": "leaseCancel",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "leaseID",
@@ -471,7 +467,7 @@
     },
     {
       "name": "lease",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "recipient",
@@ -496,7 +492,7 @@
     {
       "name": "order",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "assetPair",
@@ -586,7 +582,7 @@
     },
     {
       "name": "reissue",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "assetID",
@@ -610,7 +606,7 @@
     },
     {
       "name": "scriptResult",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "writeSet",
@@ -626,7 +622,7 @@
     },
     {
       "name": "scriptTransfer",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "recipient",
@@ -651,7 +647,7 @@
     {
       "name": "scriptTransfer",
       "struct_name": "FullScriptTransfer",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "attachment",
@@ -741,7 +737,7 @@
     },
     {
       "name": "sponsorFee",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "assetID",
@@ -759,7 +755,7 @@
     },
     {
       "name": "stringEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "key",
@@ -777,7 +773,7 @@
     },
     {
       "name": "transferEntry",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "recipient",
@@ -795,7 +791,7 @@
     },
     {
       "name": "transferSet",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "transfers",
@@ -806,7 +802,7 @@
     },
     {
       "name": "writeSet",
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "data",
@@ -818,7 +814,7 @@
     {
       "name": "burnTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "bodyBytes",
@@ -885,7 +881,7 @@
     {
       "name": "createAliasTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -946,7 +942,7 @@
     {
       "name": "dataTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1007,7 +1003,7 @@
     {
       "name": "exchangeTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1097,7 +1093,7 @@
     },
     {
       "name": "genesisTransaction",
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "recipient",
@@ -1146,7 +1142,7 @@
     {
       "name": "invokeExpressionTransaction",
       "set_proofs": true,
-      "generateConstructor": false,
+      "skip_constructor": true,
       "fields": [
         {
           "name": "proofs",
@@ -1203,7 +1199,7 @@
     {
       "name": "invokeScriptTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1294,7 +1290,7 @@
     {
       "name": "issueTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1385,7 +1381,7 @@
     {
       "name": "leaseCancelTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1446,7 +1442,7 @@
     {
       "name": "leaseTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1513,7 +1509,7 @@
     {
       "name": "massTransferTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1598,7 +1594,7 @@
     {
       "name": "paymentTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1665,7 +1661,7 @@
     {
       "name": "reissueTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "bodyBytes",
@@ -1738,7 +1734,7 @@
     {
       "name": "setAssetScriptTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1805,7 +1801,7 @@
     {
       "name": "setScriptTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1866,7 +1862,7 @@
     {
       "name": "sponsorFeeTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",
@@ -1933,7 +1929,7 @@
     {
       "name": "transferTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "assetID",
@@ -2018,7 +2014,7 @@
     {
       "name": "updateAssetInfoTransaction",
       "set_proofs": true,
-      "generateConstructor": true,
+      
       "fields": [
         {
           "name": "proofs",

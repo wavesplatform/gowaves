@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-const configPath = "/generate/ride_objects.json"
+const configPath = "/generate/ride_objects_demo.json"
 
 type actionField struct {
 	Name             string    `json:"name"`
@@ -134,16 +136,51 @@ func (info listTypeInfo) ElementTypes() typeInfos {
 }
 
 type actionsObject struct {
-	Name   string        `json:"name"`
-	Fields []actionField `json:"fields"`
+	LibVersion ast.LibraryVersion  `json:"version"`
+	Deleted    *ast.LibraryVersion `json:"deleted"`
+	Fields     []actionField       `json:"fields"`
 
-	StructName     string `json:"struct_name"`
-	SetProofs      bool   `json:"set_proofs"`
-	GenConstructor bool   `json:"generateConstructor"`
+	StructName      string `json:"struct_name"`
+	SetProofs       bool   `json:"set_proofs"`
+	SkipConstructor bool   `json:"skip_constructor"`
+}
+
+type rideObject struct {
+	Name    string          `json:"name"`
+	Actions []actionsObject `json:"actions"`
 }
 
 type rideObjects struct {
-	Actions []actionsObject `json:"actions"`
+	Objects []rideObject `json:"objects"`
+}
+
+func fillRideObjectStructNames(obj *rideObject) error {
+	if obj.Name == "" {
+		return errors.New("empty name of object")
+	}
+
+	if len(obj.Actions) == 1 {
+		obj.Actions[0].StructName = obj.Name
+		return nil
+	}
+
+	// check versions duplicates
+	versions := map[ast.LibraryVersion]bool{}
+	for _, act := range obj.Actions {
+		if versions[act.LibVersion] {
+			return errors.Errorf("duplicated version (%d) for %s", act.LibVersion, obj.Name)
+		}
+		versions[act.LibVersion] = true
+	}
+
+	sort.Slice(obj.Actions, func(i, j int) bool {
+		return obj.Actions[i].LibVersion < obj.Actions[j].LibVersion
+	})
+
+	for i := 0; i < len(obj.Actions); i++ {
+		obj.Actions[i].StructName = fmt.Sprintf("%sV%d", obj.Name, obj.Actions[i].LibVersion)
+	}
+	return nil
 }
 
 func parseConfig() (*rideObjects, error) {
@@ -161,9 +198,10 @@ func parseConfig() (*rideObjects, error) {
 	if err = jsonParser.Decode(s); err != nil {
 		return nil, errors.Wrap(err, "failed to decode ride objects config")
 	}
-	for i := 0; i < len(s.Actions); i++ {
-		if s.Actions[i].StructName == "" {
-			s.Actions[i].StructName = strings.ToUpper(string(s.Actions[i].Name[0])) + s.Actions[i].Name[1:]
+
+	for _, obj := range s.Objects {
+		if err := fillRideObjectStructNames(&obj); err != nil {
+			panic(err)
 		}
 	}
 	return s, nil
