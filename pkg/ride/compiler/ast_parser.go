@@ -588,7 +588,7 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleIfWithError:
 		expr, varType = p.ruleIfWithErrorHandler(curNode)
 	case ruleMatch:
-		break
+		expr, varType = p.ruleMatchHandler(curNode)
 	case ruleConst:
 		expr, varType = p.ruleConstHandler(curNode)
 	case ruleList:
@@ -757,10 +757,16 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 		curNode = curNode.next
 	}
 	elseExpr, elseType := p.ruleExprHandler(curNode)
-	if thenType != elseType {
-		p.addError(fmt.Sprintf("Expression in the then and else must be similar: \"%s\" \"%s\"", thenType, elseType), curNode.token32)
+	var resType s.Type
+	if !thenType.Comp(elseType) {
+		union := s.UnionType{Types: map[string]s.Type{}}
+		union.AppendType(thenType)
+		union.AppendType(elseType)
+		resType = union
+	} else {
+		resType = thenType
 	}
-	return ast.NewConditionalNode(cond, thenExpr, elseExpr), thenType
+	return ast.NewConditionalNode(cond, thenExpr, elseExpr), resType
 }
 
 func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
@@ -775,7 +781,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleFunctionCall:
 		expr, varType = p.ruleFunctionCallHandler(curNode)
 	case ruleIdentifier:
-		break
+		expr, varType = p.ruleIdentifierHandler(curNode)
 	case ruleList:
 		expr, varType = p.ruleListHandler(curNode)
 	case ruleTuple:
@@ -783,6 +789,16 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 
 	}
 	return expr, varType
+}
+
+func (p *ASTParser) ruleIdentifierHandler(node *node32) (ast.Node, s.Type) {
+	name := string(p.buffer[node.begin:node.end])
+	v, ok := p.currentStack.GetVariable(name)
+	if !ok {
+		p.addError(fmt.Sprintf("Variable \"%s\" doesnt't exist", name), node.token32)
+		return nil, nil
+	}
+	return ast.NewReferenceNode(name), v.Type
 }
 
 func (p *ASTParser) ruleParExprHandler(node *node32) (ast.Node, s.Type) {
@@ -1121,6 +1137,228 @@ func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 		p.addError("More then one annotation", curNode.token32)
 	}
 	return name, varName
+}
+
+func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
+	p.currentStack = NewVarStack(p.currentStack)
+	curNode := node.up
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	expr, varType := p.ruleExprHandler(curNode)
+	curNode = curNode.next
+	possibleTypes := map[string]s.Type{}
+
+	if t, ok := varType.(s.UnionType); ok {
+		possibleTypes = t.Types
+	} else {
+		possibleTypes[varType.String()] = varType
+	}
+	matchName := "$match0"
+	var conds, trueStates []ast.Node
+	var defaultCase ast.Node
+	retType := s.UnionType{Types: map[string]s.Type{}}
+	for {
+		if curNode != nil && curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		if curNode != nil && curNode.pegRule == ruleCase {
+			cond, trueState, varType := p.ruleCaseHandle(curNode, matchName, possibleTypes)
+			if trueState == nil {
+				if defaultCase != nil {
+					p.addError("Match should have at most one default case", curNode.token32)
+				}
+				defaultCase = cond
+			} else {
+				conds = append(conds, cond)
+				trueStates = append(trueStates, trueState)
+			}
+			retType.AppendType(varType)
+			curNode = curNode.next
+		}
+		if curNode == nil {
+			break
+		}
+	}
+	if defaultCase == nil {
+		p.addError("Match should have default case", node.token32)
+		return nil, nil
+	}
+	falseState := defaultCase
+	for i := len(conds) - 1; i >= 0; i-- {
+		falseState = ast.NewConditionalNode(conds[i], trueStates[i], falseState)
+	}
+	p.currentStack = p.globalStack
+	return ast.NewAssignmentNode(matchName, expr, falseState), retType
+}
+
+func (p *ASTParser) ruleCaseHandle(node *node32, matchName string, possibleTypes map[string]s.Type) (ast.Node, ast.Node, s.Type) {
+	curNode := node.up
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	statementNode := curNode
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	block, blockType := p.ruleBlockHandler(curNode)
+	var cond, trueState ast.Node
+	switch statementNode.pegRule {
+	case ruleValuePattern:
+		cond, trueState = p.ruleValuePatternHandler(statementNode, matchName, possibleTypes)
+		if trueState == nil {
+			trueState = block
+		} else {
+			trueState.SetBlock(block)
+		}
+	case ruleTuplePattern:
+		ifCond, decls := p.ruleTuplePatternHandler(statementNode, matchName, possibleTypes)
+		cond = ifCond
+		if decls == nil {
+			trueState = block
+		} else {
+			var expr ast.Node
+			for i := len(decls) - 1; i >= 0; i-- {
+				decls[i].SetBlock(expr)
+				expr = decls[i]
+			}
+			expr.SetBlock(block)
+			trueState = expr
+		}
+	case ruleObjectPattern:
+	case rulePlaceholder:
+		return block, nil, blockType
+	}
+	return cond, trueState, blockType
+}
+
+func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, possibleTypes map[string]s.Type) (ast.Node, ast.Node) {
+	curNode := node.up
+	nameNode := curNode
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	t := p.ruleTypesHandler(curNode)
+
+	if u, ok := t.(s.UnionType); ok {
+		for typeName := range u.Types {
+			if _, ok := possibleTypes[typeName]; !ok {
+				p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", u.String(), typeName), curNode.token32)
+			}
+		}
+	} else {
+		if _, ok := possibleTypes[t.String()]; !ok {
+			p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", u.String(), t.String()), curNode.token32)
+		}
+	}
+
+	if nameNode.pegRule == rulePlaceholder {
+		return ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(t.String())}), nil
+	}
+	name := string(p.buffer[nameNode.begin:nameNode.end])
+	return ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(t.String())}),
+		ast.NewAssignmentNode(name, ast.NewReferenceNode(matchName), nil)
+}
+
+func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, possibleTypes map[string]s.Type) (ast.Node, []ast.Node) {
+	curNode := node.up.up
+	var exprs []ast.Node
+	var varsTypes []s.Type
+	var shadowDeclarations []ast.Node
+	cnt := 0
+	for {
+		if curNode == nil {
+			break
+		}
+		expr, decl, t := p.ruleTupleValuesPatternHandler(node, matchName, possibleTypes, cnt)
+		exprs = append(exprs, expr)
+		varsTypes = append(varsTypes, t)
+		shadowDeclarations = append(shadowDeclarations, decl...)
+		cnt++
+	}
+	tupleType := s.TupleType{Types: varsTypes}
+	eq := false
+	for _, t := range possibleTypes {
+		if t.Comp(tupleType) {
+			eq = true
+			break
+		}
+	}
+	if !eq {
+		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes, tupleType), curNode.token32)
+	}
+	var cond ast.Node
+	setLast := false
+	setPlaceHolder := false
+	for i := len(exprs) - 1; i >= 0; i-- {
+		if cond == nil {
+			setPlaceHolder = true
+			continue
+		}
+		if !setLast {
+			cond = exprs[i]
+			setLast = true
+		}
+		cond = ast.NewConditionalNode(exprs[i], cond, ast.NewBooleanNode(false))
+	}
+	var trueState ast.Node
+	if setPlaceHolder {
+		trueState = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{
+			ast.NewFunctionCallNode(ast.NativeFunction("1350"), []ast.Node{ast.NewReferenceNode(matchName)}),
+			ast.NewLongNode(int64(len(exprs)))})
+	} else {
+		trueState = ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{
+			ast.NewReferenceNode(matchName),
+			ast.NewStringNode(tupleType.String())})
+	}
+	return ast.NewConditionalNode(cond, trueState, ast.NewBooleanNode(false)), shadowDeclarations
+}
+
+func (p *ASTParser) ruleTupleValuesPatternHandler(node *node32, matchName string, possibleTypes map[string]s.Type, cnt int) (ast.Node, []ast.Node, s.Type) {
+	curNode := node.up
+	var expr ast.Node
+	var varType s.Type
+	var shadowDeclarations []ast.Node
+	switch curNode.pegRule {
+	case ruleValuePattern:
+		curNode = node.up
+		nameNode := curNode
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		t := p.ruleTypesHandler(curNode)
+
+		expr = ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName)), ast.NewStringNode(t.String())})
+		if nameNode.pegRule != rulePlaceholder {
+			name := string(p.buffer[nameNode.begin:nameNode.end])
+			shadowDeclarations = append(shadowDeclarations, ast.NewAssignmentNode(name, ast.NewReferenceNode(matchName), nil))
+		}
+	case rulePlaceholder:
+		// skip and return nil
+		break
+	case ruleExpr:
+		expr, varType = p.ruleExprHandler(curNode)
+		expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
+	case ruleConst:
+		expr, varType = p.ruleConstHandler(curNode)
+		expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
+	case ruleGettableExpr:
+		// TODO(anton)
+		//expr, varType = p.ruleGettableExprHandler(curNode)
+		//expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
+	}
+	return expr, shadowDeclarations, varType
 }
 
 func (p *ASTParser) ruleScriptRootHandler(node *node32) {

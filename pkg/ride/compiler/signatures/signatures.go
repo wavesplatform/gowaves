@@ -140,7 +140,7 @@ func handleGeneric(node *node32, t string) Type {
 
 var (
 	Undefined      = SimpleType{"Undefined"}
-	Any            = SimpleType{"T"}
+	Any            = SimpleType{"Any"}
 	BooleanType    = SimpleType{"Boolean"}
 	IntType        = SimpleType{"Int"}
 	StringType     = SimpleType{"String"}
@@ -159,7 +159,7 @@ type SimpleType struct {
 }
 
 func (t SimpleType) Comp(rideType Type) bool {
-	if t.Type == "T" {
+	if t.Type == "Any" {
 		return true
 	}
 	T, ok := rideType.(SimpleType)
@@ -249,7 +249,15 @@ type TupleType struct {
 
 func (t TupleType) Comp(rideType Type) bool {
 	if T, ok := rideType.(TupleType); ok {
-		return reflect.DeepEqual(t, T)
+		for i := 0; i <= len(t.Types); i++ {
+			if t.Types[i] == nil || T.Types[i] == nil {
+				continue
+			}
+			if !t.Types[i].Comp(T.Types[i]) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
@@ -258,7 +266,11 @@ func (t TupleType) String() string {
 	var res string
 	res += "("
 	for i, k := range t.Types {
-		res += k.String()
+		if k == nil {
+			res += "nil"
+		} else {
+			res += k.String()
+		}
 		if i < len(t.Types)-1 {
 			res += ", "
 		}
