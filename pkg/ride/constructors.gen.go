@@ -1090,12 +1090,12 @@ func exchangeTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Wrap(err, "exchangeTransactionConstructor")
 	}
 
-	buyOrder, ok := args_[0].(rideOrder)
+	buyOrder, ok := args_[0].(rideType)
 	if !ok {
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for buyOrder", args_[0].instanceOf())
 	}
 
-	sellOrder, ok := args_[1].(rideOrder)
+	sellOrder, ok := args_[1].(rideType)
 	if !ok {
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for sellOrder", args_[1].instanceOf())
 	}

@@ -2570,8 +2570,8 @@ func (o rideDataTransaction) getProofs() rideList {
 
 type rideExchangeTransaction struct {
 	proofs          rideList
-	buyOrder        rideOrder
-	sellOrder       rideOrder
+	buyOrder        rideType
+	sellOrder       rideType
 	id              rideBytes
 	bodyBytes       rideBytes
 	senderPublicKey rideBytes
@@ -2585,7 +2585,7 @@ type rideExchangeTransaction struct {
 	sender          rideAddress
 }
 
-func newRideExchangeTransaction(proofs rideList, buyOrder rideOrder, sellOrder rideOrder, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
+func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder rideType, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
 	return rideExchangeTransaction{
 		proofs:          proofs,
 		buyOrder:        buyOrder,

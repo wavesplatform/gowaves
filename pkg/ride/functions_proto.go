@@ -186,7 +186,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if !ok {
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of forth argument", invocation.name(), args[3].instanceOf())
 	}
-	env.setInvocation(newRideInvocation(
+	env.setInvocation(newRideInvocationV5(
 		originCaller,
 		payments,
 		payment,

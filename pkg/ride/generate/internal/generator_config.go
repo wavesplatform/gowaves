@@ -13,7 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-const configPath = "/generate/ride_objects_new.json"
+const configPath = "/generate/ride_objects.json"
 
 type actionField struct {
 	Name             string    `json:"name"`

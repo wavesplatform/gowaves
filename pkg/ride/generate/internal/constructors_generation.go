@@ -96,7 +96,6 @@ type versionInfos map[ast.LibraryVersion]*versionInfo
 
 func (vInfos versionInfos) addNewStruct(version ast.LibraryVersion, info constructorStructInfo) {
 	if _, ok := vInfos[version]; !ok {
-		fmt.Printf("adding ver %d\n", version)
 		vInfos[version] = newVersionInfo(version)
 	}
 
@@ -106,7 +105,6 @@ func (vInfos versionInfos) addNewStruct(version ast.LibraryVersion, info constru
 
 func (vInfos versionInfos) addRemoved(version ast.LibraryVersion, name string) {
 	if _, ok := vInfos[version]; !ok {
-		fmt.Printf("adding ver %d\n", version)
 		vInfos[version] = newVersionInfo(version)
 	}
 
@@ -182,44 +180,6 @@ func processVerInfos() error {
 		for _, structInfo := range existingStructs {
 			verInfo.newStructs = append(verInfo.newStructs, structInfo)
 		}
-
-		// // functionsV[N]
-		// cd.Line("func constructorsFunctionsV%d(m map[string]string) {", verInfo.version)
-		// for name := range verInfo.removedStructs {
-		// 	cd.Line("delete(m, \"%s\")", name)
-		// }
-		// for _, structInfo := range existingStructs {
-		// 	cd.Line("m[\"%s\"] = \"%s\"", structInfo.rideName, structInfo.goName)
-		// }
-		// cd.Line("}")
-		// cd.Line("")
-
-		// // catalogueV[N]
-		// cd.Line("func constructorsCatalogueV%d(m map[string]int) {", verInfo.version)
-		// for name := range verInfo.removedStructs {
-		// 	cd.Line("delete(m, \"%s\")", name)
-		// }
-		// for _, structInfo := range existingStructs {
-		// 	cd.Line("m[\"%s\"] = %d", structInfo.rideName, structInfo.argsNumber)
-		// }
-		// cd.Line("}")
-		// cd.Line("")
-
-		// // constructorsEvaluationCatalogueV[N]EvaluatorV1
-		// cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV1(m map[string]int) {", verInfo.version)
-		// for _, structInfo := range existingStructs {
-		// 	cd.Line("m[\"%s\"] = 0", structInfo.rideName)
-		// }
-		// cd.Line("}")
-		// cd.Line("")
-
-		// // constructorsEvaluationCatalogueV[N]EvaluatorV2
-		// cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV2(m map[string]int) {", verInfo.version)
-		// for _, structInfo := range existingStructs {
-		// 	cd.Line("m[\"%s\"] = 1", structInfo.rideName)
-		// }
-		// cd.Line("}")
-		// cd.Line("")
 	}
 
 	return nil
