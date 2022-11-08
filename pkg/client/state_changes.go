@@ -46,10 +46,10 @@ type LeaseAction struct {
 	OriginTransactionId crypto.Digest      `json:"originTransactionId"`
 	Sender              proto.WavesAddress `json:"sender"`
 	Recipient           proto.Recipient    `json:"recipient"`
-	Amount              int32              `json:"amount"`
-	Height              int32              `json:"height"`
+	Amount              int64              `json:"amount"`
+	Height              uint32             `json:"height"`
 	Status              LeaseStatus        `json:"status"`
-	CancelHeight        int32              `json:"cancelHeight,omitempty"`
+	CancelHeight        uint32             `json:"cancelHeight,omitempty"`
 	CancelTransactionId crypto.Digest      `json:"cancelTransactionId,omitempty"`
 }
 

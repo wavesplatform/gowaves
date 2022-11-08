@@ -5,7 +5,7 @@ go 1.18
 require (
 	filippo.io/edwards25519 v1.0.0
 	github.com/beevik/ntp v0.3.0
-	github.com/btcsuite/btcd v0.22.2
+	github.com/btcsuite/btcd v0.22.3
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.3
@@ -25,7 +25,7 @@ require (
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.13.1
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.9.2
