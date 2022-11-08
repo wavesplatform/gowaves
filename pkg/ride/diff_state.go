@@ -245,9 +245,8 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 }
 
 func (ds *diffState) addWavesBalance(key proto.AddressID, amount int64) error {
-	if ds.changedAccounts != nil {
-		ds.changedAccounts.AddWavesBalanceChange(key)
-	}
+	ds.changedAccounts.AddWavesBalanceChange(key)
+
 	if diff, ok := ds.wavesBalances[key]; ok {
 		err := diff.addBalance(amount)
 		if err != nil {
@@ -276,9 +275,8 @@ func (ds *diffState) loadAssetBalance(key assetBalanceKey) (assetBalance, error)
 }
 
 func (ds *diffState) addAssetBalance(key assetBalanceKey, amount int64) error {
-	if ds.changedAccounts != nil {
-		ds.changedAccounts.AddAssetBalanceChange(key.id, key.asset)
-	}
+	ds.changedAccounts.AddAssetBalanceChange(key.id, key.asset)
+
 	if b, ok := ds.assetBalances[key]; ok {
 		r, err := b.add(amount)
 		if err != nil {
@@ -325,10 +323,9 @@ func (ds *diffState) loadLease(leaseID crypto.Digest) (lease, error) {
 
 // changeLeaseBalances changes sender's leaseOut and receiver's leaseIn by leasing amount
 func (ds *diffState) changeLeaseBalances(sender, receiver proto.AddressID, amount int64) error {
-	if ds.changedAccounts != nil {
-		ds.changedAccounts.AddWavesBalanceChange(sender)
-		ds.changedAccounts.AddWavesBalanceChange(receiver)
-	}
+	ds.changedAccounts.AddWavesBalanceChange(sender)
+	ds.changedAccounts.AddWavesBalanceChange(receiver)
+
 	senderDiff, err := ds.loadWavesBalance(sender)
 	if err != nil {
 		return err
