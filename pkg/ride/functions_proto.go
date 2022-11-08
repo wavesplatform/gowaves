@@ -216,9 +216,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
-	oldChangedBalances := ws.diff.replaceChangedBalances(make(changedBalances))
+	oldChangedAccounts := ws.diff.replaceChangedAccounts(make(changedAccounts))
 	defer func() {
-		_ = ws.diff.replaceChangedBalances(oldChangedBalances)
+		_ = ws.diff.replaceChangedAccounts(oldChangedAccounts)
 	}()
 
 	localActionsCountValidator := proto.NewScriptActionsCountValidator()

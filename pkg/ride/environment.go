@@ -648,7 +648,7 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction, libVersion a
 }
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
-	for changed := range ws.diff.changedBalances {
+	for changed := range ws.diff.changedAccounts {
 		var err error
 		if changed.asset.Present {
 			err = ws.validateAssetBalance(changed.account, changed.asset.ID)
