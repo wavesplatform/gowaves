@@ -216,12 +216,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
-	if !env.invokeExpressionActivated() { // TODO: is this condition necessary?
-		oldChangedBalances := ws.diff.replaceChangedBalances(make(changedBalances))
-		defer func() {
-			_ = ws.diff.replaceChangedBalances(oldChangedBalances)
-		}()
-	}
+	oldChangedBalances := ws.diff.replaceChangedBalances(make(changedBalances))
+	defer func() {
+		_ = ws.diff.replaceChangedBalances(oldChangedBalances)
+	}()
 
 	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
