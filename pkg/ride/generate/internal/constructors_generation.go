@@ -285,13 +285,4 @@ func GenerateConstructors(fn string) {
 	if err := processVerInfos(); err != nil {
 		panic(err)
 	}
-
-	// cd = NewCoder("internal")
-	// if err := generateConstructorFunctionCatalogues(cd, verInfos); err != nil {
-	// 	panic(err)
-	// }
-
-	// if err := cd.Save(fnCatalogue); err != nil {
-	// 	panic(err)
-	// }
 }
