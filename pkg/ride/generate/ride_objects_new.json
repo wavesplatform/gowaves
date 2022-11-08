@@ -553,7 +553,9 @@
 					"fields": [
 						{
 							"name": "payments",
-							"types": [
+							"types":  [
+                "rideUnit",
+                "rideAttachedPayment",
 								"rideList[rideAttachedPayment]"
 							],
 							"order": 1,
@@ -617,7 +619,8 @@
 						{
 							"name": "originCaller",
 							"types": [
-								"rideAddress"
+								"rideUnit",
+                "rideAddress"
 							],
 							"order": 0,
 							"constructorOrder": 6
@@ -625,6 +628,8 @@
 						{
 							"name": "payments",
 							"types": [
+                "rideUnit",
+                "rideAttachedPayment",
 								"rideList[rideAttachedPayment]"
 							],
 							"order": 1,

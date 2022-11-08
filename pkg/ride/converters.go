@@ -73,7 +73,7 @@ func transactionToObject(scheme proto.Scheme, invokeExpressionActivated bool, tx
 }
 
 func assetInfoToObject(info *proto.AssetInfo) rideType {
-	return newRideAsset(
+	return newRideAssetV3(
 		common.Dup(info.IssuerPublicKey.Bytes()),
 		info.ID.Bytes(),
 		rideInt(info.Quantity),
@@ -86,7 +86,7 @@ func assetInfoToObject(info *proto.AssetInfo) rideType {
 }
 
 func fullAssetInfoToObject(info *proto.FullAssetInfo) rideType {
-	return newRideFullAsset(
+	return newRideAssetV4(
 		rideString(info.Description),
 		rideString(info.Name),
 		common.Dup(info.IssuerPublicKey.Bytes()),
@@ -106,7 +106,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 	if len(info.VRF) > 0 {
 		vrf = rideBytes(common.Dup(info.VRF.Bytes()))
 	}
-	return newRideBlockInfo(
+	return newRideBlockInfoV4(
 		vrf,
 		common.Dup(info.GenerationSignature.Bytes()),
 		common.Dup(info.GeneratorPublicKey.Bytes()),
@@ -126,7 +126,7 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	if len(vrf) > 0 {
 		vf = rideBytes(common.Dup(vrf))
 	}
-	return newRideBlockInfo(
+	return newRideBlockInfoV4(
 		vf,
 		common.Dup(header.GenSignature.Bytes()),
 		common.Dup(header.GeneratorPublicKey.Bytes()),
@@ -1173,11 +1173,11 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		feeAsset = transaction.FeeAsset
 		fee = transaction.Fee
 	default:
-		return rideInvocation{}, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
+		return rideInvocationV5{}, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
 	}
 	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
-		return rideInvocation{}, err
+		return rideInvocationV5{}, err
 	}
 	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	var oca rideType = rideUnit{}
@@ -1186,7 +1186,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		oca = rideAddress(sender)
 		ock = callerPK
 	}
-	return newRideInvocation(
+	return newRideInvocationV5(
 		oca,
 		payments,
 		payment,
@@ -1199,14 +1199,14 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 	), nil
 }
 
-func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideInvocation, error) {
+func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideInvocationV5, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
-		return rideInvocation{}, err
+		return rideInvocationV5{}, err
 	}
 	callerEthereumPK, err := tx.FromPK()
 	if err != nil {
-		return rideInvocation{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+		return rideInvocationV5{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	var ocf1 rideType = rideUnit{}
@@ -1231,7 +1231,7 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	}
 
 	wavesAsset := proto.NewOptionalAssetWaves()
-	return newRideInvocation(
+	return newRideInvocationV5(
 		ocf1,
 		psf,
 		pf,

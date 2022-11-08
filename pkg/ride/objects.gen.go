@@ -7,7 +7,113 @@ import (
 	"strings"
 )
 
-type rideFullAsset struct {
+type rideAssetV3 struct {
+	issuePublicKey rideBytes
+	id             rideBytes
+	quantity       rideInt
+	decimals       rideInt
+	issuer         rideAddress
+	scripted       rideBoolean
+	sponsored      rideBoolean
+	reissuable     rideBoolean
+}
+
+func newRideAssetV3(issuePublicKey rideBytes, id rideBytes, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAssetV3 {
+	return rideAssetV3{
+		issuePublicKey: issuePublicKey,
+		id:             id,
+		quantity:       quantity,
+		decimals:       decimals,
+		issuer:         issuer,
+		scripted:       scripted,
+		sponsored:      sponsored,
+		reissuable:     reissuable,
+	}
+}
+
+func (o rideAssetV3) instanceOf() string {
+	return "Asset"
+}
+
+func (o rideAssetV3) eq(other rideType) bool {
+	if oo, ok := other.(rideAssetV3); ok {
+		if !o.issuePublicKey.eq(oo.issuePublicKey) {
+			return false
+		}
+		if !o.id.eq(oo.id) {
+			return false
+		}
+		if !o.quantity.eq(oo.quantity) {
+			return false
+		}
+		if !o.decimals.eq(oo.decimals) {
+			return false
+		}
+		if !o.issuer.eq(oo.issuer) {
+			return false
+		}
+		if !o.scripted.eq(oo.scripted) {
+			return false
+		}
+		if !o.sponsored.eq(oo.sponsored) {
+			return false
+		}
+		if !o.reissuable.eq(oo.reissuable) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideAssetV3) get(prop string) (rideType, error) {
+	switch prop {
+	case instanceField:
+		return rideString("Asset"), nil
+	case issuePublicKeyField:
+		return o.issuePublicKey, nil
+	case idField:
+		return o.id, nil
+	case quantityField:
+		return o.quantity, nil
+	case decimalsField:
+		return o.decimals, nil
+	case issuerField:
+		return o.issuer, nil
+	case scriptedField:
+		return o.scripted, nil
+	case sponsoredField:
+		return o.sponsored, nil
+	case reissuableField:
+		return o.reissuable, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideAssetV3) copy() rideType {
+	return newRideAssetV3(o.issuePublicKey, o.id, o.quantity, o.decimals, o.issuer, o.scripted, o.sponsored, o.reissuable)
+}
+
+func (o rideAssetV3) lines() []string {
+	r := make([]string, 0, 10)
+	r = append(r, "Asset(")
+	r = append(r, fieldLines(issuerField, o.issuer.lines())...)
+	r = append(r, fieldLines(scriptedField, o.scripted.lines())...)
+	r = append(r, fieldLines(issuePublicKeyField, o.issuePublicKey.lines())...)
+	r = append(r, fieldLines(idField, o.id.lines())...)
+	r = append(r, fieldLines(decimalsField, o.decimals.lines())...)
+	r = append(r, fieldLines(reissuableField, o.reissuable.lines())...)
+	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideAssetV3) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+type rideAssetV4 struct {
 	description     rideString
 	name            rideString
 	issuePublicKey  rideBytes
@@ -21,8 +127,8 @@ type rideFullAsset struct {
 	sponsored       rideBoolean
 }
 
-func newRideFullAsset(description rideString, name rideString, issuePublicKey rideBytes, id rideBytes, minSponsoredFee rideType, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean, sponsored rideBoolean) rideFullAsset {
-	return rideFullAsset{
+func newRideAssetV4(description rideString, name rideString, issuePublicKey rideBytes, id rideBytes, minSponsoredFee rideType, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean, sponsored rideBoolean) rideAssetV4 {
+	return rideAssetV4{
 		description:     description,
 		name:            name,
 		issuePublicKey:  issuePublicKey,
@@ -37,12 +143,12 @@ func newRideFullAsset(description rideString, name rideString, issuePublicKey ri
 	}
 }
 
-func (o rideFullAsset) instanceOf() string {
-	return assetTypeName
+func (o rideAssetV4) instanceOf() string {
+	return "Asset"
 }
 
-func (o rideFullAsset) eq(other rideType) bool {
-	if oo, ok := other.(rideFullAsset); ok {
+func (o rideAssetV4) eq(other rideType) bool {
+	if oo, ok := other.(rideAssetV4); ok {
 		if !o.description.eq(oo.description) {
 			return false
 		}
@@ -81,10 +187,10 @@ func (o rideFullAsset) eq(other rideType) bool {
 	return false
 }
 
-func (o rideFullAsset) get(prop string) (rideType, error) {
+func (o rideAssetV4) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(assetTypeName), nil
+		return rideString("Asset"), nil
 	case descriptionField:
 		return o.description, nil
 	case nameField:
@@ -112,13 +218,13 @@ func (o rideFullAsset) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideFullAsset) copy() rideType {
-	return newRideFullAsset(o.description, o.name, o.issuePublicKey, o.id, o.minSponsoredFee, o.decimals, o.quantity, o.issuer, o.reissuable, o.scripted, o.sponsored)
+func (o rideAssetV4) copy() rideType {
+	return newRideAssetV4(o.description, o.name, o.issuePublicKey, o.id, o.minSponsoredFee, o.decimals, o.quantity, o.issuer, o.reissuable, o.scripted, o.sponsored)
 }
 
-func (o rideFullAsset) lines() []string {
+func (o rideAssetV4) lines() []string {
 	r := make([]string, 0, 13)
-	r = append(r, assetTypeName+"(")
+	r = append(r, "Asset(")
 	r = append(r, fieldLines(descriptionField, o.description.lines())...)
 	r = append(r, fieldLines(issuerField, o.issuer.lines())...)
 	r = append(r, fieldLines(scriptedField, o.scripted.lines())...)
@@ -133,113 +239,7 @@ func (o rideFullAsset) lines() []string {
 	return r
 }
 
-func (o rideFullAsset) String() string {
-	return strings.Join(o.lines(), "\n")
-}
-
-type rideAsset struct {
-	issuePublicKey rideBytes
-	id             rideBytes
-	quantity       rideInt
-	decimals       rideInt
-	issuer         rideAddress
-	scripted       rideBoolean
-	sponsored      rideBoolean
-	reissuable     rideBoolean
-}
-
-func newRideAsset(issuePublicKey rideBytes, id rideBytes, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAsset {
-	return rideAsset{
-		issuePublicKey: issuePublicKey,
-		id:             id,
-		quantity:       quantity,
-		decimals:       decimals,
-		issuer:         issuer,
-		scripted:       scripted,
-		sponsored:      sponsored,
-		reissuable:     reissuable,
-	}
-}
-
-func (o rideAsset) instanceOf() string {
-	return assetTypeName
-}
-
-func (o rideAsset) eq(other rideType) bool {
-	if oo, ok := other.(rideAsset); ok {
-		if !o.issuePublicKey.eq(oo.issuePublicKey) {
-			return false
-		}
-		if !o.id.eq(oo.id) {
-			return false
-		}
-		if !o.quantity.eq(oo.quantity) {
-			return false
-		}
-		if !o.decimals.eq(oo.decimals) {
-			return false
-		}
-		if !o.issuer.eq(oo.issuer) {
-			return false
-		}
-		if !o.scripted.eq(oo.scripted) {
-			return false
-		}
-		if !o.sponsored.eq(oo.sponsored) {
-			return false
-		}
-		if !o.reissuable.eq(oo.reissuable) {
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (o rideAsset) get(prop string) (rideType, error) {
-	switch prop {
-	case instanceField:
-		return rideString(assetTypeName), nil
-	case issuePublicKeyField:
-		return o.issuePublicKey, nil
-	case idField:
-		return o.id, nil
-	case quantityField:
-		return o.quantity, nil
-	case decimalsField:
-		return o.decimals, nil
-	case issuerField:
-		return o.issuer, nil
-	case scriptedField:
-		return o.scripted, nil
-	case sponsoredField:
-		return o.sponsored, nil
-	case reissuableField:
-		return o.reissuable, nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
-	}
-}
-
-func (o rideAsset) copy() rideType {
-	return newRideAsset(o.issuePublicKey, o.id, o.quantity, o.decimals, o.issuer, o.scripted, o.sponsored, o.reissuable)
-}
-
-func (o rideAsset) lines() []string {
-	r := make([]string, 0, 10)
-	r = append(r, assetTypeName+"(")
-	r = append(r, fieldLines(issuerField, o.issuer.lines())...)
-	r = append(r, fieldLines(scriptedField, o.scripted.lines())...)
-	r = append(r, fieldLines(issuePublicKeyField, o.issuePublicKey.lines())...)
-	r = append(r, fieldLines(idField, o.id.lines())...)
-	r = append(r, fieldLines(decimalsField, o.decimals.lines())...)
-	r = append(r, fieldLines(reissuableField, o.reissuable.lines())...)
-	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
-	r = append(r, ")")
-	return r
-}
-
-func (o rideAsset) String() string {
+func (o rideAssetV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
@@ -256,7 +256,7 @@ func newRideAssetPair(amountAsset rideType, priceAsset rideType) rideAssetPair {
 }
 
 func (o rideAssetPair) instanceOf() string {
-	return assetPairTypeName
+	return "AssetPair"
 }
 
 func (o rideAssetPair) eq(other rideType) bool {
@@ -275,7 +275,7 @@ func (o rideAssetPair) eq(other rideType) bool {
 func (o rideAssetPair) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(assetPairTypeName), nil
+		return rideString("AssetPair"), nil
 	case amountAssetField:
 		return o.amountAsset, nil
 	case priceAssetField:
@@ -291,7 +291,7 @@ func (o rideAssetPair) copy() rideType {
 
 func (o rideAssetPair) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, assetPairTypeName+"(")
+	r = append(r, "AssetPair(")
 	r = append(r, fieldLines(amountAssetField, o.amountAsset.lines())...)
 	r = append(r, fieldLines(priceAssetField, o.priceAsset.lines())...)
 	r = append(r, ")")
@@ -315,7 +315,7 @@ func newRideAttachedPayment(assetID rideType, amount rideInt) rideAttachedPaymen
 }
 
 func (o rideAttachedPayment) instanceOf() string {
-	return attachedPaymentTypeName
+	return "AttachedPayment"
 }
 
 func (o rideAttachedPayment) eq(other rideType) bool {
@@ -334,7 +334,7 @@ func (o rideAttachedPayment) eq(other rideType) bool {
 func (o rideAttachedPayment) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(attachedPaymentTypeName), nil
+		return rideString("AttachedPayment"), nil
 	case assetIDField:
 		return o.assetID, nil
 	case amountField:
@@ -350,7 +350,7 @@ func (o rideAttachedPayment) copy() rideType {
 
 func (o rideAttachedPayment) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, attachedPaymentTypeName+"(")
+	r = append(r, "AttachedPayment(")
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, ")")
@@ -378,7 +378,7 @@ func newRideBalanceDetails(available rideInt, regular rideInt, generating rideIn
 }
 
 func (o rideBalanceDetails) instanceOf() string {
-	return balanceDetailsTypeName
+	return "BalanceDetails"
 }
 
 func (o rideBalanceDetails) eq(other rideType) bool {
@@ -403,7 +403,7 @@ func (o rideBalanceDetails) eq(other rideType) bool {
 func (o rideBalanceDetails) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(balanceDetailsTypeName), nil
+		return rideString("BalanceDetails"), nil
 	case availableField:
 		return o.available, nil
 	case regularField:
@@ -423,7 +423,7 @@ func (o rideBalanceDetails) copy() rideType {
 
 func (o rideBalanceDetails) lines() []string {
 	r := make([]string, 0, 6)
-	r = append(r, balanceDetailsTypeName+"(")
+	r = append(r, "BalanceDetails(")
 	r = append(r, fieldLines(availableField, o.available.lines())...)
 	r = append(r, fieldLines(regularField, o.regular.lines())...)
 	r = append(r, fieldLines(generatingField, o.generating.lines())...)
@@ -449,7 +449,7 @@ func newRideBinaryEntry(key rideString, value rideBytes) rideBinaryEntry {
 }
 
 func (o rideBinaryEntry) instanceOf() string {
-	return binaryEntryTypeName
+	return "BinaryEntry"
 }
 
 func (o rideBinaryEntry) eq(other rideType) bool {
@@ -468,7 +468,7 @@ func (o rideBinaryEntry) eq(other rideType) bool {
 func (o rideBinaryEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(binaryEntryTypeName), nil
+		return rideString("BinaryEntry"), nil
 	case keyField:
 		return o.key, nil
 	case valueField:
@@ -484,7 +484,7 @@ func (o rideBinaryEntry) copy() rideType {
 
 func (o rideBinaryEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, binaryEntryTypeName+"(")
+	r = append(r, "BinaryEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
@@ -495,7 +495,98 @@ func (o rideBinaryEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-type rideBlockInfo struct {
+type rideBlockInfoV3 struct {
+	generationSignature rideBytes
+	generatorPublicKey  rideBytes
+	baseTarget          rideInt
+	timestamp           rideInt
+	height              rideInt
+	generator           rideAddress
+}
+
+func newRideBlockInfoV3(generationSignature rideBytes, generatorPublicKey rideBytes, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV3 {
+	return rideBlockInfoV3{
+		generationSignature: generationSignature,
+		generatorPublicKey:  generatorPublicKey,
+		baseTarget:          baseTarget,
+		timestamp:           timestamp,
+		height:              height,
+		generator:           generator,
+	}
+}
+
+func (o rideBlockInfoV3) instanceOf() string {
+	return "BlockInfo"
+}
+
+func (o rideBlockInfoV3) eq(other rideType) bool {
+	if oo, ok := other.(rideBlockInfoV3); ok {
+		if !o.generationSignature.eq(oo.generationSignature) {
+			return false
+		}
+		if !o.generatorPublicKey.eq(oo.generatorPublicKey) {
+			return false
+		}
+		if !o.baseTarget.eq(oo.baseTarget) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.height.eq(oo.height) {
+			return false
+		}
+		if !o.generator.eq(oo.generator) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideBlockInfoV3) get(prop string) (rideType, error) {
+	switch prop {
+	case instanceField:
+		return rideString("BlockInfo"), nil
+	case generationSignatureField:
+		return o.generationSignature, nil
+	case generatorPublicKeyField:
+		return o.generatorPublicKey, nil
+	case baseTargetField:
+		return o.baseTarget, nil
+	case timestampField:
+		return o.timestamp, nil
+	case heightField:
+		return o.height, nil
+	case generatorField:
+		return o.generator, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideBlockInfoV3) copy() rideType {
+	return newRideBlockInfoV3(o.generationSignature, o.generatorPublicKey, o.baseTarget, o.timestamp, o.height, o.generator)
+}
+
+func (o rideBlockInfoV3) lines() []string {
+	r := make([]string, 0, 8)
+	r = append(r, "BlockInfo(")
+	r = append(r, fieldLines(baseTargetField, o.baseTarget.lines())...)
+	r = append(r, fieldLines(generatorField, o.generator.lines())...)
+	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
+	r = append(r, fieldLines(heightField, o.height.lines())...)
+	r = append(r, fieldLines(generationSignatureField, o.generationSignature.lines())...)
+	r = append(r, fieldLines(generatorPublicKeyField, o.generatorPublicKey.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideBlockInfoV3) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+type rideBlockInfoV4 struct {
 	vrf                 rideType
 	generationSignature rideBytes
 	generatorPublicKey  rideBytes
@@ -505,8 +596,8 @@ type rideBlockInfo struct {
 	generator           rideAddress
 }
 
-func newRideBlockInfo(vrf rideType, generationSignature rideBytes, generatorPublicKey rideBytes, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfo {
-	return rideBlockInfo{
+func newRideBlockInfoV4(vrf rideType, generationSignature rideBytes, generatorPublicKey rideBytes, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV4 {
+	return rideBlockInfoV4{
 		vrf:                 vrf,
 		generationSignature: generationSignature,
 		generatorPublicKey:  generatorPublicKey,
@@ -517,12 +608,12 @@ func newRideBlockInfo(vrf rideType, generationSignature rideBytes, generatorPubl
 	}
 }
 
-func (o rideBlockInfo) instanceOf() string {
-	return blockInfoTypeName
+func (o rideBlockInfoV4) instanceOf() string {
+	return "BlockInfo"
 }
 
-func (o rideBlockInfo) eq(other rideType) bool {
-	if oo, ok := other.(rideBlockInfo); ok {
+func (o rideBlockInfoV4) eq(other rideType) bool {
+	if oo, ok := other.(rideBlockInfoV4); ok {
 		if !o.vrf.eq(oo.vrf) {
 			return false
 		}
@@ -549,10 +640,10 @@ func (o rideBlockInfo) eq(other rideType) bool {
 	return false
 }
 
-func (o rideBlockInfo) get(prop string) (rideType, error) {
+func (o rideBlockInfoV4) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(blockInfoTypeName), nil
+		return rideString("BlockInfo"), nil
 	case vrfField:
 		return o.vrf, nil
 	case generationSignatureField:
@@ -572,13 +663,13 @@ func (o rideBlockInfo) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideBlockInfo) copy() rideType {
-	return newRideBlockInfo(o.vrf, o.generationSignature, o.generatorPublicKey, o.baseTarget, o.timestamp, o.height, o.generator)
+func (o rideBlockInfoV4) copy() rideType {
+	return newRideBlockInfoV4(o.vrf, o.generationSignature, o.generatorPublicKey, o.baseTarget, o.timestamp, o.height, o.generator)
 }
 
-func (o rideBlockInfo) lines() []string {
+func (o rideBlockInfoV4) lines() []string {
 	r := make([]string, 0, 9)
-	r = append(r, blockInfoTypeName+"(")
+	r = append(r, "BlockInfo(")
 	r = append(r, fieldLines(baseTargetField, o.baseTarget.lines())...)
 	r = append(r, fieldLines(generatorField, o.generator.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
@@ -590,7 +681,7 @@ func (o rideBlockInfo) lines() []string {
 	return r
 }
 
-func (o rideBlockInfo) String() string {
+func (o rideBlockInfoV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
@@ -607,7 +698,7 @@ func newRideBooleanEntry(key rideString, value rideBoolean) rideBooleanEntry {
 }
 
 func (o rideBooleanEntry) instanceOf() string {
-	return booleanEntryTypeName
+	return "BooleanEntry"
 }
 
 func (o rideBooleanEntry) eq(other rideType) bool {
@@ -626,7 +717,7 @@ func (o rideBooleanEntry) eq(other rideType) bool {
 func (o rideBooleanEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(booleanEntryTypeName), nil
+		return rideString("BooleanEntry"), nil
 	case keyField:
 		return o.key, nil
 	case valueField:
@@ -642,7 +733,7 @@ func (o rideBooleanEntry) copy() rideType {
 
 func (o rideBooleanEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, booleanEntryTypeName+"(")
+	r = append(r, "BooleanEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
@@ -666,7 +757,7 @@ func newRideBurn(assetID rideBytes, quantity rideInt) rideBurn {
 }
 
 func (o rideBurn) instanceOf() string {
-	return burnTypeName
+	return "Burn"
 }
 
 func (o rideBurn) eq(other rideType) bool {
@@ -685,7 +776,7 @@ func (o rideBurn) eq(other rideType) bool {
 func (o rideBurn) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(burnTypeName), nil
+		return rideString("Burn"), nil
 	case assetIDField:
 		return o.assetID, nil
 	case quantityField:
@@ -701,7 +792,7 @@ func (o rideBurn) copy() rideType {
 
 func (o rideBurn) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, burnTypeName+"(")
+	r = append(r, "Burn(")
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, ")")
@@ -725,7 +816,7 @@ func newRideDataEntry(value rideType, key rideString) rideDataEntry {
 }
 
 func (o rideDataEntry) instanceOf() string {
-	return dataEntryTypeName
+	return "DataEntry"
 }
 
 func (o rideDataEntry) eq(other rideType) bool {
@@ -744,7 +835,7 @@ func (o rideDataEntry) eq(other rideType) bool {
 func (o rideDataEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(dataEntryTypeName), nil
+		return rideString("DataEntry"), nil
 	case valueField:
 		return o.value, nil
 	case keyField:
@@ -760,7 +851,7 @@ func (o rideDataEntry) copy() rideType {
 
 func (o rideDataEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, dataEntryTypeName+"(")
+	r = append(r, "DataEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
@@ -784,7 +875,7 @@ func newRideDeleteEntry(value rideUnit, key rideString) rideDeleteEntry {
 }
 
 func (o rideDeleteEntry) instanceOf() string {
-	return deleteEntryTypeName
+	return "DeleteEntry"
 }
 
 func (o rideDeleteEntry) eq(other rideType) bool {
@@ -803,7 +894,7 @@ func (o rideDeleteEntry) eq(other rideType) bool {
 func (o rideDeleteEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(deleteEntryTypeName), nil
+		return rideString("DeleteEntry"), nil
 	case valueField:
 		return o.value, nil
 	case keyField:
@@ -819,7 +910,7 @@ func (o rideDeleteEntry) copy() rideType {
 
 func (o rideDeleteEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, deleteEntryTypeName+"(")
+	r = append(r, "DeleteEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, ")")
 	return r
@@ -842,7 +933,7 @@ func newRideIntegerEntry(key rideString, value rideInt) rideIntegerEntry {
 }
 
 func (o rideIntegerEntry) instanceOf() string {
-	return integerEntryTypeName
+	return "IntegerEntry"
 }
 
 func (o rideIntegerEntry) eq(other rideType) bool {
@@ -861,7 +952,7 @@ func (o rideIntegerEntry) eq(other rideType) bool {
 func (o rideIntegerEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(integerEntryTypeName), nil
+		return rideString("IntegerEntry"), nil
 	case keyField:
 		return o.key, nil
 	case valueField:
@@ -877,7 +968,7 @@ func (o rideIntegerEntry) copy() rideType {
 
 func (o rideIntegerEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, integerEntryTypeName+"(")
+	r = append(r, "IntegerEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
@@ -888,9 +979,107 @@ func (o rideIntegerEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-type rideInvocation struct {
-	originCaller          rideAddress
-	payments              rideList
+type rideInvocationV3 struct {
+	payments        rideType
+	payment         rideType
+	callerPublicKey rideBytes
+	feeAssetID      rideType
+	transactionID   rideBytes
+	caller          rideAddress
+	fee             rideInt
+}
+
+func newRideInvocationV3(payments rideType, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV3 {
+	return rideInvocationV3{
+		payments:        payments,
+		payment:         payment,
+		callerPublicKey: callerPublicKey,
+		feeAssetID:      feeAssetID,
+		transactionID:   transactionID,
+		caller:          caller,
+		fee:             fee,
+	}
+}
+
+func (o rideInvocationV3) instanceOf() string {
+	return "Invocation"
+}
+
+func (o rideInvocationV3) eq(other rideType) bool {
+	if oo, ok := other.(rideInvocationV3); ok {
+		if !o.payments.eq(oo.payments) {
+			return false
+		}
+		if !o.payment.eq(oo.payment) {
+			return false
+		}
+		if !o.callerPublicKey.eq(oo.callerPublicKey) {
+			return false
+		}
+		if !o.feeAssetID.eq(oo.feeAssetID) {
+			return false
+		}
+		if !o.transactionID.eq(oo.transactionID) {
+			return false
+		}
+		if !o.caller.eq(oo.caller) {
+			return false
+		}
+		if !o.fee.eq(oo.fee) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideInvocationV3) get(prop string) (rideType, error) {
+	switch prop {
+	case instanceField:
+		return rideString("Invocation"), nil
+	case paymentsField:
+		return o.payments, nil
+	case paymentField:
+		return o.payment, nil
+	case callerPublicKeyField:
+		return o.callerPublicKey, nil
+	case feeAssetIDField:
+		return o.feeAssetID, nil
+	case transactionIDField:
+		return o.transactionID, nil
+	case callerField:
+		return o.caller, nil
+	case feeField:
+		return o.fee, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideInvocationV3) copy() rideType {
+	return newRideInvocationV3(o.payments, o.payment, o.callerPublicKey, o.feeAssetID, o.transactionID, o.caller, o.fee)
+}
+
+func (o rideInvocationV3) lines() []string {
+	r := make([]string, 0, 9)
+	r = append(r, "Invocation(")
+	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
+	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
+	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(transactionIDField, o.transactionID.lines())...)
+	r = append(r, fieldLines(callerField, o.caller.lines())...)
+	r = append(r, fieldLines(feeField, o.fee.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideInvocationV3) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+type rideInvocationV5 struct {
+	originCaller          rideType
+	payments              rideType
 	payment               rideType
 	callerPublicKey       rideBytes
 	feeAssetID            rideType
@@ -900,8 +1089,8 @@ type rideInvocation struct {
 	fee                   rideInt
 }
 
-func newRideInvocation(originCaller rideAddress, payments rideList, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocation {
-	return rideInvocation{
+func newRideInvocationV5(originCaller rideType, payments rideType, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV5 {
+	return rideInvocationV5{
 		originCaller:          originCaller,
 		payments:              payments,
 		payment:               payment,
@@ -914,12 +1103,12 @@ func newRideInvocation(originCaller rideAddress, payments rideList, payment ride
 	}
 }
 
-func (o rideInvocation) instanceOf() string {
-	return invocationTypeName
+func (o rideInvocationV5) instanceOf() string {
+	return "Invocation"
 }
 
-func (o rideInvocation) eq(other rideType) bool {
-	if oo, ok := other.(rideInvocation); ok {
+func (o rideInvocationV5) eq(other rideType) bool {
+	if oo, ok := other.(rideInvocationV5); ok {
 		if !o.originCaller.eq(oo.originCaller) {
 			return false
 		}
@@ -952,10 +1141,10 @@ func (o rideInvocation) eq(other rideType) bool {
 	return false
 }
 
-func (o rideInvocation) get(prop string) (rideType, error) {
+func (o rideInvocationV5) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(invocationTypeName), nil
+		return rideString("Invocation"), nil
 	case originCallerField:
 		return o.originCaller, nil
 	case paymentsField:
@@ -979,13 +1168,13 @@ func (o rideInvocation) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideInvocation) copy() rideType {
-	return newRideInvocation(o.originCaller, o.payments, o.payment, o.callerPublicKey, o.feeAssetID, o.originCallerPublicKey, o.transactionID, o.caller, o.fee)
+func (o rideInvocationV5) copy() rideType {
+	return newRideInvocationV5(o.originCaller, o.payments, o.payment, o.callerPublicKey, o.feeAssetID, o.originCallerPublicKey, o.transactionID, o.caller, o.fee)
 }
 
-func (o rideInvocation) lines() []string {
+func (o rideInvocationV5) lines() []string {
 	r := make([]string, 0, 11)
-	r = append(r, invocationTypeName+"(")
+	r = append(r, "Invocation(")
 	r = append(r, fieldLines(originCallerField, o.originCaller.lines())...)
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
 	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
@@ -998,7 +1187,7 @@ func (o rideInvocation) lines() []string {
 	return r
 }
 
-func (o rideInvocation) String() string {
+func (o rideInvocationV5) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
@@ -1025,7 +1214,7 @@ func newRideIssue(compiledScript rideType, name rideString, description rideStri
 }
 
 func (o rideIssue) instanceOf() string {
-	return issueTypeName
+	return "Issue"
 }
 
 func (o rideIssue) eq(other rideType) bool {
@@ -1059,7 +1248,7 @@ func (o rideIssue) eq(other rideType) bool {
 func (o rideIssue) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(issueTypeName), nil
+		return rideString("Issue"), nil
 	case compiledScriptField:
 		return o.compiledScript, nil
 	case nameField:
@@ -1085,7 +1274,7 @@ func (o rideIssue) copy() rideType {
 
 func (o rideIssue) lines() []string {
 	r := make([]string, 0, 9)
-	r = append(r, issueTypeName+"(")
+	r = append(r, "Issue(")
 	r = append(r, fieldLines(isReissuableField, o.isReissuable.lines())...)
 	r = append(r, fieldLines(nonceField, o.nonce.lines())...)
 	r = append(r, fieldLines(descriptionField, o.description.lines())...)
@@ -1112,7 +1301,7 @@ func newRideLeaseCancel(leaseID rideBytes) rideLeaseCancel {
 }
 
 func (o rideLeaseCancel) instanceOf() string {
-	return leaseCancelTypeName
+	return "LeaseCancel"
 }
 
 func (o rideLeaseCancel) eq(other rideType) bool {
@@ -1128,7 +1317,7 @@ func (o rideLeaseCancel) eq(other rideType) bool {
 func (o rideLeaseCancel) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(leaseCancelTypeName), nil
+		return rideString("LeaseCancel"), nil
 	case leaseIDField:
 		return o.leaseID, nil
 	default:
@@ -1142,7 +1331,7 @@ func (o rideLeaseCancel) copy() rideType {
 
 func (o rideLeaseCancel) lines() []string {
 	r := make([]string, 0, 3)
-	r = append(r, leaseCancelTypeName+"(")
+	r = append(r, "LeaseCancel(")
 	r = append(r, fieldLines(leaseIDField, o.leaseID.lines())...)
 	r = append(r, ")")
 	return r
@@ -1167,7 +1356,7 @@ func newRideLease(recipient rideRecipient, amount rideInt, nonce rideInt) rideLe
 }
 
 func (o rideLease) instanceOf() string {
-	return leaseTypeName
+	return "Lease"
 }
 
 func (o rideLease) eq(other rideType) bool {
@@ -1189,7 +1378,7 @@ func (o rideLease) eq(other rideType) bool {
 func (o rideLease) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(leaseTypeName), nil
+		return rideString("Lease"), nil
 	case recipientField:
 		return o.recipient, nil
 	case amountField:
@@ -1207,7 +1396,7 @@ func (o rideLease) copy() rideType {
 
 func (o rideLease) lines() []string {
 	r := make([]string, 0, 5)
-	r = append(r, leaseTypeName+"(")
+	r = append(r, "Lease(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, fieldLines(nonceField, o.nonce.lines())...)
@@ -1256,7 +1445,7 @@ func newRideOrder(assetPair rideType, orderType rideType, matcherFeeAssetID ride
 }
 
 func (o rideOrder) instanceOf() string {
-	return orderTypeName
+	return "Order"
 }
 
 func (o rideOrder) eq(other rideType) bool {
@@ -1311,7 +1500,7 @@ func (o rideOrder) eq(other rideType) bool {
 func (o rideOrder) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(orderTypeName), nil
+		return rideString("Order"), nil
 	case assetPairField:
 		return o.assetPair, nil
 	case orderTypeField:
@@ -1351,7 +1540,7 @@ func (o rideOrder) copy() rideType {
 
 func (o rideOrder) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, orderTypeName+"(")
+	r = append(r, "Order(")
 	r = append(r, fieldLines(assetPairField, o.assetPair.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -1398,7 +1587,7 @@ func newRideReissue(assetID rideBytes, quantity rideInt, isReissuable rideBoolea
 }
 
 func (o rideReissue) instanceOf() string {
-	return reissueTypeName
+	return "Reissue"
 }
 
 func (o rideReissue) eq(other rideType) bool {
@@ -1420,7 +1609,7 @@ func (o rideReissue) eq(other rideType) bool {
 func (o rideReissue) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(reissueTypeName), nil
+		return rideString("Reissue"), nil
 	case assetIDField:
 		return o.assetID, nil
 	case quantityField:
@@ -1438,7 +1627,7 @@ func (o rideReissue) copy() rideType {
 
 func (o rideReissue) lines() []string {
 	r := make([]string, 0, 5)
-	r = append(r, reissueTypeName+"(")
+	r = append(r, "Reissue(")
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(isReissuableField, o.isReissuable.lines())...)
@@ -1463,7 +1652,7 @@ func newRideScriptResult(writeSet rideType, transferSet rideType) rideScriptResu
 }
 
 func (o rideScriptResult) instanceOf() string {
-	return scriptResultTypeName
+	return "ScriptResult"
 }
 
 func (o rideScriptResult) eq(other rideType) bool {
@@ -1482,7 +1671,7 @@ func (o rideScriptResult) eq(other rideType) bool {
 func (o rideScriptResult) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(scriptResultTypeName), nil
+		return rideString("ScriptResult"), nil
 	case writeSetField:
 		return o.writeSet, nil
 	case transferSetField:
@@ -1498,7 +1687,7 @@ func (o rideScriptResult) copy() rideType {
 
 func (o rideScriptResult) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, scriptResultTypeName+"(")
+	r = append(r, "ScriptResult(")
 	r = append(r, fieldLines(writeSetField, o.writeSet.lines())...)
 	r = append(r, fieldLines(transferSetField, o.transferSet.lines())...)
 	r = append(r, ")")
@@ -1524,7 +1713,7 @@ func newRideScriptTransfer(recipient rideType, asset rideType, amount rideInt) r
 }
 
 func (o rideScriptTransfer) instanceOf() string {
-	return scriptTransferTypeName
+	return "ScriptTransfer"
 }
 
 func (o rideScriptTransfer) eq(other rideType) bool {
@@ -1546,7 +1735,7 @@ func (o rideScriptTransfer) eq(other rideType) bool {
 func (o rideScriptTransfer) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(scriptTransferTypeName), nil
+		return rideString("ScriptTransfer"), nil
 	case recipientField:
 		return o.recipient, nil
 	case assetField:
@@ -1564,7 +1753,7 @@ func (o rideScriptTransfer) copy() rideType {
 
 func (o rideScriptTransfer) lines() []string {
 	r := make([]string, 0, 5)
-	r = append(r, scriptTransferTypeName+"(")
+	r = append(r, "ScriptTransfer(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, fieldLines(assetField, o.asset.lines())...)
@@ -1613,7 +1802,7 @@ func newRideFullScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs r
 }
 
 func (o rideFullScriptTransfer) instanceOf() string {
-	return scriptTransferTypeName
+	return "FullScriptTransfer"
 }
 
 func (o rideFullScriptTransfer) eq(other rideType) bool {
@@ -1668,7 +1857,7 @@ func (o rideFullScriptTransfer) eq(other rideType) bool {
 func (o rideFullScriptTransfer) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(scriptTransferTypeName), nil
+		return rideString("FullScriptTransfer"), nil
 	case attachmentField:
 		return o.attachment, nil
 	case bodyBytesField:
@@ -1708,7 +1897,7 @@ func (o rideFullScriptTransfer) copy() rideType {
 
 func (o rideFullScriptTransfer) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, scriptTransferTypeName+"(")
+	r = append(r, "FullScriptTransfer(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, fieldLines(assetField, o.asset.lines())...)
@@ -1733,7 +1922,7 @@ func newRideSponsorFee(assetID rideBytes, minSponsoredAssetFee rideInt) rideSpon
 }
 
 func (o rideSponsorFee) instanceOf() string {
-	return sponsorFeeTypeName
+	return "SponsorFee"
 }
 
 func (o rideSponsorFee) eq(other rideType) bool {
@@ -1752,7 +1941,7 @@ func (o rideSponsorFee) eq(other rideType) bool {
 func (o rideSponsorFee) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(sponsorFeeTypeName), nil
+		return rideString("SponsorFee"), nil
 	case assetIDField:
 		return o.assetID, nil
 	case minSponsoredAssetFeeField:
@@ -1768,7 +1957,7 @@ func (o rideSponsorFee) copy() rideType {
 
 func (o rideSponsorFee) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, sponsorFeeTypeName+"(")
+	r = append(r, "SponsorFee(")
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
 	r = append(r, fieldLines(minSponsoredAssetFeeField, o.minSponsoredAssetFee.lines())...)
 	r = append(r, ")")
@@ -1792,7 +1981,7 @@ func newRideStringEntry(key rideString, value rideString) rideStringEntry {
 }
 
 func (o rideStringEntry) instanceOf() string {
-	return stringEntryTypeName
+	return "StringEntry"
 }
 
 func (o rideStringEntry) eq(other rideType) bool {
@@ -1811,7 +2000,7 @@ func (o rideStringEntry) eq(other rideType) bool {
 func (o rideStringEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(stringEntryTypeName), nil
+		return rideString("StringEntry"), nil
 	case keyField:
 		return o.key, nil
 	case valueField:
@@ -1827,7 +2016,7 @@ func (o rideStringEntry) copy() rideType {
 
 func (o rideStringEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, stringEntryTypeName+"(")
+	r = append(r, "StringEntry(")
 	r = append(r, fieldLines(keyField, o.key.lines())...)
 	r = append(r, fieldLines(valueField, o.value.lines())...)
 	r = append(r, ")")
@@ -1851,7 +2040,7 @@ func newRideTransferEntry(recipient rideType, amount rideInt) rideTransferEntry 
 }
 
 func (o rideTransferEntry) instanceOf() string {
-	return transferEntryTypeName
+	return "TransferEntry"
 }
 
 func (o rideTransferEntry) eq(other rideType) bool {
@@ -1870,7 +2059,7 @@ func (o rideTransferEntry) eq(other rideType) bool {
 func (o rideTransferEntry) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(transferEntryTypeName), nil
+		return rideString("TransferEntry"), nil
 	case recipientField:
 		return o.recipient, nil
 	case amountField:
@@ -1886,7 +2075,7 @@ func (o rideTransferEntry) copy() rideType {
 
 func (o rideTransferEntry) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, transferEntryTypeName+"(")
+	r = append(r, "TransferEntry(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, ")")
@@ -1908,7 +2097,7 @@ func newRideTransferSet(transfers rideList) rideTransferSet {
 }
 
 func (o rideTransferSet) instanceOf() string {
-	return transferSetTypeName
+	return "TransferSet"
 }
 
 func (o rideTransferSet) eq(other rideType) bool {
@@ -1924,7 +2113,7 @@ func (o rideTransferSet) eq(other rideType) bool {
 func (o rideTransferSet) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(transferSetTypeName), nil
+		return rideString("TransferSet"), nil
 	case transfersField:
 		return o.transfers, nil
 	default:
@@ -1938,7 +2127,7 @@ func (o rideTransferSet) copy() rideType {
 
 func (o rideTransferSet) lines() []string {
 	r := make([]string, 0, 3)
-	r = append(r, transferSetTypeName+"(")
+	r = append(r, "TransferSet(")
 	r = append(r, fieldLines(transfersField, o.transfers.lines())...)
 	r = append(r, ")")
 	return r
@@ -1959,7 +2148,7 @@ func newRideWriteSet(data rideList) rideWriteSet {
 }
 
 func (o rideWriteSet) instanceOf() string {
-	return writeSetTypeName
+	return "WriteSet"
 }
 
 func (o rideWriteSet) eq(other rideType) bool {
@@ -1975,7 +2164,7 @@ func (o rideWriteSet) eq(other rideType) bool {
 func (o rideWriteSet) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(writeSetTypeName), nil
+		return rideString("WriteSet"), nil
 	case dataField:
 		return o.data, nil
 	default:
@@ -1989,7 +2178,7 @@ func (o rideWriteSet) copy() rideType {
 
 func (o rideWriteSet) lines() []string {
 	r := make([]string, 0, 3)
-	r = append(r, writeSetTypeName+"(")
+	r = append(r, "WriteSet(")
 	r = append(r, fieldLines(dataField, o.data.lines())...)
 	r = append(r, ")")
 	return r
@@ -2028,7 +2217,7 @@ func newRideBurnTransaction(bodyBytes rideType, proofs rideList, senderPublicKey
 }
 
 func (o rideBurnTransaction) instanceOf() string {
-	return burnTransactionTypeName
+	return "BurnTransaction"
 }
 
 func (o rideBurnTransaction) eq(other rideType) bool {
@@ -2071,7 +2260,7 @@ func (o rideBurnTransaction) eq(other rideType) bool {
 func (o rideBurnTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(burnTransactionTypeName), nil
+		return rideString("BurnTransaction"), nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
 	case proofsField:
@@ -2103,7 +2292,7 @@ func (o rideBurnTransaction) copy() rideType {
 
 func (o rideBurnTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, burnTransactionTypeName+"(")
+	r = append(r, "BurnTransaction(")
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -2158,7 +2347,7 @@ func newRideCreateAliasTransaction(proofs rideList, alias rideString, bodyBytes 
 }
 
 func (o rideCreateAliasTransaction) instanceOf() string {
-	return createAliasTransactionTypeName
+	return "CreateAliasTransaction"
 }
 
 func (o rideCreateAliasTransaction) eq(other rideType) bool {
@@ -2198,7 +2387,7 @@ func (o rideCreateAliasTransaction) eq(other rideType) bool {
 func (o rideCreateAliasTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(createAliasTransactionTypeName), nil
+		return rideString("CreateAliasTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case aliasField:
@@ -2228,7 +2417,7 @@ func (o rideCreateAliasTransaction) copy() rideType {
 
 func (o rideCreateAliasTransaction) lines() []string {
 	r := make([]string, 0, 11)
-	r = append(r, createAliasTransactionTypeName+"(")
+	r = append(r, "CreateAliasTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
@@ -2282,7 +2471,7 @@ func newRideDataTransaction(proofs rideList, bodyBytes rideBytes, id rideBytes, 
 }
 
 func (o rideDataTransaction) instanceOf() string {
-	return dataTransactionTypeName
+	return "DataTransaction"
 }
 
 func (o rideDataTransaction) eq(other rideType) bool {
@@ -2322,7 +2511,7 @@ func (o rideDataTransaction) eq(other rideType) bool {
 func (o rideDataTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(dataTransactionTypeName), nil
+		return rideString("DataTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case bodyBytesField:
@@ -2352,7 +2541,7 @@ func (o rideDataTransaction) copy() rideType {
 
 func (o rideDataTransaction) lines() []string {
 	r := make([]string, 0, 11)
-	r = append(r, dataTransactionTypeName+"(")
+	r = append(r, "DataTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(dataField, o.data.lines())...)
@@ -2381,8 +2570,8 @@ func (o rideDataTransaction) getProofs() rideList {
 
 type rideExchangeTransaction struct {
 	proofs          rideList
-	buyOrder        rideType
-	sellOrder       rideType
+	buyOrder        rideOrder
+	sellOrder       rideOrder
 	id              rideBytes
 	bodyBytes       rideBytes
 	senderPublicKey rideBytes
@@ -2396,7 +2585,7 @@ type rideExchangeTransaction struct {
 	sender          rideAddress
 }
 
-func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder rideType, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
+func newRideExchangeTransaction(proofs rideList, buyOrder rideOrder, sellOrder rideOrder, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
 	return rideExchangeTransaction{
 		proofs:          proofs,
 		buyOrder:        buyOrder,
@@ -2416,7 +2605,7 @@ func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder ri
 }
 
 func (o rideExchangeTransaction) instanceOf() string {
-	return exchangeTransactionTypeName
+	return "ExchangeTransaction"
 }
 
 func (o rideExchangeTransaction) eq(other rideType) bool {
@@ -2471,7 +2660,7 @@ func (o rideExchangeTransaction) eq(other rideType) bool {
 func (o rideExchangeTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(exchangeTransactionTypeName), nil
+		return rideString("ExchangeTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case buyOrderField:
@@ -2511,7 +2700,7 @@ func (o rideExchangeTransaction) copy() rideType {
 
 func (o rideExchangeTransaction) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, exchangeTransactionTypeName+"(")
+	r = append(r, "ExchangeTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(buyOrderField, o.buyOrder.lines())...)
@@ -2566,7 +2755,7 @@ func newRideGenesisTransaction(recipient rideRecipient, id rideBytes, bodyBytes 
 }
 
 func (o rideGenesisTransaction) instanceOf() string {
-	return genesisTransactionTypeName
+	return "GenesisTransaction"
 }
 
 func (o rideGenesisTransaction) eq(other rideType) bool {
@@ -2600,7 +2789,7 @@ func (o rideGenesisTransaction) eq(other rideType) bool {
 func (o rideGenesisTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(genesisTransactionTypeName), nil
+		return rideString("GenesisTransaction"), nil
 	case recipientField:
 		return o.recipient, nil
 	case idField:
@@ -2626,7 +2815,7 @@ func (o rideGenesisTransaction) copy() rideType {
 
 func (o rideGenesisTransaction) lines() []string {
 	r := make([]string, 0, 9)
-	r = append(r, genesisTransactionTypeName+"(")
+	r = append(r, "GenesisTransaction(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
@@ -2670,7 +2859,7 @@ func newRideInvokeExpressionTransaction(proofs rideList, feeAssetID rideType, bo
 }
 
 func (o rideInvokeExpressionTransaction) instanceOf() string {
-	return invokeExpressionTransactionTypeName
+	return "InvokeExpressionTransaction"
 }
 
 func (o rideInvokeExpressionTransaction) eq(other rideType) bool {
@@ -2713,7 +2902,7 @@ func (o rideInvokeExpressionTransaction) eq(other rideType) bool {
 func (o rideInvokeExpressionTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(invokeExpressionTransactionTypeName), nil
+		return rideString("InvokeExpressionTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case feeAssetIDField:
@@ -2745,7 +2934,7 @@ func (o rideInvokeExpressionTransaction) copy() rideType {
 
 func (o rideInvokeExpressionTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, invokeExpressionTransactionTypeName+"(")
+	r = append(r, "InvokeExpressionTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
@@ -2810,7 +2999,7 @@ func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, paymen
 }
 
 func (o rideInvokeScriptTransaction) instanceOf() string {
-	return invokeScriptTransactionTypeName
+	return "InvokeScriptTransaction"
 }
 
 func (o rideInvokeScriptTransaction) eq(other rideType) bool {
@@ -2865,7 +3054,7 @@ func (o rideInvokeScriptTransaction) eq(other rideType) bool {
 func (o rideInvokeScriptTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(invokeScriptTransactionTypeName), nil
+		return rideString("InvokeScriptTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case feeAssetIDField:
@@ -2905,7 +3094,7 @@ func (o rideInvokeScriptTransaction) copy() rideType {
 
 func (o rideInvokeScriptTransaction) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, invokeScriptTransactionTypeName+"(")
+	r = append(r, "InvokeScriptTransaction(")
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -2973,7 +3162,7 @@ func newRideIssueTransaction(proofs rideList, script rideType, description rideS
 }
 
 func (o rideIssueTransaction) instanceOf() string {
-	return issueTransactionTypeName
+	return "IssueTransaction"
 }
 
 func (o rideIssueTransaction) eq(other rideType) bool {
@@ -3028,7 +3217,7 @@ func (o rideIssueTransaction) eq(other rideType) bool {
 func (o rideIssueTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(issueTransactionTypeName), nil
+		return rideString("IssueTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case scriptField:
@@ -3068,7 +3257,7 @@ func (o rideIssueTransaction) copy() rideType {
 
 func (o rideIssueTransaction) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, issueTransactionTypeName+"(")
+	r = append(r, "IssueTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(descriptionField, o.description.lines())...)
@@ -3127,7 +3316,7 @@ func newRideLeaseCancelTransaction(proofs rideList, bodyBytes rideBytes, senderP
 }
 
 func (o rideLeaseCancelTransaction) instanceOf() string {
-	return leaseCancelTransactionTypeName
+	return "LeaseCancelTransaction"
 }
 
 func (o rideLeaseCancelTransaction) eq(other rideType) bool {
@@ -3167,7 +3356,7 @@ func (o rideLeaseCancelTransaction) eq(other rideType) bool {
 func (o rideLeaseCancelTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(leaseCancelTransactionTypeName), nil
+		return rideString("LeaseCancelTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case bodyBytesField:
@@ -3197,7 +3386,7 @@ func (o rideLeaseCancelTransaction) copy() rideType {
 
 func (o rideLeaseCancelTransaction) lines() []string {
 	r := make([]string, 0, 11)
-	r = append(r, leaseCancelTransactionTypeName+"(")
+	r = append(r, "LeaseCancelTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
@@ -3253,7 +3442,7 @@ func newRideLeaseTransaction(proofs rideList, recipient rideRecipient, bodyBytes
 }
 
 func (o rideLeaseTransaction) instanceOf() string {
-	return leaseTransactionTypeName
+	return "LeaseTransaction"
 }
 
 func (o rideLeaseTransaction) eq(other rideType) bool {
@@ -3296,7 +3485,7 @@ func (o rideLeaseTransaction) eq(other rideType) bool {
 func (o rideLeaseTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(leaseTransactionTypeName), nil
+		return rideString("LeaseTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case recipientField:
@@ -3328,7 +3517,7 @@ func (o rideLeaseTransaction) copy() rideType {
 
 func (o rideLeaseTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, leaseTransactionTypeName+"(")
+	r = append(r, "LeaseTransaction(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -3391,7 +3580,7 @@ func newRideMassTransferTransaction(proofs rideList, assetID rideType, bodyBytes
 }
 
 func (o rideMassTransferTransaction) instanceOf() string {
-	return massTransferTransactionTypeName
+	return "MassTransferTransaction"
 }
 
 func (o rideMassTransferTransaction) eq(other rideType) bool {
@@ -3443,7 +3632,7 @@ func (o rideMassTransferTransaction) eq(other rideType) bool {
 func (o rideMassTransferTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(massTransferTransactionTypeName), nil
+		return rideString("MassTransferTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case assetIDField:
@@ -3481,7 +3670,7 @@ func (o rideMassTransferTransaction) copy() rideType {
 
 func (o rideMassTransferTransaction) lines() []string {
 	r := make([]string, 0, 15)
-	r = append(r, massTransferTransactionTypeName+"(")
+	r = append(r, "MassTransferTransaction(")
 	r = append(r, fieldLines(transfersCountField, o.transfersCount.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -3541,7 +3730,7 @@ func newRidePaymentTransaction(proofs rideList, recipient rideRecipient, bodyByt
 }
 
 func (o ridePaymentTransaction) instanceOf() string {
-	return paymentTransactionTypeName
+	return "PaymentTransaction"
 }
 
 func (o ridePaymentTransaction) eq(other rideType) bool {
@@ -3584,7 +3773,7 @@ func (o ridePaymentTransaction) eq(other rideType) bool {
 func (o ridePaymentTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(paymentTransactionTypeName), nil
+		return rideString("PaymentTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case recipientField:
@@ -3616,7 +3805,7 @@ func (o ridePaymentTransaction) copy() rideType {
 
 func (o ridePaymentTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, paymentTransactionTypeName+"(")
+	r = append(r, "PaymentTransaction(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -3675,7 +3864,7 @@ func newRideReissueTransaction(bodyBytes rideType, proofs rideList, senderPublic
 }
 
 func (o rideReissueTransaction) instanceOf() string {
-	return reissueTransactionTypeName
+	return "ReissueTransaction"
 }
 
 func (o rideReissueTransaction) eq(other rideType) bool {
@@ -3721,7 +3910,7 @@ func (o rideReissueTransaction) eq(other rideType) bool {
 func (o rideReissueTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(reissueTransactionTypeName), nil
+		return rideString("ReissueTransaction"), nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
 	case proofsField:
@@ -3755,7 +3944,7 @@ func (o rideReissueTransaction) copy() rideType {
 
 func (o rideReissueTransaction) lines() []string {
 	r := make([]string, 0, 13)
-	r = append(r, reissueTransactionTypeName+"(")
+	r = append(r, "ReissueTransaction(")
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -3813,7 +4002,7 @@ func newRideSetAssetScriptTransaction(proofs rideList, script rideType, bodyByte
 }
 
 func (o rideSetAssetScriptTransaction) instanceOf() string {
-	return setAssetScriptTransactionTypeName
+	return "SetAssetScriptTransaction"
 }
 
 func (o rideSetAssetScriptTransaction) eq(other rideType) bool {
@@ -3856,7 +4045,7 @@ func (o rideSetAssetScriptTransaction) eq(other rideType) bool {
 func (o rideSetAssetScriptTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(setAssetScriptTransactionTypeName), nil
+		return rideString("SetAssetScriptTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case scriptField:
@@ -3888,7 +4077,7 @@ func (o rideSetAssetScriptTransaction) copy() rideType {
 
 func (o rideSetAssetScriptTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, setAssetScriptTransactionTypeName+"(")
+	r = append(r, "SetAssetScriptTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
@@ -3943,7 +4132,7 @@ func newRideSetScriptTransaction(proofs rideList, script rideType, bodyBytes rid
 }
 
 func (o rideSetScriptTransaction) instanceOf() string {
-	return setScriptTransactionTypeName
+	return "SetScriptTransaction"
 }
 
 func (o rideSetScriptTransaction) eq(other rideType) bool {
@@ -3983,7 +4172,7 @@ func (o rideSetScriptTransaction) eq(other rideType) bool {
 func (o rideSetScriptTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(setScriptTransactionTypeName), nil
+		return rideString("SetScriptTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case scriptField:
@@ -4013,7 +4202,7 @@ func (o rideSetScriptTransaction) copy() rideType {
 
 func (o rideSetScriptTransaction) lines() []string {
 	r := make([]string, 0, 11)
-	r = append(r, setScriptTransactionTypeName+"(")
+	r = append(r, "SetScriptTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
@@ -4069,7 +4258,7 @@ func newRideSponsorFeeTransaction(proofs rideList, minSponsoredAssetFee rideType
 }
 
 func (o rideSponsorFeeTransaction) instanceOf() string {
-	return sponsorFeeTransactionTypeName
+	return "SponsorFeeTransaction"
 }
 
 func (o rideSponsorFeeTransaction) eq(other rideType) bool {
@@ -4112,7 +4301,7 @@ func (o rideSponsorFeeTransaction) eq(other rideType) bool {
 func (o rideSponsorFeeTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(sponsorFeeTransactionTypeName), nil
+		return rideString("SponsorFeeTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case minSponsoredAssetFeeField:
@@ -4144,7 +4333,7 @@ func (o rideSponsorFeeTransaction) copy() rideType {
 
 func (o rideSponsorFeeTransaction) lines() []string {
 	r := make([]string, 0, 12)
-	r = append(r, sponsorFeeTransactionTypeName+"(")
+	r = append(r, "SponsorFeeTransaction(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
@@ -4207,7 +4396,7 @@ func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID
 }
 
 func (o rideTransferTransaction) instanceOf() string {
-	return transferTransactionTypeName
+	return "TransferTransaction"
 }
 
 func (o rideTransferTransaction) eq(other rideType) bool {
@@ -4259,7 +4448,7 @@ func (o rideTransferTransaction) eq(other rideType) bool {
 func (o rideTransferTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(transferTransactionTypeName), nil
+		return rideString("TransferTransaction"), nil
 	case assetIDField:
 		return o.assetID, nil
 	case bodyBytesField:
@@ -4297,7 +4486,7 @@ func (o rideTransferTransaction) copy() rideType {
 
 func (o rideTransferTransaction) lines() []string {
 	r := make([]string, 0, 15)
-	r = append(r, transferTransactionTypeName+"(")
+	r = append(r, "TransferTransaction(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
@@ -4361,7 +4550,7 @@ func newRideUpdateAssetInfoTransaction(proofs rideList, assetID rideType, feeAss
 }
 
 func (o rideUpdateAssetInfoTransaction) instanceOf() string {
-	return updateAssetInfoTransactionTypeName
+	return "UpdateAssetInfoTransaction"
 }
 
 func (o rideUpdateAssetInfoTransaction) eq(other rideType) bool {
@@ -4410,7 +4599,7 @@ func (o rideUpdateAssetInfoTransaction) eq(other rideType) bool {
 func (o rideUpdateAssetInfoTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString(updateAssetInfoTransactionTypeName), nil
+		return rideString("UpdateAssetInfoTransaction"), nil
 	case proofsField:
 		return o.proofs, nil
 	case assetIDField:
@@ -4446,7 +4635,7 @@ func (o rideUpdateAssetInfoTransaction) copy() rideType {
 
 func (o rideUpdateAssetInfoTransaction) lines() []string {
 	r := make([]string, 0, 14)
-	r = append(r, updateAssetInfoTransactionTypeName+"(")
+	r = append(r, "UpdateAssetInfoTransaction(")
 	r = append(r, fieldLines(nameField, o.name.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
