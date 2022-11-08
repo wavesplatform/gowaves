@@ -648,28 +648,15 @@ func (ws *WrappedState) countActionTotal(action proto.ScriptAction, libVersion a
 }
 
 func (ws *WrappedState) validateBalances(rideV6Activated bool) error {
-	if changed := ws.diff.changedBalances; changed != nil {
-		for accountBalance := range changed {
-			var err error
-			if accountBalance.asset.Present {
-				err = ws.validateAssetBalance(accountBalance.account, accountBalance.asset.ID)
-			} else {
-				err = ws.validateWavesBalance(accountBalance.account, rideV6Activated)
-			}
-			if err != nil {
-				return err
-			}
+	for changed := range ws.diff.changedBalances {
+		var err error
+		if changed.asset.Present {
+			err = ws.validateAssetBalance(changed.account, changed.asset.ID)
+		} else {
+			err = ws.validateWavesBalance(changed.account, rideV6Activated)
 		}
-	} else { // validate all balances if changedBalances are not specified
-		for addID := range ws.diff.wavesBalances {
-			if err := ws.validateWavesBalance(addID, rideV6Activated); err != nil {
-				return err
-			}
-		}
-		for key := range ws.diff.assetBalances {
-			if err := ws.validateAssetBalance(key.id, key.asset); err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
