@@ -205,14 +205,15 @@ type diffState struct {
 
 func newDiffState(state types.SmartState) diffState {
 	return diffState{
-		state:         state,
-		data:          map[dataEntryKey]proto.DataEntry{},
-		wavesBalances: map[proto.AddressID]diffBalance{},
-		assetBalances: map[assetBalanceKey]assetBalance{},
-		sponsorships:  map[crypto.Digest]diffSponsorship{},
-		newAssetsInfo: map[crypto.Digest]diffNewAssetInfo{},
-		oldAssetsInfo: map[crypto.Digest]diffOldAssetInfo{},
-		leases:        map[crypto.Digest]lease{},
+		state:           state,
+		data:            map[dataEntryKey]proto.DataEntry{},
+		wavesBalances:   map[proto.AddressID]diffBalance{},
+		assetBalances:   map[assetBalanceKey]assetBalance{},
+		sponsorships:    map[crypto.Digest]diffSponsorship{},
+		newAssetsInfo:   map[crypto.Digest]diffNewAssetInfo{},
+		oldAssetsInfo:   map[crypto.Digest]diffOldAssetInfo{},
+		leases:          map[crypto.Digest]lease{},
+		changedBalances: make(changedBalances),
 	}
 }
 
