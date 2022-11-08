@@ -288,9 +288,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	if env.validateInternalPayments() && !env.rideV6Activated() {
-		err = ws.validateBalances(env.rideV6Activated())
-	} else if env.rideV6Activated() {
+	if env.validateInternalPayments() || env.rideV6Activated() {
 		err = ws.validateBalances(env.rideV6Activated())
 	}
 	if err != nil {
