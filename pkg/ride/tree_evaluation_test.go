@@ -5578,3 +5578,62 @@ func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T)
 		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000")
 	})
 }
+
+func TestValidateBalancesOnlyForChangedAccountsBeforeInvokeScriptActivation(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	dApp3 := newTestAccount(t, "DAPP3")   // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	    strict res = invoke(callee,  "call", [], [AttachedPayment(unit, 5000000000)])
+	    []
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAQAAAAFpAQAAAARjYWxsAAAAAAQAAAADcmVzCQAD/AAAAAQFAAAABmNhbGxlZQIAAAAEY2FsbAUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAEqBfIABQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwUAAAADcmVzBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAABa6xWs=")
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+
+	@Callable(i)
+	func call() = {
+	  	strict res = invoke(callee,  "noop", [], [AttachedPayment(unit, 100)])
+	    throw("gotcha")
+	}
+	*/
+	_, tree2 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUeu8lmsRjc2kucGmTq6Am5fkIjxQl3OMuAAAAAQAAAAFpAQAAAARjYWxsAAAAAAQAAAADcmVzCQAD/AAAAAQFAAAABmNhbGxlZQIAAAAEbm9vcAUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAABkBQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwUAAAADcmVzCQAAAgAAAAECAAAABmdvdGNoYQkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAArJtFTA==")
+
+	/* On dApp3 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func noop() = nil
+	*/
+	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEbm9vcAAAAAAFAAAAA25pbAAAAABUcIVH")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withAdditionalDApp(dApp3).withSender(sender).
+		withInvocation("call").withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
+		withWavesBalance(dApp1, 1_00000000, 0, 1_00000000, 1_00000000).withWavesBalance(dApp2, 0).withWavesBalance(dApp3, 0).
+		withWrappedState()
+
+	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	assert.Nil(t, res)
+	assert.EqualError(t, err, "gotcha")
+}
