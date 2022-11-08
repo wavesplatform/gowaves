@@ -18,7 +18,7 @@ type ReissueTxApiSuite struct {
 	f.BaseSuite
 }
 
-func (suite *ReissueTxSuite) Test_ReissueTxApiPositive() {
+func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	versions := testdata.GetVersions()
 	timeout := 45 * time.Second
 	for _, i := range versions {
@@ -55,7 +55,7 @@ func (suite *ReissueTxSuite) Test_ReissueTxApiPositive() {
 	}
 }
 
-func (suite *ReissueTxSuite) Test_ReissueTxApiMaxQuantityPositive() {
+func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	versions := testdata.GetVersions()
 	timeout := 45 * time.Second
 	for _, i := range versions {
@@ -91,7 +91,7 @@ func (suite *ReissueTxSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	}
 }
 
-func (suite *ReissueTxSuite) Test_ReissueTxApiNFTNegative() {
+func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 	versions := testdata.GetVersions()
 	timeout := 15 * time.Second
 	for _, i := range versions {
@@ -132,7 +132,7 @@ func (suite *ReissueTxSuite) Test_ReissueTxApiNFTNegative() {
 	}
 }
 
-func (suite *ReissueTxSuite) Test_ReissueTxApiNegative() {
+func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 	versions := testdata.GetVersions()
 	timeout := 5 * time.Second
 	for _, i := range versions {
