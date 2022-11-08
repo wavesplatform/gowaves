@@ -13,7 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-const configPath = "/generate/ride_objects_demo.json"
+const configPath = "/generate/ride_objects_new.json"
 
 type actionField struct {
 	Name             string    `json:"name"`
@@ -137,17 +137,17 @@ func (info listTypeInfo) ElementTypes() typeInfos {
 
 type actionsObject struct {
 	LibVersion ast.LibraryVersion  `json:"version"`
-	Deleted    *ast.LibraryVersion `json:"deleted"`
+	Deleted    *ast.LibraryVersion `json:"deleted,omitempty"`
 	Fields     []actionField       `json:"fields"`
 
-	StructName      string `json:"struct_name"`
-	SetProofs       bool   `json:"set_proofs"`
-	SkipConstructor bool   `json:"skip_constructor"`
+	StructName string `json:"struct_name,omitempty"`
+	SetProofs  bool   `json:"set_proofs,omitempty"`
 }
 
 type rideObject struct {
-	Name    string          `json:"name"`
-	Actions []actionsObject `json:"actions"`
+	Name            string          `json:"name"`
+	Actions         []actionsObject `json:"actions"`
+	SkipConstructor bool            `json:"skip_constructor"`
 }
 
 type rideObjects struct {

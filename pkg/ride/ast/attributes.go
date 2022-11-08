@@ -23,12 +23,10 @@ func NewContentType(b byte) (ContentType, error) {
 	}
 }
 
-type libraryVersionType = byte
-
-type LibraryVersion libraryVersionType
+type LibraryVersion byte
 
 func (lv *LibraryVersion) UnmarshalJSON(data []byte) error {
-	var version libraryVersionType
+	var version byte
 	if err := json.Unmarshal(data, &version); err != nil {
 		return errors.Wrap(err, "unmarshal LibraryVersion failed")
 	}
@@ -51,6 +49,11 @@ const (
 	LibV6
 )
 
+// Increment it when a new version is added
+func CurrentMaxLibraryVersion() LibraryVersion {
+	return LibV6
+}
+
 func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	lv := LibraryVersion(b)
 	switch lv {
@@ -59,8 +62,4 @@ func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	default:
 		return 0, errors.Errorf("unsupported library version '%d'", b)
 	}
-}
-
-func CurrentMaxLibraryVersion() LibraryVersion {
-	return LibV6
 }

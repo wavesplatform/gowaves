@@ -53,7 +53,7 @@ func GenerateObjects(fn string) {
 
 			// instanceOf method
 			cd.Line("func (o ride%s) instanceOf() string {", act.StructName)
-			cd.Line("return %sTypeName", obj.Name)
+			cd.Line("return \"%s\"", obj.Name)
 			cd.Line("}")
 			cd.Line("")
 
@@ -75,7 +75,7 @@ func GenerateObjects(fn string) {
 			cd.Line("func (o ride%s) get(prop string) (rideType, error) {", act.StructName)
 			cd.Line("switch prop {")
 			cd.Line("case instanceField:")
-			cd.Line("return rideString(%sTypeName), nil", obj.Name)
+			cd.Line("return rideString(\"%s\"), nil", obj.Name)
 			for _, field := range act.Fields {
 				cd.Line("case %sField:", field.Name)
 				cd.Line("return o.%s, nil", field.Name)
@@ -98,7 +98,7 @@ func GenerateObjects(fn string) {
 			// lines method
 			cd.Line("func (o ride%s) lines() []string {", act.StructName)
 			cd.Line("r := make([]string, 0, %d)", len(act.Fields)+2)
-			cd.Line("r = append(r, %sTypeName + \"(\")", obj.Name)
+			cd.Line("r = append(r, \"%s(\")", obj.Name)
 			sort.SliceStable(act.Fields, func(i, j int) bool {
 				return act.Fields[i].Order < act.Fields[j].Order
 			})

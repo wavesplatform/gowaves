@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -95,6 +96,7 @@ type versionInfos map[ast.LibraryVersion]*versionInfo
 
 func (vInfos versionInfos) addNewStruct(version ast.LibraryVersion, info constructorStructInfo) {
 	if _, ok := vInfos[version]; !ok {
+		fmt.Printf("adding ver %d\n", version)
 		vInfos[version] = newVersionInfo(version)
 	}
 
@@ -104,6 +106,7 @@ func (vInfos versionInfos) addNewStruct(version ast.LibraryVersion, info constru
 
 func (vInfos versionInfos) addRemoved(version ast.LibraryVersion, name string) {
 	if _, ok := vInfos[version]; !ok {
+		fmt.Printf("adding ver %d\n", version)
 		vInfos[version] = newVersionInfo(version)
 	}
 
@@ -111,7 +114,48 @@ func (vInfos versionInfos) addRemoved(version ast.LibraryVersion, name string) {
 	vInfo.removedStructs[name] = true
 }
 
-func generateConstructorFunctionCatalogues(cd *Coder, verInfos versionInfos) error {
+func constructorsFunctions(ver ast.LibraryVersion, m map[string]string) {
+	verInfo, ok := verInfos[ver]
+	if !ok {
+		panic(fmt.Sprintf("version %d is missing in verInfos", ver))
+	}
+
+	for name := range verInfo.removedStructs {
+		delete(m, name)
+	}
+	for _, structInfo := range verInfo.newStructs {
+		m[structInfo.rideName] = structInfo.goName
+	}
+}
+
+func constructorsCatalogue(ver ast.LibraryVersion, m map[string]int) {
+	for name := range verInfos[ver].removedStructs {
+		delete(m, name)
+	}
+	for _, structInfo := range verInfos[ver].newStructs {
+		m[structInfo.rideName] = structInfo.argsNumber
+	}
+}
+
+func constructorsEvaluationCatalogueEvaluatorV1(ver ast.LibraryVersion, m map[string]int) {
+	for name := range verInfos[ver].removedStructs {
+		delete(m, name)
+	}
+	for _, structInfo := range verInfos[ver].newStructs {
+		m[structInfo.rideName] = 0
+	}
+}
+
+func constructorsEvaluationCatalogueEvaluatorV2(ver ast.LibraryVersion, m map[string]int) {
+	for name := range verInfos[ver].removedStructs {
+		delete(m, name)
+	}
+	for _, structInfo := range verInfos[ver].newStructs {
+		m[structInfo.rideName] = 1
+	}
+}
+
+func processVerInfos() error {
 	var maxVersion byte = 0
 	for ver := range verInfos {
 		if byte(ver) > maxVersion {
@@ -119,16 +163,12 @@ func generateConstructorFunctionCatalogues(cd *Coder, verInfos versionInfos) err
 		}
 	}
 
-	// orderedVerInfos := make([]*versionInfo, len(verInfos))
-	// for ver, info := range verInfos {
-	// 	orderedVerInfos[byte(ver)-maxVersion] = info
-	// }
-
 	existingStructs := map[string]constructorStructInfo{}
 	for ver := ast.LibV1; ver <= ast.CurrentMaxLibraryVersion(); ver++ {
 		verInfo := verInfos[ver]
 		if verInfo == nil {
 			verInfo = newVersionInfo(ver)
+			verInfos[ver] = verInfo
 		}
 
 		for name := range verInfo.removedStructs {
@@ -138,54 +178,59 @@ func generateConstructorFunctionCatalogues(cd *Coder, verInfos versionInfos) err
 			existingStructs[structInfo.rideName] = structInfo
 		}
 
-		// functionsV[N]
-		cd.Line("func constructorsFunctionsV%d(m map[string]string) {", verInfo.version)
-		for name := range verInfo.removedStructs {
-			cd.Line("delete(m, \"%s\")", name)
-		}
+		verInfo.newStructs = make([]constructorStructInfo, 0, len(existingStructs))
 		for _, structInfo := range existingStructs {
-			cd.Line("m[\"%s\"] = \"%s\"", structInfo.rideName, structInfo.goName)
+			verInfo.newStructs = append(verInfo.newStructs, structInfo)
 		}
-		cd.Line("}")
-		cd.Line("")
 
-		// catalogueV[N]
-		cd.Line("func constructorsCatalogueV%d(m map[string]int) {", verInfo.version)
-		for name := range verInfo.removedStructs {
-			cd.Line("delete(m, \"%s\")", name)
-		}
-		for _, structInfo := range existingStructs {
-			cd.Line("m[\"%s\"] = %d", structInfo.rideName, structInfo.argsNumber)
-		}
-		cd.Line("}")
-		cd.Line("")
+		// // functionsV[N]
+		// cd.Line("func constructorsFunctionsV%d(m map[string]string) {", verInfo.version)
+		// for name := range verInfo.removedStructs {
+		// 	cd.Line("delete(m, \"%s\")", name)
+		// }
+		// for _, structInfo := range existingStructs {
+		// 	cd.Line("m[\"%s\"] = \"%s\"", structInfo.rideName, structInfo.goName)
+		// }
+		// cd.Line("}")
+		// cd.Line("")
 
-		// constructorsEvaluationCatalogueV[N]EvaluatorV1
-		cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV1(m map[string]int) {", verInfo.version)
-		for _, structInfo := range existingStructs {
-			cd.Line("m[\"%s\"] = 0", structInfo.rideName)
-		}
-		cd.Line("}")
-		cd.Line("")
+		// // catalogueV[N]
+		// cd.Line("func constructorsCatalogueV%d(m map[string]int) {", verInfo.version)
+		// for name := range verInfo.removedStructs {
+		// 	cd.Line("delete(m, \"%s\")", name)
+		// }
+		// for _, structInfo := range existingStructs {
+		// 	cd.Line("m[\"%s\"] = %d", structInfo.rideName, structInfo.argsNumber)
+		// }
+		// cd.Line("}")
+		// cd.Line("")
 
-		// constructorsEvaluationCatalogueV[N]EvaluatorV2
-		cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV2(m map[string]int) {", verInfo.version)
-		for _, structInfo := range existingStructs {
-			cd.Line("m[\"%s\"] = 1", structInfo.rideName)
-		}
-		cd.Line("}")
-		cd.Line("")
+		// // constructorsEvaluationCatalogueV[N]EvaluatorV1
+		// cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV1(m map[string]int) {", verInfo.version)
+		// for _, structInfo := range existingStructs {
+		// 	cd.Line("m[\"%s\"] = 0", structInfo.rideName)
+		// }
+		// cd.Line("}")
+		// cd.Line("")
+
+		// // constructorsEvaluationCatalogueV[N]EvaluatorV2
+		// cd.Line("func constructorsEvaluationCatalogueV%dEvaluatorV2(m map[string]int) {", verInfo.version)
+		// for _, structInfo := range existingStructs {
+		// 	cd.Line("m[\"%s\"] = 1", structInfo.rideName)
+		// }
+		// cd.Line("}")
+		// cd.Line("")
 	}
 
 	return nil
 }
 
-func constructorsHandleRideObject(cd *Coder, obj *rideObject, verInfos versionInfos) error {
-	for _, act := range obj.Actions {
-		if act.SkipConstructor {
-			continue
-		}
+func constructorsHandleRideObject(cd *Coder, obj *rideObject) error {
+	if obj.SkipConstructor {
+		return nil
+	}
 
+	for _, act := range obj.Actions {
 		constructorName := constructorName(&act)
 		cd.Line("func %s(_ environment, args_ ...rideType) (rideType, error) {", constructorName)
 
@@ -256,6 +301,8 @@ func constructorsHandleRideObject(cd *Coder, obj *rideObject, verInfos versionIn
 	return nil
 }
 
+var verInfos = versionInfos{}
+
 func GenerateConstructors(fn string) {
 	s, err := parseConfig()
 	if err != nil {
@@ -265,18 +312,26 @@ func GenerateConstructors(fn string) {
 	cd := NewCoder("ride")
 	cd.Import("github.com/pkg/errors")
 
-	verInfos := versionInfos{}
 	for _, obj := range s.Objects {
-		if err := constructorsHandleRideObject(cd, &obj, verInfos); err != nil {
+		if err := constructorsHandleRideObject(cd, &obj); err != nil {
 			panic(err)
 		}
-	}
-
-	if err := generateConstructorFunctionCatalogues(cd, verInfos); err != nil {
-		panic(err)
 	}
 
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}
+
+	if err := processVerInfos(); err != nil {
+		panic(err)
+	}
+
+	// cd = NewCoder("internal")
+	// if err := generateConstructorFunctionCatalogues(cd, verInfos); err != nil {
+	// 	panic(err)
+	// }
+
+	// if err := cd.Save(fnCatalogue); err != nil {
+	// 	panic(err)
+	// }
 }

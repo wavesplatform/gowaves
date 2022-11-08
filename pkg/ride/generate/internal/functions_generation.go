@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 func functionsV2() map[string]string {
@@ -72,15 +74,7 @@ func functionsV2() map[string]string {
 	m["getString"] = "stringFromArrayByIndex"
 	m["addressFromPublicKey"] = "addressFromPublicKey"
 	m["wavesBalance"] = "wavesBalanceV3"
-	// m["Address"] = "address"
-	// m["Alias"] = "alias"
-	// m["AssetPair"] = "assetPair"
-	// m["DataEntry"] = "dataEntry"
-	// m["DataTransaction"] = "dataTransaction"
-	// m["Transfer"] = "transferObject"
-	// m["BalanceDetails"] = "balanceDetails"
-	// m["Invocation"] = "invocationConstructor"
-	// constructorsFunctionsV2(m)
+	constructorsFunctions(ast.LibV2, m)
 	return m
 }
 
@@ -149,15 +143,7 @@ func catalogueV2() map[string]int {
 	m["getString"] = 30
 	m["addressFromPublicKey"] = 82
 	m["wavesBalance"] = 109
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 2
-	// m["DataEntry"] = 2
-	// m["DataTransaction"] = 9
-	// m["Transfer"] = 2
-	// m["BalanceDetails"] = 4
-	// m["Invocation"] = 8
-	// constructorsCatalogueV2(m)
+	constructorsCatalogue(ast.LibV2, m)
 	return m
 }
 
@@ -181,30 +167,14 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	m["addressFromString"] = 20
 	m["addressFromPublicKey"] = 65
 	m["wavesBalance"] = 102
-	// m["Address"] = 0
-	// m["Alias"] = 0
-	// m["AssetPair"] = 0
-	// m["DataEntry"] = 0
-	// m["DataTransaction"] = 0
-	// m["Transfer"] = 0
-	// m["BalanceDetails"] = 0
-	// m["Invocation"] = 0
-	// constructorsEvaluationCatalogueV2EvaluatorV1(m)
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV2, m)
 
 	return m
 }
 
 func evaluationCatalogueV2EvaluatorV2() map[string]int {
 	m := catalogueV2()
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 1
-	// m["DataEntry"] = 1
-	// m["DataTransaction"] = 1
-	// m["Transfer"] = 1
-	// m["BalanceDetails"] = 1
-	// m["Invocation"] = 1
-	// constructorsEvaluationCatalogueV2EvaluatorV2()
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV2, m)
 	return m
 }
 
@@ -254,11 +224,7 @@ func functionsV3() map[string]string {
 	m["parseIntValue"] = "parseIntValue"
 	m["value"] = "value"
 	m["valueOrErrorMessage"] = "valueOrErrorMessage"
-	// m["WriteSet"] = "writeSet"
-	// m["TransferSet"] = "transferSet"
-	// m["ScriptTransfer"] = "scriptTransfer"
-	// m["ScriptResult"] = "scriptResult"
-	// constructorsFunctionsV3(m)
+	constructorsFunctions(ast.LibV3, m)
 	return m
 }
 
@@ -326,11 +292,7 @@ func catalogueV3() map[string]int {
 	m["parseIntValue"] = 20
 	m["value"] = 13
 	m["valueOrErrorMessage"] = 13
-	// m["WriteSet"] = 1
-	// m["TransferSet"] = 1
-	// m["ScriptTransfer"] = 3
-	// m["ScriptResult"] = 2
-	// constructorscCatalogueV3(m)
+	constructorsCatalogue(ast.LibV3, m)
 	return m
 }
 
@@ -369,19 +331,7 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m["@extrUser(getString)"] = 16
 	m["@extrUser(addressFromString)"] = 26
 	m["wavesBalance"] = 102
-	// m["Address"] = 0
-	// m["Alias"] = 0
-	// m["AssetPair"] = 0
-	// m["DataEntry"] = 0
-	// m["DataTransaction"] = 0
-	// m["Transfer"] = 0
-	// m["WriteSet"] = 0
-	// m["TransferSet"] = 0
-	// m["ScriptTransfer"] = 0
-	// m["ScriptResult"] = 0
-	// m["BalanceDetails"] = 0
-	// m["Invocation"] = 0
-	// constructorsEvaluationCatalogueV3EvaluatorV1(m)
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV3, m)
 	return m
 }
 
@@ -406,39 +356,12 @@ func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 1
-	// m["DataEntry"] = 1
-	// m["DataTransaction"] = 1
-	// m["Transfer"] = 1
-	// m["WriteSet"] = 1
-	// m["TransferSet"] = 1
-	// m["ScriptTransfer"] = 1
-	// m["ScriptResult"] = 1
-	// m["BalanceDetails"] = 1
-	// m["Invocation"] = 1
-	// constructorsEvaluationCatalogueV3EvaluatorV2(m)
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV3, m)
 	return m
 }
 
 func functionsV4() map[string]string {
 	m := functionsV3()
-	// // Remove obsolete // constructors
-	// delete(m, "ScriptResult")
-	// delete(m, "WriteSet")
-	// delete(m, "TransferSet")
-	// delete(m, "DataEntry")
-	// New // constructors
-	// m["IntegerEntry"] = "checkedIntDataEntry"
-	// m["BooleanEntry"] = "checkedBooleanDataEntry"
-	// m["BinaryEntry"] = "checkedBytesDataEntry"
-	// m["StringEntry"] = "checkedStringDataEntry"
-	// m["DeleteEntry"] = "checkedDeleteEntry"
-	// m["Reissue"] = "reissue"
-	// m["Burn"] = "burn"
-	// m["SponsorFee"] = "sponsorship"
-	// m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
 	delete(m, "extract")
@@ -490,30 +413,18 @@ func functionsV4() map[string]string {
 	for i := 2; i <= 22; i++ {
 		m[strconv.Itoa(1300+i-2)] = fmt.Sprintf("newTuple%d", i)
 	}
-	// constructorsFunctionsV4(m)
+	constructorsFunctions(ast.LibV4, m)
 	return m
 }
 
 func catalogueV4() map[string]int {
 	m := catalogueV3()
-	// delete(m, "ScriptResult")
-	// delete(m, "WriteSet")
-	// delete(m, "TransferSet")
-	// delete(m, "DataEntry")
+
 	delete(m, "extract")
 	delete(m, "addressFromString")
 	delete(m, "wavesBalance")
 	delete(m, "700")
 	delete(m, "1003")
-	// m["IntegerEntry"] = 2
-	// m["BooleanEntry"] = 2
-	// m["BinaryEntry"] = 2
-	// m["StringEntry"] = 2
-	// m["DeleteEntry"] = 1
-	// m["Reissue"] = 3
-	// m["Burn"] = 2
-	// m["SponsorFee"] = 2
-	// m["AttachedPayment"] = 2
 
 	m["201"] = 6
 	m["202"] = 6
@@ -613,7 +524,7 @@ func catalogueV4() map[string]int {
 		m[strconv.Itoa(1300+i-2)] = 1
 	}
 
-	// constructorsCatalogueV4(m)
+	constructorsCatalogue(ast.LibV4, m)
 	return m
 }
 
@@ -653,24 +564,7 @@ func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m["@extrUser(getString)"] = 16
 	m["@extrUser(addressFromString)"] = 7
 	m["@extrNative(1062)"] = 7
-	// m["Address"] = 0
-	// m["Alias"] = 0
-	// m["AssetPair"] = 0
-	// m["DataTransaction"] = 0
-	// m["Transfer"] = 0
-	// m["ScriptTransfer"] = 0
-	// m["IntegerEntry"] = 0
-	// m["BooleanEntry"] = 0
-	// m["BinaryEntry"] = 0
-	// m["StringEntry"] = 0
-	// m["DeleteEntry"] = 0
-	// m["Reissue"] = 0
-	// m["Burn"] = 0
-	// m["SponsorFee"] = 0
-	// m["AttachedPayment"] = 0
-	// m["BalanceDetails"] = 0
-	// m["Invocation"] = 0
-	// constructorsEvaluationCatalogueV4EvaluatorV1(m)
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV4, m)
 	return m
 }
 
@@ -695,24 +589,7 @@ func evaluationCatalogueV4EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 1
-	// m["DataTransaction"] = 1
-	// m["Transfer"] = 1
-	// m["ScriptTransfer"] = 1
-	// m["IntegerEntry"] = 1
-	// m["BooleanEntry"] = 1
-	// m["BinaryEntry"] = 1
-	// m["StringEntry"] = 1
-	// m["DeleteEntry"] = 1
-	// m["Reissue"] = 1
-	// m["Burn"] = 1
-	// m["SponsorFee"] = 1
-	// m["AttachedPayment"] = 1
-	// m["BalanceDetails"] = 1
-	// m["Invocation"] = 1
-	// constructorsEvaluationCatalogueV4EvaluatorV2(m)
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV4, m)
 	return m
 }
 
@@ -753,12 +630,11 @@ func functionsV5() map[string]string {
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
 	m["fraction"] = "fractionIntRounds"
-	// m["LeaseCancel"] = "leaseCancel"
 	m["@extrNative(1055)"] = "intValueFromSelfState"
 	m["@extrNative(1056)"] = "booleanValueFromSelfState"
 	m["@extrNative(1057)"] = "bytesValueFromSelfState"
 	m["@extrNative(1058)"] = "stringValueFromSelfState"
-	// constructorsFunctionsV5(m)
+	constructorsFunctions(ast.LibV5, m)
 	return m
 }
 
@@ -808,7 +684,7 @@ func catalogueV5() map[string]int {
 	delete(m, "Up")
 	delete(m, "HalfDown")
 
-	// constructorsCatalogueV5(m)
+	constructorsCatalogue(ast.LibV5, m)
 	return m
 }
 
@@ -853,25 +729,7 @@ func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m["@extrNative(1057)"] = 16
 	m["@extrNative(1058)"] = 16
 	m["@extrNative(1062)"] = 7
-	// m["Address"] = 0
-	// m["Alias"] = 0
-	// m["AssetPair"] = 0
-	// m["DataTransaction"] = 0
-	// m["Transfer"] = 0
-	// m["ScriptTransfer"] = 0
-	// m["IntegerEntry"] = 0
-	// m["BooleanEntry"] = 0
-	// m["BinaryEntry"] = 0
-	// m["StringEntry"] = 0
-	// m["DeleteEntry"] = 0
-	// m["Reissue"] = 0
-	// m["Burn"] = 0
-	// m["SponsorFee"] = 0
-	// m["AttachedPayment"] = 0
-	// m["LeaseCancel"] = 0
-	// m["BalanceDetails"] = 0
-	// m["Invocation"] = 0
-	// constructorsEvaluationCatalogueV5EvaluatorV1(m)
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV5, m)
 	return m
 }
 
@@ -894,25 +752,7 @@ func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 1
-	// m["DataTransaction"] = 1
-	// m["Transfer"] = 1
-	// m["ScriptTransfer"] = 1
-	// m["IntegerEntry"] = 1
-	// m["BooleanEntry"] = 1
-	// m["BinaryEntry"] = 1
-	// m["StringEntry"] = 1
-	// m["DeleteEntry"] = 1
-	// m["Reissue"] = 1
-	// m["Burn"] = 1
-	// m["SponsorFee"] = 1
-	// m["AttachedPayment"] = 1
-	// m["LeaseCancel"] = 1
-	// m["BalanceDetails"] = 1
-	// m["Invocation"] = 1
-	// constructorsEvaluationCatalogueV5EvaluatorV2(m)
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV5, m)
 	return m
 }
 
@@ -935,7 +775,7 @@ func functionsV6() map[string]string {
 	m["1211"] = "makeString11C"
 	m["1212"] = "splitString4C"
 	m["1213"] = "splitString51C"
-	// constructorsFunctionsV6(m)
+	constructorsFunctions(ast.LibV6, m)
 	return m
 }
 
@@ -983,7 +823,7 @@ func catalogueV6() map[string]int {
 	m["sqrt"] = 2
 	m["sqrtBigInt"] = 5
 
-	// constructorsCatalogueV6(m)
+	constructorsCatalogue(ast.LibV6, m)
 	return m
 }
 
@@ -1006,25 +846,7 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m["Sha3384"] = 0
 	m["Sha3512"] = 0
 	m["Unit"] = 0
-	// m["Address"] = 0
-	// m["Alias"] = 0
-	// m["AssetPair"] = 0
-	// m["DataTransaction"] = 0
-	// m["Transfer"] = 0
-	// m["ScriptTransfer"] = 0
-	// m["IntegerEntry"] = 0
-	// m["BooleanEntry"] = 0
-	// m["BinaryEntry"] = 0
-	// m["StringEntry"] = 0
-	// m["DeleteEntry"] = 0
-	// m["Reissue"] = 0
-	// m["Burn"] = 0
-	// m["SponsorFee"] = 0
-	// m["AttachedPayment"] = 0
-	// m["LeaseCancel"] = 0
-	// m["BalanceDetails"] = 0
-	// m["Invocation"] = 0
-	// constructorsEvaluationCatalogueV6EvaluatorV1(m)
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV6, m)
 	return m
 }
 
@@ -1047,25 +869,7 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
-	// m["Address"] = 1
-	// m["Alias"] = 1
-	// m["AssetPair"] = 1
-	// m["DataTransaction"] = 1
-	// m["Transfer"] = 1
-	// m["ScriptTransfer"] = 1
-	// m["IntegerEntry"] = 1
-	// m["BooleanEntry"] = 1
-	// m["BinaryEntry"] = 1
-	// m["StringEntry"] = 1
-	// m["DeleteEntry"] = 1
-	// m["Reissue"] = 1
-	// m["Burn"] = 1
-	// m["SponsorFee"] = 1
-	// m["AttachedPayment"] = 1
-	// m["LeaseCancel"] = 1
-	// m["BalanceDetails"] = 1
-	// m["Invocation"] = 1
-	// constructorsEvaluationCatalogueV6EvaluatorV2(m)
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV6, m)
 	return m
 }
 
