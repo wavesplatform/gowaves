@@ -32,3 +32,10 @@ func Reissue[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], ve
 	txID := utl.ExtractTxID(suite.T(), tx, testdata.ChainID)
 	return txID, errGo, errScala
 }
+
+func ReissueBroadcast[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration) (
+	utl.BroadcastedTransaction, error, error) {
+	tx := NewSignReissueTransaction(suite, version, testdata)
+	brdCstTx, errGo, errScala := utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
+	return brdCstTx, errGo, errScala
+}
