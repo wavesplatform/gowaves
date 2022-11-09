@@ -154,7 +154,7 @@ type rideObjects struct {
 	Objects []rideObject `json:"objects"`
 }
 
-func fillRideObjectStructNames(obj *rideObject) error {
+func fillRideObjectStructNames(obj rideObject) error {
 	if obj.Name == "" {
 		return errors.New("empty name of object")
 	}
@@ -200,7 +200,7 @@ func parseConfig() (*rideObjects, error) {
 	}
 
 	for _, obj := range s.Objects {
-		if err := fillRideObjectStructNames(&obj); err != nil {
+		if err := fillRideObjectStructNames(obj); err != nil {
 			panic(err)
 		}
 	}

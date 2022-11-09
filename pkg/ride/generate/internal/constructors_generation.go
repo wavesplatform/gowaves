@@ -9,11 +9,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-func constructorName(act *actionsObject) string {
+func constructorName(act actionsObject) string {
 	return strings.ToLower(string(act.StructName[0])) + act.StructName[1:] + "Constructor"
 }
 
-func argVarName(act *actionField) string {
+func argVarName(act actionField) string {
 	return act.Name
 }
 
@@ -185,13 +185,13 @@ func processVerInfos() error {
 	return nil
 }
 
-func constructorsHandleRideObject(cd *Coder, obj *rideObject) error {
+func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 	if obj.SkipConstructor {
 		return nil
 	}
 
 	for _, act := range obj.Actions {
-		constructorName := constructorName(&act)
+		constructorName := constructorName(act)
 		cd.Line("func %s(_ environment, args_ ...rideType) (rideType, error) {", constructorName)
 
 		arguments, err := extractConstructorArguments(act.Fields)
@@ -205,7 +205,7 @@ func constructorsHandleRideObject(cd *Coder, obj *rideObject) error {
 		cd.Line("")
 
 		for i, arg := range arguments {
-			varName := argVarName(&arg)
+			varName := argVarName(arg)
 
 			if len(arg.Types) == 1 {
 				info := arg.Types[0]
@@ -234,16 +234,16 @@ func constructorsHandleRideObject(cd *Coder, obj *rideObject) error {
 
 		argsStr := make([]string, len(act.Fields))
 		for i, arg := range act.Fields {
-			varName := argVarName(&arg)
+			varName := argVarName(arg)
 			if arg.ConstructorOrder == -1 {
-				cd.Line("// default values for internal fields")
+				cd.Line("// default value for %s", varName)
 				cd.Line("var %s %s", varName, getType(arg.Types))
 			}
 			argsStr[i] = varName
 		}
 
 		cd.Line("")
-		cd.Line("return %s(%s), nil", rideActionConstructorName(&act), strings.Join(argsStr, ", "))
+		cd.Line("return %s(%s), nil", rideActionConstructorName(act), strings.Join(argsStr, ", "))
 		cd.Line("}")
 		cd.Line("")
 
@@ -273,7 +273,7 @@ func GenerateConstructors(fn string) {
 	cd.Import("github.com/pkg/errors")
 
 	for _, obj := range s.Objects {
-		if err := constructorsHandleRideObject(cd, &obj); err != nil {
+		if err := constructorsHandleRideObject(cd, obj); err != nil {
 			panic(err)
 		}
 	}

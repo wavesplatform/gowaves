@@ -13,7 +13,7 @@ func getType(types typeInfos) string {
 	return "rideType"
 }
 
-func rideActionConstructorName(act *actionsObject) string {
+func rideActionConstructorName(act actionsObject) string {
 	return "newRide" + act.StructName
 }
 
@@ -37,7 +37,7 @@ func GenerateObjects(fn string) {
 			cd.Line("")
 
 			// Constructor
-			constructorName := rideActionConstructorName(&act)
+			constructorName := rideActionConstructorName(act)
 			arguments := make([]string, len(act.Fields))
 			for i, field := range act.Fields {
 				arguments[i] = fmt.Sprintf("%s %s", field.Name, getType(field.Types))

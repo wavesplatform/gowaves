@@ -114,7 +114,7 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for description", args_[9].instanceOf())
 	}
 
-	// default values for internal fields
+	// default value for sponsored
 	var sponsored rideBoolean
 
 	return newRideAssetV4(description, name, issuePublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted, sponsored), nil
@@ -376,7 +376,7 @@ func deleteEntryConstructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("deleteEntryConstructor: unexpected type '%s' for key", args_[0].instanceOf())
 	}
 
-	// default values for internal fields
+	// default value for value
 	var value rideUnit
 
 	return newRideDeleteEntry(value, key), nil
@@ -447,7 +447,7 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
 	}
 
-	// default values for internal fields
+	// default value for payment
 	var payment rideType
 
 	return newRideInvocationV3(payments, payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
@@ -520,7 +520,7 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for originCallerPublicKey", args_[7].instanceOf())
 	}
 
-	// default values for internal fields
+	// default value for payment
 	var payment rideType
 
 	return newRideInvocationV5(originCaller, payments, payment, callerPublicKey, feeAssetID, originCallerPublicKey, transactionID, caller, fee), nil
@@ -1392,7 +1392,7 @@ func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		}
 	}
 
-	// default values for internal fields
+	// default value for payment
 	var payment rideType
 
 	return newRideInvokeScriptTransaction(proofs, feeAssetID, payment, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
@@ -2244,7 +2244,7 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		}
 	}
 
-	// default values for internal fields
+	// default value for feeAssetID
 	var feeAssetID rideType
 
 	return newRideUpdateAssetInfoTransaction(proofs, assetID, feeAssetID, name, description, bodyBytes, id, senderPublicKey, timestamp, version, fee, sender), nil
