@@ -315,6 +315,23 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstGoMsg:    "",
 				ErrBrdCstScalaMsg: "",
 			}),
+		"Invalid asset ID": *NewReissueTestData(
+			utl.GetAccount(suite, 3),
+			utl.RandDigest(32, utl.LettersAndDigits),
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			testChainID,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				Reissuable:        true,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    "",
+				ErrBrdCstScalaMsg: "",
+			}),
 	}
 	return t
 }

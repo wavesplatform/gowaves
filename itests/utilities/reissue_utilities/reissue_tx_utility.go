@@ -22,6 +22,7 @@ func NewSignReissueTransaction[T any](suite *f.BaseSuite, version byte, testdata
 			testdata.AssetID, testdata.Quantity, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
+	suite.T().Logf("Reissue Transaction JSON: %s", utl.GetTransactionJsonOrErrMsg(tx))
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }

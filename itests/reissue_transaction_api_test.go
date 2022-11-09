@@ -162,7 +162,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
-			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name, "Version: ", i)
 			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo,
 				actualDiffBalanceInWavesScala, name, "Version: ", i)
 			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffAssetBalanceGo,

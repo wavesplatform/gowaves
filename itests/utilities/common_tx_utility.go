@@ -2,6 +2,8 @@ package utilities
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -15,7 +17,8 @@ import (
 )
 
 const (
-	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	CommonSymbolSet  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	LettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 type BroadcastedTransaction struct {
@@ -37,12 +40,31 @@ func NewBroadcastedTransaction(txId crypto.Digest, responseGo *client.Response, 
 	}
 }
 
-func RandStringBytes(n int) string {
+func RandStringBytes(n int, symbolSet string) string {
 	b := make([]byte, n)
 	for j := range b {
-		b[j] = letterBytes[rand.Intn(len(letterBytes))]
+		b[j] = symbolSet[rand.Intn(len(symbolSet))]
 	}
 	return string(b)
+}
+
+func GetTransactionJsonOrErrMsg(tx proto.Transaction) string {
+	var result string
+	jsonStr, err := json.Marshal(tx)
+	if err != nil {
+		result = fmt.Sprintf("Failed to create tx JSON: %s", err)
+	} else {
+		result = string(jsonStr)
+	}
+	return result
+}
+
+func RandDigest(n int, symbolSet string) crypto.Digest {
+	id, err := crypto.NewDigestFromBytes([]byte(RandStringBytes(n, symbolSet)))
+	if err != nil {
+		fmt.Sprintf("Failed to create random Digest: %s", err)
+	}
+	return id
 }
 
 func GetCurrentTimestampInMs() uint64 {
