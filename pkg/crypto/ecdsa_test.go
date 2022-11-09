@@ -131,7 +131,7 @@ func TestECDSASign(t *testing.T) {
 		publicKey, err := ECDSAParsePublicKeyFromHex(tc.publicKeyHex)
 		require.NoError(t, err)
 
-		require.Equal(t, publicKey.ToECDSA(), &sk.PublicKey)
+		require.Equal(t, publicKey.ToECDSA(), sk.PubKey().ToECDSA())
 
 		message, err := Keccak256([]byte(tc.message))
 		require.NoError(t, err)
