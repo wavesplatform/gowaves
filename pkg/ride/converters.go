@@ -645,7 +645,7 @@ func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs)
 }
 
 func transferEntryToObject(transferEntry proto.MassTransferEntry) rideType {
-	return newRideTransferEntry(
+	return newRideTransfer(
 		rideRecipient(transferEntry.Recipient),
 		rideInt(transferEntry.Amount),
 	)

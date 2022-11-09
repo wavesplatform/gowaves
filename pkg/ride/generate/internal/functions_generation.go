@@ -74,6 +74,8 @@ func functionsV2() map[string]string {
 	m["getString"] = "stringFromArrayByIndex"
 	m["addressFromPublicKey"] = "addressFromPublicKey"
 	m["wavesBalance"] = "wavesBalanceV3"
+	m["Address"] = "address"
+	m["Alias"] = "alias"
 	constructorsFunctions(ast.LibV2, m)
 	return m
 }
@@ -143,6 +145,8 @@ func catalogueV2() map[string]int {
 	m["getString"] = 30
 	m["addressFromPublicKey"] = 82
 	m["wavesBalance"] = 109
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsCatalogue(ast.LibV2, m)
 	return m
 }
@@ -167,6 +171,8 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	m["addressFromString"] = 20
 	m["addressFromPublicKey"] = 65
 	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV2, m)
 
 	return m
@@ -174,6 +180,8 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV2EvaluatorV2() map[string]int {
 	m := catalogueV2()
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV2, m)
 	return m
 }
@@ -224,6 +232,7 @@ func functionsV3() map[string]string {
 	m["parseIntValue"] = "parseIntValue"
 	m["value"] = "value"
 	m["valueOrErrorMessage"] = "valueOrErrorMessage"
+
 	constructorsFunctions(ast.LibV3, m)
 	return m
 }
@@ -331,6 +340,8 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m["@extrUser(getString)"] = 16
 	m["@extrUser(addressFromString)"] = 26
 	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV3, m)
 	return m
 }
@@ -356,6 +367,8 @@ func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV3, m)
 	return m
 }
@@ -564,6 +577,8 @@ func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m["@extrUser(getString)"] = 16
 	m["@extrUser(addressFromString)"] = 7
 	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV4, m)
 	return m
 }
@@ -589,6 +604,8 @@ func evaluationCatalogueV4EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV4, m)
 	return m
 }
@@ -729,6 +746,8 @@ func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m["@extrNative(1057)"] = 16
 	m["@extrNative(1058)"] = 16
 	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV5, m)
 	return m
 }
@@ -752,6 +771,8 @@ func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV5, m)
 	return m
 }
@@ -846,6 +867,8 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m["Sha3384"] = 0
 	m["Sha3512"] = 0
 	m["Unit"] = 0
+	m["Address"] = 0
+	m["Alias"] = 0
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV6, m)
 	return m
 }
@@ -869,6 +892,8 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV6, m)
 	return m
 }

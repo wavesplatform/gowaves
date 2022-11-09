@@ -990,7 +990,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	rs, err := a.f(a.tx)
 	a.NoError(err)
 
-	m := newRideTransferEntry(
+	m := newRideTransfer(
 		rideRecipient(a.tx.Transfers[0].Recipient),
 		rideInt(int64(a.tx.Transfers[0].Amount)),
 	)

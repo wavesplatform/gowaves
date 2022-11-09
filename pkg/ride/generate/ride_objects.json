@@ -985,7 +985,7 @@
 						{
 							"name": "writeSet",
 							"types": [
-								"rideType"
+								"rideWriteSet"
 							],
 							"order": 0,
 							"constructorOrder": 0
@@ -993,7 +993,7 @@
 						{
 							"name": "transferSet",
 							"types": [
-								"rideType"
+								"rideTransferSet"
 							],
 							"order": 1,
 							"constructorOrder": 1
@@ -1217,7 +1217,7 @@
 			]
 		},
 		{
-			"name": "TransferEntry",
+			"name": "Transfer",
 			"actions": [
 				{
 					"version": 4,
@@ -2303,7 +2303,7 @@
 						{
 							"name": "transfers",
 							"types": [
-								"rideList[rideTransferEntry]"
+								"rideList[rideTransfer]"
 							],
 							"order": 8,
 							"constructorOrder": 2

@@ -1640,11 +1640,11 @@ func (o rideReissue) String() string {
 }
 
 type rideScriptResult struct {
-	writeSet    rideType
-	transferSet rideType
+	writeSet    rideWriteSet
+	transferSet rideTransferSet
 }
 
-func newRideScriptResult(writeSet rideType, transferSet rideType) rideScriptResult {
+func newRideScriptResult(writeSet rideWriteSet, transferSet rideTransferSet) rideScriptResult {
 	return rideScriptResult{
 		writeSet:    writeSet,
 		transferSet: transferSet,
@@ -2027,24 +2027,24 @@ func (o rideStringEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-type rideTransferEntry struct {
+type rideTransfer struct {
 	recipient rideType
 	amount    rideInt
 }
 
-func newRideTransferEntry(recipient rideType, amount rideInt) rideTransferEntry {
-	return rideTransferEntry{
+func newRideTransfer(recipient rideType, amount rideInt) rideTransfer {
+	return rideTransfer{
 		recipient: recipient,
 		amount:    amount,
 	}
 }
 
-func (o rideTransferEntry) instanceOf() string {
-	return "TransferEntry"
+func (o rideTransfer) instanceOf() string {
+	return "Transfer"
 }
 
-func (o rideTransferEntry) eq(other rideType) bool {
-	if oo, ok := other.(rideTransferEntry); ok {
+func (o rideTransfer) eq(other rideType) bool {
+	if oo, ok := other.(rideTransfer); ok {
 		if !o.recipient.eq(oo.recipient) {
 			return false
 		}
@@ -2056,10 +2056,10 @@ func (o rideTransferEntry) eq(other rideType) bool {
 	return false
 }
 
-func (o rideTransferEntry) get(prop string) (rideType, error) {
+func (o rideTransfer) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString("TransferEntry"), nil
+		return rideString("Transfer"), nil
 	case recipientField:
 		return o.recipient, nil
 	case amountField:
@@ -2069,20 +2069,20 @@ func (o rideTransferEntry) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideTransferEntry) copy() rideType {
-	return newRideTransferEntry(o.recipient, o.amount)
+func (o rideTransfer) copy() rideType {
+	return newRideTransfer(o.recipient, o.amount)
 }
 
-func (o rideTransferEntry) lines() []string {
+func (o rideTransfer) lines() []string {
 	r := make([]string, 0, 4)
-	r = append(r, "TransferEntry(")
+	r = append(r, "Transfer(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, ")")
 	return r
 }
 
-func (o rideTransferEntry) String() string {
+func (o rideTransfer) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 

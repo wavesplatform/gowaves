@@ -221,10 +221,12 @@ func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 			} else {
 				cd.Line("var %s rideType", varName)
 				cd.Line("switch v := args_[%d].(type) {", i)
+				onelineTypes := make([]string, 0, len(arg.Types))
 				for _, t := range arg.Types {
-					cd.Line("case %s:", t)
-					cd.Line("%s = v", varName)
+					onelineTypes = append(onelineTypes, t.String())
 				}
+				cd.Line("case %s:", strings.Join(onelineTypes, ", "))
+				cd.Line("%s = v", varName)
 				cd.Line("default:")
 				cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' for %s\", args_[%d].instanceOf())", constructorName, varName, i)
 				cd.Line("}")
