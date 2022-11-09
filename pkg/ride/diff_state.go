@@ -175,7 +175,7 @@ type changedAccountKey struct {
 
 type changedAccounts map[changedAccountKey]struct{}
 
-func (b changedAccounts) AddWavesBalanceChange(account proto.AddressID) {
+func (b changedAccounts) addWavesBalanceChange(account proto.AddressID) {
 	key := changedAccountKey{
 		account: account,
 		asset:   proto.NewOptionalAssetWaves(),
@@ -183,7 +183,7 @@ func (b changedAccounts) AddWavesBalanceChange(account proto.AddressID) {
 	b[key] = struct{}{}
 }
 
-func (b changedAccounts) AddAssetBalanceChange(account proto.AddressID, asset crypto.Digest) {
+func (b changedAccounts) addAssetBalanceChange(account proto.AddressID, asset crypto.Digest) {
 	key := changedAccountKey{
 		account: account,
 		asset:   *proto.NewOptionalAssetFromDigest(asset),
@@ -245,7 +245,7 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 }
 
 func (ds *diffState) addWavesBalance(key proto.AddressID, amount int64) error {
-	ds.changedAccounts.AddWavesBalanceChange(key)
+	ds.changedAccounts.addWavesBalanceChange(key)
 
 	if diff, ok := ds.wavesBalances[key]; ok {
 		err := diff.addBalance(amount)
@@ -275,7 +275,7 @@ func (ds *diffState) loadAssetBalance(key assetBalanceKey) (assetBalance, error)
 }
 
 func (ds *diffState) addAssetBalance(key assetBalanceKey, amount int64) error {
-	ds.changedAccounts.AddAssetBalanceChange(key.id, key.asset)
+	ds.changedAccounts.addAssetBalanceChange(key.id, key.asset)
 
 	if b, ok := ds.assetBalances[key]; ok {
 		r, err := b.add(amount)
@@ -323,8 +323,8 @@ func (ds *diffState) loadLease(leaseID crypto.Digest) (lease, error) {
 
 // changeLeaseBalances changes sender's leaseOut and receiver's leaseIn by leasing amount
 func (ds *diffState) changeLeaseBalances(sender, receiver proto.AddressID, amount int64) error {
-	ds.changedAccounts.AddWavesBalanceChange(sender)
-	ds.changedAccounts.AddWavesBalanceChange(receiver)
+	ds.changedAccounts.addWavesBalanceChange(sender)
+	ds.changedAccounts.addWavesBalanceChange(receiver)
 
 	senderDiff, err := ds.loadWavesBalance(sender)
 	if err != nil {
