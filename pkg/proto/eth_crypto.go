@@ -3,7 +3,8 @@ package proto
 import (
 	"math/big"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	btcECDSA "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -30,10 +31,17 @@ func ValidateEthereumSignatureValues(v byte, r, s *big.Int, homestead bool) bool
 
 // VerifyEthereumSignature checks that the given public key created signature over hash.
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
-func VerifyEthereumSignature(pubKey *EthereumPublicKey, r, s *big.Int, hash []byte) bool {
-	sig := btcec.Signature{R: r, S: s}
+func VerifyEthereumSignature(pubKey *EthereumPublicKey, rBig, sBig *big.Int, hash []byte) bool {
+	var r, s btcec.ModNScalar
+	if overflow := r.SetByteSlice(rBig.Bytes()); overflow {
+		return false
+	}
+	if overflow := s.SetByteSlice(sBig.Bytes()); overflow {
+		return false
+	}
+	sig := btcECDSA.NewSignature(&r, &s)
 	// Reject malleable signatures. libsecp256k1 does this check but btcec doesn't.
-	if sig.S.Cmp(secp256k1halfN) > 0 {
+	if s.IsOverHalfOrder() {
 		return false
 	}
 	return sig.Verify(hash, (*btcec.PublicKey)(pubKey))
