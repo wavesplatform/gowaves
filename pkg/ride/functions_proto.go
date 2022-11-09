@@ -1265,15 +1265,6 @@ func digest(v rideType) (c1.Hash, error) {
 	}
 }
 
-func checkAsset(v rideType) (rideType, bool) {
-	switch v.(type) {
-	case rideUnit, rideBytes:
-		return v, true
-	default:
-		return nil, false
-	}
-}
-
 func calcLeaseID(env environment, recipient proto.Recipient, amount, nonce rideInt) (rideBytes, error) {
 	pid, ok := env.txID().(rideBytes)
 	if !ok {
