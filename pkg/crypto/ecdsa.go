@@ -3,16 +3,11 @@ package crypto
 import (
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	btcECDSA "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/pkg/errors"
-)
-
-var (
-	curve         = btcec.S256()
-	secp256k1N, _ = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 )
 
 func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
@@ -34,7 +29,7 @@ func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
 	}
 	s[0] = v
 	copy(s[1:], signature)
-	pub, _, err := btcec.RecoverCompact(curve, s[:], digest)
+	pub, _, err := btcECDSA.RecoverCompact(s[:], digest)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to recover public key")
 	}
@@ -53,10 +48,7 @@ func ECDSASign(digest []byte, sk *btcec.PrivateKey) ([]byte, error) {
 	if len(digest) != 32 {
 		return nil, errors.Errorf("hash is required to be exactly 32 bytes (%d)", len(digest))
 	}
-	if sk.Curve != curve {
-		return nil, errors.Errorf("private key curve is not secp256k1")
-	}
-	sig, err := btcec.SignCompact(curve, sk, digest, false)
+	sig, err := btcECDSA.SignCompact(sk, digest, false)
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +68,11 @@ func ECDSAParsePublicKeyFromHex(hexString string) (*btcec.PublicKey, error) {
 }
 
 func ECDSAParsePublicKey(data []byte) (*btcec.PublicKey, error) {
-	return btcec.ParsePubKey(data, curve)
+	return btcec.ParsePubKey(data)
 }
 
 func ECDSANewPrivateKey() (*btcec.PrivateKey, error) {
-	return btcec.NewPrivateKey(curve)
+	return btcec.NewPrivateKey()
 }
 
 // ECDSAPrivateKeyFromHexString creates btcec.PrivateKey from hex string with appropriate checks.
@@ -95,26 +87,8 @@ func ECDSAPrivateKeyFromHexString(hexString string) (*btcec.PrivateKey, error) {
 // ECDSAPrivateKeyFromBytes creates btcec.PrivateKey from 'd' PrivateKey parameter with appropriate checks.
 func ECDSAPrivateKeyFromBytes(d []byte) (*btcec.PrivateKey, error) {
 	sk := new(btcec.PrivateKey)
-	sk.PublicKey.Curve = curve
-
-	// strictly checking bit size
-	if 8*len(d) != sk.Params().BitSize {
-		return nil, fmt.Errorf("invalid length, need %d bits", sk.Params().BitSize)
-	}
-	sk.D = new(big.Int).SetBytes(d)
-
-	// The sk.D must < N
-	if sk.D.Cmp(secp256k1N) >= 0 {
-		return nil, fmt.Errorf("invalid private key, >=N")
-	}
-	// The sk.D must not be zero or negative.
-	if sk.D.Sign() <= 0 {
-		return nil, fmt.Errorf("invalid private key, zero or negative")
-	}
-
-	sk.PublicKey.X, sk.PublicKey.Y = sk.PublicKey.Curve.ScalarBaseMult(d)
-	if sk.PublicKey.X == nil {
-		return nil, errors.New("invalid private key")
+	if overflow := sk.Key.SetByteSlice(d); overflow || sk.Key.IsZero() {
+		return nil, fmt.Errorf("invalid private key")
 	}
 	return sk, nil
 }

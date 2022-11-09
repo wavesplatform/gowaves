@@ -5,7 +5,7 @@ go 1.18
 require (
 	filippo.io/edwards25519 v1.0.0
 	github.com/beevik/ntp v0.3.0
-	github.com/btcsuite/btcd v0.22.3
+	github.com/btcsuite/btcd/btcec/v2 v2.3.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.3
@@ -55,6 +55,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20200812162917-85c65e2d0165 // indirect
 	github.com/docker/cli v20.10.14+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
