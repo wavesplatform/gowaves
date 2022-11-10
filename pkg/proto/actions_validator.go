@@ -135,7 +135,7 @@ func (v *ActionsCountValidator) validateAttachedPaymentActionGroup(isRideV6Activ
 	return nil
 }
 
-func ValidateAttachedPaymentScriptAction(action *AttachedPaymentScriptAction, restrictions ActionsValidationRestrictions, validatePayments bool, isRideV6Activated bool) error {
+func ValidateAttachedPaymentScriptAction(action *AttachedPaymentScriptAction, restrictions ActionsValidationRestrictions, validatePayments bool) error {
 	if validatePayments && action.Amount < 0 {
 		return errors.New("negative transfer amount")
 	}
@@ -272,7 +272,7 @@ func ValidateActions(
 				return err
 			}
 		case *AttachedPaymentScriptAction:
-			if err := ValidateAttachedPaymentScriptAction(ta, restrictions, validatePayments, isRideV6Activated); err != nil {
+			if err := ValidateAttachedPaymentScriptAction(ta, restrictions, validatePayments); err != nil {
 				return err
 			}
 		case *IssueScriptAction:
