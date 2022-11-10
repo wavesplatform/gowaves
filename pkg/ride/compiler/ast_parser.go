@@ -60,6 +60,7 @@ func NewASTParser(node *node32, buffer []rune) ASTParser {
 	return ASTParser{
 		node: node,
 		Tree: &ast.Tree{
+			LibVersion:   ast.LibV6,
 			Declarations: []ast.Node{},
 			Functions:    []ast.Node{},
 		},
@@ -100,7 +101,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 		curNode = p.parseDirectives(curNode)
 		_ = curNode
 	}
-	if curNode.pegRule == rule_ {
+	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
 	if curNode != nil && curNode.pegRule == ruleDeclaration {
@@ -149,7 +150,6 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 
 	switch dirName {
 	case stdlibVersionDirectiveName:
-		p.checkDirectiveCnt(node, stdlibVersionDirectiveName, directiveCnt)
 		version, err := strconv.ParseInt(dirValue, 10, 8)
 		if err != nil {
 			p.addError(fmt.Sprintf("failed to parse version \"%s\" : %s", dirValue, err), dirValueNode.token32)
@@ -159,19 +159,19 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 			p.addError(fmt.Sprintf("invalid %s \"%s\"", stdlibVersionDirectiveName, dirValue), dirValueNode.token32)
 		}
 		p.Tree.LibVersion = ast.LibraryVersion(byte(version))
+		p.checkDirectiveCnt(node, stdlibVersionDirectiveName, directiveCnt)
 	case contentTypeDirectiveName:
-		p.checkDirectiveCnt(node, contentTypeDirectiveName, directiveCnt)
 		switch dirValue {
 		case dappValueName:
 			p.Tree.ContentType = ast.ContentTypeApplication
 		case expressionValueName:
 			p.Tree.ContentType = ast.ContentTypeExpression
 		default:
-			p.addError(fmt.Sprintf("Undefined %s value: \"%s\"", contentTypeDirectiveName, dirValue), dirNameNode.token32)
+			p.addError(fmt.Sprintf("Illegal directive value \"%s\" for key \"%s\"", dirValue, contentTypeDirectiveName), dirNameNode.token32)
 		}
+		p.checkDirectiveCnt(node, contentTypeDirectiveName, directiveCnt)
 
 	case scriptTypeDirectiveName:
-		p.checkDirectiveCnt(node, scriptTypeDirectiveName, directiveCnt)
 		switch dirValue {
 		case accountValueName:
 		case assetValueName:
@@ -179,20 +179,21 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 			break
 			// TODO
 		default:
-			p.addError(fmt.Sprintf("Undefined %s value: \"%s\"", scriptTypeDirectiveName, dirValue), dirNameNode.token32)
+			p.addError(fmt.Sprintf("Illegal directive value \"%s\" for key \"%s\"", dirValue, scriptTypeDirectiveName), dirNameNode.token32)
 		}
+		p.checkDirectiveCnt(node, scriptTypeDirectiveName, directiveCnt)
 	case importDirectiveName:
 		break
 		// TODO
 	default:
-		p.addError(fmt.Sprintf("Undefined directive: \"%s\"", dirName), dirNameNode.token32)
+		p.addError(fmt.Sprintf("Illegal directive key \"%s\"", dirName), dirNameNode.token32)
 	}
 
 }
 
 func (p *ASTParser) checkDirectiveCnt(node *node32, name string, directiveCnt map[string]int) {
 	if val, ok := directiveCnt[name]; ok && val == 1 {
-		p.addError(fmt.Sprintf("more than one %s directive", name), node.token32)
+		p.addError(fmt.Sprintf("Directive key %s is used more than once", name), node.token32)
 	} else {
 		directiveCnt[name] = 1
 	}
@@ -322,27 +323,21 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 		return nil, nil
 	}
 	if len(tuple.Types) < len(varNames) {
-		p.addError("Number of Identifiers must be <= tuple length", curNode.token32)
+		p.addError("Number of Identifiers must be <= tuple length", node.token32)
 		return nil, nil
 	}
 	var resExpr []ast.Node
 	var resTypes []s.Type
-	var tupleName string
-	switch e := expr.(type) {
-	case *ast.FunctionCallNode:
-		tupleName = "$t0" + strconv.FormatUint(uint64(node.begin), 10) + strconv.FormatUint(uint64(node.end), 10)
-		p.currentStack.PushVariable(Variable{
-			Name: tupleName,
-			Type: varType,
-		})
-		resExpr = append(resExpr, &ast.AssignmentNode{
-			Name:       tupleName,
-			Expression: expr,
-		})
-		resTypes = append(resTypes, varType)
-	case *ast.ReferenceNode:
-		tupleName = e.Name
-	}
+	tupleName := "$t0" + strconv.FormatUint(uint64(node.begin), 10) + strconv.FormatUint(uint64(node.end), 10)
+	p.currentStack.PushVariable(Variable{
+		Name: tupleName,
+		Type: varType,
+	})
+	resExpr = append(resExpr, &ast.AssignmentNode{
+		Name:       tupleName,
+		Expression: expr,
+	})
+	resTypes = append(resTypes, varType)
 	for i, name := range varNames {
 		resExpr = append(resExpr, &ast.AssignmentNode{
 			Name: name,
@@ -638,6 +633,7 @@ func (p *ASTParser) ruleIntegerHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *ASTParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 	value := string(p.buffer[node.begin:node.end])
+	value = strings.ReplaceAll(value, "\"", "")
 	return ast.NewStringNode(value), s.StringType
 }
 
@@ -650,14 +646,14 @@ func (p *ASTParser) ruleByteVectorHandler(node *node32) (ast.Node, s.Type) {
 	valueInBase := valueWithBase[len("baseXX'") : len(valueWithBase)-1]
 	switch node.up.pegRule {
 	case ruleBase16:
-		_, err = hex.Decode(value, []byte(valueInBase))
+		value, err = hex.DecodeString(valueInBase)
 	case ruleBase58:
 		value, err = base58.Decode(valueInBase)
 	case ruleBase64:
-		_, err = base64.StdEncoding.Decode(value, []byte(valueInBase))
+		value, err = base64.StdEncoding.DecodeString(valueInBase)
 	}
 	if err != nil {
-		p.addError(fmt.Sprintf("failing to parse ByteVector: %s", err), curNode.token32)
+		p.addError(fmt.Sprintf("failing to parse ByteVector: %s", err), node.token32)
 	}
 	return ast.NewBytesNode(value), s.ByteVectorType
 }
@@ -677,7 +673,7 @@ func (p *ASTParser) ruleListExprSeqHandler(node *node32) (ast.Node, s.Type) {
 	listType.AppendType(varType)
 	curNode = curNode.next
 	if curNode == nil {
-		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, nil}), s.ListType{Type: listType}
+		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, ast.NewReferenceNode("nil")}), s.ListType{Type: listType}
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
