@@ -2143,7 +2143,6 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
 		Version   byte              `json:"version,omitempty"`
-		ID        *crypto.Digest    `json:"id,omitempty"`
 		Signature *crypto.Signature `json:"signature,omitempty"`
 		SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
 		Alias     string            `json:"alias"`
@@ -2156,7 +2155,6 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	}
 	tx.Type = tmp.Type
 	tx.Version = tmp.Version
-	tx.ID = tmp.ID
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
 	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
