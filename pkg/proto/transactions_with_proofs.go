@@ -2501,6 +2501,9 @@ func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
 
 // Sign adds signature as a proof at first position.
 func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
@@ -2511,9 +2514,6 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
-	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
 	}
 	return nil
 }

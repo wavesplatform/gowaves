@@ -2078,6 +2078,9 @@ func (tx *CreateAliasWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 func (tx *CreateAliasWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithSig transaction")
@@ -2087,9 +2090,6 @@ func (tx *CreateAliasWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 		return errors.Wrap(err, "failed to sign CreateAliasWithSig transaction")
 	}
 	tx.Signature = &s
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
-	}
 	return nil
 }
 
