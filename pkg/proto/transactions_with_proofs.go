@@ -2418,6 +2418,9 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	if tx.ID != nil {
 		return nil
 	}
+	// user can send tx through HTTP endpoint and Scheme there will be ignored (set to 0)
+	// but correct scheme is necessary in Verify method, so that's a crunch for that
+	tx.Alias.Scheme = scheme // TODO: create special method for providing scheme value for Tx
 	if IsProtobufTx(tx) {
 		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
