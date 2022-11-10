@@ -5637,3 +5637,62 @@ func TestValidateBalancesOnlyForChangedAccountsBeforeInvokeScriptActivation(t *t
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "gotcha")
 }
+
+func TestThrowComplexity(t *testing.T) {
+
+	/*
+		Evaluation complexity of throw() function is 2, and it's called in `foo` callable of dApp1. So total complexity of
+		`foo` should be 1 (Address) + 75 (invoke) + 2 (throw) = 78.
+		Evaluation complexity of throw("message") function is 1. It is called in `bar` callable of dAtt1. In this case
+		total complexity of `bar` should be 1 (Address) + 75 (invoke) + 1 (throw) = 77.
+	*/
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func foo() = {
+		strict r = invoke(this, "baz", [], []) # Complexity 77 = 75 (invoke) + 2 (throw())
+		[]
+	}
+
+	@Callable(i)
+	func baz() = throw() # Complexity 2
+
+	@Callable(i)
+	func bar() = {
+		strict r = invoke(this, "qux", [], []) # Complexity 76 = 75 (invoke) + 1 (throw("fail"))
+		[]
+	}
+
+	@Callable(i)
+	func qux() = throw("fail") # Complexity 1
+	*/
+	_, tree1 := parseBase64Script(t, "BgIKCAISABIAEgASAAAEAWkBA2ZvbwAEAXIJAPwHBAUEdGhpcwIDYmF6BQNuaWwFA25pbAMJAAACBQFyBQFyBQNuaWwJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQEDYmF6AAkBBXRocm93AAFpAQNiYXIABAFyCQD8BwQFBHRoaXMCA3F1eAUDbmlsBQNuaWwDCQAAAgUBcgUBcgUDbmlsCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAWkBA3F1eAAJAAIBAgRmYWlsAHvPuF0=")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlockV5Activated().withProtobufTx().withRideV6Activated().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+
+	_, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	assert.EqualError(t, err, "Explicit script termination")
+	assert.Equal(t, 77, EvaluationErrorSpentComplexity(err))
+
+	_, err = CallFunction(env.toEnv(), tree1, "baz", proto.Arguments{})
+	assert.EqualError(t, err, "Explicit script termination")
+	assert.Equal(t, 2, EvaluationErrorSpentComplexity(err))
+
+	_, err = CallFunction(env.toEnv(), tree1, "bar", proto.Arguments{})
+	assert.EqualError(t, err, "fail")
+	assert.Equal(t, 76, EvaluationErrorSpentComplexity(err))
+
+	_, err = CallFunction(env.toEnv(), tree1, "qux", proto.Arguments{})
+	assert.EqualError(t, err, "fail")
+	assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
+}
