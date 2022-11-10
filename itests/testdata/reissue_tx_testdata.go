@@ -73,11 +73,11 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			10000000000,
-			false,
+			true,
 			ReissueExpectedValuesPositive{
 				WavesDiffBalance: 100000000,
 				AssetDiffBalance: 10000000000,
-				Reissuable:       false,
+				Reissuable:       true,
 			}),
 	}
 	return t
@@ -93,11 +93,11 @@ func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[s
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			uint64(9223372036854775807-assetBalance),
-			true,
+			false,
 			ReissueExpectedValuesPositive{
 				WavesDiffBalance: 100000,
 				AssetDiffBalance: int64(9223372036854775807 - assetBalance),
-				Reissuable:       true,
+				Reissuable:       false,
 			}),
 	}
 	return t
@@ -119,8 +119,8 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 				Reissuable:        false,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Asset is not reissuable",
 			}),
 	}
 	return t
@@ -142,10 +142,10 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
-		"Invalid token quantity (quantity < min>)": *NewReissueTestData(
+		"Invalid token quantity (quantity < min)": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
 			assetID,
 			100000,
@@ -159,8 +159,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "non-positive amount: 0 of assets",
 			}),
 		"Invalid fee (fee > max)": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -176,8 +176,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
 		"Invalid fee (0 < fee < min)": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -193,8 +193,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value of 100000 WAVES",
 			}),
 		"Invalid fee (fee = 0)": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -210,8 +210,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "insufficient fee",
 			}),
 		"Reissue token when there are not enough funds on the account balance": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -227,8 +227,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Accounts balance error",
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -245,7 +245,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -262,9 +262,9 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		"Custom chainID": *NewReissueTestData(
+		/*"Custom chainID": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
 			assetID,
 			100000,
@@ -278,8 +278,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
 			}),
 		"Invalid chainID (value=0)": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
@@ -295,9 +295,9 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
-			}),
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
+			}),*/
 		"Reissue by another account": *NewReissueTestData(
 			utl.GetAccount(suite, 3),
 			assetID,
@@ -312,8 +312,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Asset was issued by other address",
 			}),
 		"Invalid asset ID": *NewReissueTestData(
 			utl.GetAccount(suite, 3),
@@ -329,8 +329,8 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Referenced assetId not found",
 			}),
 	}
 	return t
