@@ -1997,6 +1997,9 @@ func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID != nil {
 		return nil
 	}
+	// user can send tx through HTTP endpoint and Scheme there will be ignored (set to 0)
+	// but correct scheme is necessary in Verify method, so that's a crunch for that
+	tx.Alias.Scheme = scheme // TODO: create special method for providing scheme value for Tx
 	if IsProtobufTx(tx) {
 		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
@@ -2075,6 +2078,9 @@ func (tx *CreateAliasWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 func (tx *CreateAliasWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithSig transaction")
@@ -2084,9 +2090,6 @@ func (tx *CreateAliasWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 		return errors.Wrap(err, "failed to sign CreateAliasWithSig transaction")
 	}
 	tx.Signature = &s
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -2136,10 +2139,10 @@ func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 }
 
 func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
+	const ignoreChainID Scheme = 0
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
 		Version   byte              `json:"version,omitempty"`
-		ID        *crypto.Digest    `json:"id,omitempty"`
 		Signature *crypto.Signature `json:"signature,omitempty"`
 		SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
 		Alias     string            `json:"alias"`
@@ -2152,13 +2155,21 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	}
 	tx.Type = tmp.Type
 	tx.Version = tmp.Version
-	tx.ID = tmp.ID
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = Alias{aliasVersion, MainNetScheme, tmp.Alias}
+	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
+}
+
+func (tx *CreateAliasWithSig) MarshalJSON() ([]byte, error) {
+	type shadowed CreateAliasWithSig
+	tmp := struct {
+		Alias string `json:"alias"`
+		*shadowed
+	}{tx.Alias.Alias, (*shadowed)(tx)}
+	return json.Marshal(tmp)
 }
 
 func (tx *CreateAliasWithSig) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
