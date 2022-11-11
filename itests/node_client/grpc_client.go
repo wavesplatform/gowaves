@@ -54,10 +54,10 @@ func getBalance(t *testing.T, conn *grpc.ClientConn, req *g.BalancesRequest) *g.
 	return b
 }
 
-func (c *GrpcClient) GetAddressByAlias(t *testing.T, alias string) *wrapperspb.BytesValue {
+func (c *GrpcClient) GetAddressByAlias(t *testing.T, alias string) []byte {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	addr, err := g.NewAccountsApiClient(c.conn).ResolveAlias(ctx, &wrapperspb.StringValue{Value: alias})
 	assert.NoError(t, err)
-	return addr
+	return addr.GetValue()
 }

@@ -68,15 +68,11 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 }
 
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
-	temp := suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
-	fmt.Println("Go: ", temp.String())
-	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias).GetValue()
+	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
 }
 
 func GetAddressByAliasScala(suite *f.BaseSuite, alias string) []byte {
-	temp := suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
-	fmt.Println("Scala: ", temp.String())
-	return suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias).GetValue()
+	return suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
 }
 
 func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
