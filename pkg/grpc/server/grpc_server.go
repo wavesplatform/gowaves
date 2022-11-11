@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -133,6 +134,8 @@ func (s *Server) Serve(l net.Listener) error {
 	g.RegisterTransactionsApiServer(grpcServer, s.handlers)
 	s.grpcServer = grpcServer
 
+	// Register reflection service on gRPC server.
+	reflection.Register(grpcServer)
 	if err := grpcServer.Serve(l); err != nil {
 		return errors.Errorf("grpcServer.Serve: %v", err)
 	}
