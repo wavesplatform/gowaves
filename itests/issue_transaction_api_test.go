@@ -25,7 +25,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 
 		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
 
-		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name)
+		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -53,8 +53,8 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 		brdCstTx2, errWtGo2, errWtScala2 := issue_utilities.IssueBroadcast(
 			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
 
-		utl.StatusCodesCheck(suite.T(), brdCstTx1, http.StatusOK, http.StatusOK, name)
-		utl.StatusCodesCheck(suite.T(), brdCstTx2, http.StatusOK, http.StatusOK, name)
+		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx1, name)
+		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx2, name)
 
 		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, td.Account.Address)
@@ -89,7 +89,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 
 		brdCstTx, errWtGo, errWtScala := issue_utilities.IssueBroadcast(&suite.CommonIssueTxSuite, td, timeout)
 
-		utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name)
+		utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name)
 		utl.ErrorMessageCheck(
 			suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 			brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name)
