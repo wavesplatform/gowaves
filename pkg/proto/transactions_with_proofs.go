@@ -2418,6 +2418,9 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	if tx.ID != nil {
 		return nil
 	}
+	// user can send tx through HTTP endpoint and Scheme there will be ignored (set to 0)
+	// but correct scheme is necessary in Verify method, so that's a crunch for that
+	tx.Alias.Scheme = scheme // TODO: create special method for providing scheme value for Tx
 	if IsProtobufTx(tx) {
 		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
@@ -2498,6 +2501,9 @@ func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
 
 // Sign adds signature as a proof at first position.
 func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
@@ -2508,9 +2514,6 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	err = tx.Proofs.Sign(secretKey, b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
-	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return err
 	}
 	return nil
 }
@@ -2572,10 +2575,10 @@ func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte, scheme Scheme) err
 }
 
 func (tx *CreateAliasWithProofs) UnmarshalJSON(data []byte) error {
+	const ignoreChainID Scheme = 0
 	tmp := struct {
 		Type      TransactionType  `json:"type"`
 		Version   byte             `json:"version,omitempty"`
-		ID        *crypto.Digest   `json:"id,omitempty"`
 		Proofs    *ProofsV1        `json:"proofs,omitempty"`
 		SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 		Alias     string           `json:"alias"`
@@ -2588,13 +2591,21 @@ func (tx *CreateAliasWithProofs) UnmarshalJSON(data []byte) error {
 	}
 	tx.Type = tmp.Type
 	tx.Version = tmp.Version
-	tx.ID = tmp.ID
 	tx.Proofs = tmp.Proofs
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = Alias{aliasVersion, TestNetScheme, tmp.Alias}
+	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
+}
+
+func (tx *CreateAliasWithProofs) MarshalJSON() ([]byte, error) {
+	type shadowed CreateAliasWithProofs
+	tmp := struct {
+		Alias string `json:"alias"`
+		*shadowed
+	}{tx.Alias.Alias, (*shadowed)(tx)}
+	return json.Marshal(tmp)
 }
 
 type MassTransferEntry struct {
