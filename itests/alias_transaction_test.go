@@ -36,9 +36,8 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 
 			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
 
-			//Need to fix addresses
-			//addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-			//utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress, addrByAliasGo, addrByAliasScala)
+			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
 				name, "version:", i)
@@ -64,8 +63,8 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
 			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
-			//addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-			//utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress, addrByAliasGo, addrByAliasScala)
+			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
 				name, "version:", i)

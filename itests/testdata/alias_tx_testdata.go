@@ -22,7 +22,7 @@ type AliasTestData[T any] struct {
 }
 
 type AliasExpectedValuesPositive struct {
-	ExpectedAddress  []byte
+	ExpectedAddress  proto.WavesAddress
 	WavesDiffBalance int64
 	_                struct{}
 }
@@ -83,7 +83,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
-				ExpectedAddress:  utl.GetAccount(suite, 2).Address.Body(),
+				ExpectedAddress:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance: 100000,
 			}),
 		"Valid alias 15 bytes, middle values for fee": *NewAliasTestData(
@@ -93,7 +93,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
-				ExpectedAddress:  utl.GetAccount(suite, 2).Address.Body(),
+				ExpectedAddress:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance: 100000000000,
 			}),
 	}
@@ -109,7 +109,7 @@ func GetAliasMaxPositiveDataMatrix(suite *f.BaseSuite, accNumber int) map[string
 			utl.GetCurrentTimestampInMs(),
 			testChainID,
 			AliasExpectedValuesPositive{
-				ExpectedAddress:  utl.GetAccount(suite, accNumber).Address.Body(),
+				ExpectedAddress:  utl.GetAccount(suite, accNumber).Address,
 				WavesDiffBalance: utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address),
 			}),
 	}
