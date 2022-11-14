@@ -532,7 +532,7 @@ func catalogueV4() map[string]int {
 	m["take"] = 20
 	m["cons"] = 1
 	m["parseIntValue"] = 2
-	//Tuple // constructors
+	// Tuple constructors
 	for i := 2; i <= 22; i++ {
 		m[strconv.Itoa(1300+i-2)] = 1
 	}
@@ -694,7 +694,6 @@ func catalogueV5() map[string]int {
 	m["1092"] = 1
 	m["1093"] = 1
 	m["fraction"] = 17
-	// m["LeaseCancel"] = 1
 	m["@extrNative(1055)"] = 10
 	m["@extrNative(1056)"] = 10
 	m["@extrNative(1057)"] = 10
@@ -951,7 +950,7 @@ func createFunctionsList(cd *Coder, ver string, m map[string]string, c, ec1, ec2
 	cd.Line("var Catalogue%s = map[string]int{%s}", ver, strings.Join(pairs, ", "))
 	cd.Line("")
 
-	// Create map of evaluation costs of functions and // constructors
+	// Create map of evaluation costs of functions and constructors
 	cd.Line("var EvaluationCatalogue%sEvaluatorV1 = map[string]int{%s}", ver, strings.Join(ec1Pairs, ", "))
 	cd.Line("var EvaluationCatalogue%sEvaluatorV2 = map[string]int{%s}", ver, strings.Join(ec2Pairs, ", "))
 

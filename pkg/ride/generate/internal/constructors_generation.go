@@ -25,7 +25,7 @@ func extractConstructorArguments(args []actionField) ([]actionField, error) {
 		if field.ConstructorOrder == -1 {
 			continue
 		}
-		if seen := seenOrders[field.ConstructorOrder]; seen {
+		if seenOrders[field.ConstructorOrder] {
 			return nil, errors.Errorf("Duplicate constructor_order: %d", field.ConstructorOrder)
 		}
 		seenOrders[field.ConstructorOrder] = true
@@ -81,14 +81,14 @@ type constructorStructInfo struct {
 type versionInfo struct {
 	version        ast.LibraryVersion
 	newStructs     []constructorStructInfo // new structs or modified structs
-	removedStructs map[string]bool         // structs removed in this version
+	removedStructs []string                // structs removed in this version
 }
 
 func newVersionInfo(version ast.LibraryVersion) *versionInfo {
 	return &versionInfo{
 		version:        version,
 		newStructs:     make([]constructorStructInfo, 0),
-		removedStructs: make(map[string]bool),
+		removedStructs: make([]string, 0),
 	}
 }
 
@@ -109,7 +109,7 @@ func (vInfos versionInfos) addRemoved(version ast.LibraryVersion, name string) {
 	}
 
 	vInfo := vInfos[version]
-	vInfo.removedStructs[name] = true
+	vInfo.removedStructs = append(vInfo.removedStructs, name)
 }
 
 func constructorsFunctions(ver ast.LibraryVersion, m map[string]string) {
@@ -118,7 +118,7 @@ func constructorsFunctions(ver ast.LibraryVersion, m map[string]string) {
 		panic(fmt.Sprintf("version %d is missing in verInfos", ver))
 	}
 
-	for name := range verInfo.removedStructs {
+	for _, name := range verInfo.removedStructs {
 		delete(m, name)
 	}
 	for _, structInfo := range verInfo.newStructs {
@@ -127,7 +127,7 @@ func constructorsFunctions(ver ast.LibraryVersion, m map[string]string) {
 }
 
 func constructorsCatalogue(ver ast.LibraryVersion, m map[string]int) {
-	for name := range verInfos[ver].removedStructs {
+	for _, name := range verInfos[ver].removedStructs {
 		delete(m, name)
 	}
 	for _, structInfo := range verInfos[ver].newStructs {
@@ -136,7 +136,7 @@ func constructorsCatalogue(ver ast.LibraryVersion, m map[string]int) {
 }
 
 func constructorsEvaluationCatalogueEvaluatorV1(ver ast.LibraryVersion, m map[string]int) {
-	for name := range verInfos[ver].removedStructs {
+	for _, name := range verInfos[ver].removedStructs {
 		delete(m, name)
 	}
 	for _, structInfo := range verInfos[ver].newStructs {
@@ -145,7 +145,7 @@ func constructorsEvaluationCatalogueEvaluatorV1(ver ast.LibraryVersion, m map[st
 }
 
 func constructorsEvaluationCatalogueEvaluatorV2(ver ast.LibraryVersion, m map[string]int) {
-	for name := range verInfos[ver].removedStructs {
+	for _, name := range verInfos[ver].removedStructs {
 		delete(m, name)
 	}
 	for _, structInfo := range verInfos[ver].newStructs {
@@ -154,13 +154,6 @@ func constructorsEvaluationCatalogueEvaluatorV2(ver ast.LibraryVersion, m map[st
 }
 
 func processVerInfos() error {
-	var maxVersion byte = 0
-	for ver := range verInfos {
-		if byte(ver) > maxVersion {
-			maxVersion = byte(ver)
-		}
-	}
-
 	existingStructs := map[string]constructorStructInfo{}
 	for ver := ast.LibV1; ver <= ast.CurrentMaxLibraryVersion(); ver++ {
 		verInfo := verInfos[ver]
@@ -169,7 +162,7 @@ func processVerInfos() error {
 			verInfos[ver] = verInfo
 		}
 
-		for name := range verInfo.removedStructs {
+		for _, name := range verInfo.removedStructs {
 			delete(existingStructs, name)
 		}
 		for _, structInfo := range verInfo.newStructs {
