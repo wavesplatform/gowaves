@@ -1077,6 +1077,104 @@ func (o rideInvocationV3) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+type rideInvocationV4 struct {
+	payments        rideList
+	payment         rideType
+	callerPublicKey rideBytes
+	feeAssetID      rideType
+	transactionID   rideBytes
+	caller          rideAddress
+	fee             rideInt
+}
+
+func newRideInvocationV4(payments rideList, payment rideType, callerPublicKey rideBytes, feeAssetID rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV4 {
+	return rideInvocationV4{
+		payments:        payments,
+		payment:         payment,
+		callerPublicKey: callerPublicKey,
+		feeAssetID:      feeAssetID,
+		transactionID:   transactionID,
+		caller:          caller,
+		fee:             fee,
+	}
+}
+
+func (o rideInvocationV4) instanceOf() string {
+	return "Invocation"
+}
+
+func (o rideInvocationV4) eq(other rideType) bool {
+	if oo, ok := other.(rideInvocationV4); ok {
+		if !o.payments.eq(oo.payments) {
+			return false
+		}
+		if !o.payment.eq(oo.payment) {
+			return false
+		}
+		if !o.callerPublicKey.eq(oo.callerPublicKey) {
+			return false
+		}
+		if !o.feeAssetID.eq(oo.feeAssetID) {
+			return false
+		}
+		if !o.transactionID.eq(oo.transactionID) {
+			return false
+		}
+		if !o.caller.eq(oo.caller) {
+			return false
+		}
+		if !o.fee.eq(oo.fee) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideInvocationV4) get(prop string) (rideType, error) {
+	switch prop {
+	case instanceField:
+		return rideString("Invocation"), nil
+	case paymentsField:
+		return o.payments, nil
+	case paymentField:
+		return o.payment, nil
+	case callerPublicKeyField:
+		return o.callerPublicKey, nil
+	case feeAssetIDField:
+		return o.feeAssetID, nil
+	case transactionIDField:
+		return o.transactionID, nil
+	case callerField:
+		return o.caller, nil
+	case feeField:
+		return o.fee, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideInvocationV4) copy() rideType {
+	return newRideInvocationV4(o.payments, o.payment, o.callerPublicKey, o.feeAssetID, o.transactionID, o.caller, o.fee)
+}
+
+func (o rideInvocationV4) lines() []string {
+	r := make([]string, 0, 9)
+	r = append(r, "Invocation(")
+	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
+	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
+	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(transactionIDField, o.transactionID.lines())...)
+	r = append(r, fieldLines(callerField, o.caller.lines())...)
+	r = append(r, fieldLines(feeField, o.fee.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideInvocationV4) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
 type rideInvocationV5 struct {
 	originCaller          rideType
 	payments              rideType

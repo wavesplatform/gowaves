@@ -553,9 +553,71 @@
 					"fields": [
 						{
 							"name": "payments",
-							"types":  [
-                "rideUnit",
-                "rideAttachedPayment",
+							"types": [
+								"rideAttachedPayment",
+                "rideUnit"
+							],
+							"order": 1,
+							"constructorOrder": 0
+						},
+						{
+							"name": "payment",
+							"types": [
+								"rideUnit",
+								"rideType"
+							],
+							"order": -1,
+							"constructorOrder": -1
+						},
+						{
+							"name": "callerPublicKey",
+							"types": [
+								"rideBytes"
+							],
+							"order": 2,
+							"constructorOrder": 2
+						},
+						{
+							"name": "feeAssetID",
+							"types": [
+								"rideBytes",
+								"rideUnit"
+							],
+							"order": 3,
+							"constructorOrder": 5
+						},
+						{
+							"name": "transactionID",
+							"types": [
+								"rideBytes"
+							],
+							"order": 5,
+							"constructorOrder": 3
+						},
+						{
+							"name": "caller",
+							"types": [
+								"rideAddress"
+							],
+							"order": 6,
+							"constructorOrder": 1
+						},
+						{
+							"name": "fee",
+							"types": [
+								"rideInt"
+							],
+							"order": 7,
+							"constructorOrder": 4
+						}
+					]
+				},
+        {
+					"version": 4,
+					"fields": [
+						{
+							"name": "payments",
+							"types": [
 								"rideList[rideAttachedPayment]"
 							],
 							"order": 1,
@@ -629,7 +691,6 @@
 							"name": "payments",
 							"types": [
                 "rideUnit",
-                "rideAttachedPayment",
 								"rideList[rideAttachedPayment]"
 							],
 							"order": 1,

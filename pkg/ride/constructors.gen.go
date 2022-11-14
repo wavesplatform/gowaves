@@ -391,7 +391,7 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 
 	var payments rideType
 	switch v := args_[0].(type) {
-	case rideUnit, rideAttachedPayment, rideList:
+	case rideAttachedPayment, rideUnit:
 		payments = v
 	default:
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
@@ -431,6 +431,58 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 	return newRideInvocationV3(payments, payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
 }
 
+func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
+	if err := checkArgs(args_, 6); err != nil {
+		return nil, errors.Wrap(err, "invocationV4Constructor")
+	}
+
+	payments, ok := args_[0].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
+	}
+	// checks for list elements
+	for _, elem := range payments {
+		switch t := elem.(type) {
+		case rideAttachedPayment:
+		default:
+			return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' in payments list", t.instanceOf())
+		}
+	}
+
+	caller, ok := args_[1].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for caller", args_[1].instanceOf())
+	}
+
+	callerPublicKey, ok := args_[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for callerPublicKey", args_[2].instanceOf())
+	}
+
+	transactionID, ok := args_[3].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for transactionID", args_[3].instanceOf())
+	}
+
+	fee, ok := args_[4].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for fee", args_[4].instanceOf())
+	}
+
+	var feeAssetID rideType
+	switch v := args_[5].(type) {
+	case rideBytes, rideUnit:
+		feeAssetID = v
+	default:
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
+	}
+
+	// default value for payment
+	var payment rideType
+
+	return newRideInvocationV4(payments, payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
+}
+
 func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error) {
 	if err := checkArgs(args_, 8); err != nil {
 		return nil, errors.Wrap(err, "invocationV5Constructor")
@@ -438,7 +490,7 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 
 	var payments rideType
 	switch v := args_[0].(type) {
-	case rideUnit, rideAttachedPayment, rideList:
+	case rideUnit, rideList:
 		payments = v
 	default:
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
