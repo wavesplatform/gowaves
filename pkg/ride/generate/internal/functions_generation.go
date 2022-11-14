@@ -155,7 +155,6 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	// In Scala implementation order
 	m := catalogueV2()
 	m["isDefined"] = 7
-	m["throw"] = 1
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -308,7 +307,7 @@ func catalogueV3() map[string]int {
 func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m := catalogueV3()
 	m["isDefined"] = 7
-	m["throw"] = 1
+	m["throw"] = 2
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -348,6 +347,7 @@ func evaluationCatalogueV3EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV3EvaluatorV2() map[string]int {
 	m := catalogueV3()
+	m["throw"] = 2
 	m["Ceiling"] = 1
 	m["Floor"] = 1
 	m["HalfEven"] = 1
@@ -544,7 +544,7 @@ func catalogueV4() map[string]int {
 func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m := catalogueV4()
 	m["isDefined"] = 7
-	m["throw"] = 1
+	m["throw"] = 2
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -585,6 +585,7 @@ func evaluationCatalogueV4EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV4EvaluatorV2() map[string]int {
 	m := catalogueV4()
+	m["throw"] = 2
 	m["Ceiling"] = 1
 	m["Floor"] = 1
 	m["HalfEven"] = 1
@@ -708,7 +709,7 @@ func catalogueV5() map[string]int {
 func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m := catalogueV5()
 	m["isDefined"] = 7
-	m["throw"] = 1
+	m["throw"] = 2
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -754,6 +755,7 @@ func evaluationCatalogueV5EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m := catalogueV5()
+	m["throw"] = 2
 	m["Ceiling"] = 1
 	m["Floor"] = 1
 	m["HalfEven"] = 1
@@ -850,6 +852,7 @@ func catalogueV6() map[string]int {
 
 func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m := catalogueV6()
+	m["throw"] = 2
 	m["Ceiling"] = 0
 	m["Floor"] = 0
 	m["HalfEven"] = 0
@@ -875,6 +878,7 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m := catalogueV6()
+	m["throw"] = 2
 	m["Ceiling"] = 1
 	m["Floor"] = 1
 	m["HalfEven"] = 1

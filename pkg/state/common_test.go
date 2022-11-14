@@ -182,7 +182,7 @@ func newTestEthAkaWavesAddrData(ethSecretKeyHex string, assets []crypto.Digest) 
 	}
 
 	ethSK := proto.EthereumPrivateKey(*sk)
-	ethPK := proto.EthereumPublicKey(ethSK.PublicKey)
+	ethPK := proto.EthereumPublicKey(*sk.PubKey())
 
 	addr, err := ethPK.EthereumAddress().ToWavesAddress('W')
 	if err != nil {

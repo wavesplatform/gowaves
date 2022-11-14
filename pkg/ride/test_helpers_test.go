@@ -372,6 +372,13 @@ func (e *testEnv) withRideV6Activated() *testEnv {
 	return e
 }
 
+func (e *testEnv) withInvokeExpressionActivated() *testEnv {
+	e.me.invokeExpressionActivatedFunc = func() bool {
+		return true
+	}
+	return e
+}
+
 func (e *testEnv) withValidateInternalPayments() *testEnv {
 	e.me.validateInternalPaymentsFunc = func() bool {
 		return true

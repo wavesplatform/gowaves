@@ -216,14 +216,33 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
+	oldChangedAccounts := ws.diff.replaceChangedAccounts(make(changedAccounts))
+	defer func() {
+		_ = ws.diff.replaceChangedAccounts(oldChangedAccounts)
+	}()
+
 	localActionsCountValidator := proto.NewScriptActionsCountValidator()
 
+	// Check payments itself. We don't validate result balances in following function,
+	// but apply payments to wrapped state as is.
 	err = ws.smartAppendActions(attachedPaymentActions, env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
 		}
 		return nil, err
+	}
+	checkPaymentsAfterApplication := func() error {
+		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
+		if err != nil && GetEvaluationErrorType(err) == Undefined {
+			err = InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		}
+		return err
+	}
+	if env.invokeExpressionActivated() { // Check payments result balances here after invoke expression activation.
+		if err := checkPaymentsAfterApplication(); err != nil {
+			return nil, err
+		}
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
@@ -255,6 +274,12 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	ws.totalComplexity += res.Complexity()
 
+	if !env.invokeExpressionActivated() { // Check payments result balances here before invoke expression activation.
+		if err := checkPaymentsAfterApplication(); err != nil {
+			return nil, err
+		}
+	}
+
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
@@ -263,9 +288,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	if env.validateInternalPayments() && !env.rideV6Activated() {
-		err = ws.validateBalances(env.rideV6Activated())
-	} else if env.rideV6Activated() {
+	if env.validateInternalPayments() || env.rideV6Activated() {
 		err = ws.validateBalances(env.rideV6Activated())
 	}
 	if err != nil {

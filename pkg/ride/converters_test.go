@@ -1545,7 +1545,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
 
 	sellOrder := proto.NewUnsignedEthereumOrderV4(
-		(*proto.EthereumPublicKey)(&sk.PublicKey),
+		(*proto.EthereumPublicKey)(sk.PubKey()),
 		matcherPk,
 		a.aa,
 		a.pa,
