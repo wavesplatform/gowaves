@@ -156,8 +156,7 @@ func (s *Server) ResolveAlias(_ context.Context, req *wrapperspb.StringValue) (*
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
-	addrBody := addr.Body()
-	return &wrapperspb.BytesValue{Value: addrBody}, nil
+	return &wrapperspb.BytesValue{Value: addr.Bytes()}, nil
 }
 
 func (s *Server) sendWavesBalance(rcp proto.Recipient, srv g.AccountsApi_GetBalancesServer) error {
