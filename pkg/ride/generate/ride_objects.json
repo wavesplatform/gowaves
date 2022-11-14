@@ -792,7 +792,8 @@
 						{
 							"name": "recipient",
 							"types": [
-								"rideRecipient"
+								"rideAlias",
+								"rideAddress"
 							],
 							"order": 0,
 							"constructorOrder": 0
@@ -1002,49 +1003,11 @@
 				}
 			]
 		},
-		{
-			"name": "ScriptTransfer",
-			"actions": [
-				{
-					"version": 3,
-					"fields": [
-						{
-							"name": "recipient",
-							"types": [
-								"rideRecipient",
-								"rideAlias",
-								"rideAddress",
-								"rideAddressLike"
-							],
-							"order": 0,
-							"constructorOrder": 0
-						},
-						{
-							"name": "asset",
-							"types": [
-								"rideBytes",
-								"rideUnit"
-							],
-							"order": 2,
-							"constructorOrder": 2
-						},
-						{
-							"name": "amount",
-							"types": [
-								"rideInt"
-							],
-							"order": 1,
-							"constructorOrder": 1
-						}
-					]
-				}
-			]
-		},
     {
-      "name": "FullScriptTransfer",
-      "skip_constructor": true,
+      "name": "ScriptTransfer",
       "actions": [
         {
+		  "version": 3,
           "fields": [
             {
               "name": "attachment",
@@ -1115,7 +1078,10 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient"
+                "rideRecipient",
+                "rideAlias",
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 0

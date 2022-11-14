@@ -1245,7 +1245,7 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 }
 
 func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
-	return newRideFullScriptTransfer(
+	return newRideScriptTransfer(
 		rideUnit{},
 		rideUnit{},
 		rideList{},

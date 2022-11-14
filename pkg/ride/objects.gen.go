@@ -1342,12 +1342,12 @@ func (o rideLeaseCancel) String() string {
 }
 
 type rideLease struct {
-	recipient rideRecipient
+	recipient rideType
 	amount    rideInt
 	nonce     rideInt
 }
 
-func newRideLease(recipient rideRecipient, amount rideInt, nonce rideInt) rideLease {
+func newRideLease(recipient rideType, amount rideInt, nonce rideInt) rideLease {
 	return rideLease{
 		recipient: recipient,
 		amount:    amount,
@@ -1699,73 +1699,6 @@ func (o rideScriptResult) String() string {
 }
 
 type rideScriptTransfer struct {
-	recipient rideType
-	asset     rideType
-	amount    rideInt
-}
-
-func newRideScriptTransfer(recipient rideType, asset rideType, amount rideInt) rideScriptTransfer {
-	return rideScriptTransfer{
-		recipient: recipient,
-		asset:     asset,
-		amount:    amount,
-	}
-}
-
-func (o rideScriptTransfer) instanceOf() string {
-	return "ScriptTransfer"
-}
-
-func (o rideScriptTransfer) eq(other rideType) bool {
-	if oo, ok := other.(rideScriptTransfer); ok {
-		if !o.recipient.eq(oo.recipient) {
-			return false
-		}
-		if !o.asset.eq(oo.asset) {
-			return false
-		}
-		if !o.amount.eq(oo.amount) {
-			return false
-		}
-		return true
-	}
-	return false
-}
-
-func (o rideScriptTransfer) get(prop string) (rideType, error) {
-	switch prop {
-	case instanceField:
-		return rideString("ScriptTransfer"), nil
-	case recipientField:
-		return o.recipient, nil
-	case assetField:
-		return o.asset, nil
-	case amountField:
-		return o.amount, nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
-	}
-}
-
-func (o rideScriptTransfer) copy() rideType {
-	return newRideScriptTransfer(o.recipient, o.asset, o.amount)
-}
-
-func (o rideScriptTransfer) lines() []string {
-	r := make([]string, 0, 5)
-	r = append(r, "ScriptTransfer(")
-	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
-	r = append(r, fieldLines(amountField, o.amount.lines())...)
-	r = append(r, fieldLines(assetField, o.asset.lines())...)
-	r = append(r, ")")
-	return r
-}
-
-func (o rideScriptTransfer) String() string {
-	return strings.Join(o.lines(), "\n")
-}
-
-type rideFullScriptTransfer struct {
 	attachment      rideUnit
 	bodyBytes       rideUnit
 	proofs          rideList
@@ -1774,7 +1707,7 @@ type rideFullScriptTransfer struct {
 	version         rideUnit
 	asset           rideType
 	assetID         rideType
-	recipient       rideRecipient
+	recipient       rideType
 	senderPublicKey rideBytes
 	id              rideBytes
 	amount          rideInt
@@ -1782,8 +1715,8 @@ type rideFullScriptTransfer struct {
 	sender          rideAddress
 }
 
-func newRideFullScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs rideList, feeAssetID rideUnit, fee rideUnit, version rideUnit, asset rideType, assetID rideType, recipient rideRecipient, senderPublicKey rideBytes, id rideBytes, amount rideInt, timestamp rideInt, sender rideAddress) rideFullScriptTransfer {
-	return rideFullScriptTransfer{
+func newRideScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs rideList, feeAssetID rideUnit, fee rideUnit, version rideUnit, asset rideType, assetID rideType, recipient rideType, senderPublicKey rideBytes, id rideBytes, amount rideInt, timestamp rideInt, sender rideAddress) rideScriptTransfer {
+	return rideScriptTransfer{
 		attachment:      attachment,
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
@@ -1801,12 +1734,12 @@ func newRideFullScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs r
 	}
 }
 
-func (o rideFullScriptTransfer) instanceOf() string {
-	return "FullScriptTransfer"
+func (o rideScriptTransfer) instanceOf() string {
+	return "ScriptTransfer"
 }
 
-func (o rideFullScriptTransfer) eq(other rideType) bool {
-	if oo, ok := other.(rideFullScriptTransfer); ok {
+func (o rideScriptTransfer) eq(other rideType) bool {
+	if oo, ok := other.(rideScriptTransfer); ok {
 		if !o.attachment.eq(oo.attachment) {
 			return false
 		}
@@ -1854,10 +1787,10 @@ func (o rideFullScriptTransfer) eq(other rideType) bool {
 	return false
 }
 
-func (o rideFullScriptTransfer) get(prop string) (rideType, error) {
+func (o rideScriptTransfer) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
-		return rideString("FullScriptTransfer"), nil
+		return rideString("ScriptTransfer"), nil
 	case attachmentField:
 		return o.attachment, nil
 	case bodyBytesField:
@@ -1891,13 +1824,13 @@ func (o rideFullScriptTransfer) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideFullScriptTransfer) copy() rideType {
-	return newRideFullScriptTransfer(o.attachment, o.bodyBytes, o.proofs, o.feeAssetID, o.fee, o.version, o.asset, o.assetID, o.recipient, o.senderPublicKey, o.id, o.amount, o.timestamp, o.sender)
+func (o rideScriptTransfer) copy() rideType {
+	return newRideScriptTransfer(o.attachment, o.bodyBytes, o.proofs, o.feeAssetID, o.fee, o.version, o.asset, o.assetID, o.recipient, o.senderPublicKey, o.id, o.amount, o.timestamp, o.sender)
 }
 
-func (o rideFullScriptTransfer) lines() []string {
+func (o rideScriptTransfer) lines() []string {
 	r := make([]string, 0, 16)
-	r = append(r, "FullScriptTransfer(")
+	r = append(r, "ScriptTransfer(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, fieldLines(assetField, o.asset.lines())...)
@@ -1905,7 +1838,7 @@ func (o rideFullScriptTransfer) lines() []string {
 	return r
 }
 
-func (o rideFullScriptTransfer) String() string {
+func (o rideScriptTransfer) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 

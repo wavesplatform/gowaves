@@ -771,8 +771,8 @@ func evaluationCatalogueV5EvaluatorV2() map[string]int {
 	m["Sha3384"] = 1
 	m["Sha3512"] = 1
 	m["Unit"] = 1
-	m["Address"] = 0
-	m["Alias"] = 0
+	m["Address"] = 1
+	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV5, m)
 	return m
 }

@@ -558,8 +558,11 @@ func leaseConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "leaseConstructor")
 	}
 
-	recipient, ok := args_[0].(rideRecipient)
-	if !ok {
+	var recipient rideType
+	switch v := args_[0].(type) {
+	case rideAlias, rideAddress:
+		recipient = v
+	default:
 		return nil, errors.Errorf("leaseConstructor: unexpected type '%s' for recipient", args_[0].instanceOf())
 	}
 
@@ -732,7 +735,30 @@ func scriptTransferConstructor(_ environment, args_ ...rideType) (rideType, erro
 		return nil, errors.Errorf("scriptTransferConstructor: unexpected type '%s' for asset", args_[2].instanceOf())
 	}
 
-	return newRideScriptTransfer(recipient, asset, amount), nil
+	// default value for attachment
+	var attachment rideUnit
+	// default value for bodyBytes
+	var bodyBytes rideUnit
+	// default value for proofs
+	var proofs rideList
+	// default value for feeAssetID
+	var feeAssetID rideUnit
+	// default value for fee
+	var fee rideUnit
+	// default value for version
+	var version rideUnit
+	// default value for assetID
+	var assetID rideType
+	// default value for senderPublicKey
+	var senderPublicKey rideBytes
+	// default value for id
+	var id rideBytes
+	// default value for timestamp
+	var timestamp rideInt
+	// default value for sender
+	var sender rideAddress
+
+	return newRideScriptTransfer(attachment, bodyBytes, proofs, feeAssetID, fee, version, asset, assetID, recipient, senderPublicKey, id, amount, timestamp, sender), nil
 }
 
 func sponsorFeeConstructor(_ environment, args_ ...rideType) (rideType, error) {
