@@ -28,7 +28,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 
 			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name, "version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
 
 			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
@@ -53,7 +53,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 
 			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name, "version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
 
 			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
@@ -80,7 +80,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 
 			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name, "version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version: ", i)
 			utl.ErrorMessageCheck(
 				suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 				brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name)
