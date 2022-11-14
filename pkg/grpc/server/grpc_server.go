@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -27,7 +28,6 @@ type Server struct {
 	utx        types.UtxPool
 	wallet     types.EmbeddedWallet
 	services   services.Services
-	handlers   GrpcHandlers
 	grpcServer *grpc.Server
 }
 
@@ -43,21 +43,28 @@ func DefaultRunOptions() *RunOptions {
 
 func NewServer(services services.Services) (*Server, error) {
 	s := &Server{}
+	s.grpcServer = createGRPCServerWithHandlers(s)
 	s.services = services
 	if err := s.initServer(services.State, services.UtxPool, services.Wallet); err != nil {
 		return nil, err
 	}
-	s.handlers = s
 	return s, nil
 }
 
-func NewServerWithHandlers(services services.Services, h GrpcHandlers) (*Server, error) {
-	s, err := NewServer(services)
-	if err != nil {
-		return nil, err
-	}
-	s.handlers = h
-	return s, nil
+func createGRPCServerWithHandlers(handlers GrpcHandlers) *grpc.Server {
+	grpcServer := grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
+	g.RegisterAccountsApiServer(grpcServer, handlers)
+	g.RegisterAssetsApiServer(grpcServer, handlers)
+	g.RegisterBlockchainApiServer(grpcServer, handlers)
+	g.RegisterBlocksApiServer(grpcServer, handlers)
+	g.RegisterTransactionsApiServer(grpcServer, handlers)
+	reflection.Register(grpcServer) // Register reflection service on gRPC server.
+	return grpcServer
 }
 
 func (s *Server) initServer(state state.StateInfo, utx types.UtxPool, sch types.EmbeddedWallet) error {
@@ -72,25 +79,6 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 	if opts == nil {
 		opts = DefaultRunOptions()
 	}
-
-	grpcServer := grpc.NewServer(
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	)
-	s.grpcServer = grpcServer
-	g.RegisterAccountsApiServer(grpcServer, s)
-	g.RegisterAssetsApiServer(grpcServer, s)
-	g.RegisterBlockchainApiServer(grpcServer, s)
-	g.RegisterBlocksApiServer(grpcServer, s)
-	g.RegisterTransactionsApiServer(grpcServer, s)
-
-	go func() {
-		<-ctx.Done()
-		zap.S().Info("Shutting down gRPC server...")
-		grpcServer.Stop()
-	}()
 
 	conn, err := net.Listen("tcp", address)
 	if err != nil {
@@ -109,33 +97,21 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 		}
 	}(conn)
 
-	if err := grpcServer.Serve(conn); err != nil {
-		return errors.Errorf("grpcServer.Serve: %v", err)
-	}
-	return nil
+	go func() {
+		<-ctx.Done()
+		zap.S().Info("Shutting down gRPC server...")
+		s.Stop()
+	}()
+	zap.S().Infof("Starting gRPC server on '%s'", address)
+	return s.Serve(conn)
 }
 
+// Stop calls underlying gRPC server stop method.
 func (s *Server) Stop() {
 	s.grpcServer.Stop()
 }
 
+// Serve calls underlying gRPC server serve method with provided net.Listener. This call is blocking.
 func (s *Server) Serve(l net.Listener) error {
-	grpcServer := grpc.NewServer(
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	)
-	g.RegisterAccountsApiServer(grpcServer, s.handlers)
-	g.RegisterAssetsApiServer(grpcServer, s.handlers)
-	g.RegisterBlockchainApiServer(grpcServer, s.handlers)
-	g.RegisterBlocksApiServer(grpcServer, s.handlers)
-	g.RegisterTransactionsApiServer(grpcServer, s.handlers)
-	s.grpcServer = grpcServer
-
-	if err := grpcServer.Serve(l); err != nil {
-		return errors.Errorf("grpcServer.Serve: %v", err)
-	}
-
-	return nil
+	return s.grpcServer.Serve(l)
 }
