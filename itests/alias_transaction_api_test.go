@@ -46,7 +46,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	versions := testdata.GetVersions()
 	timeout := 30 * time.Second
 	for _, i := range versions {
-		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i))
+		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i+1))
 		for name, td := range tdmatrix {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
