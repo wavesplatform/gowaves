@@ -128,10 +128,10 @@ func newTestState(t *testing.T, amend bool, params state.StateParams, settings *
 }
 
 func TestMain(m *testing.M) {
-	server = &Server{
-		services: services.Services{
-			Scheme: 'W',
-		},
+	var err error
+	server, err = NewServer(services.Services{Scheme: proto.MainNetScheme})
+	if err != nil {
+		log.Fatalf("Failed to create new gRPC server: %v", err)
 	}
 	grpcTestAddr = fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	ctx, cancel := context.WithCancel(context.Background())
