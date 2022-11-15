@@ -139,14 +139,12 @@ func handleGeneric(node *node32, t string) Type {
 }
 
 var (
-	Undefined      = SimpleType{"Undefined"}
 	Any            = SimpleType{"Any"}
 	BooleanType    = SimpleType{"Boolean"}
 	IntType        = SimpleType{"Int"}
 	StringType     = SimpleType{"String"}
 	ByteVectorType = SimpleType{"ByteVector"}
-
-	ListOfAny = ListType{Any}
+	BigIntType     = SimpleType{"BigInt"}
 )
 
 type Type interface {
@@ -161,6 +159,9 @@ type SimpleType struct {
 func (t SimpleType) Comp(rideType Type) bool {
 	if t.Type == "Any" {
 		return true
+	}
+	if _, ok := rideType.(UnionType); ok {
+		return rideType.Comp(t)
 	}
 	T, ok := rideType.(SimpleType)
 	if !ok {

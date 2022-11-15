@@ -362,6 +362,9 @@ func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return expr, varType
 	}
+	if !varType.Comp(s.BooleanType) {
+		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
+	}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -371,7 +374,10 @@ func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleAndOpAtomHandler(curNode)
+		nextExpr, nextExprVarType := p.ruleAndOpAtomHandler(curNode)
+		if !nextExprVarType.Comp(s.BooleanType) {
+			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
+		}
 		expr = ast.NewConditionalNode(expr, ast.NewBooleanNode(true), nextExpr)
 		curNode = curNode.next
 		if curNode == nil {
@@ -388,6 +394,9 @@ func (p *ASTParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return expr, varType
 	}
+	if !varType.Comp(s.BooleanType) {
+		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
+	}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -397,7 +406,10 @@ func (p *ASTParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleEqualityGroupOpAtomHandler(curNode)
+		nextExpr, nextExprVarType := p.ruleEqualityGroupOpAtomHandler(curNode)
+		if !nextExprVarType.Comp(s.BooleanType) {
+			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
+		}
 		expr = ast.NewConditionalNode(expr, nextExpr, ast.NewBooleanNode(false))
 		curNode = curNode.next
 		if curNode == nil {
@@ -414,6 +426,9 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 	if curNode == nil {
 		return expr, varType
 	}
+	if !varType.Comp(s.BooleanType) {
+		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
+	}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -428,8 +443,12 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleCompareGroupOpAtomHandler(curNode)
+		nextExpr, nextExprVarType := p.ruleCompareGroupOpAtomHandler(curNode)
+		if !nextExprVarType.Comp(varType) {
+			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
+		}
 		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
+		varType = s.BooleanType
 		curNode = curNode.next
 		if curNode == nil {
 			break
@@ -445,6 +464,9 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 	if curNode == nil {
 		return expr, varType
 	}
+	if !varType.Comp(s.BigIntType) && !varType.Comp(s.IntType) {
+		p.addError(fmt.Sprintf("Unexpected type, required: BigInt or Int, but %s found", varType.String()), node.up.up.token32)
+	}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -454,22 +476,89 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleConsOpAtomHandler(curNode)
-		if operator == ruleGtOp {
-			expr = ast.NewFunctionCallNode(ast.NativeFunction("102"), []ast.Node{expr, nextExpr})
-		} else if operator == ruleGeOp {
-			expr = ast.NewFunctionCallNode(ast.NativeFunction("103"), []ast.Node{expr, nextExpr})
-		} else if operator == ruleLtOp {
-			expr = ast.NewFunctionCallNode(ast.NativeFunction("102"), []ast.Node{nextExpr, expr})
-		} else {
-			expr = ast.NewFunctionCallNode(ast.NativeFunction("103"), []ast.Node{nextExpr, expr})
+		nextExpr, nextExprVarType := p.ruleConsOpAtomHandler(curNode)
+		var gltFun, gleFun string
+		if varType.Comp(s.BigIntType) {
+			if nextExprVarType.Comp(s.BigIntType) {
+				gltFun = "319"
+				gleFun = "320"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected type, required: BigInt, but %s found", varType.String()), curNode.token32)
+			}
+		} else if varType.Comp(s.IntType) {
+			if nextExprVarType.Comp(s.IntType) {
+				gltFun = "102"
+				gleFun = "103"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected type, required: Int, but %s found", varType.String()), curNode.token32)
+			}
 		}
+		switch operator {
+		case ruleGtOp:
+			expr = ast.NewFunctionCallNode(ast.NativeFunction(gltFun), []ast.Node{expr, nextExpr})
+		case ruleGeOp:
+			expr = ast.NewFunctionCallNode(ast.NativeFunction(gleFun), []ast.Node{expr, nextExpr})
+		case ruleLtOp:
+			expr = ast.NewFunctionCallNode(ast.NativeFunction(gltFun), []ast.Node{nextExpr, expr})
+		case ruleLeOp:
+			expr = ast.NewFunctionCallNode(ast.NativeFunction(gleFun), []ast.Node{nextExpr, expr})
+		}
+		varType = s.BooleanType
 		curNode = curNode.next
 		if curNode == nil {
 			break
 		}
 	}
-	return expr, varType
+	return expr, s.BooleanType
+}
+
+func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
+	curNode := node.up
+	expr, varType := p.ruleMultGroupOpAtomHandler(curNode)
+	curNode = curNode.next
+	if curNode == nil {
+		return expr, varType
+	}
+	for {
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		operator := curNode.up.pegRule
+		curNode = curNode.next
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		nextExpr, nextExprVarType := p.ruleMultGroupOpAtomHandler(curNode)
+		var funcId string
+		switch operator {
+		case ruleSumOp:
+			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+				funcId = "100"
+			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+				funcId = "311"
+			} else if varType.Comp(s.StringType) && nextExprVarType.Comp(s.StringType) {
+				funcId = "300"
+			} else if varType.Comp(s.ByteVectorType) && nextExprVarType.Comp(s.ByteVectorType) {
+				funcId = "203"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected types for + operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
+			}
+		case ruleSubOp:
+			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+				funcId = "100"
+			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+				funcId = "311"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected types for - operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
+			}
+		}
+		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
+		curNode = curNode.next
+		if curNode == nil {
+			break
+		}
+	}
+	return expr, s.IntType
 }
 
 func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -490,7 +579,7 @@ func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		}
 		nextExpr, nextVarType := p.ruleSumGroupOpAtomHandler(curNode)
 		if _, ok := nextVarType.(s.ListType); !ok {
-			p.addError(fmt.Sprintf("expression must be \"List\" but \"%s\"", varType), curNode.token32)
+			p.addError(fmt.Sprintf("Unexpected types for :: operator: %s, %s", varType, nextVarType), curNode.token32)
 			return nil, nil
 		}
 		resListType.AppendList(nextVarType)
@@ -501,37 +590,6 @@ func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		}
 	}
 	return expr, resListType
-}
-
-func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
-	curNode := node.up
-	expr, varType := p.ruleMultGroupOpAtomHandler(curNode)
-	curNode = curNode.next
-	if curNode == nil {
-		return expr, varType
-	}
-	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		var funcId string
-		if curNode.up.pegRule == ruleSumOp {
-			funcId = "100"
-		} else {
-			funcId = "101"
-		}
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		nextExpr, _ := p.ruleMultGroupOpAtomHandler(curNode)
-		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
-		curNode = curNode.next
-		if curNode == nil {
-			break
-		}
-	}
-	return expr, s.IntType
 }
 
 func (p *ASTParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -545,19 +603,39 @@ func (p *ASTParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		var funcId string
-		if curNode.up.pegRule == ruleMulOp {
-			funcId = "104"
-		} else if curNode.up.pegRule == ruleDivOp {
-			funcId = "105"
-		} else {
-			funcId = "106"
-		}
+		operator := curNode.up.pegRule
 		curNode = curNode.next
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, _ := p.ruleAtomExprHandler(curNode)
+		nextExpr, nextExprVarType := p.ruleAtomExprHandler(curNode)
+		var funcId string
+		switch operator {
+		case ruleMulOp:
+			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+				funcId = "104"
+			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+				funcId = "313"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected types for * operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
+			}
+		case ruleDivOp:
+			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+				funcId = "105"
+			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+				funcId = "314"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected types for / operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
+			}
+		case ruleModOp:
+			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+				funcId = "106"
+			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+				funcId = "315"
+			} else {
+				p.addError(fmt.Sprintf("Unexpected types for * operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
+			}
+		}
 		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
 		curNode = curNode.next
 		if curNode == nil {
@@ -591,13 +669,25 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleTuple:
 		expr, varType = p.ruleTupleHandler(curNode)
 	}
-	if unaryOp == ruleNegativeOp {
-		expr = ast.NewFunctionCallNode(ast.NativeFunction("-"), []ast.Node{expr})
-	} else if unaryOp == ruleNotOp {
-		expr = ast.NewFunctionCallNode(ast.NativeFunction("!"), []ast.Node{expr})
-	} else if unaryOp == rulePositiveOp {
-		_ = 1 // TODO: This line added to evade linter error, remove it later
-		// TODO: check type == int
+	switch unaryOp {
+	case ruleNegativeOp:
+		if varType.Comp(s.IntType) {
+			expr = ast.NewFunctionCallNode(ast.NativeFunction("-"), []ast.Node{expr})
+		} else if varType.Comp(s.BigIntType) {
+			expr = ast.NewFunctionCallNode(ast.NativeFunction("318"), []ast.Node{expr})
+		} else {
+			p.addError(fmt.Sprintf("Unexpected types for unary - operator, required: Int, BigInt, but %s found", varType.String()), curNode.token32)
+		}
+	case ruleNotOp:
+		if varType.Comp(s.BooleanType) {
+			expr = ast.NewFunctionCallNode(ast.NativeFunction("!"), []ast.Node{expr})
+		} else {
+			p.addError(fmt.Sprintf("Unexpected types for unary ! operator, required: Boolean, but %s found", varType.String()), curNode.token32)
+		}
+	case rulePositiveOp:
+		if !varType.Comp(s.IntType) && !varType.Comp(s.BigIntType) {
+			p.addError(fmt.Sprintf("Unexpected types for unary + operator, required: Int, BigInt, but %s found", varType.String()), curNode.token32)
+		}
 	}
 	return expr, varType
 }
@@ -632,9 +722,43 @@ func (p *ASTParser) ruleIntegerHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *ASTParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
-	value := string(p.buffer[node.begin:node.end])
-	value = strings.ReplaceAll(value, "\"", "")
-	return ast.NewStringNode(value), s.StringType
+	curNode := node.up
+	var res string
+	for {
+		if curNode == nil {
+			break
+		}
+		switch curNode.pegRule {
+		case ruleChar:
+			res += string(p.buffer[curNode.begin:curNode.end])
+		case ruleEscapedChar:
+			escapedChar := string(p.buffer[curNode.begin:curNode.end])
+			switch escapedChar {
+			case "\\b":
+				res += "\b"
+			case "\\f":
+				res += "\f"
+			case "\\n":
+				res += "\n"
+			case "\\r":
+				res += "\r"
+			case "\\t":
+				res += "\t"
+			default:
+				p.addError(fmt.Sprintf("unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t", escapedChar), curNode.token32)
+			}
+		case ruleUnicodeChar:
+			unicodeChar := string(p.buffer[curNode.begin:curNode.end])
+			char, err := strconv.Unquote(`"` + unicodeChar + `"`)
+			if err != nil {
+				p.addError(fmt.Sprintf("unknow UTF-8 symbol \"\\u%s\"", unicodeChar), curNode.token32)
+			} else {
+				res += char
+			}
+		}
+		curNode = curNode.next
+	}
+	return ast.NewStringNode(res), s.StringType
 }
 
 func (p *ASTParser) ruleByteVectorHandler(node *node32) (ast.Node, s.Type) {

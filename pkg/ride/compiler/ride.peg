@@ -93,7 +93,7 @@ ByteVector <- Base16 / Base58 / Base64
 Boolean <- 'true' / 'false'
 
 String <- '"' (UnicodeChar / EscapedChar / Char)* '"'
-UnicodeChar <- '\\u' [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]? [0-9ABCDEFabcdef]?
+UnicodeChar <- '\\u' [0-9ABCDEFabcdef] [0-9ABCDEFabcdef] [0-9ABCDEFabcdef] [0-9ABCDEFabcdef]
 EscapedChar <- '\\' .
 Char <- [^\"]
 
