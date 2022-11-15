@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"testing"
@@ -111,8 +110,8 @@ func TestResolveAlias(t *testing.T) {
 	alias := proto.NewAlias('W', aliasStr)
 	correctAddr, err := st.AddrByAlias(*alias)
 	require.NoError(t, err)
-	correctAddrBody := correctAddr.Body()
+	correctAddrBytes := correctAddr.Bytes()
 	addr, err := cl.ResolveAlias(ctx, &wrapperspb.StringValue{Value: aliasStr})
 	require.NoError(t, err)
-	assert.True(t, bytes.Equal(correctAddrBody, addr.Value))
+	assert.Equal(t, correctAddrBytes, addr.Value)
 }
