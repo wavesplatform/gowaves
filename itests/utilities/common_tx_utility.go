@@ -84,7 +84,9 @@ func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress
 }
 
 func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddress) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+	//TODO(ipereiaslavskaia) return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable() after fixing grpc interface
+	wavesBalance := suite.Clients.ScalaClients.HttpClient.WavesBalance(suite.T(), address)
+	return int64(wavesBalance.Balance)
 }
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
@@ -101,6 +103,13 @@ func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, id []b
 
 func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, id []byte) (int64, int64) {
 	return GetAssetBalanceGo(suite, address, id), GetAssetBalanceScala(suite, address, id)
+}
+
+func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) (int64, int64) {
+	currentBalanceInWavesGo, currentBalanceInWavesScala := GetAvailableBalanceInWaves(suite, address)
+	actualDiffBalanceInWavesGo := initBalanceGo - currentBalanceInWavesGo
+	actualDiffBalanceInWavesScala := initBalanceScala - currentBalanceInWavesScala
+	return actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala
 }
 
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,

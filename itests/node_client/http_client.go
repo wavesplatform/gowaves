@@ -75,3 +75,11 @@ func (c *HttpClient) TransactionBroadcast(transaction proto.Transaction) (*clien
 	defer cancel()
 	return c.cli.Transactions.Broadcast(ctx, transaction)
 }
+
+func (c *HttpClient) WavesBalance(t *testing.T, address proto.WavesAddress) *client.AddressesBalance {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	balance, _, err := c.cli.Addresses.Balance(ctx, address)
+	assert.NoError(t, err)
+	return balance
+}

@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"math/rand"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -298,14 +300,16 @@ func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData
 	return t
 }
 
-func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[SameAliasExpectedValuesNegative] {
+func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAliasExpectedValuesNegative] {
 	alias := utl.RandStringBytes(15, AliasSymbolSet)
-	var t = map[string]AliasTestData[SameAliasExpectedValuesNegative]{
-		"Account2": *NewAliasTestData(
-			utl.GetAccount(suite, 2),
+	accCount := 2
+	var t []AliasTestData[SameAliasExpectedValuesNegative]
+	for i := 0; i < accCount; i++ {
+		t = append(t, *NewAliasTestData(
+			utl.GetAccount(suite, i+2),
 			alias,
 			100000,
-			utl.GetCurrentTimestampInMs(),
+			utl.GetCurrentTimestampInMs()+uint64(rand.Intn(10)),
 			testChainID,
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
@@ -314,21 +318,7 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) map[string]Al
 				ErrBrdCstScalaMsg:            "",
 				WavesDiffBalanceAfterFirstTx: 100000,
 				WavesDiffBalance:             0,
-			}),
-		"Account3": *NewAliasTestData(
-			utl.GetAccount(suite, 3),
-			alias,
-			100000,
-			utl.GetCurrentTimestampInMs(),
-			testChainID,
-			SameAliasExpectedValuesNegative{
-				ErrGoMsg:                     errMsg,
-				ErrScalaMsg:                  errMsg,
-				ErrBrdCstGoMsg:               "",
-				ErrBrdCstScalaMsg:            "",
-				WavesDiffBalanceAfterFirstTx: 100000,
-				WavesDiffBalance:             0,
-			}),
+			}))
 	}
 	return t
 }
