@@ -26,6 +26,5 @@ func main() {
 	// internal.GenerateFunctions must be invoked after internal.GenerateConstructors
 	internal.GenerateFunctions(filePath("functions.gen.go"))
 	internal.GenerateFunctionFamilies(filePath("function_families.gen.go"))
-	internal.GenerateObjects(rideObjectsPath, filePath("objects.gen.go"))
 	internal.GenerateTuples(filePath("tuples.gen.go"))
 }
