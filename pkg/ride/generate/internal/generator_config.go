@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,8 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
-
-const configPath = "/generate/ride_objects.json"
 
 type actionField struct {
 	Name             string    `json:"name"`
@@ -183,16 +180,20 @@ func fillRideObjectStructNames(obj rideObject) error {
 	return nil
 }
 
-func parseConfig() (*rideObjects, error) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	configPath := filepath.Clean(filepath.Join(pwd, configPath))
+func parseConfig(configPath string) (_ *rideObjects, err error) {
 	f, err := os.Open(configPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			if err != nil {
+				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
+			} else {
+				err = closeErr
+			}
+		}
+	}()
 	jsonParser := json.NewDecoder(f)
 	s := &rideObjects{}
 	if err = jsonParser.Decode(s); err != nil {
@@ -201,7 +202,7 @@ func parseConfig() (*rideObjects, error) {
 
 	for _, obj := range s.Objects {
 		if err := fillRideObjectStructNames(obj); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 	return s, nil

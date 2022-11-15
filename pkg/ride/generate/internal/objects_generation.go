@@ -17,8 +17,8 @@ func rideActionConstructorName(act actionsObject) string {
 	return "newRide" + act.StructName
 }
 
-func GenerateObjects(fn string) {
-	s, err := parseConfig()
+func GenerateObjects(configPath, fn string) {
+	s, err := parseConfig(configPath)
 	if err != nil {
 		panic(err)
 	}

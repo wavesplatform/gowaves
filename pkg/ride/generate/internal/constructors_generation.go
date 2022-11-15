@@ -258,8 +258,8 @@ func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 
 var verInfos = versionInfos{}
 
-func GenerateConstructors(fn string) {
-	s, err := parseConfig()
+func GenerateConstructors(configPath, fn string) {
+	s, err := parseConfig(configPath)
 	if err != nil {
 		panic(err)
 	}
