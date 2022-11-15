@@ -75,3 +75,19 @@ func (c *HttpClient) TransactionBroadcast(transaction proto.Transaction) (*clien
 	defer cancel()
 	return c.cli.Transactions.Broadcast(ctx, transaction)
 }
+
+func (c *HttpClient) WavesBalance(t *testing.T, address proto.WavesAddress) *client.AddressesBalance {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	balance, _, err := c.cli.Addresses.Balance(ctx, address)
+	assert.NoError(t, err)
+	return balance
+}
+
+func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, assetId crypto.Digest) *client.AssetsBalanceAndAsset {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	balance, _, err := c.cli.Assets.BalanceByAddressAndAsset(ctx, address, assetId)
+	assert.NoError(t, err)
+	return balance
+}

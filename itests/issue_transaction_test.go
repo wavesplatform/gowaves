@@ -34,7 +34,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
 			actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, txID.Bytes())
+				&suite.BaseSuite, td.Account.Address, txID)
 
 			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version", i, txID.String())
 			utl.WavesDiffBalanceCheck(
@@ -64,9 +64,9 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
 			actualAsset1BalanceGo, actualAsset1BalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, txID1.Bytes())
+				&suite.BaseSuite, td.Account.Address, txID1)
 			actualAsset2BalanceGo, actualAsset2BalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, txID2.Bytes())
+				&suite.BaseSuite, td.Account.Address, txID2)
 			//Since the issue transaction is called twice, the expected balance difference also is doubled.
 			expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
 
@@ -99,7 +99,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
 			actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, txID.Bytes())
+				&suite.BaseSuite, td.Account.Address, txID)
 
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errGo, errScala, name, "version", i)
 			utl.WavesDiffBalanceCheck(

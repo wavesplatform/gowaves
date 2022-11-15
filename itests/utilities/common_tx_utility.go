@@ -80,7 +80,9 @@ func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress
 }
 
 func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddress) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+	//TODO(ipereiaslavskaia) return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable() after fixing grpc interface
+	wavesBalance := suite.Clients.ScalaClients.HttpClient.WavesBalance(suite.T(), address)
+	return int64(wavesBalance.Balance)
 }
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
@@ -89,17 +91,19 @@ func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) 
 	return wavesBalanceGo, wavesBalanceScala
 }
 
-func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, id []byte) int64 {
-	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
+func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
+	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount()
 }
 
-func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, id []byte) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount()
+func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
+	//TODO(ipereiaslavskaia) return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, id).GetAmount() after fixing grpc interface
+	assetBalance := suite.Clients.ScalaClients.HttpClient.AssetBalance(suite.T(), address, assetId)
+	return int64(assetBalance.Balance)
 }
 
-func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, id []byte) (int64, int64) {
-	assetBalanceGo := GetAssetBalanceGo(suite, address, id)
-	assetBalanceScala := GetAssetBalanceScala(suite, address, id)
+func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) (int64, int64) {
+	assetBalanceGo := GetAssetBalanceGo(suite, address, assetId)
+	assetBalanceScala := GetAssetBalanceScala(suite, address, assetId)
 	return assetBalanceGo, assetBalanceScala
 }
 

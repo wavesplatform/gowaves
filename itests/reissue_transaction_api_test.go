@@ -30,7 +30,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 
@@ -42,7 +42,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 
 			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
@@ -67,7 +67,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 
@@ -78,7 +78,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
@@ -104,7 +104,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name, "Version: ", i)
@@ -117,7 +117,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 
@@ -145,7 +145,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 			initAssetBalanceGo, initAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name, "Version: ", i)
@@ -158,7 +158,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
 			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 			currentAssetBalanceGo, currentAssetBalanceScala := utl.GetAssetBalance(
-				&suite.BaseSuite, td.Account.Address, itxID.Bytes())
+				&suite.BaseSuite, td.Account.Address, itxID)
 			actualDiffAssetBalanceGo := currentAssetBalanceGo - initAssetBalanceGo
 			actualDiffAssetBalanceScala := currentAssetBalanceScala - initAssetBalanceScala
 

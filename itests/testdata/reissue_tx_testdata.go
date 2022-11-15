@@ -84,7 +84,7 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 }
 
 func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesPositive] {
-	var assetBalance = utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetID.Bytes())
+	var assetBalance = utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetID)
 	var t = map[string]ReissueTestData[ReissueExpectedValuesPositive]{
 		"Max values for quantity": *NewReissueTestData(
 			utl.GetAccount(suite, 2),
