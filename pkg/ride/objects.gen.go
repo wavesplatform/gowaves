@@ -1797,38 +1797,16 @@ func (o rideScriptResult) String() string {
 }
 
 type rideScriptTransfer struct {
-	attachment      rideUnit
-	bodyBytes       rideUnit
-	proofs          rideList
-	feeAssetID      rideUnit
-	fee             rideUnit
-	version         rideUnit
-	asset           rideType
-	assetID         rideType
-	recipient       rideType
-	senderPublicKey rideBytes
-	id              rideBytes
-	amount          rideInt
-	timestamp       rideInt
-	sender          rideAddress
+	asset     rideType
+	recipient rideType
+	amount    rideInt
 }
 
-func newRideScriptTransfer(attachment rideUnit, bodyBytes rideUnit, proofs rideList, feeAssetID rideUnit, fee rideUnit, version rideUnit, asset rideType, assetID rideType, recipient rideType, senderPublicKey rideBytes, id rideBytes, amount rideInt, timestamp rideInt, sender rideAddress) rideScriptTransfer {
+func newRideScriptTransfer(asset rideType, recipient rideType, amount rideInt) rideScriptTransfer {
 	return rideScriptTransfer{
-		attachment:      attachment,
-		bodyBytes:       bodyBytes,
-		proofs:          proofs,
-		feeAssetID:      feeAssetID,
-		fee:             fee,
-		version:         version,
-		asset:           asset,
-		assetID:         assetID,
-		recipient:       recipient,
-		senderPublicKey: senderPublicKey,
-		id:              id,
-		amount:          amount,
-		timestamp:       timestamp,
-		sender:          sender,
+		asset:     asset,
+		recipient: recipient,
+		amount:    amount,
 	}
 }
 
@@ -1838,46 +1816,13 @@ func (o rideScriptTransfer) instanceOf() string {
 
 func (o rideScriptTransfer) eq(other rideType) bool {
 	if oo, ok := other.(rideScriptTransfer); ok {
-		if !o.attachment.eq(oo.attachment) {
-			return false
-		}
-		if !o.bodyBytes.eq(oo.bodyBytes) {
-			return false
-		}
-		if !o.proofs.eq(oo.proofs) {
-			return false
-		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
-			return false
-		}
-		if !o.fee.eq(oo.fee) {
-			return false
-		}
-		if !o.version.eq(oo.version) {
-			return false
-		}
 		if !o.asset.eq(oo.asset) {
-			return false
-		}
-		if !o.assetID.eq(oo.assetID) {
 			return false
 		}
 		if !o.recipient.eq(oo.recipient) {
 			return false
 		}
-		if !o.senderPublicKey.eq(oo.senderPublicKey) {
-			return false
-		}
-		if !o.id.eq(oo.id) {
-			return false
-		}
 		if !o.amount.eq(oo.amount) {
-			return false
-		}
-		if !o.timestamp.eq(oo.timestamp) {
-			return false
-		}
-		if !o.sender.eq(oo.sender) {
 			return false
 		}
 		return true
@@ -1889,45 +1834,23 @@ func (o rideScriptTransfer) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString("ScriptTransfer"), nil
-	case attachmentField:
-		return o.attachment, nil
-	case bodyBytesField:
-		return o.bodyBytes, nil
-	case proofsField:
-		return o.proofs, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
-	case feeField:
-		return o.fee, nil
-	case versionField:
-		return o.version, nil
 	case assetField:
 		return o.asset, nil
-	case assetIDField:
-		return o.assetID, nil
 	case recipientField:
 		return o.recipient, nil
-	case senderPublicKeyField:
-		return o.senderPublicKey, nil
-	case idField:
-		return o.id, nil
 	case amountField:
 		return o.amount, nil
-	case timestampField:
-		return o.timestamp, nil
-	case senderField:
-		return o.sender, nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
 	}
 }
 
 func (o rideScriptTransfer) copy() rideType {
-	return newRideScriptTransfer(o.attachment, o.bodyBytes, o.proofs, o.feeAssetID, o.fee, o.version, o.asset, o.assetID, o.recipient, o.senderPublicKey, o.id, o.amount, o.timestamp, o.sender)
+	return newRideScriptTransfer(o.asset, o.recipient, o.amount)
 }
 
 func (o rideScriptTransfer) lines() []string {
-	r := make([]string, 0, 16)
+	r := make([]string, 0, 5)
 	r = append(r, "ScriptTransfer(")
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)

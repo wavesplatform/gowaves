@@ -787,30 +787,7 @@ func scriptTransferConstructor(_ environment, args_ ...rideType) (rideType, erro
 		return nil, errors.Errorf("scriptTransferConstructor: unexpected type '%s' for asset", args_[2].instanceOf())
 	}
 
-	// default value for attachment
-	var attachment rideUnit
-	// default value for bodyBytes
-	var bodyBytes rideUnit
-	// default value for proofs
-	var proofs rideList
-	// default value for feeAssetID
-	var feeAssetID rideUnit
-	// default value for fee
-	var fee rideUnit
-	// default value for version
-	var version rideUnit
-	// default value for assetID
-	var assetID rideType
-	// default value for senderPublicKey
-	var senderPublicKey rideBytes
-	// default value for id
-	var id rideBytes
-	// default value for timestamp
-	var timestamp rideInt
-	// default value for sender
-	var sender rideAddress
-
-	return newRideScriptTransfer(attachment, bodyBytes, proofs, feeAssetID, fee, version, asset, assetID, recipient, senderPublicKey, id, amount, timestamp, sender), nil
+	return newRideScriptTransfer(asset, recipient, amount), nil
 }
 
 func sponsorFeeConstructor(_ environment, args_ ...rideType) (rideType, error) {

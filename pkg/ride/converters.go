@@ -1246,20 +1246,9 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 
 func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
 	return newRideScriptTransfer(
-		rideUnit{},
-		rideUnit{},
-		rideList{},
-		rideUnit{},
-		rideUnit{},
-		rideUnit{},
-		optionalAsset(tr.Asset),
 		optionalAsset(tr.Asset),
 		rideRecipient(tr.Recipient),
-		common.Dup(tr.SenderPK.Bytes()),
-		tr.ID.Bytes(),
 		rideInt(tr.Amount),
-		rideInt(tr.Timestamp),
-		rideAddress(tr.Sender),
 	)
 }
 

@@ -1071,54 +1071,6 @@
           "version": 3,
           "fields": [
             {
-              "name": "attachment",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "bodyBytes",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "proofs",
-              "types": [
-                "rideList[rideBytes]"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "feeAssetID",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "fee",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "version",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
               "name": "asset",
               "types": [
                 "rideBytes",
@@ -1126,15 +1078,6 @@
               ],
               "order": 2,
               "constructorOrder": 2
-            },
-            {
-              "name": "assetID",
-              "types": [
-                "rideBytes",
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "recipient",
@@ -1148,44 +1091,12 @@
               "constructorOrder": 0
             },
             {
-              "name": "senderPublicKey",
-              "types": [
-                "rideBytes"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "id",
-              "types": [
-                "rideBytes"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
               "name": "amount",
               "types": [
                 "rideInt"
               ],
               "order": 1,
               "constructorOrder": 1
-            },
-            {
-              "name": "timestamp",
-              "types": [
-                "rideInt"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
-              "name": "sender",
-              "types": [
-                "rideAddress"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             }
           ]
         }
