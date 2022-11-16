@@ -129,8 +129,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid alias, invalid symbols": *NewAliasTestData(
@@ -142,8 +142,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid alias, 31 bytes": *NewAliasTestData(
@@ -155,8 +155,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid alias, empty string": *NewAliasTestData(
@@ -168,8 +168,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid alias, invalid encoding": *NewAliasTestData(
@@ -181,8 +181,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid fee (fee=0)": *NewAliasTestData(
@@ -194,8 +194,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "insufficient fee",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid fee (0 < fee < min)": *NewAliasTestData(
@@ -207,8 +207,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value of 100000 WAVES",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid fee (fee > max)": *NewAliasTestData(
@@ -220,8 +220,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
 				WavesDiffBalance:  0,
 			}),
 		"Custom chainID": *NewAliasTestData(
@@ -233,8 +233,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "State check failed",
 				WavesDiffBalance:  0,
 			}),
 		"Invalid chainID (value=0)": *NewAliasTestData(
@@ -246,8 +246,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "State check failed",
 				WavesDiffBalance:  0,
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewAliasTestData(
@@ -259,8 +259,8 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 				WavesDiffBalance:  0,
 			}),
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewAliasTestData(
@@ -272,17 +272,17 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 				WavesDiffBalance:  0,
 			}),
 	}
 	return t
 }
 
-func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[SameAliasExpectedValuesNegative] {
-	var t = map[string]AliasTestData[SameAliasExpectedValuesNegative]{
-		"Values for same alias": *NewAliasTestData(
+func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAliasExpectedValuesNegative] {
+	var t = []AliasTestData[SameAliasExpectedValuesNegative]{
+		*NewAliasTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
@@ -291,7 +291,7 @@ func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,
-				ErrBrdCstGoMsg:               "",
+				ErrBrdCstGoMsg:               errBrdCstMsg,
 				ErrBrdCstScalaMsg:            "",
 				WavesDiffBalanceAfterFirstTx: 100000,
 				WavesDiffBalance:             0,
@@ -314,7 +314,7 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestDa
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,
-				ErrBrdCstGoMsg:               "",
+				ErrBrdCstGoMsg:               errBrdCstMsg,
 				ErrBrdCstScalaMsg:            "",
 				WavesDiffBalanceAfterFirstTx: 100000,
 				WavesDiffBalance:             0,

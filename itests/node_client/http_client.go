@@ -83,3 +83,11 @@ func (c *HttpClient) WavesBalance(t *testing.T, address proto.WavesAddress) *cli
 	assert.NoError(t, err)
 	return balance
 }
+
+func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, assetId crypto.Digest) *client.AssetsBalanceAndAsset {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	balance, _, err := c.cli.Assets.BalanceByAddressAndAsset(ctx, address, assetId)
+	assert.NoError(t, err)
+	return balance
+}

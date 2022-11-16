@@ -29,11 +29,9 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
+			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 
-			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
-			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
 			utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name, "version:", i, brdCstTx.TxID.String())
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
@@ -55,10 +53,8 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
 
-			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
-			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 			utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name, "version:", i, brdCstTx.TxID.String())
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
@@ -80,17 +76,17 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 
 			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version: ", i)
+			utl.StatusCodesCheck(
+				suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version: ", i)
 			utl.ErrorMessageCheck(
 				suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 				brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name)
 			txIds[name] = &brdCstTx.TxID
 
-			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
-			actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-			actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
-			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name, "version: ", i)
+			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
+			utl.ErrorMessageCheck(
+				suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name, "version: ", i)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
 				name, "version:", i)

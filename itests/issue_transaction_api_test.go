@@ -27,13 +27,11 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 
 		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name)
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 
 		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
+			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID)
 
 		utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name)
 		utl.WavesDiffBalanceCheck(
@@ -56,15 +54,13 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx1, name)
 		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx2, name)
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 
 		actualAsset1BalanceGo, actualAsset1BalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, brdCstTx1.TxID.Bytes())
+			&suite.BaseSuite, td.Account.Address, brdCstTx1.TxID)
 		actualAsset2BalanceGo, actualAsset2BalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, brdCstTx2.TxID.Bytes())
+			&suite.BaseSuite, td.Account.Address, brdCstTx2.TxID)
 		//Since the issue transaction is called twice, the expected balance difference also is doubled.
 		expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
 
@@ -96,12 +92,10 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 
 		txIds[name] = &brdCstTx.TxID
 
-		currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-		actualDiffBalanceInWavesGo := initBalanceInWavesGo - currentBalanceInWavesGo
-		actualDiffBalanceInWavesScala := initBalanceInWavesScala - currentBalanceInWavesScala
+		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID.Bytes())
+			&suite.BaseSuite, td.Account.Address, brdCstTx.TxID)
 
 		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name)
 		utl.WavesDiffBalanceCheck(
