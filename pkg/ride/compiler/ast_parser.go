@@ -111,9 +111,48 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 		curNode = node.next
 	}
 	if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
-		curNode = p.parseAnnotatedFunc(curNode)
+		p.parseAnnotatedFunc(curNode)
 	}
-	_ = curNode // TODO: This line added to evade linter error, remove it later
+}
+
+func (p *ASTParser) ruleScriptRootHandler(node *node32) {
+	curNode := node
+	if curNode.pegRule == rule_ {
+		curNode = node.next
+	}
+	if curNode != nil && curNode.pegRule == ruleDirective {
+		curNode = p.parseDirectives(curNode)
+		_ = curNode
+	}
+	if curNode != nil && curNode.pegRule == rule_ {
+		curNode = node.next
+	}
+	var decls []ast.Node
+	for {
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		if curNode.pegRule == ruleDeclaration {
+			expr, _ := p.ruleDeclarationHandler(curNode.up)
+			decls = append(decls, expr...)
+			curNode = curNode.next
+		}
+		if curNode.pegRule == ruleExpr {
+			break
+		}
+	}
+	block, varType := p.ruleExprHandler(curNode)
+	if !varType.Comp(s.BooleanType) {
+		p.addError(fmt.Sprintf("script should return Boolean, but %s returned", varType.String()), curNode.token32)
+		return
+	}
+	expr := block
+	for i := len(decls) - 1; i >= 0; i-- {
+		expr = decls[i]
+		expr.SetBlock(block)
+		block = expr
+	}
+	p.Tree.Verifier = block
 }
 
 func (p *ASTParser) parseDirectives(node *node32) *node32 {
@@ -426,9 +465,6 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 	if curNode == nil {
 		return expr, varType
 	}
-	if !varType.Comp(s.BooleanType) {
-		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
-	}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -459,7 +495,7 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 
 func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
-	expr, varType := p.ruleConsOpAtomHandler(curNode)
+	expr, varType := p.ruleListGroupOpAtomHandler(curNode)
 	curNode = curNode.next
 	if curNode == nil {
 		return expr, varType
@@ -476,7 +512,7 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		nextExpr, nextExprVarType := p.ruleConsOpAtomHandler(curNode)
+		nextExpr, nextExprVarType := p.ruleListGroupOpAtomHandler(curNode)
 		var gltFun, gleFun string
 		if varType.Comp(s.BigIntType) {
 			if nextExprVarType.Comp(s.BigIntType) {
@@ -561,7 +597,7 @@ func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	return expr, s.IntType
 }
 
-func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
+func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	expr, varType := p.ruleSumGroupOpAtomHandler(curNode)
 	curNode = curNode.next
@@ -573,17 +609,39 @@ func (p *ASTParser) ruleConsOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
+		operator := curNode.up.pegRule
 		curNode = curNode.next
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
 		nextExpr, nextVarType := p.ruleSumGroupOpAtomHandler(curNode)
-		if _, ok := nextVarType.(s.ListType); !ok {
-			p.addError(fmt.Sprintf("Unexpected types for :: operator: %s, %s", varType, nextVarType), curNode.token32)
-			return nil, nil
+		var funcId string
+		switch operator {
+		case ruleConsOp:
+			if _, ok := nextVarType.(s.ListType); !ok {
+				p.addError(fmt.Sprintf("Unexpected types for :: operator: %s, %s", varType, nextVarType), curNode.token32)
+				return nil, nil
+			}
+			funcId = "cons"
+			resListType.AppendList(nextVarType)
+		case ruleAppendOp:
+			if _, ok := varType.(s.ListType); !ok {
+				p.addError(fmt.Sprintf("Unexpected types for +: operator: %s, %s", varType, nextVarType), curNode.token32)
+				return nil, nil
+			}
+			funcId = "1101"
+			resListType.AppendType(nextVarType)
+		case ruleConcatOp:
+			_, ok1 := nextVarType.(s.ListType)
+			_, ok2 := varType.(s.ListType)
+			if !ok1 && !ok2 {
+				p.addError(fmt.Sprintf("Unexpected types for ++ operator: %s, %s", varType, nextVarType), curNode.token32)
+				return nil, nil
+			}
+			funcId = "1102"
+			resListType.AppendList(nextVarType)
 		}
-		resListType.AppendList(nextVarType)
-		expr = ast.NewFunctionCallNode(ast.NativeFunction("cons"), []ast.Node{expr, nextExpr})
+		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
 		curNode = curNode.next
 		if curNode == nil {
 			break
@@ -642,7 +700,7 @@ func (p *ASTParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			break
 		}
 	}
-	return expr, s.IntType
+	return expr, varType
 }
 
 func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
@@ -656,6 +714,7 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 	var varType s.Type
 	switch curNode.pegRule {
 	case ruleFoldMacro:
+		expr, varType = p.ruleFoldMacroHandler(curNode)
 	case ruleGettableExpr:
 		expr, varType = p.ruleGettableExprHandler(curNode)
 	case ruleIfWithError:
@@ -784,6 +843,9 @@ func (p *ASTParser) ruleByteVectorHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *ASTParser) ruleListHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
+	if curNode == nil {
+		return ast.NewReferenceNode("nil"), s.ListType{}
+	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
@@ -938,11 +1000,12 @@ type FuncArgument struct {
 func (p *ASTParser) ruleFunctionCallHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	funcName := string(p.buffer[curNode.begin:curNode.end])
+	var funcSign s.FunctionParams
 	funcSign, ok := p.currentStack.GetFunc(funcName)
 	if !ok {
 		funcSign, ok = s.Funcs.Funcs[funcName]
 		if !ok {
-			p.addError(fmt.Sprintf("udefined function: \"%s\"", funcName), curNode.token32)
+			p.addError(fmt.Sprintf("undefined function: \"%s\"", funcName), curNode.token32)
 			return nil, nil
 		}
 	}
@@ -1188,7 +1251,7 @@ func (p *ASTParser) ruleGenericTypeHandler(node *node32) s.Type {
 	return s.ListType{Type: T}
 }
 
-func (p *ASTParser) parseAnnotatedFunc(node *node32) *node32 {
+func (p *ASTParser) parseAnnotatedFunc(node *node32) {
 	curNode := node
 	for {
 		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
@@ -1203,7 +1266,6 @@ func (p *ASTParser) parseAnnotatedFunc(node *node32) *node32 {
 			break
 		}
 	}
-	return curNode
 }
 
 func (p *ASTParser) ruleAnnotatedFunc(node *node32) (ast.Node, s.Type) {
@@ -1474,12 +1536,119 @@ func (p *ASTParser) ruleTupleValuesPatternHandler(node *node32, matchName string
 		expr, varType = p.ruleConstHandler(curNode)
 		expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
 	case ruleGettableExpr:
-		// TODO(anton)
-		//expr, varType = p.ruleGettableExprHandler(curNode)
-		//expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
+		expr, varType = p.ruleGettableExprHandler(curNode)
+		expr = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{expr, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName))})
 	}
 	return expr, shadowDeclarations, varType
 }
 
-func (p *ASTParser) ruleScriptRootHandler(node *node32) {
+func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
+	curNode := node.up
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	// parse num in fold macro
+	value := string(p.buffer[curNode.begin:curNode.end])
+	if strings.Contains(value, "_") {
+		value = strings.ReplaceAll(value, "_", "")
+	}
+	iterNum, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		p.addError(fmt.Sprintf("failing to parse Integer: %s", err), curNode.token32)
+	}
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+
+	arr, arrVarType := p.ruleExprHandler(curNode)
+	var elemType s.Type
+	if l, ok := arrVarType.(s.ListType); !ok {
+		p.addError(fmt.Sprintf("first argument in fold mast be List, but found %s", arrVarType.String()), curNode.token32)
+	} else {
+		elemType = l.Type
+	}
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+
+	start, startVarType := p.ruleExprHandler(curNode)
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+
+	funcName := string(p.buffer[curNode.begin:curNode.end])
+	funcSign, ok := p.currentStack.GetFunc(funcName)
+	if !ok {
+		p.addError(fmt.Sprintf("undefined function: \"%s\"", funcName), curNode.token32)
+		return nil, nil
+	}
+	if len(funcSign.Arguments) != 2 {
+		if !funcSign.Arguments[0].Comp(startVarType) || !funcSign.Arguments[1].Comp(elemType) {
+			p.addError(fmt.Sprintf("Can't find suitable function %s(%s, %s)", funcName, s.ListType{}.String(), startVarType.String()), curNode.token32)
+		}
+	}
+
+	var decls []ast.Node
+	assign := ast.NewAssignmentNode("$l", arr, nil)
+	assign.NewBlock = true
+	decls = append(decls, assign)
+	assign = ast.NewAssignmentNode("$s", ast.NewFunctionCallNode(ast.NativeFunction("400"), []ast.Node{ast.NewReferenceNode("$l")}), nil)
+	assign.NewBlock = true
+	decls = append(decls, assign)
+	assign = ast.NewAssignmentNode("$acc0", start, nil)
+	assign.NewBlock = true
+	decls = append(decls, assign)
+	decls = append(decls,
+		ast.NewFunctionDeclarationNode("$f0_1", []string{"$a", "$i"},
+			ast.NewConditionalNode(ast.NewFunctionCallNode(ast.NativeFunction("103"), []ast.Node{ast.NewReferenceNode("$i"), ast.NewReferenceNode("$s")}),
+				ast.NewReferenceNode("$a"),
+				ast.NewFunctionCallNode(ast.UserFunction(funcName), []ast.Node{
+					ast.NewReferenceNode("$a"),
+					ast.NewFunctionCallNode(ast.NativeFunction("401"), []ast.Node{ast.NewReferenceNode("$l"), ast.NewReferenceNode("$i")}),
+				}),
+			),
+			nil,
+		),
+	)
+	decls = append(decls,
+		ast.NewFunctionDeclarationNode("$f0_2", []string{"$a", "$i"},
+			ast.NewConditionalNode(ast.NewFunctionCallNode(ast.NativeFunction("103"), []ast.Node{ast.NewReferenceNode("$i"), ast.NewReferenceNode("$s")}),
+				ast.NewReferenceNode("$a"),
+				ast.NewFunctionCallNode(ast.NativeFunction("2"), []ast.Node{ast.NewStringNode("List size exceeds " + strconv.FormatInt(iterNum, 10))}),
+			),
+			nil,
+		),
+	)
+	fcall := ast.NewFunctionCallNode(ast.UserFunction("$f0_1"), []ast.Node{ast.NewReferenceNode("$acc0"), ast.NewLongNode(0)})
+	for i := int64(1); i < iterNum; i++ {
+		fcall = ast.NewFunctionCallNode(ast.UserFunction("$f0_1"), []ast.Node{fcall, ast.NewLongNode(i)})
+	}
+	fcall = ast.NewFunctionCallNode(ast.UserFunction("$f0_2"), []ast.Node{fcall, ast.NewLongNode(iterNum)})
+	decls = append(decls, fcall)
+
+	var expr, block ast.Node
+	for i := len(decls) - 1; i >= 0; i-- {
+		expr = decls[i]
+		expr.SetBlock(block)
+		block = expr
+	}
+	return block, startVarType
 }

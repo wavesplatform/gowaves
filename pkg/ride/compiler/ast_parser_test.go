@@ -214,17 +214,70 @@ func TestOperators(t *testing.T) {
 	}
 }
 
+func TestFOLD(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`func sum(accum: Int, next: Int) = accum + next
+let arr = [1,2,3,4,5]
+let a = FOLD<5>(arr, 0, sum)`, false, "BgICCAIDAQNzdW0CBWFjY3VtBG5leHQJAGQCBQVhY2N1bQUEbmV4dAADYXJyCQDMCAIAAQkAzAgCAAIJAMwIAgADCQDMCAIABAkAzAgCAAUFA25pbAABYQoAAiRsBQNhcnIKAAIkcwkAkAMBBQIkbAoABSRhY2MwAAAKAQUkZjBfMQICJGECJGkDCQBnAgUCJGkFAiRzBQIkYQkBA3N1bQIFAiRhCQCRAwIFAiRsBQIkaQoBBSRmMF8yAgIkYQIkaQMJAGcCBQIkaQUCJHMFAiRhCQACAQITTGlzdCBzaXplIGV4Y2VlZHMgNQkBBSRmMF8yAgkBBSRmMF8xAgkBBSRmMF8xAgkBBSRmMF8xAgkBBSRmMF8xAgkBBSRmMF8xAgUFJGFjYzAAAAABAAIAAwAEAAUAABK5ZXo="},
+		{`func filterEven(accum: List[Int], next: Int) =
+   if (next % 2 == 0) then accum :+ next else accum
+let arr = [1,2,3,4,5]
+let a = FOLD<5>(arr, [], filterEven)`, false, "BgICCAIDAQpmaWx0ZXJFdmVuAgVhY2N1bQRuZXh0AwkAAAIJAGoCBQRuZXh0AAIAAAkAzQgCBQVhY2N1bQUEbmV4dAUFYWNjdW0AA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwAAWEKAAIkbAUDYXJyCgACJHMJAJADAQUCJGwKAAUkYWNjMAUDbmlsCgEFJGYwXzECAiRhAiRpAwkAZwIFAiRpBQIkcwUCJGEJAQpmaWx0ZXJFdmVuAgUCJGEJAJEDAgUCJGwFAiRpCgEFJGYwXzICAiRhAiRpAwkAZwIFAiRpBQIkcwUCJGEJAAIBAhNMaXN0IHNpemUgZXhjZWVkcyA1CQEFJGYwXzICCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECBQUkYWNjMAAAAAEAAgADAAQABQAAWwkCmw=="},
+	} {
+
+		code := DappV6Directive + test.code
+		rawAST, buf, err := buildAST(t, code, false)
+		assert.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
+func TestExprSimple(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ASSET #-}
+
+1 == 1`, false, "BgEJAAACAAEAAb+26yY="},
+	} {
+
+		code := DappV6Directive + test.code
+		rawAST, buf, err := buildAST(t, code, false)
+		assert.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Verifier, astParser.Tree.Verifier)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
 func TestSimpleAST(t *testing.T) {
 	src := `{-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
-let a = if true then 10 else "a"
-let block = 
-	match a {
-		case x: Int => true
-		case y: String => false
-		case _ => false
-	}
+func sum(accum: Int, next: Int) = accum + next
+let arr = [1,2,3,4,5]
+let a = FOLD<5>(arr, 0, sum)
 `
 	ast, buf, err := buildAST(t, src, false)
 

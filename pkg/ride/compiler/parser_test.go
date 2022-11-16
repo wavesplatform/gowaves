@@ -548,13 +548,15 @@ func TestDeclarationsOrder(t *testing.T) {
 	}
 }
 
-func TestUnaryExpressions(t *testing.T) {
+func TestListOpExpressions(t *testing.T) {
 	for _, test := range []struct {
 		src      string
 		fail     bool
 		expected string
 	}{
-		{`e :: acc`, false, "Expr<.>;GettableExpr<.>;Identifier<e>;ConsOp<::>;GettableExpr<.>;Identifier<acc>"},
+		{`1 :: list`, false, "Expr<.>;Const<.>;Integer<1>;ConsOp<::>;GettableExpr<.>;Identifier<list>"},
+		{`list :+ 1`, false, "Expr<.>;GettableExpr<.>;Identifier<list>;AppendOp<:+>;Const<.>;Integer<1>"},
+		{`list1 ++ list2`, false, "Expr<.>;GettableExpr<.>;Identifier<list1>;ConcatOp<++>;GettableExpr<.>;Identifier<list2>"},
 	} {
 		ast, _, err := buildAST(t, test.src, false)
 		if test.fail {

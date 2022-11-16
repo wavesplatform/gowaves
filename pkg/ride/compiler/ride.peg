@@ -57,10 +57,13 @@ GeOp <- '>='
 LtOp <- '<' !'='
 LeOp <- '<='
 
+ListGroupOp <- ConsOp / ConcatOp / AppendOp
 ConsOp <- '::'
+ConcatOp <- '++'
+AppendOp <- ':+'
 
 SumGroupOp <- SumOp / SubOp
-SumOp <- '+'
+SumOp <- '+'!'+'
 SubOp <- '-'
 
 MultGroupOp <- MulOp / DivOp / ModOp
@@ -106,8 +109,8 @@ ExprSeq <- Expr (_ ',' _ ExprSeq)?
 AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const / List / Tuple)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
-ConsOpAtom <- SumGroupOpAtom (_ ConsOp _ SumGroupOpAtom)*
-CompareGroupOpAtom <- ConsOpAtom (_ CompareGroupOp _ ConsOpAtom)*
+ListGroupOpAtom <- SumGroupOpAtom (_ ListGroupOp _ SumGroupOpAtom)*
+CompareGroupOpAtom <- ListGroupOpAtom (_ CompareGroupOp _ ListGroupOpAtom)*
 EqualityGroupOpAtom <- CompareGroupOpAtom (_ EqGroupOp _ CompareGroupOpAtom)*
 AndOpAtom <- EqualityGroupOpAtom (_ AndOp _ EqualityGroupOpAtom)*
 OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
