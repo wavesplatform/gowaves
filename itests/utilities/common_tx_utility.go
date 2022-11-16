@@ -29,6 +29,46 @@ type BroadcastedTransaction struct {
 	ErrorBrdCstScala error
 }
 
+type BalanceInWaves struct {
+	BalanceInWavesGo    int64
+	BalanceInWavesScala int64
+}
+
+type BalanceInAsset struct {
+	BalanceInAssetGo    int64
+	BalanceInAssetScala int64
+}
+
+type WaitingError struct {
+	ErrWtGo    error
+	ErrWtScala error
+}
+
+type BroadcastingError struct {
+	ErrorBrdCstGo    error
+	ErrorBrdCstScala error
+}
+
+type ConsideredTransaction struct {
+	TxID      crypto.Digest
+	WtErr     WaitingError
+	BrdCstErr BroadcastingError
+}
+
+func NewConsideredTransaction(txId crypto.Digest, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
+	return &ConsideredTransaction{
+		TxID: txId,
+		WtErr: WaitingError{
+			ErrWtGo:    errWtGo,
+			ErrWtScala: errWtScala,
+		},
+		BrdCstErr: BroadcastingError{
+			ErrorBrdCstGo:    errBrdCstGo,
+			ErrorBrdCstScala: errBrdCstScala,
+		},
+	}
+}
+
 func NewBroadcastedTransaction(txId crypto.Digest, responseGo *client.Response, errBrdCstGo error,
 	responseScala *client.Response, errBrdCstScala error) *BroadcastedTransaction {
 	return &BroadcastedTransaction{
@@ -167,8 +207,7 @@ func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
 	return bts
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
-	timeout time.Duration) (error, error) {
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) ConsideredTransaction {
 	bts := marshalTransaction(suite.T(), tx)
 	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
 	id := ExtractTxID(suite.T(), tx, scheme)
@@ -178,7 +217,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
-	return errGo, errScala
+	return *NewConsideredTransaction(id, errGo, errScala, nil, nil)
 }
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (

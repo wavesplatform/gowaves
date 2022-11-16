@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
-	"github.com/wavesplatform/gowaves/itests/utilities"
+	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -22,15 +22,15 @@ func NewSignIssueTransaction[T any](suite *CommonIssueTxSuite, testdata testdata
 	return tx
 }
 
-func Issue[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (*proto.IssueWithSig, error, error) {
+func Issue[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) utl.ConsideredTransaction {
 	tx := NewSignIssueTransaction(suite, testdata)
-	errGo, errScala := utilities.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
-	return tx, errGo, errScala
+	cnsdrTx := utl.SendAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
+	return cnsdrTx
 }
 
 func IssueBroadcast[T any](suite *CommonIssueTxSuite, testdata testdata.IssueTestData[T], timeout time.Duration) (
-	utilities.BroadcastedTransaction, error, error) {
+	utl.BroadcastedTransaction, error, error) {
 	tx := NewSignIssueTransaction(suite, testdata)
-	brdCstTx, errGo, errScala := utilities.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
+	brdCstTx, errGo, errScala := utl.BroadcastAndWaitTransaction(&suite.BaseSuite, tx, testdata.ChainID, timeout)
 	return brdCstTx, errGo, errScala
 }

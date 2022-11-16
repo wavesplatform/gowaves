@@ -25,13 +25,13 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 
-			txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
+			tx := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
 
 			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
@@ -49,13 +49,13 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 
-			txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
+			tx := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
 
 			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-			utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, name, "version:", i, txId.String())
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
@@ -74,13 +74,14 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 
-			txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
-			txIds[name] = &txId
+			tx := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
+			txIds[name] = &tx.TxID
 
 			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 
-			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errGo, errScala)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+				tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 		}
@@ -103,10 +104,10 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 				&suite.BaseSuite, td.Account.Address)
 
 			//first alias tx should be successful
-			txId1, errGo1, errScala1 := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
+			tx1 := alias_utl.Alias(&suite.BaseSuite, td, i, timeout)
 			actualDiffBalanceInWavesGo1, actualDiffBalanceInWavesScala1 := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-			utl.ExistenceTxInfoCheck(suite.T(), errGo1, errScala1, name, "version:", i, txId1.String())
+			utl.ExistenceTxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, name, "version:", i, tx1.TxID.String())
 			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceAfterFirstTx,
 				actualDiffBalanceInWavesGo1, actualDiffBalanceInWavesScala1)
 
@@ -114,17 +115,17 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
 			//second alias tx with same alias had same ID for v1 and v2
-			txId2, errGo2, errScala2 := alias_utl.Alias(
-				&suite.BaseSuite, testdata.AliasDataChangedTimestamp(&td), i, timeout)
+			tx2 := alias_utl.Alias(&suite.BaseSuite, testdata.AliasDataChangedTimestamp(&td), i, timeout)
 			//already there for v1 and v2, and new for v3
-			txIds[name] = &txId2
+			txIds[name] = &tx2.TxID
 
 			actualDiffBalanceInWavesGo2, actualDiffBalanceInWavesScala2 := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address, currentBalanceInWavesGo, currentBalanceInWavesScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo2, actualDiffBalanceInWavesScala2)
 			if i == 3 {
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errGo2, errScala2)
+				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+					tx2.WtErr.ErrWtGo, tx2.WtErr.ErrWtScala, name, "version:", i, tx2.TxID.String())
 			}
 		}
 		if i == 3 {
@@ -149,8 +150,8 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 			&suite.BaseSuite, tdslice[0].Account.Address)
 		//alias tx for first account address in slice should be success
-		txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, tdslice[0], i, timeout)
-		utl.ExistenceTxInfoCheck(suite.T(), errGo, errScala, 0, "version:", i, txId.String())
+		tx := alias_utl.Alias(&suite.BaseSuite, tdslice[0], i, timeout)
+		utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 			&suite.BaseSuite, tdslice[0].Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 		utl.WavesDiffBalanceCheck(
@@ -159,15 +160,16 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 		for j := 1; j < len(tdslice); j++ {
 			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, tdslice[j].Account.Address)
-			txId, errGo, errScala := alias_utl.Alias(&suite.BaseSuite, tdslice[j], i, timeout)
-			txIds[name] = &txId
+			tx := alias_utl.Alias(&suite.BaseSuite, tdslice[j], i, timeout)
+			txIds[name] = &tx.TxID
 			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 				&suite.BaseSuite, tdslice[j].Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 			utl.WavesDiffBalanceCheck(
 				suite.T(), tdslice[j].Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 			if i == 3 {
 				idsCount = 0
-				utl.ErrorMessageCheck(suite.T(), tdslice[j].Expected.ErrGoMsg, tdslice[j].Expected.ErrScalaMsg, errGo, errScala)
+				utl.ErrorMessageCheck(suite.T(), tdslice[j].Expected.ErrGoMsg, tdslice[j].Expected.ErrScalaMsg,
+					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 			}
 		}
 

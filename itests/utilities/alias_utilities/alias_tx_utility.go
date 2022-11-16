@@ -7,13 +7,8 @@ import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-/*type expectedData interface {
-	Positive() bool
-}*/
 
 func NewSignAliasTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.AliasTestData[T]) proto.Transaction {
 	var tx proto.Transaction
@@ -32,11 +27,10 @@ func NewSignAliasTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 	return tx
 }
 
-func Alias[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
-	crypto.Digest, error, error) {
+func Alias[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
 	tx := NewSignAliasTransaction(suite, version, testdata)
-	errGo, errScala := utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
-	return utl.ExtractTxID(suite.T(), tx, testdata.ChainID), errGo, errScala
+	cnsdrTx := utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
+	return cnsdrTx
 }
 
 func AliasBroadcast[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
