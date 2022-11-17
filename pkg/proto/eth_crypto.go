@@ -111,10 +111,9 @@ func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (es EthereumSignature) MarshalJSON() ([]byte, error) {
-	// nickeskov: can't fail
-	data, _ := es.MarshalBinary()
-	return HexBytes(data).MarshalJSON()
+func (es *EthereumSignature) MarshalJSON() ([]byte, error) {
+	sig := es.Bytes()
+	return HexBytes(sig).MarshalJSON()
 }
 
 func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
