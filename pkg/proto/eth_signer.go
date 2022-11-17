@@ -34,7 +34,7 @@ func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in hex encoding.
-func (epk EthereumPublicKey) MarshalJSON() ([]byte, error) {
+func (epk *EthereumPublicKey) MarshalJSON() ([]byte, error) {
 	data := epk.SerializeXYCoordinates()
 	return HexBytes(data).MarshalJSON()
 }
@@ -77,8 +77,7 @@ func NewEthereumPublicKeyFromBytes(b []byte) (EthereumPublicKey, error) {
 }
 
 func (epk *EthereumPublicKey) String() string {
-	// nickeskov: can't fail
-	data, _ := epk.MarshalBinary()
+	data := epk.SerializeXYCoordinates()
 	return EncodeToHexString(data)
 }
 
@@ -137,8 +136,7 @@ func (epk *EthereumPublicKey) SerializeXYCoordinates() []byte {
 
 func (epk *EthereumPublicKey) EthereumAddress() EthereumAddress {
 	xy := epk.SerializeXYCoordinates()
-	// nickeskov: can't fail
-	hash, _ := crypto.Keccak256(xy)
+	hash := crypto.MustKeccak256(xy)
 	var addr EthereumAddress
 	addr.setBytes(hash[12:])
 	return addr
