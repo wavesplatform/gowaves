@@ -192,7 +192,7 @@ func (s londonSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	if tx.ChainId().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
-	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V)
 }
 
 func (s londonSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
@@ -274,7 +274,7 @@ func (s eip2930Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, er
 	if tx.ChainId().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
-	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V)
 }
 
 func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
@@ -357,7 +357,7 @@ func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	V, R, S := tx.RawSignatureValues()
 	V = new(big.Int).Sub(V, s.chainIdMul)
 	V.Sub(V, big.NewInt(8))
-	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V)
 }
 
 // SignatureValues returns signature values. This signature
@@ -426,7 +426,7 @@ func (hs HomesteadSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey,
 		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverEthereumPubKey(hs.Hash(tx), r, s, v, true)
+	return recoverEthereumPubKey(hs.Hash(tx), r, s, v)
 }
 
 type FrontierSigner struct{}
@@ -453,7 +453,7 @@ func (fs FrontierSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, 
 		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverEthereumPubKey(fs.Hash(tx), r, s, v, true)
+	return recoverEthereumPubKey(fs.Hash(tx), r, s, v)
 }
 
 // SignatureValues returns signature values. This signature
@@ -511,24 +511,18 @@ func decodeSignature(sig []byte, legacyV bool) (r, s, v *big.Int, err error) {
 	return r, s, v, nil
 }
 
-func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*EthereumPublicKey, error) {
-	if Vb.BitLen() > 8 {
+func recoverEthereumPubKey(sighash EthereumHash, R, S, V *big.Int) (*EthereumPublicKey, error) {
+	if V.BitLen() > 8 {
 		return nil, ErrInvalidSig
 	}
-	V := byte(Vb.Uint64() - 27)
-	if !ValidateEthereumSignatureValues(V, R, S, homestead) {
+	legacyV := V.Uint64()
+	if legacyV < 27 {
 		return nil, ErrInvalidSig
 	}
-	// encode the signature in uncompressed format
-	r, s := R.Bytes(), S.Bytes()
-	sig := make([]byte, ethereumSignatureLength)
-	copy(sig[32-len(r):32], r)
-	copy(sig[64-len(s):64], s)
-	sig[64] = V
-	// recover the public key from the signature
-	pubKey, err := crypto.ECDSARecoverPublicKey(sighash[:], sig)
+	v := byte(legacyV - 27)
+	sig, err := NewEthereumSignatureFromVRS(v, R, S)
 	if err != nil {
 		return nil, err
 	}
-	return (*EthereumPublicKey)(pubKey), nil
+	return sig.RecoverEthereumPublicKey(sighash[:])
 }
