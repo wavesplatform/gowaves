@@ -136,6 +136,20 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if err != nil {
 		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
+
+	recipientVer, err := ws.NewestScriptVersionByAddressID(recipient.Address.ID())
+	if err != nil {
+		return nil, RuntimeError.Wrapf(err, "failed to get library version of dApp %s", recipient.Address)
+	}
+	if recipientVer < ast.LibV5 {
+		return nil, UserError.Errorf(
+			"DApp %s invoked DApp %s that uses RIDE %d, but dApp-to-dApp invocation requires version 5 or higher",
+			proto.WavesAddress(callerAddress),
+			recipient.Address,
+			recipientVer,
+		)
+	}
+
 	fn, err := extractFunctionName(args[1])
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", invocation.name())
@@ -147,10 +161,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	oldInvocationParam := env.invocation()
 	originCaller, err := oldInvocationParam.get(originCallerField)
-	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
-	}
-	payment, err := oldInvocationParam.get(paymentField)
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
@@ -189,7 +199,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	env.setInvocation(newRideInvocationV5(
 		originCaller,
 		payments,
-		payment,
+		rideUnit{},
 		common.Dup(callerPublicKey.Bytes()),
 		feeAssetID,
 		originCallerPublicKey,
