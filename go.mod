@@ -5,7 +5,7 @@ go 1.18
 require (
 	filippo.io/edwards25519 v1.0.0
 	github.com/beevik/ntp v0.3.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.1
+	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.3
