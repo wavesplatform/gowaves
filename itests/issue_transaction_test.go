@@ -5,95 +5,81 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
-
+	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type IssueTxSuite struct {
-	issue_utilities.CommonIssueTxSuite
+	f.BaseSuite
 }
 
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
-	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 1 * time.Minute
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
+	for _, i := range versions {
+		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
+		for name, td := range tdmatrix {
+			tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
 
-		tx := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
+			actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, tx.TxID)
 
-		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-
-		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, tx.TxID)
-
-		utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, tx.TxID.String())
-		utl.WavesDiffBalanceCheck(
-			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name)
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
+			utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo,
+				actualAssetBalanceScala, name, "version", i)
+		}
 	}
+
 }
 
 func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
-	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 1 * time.Minute
-	for name, td := range tdmatrix {
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
+	for _, i := range versions {
+		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
+		for name, td := range tdmatrix {
+			for j := 0; j < 2; j++ {
+				tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
 
-		tx1 := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
-		tx2 := issue_utilities.Issue(
-			&suite.CommonIssueTxSuite, testdata.DataChangedTimestamp(&td), timeout)
+				actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+					&suite.BaseSuite, td.Account.Address, tx.TxID)
 
-		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-
-		actualAsset1BalanceGo, actualAsset1BalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, tx1.TxID)
-		actualAsset2BalanceGo, actualAsset2BalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, tx2.TxID)
-		//Since the issue transaction is called twice, the expected balance difference also is doubled.
-		expectedDiffBalanceInWaves := 2 * td.Expected.WavesDiffBalance
-
-		utl.ExistenceTxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, name, tx1.TxID.String())
-		utl.ExistenceTxInfoCheck(suite.T(), tx2.WtErr.ErrWtGo, tx2.WtErr.ErrWtScala, name, tx2.TxID.String())
-		utl.WavesDiffBalanceCheck(
-			suite.T(), expectedDiffBalanceInWaves, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
-		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset1BalanceGo, actualAsset1BalanceScala, name)
-		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAsset2BalanceGo, actualAsset2BalanceScala, name)
+				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo,
+					actualAssetBalanceScala, name, "version", i)
+			}
+		}
 	}
 }
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
-	tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
+	versions := testdata.GetVersions()
 	timeout := 3 * time.Second
 	txIds := make(map[string]*crypto.Digest)
+	for _, i := range versions {
+		tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
+		for name, td := range tdmatrix {
+			tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			txIds[name] = &tx.TxID
 
-	for name, td := range tdmatrix {
+			actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
+				&suite.BaseSuite, td.Account.Address, tx.TxID)
 
-		initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address)
-
-		tx := issue_utilities.Issue(&suite.CommonIssueTxSuite, td, timeout)
-		txIds[name] = &tx.TxID
-
-		actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-			&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-
-		actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
-			&suite.BaseSuite, td.Account.Address, tx.TxID)
-
-		utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, tx.TxID.String())
-		utl.WavesDiffBalanceCheck(
-			suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala, name)
-		utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i)
+			utl.WavesDiffBalanceCheck(
+				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
+			utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
+		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
-	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestIssueTxSuite(t *testing.T) {

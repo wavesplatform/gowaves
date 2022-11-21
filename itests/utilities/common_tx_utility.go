@@ -29,6 +29,11 @@ type BroadcastedTransaction struct {
 	ErrorBrdCstScala error
 }
 
+type Response struct {
+	ResponseGo    *client.Response
+	ResponseScala *client.Response
+}
+
 type BalanceInWaves struct {
 	BalanceInWavesGo    int64
 	BalanceInWavesScala int64
@@ -52,12 +57,25 @@ type BroadcastingError struct {
 type ConsideredTransaction struct {
 	TxID      crypto.Digest
 	WtErr     WaitingError
+	Resp      Response
 	BrdCstErr BroadcastingError
 }
 
-func NewConsideredTransaction(txId crypto.Digest, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
+func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
+	return &BalanceInWaves{
+		BalanceInWavesGo:    balanceGo,
+		BalanceInWavesScala: balanceScala,
+	}
+}
+
+func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,
+	errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
 	return &ConsideredTransaction{
 		TxID: txId,
+		Resp: Response{
+			ResponseGo:    respGo,
+			ResponseScala: respScala,
+		},
 		WtErr: WaitingError{
 			ErrWtGo:    errWtGo,
 			ErrWtScala: errWtScala,
@@ -217,13 +235,21 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	suite.Conns.SendToEachNode(suite.T(), &txMsg)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
-	return *NewConsideredTransaction(id, errGo, errScala, nil, nil)
+	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
-func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (
-	BroadcastedTransaction, error, error) {
+/*func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) ConsideredTransaction {
 	id := ExtractTxID(suite.T(), tx, scheme)
+	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
+	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
+	fmt.Println(id.String())
+	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 
+	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+}*/
+
+func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) (BroadcastedTransaction, error, error) {
+	id := ExtractTxID(suite.T(), tx, scheme)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
