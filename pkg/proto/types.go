@@ -1869,7 +1869,8 @@ func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
 	}
-	// TODO(nickeskov): Should we validate 'V' signature value?
+	// we don't have to validate V param here because in ethereum it's used to chainID verification (mostly),
+	// but we have own scheme validation in ethereumTypedDataHash
 	_, r, s := o.Eip712Signature.AsVRS()
 	return VerifyEthereumSignature(o.SenderPK.inner, r, s, hash[:]), nil
 }
