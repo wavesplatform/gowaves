@@ -52,15 +52,15 @@ type EthereumSignature struct {
 	sig [ethereumSignatureLength]byte
 }
 
-func NewEthereumSignatureFromVRS(v byte, R, S *big.Int) (EthereumSignature, error) {
-	if !ValidateEthereumSignatureValues(v, R, S) {
+func NewEthereumSignatureFromVRS(v byte, r, s *big.Int) (EthereumSignature, error) {
+	if !ValidateEthereumSignatureValues(v, r, s) {
 		return EthereumSignature{}, ErrInvalidSig
 	}
 	var sig [ethereumSignatureLength]byte
 	// encode the signature in uncompressed format
-	r, s := R.Bytes(), S.Bytes()
-	copy(sig[32-len(r):32], r)
-	copy(sig[64-len(s):64], s)
+	rBytes, sBytes := r.Bytes(), s.Bytes()
+	copy(sig[32-len(rBytes):32], rBytes)
+	copy(sig[64-len(sBytes):64], sBytes)
 	sig[64] = v
 	return EthereumSignature{sig: sig}, nil
 }
