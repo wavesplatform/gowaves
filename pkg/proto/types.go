@@ -3173,7 +3173,7 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
-	case "list":
+	case "list", "array":
 		r = &ListArgument{}
 	}
 	if r == nil {
