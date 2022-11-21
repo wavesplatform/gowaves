@@ -34,7 +34,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name, "Version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version", i)
 
 			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
@@ -71,7 +71,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
 
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusOK, http.StatusOK, name, "Version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version", i)
 
 			currentBalanceInWavesGo, currentBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
 				&suite.BaseSuite, td.Account.Address)
@@ -107,7 +107,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name, "Version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version", i)
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 				brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name, "version", i)
 			txIds[name] = &brdCstTx.TxID
@@ -148,7 +148,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 				&suite.BaseSuite, td.Account.Address, itxID)
 
 			brdCstTx, errWtGo, errWtScala := reissue_utilities.ReissueBroadcast(&suite.BaseSuite, td, i, timeout)
-			utl.StatusCodesCheck(suite.T(), brdCstTx, http.StatusInternalServerError, http.StatusBadRequest, name, "Version: ", i)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version", i)
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 				brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name, "version", i)
 			txIds[name] = &brdCstTx.TxID
