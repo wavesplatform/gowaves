@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	s "github.com/wavesplatform/gowaves/pkg/ride/compiler/signatures"
+	s "github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 )
 
 const (
@@ -26,6 +26,13 @@ const (
 	accountValueName = "ACCOUNT"
 	assetValueName   = "ASSET"
 	libraryValueName = "LIBRARY"
+)
+
+type ScriptType byte
+
+const (
+	Account ScriptType = iota + 1
+	Asset
 )
 
 type ASTError struct {
@@ -54,6 +61,8 @@ type ASTParser struct {
 	ErrorsList   []error
 	globalStack  *VarStack
 	currentStack *VarStack
+
+	scriptType ScriptType
 }
 
 func NewASTParser(node *node32, buffer []rune) ASTParser {
@@ -61,12 +70,14 @@ func NewASTParser(node *node32, buffer []rune) ASTParser {
 		node: node,
 		Tree: &ast.Tree{
 			LibVersion:   ast.LibV6,
+			ContentType:  ast.ContentTypeApplication,
 			Declarations: []ast.Node{},
 			Functions:    []ast.Node{},
 		},
 		buffer:      buffer,
 		ErrorsList:  []error{},
 		globalStack: NewVarStack(nil),
+		scriptType:  Account,
 	}
 }
 
@@ -81,6 +92,35 @@ func (p *ASTParser) Parse() {
 func (p *ASTParser) addError(msg string, token token32) {
 	p.ErrorsList = append(p.ErrorsList,
 		NewASTError(msg, token, p.buffer))
+}
+
+func (p *ASTParser) loadBuildInVarsToStackByVersion() {
+	resVars := make(map[string]s.Variable, 0)
+	ver := int(p.Tree.LibVersion)
+	for i := 0; i < ver; i++ {
+		for _, v := range s.Vars.Vars[i].Append {
+			resVars[v.Name] = v
+		}
+		for _, v := range s.Vars.Vars[i].Remove {
+			delete(resVars, v)
+		}
+	}
+	for _, v := range resVars {
+		p.currentStack.PushVariable(v)
+	}
+	if p.Tree.LibVersion == ast.LibV5 || p.Tree.LibVersion == ast.LibV6 {
+		if p.scriptType == Asset {
+			p.currentStack.PushVariable(s.Variable{
+				Name: "this",
+				Type: s.SimpleType{Type: "Asset"},
+			})
+		} else {
+			p.currentStack.PushVariable(s.Variable{
+				Name: "this",
+				Type: s.SimpleType{Type: "Address"},
+			})
+		}
+	}
 }
 
 func (p *ASTParser) ruleCodeHandler(node *node32) {
@@ -101,6 +141,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 		curNode = p.parseDirectives(curNode)
 		_ = curNode
 	}
+	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
@@ -124,6 +165,7 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		curNode = p.parseDirectives(curNode)
 		_ = curNode
 	}
+	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
@@ -213,7 +255,9 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 	case scriptTypeDirectiveName:
 		switch dirValue {
 		case accountValueName:
+			p.scriptType = Account
 		case assetValueName:
+			p.scriptType = Asset
 		case libraryValueName:
 			break
 			// TODO
@@ -314,7 +358,7 @@ func (p *ASTParser) simpleVariableDeclaration(node *node32) (ast.Node, s.Type) {
 		return nil, nil
 	}
 	expr = ast.NewAssignmentNode(varName, expr, nil)
-	p.currentStack.PushVariable(Variable{
+	p.currentStack.PushVariable(s.Variable{
 		Name: varName,
 		Type: varType,
 	})
@@ -368,7 +412,7 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 	var resExpr []ast.Node
 	var resTypes []s.Type
 	tupleName := "$t0" + strconv.FormatUint(uint64(node.begin), 10) + strconv.FormatUint(uint64(node.end), 10)
-	p.currentStack.PushVariable(Variable{
+	p.currentStack.PushVariable(s.Variable{
 		Name: tupleName,
 		Type: varType,
 	})
@@ -386,7 +430,7 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 			},
 		})
 		resTypes = append(resTypes, tuple.Types[i])
-		p.currentStack.PushVariable(Variable{
+		p.currentStack.PushVariable(s.Variable{
 			Name: name,
 			Type: tuple.Types[i],
 		})
@@ -968,7 +1012,62 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 		expr, varType = p.ruleListHandler(curNode)
 	case ruleTuple:
 		expr, varType = p.ruleTupleHandler(curNode)
-
+	}
+	curNode = curNode.next
+	for {
+		if curNode == nil {
+			break
+		}
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
+		switch curNode.pegRule {
+		case ruleListAccess:
+			listNode := curNode.up
+			if l, ok := varType.(s.ListType); !ok {
+				p.addError(fmt.Sprintf("type must be List but is %s", varType.String()), listNode.token32)
+			} else {
+				if listNode.pegRule == rule_ {
+					listNode = listNode.next
+				}
+				var index ast.Node
+				var indexType s.Type
+				switch listNode.pegRule {
+				case ruleExpr:
+					index, indexType = p.ruleExprHandler(listNode)
+				case ruleIdentifier:
+					index, indexType = p.ruleIdentifierHandler(listNode)
+				}
+				if !indexType.Comp(s.IntType) {
+					p.addError(fmt.Sprintf("index type must be Int but is %s", indexType.String()), listNode.token32)
+				}
+				expr = ast.NewFunctionCallNode(ast.NativeFunction("401"), []ast.Node{expr, index})
+				varType = l.Type
+			}
+		case ruleFunctionCallAccess:
+			// TODO(anton)
+			break
+		case ruleIdentifierAccess:
+			// TODO(anton)
+			break
+		case ruleTupleAccess:
+			if t, ok := varType.(s.TupleType); !ok {
+				p.addError(fmt.Sprintf("type must be Tuple but is %s", varType.String()), curNode.token32)
+			} else {
+				tupleIndexStr := string(p.buffer[curNode.begin:curNode.end])
+				indexStr := strings.TrimPrefix(tupleIndexStr, "_")
+				index, err := strconv.ParseInt(indexStr, 10, 64)
+				if err != nil {
+					p.addError(fmt.Sprintf("error in parsing tuple index: %s", err), curNode.token32)
+				}
+				if index < 1 || int(index) > len(t.Types) {
+					p.addError(fmt.Sprintf("tuple index must be less then %d", len(t.Types)), curNode.token32)
+				}
+				expr = ast.NewPropertyNode(tupleIndexStr, expr)
+				varType = t.Types[index-1]
+			}
+		}
+		curNode = curNode.next
 	}
 	return expr, varType
 }
@@ -1165,7 +1264,7 @@ func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 		curNode = curNode.next
 	}
 	argType := p.ruleTypesHandler(curNode)
-	p.currentStack.PushVariable(Variable{
+	p.currentStack.PushVariable(s.Variable{
 		Name: argName,
 		Type: argType,
 	})

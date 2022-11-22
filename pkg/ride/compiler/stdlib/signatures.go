@@ -1,4 +1,4 @@
-package signatures
+package stdlib
 
 //go:generate peg -output=type.peg.go type.peg
 
@@ -11,7 +11,7 @@ import (
 )
 
 //go:embed funcs.json
-var embedded embed.FS
+var embedFunc embed.FS
 
 var Funcs = mustLoadFuncs()
 
@@ -36,7 +36,7 @@ type FunctionParams struct {
 }
 
 func mustLoadFuncs() *FunctionsSignatures {
-	f, err := embedded.ReadFile("funcs.json")
+	f, err := embedFunc.ReadFile("funcs.json")
 	if err != nil {
 		panic(err)
 	}
@@ -129,12 +129,16 @@ func handleGeneric(node *node32, t string) Type {
 		panic(errors.Errorf("Generig type should be List, but \"%s\"", name))
 	}
 	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
+	if curNode == nil {
+		return ListType{nil}
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+
 	return ListType{Type: handleTypes(curNode, t)}
 }
 
@@ -221,6 +225,9 @@ func (t ListType) Comp(rideType Type) bool {
 }
 
 func (t ListType) String() string {
+	if t.Type == nil {
+		return "List[]"
+	}
 	return "List[" + t.Type.String() + "]"
 }
 

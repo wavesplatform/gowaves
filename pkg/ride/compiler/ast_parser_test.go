@@ -3,13 +3,14 @@ package compiler
 import (
 	"encoding/base64"
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
-	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
@@ -271,6 +272,31 @@ func TestExprSimple(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildInVars(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`let a = height`, false, "BgICCAIBAAFhBQZoZWlnaHQAABNT5zQ="},
+	} {
+
+		code := DappV6Directive + test.code
+		rawAST, buf, err := buildAST(t, code, false)
+		assert.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
 func TestSimpleAST(t *testing.T) {
 	src := `{-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}

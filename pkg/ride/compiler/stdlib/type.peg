@@ -1,5 +1,5 @@
 # For parsing complex types in json signatures
-package signatures
+package stdlib
 
 type Types Peg {}
 
@@ -11,5 +11,5 @@ _ <- [ \t]*
 EOF <- !.
 
 Type <- [A-Za-z][A-Za-z0-9]*
-GenericType <- Type _ '[' _ Types _ ']'
+GenericType <- Type _ '[' _ Types? _ ']'
 TupleType <- '(' _ Types _ (',' _ Types)+ _ ')'

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"encoding/base64"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
