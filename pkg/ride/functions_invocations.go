@@ -1,14 +1,10 @@
 package ride
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
-	tree, err := env.state().NewestScriptByAccount(recipient)
-	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "failed to get script by recipient")
-	}
+func invokeFunctionFromDApp(env environment, tree *ast.Tree, fnName rideString, listArgs rideList) (Result, error) {
 	args, err := convertListArguments(listArgs, env.rideV6Activated())
 	if err != nil {
 		return nil, EvaluationFailure.Wrapf(err, "failed to invoke function '%s'", fnName)
