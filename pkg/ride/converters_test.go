@@ -1723,28 +1723,6 @@ func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 	a.Equal(rideRecipient(a.tx.ScriptRecipient), dApp)
 }
 
-func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
-	rs, err := a.f(a.tx)
-	a.NoError(err)
-	payment, err := rs.get(paymentField)
-	a.NoError(err)
-	asset, err := payment.get(assetIDField)
-	a.NoError(err)
-	a.Equal(rideBytes(byte_helpers.Digest.Bytes()), asset)
-	amount, err := payment.get(amountField)
-	a.NoError(err)
-	a.Equal(rideInt(100000), amount)
-}
-
-func (a *InvokeScriptWithProofsTestSuite) Test_payment_absence() {
-	a.tx.Payments = nil
-	rs, err := a.f(a.tx)
-	a.NoError(err)
-	payment, err := rs.get(paymentField)
-	a.NoError(err)
-	a.Equal(rideUnit{}, payment)
-}
-
 func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
 	rs, err := a.f(a.tx)
 	a.NoError(err)

@@ -1076,6 +1076,7 @@ func NewEnvironmentWithWrappedState(
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		ver:                   env.ver,
 		isBlockV5Activated:    env.isBlockV5Activated,
 		isRideV6Activated:     env.isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,

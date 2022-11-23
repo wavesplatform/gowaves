@@ -97,7 +97,6 @@ func fullAssetInfoToObject(info *proto.FullAssetInfo) rideType {
 		rideAddress(info.Issuer),
 		rideBoolean(info.Reissuable),
 		rideBoolean(info.Scripted),
-		rideBoolean(info.Sponsored),
 	)
 }
 
@@ -138,14 +137,9 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 }
 
 func genesisToObject(scheme byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
-	body, err := proto.MarshalTxBody(scheme, tx)
-	if err != nil {
-		return rideGenesisTransaction{}, EvaluationFailure.Wrap(err, "genesisToObject")
-	}
 	return newRideGenesisTransaction(
 		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
 		tx.ID.Bytes(),
-		body,
 		rideInt(tx.Timestamp),
 		rideInt(tx.Amount),
 		rideInt(tx.Version),
@@ -695,7 +689,7 @@ func dataEntryToObject(entry proto.DataEntry) rideType {
 	case *proto.StringDataEntry:
 		return newRideStringEntry(rideString(entry.GetKey()), rideString(e.Value))
 	case *proto.DeleteDataEntry:
-		return newRideDeleteEntry(rideUnit{}, rideString(entry.GetKey()))
+		return newRideDeleteEntry(rideString(entry.GetKey()))
 	default:
 		return rideUnit{}
 	}
@@ -832,12 +826,10 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 		}
 		args[i] = a
 	}
-	var pf rideType = rideUnit{}
 	var psf = rideList{}
 	switch {
 	case len(tx.Payments) == 1:
 		p := attachedPaymentToObject(tx.Payments[0])
-		pf = p
 		psf = rideList{p}
 	case len(tx.Payments) > 1:
 		pl := make(rideList, len(tx.Payments))
@@ -849,7 +841,6 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return newRideInvokeScriptTransaction(
 		proofs(tx.Proofs),
 		optionalAsset(tx.FeeAsset),
-		pf,
 		rideRecipient(tx.ScriptRecipient),
 		rideString(tx.FunctionCall.Name),
 		body,
@@ -1031,7 +1022,6 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		return newRideInvokeScriptTransaction(
 			proofs(proto.NewProofs()),
 			optionalAsset(proto.NewOptionalAssetWaves()),
-			payment,
 			rideRecipient(proto.NewRecipientFromAddress(*to)),
 			rideString(tx.TxKind.DecodedData().Name),
 			rideBytes(nil),
@@ -1061,7 +1051,6 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	return newRideUpdateAssetInfoTransaction(
 		proofs(tx.Proofs),
 		rideBytes(tx.AssetID.Bytes()),
-		optionalAsset(tx.FeeAsset),
 		rideString(tx.Name),
 		rideString(tx.Description),
 		body,
@@ -1147,7 +1136,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		feeAsset proto.OptionalAsset
 		fee      uint64
 		payment  rideType = rideUnit{}
-		payments rideType = rideUnit{}
+		payments rideList = rideList{}
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -1186,20 +1175,41 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		oca = rideAddress(sender)
 		ock = callerPK
 	}
-	return newRideInvocationV5(
-		oca,
-		payments,
-		payment,
-		callerPK,
-		optionalAsset(feeAsset),
-		ock,
-		id.Bytes(),
-		rideAddress(sender),
-		rideInt(fee),
-	), nil
+
+	switch rideVersion {
+	case ast.LibV1, ast.LibV2, ast.LibV3:
+		return newRideInvocationV3(
+			payment,
+			callerPK,
+			optionalAsset(feeAsset),
+			id.Bytes(),
+			rideAddress(sender),
+			rideInt(int64(tx.GetFee())),
+		), nil
+	case ast.LibV4:
+		return newRideInvocationV4(
+			payments,
+			callerPK,
+			optionalAsset(feeAsset),
+			id.Bytes(),
+			rideAddress(sender),
+			rideInt(fee),
+		), nil
+	default:
+		return newRideInvocationV5(
+			oca,
+			payments,
+			callerPK,
+			optionalAsset(feeAsset),
+			ock,
+			id.Bytes(),
+			rideAddress(sender),
+			rideInt(fee),
+		), nil
+	}
 }
 
-func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideInvocationV5, error) {
+func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return rideInvocationV5{}, err
@@ -1215,33 +1225,50 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 		ocf1 = rideAddress(sender)
 		ocf2 = callerPK
 	}
-	var pf rideType = rideUnit{}
-	var psf rideType = rideUnit{}
+	wavesAsset := proto.NewOptionalAssetWaves()
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
+		var pf rideType = rideUnit{}
 		if len(scriptPayments) > 0 {
 			pf = attachedPaymentToObject(scriptPayments[0])
 		}
+		return newRideInvocationV3(
+			pf,
+			callerPK,
+			optionalAsset(wavesAsset),
+			tx.ID.Bytes(),
+			rideAddress(sender),
+			rideInt(int64(tx.GetFee())),
+		), nil
+	case ast.LibV4:
+		payments := make(rideList, len(scriptPayments))
+		for i, p := range scriptPayments {
+			payments[i] = attachedPaymentToObject(p)
+		}
+		return newRideInvocationV4(
+			payments,
+			callerPK,
+			optionalAsset(wavesAsset),
+			tx.ID.Bytes(),
+			rideAddress(sender),
+			rideInt(int64(tx.GetFee())),
+		), nil
 	default:
 		payments := make(rideList, len(scriptPayments))
 		for i, p := range scriptPayments {
 			payments[i] = attachedPaymentToObject(p)
 		}
-		psf = payments
+		return newRideInvocationV5(
+			ocf1,
+			payments,
+			callerPK,
+			optionalAsset(wavesAsset),
+			ocf2,
+			tx.ID.Bytes(),
+			rideAddress(sender),
+			rideInt(int64(tx.GetFee())),
+		), nil
 	}
-
-	wavesAsset := proto.NewOptionalAssetWaves()
-	return newRideInvocationV5(
-		ocf1,
-		psf,
-		pf,
-		callerPK,
-		optionalAsset(wavesAsset),
-		ocf2,
-		tx.ID.Bytes(),
-		rideAddress(sender),
-		rideInt(int64(tx.GetFee())),
-	), nil
 }
 
 func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {

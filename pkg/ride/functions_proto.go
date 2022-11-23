@@ -161,7 +161,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	oldInvocationParam := env.invocation()
 	originCaller, err := oldInvocationParam.get(originCallerField)
-	if err != nil {
+	if env.libVersion() >= ast.LibV5 && err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
 	feeAssetID, err := oldInvocationParam.get(feeAssetIDField)
@@ -189,7 +189,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), feeRaw.instanceOf())
 	}
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
-	if err != nil {
+	if env.libVersion() >= ast.LibV5 && err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
 	}
 	payments, ok := args[3].(rideList)
@@ -199,7 +199,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	env.setInvocation(newRideInvocationV5(
 		originCaller,
 		payments,
-		rideUnit{},
 		common.Dup(callerPublicKey.Bytes()),
 		feeAssetID,
 		originCallerPublicKey,

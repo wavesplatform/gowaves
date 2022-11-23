@@ -112,10 +112,7 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for description", args_[9].instanceOf())
 	}
 
-	// default value for sponsored
-	var sponsored rideBoolean
-
-	return newRideAssetV4(description, name, issuePublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted, sponsored), nil
+	return newRideAssetV4(description, name, issuePublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted), nil
 }
 
 func assetPairConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -360,10 +357,7 @@ func deleteEntryConstructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("deleteEntryConstructor: unexpected type '%s' for key", args_[0].instanceOf())
 	}
 
-	// default value for value
-	var value rideUnit
-
-	return newRideDeleteEntry(value, key), nil
+	return newRideDeleteEntry(key), nil
 }
 
 func integerEntryConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -389,12 +383,12 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Wrap(err, "invocationV3Constructor")
 	}
 
-	var payments rideType
+	var payment rideType
 	switch v := args_[0].(type) {
 	case rideAttachedPayment, rideUnit:
-		payments = v
+		payment = v
 	default:
-		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
+		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for payment", args_[0].instanceOf())
 	}
 
 	caller, ok := args_[1].(rideAddress)
@@ -425,10 +419,7 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
 	}
 
-	// default value for payment
-	var payment rideType
-
-	return newRideInvocationV3(payments, payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
+	return newRideInvocationV3(payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
 }
 
 func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -477,10 +468,7 @@ func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
 	}
 
-	// default value for payment
-	var payment rideType
-
-	return newRideInvocationV4(payments, payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
+	return newRideInvocationV4(payments, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
 }
 
 func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -488,12 +476,17 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Wrap(err, "invocationV5Constructor")
 	}
 
-	var payments rideType
-	switch v := args_[0].(type) {
-	case rideUnit, rideList:
-		payments = v
-	default:
+	payments, ok := args_[0].(rideList)
+	if !ok {
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
+	}
+	// checks for list elements
+	for _, elem := range payments {
+		switch t := elem.(type) {
+		case rideAttachedPayment:
+		default:
+			return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' in payments list", t.instanceOf())
+		}
 	}
 
 	caller, ok := args_[1].(rideAddress)
@@ -540,10 +533,7 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for originCallerPublicKey", args_[7].instanceOf())
 	}
 
-	// default value for payment
-	var payment rideType
-
-	return newRideInvocationV5(originCaller, payments, payment, callerPublicKey, feeAssetID, originCallerPublicKey, transactionID, caller, fee), nil
+	return newRideInvocationV5(originCaller, payments, callerPublicKey, feeAssetID, originCallerPublicKey, transactionID, caller, fee), nil
 }
 
 func issueConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1175,7 +1165,7 @@ func exchangeTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 }
 
 func genesisTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
-	if err := checkArgs(args_, 7); err != nil {
+	if err := checkArgs(args_, 6); err != nil {
 		return nil, errors.Wrap(err, "genesisTransactionConstructor")
 	}
 
@@ -1209,12 +1199,7 @@ func genesisTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("genesisTransactionConstructor: unexpected type '%s' for version", args_[5].instanceOf())
 	}
 
-	bodyBytes, ok := args_[6].(rideBytes)
-	if !ok {
-		return nil, errors.Errorf("genesisTransactionConstructor: unexpected type '%s' for bodyBytes", args_[6].instanceOf())
-	}
-
-	return newRideGenesisTransaction(recipient, id, bodyBytes, timestamp, amount, version, fee), nil
+	return newRideGenesisTransaction(recipient, id, timestamp, amount, version, fee), nil
 }
 
 func invokeExpressionTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1391,10 +1376,7 @@ func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		}
 	}
 
-	// default value for payment
-	var payment rideType
-
-	return newRideInvokeScriptTransaction(proofs, feeAssetID, payment, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
+	return newRideInvokeScriptTransaction(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
 }
 
 func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -2217,8 +2199,5 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		}
 	}
 
-	// default value for feeAssetID
-	var feeAssetID rideType
-
-	return newRideUpdateAssetInfoTransaction(proofs, assetID, feeAssetID, name, description, bodyBytes, id, senderPublicKey, timestamp, version, fee, sender), nil
+	return newRideUpdateAssetInfoTransaction(proofs, assetID, name, description, bodyBytes, id, senderPublicKey, timestamp, version, fee, sender), nil
 }
