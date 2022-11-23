@@ -23,19 +23,12 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
-			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
-
-			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
-			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-
-			utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name, "version:", i, brdCstTx.TxID.String())
-			utl.WavesDiffBalanceCheck(
-				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
-				name, "version:", i)
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
 		}
 	}
 }
@@ -46,19 +39,13 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i+1))
 		for name, td := range tdmatrix {
-			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
 
-			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
-			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, brdCstTx, name, "version: ", i)
-
-			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-			utl.ExistenceTxInfoCheck(suite.T(), errWtGo, errWtScala, name, "version:", i, brdCstTx.TxID.String())
-			utl.WavesDiffBalanceCheck(
-				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
-				name, "version:", i)
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
 		}
 	}
 }
@@ -69,27 +56,17 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
-
 		for name, td := range tdmatrix {
-			initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
 
-			brdCstTx, errWtGo, errWtScala := alias_utl.AliasBroadcast(&suite.BaseSuite, td, i, timeout)
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, name, "version: ", i)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+				tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, name, "version", i)
+			txIds[name] = &tx.TxID
 
-			utl.StatusCodesCheck(
-				suite.T(), http.StatusInternalServerError, http.StatusBadRequest, brdCstTx, name, "version: ", i)
-			utl.ErrorMessageCheck(
-				suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-				brdCstTx.ErrorBrdCstGo, brdCstTx.ErrorBrdCstScala, name)
-			txIds[name] = &brdCstTx.TxID
-
-			actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-				&suite.BaseSuite, td.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-			utl.ErrorMessageCheck(
-				suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, errWtGo, errWtScala, name, "version: ", i)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i)
 			utl.WavesDiffBalanceCheck(
-				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala,
-				name, "version:", i)
+				suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
 		}
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds, "Version: %#v", i)

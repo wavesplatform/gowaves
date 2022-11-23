@@ -10,6 +10,21 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction
+
+// MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes
+func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
+	timeout time.Duration, makedTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
+	tx := makedTx(suite, testdata, version, timeout)
+	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
+	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
+			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
+		*utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
+		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+}
+
 func NewSignAliasTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.AliasTestData[T]) proto.Transaction {
 	var tx proto.Transaction
 	alias := proto.NewAlias(testdata.ChainID, testdata.Alias)
@@ -27,15 +42,22 @@ func NewSignAliasTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 	return tx
 }
 
-func Alias[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
+func AliasSend[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
 	tx := NewSignAliasTransaction(suite, version, testdata)
-	cnsdrTx := utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
-	return cnsdrTx
+	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 }
 
-func AliasBroadcast[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
-	utl.BroadcastedTransaction, error, error) {
+func AliasBroadcast[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
 	tx := NewSignAliasTransaction(suite, version, testdata)
-	brdCstTx, errGo, errScala := utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
-	return brdCstTx, errGo, errScala
+	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
+}
+
+func SendAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
+	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, AliasSend[T])
+}
+
+func BroadcastAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration) (
+	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, AliasBroadcast[T])
 }

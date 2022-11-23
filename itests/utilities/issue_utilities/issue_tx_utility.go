@@ -45,24 +45,17 @@ func IssueSend[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], ve
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
 }
 
-/*func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
+func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
 	tx := NewSignIssueTransaction(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
-}*/
+}
 
 func SendIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, IssueSend[T])
 }
 
-/*func BroadcastIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
+func BroadcastIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, IssueBroadcast[T])
-}*/
-
-func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
-	utl.BroadcastedTransaction, error, error) {
-	tx := NewSignIssueTransaction(suite, version, testdata)
-	brdCstTx, errGo, errScala := utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
-	return brdCstTx, errGo, errScala
 }

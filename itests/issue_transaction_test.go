@@ -44,7 +44,8 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			for j := 0; j < 2; j++ {
-				tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+				tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite,
+					testdata.DataChangedTimestamp(&td), i, timeout)
 
 				actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Account.Address, tx.TxID)

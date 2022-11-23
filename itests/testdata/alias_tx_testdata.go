@@ -48,6 +48,7 @@ type SameAliasExpectedValuesNegative struct {
 	ErrBrdCstGoMsg               string
 	ErrBrdCstScalaMsg            string
 	WavesDiffBalanceAfterFirstTx int64
+	ExpectedAddressAfterFirstTx  proto.WavesAddress
 	WavesDiffBalance             int64
 	_                            struct{}
 }
@@ -69,11 +70,7 @@ func NewAliasTestData[T any](account config.AccountInfo, alias string, fee uint6
 }
 
 func GetVersions() []byte {
-	return []byte{1, 2, 3}
-}
-
-func AliasDataChangedTimestamp[T any](td *AliasTestData[T]) AliasTestData[T] {
-	return *NewAliasTestData(td.Account, td.Alias, td.Fee, utl.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
+	return []byte{1, 3}
 }
 
 func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesPositive] {
@@ -294,6 +291,7 @@ func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAlia
 				ErrBrdCstGoMsg:               errBrdCstMsg,
 				ErrBrdCstScalaMsg:            "",
 				WavesDiffBalanceAfterFirstTx: 100000,
+				ExpectedAddressAfterFirstTx:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance:             0,
 			}),
 	}
