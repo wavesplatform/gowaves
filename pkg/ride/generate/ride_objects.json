@@ -86,14 +86,6 @@
               ],
               "order": 2,
               "constructorOrder": 6
-            },
-            {
-              "name": "sponsored",
-              "types": [
-                "rideBoolean"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             }
           ]
         },
@@ -153,7 +145,7 @@
               "types": [
                 "rideBoolean"
               ],
-              "order": -1,
+              "order": 7,
               "constructorOrder": 7
             },
             {
@@ -500,14 +492,6 @@
           "version": 4,
           "fields": [
             {
-              "name": "value",
-              "types": [
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
-            },
-            {
               "name": "key",
               "types": [
                 "rideString"
@@ -552,22 +536,13 @@
           "version": 3,
           "fields": [
             {
-              "name": "payments",
+              "name": "payment",
               "types": [
                 "rideAttachedPayment",
                 "rideUnit"
               ],
               "order": 1,
               "constructorOrder": 0
-            },
-            {
-              "name": "payment",
-              "types": [
-                "rideUnit",
-                "rideType"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "callerPublicKey",
@@ -622,15 +597,6 @@
               ],
               "order": 1,
               "constructorOrder": 0
-            },
-            {
-              "name": "payment",
-              "types": [
-                "rideUnit",
-                "rideType"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "callerPublicKey",
@@ -690,20 +656,10 @@
             {
               "name": "payments",
               "types": [
-                "rideUnit",
                 "rideList[rideAttachedPayment]"
               ],
               "order": 1,
               "constructorOrder": 0
-            },
-            {
-              "name": "payment",
-              "types": [
-                "rideUnit",
-                "rideType"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "callerPublicKey",
@@ -1625,14 +1581,6 @@
               "constructorOrder": 2
             },
             {
-              "name": "bodyBytes",
-              "types": [
-                "rideBytes"
-              ],
-              "order": -1,
-              "constructorOrder": 6
-            },
-            {
               "name": "timestamp",
               "types": [
                 "rideInt"
@@ -1782,15 +1730,6 @@
               ],
               "order": 3,
               "constructorOrder": 1
-            },
-            {
-              "name": "payment",
-              "types": [
-                "rideUnit",
-                "rideAttachedPayment"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "dApp",
@@ -2901,15 +2840,6 @@
               ],
               "order": 3,
               "constructorOrder": 0
-            },
-            {
-              "name": "feeAssetID",
-              "types": [
-                "rideBytes",
-                "rideUnit"
-              ],
-              "order": -1,
-              "constructorOrder": -1
             },
             {
               "name": "name",
