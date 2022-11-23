@@ -171,45 +171,18 @@ func (d *Docker) buildGoNodeImage() error {
 		return err
 	}
 	dir, file := filepath.Split(pwd + dockerfilePath)
-	_, err = d.pool.Client.InspectImage("go-node")
-	if err == dc.ErrNoSuchImage {
-		err = d.pool.Client.BuildImage(dc.BuildImageOptions{
-			Name:                "go-node",
-			Dockerfile:          file,
-			ContextDir:          dir,
-			OutputStream:        io.Discard,
-			BuildArgs:           nil,
-			Platform:            "",
-			RmTmpContainer:      true,
-			ForceRmTmpContainer: true,
-		})
-		if err != nil {
-			return err
-		}
-		_, err = d.pool.Client.PruneImages(dc.PruneImagesOptions{Filters: map[string][]string{
-			"dangling": {"true"},
-		}})
-		if err != nil {
-			return err
-		}
-		imgs, err := d.pool.Client.ListImages(dc.ListImagesOptions{
-			All: true,
-			Filters: map[string][]string{
-				"reference": {"golang:*"},
-			},
-		})
-		if err != nil {
-			return err
-		}
-		for _, img := range imgs {
-			err = d.pool.Client.RemoveImageExtended(img.ID, dc.RemoveImageOptions{Force: true})
-			if err != nil {
-				return err
-			}
-		}
-	} else if err != nil {
+	err = d.pool.Client.BuildImage(dc.BuildImageOptions{
+		Name:         "go-node",
+		Dockerfile:   file,
+		ContextDir:   dir,
+		OutputStream: io.Discard,
+		BuildArgs:    nil,
+		Platform:     "",
+	})
+	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
