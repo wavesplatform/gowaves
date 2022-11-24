@@ -20,21 +20,21 @@ func argVarName(act actionField) string {
 
 func extractConstructorArguments(args []actionField) ([]actionField, error) {
 	var arguments []actionField
-	seenOrders := map[int]bool{}
+	seenOrders := map[int]struct{}{}
 
 	for _, field := range args {
 		if field.ConstructorOrder == -1 {
 			continue
 		}
-		if seenOrders[field.ConstructorOrder] {
+		if _, ok := seenOrders[field.ConstructorOrder]; ok {
 			return nil, errors.Errorf("Duplicate constructor_order: %d", field.ConstructorOrder)
 		}
-		seenOrders[field.ConstructorOrder] = true
+		seenOrders[field.ConstructorOrder] = struct{}{}
 		arguments = append(arguments, field)
 	}
 
 	for i := 0; i < len(seenOrders); i++ {
-		if !seenOrders[i] {
+		if _, ok := seenOrders[i]; !ok {
 			return nil, errors.Errorf("constructor_order %d is missing", i)
 		}
 	}

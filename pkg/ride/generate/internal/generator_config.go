@@ -162,12 +162,12 @@ func fillRideObjectStructNames(obj rideObject) error {
 	}
 
 	// check versions duplicates
-	versions := map[ast.LibraryVersion]bool{}
+	versions := map[ast.LibraryVersion]struct{}{}
 	for _, act := range obj.Actions {
-		if versions[act.LibVersion] {
+		if _, ok := versions[act.LibVersion]; ok {
 			return errors.Errorf("duplicated version (%d) for %s", act.LibVersion, obj.Name)
 		}
-		versions[act.LibVersion] = true
+		versions[act.LibVersion] = struct{}{}
 	}
 
 	sort.Slice(obj.Actions, func(i, j int) bool {
