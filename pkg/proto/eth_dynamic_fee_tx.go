@@ -1,10 +1,11 @@
 package proto
 
 import (
-	"github.com/pkg/errors"
-	"github.com/umbracle/fastrlp"
 	"io"
 	"math/big"
+
+	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 )
 
 type EthereumDynamicFeeTx struct {
@@ -77,7 +78,7 @@ func (tx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 		return errors.Wrap(err, "failed to parse accessList")
 	}
 
-	V, R, S, err := unmarshalSignatureValuesFastRLP(elems[9], elems[10], elems[11])
+	v, r, s, err := unmarshalSignatureValuesFastRLP(elems[9], elems[10], elems[11])
 	if err != nil {
 		return errors.Wrap(err, "failed to parse signature value")
 	}
@@ -92,9 +93,9 @@ func (tx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 		Value:      &weiAmount,
 		Data:       contractData,
 		AccessList: accessList,
-		V:          &V,
-		R:          &R,
-		S:          &S,
+		V:          &v,
+		R:          &r,
+		S:          &s,
 	}
 	return nil
 }
