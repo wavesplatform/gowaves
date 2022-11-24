@@ -137,16 +137,16 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
 
-	recipientVer, err := ws.NewestScriptVersionByAddressID(recipient.Address.ID())
+	tree, err := env.state().NewestScriptByAccount(recipient)
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "failed to get library version of dApp %s", recipient.Address)
+		return nil, EvaluationFailure.Wrap(err, "failed to get script by recipient")
 	}
-	if recipientVer < ast.LibV5 {
-		return nil, UserError.Errorf(
+	if tree.LibVersion < ast.LibV5 {
+		return nil, RuntimeError.Errorf(
 			"DApp %s invoked DApp %s that uses RIDE %d, but dApp-to-dApp invocation requires version 5 or higher",
 			proto.WavesAddress(callerAddress),
 			recipient.Address,
-			recipientVer,
+			tree.LibVersion,
 		)
 	}
 
@@ -161,7 +161,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	oldInvocationParam := env.invocation()
 	originCaller, err := oldInvocationParam.get(originCallerField)
-	if env.libVersion() >= ast.LibV5 && err != nil {
+	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
 	feeAssetID, err := oldInvocationParam.get(feeAssetIDField)
@@ -276,7 +276,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 	}
 
-	res, err := invokeFunctionFromDApp(env, recipient, fn, arguments)
+	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
