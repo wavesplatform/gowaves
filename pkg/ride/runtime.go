@@ -49,7 +49,7 @@ const (
 	sponsorFeeTypeName      = "SponsorFee"
 	stringEntryTypeName     = "StringEntry"
 	stringTypeName          = "String"
-	transferEntryTypeName   = "Transfer"
+	transferTypeName        = "Transfer"
 	transferSetTypeName     = "TransferSet"
 	unitTypeName            = "Unit"
 	writeSetTypeName        = "WriteSet"

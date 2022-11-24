@@ -17,6 +17,14 @@ func rideActionConstructorName(act actionsObject) string {
 	return "newRide" + act.StructName
 }
 
+func rideTypeName(obj rideObject) string {
+	return strings.ToLower(string(obj.Name[0])) + obj.Name[1:] + "TypeName"
+}
+
+func rideFieldName(field actionField) string {
+	return field.Name + "Field"
+}
+
 func GenerateObjects(configPath, fn string) {
 	s, err := parseConfig(configPath)
 	if err != nil {
@@ -53,11 +61,11 @@ func GenerateObjects(configPath, fn string) {
 
 			// instanceOf method
 			cd.Line("func (o ride%s) instanceOf() string {", act.StructName)
-			cd.Line("return \"%s\"", obj.Name)
+			cd.Line("return %s", rideTypeName(obj))
 			cd.Line("}")
 			cd.Line("")
 
-			// qe method
+			// eq method
 			cd.Line("func (o ride%s) eq(other rideType) bool {", act.StructName)
 			cd.Line("if oo, ok := other.(ride%s); ok {", act.StructName)
 			for _, field := range act.Fields {
@@ -75,9 +83,9 @@ func GenerateObjects(configPath, fn string) {
 			cd.Line("func (o ride%s) get(prop string) (rideType, error) {", act.StructName)
 			cd.Line("switch prop {")
 			cd.Line("case instanceField:")
-			cd.Line("return rideString(\"%s\"), nil", obj.Name)
+			cd.Line("return rideString(%s), nil", rideTypeName(obj))
 			for _, field := range act.Fields {
-				cd.Line("case %sField:", field.Name)
+				cd.Line("case %s:", rideFieldName(field))
 				cd.Line("return o.%s, nil", field.Name)
 			}
 			cd.Line("default:")
@@ -98,13 +106,13 @@ func GenerateObjects(configPath, fn string) {
 			// lines method
 			cd.Line("func (o ride%s) lines() []string {", act.StructName)
 			cd.Line("r := make([]string, 0, %d)", len(act.Fields)+2)
-			cd.Line("r = append(r, \"%s(\")", obj.Name)
+			cd.Line("r = append(r, %s + \"(\")", rideTypeName(obj))
 			sort.SliceStable(act.Fields, func(i, j int) bool {
 				return act.Fields[i].Order < act.Fields[j].Order
 			})
 			for _, field := range act.Fields {
 				if field.Order != -1 {
-					cd.Line("r = append(r, fieldLines(%sField, o.%s.lines())...)", field.Name, field.Name)
+					cd.Line("r = append(r, fieldLines(%s, o.%s.lines())...)", rideFieldName(field), field.Name)
 				}
 			}
 			cd.Line("r = append(r, \")\")")
