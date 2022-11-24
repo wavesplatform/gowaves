@@ -206,24 +206,32 @@ func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
 	return bts
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) ConsideredTransaction {
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
+	positive bool) ConsideredTransaction {
 	bts := marshalTransaction(suite.T(), tx)
 	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
+	scala := false
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
-	suite.Conns.SendToEachNode(suite.T(), &txMsg)
-
+	if !positive {
+		scala = true
+	}
+	suite.Conns.SendToNodes(suite.T(), &txMsg, scala)
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
-func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration) ConsideredTransaction {
+func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
+	positive bool) ConsideredTransaction {
 	id := ExtractTxID(suite.T(), tx, scheme)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
-	respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
-	fmt.Println(id.String())
+	var respScala *client.Response = nil
+	var errBrdCstScala error = nil
+	if !positive {
+		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
+	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)

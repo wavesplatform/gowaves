@@ -19,11 +19,12 @@ type IssueTxApiSuite struct {
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 1 * time.Minute
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
 			actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
@@ -39,13 +40,14 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 1 * time.Minute
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			for j := 0; j < 2; j++ {
-				tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite,
-					testdata.DataChangedTimestamp(&td), i, timeout)
+				tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(&suite.BaseSuite,
+					testdata.DataChangedTimestamp(&td), i, timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
 				actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
@@ -63,12 +65,13 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 	versions := testdata.GetVersions()
+	positive := false
 	timeout := 3 * time.Second
 	txIds := make(map[string]*crypto.Digest)
 	for _, i := range versions {
 		tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := issue_utilities.SendIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 
 			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, name, "version", i)
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,

@@ -69,10 +69,6 @@ func NewAliasTestData[T any](account config.AccountInfo, alias string, fee uint6
 	}
 }
 
-func GetVersions() []byte {
-	return []byte{1, 3}
-}
-
 func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesPositive] {
 	var t = map[string]AliasTestData[AliasExpectedValuesPositive]{
 		"Valid alias 4 bytes": *NewAliasTestData(

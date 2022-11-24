@@ -18,11 +18,12 @@ type AliasTxSuite struct {
 
 func (suite *AliasTxSuite) Test_AliasPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
 			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
@@ -36,11 +37,12 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 
 func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i+1))
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
 			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
@@ -53,12 +55,13 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 
 func (suite *AliasTxSuite) Test_AliasNegative() {
 	versions := testdata.GetVersions()
+	positive := false
 	timeout := 5 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
 		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			txIds[name] = &tx.TxID
 
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
@@ -73,6 +76,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 
 func (suite *AliasTxSuite) Test_SameAliasNegative() {
 	versions := testdata.GetVersions()
+	positive := false
 	timeout := 15 * time.Second
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -82,7 +86,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 		txIds := make(map[string]*crypto.Digest)
 		for _, td := range tdmatrix {
 			//first alias tx should be successful
-			tx1, _, actualDiffBalanceInWaves1 := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx1, _, actualDiffBalanceInWaves1 := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
 			utl.ExistenceTxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, name, "version:", i, tx1.TxID.String())
@@ -91,7 +95,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 				actualDiffBalanceInWaves1.BalanceInWavesScala, name, "version:", i)
 
 			//second alias tx with same alias had same ID for v1 and v2
-			tx2, _, actualDiffBalanceInWaves2 := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx2, _, actualDiffBalanceInWaves2 := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			//already there for v1 and v2, and new for v3
 			txIds[name] = &tx2.TxID
 
@@ -113,6 +117,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 
 func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	versions := testdata.GetVersions()
+	positive := false
 	timeout := 15 * time.Second
 	name := "Same alias for different accounts "
 	var idsCount = 2
@@ -120,13 +125,13 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 		tdslice := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
 		txIds := make(map[string]*crypto.Digest)
 
-		tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout)
+		tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
 		utl.WavesDiffBalanceCheck(suite.T(), tdslice[0].Expected.WavesDiffBalanceAfterFirstTx,
 			actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
 
 		for j := 1; j < len(tdslice); j++ {
-			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout, positive)
 			txIds[name] = &tx.TxID
 			utl.WavesDiffBalanceCheck(suite.T(), tdslice[j].Expected.WavesDiffBalance,
 				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesGo)

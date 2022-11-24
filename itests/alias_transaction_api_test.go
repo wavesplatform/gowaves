@@ -19,11 +19,12 @@ type AliasTxApiSuite struct {
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
 			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
@@ -35,11 +36,12 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	versions := testdata.GetVersions()
+	positive := true
 	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i+1))
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
@@ -52,12 +54,13 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	versions := testdata.GetVersions()
+	positive := false
 	timeout := 5 * time.Second
 	txIds := make(map[string]*crypto.Digest)
 	for _, i := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout)
+			tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
 
 			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, name, "version: ", i)
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,

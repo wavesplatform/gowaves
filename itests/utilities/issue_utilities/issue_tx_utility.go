@@ -10,13 +10,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction
+type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
 
 // MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte,
-	timeout time.Duration, makedTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+	timeout time.Duration, positive bool, makedTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
-	tx := makedTx(suite, testdata, version, timeout)
+	tx := makedTx(suite, testdata, version, timeout, positive)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
@@ -40,22 +40,24 @@ func NewSignIssueTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 	return tx
 }
 
-func IssueSend[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
+func IssueSend[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration,
+	positive bool) utl.ConsideredTransaction {
 	tx := NewSignIssueTransaction(suite, version, testdata)
-	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
+	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout, positive)
 }
 
-func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) utl.ConsideredTransaction {
+func IssueBroadcast[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration,
+	positive bool) utl.ConsideredTransaction {
 	tx := NewSignIssueTransaction(suite, version, testdata)
-	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout)
+	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout, positive)
 }
 
-func SendIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
+func SendIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration, positive bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, IssueSend[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, IssueSend[T])
 }
 
-func BroadcastIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration) (
+func BroadcastIssueTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, timeout time.Duration, positive bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, IssueBroadcast[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, IssueBroadcast[T])
 }
