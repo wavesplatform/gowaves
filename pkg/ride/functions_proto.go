@@ -1054,19 +1054,19 @@ func calculateAssetID(env environment, args ...rideType) (rideType, error) {
 	return calcAssetID(env, issue.name, issue.description, issue.decimals, issue.quantity, issue.isReissuable, issue.nonce)
 }
 
-func simplifiedIssue(_ environment, args ...rideType) (rideType, error) {
+func simplifiedIssue(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 5); err != nil {
 		return nil, errors.Wrap(err, "simplifiedIssue")
 	}
-	issue, err := issueConstructor(nil, args[0], args[1], args[2], args[3], args[4], rideUnit{}, rideInt(0))
+	issue, err := issueConstructor(env, args[0], args[1], args[2], args[3], args[4], rideUnit{}, rideInt(0))
 	if err != nil {
 		return nil, errors.Wrap(err, "simplifiedIssue")
 	}
 	return issue, nil
 }
 
-func fullIssue(_ environment, args ...rideType) (rideType, error) {
-	issue, err := issueConstructor(nil, args...)
+func fullIssue(env environment, args ...rideType) (rideType, error) {
+	issue, err := issueConstructor(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "fullIssue")
 	}
@@ -1325,19 +1325,19 @@ func calculateLeaseID(env environment, args ...rideType) (rideType, error) {
 	return calcLeaseID(env, recipient, lease.amount, lease.nonce)
 }
 
-func simplifiedLease(_ environment, args ...rideType) (rideType, error) {
+func simplifiedLease(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "simplifiedLease")
 	}
-	rideLease, err := leaseConstructor(nil, args[0], args[1], rideInt(0))
+	rideLease, err := leaseConstructor(env, args[0], args[1], rideInt(0))
 	if err != nil {
 		return nil, errors.Wrap(err, "simplifiedLease")
 	}
 	return rideLease, nil
 }
 
-func fullLease(_ environment, args ...rideType) (rideType, error) {
-	rideLease, err := leaseConstructor(nil, args...)
+func fullLease(env environment, args ...rideType) (rideType, error) {
+	rideLease, err := leaseConstructor(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "fullLease")
 	}
