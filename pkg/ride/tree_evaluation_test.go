@@ -3,6 +3,7 @@ package ride
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -2161,7 +2162,15 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.Nil(t, res)
-	assert.EqualError(t, err, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'")
+	assert.EqualError(
+		t,
+		err,
+		fmt.Sprintf(
+			"DApp %s invoked DApp %s that uses RIDE 4, but dApp-to-dApp invocation requires version 5 or higher",
+			dApp1.wa,
+			dApp2.wa,
+		),
+	)
 }
 
 func TestPaymentsDifferentScriptVersion3(t *testing.T) {
@@ -2213,7 +2222,15 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
 	require.Nil(t, res)
-	assert.EqualError(t, err, "failed to call 'invoke' for script with version 3. Scripts with version 5 are only allowed to be used in 'invoke'")
+	assert.EqualError(
+		t,
+		err,
+		fmt.Sprintf(
+			"DApp %s invoked DApp %s that uses RIDE 3, but dApp-to-dApp invocation requires version 5 or higher",
+			dApp1.wa,
+			dApp2.wa,
+		),
+	)
 }
 
 func TestActionsLimitInOneInvokeV5(t *testing.T) {
@@ -4820,50 +4837,6 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(err))
 }
 
-func TestInvokeFailForRideV4(t *testing.T) {
-	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
-	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
-	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
-
-	/* On dApp1 address
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE DAPP #-}
-	{-# SCRIPT_TYPE ACCOUNT #-}
-
-	let dApp = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
-
-	@Callable(i)
-	func call() = {
-	    strict r1 = invoke(dApp, "inner", [], nil)
-	    []
-	}
-	*/
-	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABWlubmVyBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAHxaeYM=")
-
-	/* On dApp2 address
-	{-# STDLIB_VERSION 4 #-}
-	{-# CONTENT_TYPE DAPP #-}
-	{-# SCRIPT_TYPE ACCOUNT #-}
-
-	@Callable(i)
-	func inner() = []
-	*/
-	_, tree2 := parseBase64Script(t, "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAFaW5uZXIAAAAABQAAAANuaWwAAAAAwAitzA==")
-
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withBlockV5Activated().withProtobufTx().
-		withDataEntriesSizeV2().withMessageLengthV3().withRideV6Activated().
-		withValidateInternalPayments().withThis(dApp1).
-		withDApp(dApp1).withAdditionalDApp(dApp2).withSender(sender).
-		withInvocation("call").
-		withTree(dApp1, tree1).withTree(dApp2, tree2).
-		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
-		withWrappedState()
-
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
-	assert.Nil(t, res)
-	require.EqualError(t, err, "failed to call 'invoke' for script with version 4. Scripts with version 5 are only allowed to be used in 'invoke'")
-}
-
 func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
@@ -5636,6 +5609,87 @@ func TestValidateBalancesOnlyForChangedAccountsBeforeInvokeScriptActivation(t *t
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "gotcha")
+}
+
+func TestInvokeFailOnCallDAppLowerV5(t *testing.T) {
+	dAppInvoker := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dAppV3 := newTestAccount(t, "DAPP2")      // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	dAppV4 := newTestAccount(t, "DAPP3")      // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	sender := newTestAccount(t, "SENDER")     // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	// {-# STDLIB_VERSION 6 #-}
+	// {-# CONTENT_TYPE DAPP #-}
+	// {-# SCRIPT_TYPE ACCOUNT #-}
+	//
+	// let calleeV3 = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+	// let calleeV4 = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+	//
+	// @Callable(i)
+	// func invokeV3() = {
+	// 	strict res = invoke(calleeV3, "test", [], [])
+	// 	[]
+	// }
+	//
+	// @Callable(i)
+	// func invokeV4() = {
+	// 	strict res = invoke(calleeV4, "test", [], [])
+	// 	[]
+	// }
+	_, treeInvoker := parseBase64Script(t, "BgIGCAISABIAAgAIY2FsbGVlVjMJAQdBZGRyZXNzAQEaAVTAcgZ9N8vowL5uDObPP99ZsXkYd91Wr64ACGNhbGxlZVY0CQEHQWRkcmVzcwEBGgFUeu8lmsRjc2kucGmTq6Am5fkIjxQl3OMuAgFpAQhpbnZva2VWMwAEA3JlcwkA/AcEBQhjYWxsZWVWMwIEdGVzdAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMFA25pbAkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgFpAQhpbnZva2VWNAAEA3JlcwkA/AcEBQhjYWxsZWVWNAIEdGVzdAUDbmlsBQNuaWwDCQAAAgUDcmVzBQNyZXMFA25pbAkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgA5i45w")
+
+	// {-# STDLIB_VERSION 3 #-}
+	// {-# CONTENT_TYPE DAPP #-}
+	// {-# SCRIPT_TYPE ACCOUNT #-}
+	//
+	// @Callable(i)
+	// func test() = {
+	//   WriteSet([])
+	// }
+	_, treeV3 := parseBase64Script(t, "AAIDAAAAAAAAAAQIARIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAJAQAAAAhXcml0ZVNldAAAAAEFAAAAA25pbAAAAACyq/6B")
+
+	// {-# STDLIB_VERSION 4 #-}
+	// {-# CONTENT_TYPE DAPP #-}
+	// {-# SCRIPT_TYPE ACCOUNT #-}
+
+	// @Callable(i)
+	// func test() = {
+	//   []
+	// }
+	_, treeV4 := parseBase64Script(t, "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAFAAAAA25pbAAAAADR1kR5")
+
+	for _, test := range []struct {
+		account *testAccount
+		tree    *ast.Tree
+		fn      string
+	}{
+		{
+			account: dAppV3,
+			tree:    treeV3,
+			fn:      "invokeV3",
+		},
+		{
+			account: dAppV4,
+			tree:    treeV4,
+			fn:      "invokeV4",
+		},
+	} {
+		env := newTestEnv(t).withLibVersion(ast.LibV6).
+			withDApp(dAppInvoker).withTree(dAppInvoker, treeInvoker).withThis(dAppInvoker).
+			withAdditionalDApp(test.account).withTree(test.account, test.tree).
+			withSender(sender).withWrappedState().withInvocation(test.fn)
+
+		_, err := CallFunction(env.toEnv(), treeInvoker, test.fn, proto.Arguments{})
+		assert.EqualError(
+			t,
+			err,
+			fmt.Sprintf(
+				"DApp %s invoked DApp %s that uses RIDE %d, but dApp-to-dApp invocation requires version 5 or higher",
+				dAppInvoker.wa,
+				test.account.wa,
+				test.tree.LibVersion,
+			),
+		)
+	}
 }
 
 func TestThrowComplexity(t *testing.T) {
