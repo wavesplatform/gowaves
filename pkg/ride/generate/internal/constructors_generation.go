@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	vinfo "github.com/wavesplatform/gowaves/pkg/ride/generate/internal/vinfo"
 )
 
 func constructorName(act actionsObject) string {
@@ -18,7 +19,7 @@ func argVarName(act actionField) string {
 }
 
 func extractConstructorArguments(args []actionField) ([]actionField, error) {
-	arguments := []actionField{}
+	var arguments []actionField
 	seenOrders := map[int]bool{}
 
 	for _, field := range args {
@@ -72,106 +73,66 @@ func checkListElementsTypes(cd *Coder, constructorName string, topListVarName st
 	helper(topListVarName, info)
 }
 
-type constructorStructInfo struct {
-	rideName   string
-	goName     string
-	argsNumber int
-}
-
-type versionInfo struct {
-	version        ast.LibraryVersion
-	newStructs     []constructorStructInfo // new structs or modified structs
-	removedStructs []string                // structs removed in this version
-}
-
-func newVersionInfo(version ast.LibraryVersion) *versionInfo {
-	return &versionInfo{
-		version:        version,
-		newStructs:     make([]constructorStructInfo, 0),
-		removedStructs: make([]string, 0),
-	}
-}
-
-type versionInfos map[ast.LibraryVersion]*versionInfo
-
-func (vInfos versionInfos) addNewStruct(version ast.LibraryVersion, info constructorStructInfo) {
-	if _, ok := vInfos[version]; !ok {
-		vInfos[version] = newVersionInfo(version)
-	}
-
-	vInfo := vInfos[version]
-	vInfo.newStructs = append(vInfo.newStructs, info)
-}
-
-func (vInfos versionInfos) addRemoved(version ast.LibraryVersion, name string) {
-	if _, ok := vInfos[version]; !ok {
-		vInfos[version] = newVersionInfo(version)
-	}
-
-	vInfo := vInfos[version]
-	vInfo.removedStructs = append(vInfo.removedStructs, name)
-}
-
 func constructorsFunctions(ver ast.LibraryVersion, m map[string]string) {
-	verInfo, ok := verInfos[ver]
+	verInfo, ok := vinfo.GetVerInfos()[ver]
 	if !ok {
-		panic(fmt.Sprintf("version %d is missing in verInfos", ver))
+		panic(fmt.Sprintf("version %d is missing in vinfo.GetVerInfos()", ver))
 	}
 
-	for _, name := range verInfo.removedStructs {
+	for _, name := range verInfo.RemovedStructs {
 		delete(m, name)
 	}
-	for _, structInfo := range verInfo.newStructs {
-		m[structInfo.rideName] = structInfo.goName
+	for _, structInfo := range verInfo.NewStructs {
+		m[structInfo.RideName] = structInfo.GoName
 	}
 }
 
 func constructorsCatalogue(ver ast.LibraryVersion, m map[string]int) {
-	for _, name := range verInfos[ver].removedStructs {
+	for _, name := range vinfo.GetVerInfos()[ver].RemovedStructs {
 		delete(m, name)
 	}
-	for _, structInfo := range verInfos[ver].newStructs {
-		m[structInfo.rideName] = structInfo.argsNumber
+	for _, structInfo := range vinfo.GetVerInfos()[ver].NewStructs {
+		m[structInfo.RideName] = structInfo.ArgsNumber
 	}
 }
 
 func constructorsEvaluationCatalogueEvaluatorV1(ver ast.LibraryVersion, m map[string]int) {
-	for _, name := range verInfos[ver].removedStructs {
+	for _, name := range vinfo.GetVerInfos()[ver].RemovedStructs {
 		delete(m, name)
 	}
-	for _, structInfo := range verInfos[ver].newStructs {
-		m[structInfo.rideName] = 0
+	for _, structInfo := range vinfo.GetVerInfos()[ver].NewStructs {
+		m[structInfo.RideName] = 0
 	}
 }
 
 func constructorsEvaluationCatalogueEvaluatorV2(ver ast.LibraryVersion, m map[string]int) {
-	for _, name := range verInfos[ver].removedStructs {
+	for _, name := range vinfo.GetVerInfos()[ver].RemovedStructs {
 		delete(m, name)
 	}
-	for _, structInfo := range verInfos[ver].newStructs {
-		m[structInfo.rideName] = 1
+	for _, structInfo := range vinfo.GetVerInfos()[ver].NewStructs {
+		m[structInfo.RideName] = 1
 	}
 }
 
 func processVerInfos() error {
-	existingStructs := map[string]constructorStructInfo{}
+	existingStructs := map[string]vinfo.ConstructorStructInfo{}
 	for ver := ast.LibV1; ver <= ast.CurrentMaxLibraryVersion(); ver++ {
-		verInfo := verInfos[ver]
+		verInfo := vinfo.GetVerInfos()[ver]
 		if verInfo == nil {
-			verInfo = newVersionInfo(ver)
-			verInfos[ver] = verInfo
+			verInfo = vinfo.NewVersionInfo(ver)
+			vinfo.GetVerInfos()[ver] = verInfo
 		}
 
-		for _, name := range verInfo.removedStructs {
+		for _, name := range verInfo.RemovedStructs {
 			delete(existingStructs, name)
 		}
-		for _, structInfo := range verInfo.newStructs {
-			existingStructs[structInfo.rideName] = structInfo
+		for _, structInfo := range verInfo.NewStructs {
+			existingStructs[structInfo.RideName] = structInfo
 		}
 
-		verInfo.newStructs = make([]constructorStructInfo, 0, len(existingStructs))
+		verInfo.NewStructs = make([]vinfo.ConstructorStructInfo, 0, len(existingStructs))
 		for _, structInfo := range existingStructs {
-			verInfo.newStructs = append(verInfo.newStructs, structInfo)
+			verInfo.NewStructs = append(verInfo.NewStructs, structInfo)
 		}
 	}
 
@@ -243,20 +204,18 @@ func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 		cd.Line("")
 
 		if act.Deleted != nil {
-			verInfos.addRemoved(*act.Deleted, obj.Name)
+			vinfo.GetVerInfos().AddRemoved(*act.Deleted, obj.Name)
 		}
 
-		verInfos.addNewStruct(act.LibVersion, constructorStructInfo{
-			rideName:   obj.Name,
-			goName:     constructorName,
-			argsNumber: len(arguments),
+		vinfo.GetVerInfos().AddNewStruct(act.LibVersion, vinfo.ConstructorStructInfo{
+			RideName:   obj.Name,
+			GoName:     constructorName,
+			ArgsNumber: len(arguments),
 		})
 	}
 
 	return nil
 }
-
-var verInfos = versionInfos{}
 
 func GenerateConstructors(configPath, fn string) {
 	s, err := parseConfig(configPath)

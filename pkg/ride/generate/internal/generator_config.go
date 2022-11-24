@@ -92,7 +92,7 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 	}
 	begin++
 
-	typeNames := []string{}
+	var typeNames []string
 	opened := 0
 	for cur := begin; cur < end; cur++ {
 		switch source[cur] {
