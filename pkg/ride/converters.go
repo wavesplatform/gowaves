@@ -994,12 +994,10 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
-		var payment rideType = rideUnit{}
 		var payments = rideList{}
 		switch {
 		case len(scriptPayments) == 1:
-			payment = attachedPaymentToObject(scriptPayments[0])
-			payments = rideList{payment}
+			payments = rideList{attachedPaymentToObject(scriptPayments[0])}
 		case len(scriptPayments) > 1:
 			pl := make(rideList, len(scriptPayments))
 			for i, p := range scriptPayments {
