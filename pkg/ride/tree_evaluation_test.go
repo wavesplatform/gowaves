@@ -4143,7 +4143,17 @@ func TestRecipientAddressToString(t *testing.T) {
 }
 
 func TestScriptPaymentPublicKey(t *testing.T) {
-	_, tree := parseBase64Script(t, "AQQAAAAGc2VuZGVyCQACWAAAAAEICQEAAAAUYWRkcmVzc0Zyb21QdWJsaWNLZXkAAAABCAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5AAAABWJ5dGVzCQAAAAAAAAICAAAAIzNQNjFiNnRlMmZ2akw3YWdLSHFOY0NrcHV0Z1lzNjV4dzVSBQAAAAZzZW5kZXJlKXM0")
+	// {-# STDLIB_VERSION 3 #-}
+	// {-# CONTENT_TYPE EXPRESSION #-}
+	//
+	// match tx {
+	// case _: TransferTransaction =>
+	// 	let sender = toBase58String(addressFromPublicKey(tx.senderPublicKey).bytes)
+	// 	("3P61b6te2fvjL7agKHqNcCkputgYs65xw5R" == sender)
+	// case _ =>
+	// 	throw("tx has bad type")
+	// }
+	_, tree := parseBase64Script(t, "AwQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAABnNlbmRlcgkAAlgAAAABCAkBAAAAFGFkZHJlc3NGcm9tUHVibGljS2V5AAAAAQgFAAAAAnR4AAAAD3NlbmRlclB1YmxpY0tleQAAAAVieXRlcwkAAAAAAAACAgAAACMzUDYxYjZ0ZTJmdmpMN2FnS0hxTmNDa3B1dGdZczY1eHc1UgUAAAAGc2VuZGVyCQAAAgAAAAECAAAAD3R4IGhhcyBiYWQgdHlwZSQJ740=")
 
 	acc := newTestAccountFromPublicKey(t, proto.MainNetScheme, "7gYTeHxHZ2NRQdNpa6DHAxQY4K5LS6bezcsMQcUhYuo1")
 	asset, err := proto.NewOptionalAssetFromString("5F4PshPwzE8sQeesDPzjJN45CFVnAnqCUHJcmi7kZq22")
@@ -4158,7 +4168,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 	tr, err := proto.NewFullScriptTransfer(action, acc.address(), acc.publicKey(), &id, 1599565088614)
 	require.NoError(t, err)
 
-	env := newTestEnv(t).withScheme(proto.MainNetScheme).withMessageLengthV3().withTransactionObject(scriptTransferToObject(tr))
+	env := newTestEnv(t).withScheme(proto.MainNetScheme).withMessageLengthV3().withTransactionObject(scriptTransferToTransferTransactionObject(tr))
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
