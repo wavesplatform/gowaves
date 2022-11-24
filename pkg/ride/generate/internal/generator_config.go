@@ -128,7 +128,7 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal([]byte(jsonStr.String()), &info.elementsTypes)
 }
 
-func (info listTypeInfo) ElementTypes() typeInfos {
+func (info *listTypeInfo) ElementTypes() typeInfos {
 	return info.elementsTypes
 }
 

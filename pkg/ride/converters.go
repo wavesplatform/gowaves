@@ -136,7 +136,7 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	), nil
 }
 
-func genesisToObject(scheme byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
+func genesisToObject(_ byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
 	return newRideGenesisTransaction(
 		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
 		tx.ID.Bytes(),
@@ -1134,7 +1134,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		feeAsset proto.OptionalAsset
 		fee      uint64
 		payment  rideType = rideUnit{}
-		payments rideList = rideList{}
+		payments          = rideList{}
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:

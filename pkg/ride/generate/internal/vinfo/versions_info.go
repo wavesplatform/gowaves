@@ -42,15 +42,15 @@ func (vInfos VersionInfos) AddRemoved(version ast.LibraryVersion, name string) {
 	vInfo.RemovedStructs = append(vInfo.RemovedStructs, name)
 }
 
-type verInfosSingletone struct {
+type verInfosSingleton struct {
 	value VersionInfos
 }
 
-var singleVerInfos *verInfosSingletone
+var singleVerInfos *verInfosSingleton
 
 func GetVerInfos() VersionInfos {
 	if singleVerInfos == nil {
-		singleVerInfos = &verInfosSingletone{
+		singleVerInfos = &verInfosSingleton{
 			value: VersionInfos{},
 		}
 	}

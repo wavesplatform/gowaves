@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	vinfo "github.com/wavesplatform/gowaves/pkg/ride/generate/internal/vinfo"
+	"github.com/wavesplatform/gowaves/pkg/ride/generate/internal/vinfo"
 )
 
 func constructorName(act actionsObject) string {
