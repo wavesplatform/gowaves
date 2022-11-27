@@ -111,9 +111,7 @@ func GenerateObjects(configPath, fn string) {
 				return act.Fields[i].Order < act.Fields[j].Order
 			})
 			for _, field := range act.Fields {
-				if field.Order != -1 {
-					cd.Line("r = append(r, fieldLines(%s, o.%s.lines())...)", rideFieldName(field), field.Name)
-				}
+				cd.Line("r = append(r, fieldLines(%s, o.%s.lines())...)", rideFieldName(field), field.Name)
 			}
 			cd.Line("r = append(r, \")\")")
 			cd.Line("return r")

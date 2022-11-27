@@ -23,9 +23,6 @@ func extractConstructorArguments(args []actionField) ([]actionField, error) {
 	seenOrders := map[int]struct{}{}
 
 	for _, field := range args {
-		if field.ConstructorOrder == -1 {
-			continue
-		}
 		if _, ok := seenOrders[field.ConstructorOrder]; ok {
 			return nil, errors.Errorf("Duplicate constructor_order: %d", field.ConstructorOrder)
 		}
@@ -191,10 +188,6 @@ func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 		argsStr := make([]string, len(act.Fields))
 		for i, arg := range act.Fields {
 			varName := argVarName(arg)
-			if arg.ConstructorOrder == -1 {
-				cd.Line("// default value for %s", varName)
-				cd.Line("var %s %s", varName, getType(arg.Types))
-			}
 			argsStr[i] = varName
 		}
 
