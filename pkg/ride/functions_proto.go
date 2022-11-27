@@ -189,7 +189,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), feeRaw.instanceOf())
 	}
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
-	if env.libVersion() >= ast.LibV5 && err != nil {
+	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
 	}
 	payments, ok := args[3].(rideList)
