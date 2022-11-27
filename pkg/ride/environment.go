@@ -1103,7 +1103,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
-	e.ver = v
+	e.setLibVersion(v)
 	if v > ast.LibV2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
@@ -1259,6 +1259,10 @@ func (e *EvaluationEnvironment) invocation() rideType {
 
 func (e *EvaluationEnvironment) setInvocation(inv rideType) {
 	e.inv = inv
+}
+
+func (e *EvaluationEnvironment) setLibVersion(v ast.LibraryVersion) {
+	e.ver = v
 }
 
 func (e *EvaluationEnvironment) libVersion() ast.LibraryVersion {

@@ -242,7 +242,6 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		info.rideV6Activated,
 		info.invokeExpressionActivated,
 	)
-	env.ChooseSizeCheck(tree.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
