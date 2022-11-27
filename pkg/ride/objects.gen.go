@@ -2653,7 +2653,7 @@ func (o rideExchangeTransaction) getProofs() rideList {
 }
 
 type rideGenesisTransaction struct {
-	recipient rideRecipient
+	recipient rideType
 	id        rideBytes
 	timestamp rideInt
 	amount    rideInt
@@ -2661,7 +2661,7 @@ type rideGenesisTransaction struct {
 	fee       rideInt
 }
 
-func newRideGenesisTransaction(recipient rideRecipient, id rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt) rideGenesisTransaction {
+func newRideGenesisTransaction(recipient rideType, id rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt) rideGenesisTransaction {
 	return rideGenesisTransaction{
 		recipient: recipient,
 		id:        id,
@@ -2878,7 +2878,7 @@ func (o rideInvokeExpressionTransaction) getProofs() rideList {
 type rideInvokeScriptTransaction struct {
 	proofs          rideList
 	feeAssetID      rideType
-	dApp            rideRecipient
+	dApp            rideType
 	function        rideString
 	bodyBytes       rideBytes
 	id              rideBytes
@@ -2891,7 +2891,7 @@ type rideInvokeScriptTransaction struct {
 	sender          rideAddress
 }
 
-func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, dApp rideRecipient, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransaction {
+func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransaction {
 	return rideInvokeScriptTransaction{
 		proofs:          proofs,
 		feeAssetID:      feeAssetID,
@@ -3321,7 +3321,7 @@ func (o rideLeaseCancelTransaction) getProofs() rideList {
 
 type rideLeaseTransaction struct {
 	proofs          rideList
-	recipient       rideRecipient
+	recipient       rideType
 	bodyBytes       rideBytes
 	id              rideBytes
 	senderPublicKey rideBytes
@@ -3332,7 +3332,7 @@ type rideLeaseTransaction struct {
 	sender          rideAddress
 }
 
-func newRideLeaseTransaction(proofs rideList, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
+func newRideLeaseTransaction(proofs rideList, recipient rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
 	return rideLeaseTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -3609,7 +3609,7 @@ func (o rideMassTransferTransaction) getProofs() rideList {
 
 type ridePaymentTransaction struct {
 	proofs          rideList
-	recipient       rideRecipient
+	recipient       rideType
 	bodyBytes       rideBytes
 	id              rideBytes
 	senderPublicKey rideBytes
@@ -3620,7 +3620,7 @@ type ridePaymentTransaction struct {
 	sender          rideAddress
 }
 
-func newRidePaymentTransaction(proofs rideList, recipient rideRecipient, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
+func newRidePaymentTransaction(proofs rideList, recipient rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
 	return ridePaymentTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -4275,7 +4275,7 @@ type rideTransferTransaction struct {
 	attachment      rideType
 	proofs          rideList
 	fee             rideType
-	recipient       rideRecipient
+	recipient       rideType
 	id              rideBytes
 	senderPublicKey rideBytes
 	timestamp       rideInt
@@ -4283,7 +4283,7 @@ type rideTransferTransaction struct {
 	sender          rideAddress
 }
 
-func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideRecipient, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
+func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideType, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
 	return rideTransferTransaction{
 		assetID:         assetID,
 		bodyBytes:       bodyBytes,

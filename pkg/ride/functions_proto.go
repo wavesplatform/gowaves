@@ -614,18 +614,6 @@ func addressFromRecipient(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "addressFromRecipient")
 	}
 	switch r := args[0].(type) {
-	case rideRecipient:
-		if r.Address != nil {
-			return rideAddress(*r.Address), nil
-		}
-		if r.Alias != nil {
-			addr, err := env.state().NewestAddrByAlias(*r.Alias)
-			if err != nil {
-				return nil, errors.Wrap(err, "addressFromRecipient")
-			}
-			return rideAddress(addr), nil
-		}
-		return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", r)
 	case rideAddress:
 		return r, nil
 	case rideAlias:
@@ -865,11 +853,6 @@ func addressToString(_ environment, args ...rideType) (rideType, error) {
 	switch a := args[0].(type) {
 	case rideAddress:
 		return rideString(proto.WavesAddress(a).String()), nil
-	case rideRecipient:
-		if a.Address == nil {
-			return nil, errors.Errorf("addressToString: recipient is not an WavesAddress '%s'", args[0].instanceOf())
-		}
-		return rideString(a.Address.String()), nil
 	case rideAddressLike:
 		return rideString(base58.Encode(a)), nil
 	default:
@@ -1217,8 +1200,6 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 		r = proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	case rideAlias:
 		r = proto.NewRecipientFromAlias(proto.Alias(a))
-	case rideRecipient:
-		r = proto.Recipient(a)
 	default:
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
 	}

@@ -218,8 +218,6 @@ func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	}
 	var recipient proto.Recipient
 	switch tp := p.(type) {
-	case rideRecipient:
-		recipient = proto.Recipient(tp)
 	case rideAddress:
 		recipient = proto.NewRecipientFromAddress(proto.WavesAddress(tp))
 	case rideAlias:

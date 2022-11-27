@@ -4147,13 +4147,16 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 	// {-# CONTENT_TYPE EXPRESSION #-}
 	//
 	// match tx {
-	// case _: TransferTransaction =>
-	// 	let sender = toBase58String(addressFromPublicKey(tx.senderPublicKey).bytes)
-	// 	("3P61b6te2fvjL7agKHqNcCkputgYs65xw5R" == sender)
-	// case _ =>
-	// 	throw("tx has bad type")
+	//  case t: TransferTransaction =>
+	// 	  let sender = toBase58String(addressFromPublicKey(t.senderPublicKey).bytes)
+	//    match t.recipient {
+	//    case r: Address|Alias => ("3P61b6te2fvjL7agKHqNcCkputgYs65xw5R" == sender)
+	// 	    case _ => throw("bad recipient type")
+	// 	  }
+	//  case _ =>
+	// 	  throw("tx has bad type")
 	// }
-	_, tree := parseBase64Script(t, "AwQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAABnNlbmRlcgkAAlgAAAABCAkBAAAAFGFkZHJlc3NGcm9tUHVibGljS2V5AAAAAQgFAAAAAnR4AAAAD3NlbmRlclB1YmxpY0tleQAAAAVieXRlcwkAAAAAAAACAgAAACMzUDYxYjZ0ZTJmdmpMN2FnS0hxTmNDa3B1dGdZczY1eHc1UgUAAAAGc2VuZGVyCQAAAgAAAAECAAAAD3R4IGhhcyBiYWQgdHlwZSQJ740=")
+	_, tree := parseBase64Script(t, "AwQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAEAAAABnNlbmRlcgkAAlgAAAABCAkBAAAAFGFkZHJlc3NGcm9tUHVibGljS2V5AAAAAQgFAAAAAXQAAAAPc2VuZGVyUHVibGljS2V5AAAABWJ5dGVzBAAAAAckbWF0Y2gxCAUAAAABdAAAAAlyZWNpcGllbnQDAwkAAAEAAAACBQAAAAckbWF0Y2gxAgAAAAVBbGlhcwYJAAABAAAAAgUAAAAHJG1hdGNoMQIAAAAHQWRkcmVzcwQAAAABcgUAAAAHJG1hdGNoMQkAAAAAAAACAgAAACMzUDYxYjZ0ZTJmdmpMN2FnS0hxTmNDa3B1dGdZczY1eHc1UgUAAAAGc2VuZGVyCQAAAgAAAAECAAAAEmJhZCByZWNpcGllbnQgdHlwZQkAAAIAAAABAgAAAA90eCBoYXMgYmFkIHR5cGVJz+4w")
 
 	acc := newTestAccountFromPublicKey(t, proto.MainNetScheme, "7gYTeHxHZ2NRQdNpa6DHAxQY4K5LS6bezcsMQcUhYuo1")
 	asset, err := proto.NewOptionalAssetFromString("5F4PshPwzE8sQeesDPzjJN45CFVnAnqCUHJcmi7kZq22")

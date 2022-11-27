@@ -1038,10 +1038,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient",
                 "rideAlias",
-                "rideAddress",
-                "rideAddressLike"
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 0
@@ -1119,10 +1117,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient",
                 "rideAlias",
-                "rideAddress",
-                "rideAddressLike"
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 0
@@ -1567,7 +1563,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient"
+                "rideAlias",
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -1734,7 +1731,8 @@
             {
               "name": "dApp",
               "types": [
-                "rideRecipient"
+                "rideAlias",
+                "rideAddress"
               ],
               "order": 7,
               "constructorOrder": 0
@@ -2048,7 +2046,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient"
+                "rideAlias",
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -2255,7 +2254,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient"
+                "rideAlias",
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -2768,7 +2768,8 @@
             {
               "name": "recipient",
               "types": [
-                "rideRecipient"
+                "rideAlias",
+                "rideAddress"
               ],
               "order": 0,
               "constructorOrder": 3

@@ -84,7 +84,7 @@ func (a *TransferWithSigTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), recipient)
+	a.Equal(recipientToObject(a.tx.Recipient), recipient)
 }
 
 func (a *TransferWithSigTestSuite) Test_attachment() {
@@ -233,7 +233,7 @@ func (a *TransferWithProofsTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), recipient)
+	a.Equal(recipientToObject(a.tx.Recipient), recipient)
 }
 
 func (a *TransferWithProofsTestSuite) Test_attachment() {
@@ -353,7 +353,7 @@ func (a *GenesisTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), recipient)
+	a.Equal(recipientToObject(proto.NewRecipientFromAddress(a.tx.Recipient)), recipient)
 }
 
 func (a *GenesisTestSuite) Test_id() {
@@ -422,7 +422,7 @@ func (a *PaymentTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), recipient)
+	a.Equal(recipientToObject(proto.NewRecipientFromAddress(a.tx.Recipient)), recipient)
 }
 
 func (a *PaymentTestSuite) Test_id() {
@@ -991,7 +991,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	a.NoError(err)
 
 	m := newRideTransfer(
-		rideRecipient(a.tx.Transfers[0].Recipient),
+		recipientToObject(a.tx.Transfers[0].Recipient),
 		rideInt(int64(a.tx.Transfers[0].Amount)),
 	)
 	transfers, err := rs.get(transfersField)
@@ -1720,7 +1720,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 	a.NoError(err)
 	dApp, err := rs.get(dAppField)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.ScriptRecipient), dApp)
+	a.Equal(recipientToObject(a.tx.ScriptRecipient), dApp)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
@@ -2128,7 +2128,7 @@ func (a *LeaseWithSigTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), recipient)
+	a.Equal(recipientToObject(a.tx.Recipient), recipient)
 }
 
 func (a *LeaseWithSigTestSuite) Test_id() {
@@ -2234,7 +2234,7 @@ func (a *LeaseWithProofsTestSuite) Test_recipient() {
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), recipient)
+	a.Equal(recipientToObject(a.tx.Recipient), recipient)
 }
 
 func (a *LeaseWithProofsTestSuite) Test_id() {
@@ -2971,7 +2971,7 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideAddress(sender), senderF)
 	recipientF, err := rideObj.get(recipientField)
 	assert.NoError(t, err)
-	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(*recipient)), recipientF)
+	assert.Equal(t, recipientToObject(proto.NewRecipientFromAddress(*recipient)), recipientF)
 	amount, err := rideObj.get(amountField)
 	assert.NoError(t, err)
 	assert.Equal(t, rideInt(100000), amount)
@@ -3040,7 +3040,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 
 	recipientF, err := rideObj.get(recipientField)
 	assert.NoError(t, err)
-	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20TransferRecipient)), recipientF)
+	assert.Equal(t, recipientToObject(proto.NewRecipientFromAddress(erc20TransferRecipient)), recipientF)
 	amount, err := rideObj.get(amountField)
 	assert.NoError(t, err)
 	assert.Equal(t, rideInt(20947030000000), amount)

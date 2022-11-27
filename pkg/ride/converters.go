@@ -138,7 +138,7 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 
 func genesisToObject(_ byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
 	return newRideGenesisTransaction(
-		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
+		rideAddress(tx.Recipient),
 		tx.ID.Bytes(),
 		rideInt(tx.Timestamp),
 		rideInt(tx.Amount),
@@ -158,7 +158,7 @@ func paymentToObject(scheme byte, tx *proto.Payment) (ridePaymentTransaction, er
 	}
 	return newRidePaymentTransaction(
 		signatureToProofs(tx.Signature),
-		rideRecipient(proto.NewRecipientFromAddress(tx.Recipient)),
+		rideAddress(tx.Recipient),
 		body,
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
@@ -245,7 +245,7 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, 
 		rideBytes(tx.Attachment),
 		signatureToProofs(tx.Signature),
 		rideInt(tx.Fee),
-		rideRecipient(tx.Recipient),
+		recipientToObject(tx.Recipient),
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
 		rideInt(tx.Timestamp),
@@ -271,7 +271,7 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 		rideBytes(tx.Attachment),
 		proofs(tx.Proofs),
 		rideInt(tx.Fee),
-		rideRecipient(tx.Recipient),
+		recipientToObject(tx.Recipient),
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
 		rideInt(tx.Timestamp),
@@ -515,7 +515,7 @@ func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideType, error)
 	}
 	return newRideLeaseTransaction(
 		signatureToProofs(tx.Signature),
-		rideRecipient(tx.Recipient),
+		recipientToObject(tx.Recipient),
 		body,
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
@@ -538,7 +538,7 @@ func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideLeaseT
 	}
 	return newRideLeaseTransaction(
 		proofs(tx.Proofs),
-		rideRecipient(tx.Recipient),
+		recipientToObject(tx.Recipient),
 		body,
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
@@ -640,7 +640,7 @@ func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs)
 
 func transferEntryToObject(transferEntry proto.MassTransferEntry) rideType {
 	return newRideTransfer(
-		rideRecipient(transferEntry.Recipient),
+		recipientToObject(transferEntry.Recipient),
 		rideInt(transferEntry.Amount),
 	)
 }
@@ -841,7 +841,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return newRideInvokeScriptTransaction(
 		proofs(tx.Proofs),
 		optionalAsset(tx.FeeAsset),
-		rideRecipient(tx.ScriptRecipient),
+		recipientToObject(tx.ScriptRecipient),
 		rideString(tx.FunctionCall.Name),
 		body,
 		tx.ID.Bytes(),
@@ -957,7 +957,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			rideBytes(nil),
 			proofs(proto.NewProofs()),
 			rideInt(tx.GetFee()),
-			rideRecipient(proto.NewRecipientFromAddress(*to)),
+			rideAddress(*to),
 			tx.ID.Bytes(),
 			callerPK,
 			rideInt(tx.GetTimestamp()),
@@ -978,7 +978,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			rideBytes(nil),
 			proofs(proto.NewProofs()),
 			rideInt(tx.GetFee()),
-			rideRecipient(proto.NewRecipientFromAddress(recipientAddr)),
+			rideAddress(recipientAddr),
 			tx.ID.Bytes(),
 			callerPK,
 			rideInt(tx.GetTimestamp()),
@@ -1020,7 +1020,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		return newRideInvokeScriptTransaction(
 			proofs(proto.NewProofs()),
 			optionalAsset(proto.NewOptionalAssetWaves()),
-			rideRecipient(proto.NewRecipientFromAddress(*to)),
+			rideAddress(*to),
 			rideString(tx.TxKind.DecodedData().Name),
 			rideBytes(nil),
 			tx.ID.Bytes(),
@@ -1269,10 +1269,21 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	}
 }
 
+func recipientToObject(recipient proto.Recipient) rideType {
+	switch {
+	case recipient.Alias != nil:
+		return rideAlias(*recipient.Alias)
+	case recipient.Address != nil:
+		return rideAddress(*recipient.Address)
+	default:
+		return rideUnit{}
+	}
+}
+
 func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
 	return newRideScriptTransfer(
 		optionalAsset(tr.Asset),
-		rideRecipient(tr.Recipient),
+		recipientToObject(tr.Recipient),
 		rideInt(tr.Amount),
 	)
 }
@@ -1286,7 +1297,7 @@ func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rid
 		rideUnit{},
 		rideList{},
 		rideUnit{},
-		rideRecipient(st.Recipient),
+		recipientToObject(st.Recipient),
 		st.ID.Bytes(),
 		common.Dup(st.SenderPK.Bytes()),
 		rideInt(st.Amount),
