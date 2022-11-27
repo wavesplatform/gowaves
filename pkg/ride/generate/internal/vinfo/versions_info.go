@@ -42,17 +42,8 @@ func (vInfos VersionInfos) AddRemoved(version ast.LibraryVersion, name string) {
 	vInfo.RemovedStructs = append(vInfo.RemovedStructs, name)
 }
 
-type verInfosSingleton struct {
-	value VersionInfos
-}
-
-var singleVerInfos *verInfosSingleton
+var globalVerInfos = make(VersionInfos)
 
 func GetVerInfos() VersionInfos {
-	if singleVerInfos == nil {
-		singleVerInfos = &verInfosSingleton{
-			value: VersionInfos{},
-		}
-	}
-	return singleVerInfos.value
+	return globalVerInfos
 }
