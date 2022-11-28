@@ -19,7 +19,7 @@ type IssueTxSuite struct {
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 1 * time.Minute
+	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
@@ -41,7 +41,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 1 * time.Minute
+	timeout := 30 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {

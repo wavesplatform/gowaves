@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	CommonSymbolSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	CommonSymbolSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 type Response struct {
@@ -212,7 +212,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
-	scala := false
+	scala := true
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	if !positive {
