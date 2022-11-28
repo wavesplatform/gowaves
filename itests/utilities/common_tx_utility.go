@@ -200,15 +200,15 @@ func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto
 	return id
 }
 
-func marshalTransaction(t *testing.T, tx proto.Transaction) []byte {
-	bts, err := tx.MarshalBinary()
+func marshalTransaction(t *testing.T, scheme proto.Scheme, tx proto.Transaction) []byte {
+	bts, err := proto.MarshalTx(scheme, tx)
 	require.NoError(t, err, "failed to marshal tx")
 	return bts
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
 	positive bool) ConsideredTransaction {
-	bts := marshalTransaction(suite.T(), tx)
+	bts := marshalTransaction(suite.T(), scheme, tx)
 	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := proto.TransactionMessage{Transaction: bts}
