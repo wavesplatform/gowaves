@@ -87,12 +87,12 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 45*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
 
 func TestIssueTxSuite(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	suite.Run(t, new(IssueTxSuite))
 }
