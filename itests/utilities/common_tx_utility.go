@@ -200,25 +200,31 @@ func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto
 	return id
 }
 
-func marshalTransaction(t *testing.T, scheme proto.Scheme, tx proto.Transaction) []byte {
+func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transaction) proto.Message {
 	bts, err := proto.MarshalTx(scheme, tx)
 	require.NoError(t, err, "failed to marshal tx")
-	return bts
+	t.Logf("Transaction bytes: %s", base64.StdEncoding.EncodeToString(bts))
+	if proto.IsProtobufTx(tx) {
+		return &proto.PBTransactionMessage{Transaction: bts}
+	} else {
+		return &proto.TransactionMessage{Transaction: bts}
+	}
+
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
 	positive bool) ConsideredTransaction {
-	bts := marshalTransaction(suite.T(), scheme, tx)
-	suite.T().Logf("CreateAlias transaction bts: %s", base64.StdEncoding.EncodeToString(bts))
+
 	id := ExtractTxID(suite.T(), tx, scheme)
-	txMsg := proto.TransactionMessage{Transaction: bts}
-	scala := true
+	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
+	scala := false
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 	if !positive {
 		scala = true
 	}
-	suite.Conns.SendToNodes(suite.T(), &txMsg, scala)
+
+	suite.Conns.SendToNodes(suite.T(), txMsg, scala)
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }

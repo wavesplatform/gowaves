@@ -18,7 +18,7 @@ const (
 )
 
 func GetVersions() []byte {
-	return []byte{3}
+	return []byte{1}
 }
 
 type IssueTestData[T any] struct {

@@ -35,7 +35,8 @@ func NewSignIssueTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 			testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, nil, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
-	suite.T().Logf("Issue Transaction JSON: %s", utl.GetTransactionJsonOrErrMsg(tx))
+	txJson := utl.GetTransactionJsonOrErrMsg(tx)
+	suite.T().Logf("Issue Transaction JSON after sign: %s", txJson)
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }
