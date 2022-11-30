@@ -340,7 +340,7 @@ func (a *SchedulerImpl) Reschedule() {
 
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.storage.TopBlock()
-	if currentTimestamp-lastKnownBlock.Timestamp > a.outdatePeriod {
+	if currentTimestamp-a.outdatePeriod > lastKnownBlock.Timestamp {
 		zap.S().Debugf("Scheduler: Mining is not allowed because blockchain is too old: cur %d, block.ts %d, outdate: %d, id: %s",
 			currentTimestamp, lastKnownBlock.Timestamp, a.outdatePeriod, lastKnownBlock.ID,
 		)
