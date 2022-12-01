@@ -540,6 +540,7 @@ type environment interface {
 	takeString(s string, n int) rideString
 	invocation() rideType // Invocation object made of invoke transaction
 	setInvocation(inv rideType)
+	setLibVersion(v ast.LibraryVersion)
 	libVersion() ast.LibraryVersion
 	validateInternalPayments() bool
 	blockV5Activated() bool

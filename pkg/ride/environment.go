@@ -1168,7 +1168,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 		return err
 	}
 	e.id = rideBytes(id)
-	obj, err := transactionToObject(e.sch, e.isInvokeExpressionActivated, tx)
+	obj, err := transactionToObject(e.libVersion(), e.sch, e.isInvokeExpressionActivated, tx)
 	if err != nil {
 		return err
 	}

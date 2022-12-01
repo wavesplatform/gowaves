@@ -59,6 +59,9 @@ var _ environment = &mockRideEnvironment{}
 //			setInvocationFunc: func(inv rideType)  {
 //				panic("mock out the setInvocation method")
 //			},
+//			setLibVersionFunc: func(v ast.LibraryVersion)  {
+//				panic("mock out the setLibVersion method")
+//			},
 //			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
 //				panic("mock out the setNewDAppAddress method")
 //			},
@@ -129,6 +132,9 @@ type mockRideEnvironment struct {
 	// setInvocationFunc mocks the setInvocation method.
 	setInvocationFunc func(inv rideType)
 
+	// setLibVersionFunc mocks the setLibVersion method.
+	setLibVersionFunc func(v ast.LibraryVersion)
+
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
 	setNewDAppAddressFunc func(address proto.WavesAddress)
 
@@ -198,6 +204,11 @@ type mockRideEnvironment struct {
 			// Inv is the inv argument value.
 			Inv rideType
 		}
+		// setLibVersion holds details about calls to the setLibVersion method.
+		setLibVersion []struct {
+			// V is the v argument value.
+			V ast.LibraryVersion
+		}
 		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
 		setNewDAppAddress []struct {
 			// Address is the address argument value.
@@ -242,6 +253,7 @@ type mockRideEnvironment struct {
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
+	locksetLibVersion                    sync.RWMutex
 	locksetNewDAppAddress                sync.RWMutex
 	lockstate                            sync.RWMutex
 	locktakeString                       sync.RWMutex
@@ -610,6 +622,38 @@ func (mock *mockRideEnvironment) setInvocationCalls() []struct {
 	mock.locksetInvocation.RLock()
 	calls = mock.calls.setInvocation
 	mock.locksetInvocation.RUnlock()
+	return calls
+}
+
+// setLibVersion calls setLibVersionFunc.
+func (mock *mockRideEnvironment) setLibVersion(v ast.LibraryVersion) {
+	if mock.setLibVersionFunc == nil {
+		panic("mockRideEnvironment.setLibVersionFunc: method is nil but environment.setLibVersion was just called")
+	}
+	callInfo := struct {
+		V ast.LibraryVersion
+	}{
+		V: v,
+	}
+	mock.locksetLibVersion.Lock()
+	mock.calls.setLibVersion = append(mock.calls.setLibVersion, callInfo)
+	mock.locksetLibVersion.Unlock()
+	mock.setLibVersionFunc(v)
+}
+
+// setLibVersionCalls gets all the calls that were made to setLibVersion.
+// Check the length with:
+//
+//	len(mockedenvironment.setLibVersionCalls())
+func (mock *mockRideEnvironment) setLibVersionCalls() []struct {
+	V ast.LibraryVersion
+} {
+	var calls []struct {
+		V ast.LibraryVersion
+	}
+	mock.locksetLibVersion.RLock()
+	calls = mock.calls.setLibVersion
+	mock.locksetLibVersion.RUnlock()
 	return calls
 }
 

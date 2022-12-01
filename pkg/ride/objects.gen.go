@@ -2875,7 +2875,163 @@ func (o rideInvokeExpressionTransaction) getProofs() rideList {
 	return o.proofs
 }
 
-type rideInvokeScriptTransaction struct {
+type rideInvokeScriptTransactionV3 struct {
+	proofs          rideList
+	feeAssetID      rideType
+	dApp            rideType
+	function        rideString
+	bodyBytes       rideBytes
+	id              rideBytes
+	senderPublicKey rideBytes
+	payment         rideType
+	args            rideList
+	timestamp       rideInt
+	fee             rideInt
+	version         rideInt
+	sender          rideAddress
+}
+
+func newRideInvokeScriptTransactionV3(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payment rideType, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV3 {
+	return rideInvokeScriptTransactionV3{
+		proofs:          proofs,
+		feeAssetID:      feeAssetID,
+		dApp:            dApp,
+		function:        function,
+		bodyBytes:       bodyBytes,
+		id:              id,
+		senderPublicKey: senderPublicKey,
+		payment:         payment,
+		args:            args,
+		timestamp:       timestamp,
+		fee:             fee,
+		version:         version,
+		sender:          sender,
+	}
+}
+
+func (o rideInvokeScriptTransactionV3) instanceOf() string {
+	return invokeScriptTransactionTypeName
+}
+
+func (o rideInvokeScriptTransactionV3) eq(other rideType) bool {
+	if oo, ok := other.(rideInvokeScriptTransactionV3); ok {
+		if !o.proofs.eq(oo.proofs) {
+			return false
+		}
+		if !o.feeAssetID.eq(oo.feeAssetID) {
+			return false
+		}
+		if !o.dApp.eq(oo.dApp) {
+			return false
+		}
+		if !o.function.eq(oo.function) {
+			return false
+		}
+		if !o.bodyBytes.eq(oo.bodyBytes) {
+			return false
+		}
+		if !o.id.eq(oo.id) {
+			return false
+		}
+		if !o.senderPublicKey.eq(oo.senderPublicKey) {
+			return false
+		}
+		if !o.payment.eq(oo.payment) {
+			return false
+		}
+		if !o.args.eq(oo.args) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.fee.eq(oo.fee) {
+			return false
+		}
+		if !o.version.eq(oo.version) {
+			return false
+		}
+		if !o.sender.eq(oo.sender) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideInvokeScriptTransactionV3) get(prop string) (rideType, error) {
+	switch prop {
+	case instanceField:
+		return rideString(invokeScriptTransactionTypeName), nil
+	case proofsField:
+		return o.proofs, nil
+	case feeAssetIDField:
+		return o.feeAssetID, nil
+	case dAppField:
+		return o.dApp, nil
+	case functionField:
+		return o.function, nil
+	case bodyBytesField:
+		return o.bodyBytes, nil
+	case idField:
+		return o.id, nil
+	case senderPublicKeyField:
+		return o.senderPublicKey, nil
+	case paymentField:
+		return o.payment, nil
+	case argsField:
+		return o.args, nil
+	case timestampField:
+		return o.timestamp, nil
+	case feeField:
+		return o.fee, nil
+	case versionField:
+		return o.version, nil
+	case senderField:
+		return o.sender, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideInvokeScriptTransactionV3) copy() rideType {
+	return newRideInvokeScriptTransactionV3(o.proofs, o.feeAssetID, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payment, o.args, o.timestamp, o.fee, o.version, o.sender)
+}
+
+func (o rideInvokeScriptTransactionV3) lines() []string {
+	r := make([]string, 0, 15)
+	r = append(r, invokeScriptTransactionTypeName+"(")
+	r = append(r, fieldLines(paymentField, o.payment.lines())...)
+	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
+	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
+	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(idField, o.id.lines())...)
+	r = append(r, fieldLines(proofsField, o.proofs.lines())...)
+	r = append(r, fieldLines(feeField, o.fee.lines())...)
+	r = append(r, fieldLines(dAppField, o.dApp.lines())...)
+	r = append(r, fieldLines(versionField, o.version.lines())...)
+	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
+	r = append(r, fieldLines(functionField, o.function.lines())...)
+	r = append(r, fieldLines(senderField, o.sender.lines())...)
+	r = append(r, fieldLines(argsField, o.args.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideInvokeScriptTransactionV3) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+func (o rideInvokeScriptTransactionV3) setProofs(proofs rideList) rideProven {
+	o.proofs = proofs
+	return o
+}
+
+func (o rideInvokeScriptTransactionV3) getProofs() rideList {
+	return o.proofs
+}
+
+type rideInvokeScriptTransactionV4 struct {
 	proofs          rideList
 	feeAssetID      rideType
 	dApp            rideType
@@ -2891,8 +3047,8 @@ type rideInvokeScriptTransaction struct {
 	sender          rideAddress
 }
 
-func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransaction {
-	return rideInvokeScriptTransaction{
+func newRideInvokeScriptTransactionV4(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV4 {
+	return rideInvokeScriptTransactionV4{
 		proofs:          proofs,
 		feeAssetID:      feeAssetID,
 		dApp:            dApp,
@@ -2909,12 +3065,12 @@ func newRideInvokeScriptTransaction(proofs rideList, feeAssetID rideType, dApp r
 	}
 }
 
-func (o rideInvokeScriptTransaction) instanceOf() string {
+func (o rideInvokeScriptTransactionV4) instanceOf() string {
 	return invokeScriptTransactionTypeName
 }
 
-func (o rideInvokeScriptTransaction) eq(other rideType) bool {
-	if oo, ok := other.(rideInvokeScriptTransaction); ok {
+func (o rideInvokeScriptTransactionV4) eq(other rideType) bool {
+	if oo, ok := other.(rideInvokeScriptTransactionV4); ok {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
@@ -2959,7 +3115,7 @@ func (o rideInvokeScriptTransaction) eq(other rideType) bool {
 	return false
 }
 
-func (o rideInvokeScriptTransaction) get(prop string) (rideType, error) {
+func (o rideInvokeScriptTransactionV4) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(invokeScriptTransactionTypeName), nil
@@ -2994,11 +3150,11 @@ func (o rideInvokeScriptTransaction) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideInvokeScriptTransaction) copy() rideType {
-	return newRideInvokeScriptTransaction(o.proofs, o.feeAssetID, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payments, o.args, o.timestamp, o.fee, o.version, o.sender)
+func (o rideInvokeScriptTransactionV4) copy() rideType {
+	return newRideInvokeScriptTransactionV4(o.proofs, o.feeAssetID, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payments, o.args, o.timestamp, o.fee, o.version, o.sender)
 }
 
-func (o rideInvokeScriptTransaction) lines() []string {
+func (o rideInvokeScriptTransactionV4) lines() []string {
 	r := make([]string, 0, 15)
 	r = append(r, invokeScriptTransactionTypeName+"(")
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
@@ -3018,16 +3174,16 @@ func (o rideInvokeScriptTransaction) lines() []string {
 	return r
 }
 
-func (o rideInvokeScriptTransaction) String() string {
+func (o rideInvokeScriptTransactionV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o rideInvokeScriptTransaction) setProofs(proofs rideList) rideProven {
+func (o rideInvokeScriptTransactionV4) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
 	return o
 }
 
-func (o rideInvokeScriptTransaction) getProofs() rideList {
+func (o rideInvokeScriptTransactionV4) getProofs() rideList {
 	return o.proofs
 }
 

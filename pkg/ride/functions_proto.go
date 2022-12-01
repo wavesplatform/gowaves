@@ -150,6 +150,12 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		)
 	}
 
+	oldLibVersion := env.libVersion()
+	env.setLibVersion(tree.LibVersion)
+	defer func() {
+		env.setLibVersion(oldLibVersion)
+	}()
+
 	fn, err := extractFunctionName(args[1])
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", invocation.name())
@@ -421,7 +427,7 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	obj, err := transactionToObject(env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(env.libVersion(), env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -839,7 +845,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	obj, err := transactionToObject(env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(env.libVersion(), env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}

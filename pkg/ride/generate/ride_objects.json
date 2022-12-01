@@ -1770,6 +1770,119 @@
               "constructorOrder": 9
             },
             {
+              "name": "payment",
+              "types": [
+                "rideAttachedPayment",
+                "rideUnit"
+              ],
+              "order": 0,
+              "constructorOrder": 11
+            },
+            {
+              "name": "args",
+              "types": [
+                "rideList[rideBoolean|rideBytes|rideInt|rideList[rideBoolean|rideBytes|rideInt|rideString]|rideString]"
+              ],
+              "order": 12,
+              "constructorOrder": 3
+            },
+            {
+              "name": "timestamp",
+              "types": [
+                "rideInt"
+              ],
+              "order": 1,
+              "constructorOrder": 6
+            },
+            {
+              "name": "fee",
+              "types": [
+                "rideInt"
+              ],
+              "order": 6,
+              "constructorOrder": 5
+            },
+            {
+              "name": "version",
+              "types": [
+                "rideInt"
+              ],
+              "order": 8,
+              "constructorOrder": 7
+            },
+            {
+              "name": "sender",
+              "types": [
+                "rideAddress"
+              ],
+              "order": 11,
+              "constructorOrder": 8
+            }
+          ],
+          "set_proofs": true
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "name": "proofs",
+              "types": [
+                "rideList[rideBytes]"
+              ],
+              "order": 5,
+              "constructorOrder": 12
+            },
+            {
+              "name": "feeAssetID",
+              "types": [
+                "rideBytes",
+                "rideUnit"
+              ],
+              "order": 3,
+              "constructorOrder": 1
+            },
+            {
+              "name": "dApp",
+              "types": [
+                "rideAlias",
+                "rideAddress"
+              ],
+              "order": 7,
+              "constructorOrder": 0
+            },
+            {
+              "name": "function",
+              "types": [
+                "rideString"
+              ],
+              "order": 10,
+              "constructorOrder": 2
+            },
+            {
+              "name": "bodyBytes",
+              "types": [
+                "rideBytes"
+              ],
+              "order": 2,
+              "constructorOrder": 10
+            },
+            {
+              "name": "id",
+              "types": [
+                "rideBytes"
+              ],
+              "order": 4,
+              "constructorOrder": 4
+            },
+            {
+              "name": "senderPublicKey",
+              "types": [
+                "rideBytes"
+              ],
+              "order": 9,
+              "constructorOrder": 9
+            },
+            {
               "name": "payments",
               "types": [
                 "rideList[rideAttachedPayment]"

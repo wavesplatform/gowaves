@@ -249,9 +249,11 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := invokeScriptWithProofsToObject(proto.TestNetScheme, tx)
+	obj, err := invokeScriptWithProofsToObject(ast.LibV6, proto.TestNetScheme, tx)
+	txObj, ok := obj.(rideInvokeScriptTransactionV4)
+	require.True(t, ok)
 	require.NoError(t, err)
-	replaceFirstProof(obj, s)
+	replaceFirstProof(txObj, s)
 	return tx, obj
 }
 

@@ -1274,9 +1274,9 @@ func invokeExpressionTransactionConstructor(_ environment, args_ ...rideType) (r
 	return newRideInvokeExpressionTransaction(proofs, feeAssetID, bodyBytes, id, expression, senderPublicKey, timestamp, version, fee, sender), nil
 }
 
-func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
+func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 	if err := checkArgs(args_, 13); err != nil {
-		return nil, errors.Wrap(err, "invokeScriptTransactionConstructor")
+		return nil, errors.Wrap(err, "invokeScriptTransactionV3Constructor")
 	}
 
 	var dApp rideType
@@ -1284,7 +1284,7 @@ func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideT
 	case rideAlias, rideAddress:
 		dApp = v
 	default:
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for dApp", args_[0].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
 	}
 
 	var feeAssetID rideType
@@ -1292,17 +1292,17 @@ func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideT
 	case rideBytes, rideUnit:
 		feeAssetID = v
 	default:
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
 	}
 
 	function, ok := args_[2].(rideString)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for function", args_[2].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for function", args_[2].instanceOf())
 	}
 
 	args, ok := args_[3].(rideList)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for args", args_[3].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for args", args_[3].instanceOf())
 	}
 	// checks for list elements
 	for _, elem := range args {
@@ -1312,77 +1312,183 @@ func invokeScriptTransactionConstructor(_ environment, args_ ...rideType) (rideT
 				switch t := elem.(type) {
 				case rideBoolean, rideBytes, rideInt, rideString:
 				default:
-					return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' in args list", t.instanceOf())
+					return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", t.instanceOf())
 				}
 			}
 		case rideBoolean, rideBytes, rideInt, rideString:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' in args list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", t.instanceOf())
 		}
 	}
 
 	id, ok := args_[4].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for id", args_[4].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for id", args_[4].instanceOf())
 	}
 
 	fee, ok := args_[5].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for fee", args_[5].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for fee", args_[5].instanceOf())
 	}
 
 	timestamp, ok := args_[6].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
 	}
 
 	version, ok := args_[7].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for version", args_[7].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for version", args_[7].instanceOf())
 	}
 
 	sender, ok := args_[8].(rideAddress)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for sender", args_[8].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for sender", args_[8].instanceOf())
 	}
 
 	senderPublicKey, ok := args_[9].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[9].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for senderPublicKey", args_[9].instanceOf())
 	}
 
 	bodyBytes, ok := args_[10].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for bodyBytes", args_[10].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for bodyBytes", args_[10].instanceOf())
 	}
 
-	payments, ok := args_[11].(rideList)
-	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for payments", args_[11].instanceOf())
-	}
-	// checks for list elements
-	for _, elem := range payments {
-		switch t := elem.(type) {
-		case rideAttachedPayment:
-		default:
-			return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' in payments list", t.instanceOf())
-		}
+	var payment rideType
+	switch v := args_[11].(type) {
+	case rideAttachedPayment, rideUnit:
+		payment = v
+	default:
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for payment", args_[11].instanceOf())
 	}
 
 	proofs, ok := args_[12].(rideList)
 	if !ok {
-		return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' for proofs", args_[12].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for proofs", args_[12].instanceOf())
 	}
 	// checks for list elements
 	for _, elem := range proofs {
 		switch t := elem.(type) {
 		case rideBytes:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in proofs list", t.instanceOf())
 		}
 	}
 
-	return newRideInvokeScriptTransaction(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
+	return newRideInvokeScriptTransactionV3(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payment, args, timestamp, fee, version, sender), nil
+}
+
+func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
+	if err := checkArgs(args_, 13); err != nil {
+		return nil, errors.Wrap(err, "invokeScriptTransactionV4Constructor")
+	}
+
+	var dApp rideType
+	switch v := args_[0].(type) {
+	case rideAlias, rideAddress:
+		dApp = v
+	default:
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
+	}
+
+	var feeAssetID rideType
+	switch v := args_[1].(type) {
+	case rideBytes, rideUnit:
+		feeAssetID = v
+	default:
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
+	}
+
+	function, ok := args_[2].(rideString)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for function", args_[2].instanceOf())
+	}
+
+	args, ok := args_[3].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for args", args_[3].instanceOf())
+	}
+	// checks for list elements
+	for _, elem := range args {
+		switch t := elem.(type) {
+		case rideList:
+			for _, elem := range t {
+				switch t := elem.(type) {
+				case rideBoolean, rideBytes, rideInt, rideString:
+				default:
+					return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", t.instanceOf())
+				}
+			}
+		case rideBoolean, rideBytes, rideInt, rideString:
+		default:
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", t.instanceOf())
+		}
+	}
+
+	id, ok := args_[4].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for id", args_[4].instanceOf())
+	}
+
+	fee, ok := args_[5].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for fee", args_[5].instanceOf())
+	}
+
+	timestamp, ok := args_[6].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
+	}
+
+	version, ok := args_[7].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for version", args_[7].instanceOf())
+	}
+
+	sender, ok := args_[8].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for sender", args_[8].instanceOf())
+	}
+
+	senderPublicKey, ok := args_[9].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for senderPublicKey", args_[9].instanceOf())
+	}
+
+	bodyBytes, ok := args_[10].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for bodyBytes", args_[10].instanceOf())
+	}
+
+	payments, ok := args_[11].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for payments", args_[11].instanceOf())
+	}
+	// checks for list elements
+	for _, elem := range payments {
+		switch t := elem.(type) {
+		case rideAttachedPayment:
+		default:
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in payments list", t.instanceOf())
+		}
+	}
+
+	proofs, ok := args_[12].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for proofs", args_[12].instanceOf())
+	}
+	// checks for list elements
+	for _, elem := range proofs {
+		switch t := elem.(type) {
+		case rideBytes:
+		default:
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in proofs list", t.instanceOf())
+		}
+	}
+
+	return newRideInvokeScriptTransactionV4(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
 }
 
 func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {

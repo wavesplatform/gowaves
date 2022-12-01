@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(scheme proto.Scheme, invokeExpressionActivated bool, tx proto.Transaction) (rideType, error) {
+func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, invokeExpressionActivated bool, tx proto.Transaction) (rideType, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)
@@ -60,11 +60,11 @@ func transactionToObject(scheme proto.Scheme, invokeExpressionActivated bool, tx
 	case *proto.SetAssetScriptWithProofs:
 		return setAssetScriptWithProofsToObject(scheme, transaction)
 	case *proto.InvokeScriptWithProofs:
-		return invokeScriptWithProofsToObject(scheme, transaction)
+		return invokeScriptWithProofsToObject(ver, scheme, transaction)
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
-		return ethereumTransactionToObject(scheme, transaction)
+		return ethereumTransactionToObject(ver, scheme, transaction)
 	case *proto.InvokeExpressionTransactionWithProofs:
 		return invokeExpressionWithProofsToObject(scheme, transaction)
 	default:
@@ -809,50 +809,65 @@ func attachedPaymentToObject(p proto.ScriptPayment) rideType {
 	return newRideAttachedPayment(optionalAsset(p.Asset), rideInt(p.Amount))
 }
 
-func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProofs) (rideInvokeScriptTransaction, error) {
+func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *proto.InvokeScriptWithProofs) (rideType, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
 	args := make(rideList, len(tx.FunctionCall.Arguments))
 	for i, arg := range tx.FunctionCall.Arguments {
 		a, err := convertArgument(arg)
 		if err != nil {
-			return rideInvokeScriptTransaction{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+			return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 		}
 		args[i] = a
 	}
-	var psf = rideList{}
-	switch {
-	case len(tx.Payments) == 1:
-		p := attachedPaymentToObject(tx.Payments[0])
-		psf = rideList{p}
-	case len(tx.Payments) > 1:
+	switch ver {
+	case ast.LibV1, ast.LibV2, ast.LibV3:
+		var p rideType = rideUnit{}
+		if len(tx.Payments) > 0 {
+			p = attachedPaymentToObject(tx.Payments[0])
+		}
+		return newRideInvokeScriptTransactionV3(
+			proofs(tx.Proofs),
+			optionalAsset(tx.FeeAsset),
+			recipientToObject(tx.ScriptRecipient),
+			rideString(tx.FunctionCall.Name),
+			body,
+			tx.ID.Bytes(),
+			common.Dup(tx.SenderPK.Bytes()),
+			p,
+			args,
+			rideInt(tx.Timestamp),
+			rideInt(tx.Fee),
+			rideInt(tx.Version),
+			rideAddress(sender),
+		), nil
+	default:
 		pl := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			pl[i] = attachedPaymentToObject(p)
 		}
-		psf = pl
+		return newRideInvokeScriptTransactionV4(
+			proofs(tx.Proofs),
+			optionalAsset(tx.FeeAsset),
+			recipientToObject(tx.ScriptRecipient),
+			rideString(tx.FunctionCall.Name),
+			body,
+			tx.ID.Bytes(),
+			common.Dup(tx.SenderPK.Bytes()),
+			pl,
+			args,
+			rideInt(tx.Timestamp),
+			rideInt(tx.Fee),
+			rideInt(tx.Version),
+			rideAddress(sender),
+		), nil
 	}
-	return newRideInvokeScriptTransaction(
-		proofs(tx.Proofs),
-		optionalAsset(tx.FeeAsset),
-		recipientToObject(tx.ScriptRecipient),
-		rideString(tx.FunctionCall.Name),
-		body,
-		tx.ID.Bytes(),
-		common.Dup(tx.SenderPK.Bytes()),
-		psf,
-		args,
-		rideInt(tx.Timestamp),
-		rideInt(tx.Fee),
-		rideInt(tx.Version),
-		rideAddress(sender),
-	), nil
 }
 
 func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideInvokeExpressionTransaction, error) {
@@ -923,7 +938,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 	return arguments, nil
 }
 
-func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
+func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -994,17 +1009,11 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
-		var payments = rideList{}
-		switch {
-		case len(scriptPayments) == 1:
-			payments = rideList{attachedPaymentToObject(scriptPayments[0])}
-		case len(scriptPayments) > 1:
-			pl := make(rideList, len(scriptPayments))
-			for i, p := range scriptPayments {
-				pl[i] = attachedPaymentToObject(p)
-			}
-			payments = pl
+		var payments = make(rideList, len(scriptPayments))
+		for i, p := range scriptPayments {
+			payments[i] = attachedPaymentToObject(p)
 		}
+
 		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
@@ -1017,21 +1026,40 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			}
 			args[i] = a
 		}
-		return newRideInvokeScriptTransaction(
-			proofs(proto.NewProofs()),
-			optionalAsset(proto.NewOptionalAssetWaves()),
-			rideAddress(*to),
-			rideString(tx.TxKind.DecodedData().Name),
-			rideBytes(nil),
-			tx.ID.Bytes(),
-			callerPK,
-			payments,
-			args,
-			rideInt(tx.GetTimestamp()),
-			rideInt(tx.GetFee()),
-			rideInt(tx.GetVersion()),
-			rideAddress(sender),
-		), nil
+		switch ver {
+		case ast.LibV1, ast.LibV2, ast.LibV3:
+			return newRideInvokeScriptTransactionV3(
+				proofs(proto.NewProofs()),
+				optionalAsset(proto.NewOptionalAssetWaves()),
+				rideAddress(*to),
+				rideString(tx.TxKind.DecodedData().Name),
+				rideBytes(nil),
+				tx.ID.Bytes(),
+				callerPK,
+				payments[0],
+				args,
+				rideInt(tx.GetTimestamp()),
+				rideInt(tx.GetFee()),
+				rideInt(tx.GetVersion()),
+				rideAddress(sender),
+			), nil
+		default:
+			return newRideInvokeScriptTransactionV4(
+				proofs(proto.NewProofs()),
+				optionalAsset(proto.NewOptionalAssetWaves()),
+				rideAddress(*to),
+				rideString(tx.TxKind.DecodedData().Name),
+				rideBytes(nil),
+				tx.ID.Bytes(),
+				callerPK,
+				payments,
+				args,
+				rideInt(tx.GetTimestamp()),
+				rideInt(tx.GetFee()),
+				rideInt(tx.GetVersion()),
+				rideAddress(sender),
+			), nil
+		}
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}
