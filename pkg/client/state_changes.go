@@ -49,8 +49,8 @@ type LeaseAction struct {
 	Amount              int64              `json:"amount"`
 	Height              uint32             `json:"height"`
 	Status              LeaseStatus        `json:"status"`
-	CancelHeight        uint32             `json:"cancelHeight,omitempty"`
-	CancelTransactionId crypto.Digest      `json:"cancelTransactionId,omitempty"`
+	CancelHeight        *uint32            `json:"cancelHeight,omitempty"`
+	CancelTransactionId *crypto.Digest     `json:"cancelTransactionId,omitempty"`
 }
 
 type LeaseStatus byte
