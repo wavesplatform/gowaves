@@ -166,7 +166,8 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 			)
 			continue
 		}
-
+		zap.S().Debugf("Scheduled generation by address '%s' at %s", addr.String(),
+			time.UnixMilli(int64(confirmedBlock.Timestamp+delay)).Format("2006-01-02 15:04:05.000 MST"))
 		out = append(out, Emit{
 			Timestamp:    confirmedBlock.Timestamp + delay,
 			KeyPair:      keyPair,

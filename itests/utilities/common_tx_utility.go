@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -102,7 +103,29 @@ func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
 }
 
+// AddNewAccount function creates and adds new AccountInfo to suite accounts list. Returns index of new account in
+// the list and AccountInfo.
+func AddNewAccount(suite *f.BaseSuite, chainID proto.Scheme) (int, config.AccountInfo) {
+	seed := strconv.FormatInt(time.Now().UnixNano(), 10)
+	sk, pk, err := crypto.GenerateKeyPair([]byte(seed))
+	require.NoError(suite.T(), err)
+	addr, err := proto.NewAddressFromPublicKey(chainID, pk)
+	require.NoError(suite.T(), err)
+	acc := config.AccountInfo{
+		PublicKey: pk,
+		SecretKey: sk,
+		Amount:    0,
+		Address:   addr,
+	}
+	suite.Cfg.Accounts = append(suite.Cfg.Accounts, acc)
+	return len(suite.Cfg.Accounts) - 1, acc
+}
+
 func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
+	if i < 0 || i > len(suite.Cfg.Accounts)-1 {
+		require.FailNow(suite.T(),
+			fmt.Sprintf("Invalid account index %d, should be between 0 and %d", i, len(suite.Cfg.Accounts)))
+	}
 	return suite.Cfg.Accounts[i]
 }
 
@@ -217,12 +240,9 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
-	scala := false
+	scala := !positive
 
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
-	if !positive {
-		scala = true
-	}
 
 	suite.Conns.SendToNodes(suite.T(), txMsg, scala)
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
@@ -241,4 +261,14 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+}
+
+func TransferFunds(suite *f.BaseSuite, scheme proto.Scheme, from, to int, amount int) ConsideredTransaction {
+	sender := GetAccount(suite, from)
+	recipient := GetAccount(suite, to)
+	tx := proto.NewUnsignedTransferWithSig(sender.PublicKey, proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(),
+		uint64(time.Now().UnixMilli()), uint64(amount), 100000, proto.NewRecipientFromAddress(recipient.Address), nil)
+	err := tx.Sign(scheme, sender.SecretKey)
+	require.NoError(suite.T(), err)
+	return SendAndWaitTransaction(suite, tx, scheme, 5*time.Second, true)
 }
