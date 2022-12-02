@@ -39,7 +39,7 @@ gotest-race-coverage:
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -parallel 3 $$(go list ./... | grep "/itests")
+	go test -timeout 20m -parallel 3 $$(go list ./... | grep "/itests")
 
 itest-ci:
 	mkdir -p build/config
