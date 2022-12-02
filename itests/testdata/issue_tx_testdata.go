@@ -14,7 +14,7 @@ const (
 )
 
 const (
-	testChainID = 'L'
+	TestChainID = 'L'
 )
 
 func GetVersions() []byte {
@@ -82,7 +82,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			false,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesPositive{
 				WavesDiffBalance: 100000000,
 				AssetBalance:     1,
@@ -96,7 +96,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			false,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesPositive{
 				WavesDiffBalance: 100000000,
 				AssetBalance:     100000000000,
@@ -110,7 +110,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesPositive{
 				WavesDiffBalance: 100000000,
 				AssetBalance:     9223372036854775807,
@@ -130,7 +130,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -148,7 +148,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -166,7 +166,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -184,7 +184,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -203,7 +203,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 		true,
 		100000000,
 		utl.GetCurrentTimestampInMs(),
-		testChainID,
+		TestChainID,
 		ExpectedValuesNegative{
 			ErrGoMsg:         errMsg,
 			ErrScalaMsg:      errMsg,
@@ -221,7 +221,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -239,7 +239,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -257,7 +257,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -275,7 +275,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -293,7 +293,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			9223372036854775808,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -311,7 +311,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			10,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -329,7 +329,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -347,7 +347,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs()-7215000,
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -365,7 +365,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			100000000,
 			utl.GetCurrentTimestampInMs()+54160000,
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -383,7 +383,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,

@@ -1,7 +1,6 @@
 package itests
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -42,18 +41,18 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	versions := testdata.GetVersions()
 	positive := true
 	timeout := 30 * time.Second
-	for _, i := range versions {
-		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, int(i+2))
+	for _, v := range versions {
+		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
+		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
+		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
-			suite.T().Run(name, func(t *testing.T) {
-				tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
-				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
-				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, name, "version:", i)
-			})
+			utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", v, tx.TxID.String())
+			utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, name, "version:", v)
 		}
 	}
 }
@@ -114,38 +113,37 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 		}
 		//should have same tx ID for Go and Scala v1 and v2
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 2*timeout, timeout)
-		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version: %#v", i)
+		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version:", i)
 	}
 }
 
 func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	versions := testdata.GetVersions()
-	positive := false
 	timeout := 15 * time.Second
 	name := "Same alias for different accounts "
 	var idsCount = 2
-	for _, i := range versions {
-		tdslice := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
+	for _, v := range versions {
+		tdSlice := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
 		txIds := make(map[string]*crypto.Digest)
 
-		//first tx should be successful
-		tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout, positive)
-		fmt.Println("Account address first tx: ", tdslice[0].Account.Address, "First tx account public key: ", tdslice[0].Account.PublicKey)
-		utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", i, tx.TxID.String())
-		utl.WavesDiffBalanceCheck(suite.T(), tdslice[0].Expected.WavesDiffBalanceAfterFirstTx,
+		tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdSlice[0], v, timeout, false)
+		utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", v, tx.TxID.String())
+		utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
 			actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
 
-		//every next transaction must fail
-		for j := 1; j < len(tdslice); j++ {
-			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdslice[0], i, timeout, positive)
-			fmt.Println("Account address second tx: ", tdslice[j].Account.Address, "Second tx account public key: ", tdslice[j].Account.PublicKey)
-
+		for j := 1; j < len(tdSlice); j++ {
+			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, tdSlice[j], v, timeout, false)
 			txIds[name] = &tx.TxID
-			utl.WavesDiffBalanceCheck(suite.T(), tdslice[j].Expected.WavesDiffBalance,
+			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
 				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesGo)
+			if v == 3 {
+				idsCount = 0
+				utl.ErrorMessageCheck(suite.T(), tdSlice[j].Expected.ErrGoMsg, tdSlice[j].Expected.ErrScalaMsg,
+					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", v, tx.TxID.String())
+			}
 		}
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 2*timeout, timeout)
-		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version: %#v", i)
+		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version: %#v", v)
 	}
 }
 
