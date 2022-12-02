@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -25,7 +25,7 @@ func NewHttpClient(t *testing.T, port string) *HttpClient {
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
 	})
-	assert.NoError(t, err, "couldn't create go node api client")
+	require.NoError(t, err, "couldn't create go node api client")
 	return &HttpClient{
 		cli: c,
 		// actually, there's no need to use such timeout because above we've already set default context for http client
@@ -37,7 +37,7 @@ func (c *HttpClient) GetHeight(t *testing.T) *client.BlocksHeight {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	h, _, err := c.cli.Blocks.Height(ctx)
-	assert.NoError(t, err, "failed to get height from node")
+	require.NoError(t, err, "failed to get height from node")
 	return h
 }
 
@@ -45,7 +45,7 @@ func (c *HttpClient) StateHash(t *testing.T, height uint64) *proto.StateHash {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	stateHash, _, err := c.cli.Debug.StateHash(ctx, height)
-	assert.NoError(t, err, "failed to get stateHash from node")
+	require.NoError(t, err, "failed to get stateHash from node")
 	return stateHash
 }
 
@@ -53,14 +53,14 @@ func (c *HttpClient) PrintMsg(t *testing.T, msg string) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	_, err := c.cli.Debug.PrintMsg(ctx, msg)
-	assert.NoError(t, err, "failed to send Msg to node")
+	require.NoError(t, err, "failed to send Msg to node")
 }
 
 func (c *HttpClient) TransactionInfo(t *testing.T, ID crypto.Digest) proto.Transaction {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	info, _, err := c.cli.Transactions.Info(ctx, ID)
-	assert.NoError(t, err, "failed to get TransactionInfo from node")
+	require.NoError(t, err, "failed to get TransactionInfo from node")
 	return info
 }
 
@@ -80,7 +80,7 @@ func (c *HttpClient) WavesBalance(t *testing.T, address proto.WavesAddress) *cli
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	balance, _, err := c.cli.Addresses.Balance(ctx, address)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return balance
 }
 
@@ -88,6 +88,6 @@ func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, asse
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	balance, _, err := c.cli.Assets.BalanceByAddressAndAsset(ctx, address, assetId)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return balance
 }
