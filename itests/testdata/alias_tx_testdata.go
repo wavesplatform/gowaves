@@ -76,7 +76,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(4, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesPositive{
 				ExpectedAddress:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance: 100000,
@@ -86,7 +86,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesPositive{
 				ExpectedAddress:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance: 100000000000,
@@ -102,7 +102,7 @@ func GetAliasMaxPositiveDataMatrix(suite *f.BaseSuite, accNumber int) map[string
 			utl.RandStringBytes(30, AliasSymbolSet),
 			uint64(utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)),
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesPositive{
 				ExpectedAddress:  utl.GetAccount(suite, accNumber).Address,
 				WavesDiffBalance: utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address),
@@ -118,7 +118,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(3, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -131,7 +131,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(4, AliasInvalidSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -144,7 +144,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(31, AliasInvalidSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -157,7 +157,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			"",
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -170,7 +170,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			"\\u0061\\u0073\\u0073\\u0065",
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -183,7 +183,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			0,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -196,7 +196,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			10,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -209,7 +209,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			9223372036854775808,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -248,7 +248,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs()-7215000,
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -261,7 +261,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs()+54160000,
-			testChainID,
+			TestChainID,
 			AliasExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -280,7 +280,7 @@ func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAlia
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,
@@ -304,7 +304,7 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestDa
 			alias,
 			100000,
 			utl.GetCurrentTimestampInMs()+uint64(rand.Intn(10)),
-			testChainID,
+			TestChainID,
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,

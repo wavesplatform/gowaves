@@ -40,8 +40,8 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	positive := true
 	timeout := 30 * time.Second
 	for _, v := range versions {
-		n, _ := utl.AddNewAccount(&suite.BaseSuite, 'L')
-		utl.TransferFunds(&suite.BaseSuite, 'L', 5, n, 1000_00000000)
+		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
+		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
 			tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
