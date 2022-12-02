@@ -285,7 +285,7 @@ func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAlia
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,
 				ErrBrdCstGoMsg:               errBrdCstMsg,
-				ErrBrdCstScalaMsg:            "",
+				ErrBrdCstScalaMsg:            "is already in the state",
 				WavesDiffBalanceAfterFirstTx: 100000,
 				ExpectedAddressAfterFirstTx:  utl.GetAccount(suite, 2).Address,
 				WavesDiffBalance:             0,
@@ -309,7 +309,7 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestDa
 				ErrGoMsg:                     errMsg,
 				ErrScalaMsg:                  errMsg,
 				ErrBrdCstGoMsg:               errBrdCstMsg,
-				ErrBrdCstScalaMsg:            "",
+				ErrBrdCstScalaMsg:            "Alias already claimed",
 				WavesDiffBalanceAfterFirstTx: 100000,
 				WavesDiffBalance:             0,
 			}))
