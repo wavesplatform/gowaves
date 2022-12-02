@@ -103,7 +103,15 @@ func GetCurrentTimestampInMs() uint64 {
 }
 
 func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
-	return suite.Cfg.Accounts[i]
+	listOfAccounts := suite.Cfg.Accounts
+	defaultAccountNumber := 2
+	var account config.AccountInfo
+	if i < len(listOfAccounts) {
+		account = listOfAccounts[i]
+	} else {
+		account = listOfAccounts[defaultAccountNumber]
+	}
+	return account
 }
 
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
