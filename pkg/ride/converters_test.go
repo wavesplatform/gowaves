@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -1705,6 +1706,165 @@ func TestNewVariablesFromSetAssetScriptWithProofs(t *testing.T) {
 	suite.Run(t, new(SetAssetScriptWithProofsTestSuite))
 }
 
+type presenceCase struct {
+	v        ast.LibraryVersion
+	presence bool
+}
+
+type InvocationTestSuite struct {
+	suite.Suite
+	tx             *proto.InvokeScriptWithProofs
+	f              func(ver ast.LibraryVersion, scheme byte, tx proto.Transaction) (rideType, error)
+	presenceChecks func(string, []presenceCase, rideType)
+}
+
+func (a *InvocationTestSuite) SetupTest() {
+	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
+	a.f = invocationToObject
+	a.presenceChecks = func(fieldName string, cases []presenceCase, expected rideType) {
+		for _, testCase := range cases {
+			rs, err := a.f(testCase.v, a.tx.ChainID, a.tx)
+			a.NoError(err, testCase.v)
+
+			fieldVal, err := rs.get(fieldName)
+			if testCase.presence {
+				a.NoError(err, testCase.v)
+				a.Equal(expected, fieldVal, testCase.v)
+			} else {
+				a.EqualError(err, fmt.Sprintf("type '%s' has no property '%s'", invocationTypeName, fieldName), testCase.v)
+			}
+		}
+	}
+}
+
+func (a *InvocationTestSuite) Test_payment() {
+	a.presenceChecks(
+		paymentField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: false},
+			{v: ast.LibV5, presence: false},
+		},
+		attachedPaymentToObject(a.tx.Payments[0]),
+	)
+}
+
+func (a *InvocationTestSuite) Test_callerPublicKey() {
+	a.presenceChecks(
+		callerPublicKeyField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		rideBytes(a.tx.SenderPK.Bytes()),
+	)
+}
+
+func (a *InvocationTestSuite) Test_feeAssetID() {
+	a.presenceChecks(
+		feeAssetIDField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		rideBytes(a.tx.FeeAsset.ID.Bytes()),
+	)
+}
+
+func (a *InvocationTestSuite) Test_transactionID() {
+	a.presenceChecks(
+		transactionIDField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		rideBytes(a.tx.ID.Bytes()),
+	)
+}
+
+func (a *InvocationTestSuite) Test_caller() {
+	addr, err := a.tx.GetSender(a.tx.ChainID)
+	a.NoError(err)
+	expected, ok := addr.(proto.WavesAddress)
+	a.True(ok)
+
+	a.presenceChecks(
+		callerField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		rideAddress(expected),
+	)
+}
+
+func (a *InvocationTestSuite) Test_fee() {
+	a.presenceChecks(
+		feeField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: true},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		rideInt(a.tx.Fee),
+	)
+}
+
+func (a *InvocationTestSuite) Test_payments() {
+	payments := make(rideList, len(a.tx.Payments))
+	for i, payment := range a.tx.Payments {
+		payments[i] = attachedPaymentToObject(payment)
+	}
+
+	a.presenceChecks(
+		paymentsField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: false},
+			{v: ast.LibV4, presence: true},
+			{v: ast.LibV5, presence: true},
+		},
+		payments,
+	)
+}
+
+func (a *InvocationTestSuite) Test_originCaller() {
+	addr, err := a.tx.GetSender(a.tx.ChainID)
+	a.NoError(err)
+	expected, ok := addr.(proto.WavesAddress)
+	a.True(ok)
+
+	a.presenceChecks(
+		originCallerField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: false},
+			{v: ast.LibV4, presence: false},
+			{v: ast.LibV5, presence: true},
+		},
+		rideAddress(expected),
+	)
+}
+
+func (a *InvocationTestSuite) Test_originCallerPublicKey() {
+	a.presenceChecks(
+		originCallerPublicKeyField,
+		[]presenceCase{
+			{v: ast.LibV3, presence: false},
+			{v: ast.LibV4, presence: false},
+			{v: ast.LibV5, presence: true},
+		},
+		rideBytes(a.tx.SenderPK.Bytes()),
+	)
+}
+
+// Invocation
+func TestNewVariablesInvocation(t *testing.T) {
+	suite.Run(t, new(InvocationTestSuite))
+}
+
 type InvokeScriptWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.InvokeScriptWithProofs
@@ -1722,6 +1882,46 @@ func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 	dApp, err := rs.get(dAppField)
 	a.NoError(err)
 	a.Equal(recipientToObject(a.tx.ScriptRecipient), dApp)
+}
+
+func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
+	rs, err := a.f(ast.LibV3, a.tx)
+	a.NoError(err)
+	payment, err := rs.get(paymentField)
+	a.NoError(err)
+	asset, err := payment.get(assetIDField)
+	a.NoError(err)
+	a.Equal(rideBytes(byte_helpers.Digest.Bytes()), asset)
+	amount, err := payment.get(amountField)
+	a.NoError(err)
+	a.Equal(rideInt(100000), amount)
+}
+
+func (a *InvokeScriptWithProofsTestSuite) Test_payment_absence() {
+	rs, err := a.f(ast.LibV4, a.tx)
+	a.NoError(err)
+	_, err = rs.get(paymentField)
+	a.EqualError(err, fmt.Sprintf("type '%s' has no property '%s'", invokeScriptTransactionTypeName, paymentField))
+}
+
+func (a *InvokeScriptWithProofsTestSuite) Test_payments_presence() {
+	rs, err := a.f(ast.LibV4, a.tx)
+	a.NoError(err)
+	payments, err := rs.get(paymentsField)
+	a.NoError(err)
+
+	expectedPayments := make(rideList, len(a.tx.Payments))
+	for i, payment := range a.tx.Payments {
+		expectedPayments[i] = attachedPaymentToObject(payment)
+	}
+	a.Equal(expectedPayments, payments)
+}
+
+func (a *InvokeScriptWithProofsTestSuite) Test_payments_absence() {
+	rs, err := a.f(ast.LibV3, a.tx)
+	a.NoError(err)
+	_, err = rs.get(paymentsField)
+	a.EqualError(err, fmt.Sprintf("type '%s' has no property '%s'", invokeScriptTransactionTypeName, paymentsField))
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
