@@ -192,7 +192,24 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				case t.Response <- err:
 				default:
 				}
-				logTxBroadcast(a.services.Scheme, prevFSM, t.Transaction, err)
+				if zap.S().Level() > zap.DebugLevel {
+					break
+				}
+				if genIDErr := t.Transaction.GenerateID(a.services.Scheme); genIDErr != nil {
+					zap.S().Errorf("[%s] Failed to generate ID for transaction: %v", prevFSM.String(), genIDErr)
+					break
+				}
+				txIDBytes, getIDErr := t.Transaction.GetID(a.services.Scheme)
+				if getIDErr != nil {
+					zap.S().Errorf("[%s] Failed to get ID for transaction: %v", prevFSM.String(), getIDErr)
+					break
+				}
+				txID := base58.Encode(txIDBytes)
+				if err != nil { // will be logged after the select statement
+					err = prevFSM.Errorf(proto.NewInfoMsg(errors.Wrapf(err, "Failed to broadcast transaction %q", txID)))
+				} else { // log that everything is ok
+					zap.S().Debugf("[%s] Transaction %q broadcasted successfuly", prevFSM.String(), txID)
+				}
 			default:
 				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm.String(), t)
 				continue
@@ -219,30 +236,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			a.logErrors(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-	}
-}
-
-func logTxBroadcast(scheme proto.Scheme, fsm state_fsm.FSM, tx proto.Transaction, broadcastErr error) {
-	log := zap.S()
-	if log.Level() > zap.DebugLevel {
-		return
-	}
-	fsmName := fsm.String()
-
-	if err := tx.GenerateID(scheme); err != nil {
-		log.Errorf("[%s] Failed to generate ID for transaction: %v", fsmName, err)
-		return
-	}
-	txIDBytes, err := tx.GetID(scheme)
-	if err != nil {
-		log.Errorf("[%s] Failed to get ID for transaction: %v", fsmName, err)
-		return
-	}
-	txID := base58.Encode(txIDBytes)
-	if broadcastErr != nil {
-		log.Debugf("[%s] Failed to broadcast transaction %q: %v", fsmName, txID, broadcastErr)
-	} else {
-		log.Debugf("[%s] Transaction %q broadcasted successfuly", fsmName, txID)
 	}
 }
 
