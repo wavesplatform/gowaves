@@ -2,12 +2,13 @@ package node
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"time"
 
+	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -185,11 +186,13 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				fsm, async, err = fsm.Halt()
 				t.Complete()
 			case *messages.BroadcastTransaction:
+				prevFSM := fsm
 				fsm, async, err = fsm.Transaction(nil, t.Transaction)
 				select {
 				case t.Response <- err:
 				default:
 				}
+				logTxBroadcast(a.services.Scheme, prevFSM, t.Transaction, err)
 			default:
 				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm.String(), t)
 				continue
@@ -216,6 +219,30 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			a.logErrors(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
+	}
+}
+
+func logTxBroadcast(scheme proto.Scheme, fsm state_fsm.FSM, tx proto.Transaction, broadcastErr error) {
+	log := zap.S()
+	if log.Level() > zap.DebugLevel {
+		return
+	}
+	fsmName := fsm.String()
+
+	if err := tx.GenerateID(scheme); err != nil {
+		log.Errorf("[%s] Failed to generate ID for transaction: %v", fsmName, err)
+		return
+	}
+	txIDBytes, err := tx.GetID(scheme)
+	if err != nil {
+		log.Errorf("[%s] Failed to get ID for transaction: %v", fsmName, err)
+		return
+	}
+	txID := base58.Encode(txIDBytes)
+	if broadcastErr != nil {
+		log.Debugf("[%s] Failed to broadcast transaction %q: %v", fsmName, txID, broadcastErr)
+	} else {
+		log.Debugf("[%s] Transaction %q broadcasted successfuly", fsmName, txID)
 	}
 }
 
