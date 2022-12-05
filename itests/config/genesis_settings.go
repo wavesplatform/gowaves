@@ -43,13 +43,36 @@ type FeatureInfo struct {
 }
 
 type GenesisSettings struct {
-	Scheme               proto.Scheme
-	SchemeRaw            string             `json:"scheme"`
-	AverageBlockDelay    uint64             `json:"average_block_delay"`
-	MinBlockTime         float64            `json:"min_block_time"`
-	DelayDelta           uint64             `json:"delay_delta"`
-	Distributions        []DistributionItem `json:"distributions"`
-	PreactivatedFeatures []FeatureInfo      `json:"preactivated_features"`
+	Scheme            proto.Scheme `json:"address_scheme_character"`
+	AverageBlockDelay uint64       `json:"average_block_delay"` // in sec
+
+	// In Milliseconds.
+	MinBlockTime float64 `json:"min_block_time"`
+	// FairPosCalculator
+	DelayDelta                 uint64 `json:"delay_delta"`
+	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"` // in blocks
+	// Lease cancellation.
+	ResetEffectiveBalanceAtHeight uint64 `json:"reset_effective_balance_at_height"`
+	// Heights when some rules change.
+	GenerationBalanceDepthFrom50To1000AfterHeight uint64 `json:"generation_balance_depth_from_50_to_1000_after_height"`
+	BlockVersion3AfterHeight                      uint64 `json:"block_version_3_after_height"`
+	// Diff in milliseconds.
+	MaxTxTimeBackOffset    uint64 `json:"max_tx_time_back_offset"`
+	MaxTxTimeForwardOffset uint64 `json:"max_tx_time_forward_offset"`
+	// Block Reward
+	BlockRewardTerm         uint64 `json:"block_reward_term"`
+	InitialBlockReward      uint64 `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64 `json:"block_reward_increment"`
+	BlockRewardVotingPeriod uint64 `json:"block_reward_voting_period"`
+
+	// Features.
+	FeaturesVotingPeriod              uint64        `json:"features_voting_period"`
+	VotesForFeatureActivation         uint64        `json:"votes_for_feature_activation"`
+	PreactivatedFeatures              []FeatureInfo `json:"preactivated_features"`
+	DoubleFeaturesPeriodsAfterHeight  uint64        `json:"double_features_periods_after_height"`
+	SponsorshipSingleActivationPeriod bool          `json:"sponsorship_single_activation_period"`
+
+	Distributions []DistributionItem `json:"distributions"`
 }
 
 type ScalaCustomOptions struct {
@@ -77,7 +100,6 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	if err = jsonParser.Decode(s); err != nil {
 		return nil, errors.Wrap(err, "failed to decode genesis settings")
 	}
-	s.Scheme = s.SchemeRaw[0]
 	return s, nil
 }
 
@@ -106,13 +128,27 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.MinBlockTime = genSettings.MinBlockTime
 	cfg.DelayDelta = genSettings.DelayDelta
-	cfg.BlockRewardIncrement = 100000
-	cfg.BlockRewardVotingPeriod = 1000
-	cfg.InitialBlockReward = 600000000
-	cfg.DoubleFeaturesPeriodsAfterHeight = 1000000
-	cfg.SponsorshipSingleActivationPeriod = true
-	cfg.FeaturesVotingPeriod = 1
-	cfg.VotesForFeatureActivation = 1
+
+	cfg.MinUpdateAssetInfoInterval = genSettings.MinUpdateAssetInfoInterval
+
+	cfg.ResetEffectiveBalanceAtHeight = genSettings.ResetEffectiveBalanceAtHeight
+
+	cfg.GenerationBalanceDepthFrom50To1000AfterHeight = genSettings.GenerationBalanceDepthFrom50To1000AfterHeight
+	cfg.BlockVersion3AfterHeight = genSettings.BlockVersion3AfterHeight
+
+	cfg.MaxTxTimeBackOffset = genSettings.MaxTxTimeBackOffset
+	cfg.MaxTxTimeForwardOffset = genSettings.MaxTxTimeForwardOffset
+
+	cfg.BlockRewardTerm = genSettings.BlockRewardTerm
+	cfg.InitialBlockReward = genSettings.InitialBlockReward
+	cfg.BlockRewardIncrement = genSettings.BlockRewardIncrement
+	cfg.BlockRewardVotingPeriod = genSettings.BlockRewardVotingPeriod
+
+	cfg.FeaturesVotingPeriod = genSettings.FeaturesVotingPeriod
+	cfg.VotesForFeatureActivation = genSettings.VotesForFeatureActivation
+	cfg.DoubleFeaturesPeriodsAfterHeight = genSettings.DoubleFeaturesPeriodsAfterHeight
+	cfg.SponsorshipSingleActivationPeriod = genSettings.SponsorshipSingleActivationPeriod
+
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}
