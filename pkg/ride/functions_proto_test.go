@@ -602,8 +602,8 @@ func TestSigVerify(t *testing.T) {
 	} {
 		te := &mockRideEnvironment{
 			checkMessageLengthFunc: test.check,
-			libVersionFunc: func() ast.LibraryVersion {
-				return ast.LibV3
+			libVersionFunc: func() (ast.LibraryVersion, error) {
+				return ast.LibV3, nil
 			},
 		}
 		r, err := sigVerify(te, test.args...)

@@ -1168,7 +1168,12 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 		return err
 	}
 	e.id = rideBytes(id)
-	obj, err := transactionToObject(e.libVersion(), e.sch, e.isInvokeExpressionActivated, tx)
+
+	ver, err := e.libVersion()
+	if err != nil {
+		return nil
+	}
+	obj, err := transactionToObject(ver, e.sch, e.isInvokeExpressionActivated, tx)
 	if err != nil {
 		return err
 	}
@@ -1265,8 +1270,11 @@ func (e *EvaluationEnvironment) setLibVersion(v ast.LibraryVersion) {
 	e.ver = v
 }
 
-func (e *EvaluationEnvironment) libVersion() ast.LibraryVersion {
-	return e.ver
+func (e *EvaluationEnvironment) libVersion() (ast.LibraryVersion, error) {
+	if e.ver == 0 {
+		return 0, errors.New("library version is uninitialized")
+	}
+	return e.ver, nil
 }
 
 func (e *EvaluationEnvironment) validateInternalPayments() bool {

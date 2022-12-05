@@ -44,7 +44,7 @@ var _ environment = &mockRideEnvironment{}
 //			isProtobufTxFunc: func() bool {
 //				panic("mock out the isProtobufTx method")
 //			},
-//			libVersionFunc: func() ast.LibraryVersion {
+//			libVersionFunc: func() (ast.LibraryVersion, error) {
 //				panic("mock out the libVersion method")
 //			},
 //			maxDataEntriesSizeFunc: func() int {
@@ -118,7 +118,7 @@ type mockRideEnvironment struct {
 	isProtobufTxFunc func() bool
 
 	// libVersionFunc mocks the libVersion method.
-	libVersionFunc func() ast.LibraryVersion
+	libVersionFunc func() (ast.LibraryVersion, error)
 
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
@@ -486,7 +486,7 @@ func (mock *mockRideEnvironment) isProtobufTxCalls() []struct {
 }
 
 // libVersion calls libVersionFunc.
-func (mock *mockRideEnvironment) libVersion() ast.LibraryVersion {
+func (mock *mockRideEnvironment) libVersion() (ast.LibraryVersion, error) {
 	if mock.libVersionFunc == nil {
 		panic("mockRideEnvironment.libVersionFunc: method is nil but environment.libVersion was just called")
 	}

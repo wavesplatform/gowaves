@@ -1054,11 +1054,12 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 	if err != nil {
 		return false, err
 	}
-	err = env.SetTransactionFromScriptAction(action, callerPK, txID, txTimestamp)
-	if err != nil {
-		return false, err
+
+	setTx := func(env *ride.EvaluationEnvironment) error {
+		return env.SetTransactionFromScriptAction(action, callerPK, txID, txTimestamp)
 	}
-	res, err := ia.sc.callAssetScriptCommon(env, asset, params)
+
+	res, err := ia.sc.callAssetScriptCommon(env, setTx, asset, params)
 	if err != nil {
 		return false, err
 	}

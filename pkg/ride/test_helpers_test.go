@@ -349,8 +349,8 @@ func (e *testEnv) withScheme(scheme byte) *testEnv {
 }
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
-	e.me.libVersionFunc = func() ast.LibraryVersion {
-		return v
+	e.me.libVersionFunc = func() (ast.LibraryVersion, error) {
+		return v, nil
 	}
 	e.me.setLibVersionFunc = func(newV ast.LibraryVersion) {
 		v = newV
@@ -512,7 +512,11 @@ func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
 	// TODO: hardcoded scheme
 	e.me.transactionFunc = func() rideType {
-		txo, err := transactionToObject(e.me.libVersion(), proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
+		v, err := e.me.libVersion()
+		if err != nil {
+			panic(err)
+		}
+		txo, err := transactionToObject(v, proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
 		require.NoError(e.t, err, "failed to set transaction")
 		return txo
 	}
@@ -583,11 +587,15 @@ func (e *testEnv) withDataFromJSON(s string) *testEnv {
 }
 
 func (e *testEnv) withWrappedState() *testEnv {
+	v, err := e.me.libVersion()
+	if err != nil {
+		panic(err)
+	}
 	e.ws = &WrappedState{
 		diff:                      newDiffState(e.ms),
 		cle:                       e.me.this().(rideAddress),
 		scheme:                    e.me.scheme(),
-		rootScriptLibVersion:      e.me.libVersion(),
+		rootScriptLibVersion:      v,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
 	e.me.stateFunc = func() types.SmartState {
@@ -728,12 +736,16 @@ func (e *testEnv) withUntouchedState(acc *testAccount) *testEnv {
 
 func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testEnv {
 	var err error
-	e.inv, err = invocationToObject(e.me.libVersion(), e.me.scheme(), tx)
+	v, err := e.me.libVersion()
+	if err != nil {
+		panic(err)
+	}
+	e.inv, err = invocationToObject(v, e.me.scheme(), tx)
 	require.NoError(e.t, err)
 	e.me.invocationFunc = func() rideType {
 		return e.inv
 	}
-	txo, err := transactionToObject(e.me.libVersionFunc(), e.me.scheme(), e.me.invokeExpressionActivated(), tx)
+	txo, err := transactionToObject(v, e.me.scheme(), e.me.invokeExpressionActivated(), tx)
 	require.NoError(e.t, err)
 	e.me.transactionFunc = func() rideType {
 		return txo

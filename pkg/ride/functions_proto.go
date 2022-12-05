@@ -150,7 +150,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		)
 	}
 
-	oldLibVersion := env.libVersion()
+	oldLibVersion, err := env.libVersion()
+	if err != nil {
+		return rideUnit{}, RuntimeError.Wrap(err, invocation.name())
+	}
 	env.setLibVersion(tree.LibVersion)
 	defer func() {
 		env.setLibVersion(oldLibVersion)
@@ -427,7 +430,11 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	obj, err := transactionToObject(env.libVersion(), env.scheme(), env.invokeExpressionActivated(), tx)
+	v, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "transactionByID")
+	}
+	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -641,7 +648,11 @@ func sigVerify(env environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if l := len(message); env != nil && env.libVersion() == ast.LibV3 && !env.checkMessageLength(l) {
+	v, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "sigVerify")
+	}
+	if l := len(message); env != nil && v == ast.LibV3 && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	signature, ok := args[1].(rideBytes)
@@ -845,7 +856,11 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	obj, err := transactionToObject(env.libVersion(), env.scheme(), env.invokeExpressionActivated(), tx)
+	v, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "transferByID")
+	}
+	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}
@@ -878,7 +893,11 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	if l := len(message); env != nil && env.libVersion() == ast.LibV3 && !env.checkMessageLength(l) {
+	v, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "rsaVerify")
+	}
+	if l := len(message); env != nil && v == ast.LibV3 && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	sig, ok := args[2].(rideBytes)

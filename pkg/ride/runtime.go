@@ -541,7 +541,7 @@ type environment interface {
 	invocation() rideType // Invocation object made of invoke transaction
 	setInvocation(inv rideType)
 	setLibVersion(v ast.LibraryVersion)
-	libVersion() ast.LibraryVersion
+	libVersion() (ast.LibraryVersion, error)
 	validateInternalPayments() bool
 	blockV5Activated() bool
 	rideV6Activated() bool
