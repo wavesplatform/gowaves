@@ -284,13 +284,15 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockI
 				return errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV6)
 			}
 			if rideV6Activated {
-				return errors.Errorf("complexity of scripts (%d) in block '%s' exceeds limit of %d",
-					a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
-				)
+				return nil // FIXME: stub for devnet
+				//return errors.Errorf("complexity of scripts (%d) in block '%s' exceeds limit of %d",
+				//	a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
+				//)
 			}
-			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d",
-				a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
-			)
+			// FIXME: stub for devnet
+			//zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d",
+			//	a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
+			//)
 		}
 		return nil
 	} else if smartAccountsActivated {
