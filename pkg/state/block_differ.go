@@ -170,31 +170,54 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 }
 
 func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
-	var err error
-	var minerDiff txDiff
-	var minerAddr proto.WavesAddress
-	if hasParent {
+	var (
+		err       error
+		minerDiff txDiff
+		minerAddr proto.WavesAddress
+	)
+	if hasParent { // generate addr and miner diff for non genesis block
 		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GeneratorPublicKey)
 		if err != nil {
 			return txDiff{}, err
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
+	} else { // generate address for genesis block
+		// TODO: crunch for NODE-2507 bug
+		minerAddr, err = proto.NewAddressFromPublicKey(d.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
+		if err != nil {
+			return txDiff{}, err
+		}
+		minerDiff = make(txDiff, 1) // initialize diff map only for generator addr
 	}
-	err = d.addBlockReward(minerDiff, minerAddr.ID(), block)
+	err = d.addBlockReward(minerDiff, minerAddr.ID(), block, hasParent)
 	if err != nil {
 		return txDiff{}, err
 	}
 	return minerDiff, nil
 }
 
-func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *proto.BlockHeader) error {
+func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *proto.BlockHeader, hasParent bool) error {
 	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}
 	if !activated {
 		// Monetary policy is not working yet.
-		return nil
+		if hasParent { // it's not a genesis block
+			return nil
+		}
+		// TODO: crunch for NODE-2507 bug
+		// the code below won't help because no features were activated at genesis block
+		/*{
+			invokeExpressionActivated, err := d.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+			if err != nil {
+				return err
+			}
+			if invokeExpressionActivated {
+				return nil // don't pay reward for genesis block after protocol V1.5.0
+			}
+		}*/
+		// do payout for genesis block due to scala node bug (see NODE-2507 task)
 	}
 	reward, err := d.stor.monetaryPolicy.reward()
 	if err != nil {
