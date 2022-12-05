@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -186,29 +185,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				fsm, async, err = fsm.Halt()
 				t.Complete()
 			case *messages.BroadcastTransaction:
-				prevFSM := fsm
 				fsm, async, err = fsm.Transaction(nil, t.Transaction)
 				select {
 				case t.Response <- err:
 				default:
-				}
-				if zap.S().Level() > zap.DebugLevel {
-					break
-				}
-				if genIDErr := t.Transaction.GenerateID(a.services.Scheme); genIDErr != nil {
-					zap.S().Errorf("[%s] Failed to generate ID for transaction: %v", prevFSM.String(), genIDErr)
-					break
-				}
-				txIDBytes, getIDErr := t.Transaction.GetID(a.services.Scheme)
-				if getIDErr != nil {
-					zap.S().Errorf("[%s] Failed to get ID for transaction: %v", prevFSM.String(), getIDErr)
-					break
-				}
-				txID := base58.Encode(txIDBytes)
-				if err != nil { // will be logged after the select statement
-					err = prevFSM.Errorf(proto.NewInfoMsg(errors.Wrapf(err, "Failed to broadcast transaction %q", txID)))
-				} else { // log that everything is ok
-					zap.S().Debugf("[%s] Transaction %q broadcasted successfuly", prevFSM.String(), txID)
 				}
 			default:
 				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm.String(), t)
