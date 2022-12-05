@@ -1,0 +1,86 @@
+{
+  "address_scheme_character": 68,
+  "average_block_delay": 60,
+  "min_block_time": 15000,
+
+  "delay_delta": 8,
+
+  "min_update_asset_info_interval": 7,
+
+  "reset_effective_balance_at_height": 450,
+
+  "generation_balance_depth_from_50_to_1000_after_height": 0,
+  "block_version_3_after_height": 0,
+
+  "max_tx_time_back_offset": 7200000,
+  "max_tx_time_forward_offset": 5400000,
+
+  "block_reward_term": 100000,
+  "initial_block_reward": 600000000,
+  "block_reward_increment": 50000000,
+  "block_reward_voting_period": 10000,
+
+  "features_voting_period": 30,
+  "votes_for_feature_activation": 25,
+  "double_features_periods_after_height": 1000000000,
+
+  "sponsorship_single_activation_period": true,
+
+  "preactivated_features": [
+    {"feature": 1, "height": 0},
+    {"feature": 2, "height": 0},
+    {"feature": 3, "height": 0},
+    {"feature": 4, "height": 0},
+    {"feature": 5, "height": 0},
+    {"feature": 6, "height": 0},
+    {"feature": 7, "height": 0},
+    {"feature": 8, "height": 0},
+    {"feature": 9, "height": 0},
+    {"feature": 10, "height": 0},
+    {"feature": 11, "height": 0},
+    {"feature": 12, "height": 0},
+    {"feature": 13, "height": 0},
+    {"feature": 14, "height": 0},
+    {"feature": 15, "height": 0},
+    {"feature": 16, "height": 0},
+    {"feature": 17, "height": 0}
+  ],
+  "distributions": [
+    {
+      "seed_text": "devnet0",
+      "amount": 5118634713556
+    },
+    {
+      "seed_text": "devnet7",
+      "amount": 5572985359815
+    },
+    {
+      "seed_text": "devnet5",
+      "amount": 5374433055656
+    },
+    {
+      "seed_text": "devnet1",
+      "amount": 6708964962924
+    },
+    {
+      "seed_text": "devnet6",
+      "amount": 5663840687906
+    },
+    {
+      "seed_text": "devnet2",
+      "amount": 5687340722489
+    },
+    {
+      "seed_text": "devnet4",
+      "amount": 5979080607249
+    },
+    {
+      "seed_text": "devnet3",
+      "amount": 5190093330718
+    },
+    {
+      "seed_text": "remain",
+      "amount": 9954704626559687
+    }
+  ]
+}
