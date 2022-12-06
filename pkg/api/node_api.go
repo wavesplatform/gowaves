@@ -597,6 +597,22 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) AddressesBalance(w http.ResponseWriter, r *http.Request) error {
+	addrParam := chi.URLParam(r, "address")
+	address, err := proto.NewAddressFromString(addrParam)
+	if err != nil {
+		return apiErrs.InvalidAddress
+	}
+	rs, err := a.app.AddressesBalance(address)
+	if err != nil {
+		return errors.Wrap(err, "AddressesBalance")
+	}
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "AddressesBalance")
+	}
+	return nil
+}
+
 func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.NodeProcesses()
 	if err := trySendJson(w, rs); err != nil {

@@ -1,6 +1,9 @@
 package api
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
 func (a *App) Addresses() ([]string, error) {
 	accounts, err := a.Accounts()
@@ -14,4 +17,22 @@ func (a *App) Addresses() ([]string, error) {
 	}
 
 	return addresses, nil
+}
+
+type AddressBalance struct {
+	Address       proto.WavesAddress `json:"address"`
+	Confirmations uint               `json:"confirmations"`
+	Balance       uint64             `json:"balance"`
+}
+
+func (a *App) AddressesBalance(addr proto.WavesAddress) (*AddressBalance, error) {
+	regularBalance, err := a.state.WavesBalance(proto.NewRecipientFromAddress(addr))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get regular WAVES balance for address %q", addr.String())
+	}
+	return &AddressBalance{
+		Address:       addr,
+		Confirmations: 0,
+		Balance:       regularBalance,
+	}, nil
 }
