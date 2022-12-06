@@ -91,3 +91,11 @@ func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, asse
 	require.NoError(t, err)
 	return balance
 }
+
+func (c *HttpClient) ClearBlackList(t *testing.T) *client.Response {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	_, resp, err := c.cli.Peers.ClearBlacklist(ctx)
+	require.NoError(t, err)
+	return resp
+}

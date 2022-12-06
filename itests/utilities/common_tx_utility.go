@@ -242,6 +242,8 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
 	scala := !positive
 
+	suite.Clients.ClearBlackList(suite.T())
+
 	suite.Conns.Reconnect(suite.T(), suite.Ports)
 
 	suite.Conns.SendToNodes(suite.T(), txMsg, scala)
