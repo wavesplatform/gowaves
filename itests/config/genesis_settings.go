@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -108,16 +107,21 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	ts := time.Now().UnixMilli()
+	const ts = 1658400642417
 	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
 	if err != nil {
 		return nil, nil, err
 	}
-	bt, err := calcInitialBaseTarget(acc, genSettings)
+	//bt, err := calcInitialBaseTarget(acc, genSettings)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
+	const bt = 1500
+	signature, err := crypto.NewSignatureFromBase58("4Q9r8pBPkHgA5G2gdVHgHaVrKx4LNhQ5KkzLAq6EKkW5bpj1tUoPNLwYtJNaNuVUgJZZnkyGxffnnM6ChxPdSY13")
 	if err != nil {
 		return nil, nil, err
 	}
-	b, err := genesis_generator.GenerateGenesisBlock(genSettings.Scheme, txs, bt, uint64(ts))
+	b, err := genesis_generator.RecreateGenesisBlock(genSettings.Scheme, txs, bt, uint64(ts), signature)
 	if err != nil {
 		return nil, nil, err
 	}
