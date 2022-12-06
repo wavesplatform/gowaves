@@ -12,11 +12,54 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type AliasTxNegativeSuite struct {
+type AliasTxSuite struct {
 	f.BaseSuite
 }
 
-func (suite *AliasTxNegativeSuite) Test_AliasNegative() {
+func (suite *AliasTxSuite) Test_AliasPositive() {
+	versions := testdata.GetVersions()
+	positive := true
+	timeout := 30 * time.Second
+	for _, v := range versions {
+		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
+		for name, td := range tdmatrix {
+			suite.T().Run(name, func(t *testing.T) {
+				tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+
+				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", v, tx.TxID.String())
+				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
+				utl.WavesDiffBalanceCheck(
+					suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala,
+					name, "version:", v)
+			})
+		}
+	}
+}
+
+func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
+	versions := testdata.GetVersions()
+	positive := true
+	timeout := 30 * time.Second
+	for _, v := range versions {
+		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
+		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
+		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
+		for name, td := range tdmatrix {
+			suite.T().Run(name, func(t *testing.T) {
+				tx, _, actualDiffBalanceInWaves := alias_utl.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+
+				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version:", v, tx.TxID.String())
+				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala)
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves.BalanceInWavesScala, name, "version:", v)
+			})
+		}
+	}
+}
+
+func (suite *AliasTxSuite) Test_AliasNegative() {
 	versions := testdata.GetVersions()
 	positive := false
 	timeout := 1 * time.Second
@@ -39,7 +82,7 @@ func (suite *AliasTxNegativeSuite) Test_AliasNegative() {
 	}
 }
 
-func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
+func (suite *AliasTxSuite) Test_SameAliasNegative() {
 	versions := testdata.GetVersions()
 	positive := false
 	timeout := 15 * time.Second
@@ -75,7 +118,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 	}
 }
 
-func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
+func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	versions := testdata.GetVersions()
 	timeout := 15 * time.Second
 	positive := false
@@ -109,7 +152,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
 	}
 }
 
-func TestAliasTxNegativeSuite(t *testing.T) {
+func TestAliasTxSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxNegativeSuite))
+	suite.Run(t, new(AliasTxSuite))
 }
