@@ -1171,7 +1171,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 
 	ver, err := e.libVersion()
 	if err != nil {
-		return nil
+		return err
 	}
 	obj, err := transactionToObject(ver, e.sch, e.isInvokeExpressionActivated, tx)
 	if err != nil {

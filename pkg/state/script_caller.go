@@ -161,6 +161,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 
+	// Set transaction only after library version is set by `env.ChooseSizeCheck`
 	if err = setTx(env); err != nil {
 		return nil, err
 	}
