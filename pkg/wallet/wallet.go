@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const curVersion = 1
@@ -36,8 +36,15 @@ func NewWallet() *WalletImpl {
 }
 
 func (a *WalletImpl) AddSeed(seed []byte) error {
-	s := common.Dup(seed)
-	a.format.Seed = append(a.format.Seed, s)
+	const zeroNonce = 0
+	iv := [4]byte{}
+	binary.BigEndian.PutUint32(iv[:], zeroNonce)
+	s := append(iv[:], seed...)
+	h, err := crypto.SecureHash(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate hash from seed")
+	}
+	a.format.Seed = append(a.format.Seed, h[:])
 	return nil
 }
 
