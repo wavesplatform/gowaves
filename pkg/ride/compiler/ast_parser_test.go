@@ -252,14 +252,13 @@ func TestExprSimple(t *testing.T) {
 		expected string
 	}{
 		{`{-# STDLIB_VERSION 6 #-}
-{-# CONTENT_TYPE EXPRESSION #-}
-{-# SCRIPT_TYPE ASSET #-}
-
-1 == 1`, false, "BgEJAAACAAEAAb+26yY="},
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE ASSET #-}
+		
+		1 == 1`, false, "BgEJAAACAAEAAb+26yY="},
 	} {
 
-		code := DappV6Directive + test.code
-		rawAST, buf, err := buildAST(t, code, false)
+		rawAST, buf, err := buildAST(t, test.code, false)
 		assert.NoError(t, err)
 		astParser := NewASTParser(rawAST, buf)
 		astParser.Parse()
