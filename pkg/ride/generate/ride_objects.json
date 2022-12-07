@@ -810,7 +810,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 0
@@ -1039,7 +1040,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 0
@@ -1118,7 +1120,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 0
@@ -1564,7 +1567,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -1732,7 +1736,8 @@
               "name": "dApp",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 7,
               "constructorOrder": 0
@@ -1845,7 +1850,8 @@
               "name": "dApp",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 7,
               "constructorOrder": 0
@@ -2160,7 +2166,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -2368,7 +2375,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 1
@@ -2882,7 +2890,8 @@
               "name": "recipient",
               "types": [
                 "rideAlias",
-                "rideAddress"
+                "rideAddress",
+                "rideAddressLike"
               ],
               "order": 0,
               "constructorOrder": 3

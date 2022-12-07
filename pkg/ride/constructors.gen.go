@@ -602,7 +602,7 @@ func leaseConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var recipient rideType
 	switch v := args_[0].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("leaseConstructor: unexpected type '%s' for recipient", args_[0].instanceOf())
@@ -758,7 +758,7 @@ func scriptTransferConstructor(_ environment, args_ ...rideType) (rideType, erro
 
 	var recipient rideType
 	switch v := args_[0].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("scriptTransferConstructor: unexpected type '%s' for recipient", args_[0].instanceOf())
@@ -823,7 +823,7 @@ func transferConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var recipient rideType
 	switch v := args_[0].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("transferConstructor: unexpected type '%s' for recipient", args_[0].instanceOf())
@@ -1176,7 +1176,7 @@ func genesisTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 
 	var recipient rideType
 	switch v := args_[1].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("genesisTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
@@ -1281,7 +1281,7 @@ func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rid
 
 	var dApp rideType
 	switch v := args_[0].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		dApp = v
 	default:
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
@@ -1387,7 +1387,7 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 
 	var dApp rideType
 	switch v := args_[0].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		dApp = v
 	default:
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
@@ -1653,7 +1653,7 @@ func leaseTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 
 	var recipient rideType
 	switch v := args_[1].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
@@ -1814,7 +1814,7 @@ func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 
 	var recipient rideType
 	switch v := args_[1].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
@@ -2175,7 +2175,7 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 
 	var recipient rideType
 	switch v := args_[3].(type) {
-	case rideAlias, rideAddress:
+	case rideAlias, rideAddress, rideAddressLike:
 		recipient = v
 	default:
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for recipient", args_[3].instanceOf())
