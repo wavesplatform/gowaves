@@ -11,16 +11,18 @@ func makeErrorMessage(errMsg string, args ...interface{}) string {
 	if len(args) > 0 {
 		for i := 0; i < len(args); i++ {
 			msg := fmt.Sprintf("%v", args[i])
-			errMsg += msg
+			errMsg += " " + msg
 		}
 	}
 	return errMsg
 }
 
-func StatusCodesCheck(t *testing.T, b BroadcastedTransaction, goCode, scalaCode int, args ...interface{}) {
+func StatusCodesCheck(t *testing.T, goCode, scalaCode int, b ConsideredTransaction, args ...interface{}) {
 	errMsg := makeErrorMessage("Response code mismatch", args...)
-	assert.Equalf(t, b.ResponseGo.StatusCode, goCode, "Node Go: "+errMsg)
-	assert.Equalf(t, b.ResponseScala.StatusCode, scalaCode, "Node Scala: "+errMsg)
+	assert.Equalf(t, goCode, b.Resp.ResponseGo.Response.StatusCode, "Node Go: "+errMsg)
+	if b.Resp.ResponseScala != nil {
+		assert.Equalf(t, scalaCode, b.Resp.ResponseScala.Response.StatusCode, "Node Scala: "+errMsg)
+	}
 }
 
 func ExistenceTxInfoCheck(t *testing.T, errGo, errScala error, args ...interface{}) {
@@ -39,6 +41,12 @@ func AssetBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args
 	errMsg := makeErrorMessage("Asset balance mismatch", args...)
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
+	errMsg := makeErrorMessage("Address mismatch alias", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala"+errMsg)
 }
 
 func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, actualErrGo,
