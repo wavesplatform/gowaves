@@ -1009,11 +1009,6 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
-		var payments = make(rideList, len(scriptPayments))
-		for i, p := range scriptPayments {
-			payments[i] = attachedPaymentToObject(p)
-		}
-
 		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
@@ -1028,6 +1023,10 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 		}
 		switch ver {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
+			var payment rideType = rideUnit{}
+			if len(scriptPayments) > 0 {
+				payment = attachedPaymentToObject(scriptPayments[0])
+			}
 			return newRideInvokeScriptTransactionV3(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
@@ -1036,7 +1035,7 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 				rideBytes(nil),
 				tx.ID.Bytes(),
 				callerPK,
-				payments[0],
+				payment,
 				args,
 				rideInt(tx.GetTimestamp()),
 				rideInt(tx.GetFee()),
@@ -1044,6 +1043,10 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 				rideAddress(sender),
 			), nil
 		default:
+			var payments = make(rideList, len(scriptPayments))
+			for i, p := range scriptPayments {
+				payments[i] = attachedPaymentToObject(p)
+			}
 			return newRideInvokeScriptTransactionV4(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
