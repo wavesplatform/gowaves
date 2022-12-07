@@ -180,20 +180,10 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 	a.baseInfo.Reschedule()
 
 	// Notify all connected peers about new microblock, send them microblock inv network message
-	inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID())
-	if ok {
-		invBts, err := inv.MarshalBinary()
-		if err == nil {
-			//TODO: We have to exclude from recipients peers that already have this microblock
-			a.baseInfo.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-				p.SendMessage(
-					&proto.MicroBlockInvMessage{
-						Body: invBts,
-					},
-				)
-			})
-		} else {
-			zap.S().Errorf("NGFsm.MicroBlock inv.MarshalBinary %q", err)
+	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
+		//TODO: We have to exclude from recipients peers that already have this microblock
+		if err := a.broadcastMicroBlockInv(inv); err != nil {
+			return a, nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
 		}
 	}
 	return a, nil, nil
@@ -230,24 +220,37 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
-	invBts, err := inv.MarshalBinary()
-	if err != nil {
-		return a, nil, a.Errorf(err)
+
+	if err := a.broadcastMicroBlockInv(inv); err != nil {
+		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
 
 	a.baseInfo.MicroBlockCache.Add(block.BlockID(), micro)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
-	// TODO wrap
-	a.baseInfo.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-		p.SendMessage(
-			&proto.MicroBlockInvMessage{
-				Body: invBts,
-			},
-		)
-	})
-	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
 
 	return a, Tasks(NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil
+}
+
+// broadcastMicroBlockInv broadcasts proto.MicroBlockInv message.
+func (a *NGFsm) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
+	invBts, err := inv.MarshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal binary '%T'", inv)
+	}
+	var (
+		cnt int
+		msg = &proto.MicroBlockInvMessage{
+			Body: invBts,
+		}
+	)
+	a.baseInfo.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+		msg := *msg
+		p.SendMessage(&msg)
+		cnt++
+	})
+	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
+	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
+	return nil
 }
 
 // Check than microblock is appendable and append it
