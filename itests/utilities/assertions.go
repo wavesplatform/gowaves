@@ -17,10 +17,12 @@ func makeErrorMessage(errMsg string, args ...interface{}) string {
 	return errMsg
 }
 
-func StatusCodesCheck(t *testing.T, goCode, scalaCode int, b BroadcastedTransaction, args ...interface{}) {
-	errMsg := makeErrorMessage("Response code mismatch: ", args...)
-	assert.Equalf(t, goCode, b.ResponseGo.StatusCode, "Node Go: "+errMsg)
-	assert.Equalf(t, scalaCode, b.ResponseScala.StatusCode, "Node Scala: "+errMsg)
+func StatusCodesCheck(t *testing.T, goCode, scalaCode int, b ConsideredTransaction, args ...interface{}) {
+	errMsg := makeErrorMessage("Response code mismatch", args...)
+	assert.Equalf(t, goCode, b.Resp.ResponseGo.Response.StatusCode, "Node Go: "+errMsg)
+	if b.Resp.ResponseScala != nil {
+		assert.Equalf(t, scalaCode, b.Resp.ResponseScala.Response.StatusCode, "Node Scala: "+errMsg)
+	}
 }
 
 func ExistenceTxInfoCheck(t *testing.T, errGo, errScala error, args ...interface{}) {
@@ -41,10 +43,10 @@ func AssetBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
 
-func AssetDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
-	errMsg := makeErrorMessage("Difference balance in Assets mismatch", args...)
+func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
+	errMsg := makeErrorMessage("Address mismatch alias", args...)
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala"+errMsg)
 }
 
 func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, actualErrGo,

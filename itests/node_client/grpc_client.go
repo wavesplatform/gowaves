@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -51,4 +52,12 @@ func getBalance(t *testing.T, conn *grpc.ClientConn, req *g.BalancesRequest) *g.
 	b, err := stream.Recv()
 	assert.NoError(t, err, "(grpc) failed to get balance from node")
 	return b
+}
+
+func (c *GrpcClient) GetAddressByAlias(t *testing.T, alias string) []byte {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	addr, err := g.NewAccountsApiClient(c.conn).ResolveAlias(ctx, &wrapperspb.StringValue{Value: alias})
+	assert.NoError(t, err)
+	return addr.GetValue()
 }

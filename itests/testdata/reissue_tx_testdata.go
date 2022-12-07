@@ -58,7 +58,7 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			1,
 			true,
 			ReissueExpectedValuesPositive{
@@ -71,7 +71,7 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000000,
 			true,
 			ReissueExpectedValuesPositive{
@@ -91,7 +91,7 @@ func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[s
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			uint64(9223372036854775807-assetBalance),
 			false,
 			ReissueExpectedValuesPositive{
@@ -110,7 +110,7 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			1,
 			true,
 			ReissueExpectedValuesNegative{
@@ -133,7 +133,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			9223372036854775808,
 			true,
 			ReissueExpectedValuesNegative{
@@ -150,7 +150,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			0,
 			true,
 			ReissueExpectedValuesNegative{
@@ -167,7 +167,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			9223372036854775808,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -184,7 +184,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			10,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -201,7 +201,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -218,7 +218,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -235,7 +235,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs()-7215000,
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -252,7 +252,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs()+54160000,
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -303,7 +303,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			assetID,
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -320,7 +320,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			utl.RandDigest(32, utl.LettersAndDigits),
 			100000,
 			utl.GetCurrentTimestampInMs(),
-			testChainID,
+			TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{

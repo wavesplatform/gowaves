@@ -96,3 +96,8 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 	})
 	return errGo, errScala
 }
+
+func (c *NodesClients) ClearBlackList(t *testing.T) {
+	c.GoClients.HttpClient.ClearBlackList(t)
+	c.ScalaClients.HttpClient.ClearBlackList(t)
+}
