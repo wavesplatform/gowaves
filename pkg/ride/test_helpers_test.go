@@ -59,7 +59,7 @@ func newTestAccountWithScheme(t *testing.T, scheme proto.Scheme, seed string) *t
 }
 
 // Can be used only when secret and public keys aren't required by test
-func newTestAccountFromAddress(t *testing.T, addr proto.WavesAddress) *testAccount {
+func newTestAccountFromAddress(addr proto.WavesAddress) *testAccount {
 	rcp := proto.NewRecipientFromAddress(addr)
 	return &testAccount{
 		sk:  crypto.SecretKey{},
@@ -73,7 +73,7 @@ func newTestAccountFromAddress(t *testing.T, addr proto.WavesAddress) *testAccou
 func newTestAccountFromAddresString(t *testing.T, addr string) *testAccount {
 	ad, err := proto.NewAddressFromString(addr)
 	require.NoError(t, err, "failed to create test account")
-	return newTestAccountFromAddress(t, ad)
+	return newTestAccountFromAddress(ad)
 }
 
 func (a *testAccount) publicKey() crypto.PublicKey {
@@ -826,8 +826,9 @@ func testTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
 
 func newTestDataTransactionWithEntries(t *testing.T, acc *testAccount, entries ...proto.DataEntry) *proto.DataWithProofs {
 	data := proto.NewUnsignedDataWithProofs(1, acc.publicKey(), 10000, 1544715621)
-	for _, entry := range entries {
-		require.NoError(t, data.AppendEntry(entry))
+	for i := range entries {
+		err := data.AppendEntry(entries[i])
+		require.NoError(t, err)
 	}
 	require.NoError(t, data.Sign(proto.TestNetScheme, acc.sk))
 	return data
