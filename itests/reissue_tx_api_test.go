@@ -24,7 +24,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	positive := true
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version: ", i)
 		tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
@@ -46,7 +46,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	positive := true
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version: ", i)
 		tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
@@ -68,7 +68,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 	positive := false
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["NFT"], i, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["NFT"], i, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version: ", i)
 		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID)
 		txIds := make(map[string]*crypto.Digest)
@@ -96,7 +96,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 	positive := false
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], i, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version: ", i)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		txIds := make(map[string]*crypto.Digest)
