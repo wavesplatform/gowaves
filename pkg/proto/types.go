@@ -3105,14 +3105,17 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	if bytes.Equal(value, jsonNullBytes) {
 		return nil
 	}
+	if len(value) < len(scriptPrefixBytes)+2 { // +2 for quotes
+		return wrapError(errors.New("insufficient length"))
+	}
 	if value[0] != '"' || value[len(value)-1] != '"' {
 		return wrapError(errors.New("no quotes"))
 	}
 	value = value[1 : len(value)-1]
-	if !bytes.Equal(value[0:7], scriptPrefixBytes) {
+	if !bytes.Equal(value[0:len(scriptPrefixBytes)], scriptPrefixBytes) {
 		return wrapError(errors.New("no prefix"))
 	}
-	value = value[7:]
+	value = value[len(scriptPrefixBytes):]
 	sb := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
 	n, err := base64.StdEncoding.Decode(sb, value)
 	if err != nil {
