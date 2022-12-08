@@ -1,10 +1,11 @@
 package proto
 
 import (
-	"github.com/pkg/errors"
-	"github.com/umbracle/fastrlp"
 	"io"
 	"math/big"
+
+	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 )
 
 // EthereumLegacyTx is the transaction data of regular Ethereum transactions.
@@ -60,7 +61,7 @@ func (tx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 		return errors.Wrap(err, "failed to parse contract invocation input data")
 	}
 
-	V, R, S, err := unmarshalSignatureValuesFastRLP(elems[6], elems[7], elems[8])
+	v, r, s, err := unmarshalSignatureValuesFastRLP(elems[6], elems[7], elems[8])
 	if err != nil {
 		return errors.Wrap(err, "failed to parse signature value")
 	}
@@ -72,9 +73,9 @@ func (tx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 		To:       addrTo,
 		Value:    &weiAmount,
 		Data:     contractData,
-		V:        &V,
-		R:        &R,
-		S:        &S,
+		V:        &v,
+		R:        &r,
+		S:        &s,
 	}
 	return nil
 }

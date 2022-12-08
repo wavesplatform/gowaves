@@ -1831,6 +1831,45 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 	}
 }
 
+func TestEthereumOrderV4_VerifyFromJSONWithLeadingPKZeroes(t *testing.T) {
+	const (
+		js = `
+		{
+		  "amount": 211125290,
+		  "amountAsset": "WAVES",
+		  "assetPair": {
+			"amountAsset": "WAVES",
+			"priceAsset": "34N9YcEETLWn93qYQ64EsP1x89tSruJU44RrEMSXXEPJ"
+		  },
+		  "eip712Signature": "0x4305a6f070179f7d5fa10557d764373d740ecb24a1177e8c2e01cc03f7c90eda78af2bdc88c964032ed3ae3807eed05c20c981ffe7b30e060f9f145290905b8a1b",
+		  "expiration": 1671111399020,
+		  "matcherFee": 23627,
+		  "matcherFeeAssetId": "34N9YcEETLWn93qYQ64EsP1x89tSruJU44RrEMSXXEPJ",
+		  "matcherPublicKey": "9cpfKN9suPNvfeUNphzxXMjcnn974eme8ZhWUjaktzU5",
+		  "orderType": "buy",
+		  "price": 2357071,
+		  "priceAsset": "34N9YcEETLWn93qYQ64EsP1x89tSruJU44RrEMSXXEPJ",
+		  "timestamp": 1668605799020,
+		  "version": 4,
+		  "priceMode": "assetDecimals"
+		}`
+		expectedSenderPK = "0x0052da038439eaba660a7e5764b7e278efaa22ef3f861b965dfd7a8101b27def602238ff11bdb36887da48afbec98026505e59cbcec23c71b9977ed855aaf3b2"
+		scheme           = MainNetScheme
+	)
+	order := new(EthereumOrderV4)
+	err := json.Unmarshal([]byte(js), order)
+	require.NoError(t, err)
+
+	err = order.GenerateSenderPK(scheme)
+	require.NoError(t, err)
+	senderPK := order.SenderPK.inner.String()
+	assert.Equal(t, expectedSenderPK, senderPK)
+
+	ok, err := order.Verify(scheme)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+}
+
 func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		scheme             Scheme

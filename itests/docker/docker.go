@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -164,15 +165,41 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	}
 }
 
+func (d *Docker) buildGoNodeImage() error {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	dir, file := filepath.Split(pwd + dockerfilePath)
+	err = d.pool.Client.BuildImage(dc.BuildImageOptions{
+		Name:         "go-node",
+		Dockerfile:   file,
+		ContextDir:   dir,
+		OutputStream: io.Discard,
+		BuildArgs:    nil,
+		Platform:     "",
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string) (*dockertest.Resource, *PortConfig, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, err
 	}
+	err = d.buildGoNodeImage()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to build go-node image")
+	}
 	opt := &dockertest.RunOptions{
-		Name:     suiteName + "-" + goContainerName,
-		User:     "gowaves",
-		Hostname: "go-node",
+		Repository: "go-node",
+		Name:       suiteName + "-" + goContainerName,
+		User:       "gowaves",
+		Hostname:   "go-node",
 		Env: []string{
 			"GRPC_ADDR=" + Localhost + ":" + GrpcApiPort,
 			"API_ADDR=" + Localhost + ":" + RESTApiPort,
@@ -192,7 +219,7 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 		},
 		Networks: []*dockertest.Network{d.network},
 	}
-	res, err := d.pool.BuildAndRunWithOptions(pwd+dockerfilePath, opt, func(hc *dc.HostConfig) {
+	res, err := d.pool.RunWithOptions(opt, func(hc *dc.HostConfig) {
 		hc.AutoRemove = true
 		hc.PublishAllPorts = true
 	})
