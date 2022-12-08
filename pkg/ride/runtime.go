@@ -49,7 +49,7 @@ const (
 	sponsorFeeTypeName      = "SponsorFee"
 	stringEntryTypeName     = "StringEntry"
 	stringTypeName          = "String"
-	transferEntryTypeName   = "Transfer"
+	transferTypeName        = "Transfer"
 	transferSetTypeName     = "TransferSet"
 	unitTypeName            = "Unit"
 	writeSetTypeName        = "WriteSet"
@@ -321,8 +321,6 @@ func (a rideAddress) eq(other rideType) bool {
 		return bytes.Equal(a[:], o[:])
 	case rideBytes:
 		return bytes.Equal(a[:], o[:])
-	case rideRecipient:
-		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
 	default:
 		return false
 	}
@@ -365,8 +363,6 @@ func (a rideAddressLike) eq(other rideType) bool {
 		return bytes.Equal(a[:], o[:])
 	case rideBytes:
 		return bytes.Equal(a[:], o[:])
-	case rideRecipient:
-		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
 	case rideAddressLike:
 		return bytes.Equal(a[:], o[:])
 	default:
@@ -391,62 +387,6 @@ func (a rideAddressLike) String() string {
 	return strings.Join(a.lines(), "\n")
 }
 
-type rideRecipient proto.Recipient
-
-func (a rideRecipient) instanceOf() string {
-	switch {
-	case a.Address != nil:
-		return addressTypeName
-	case a.Alias != nil:
-		return aliasTypeName
-	default:
-		return recipientTypeName
-	}
-}
-
-func (a rideRecipient) eq(other rideType) bool {
-	switch o := other.(type) {
-	case rideRecipient:
-		return a.Address == o.Address && a.Alias == o.Alias
-	case rideAddress:
-		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
-	case rideAlias:
-		return a.Alias != nil && a.Alias.Alias == o.Alias
-	case rideBytes:
-		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
-	default:
-		return false
-	}
-}
-
-func (a rideRecipient) get(prop string) (rideType, error) {
-	switch prop {
-	case bytesField:
-		if a.Address != nil {
-			return rideBytes(a.Address[:]), nil
-		}
-		return rideUnit{}, nil
-	case aliasField:
-		if a.Alias != nil {
-			return rideAlias(*a.Alias), nil
-		}
-		return rideUnit{}, nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
-	}
-}
-
-func (a rideRecipient) lines() []string {
-	if a.Alias != nil {
-		return rideAlias(*a.Alias).lines()
-	}
-	return rideAddress(*a.Address).lines()
-}
-
-func (a rideRecipient) String() string {
-	return strings.Join(a.lines(), "\n")
-}
-
 type rideAlias proto.Alias
 
 func (a rideAlias) instanceOf() string {
@@ -455,8 +395,6 @@ func (a rideAlias) instanceOf() string {
 
 func (a rideAlias) eq(other rideType) bool {
 	switch o := other.(type) {
-	case rideRecipient:
-		return o.Alias != nil && a.Alias == o.Alias.Alias
 	case rideAlias:
 		return a.Alias == o.Alias
 	default:
@@ -602,7 +540,8 @@ type environment interface {
 	takeString(s string, n int) rideString
 	invocation() rideType // Invocation object made of invoke transaction
 	setInvocation(inv rideType)
-	libVersion() ast.LibraryVersion
+	setLibVersion(v ast.LibraryVersion)
+	libVersion() (ast.LibraryVersion, error)
 	validateInternalPayments() bool
 	blockV5Activated() bool
 	rideV6Activated() bool

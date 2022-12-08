@@ -127,7 +127,7 @@ func TestAssetBalanceV3(t *testing.T) {
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
-		balance, err := assetBalanceV3(te, rideRecipient{}, tc.assetID)
+		balance, err := assetBalanceV3(te, rideAddress{}, tc.assetID)
 		if tc.expectErr {
 			require.Error(t, err)
 		} else {
@@ -163,7 +163,7 @@ func TestAssetBalanceV4(t *testing.T) {
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
-		balance, err := assetBalanceV4(te, rideRecipient{}, tc.assetID)
+		balance, err := assetBalanceV4(te, rideAddress{}, tc.assetID)
 		if tc.expectErr {
 			require.Error(t, err)
 		} else {
@@ -186,7 +186,7 @@ func TestIntFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
 					return nil, errors.New("not found")
@@ -199,19 +199,19 @@ func TestIntFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
 		{[]rideType{}, false, rideUnit{}},
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := intFromState(env, test.args...)
 		if test.fail {
@@ -236,7 +236,7 @@ func TestBytesFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
 					return nil, errors.New("not found")
@@ -249,19 +249,19 @@ func TestBytesFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
 		{[]rideType{}, false, rideUnit{}},
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := bytesFromState(env, test.args...)
 		if test.fail {
@@ -286,7 +286,7 @@ func TestStringFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
 					return nil, errors.New("not found")
@@ -299,19 +299,19 @@ func TestStringFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideString("value")},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideString("value")},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
 		{[]rideType{}, false, rideUnit{}},
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := stringFromState(env, test.args...)
 		if test.fail {
@@ -336,7 +336,7 @@ func TestBooleanFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
 					return nil, errors.New("not found")
@@ -349,19 +349,19 @@ func TestBooleanFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
 		{[]rideType{}, false, rideUnit{}},
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, false, rideUnit{}},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := booleanFromState(env, test.args...)
 		if test.fail {
@@ -555,8 +555,8 @@ func TestAddressFromRecipient(t *testing.T) {
 	}{
 		{[]rideType{rideAddress(addr)}, false, rideAddress(addr)},
 		{[]rideType{rideAlias(*alias)}, false, rideAddress(addr)},
-		{[]rideType{rideRecipient(proto.NewRecipientFromAddress(addr))}, false, rideAddress(addr)},
-		{[]rideType{rideRecipient(proto.NewRecipientFromAlias(*alias))}, false, rideAddress(addr)},
+		{[]rideType{recipientToObject(proto.NewRecipientFromAddress(addr))}, false, rideAddress(addr)},
+		{[]rideType{recipientToObject(proto.NewRecipientFromAlias(*alias))}, false, rideAddress(addr)},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
@@ -602,8 +602,8 @@ func TestSigVerify(t *testing.T) {
 	} {
 		te := &mockRideEnvironment{
 			checkMessageLengthFunc: test.check,
-			libVersionFunc: func() ast.LibraryVersion {
-				return ast.LibV3
+			libVersionFunc: func() (ast.LibraryVersion, error) {
+				return ast.LibV3, nil
 			},
 		}
 		r, err := sigVerify(te, test.args...)
@@ -876,7 +876,7 @@ func TestIntValueFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
 					return nil, errors.New("not found")
@@ -889,19 +889,19 @@ func TestIntValueFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
 		r, err := intValueFromState(env, test.args...)
 		if test.fail {
@@ -926,7 +926,7 @@ func TestBytesValueFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
 					return nil, errors.New("not found")
@@ -939,19 +939,19 @@ func TestBytesValueFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
 		r, err := bytesValueFromState(env, test.args...)
 		if test.fail {
@@ -976,7 +976,7 @@ func TestStringValueFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
 					return nil, errors.New("not found")
@@ -989,19 +989,19 @@ func TestStringValueFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideString("value")},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideString("value")},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
 		r, err := stringValueFromState(env, test.args...)
 		if test.fail {
@@ -1026,7 +1026,7 @@ func TestBooleanValueFromState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
 					return nil, errors.New("not found")
@@ -1039,19 +1039,19 @@ func TestBooleanValueFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, true, nil},
-		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, true, nil},
+		{[]rideType{recipientToObject(incorrectAliasRecipient), rideString("key")}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient)}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, true, nil},
-		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideInt(12345)}, true, nil},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideInt(12345)}, true, nil},
 	} {
 		r, err := booleanValueFromState(env, test.args...)
 		if test.fail {
@@ -1351,12 +1351,12 @@ func TestHashScriptAtAddress(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				NewestScriptBytesByAccountFunc: func(recipient proto.Recipient) (proto.Script, error) {
-					switch recipient {
-					case r1:
+					switch {
+					case recipient.Eq(r1):
 						return s1, nil
-					case r2:
+					case recipient.Eq(r2):
 						return s2, nil
-					case r3, r4:
+					case recipient.Eq(r3), recipient.Eq(r4):
 						return nil, errors.Wrap(keyvalue.ErrNotFound, "blah-blah")
 					default:
 						return nil, errors.New("other error")
@@ -1370,11 +1370,11 @@ func TestHashScriptAtAddress(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideRecipient(r1)}, false, rideBytes(d1[:])},
-		{[]rideType{rideRecipient(r2)}, false, rideBytes(d2[:])},
-		{[]rideType{rideRecipient(r3)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(r4)}, false, rideUnit{}},
-		{[]rideType{rideRecipient(r5)}, true, nil},
+		{[]rideType{recipientToObject(r1)}, false, rideBytes(d1[:])},
+		{[]rideType{recipientToObject(r2)}, false, rideBytes(d2[:])},
+		{[]rideType{recipientToObject(r3)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(r4)}, false, rideUnit{}},
+		{[]rideType{recipientToObject(r5)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},

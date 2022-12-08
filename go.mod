@@ -41,8 +41,8 @@ require (
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
-	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec
+	golang.org/x/sync v0.1.0
+	golang.org/x/sys v0.2.0
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
@@ -86,8 +86,8 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/net v0.0.0-20220809184613-07c6da5e1ced // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/term v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20210226172003-ab064af71705 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

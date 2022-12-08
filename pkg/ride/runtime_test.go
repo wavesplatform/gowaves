@@ -249,9 +249,11 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := invokeScriptWithProofsToObject(proto.TestNetScheme, tx)
+	obj, err := invokeScriptWithProofsToObject(ast.LibV6, proto.TestNetScheme, tx)
+	txObj, ok := obj.(rideInvokeScriptTransactionV4)
+	require.True(t, ok)
 	require.NoError(t, err)
-	replaceFirstProof(obj, s)
+	replaceFirstProof(txObj, s)
 	return tx, obj
 }
 
@@ -506,7 +508,7 @@ func TestTypesStrings(t *testing.T) {
 	testReissueAction := newRideReissue(shortBytes, 1, true)
 	testBurnAction := newRideBurn(shortBytes, 1)
 	testSponsorFee := newRideSponsorFee(shortBytes, 1)
-	testLease := newRideLease(rideRecipient(recipient1), 1, 2)
+	testLease := newRideLease(recipientToObject(recipient1), 1, 2)
 	testLeaseCancel := newRideLeaseCancel(shortBytes)
 	for _, test := range []struct {
 		v rideType
@@ -544,8 +546,8 @@ func TestTypesStrings(t *testing.T) {
 		{rideList{}, "[]"},
 		{testAddress, "Address(\n\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n)"},
 		{testAlias, "Alias(\n\talias = \"str\"\n)"},
-		{rideRecipient(recipient1), "Address(\n\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n)"},
-		{rideRecipient(recipient2), "Alias(\n\talias = \"str\"\n)"},
+		{recipientToObject(recipient1), "Address(\n\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n)"},
+		{recipientToObject(recipient2), "Alias(\n\talias = \"str\"\n)"},
 		{transferEntryToObject(proto.MassTransferEntry{Recipient: recipient1, Amount: 1}), "Transfer(\n\trecipient = Address(\n\t\tbytes = base58'3MbexUVHr88VyDborjw9Veh77MJ68BMNoKi'\n\t)\n\tamount = 1\n)"},
 		{assetPairToObject(*testAsset1, *testAsset2), "AssetPair(\n\tamountAsset = base58'7oKcRfWMsCPKRH6hpZ3oS2qVmknX9dwQ9bzUFXHwFcQN'\n\tpriceAsset = Unit\n)"},
 		{balanceDetailsToObject(testBalanceDetails), "BalanceDetails(\n\tavailable = 3\n\tregular = 1\n\tgenerating = 2\n\teffective = 4\n)"},
