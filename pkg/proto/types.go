@@ -69,7 +69,7 @@ type Score = big.Int
 type Scheme = byte
 type Height = uint64
 
-var jsonNullBytes = []byte("null")
+var jsonNullBytes = []byte(jsonNull)
 
 type Bytes []byte
 
@@ -3089,6 +3089,9 @@ func (s Script) String() string {
 
 // MarshalJSON writes Script as JSON
 func (s Script) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return jsonNullBytes, nil
+	}
 	var sb strings.Builder
 	sb.WriteRune('"')
 	sb.WriteString(s.String())
