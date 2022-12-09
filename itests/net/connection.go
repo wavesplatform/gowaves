@@ -115,12 +115,13 @@ func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
 	*c = newConns
 }
 
-func (c *NodeConnections) SendToEachNode(t *testing.T, m proto.Message) {
+func (c *NodeConnections) SendToNodes(t *testing.T, m proto.Message, scala bool) {
 	err := c.goCon.SendMessage(m)
 	assert.NoError(t, err, "failed to send TransactionMessage to go node")
-
-	err = c.scalaCon.SendMessage(m)
-	assert.NoError(t, err, "failed to send TransactionMessage to scala node")
+	if scala {
+		err = c.scalaCon.SendMessage(m)
+		assert.NoError(t, err, "failed to send TransactionMessage to scala node")
+	}
 }
 
 func (c *NodeConnections) Close(t *testing.T) {
