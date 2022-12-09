@@ -107,11 +107,9 @@ func GetTransactionJsonOrErrMsg(tx proto.Transaction) string {
 	return result
 }
 
-func RandDigest(n int, symbolSet string) crypto.Digest {
+func RandDigest(t *testing.T, n int, symbolSet string) crypto.Digest {
 	id, err := crypto.NewDigestFromBytes([]byte(RandStringBytes(n, symbolSet)))
-	if err != nil {
-		fmt.Sprintf("Failed to create random Digest: %s", err)
-	}
+	require.NoError(t, err, "Failed to create random Digest")
 	return id
 }
 

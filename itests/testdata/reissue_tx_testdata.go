@@ -317,7 +317,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			}),
 		"Invalid asset ID": *NewReissueTestData(
 			utl.GetAccount(suite, 3),
-			utl.RandDigest(32, utl.LettersAndDigits),
+			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
 			100000,
 			utl.GetCurrentTimestampInMs(),
 			TestChainID,
