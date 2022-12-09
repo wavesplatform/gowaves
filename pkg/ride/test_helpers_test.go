@@ -58,6 +58,24 @@ func newTestAccountWithScheme(t *testing.T, scheme proto.Scheme, seed string) *t
 	}
 }
 
+// Can be used only when secret and public keys aren't required by test
+func newTestAccountFromAddress(addr proto.WavesAddress) *testAccount {
+	rcp := proto.NewRecipientFromAddress(addr)
+	return &testAccount{
+		sk:  crypto.SecretKey{},
+		pk:  crypto.PublicKey{},
+		wa:  addr,
+		rcp: rcp,
+	}
+}
+
+// Can be used only when secret and public keys aren't required by test
+func newTestAccountFromAddresString(t *testing.T, addr string) *testAccount {
+	ad, err := proto.NewAddressFromString(addr)
+	require.NoError(t, err, "failed to create test account")
+	return newTestAccountFromAddress(ad)
+}
+
 func (a *testAccount) publicKey() crypto.PublicKey {
 	return a.pk
 }
@@ -331,8 +349,11 @@ func (e *testEnv) withScheme(scheme byte) *testEnv {
 }
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
-	e.me.libVersionFunc = func() ast.LibraryVersion {
-		return v
+	e.me.libVersionFunc = func() (ast.LibraryVersion, error) {
+		return v, nil
+	}
+	e.me.setLibVersionFunc = func(newV ast.LibraryVersion) {
+		v = newV
 	}
 	return e
 }
@@ -340,6 +361,16 @@ func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 func (e *testEnv) withBlockV5Activated() *testEnv {
 	e.me.blockV5ActivatedFunc = func() bool {
 		return true
+	}
+	return e
+}
+
+func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
+	e.me.blockFunc = func() rideType {
+		return blockInfoToObject(blockInfo)
+	}
+	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
+		return blockInfo.Height, nil
 	}
 	return e
 }
@@ -480,9 +511,13 @@ func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
 	// TODO: hardcoded scheme
-	txo, err := transactionToObject(proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
-	require.NoError(e.t, err, "failed to set transaction")
 	e.me.transactionFunc = func() rideType {
+		v, err := e.me.libVersion()
+		if err != nil {
+			panic(err)
+		}
+		txo, err := transactionToObject(v, proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
+		require.NoError(e.t, err, "failed to set transaction")
 		return txo
 	}
 	e.ms.NewestTransactionByIDFunc = func(id []byte) (proto.Transaction, error) {
@@ -552,11 +587,15 @@ func (e *testEnv) withDataFromJSON(s string) *testEnv {
 }
 
 func (e *testEnv) withWrappedState() *testEnv {
+	v, err := e.me.libVersion()
+	if err != nil {
+		panic(err)
+	}
 	e.ws = &WrappedState{
 		diff:                      newDiffState(e.ms),
 		cle:                       e.me.this().(rideAddress),
 		scheme:                    e.me.scheme(),
-		rootScriptLibVersion:      e.me.libVersion(),
+		rootScriptLibVersion:      v,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
 	e.me.stateFunc = func() types.SmartState {
@@ -697,12 +736,16 @@ func (e *testEnv) withUntouchedState(acc *testAccount) *testEnv {
 
 func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testEnv {
 	var err error
-	e.inv, err = invocationToObject(e.me.libVersion(), e.me.scheme(), tx)
+	v, err := e.me.libVersion()
+	if err != nil {
+		panic(err)
+	}
+	e.inv, err = invocationToObject(v, e.me.scheme(), tx)
 	require.NoError(e.t, err)
 	e.me.invocationFunc = func() rideType {
 		return e.inv
 	}
-	txo, err := transactionToObject(e.me.scheme(), e.me.invokeExpressionActivated(), tx)
+	txo, err := transactionToObject(v, e.me.scheme(), e.me.invokeExpressionActivated(), tx)
 	require.NoError(e.t, err)
 	e.me.transactionFunc = func() rideType {
 		return txo
@@ -781,24 +824,35 @@ func testTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
 	return tx
 }
 
-func newTestDataTransaction(t *testing.T, acc *testAccount) *proto.DataWithProofs {
+func newTestDataTransactionWithEntries(t *testing.T, acc *testAccount, entries ...proto.DataEntry) *proto.DataWithProofs {
 	data := proto.NewUnsignedDataWithProofs(1, acc.publicKey(), 10000, 1544715621)
-	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
-		Key:   "integer",
-		Value: 100500,
-	}))
-	require.NoError(t, data.AppendEntry(&proto.BooleanDataEntry{
-		Key:   "boolean",
-		Value: true,
-	}))
-	require.NoError(t, data.AppendEntry(&proto.BinaryDataEntry{
-		Key:   "binary",
-		Value: []byte("hello"),
-	}))
-	require.NoError(t, data.AppendEntry(&proto.StringDataEntry{
-		Key:   "string",
-		Value: "world",
-	}))
+	for i := range entries {
+		err := data.AppendEntry(entries[i])
+		require.NoError(t, err)
+	}
 	require.NoError(t, data.Sign(proto.TestNetScheme, acc.sk))
 	return data
+}
+
+func newTestDataTransaction(t *testing.T, acc *testAccount) *proto.DataWithProofs {
+	return newTestDataTransactionWithEntries(
+		t,
+		acc,
+		&proto.IntegerDataEntry{
+			Key:   "integer",
+			Value: 100500,
+		},
+		&proto.BooleanDataEntry{
+			Key:   "boolean",
+			Value: true,
+		},
+		&proto.BinaryDataEntry{
+			Key:   "binary",
+			Value: []byte("hello"),
+		},
+		&proto.StringDataEntry{
+			Key:   "string",
+			Value: "world",
+		},
+	)
 }
