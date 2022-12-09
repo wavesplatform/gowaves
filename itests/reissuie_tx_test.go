@@ -19,7 +19,7 @@ type ReissueTxSuite struct {
 
 func (suite *ReissueTxSuite) Test_ReissuePositive() {
 	versions := testdata.GetVersions()
-	timeout := 45 * time.Second
+	timeout := 30 * time.Second
 	positive := true
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
@@ -40,7 +40,7 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 
 func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 	versions := testdata.GetVersions()
-	timeout := 45 * time.Second
+	timeout := 30 * time.Second
 	positive := true
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
@@ -61,11 +61,11 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 
 func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 	versions := testdata.GetVersions()
-	timeout := 15 * time.Second
+	timeout := 1 * time.Second
 	positive := false
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["NFT"], i, timeout, positive)
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["NFT"], i, 15*timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version", i)
 		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID)
 		txIds := make(map[string]*crypto.Digest)
@@ -79,18 +79,18 @@ func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 			utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, name, "Version: ", i)
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNegative() {
 	versions := testdata.GetVersions()
-	timeout := 5 * time.Second
+	timeout := 1 * time.Second
 	positive := false
 	for _, i := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], i, 9*timeout, positive)
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], i, 15*timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version", i)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		txIds := make(map[string]*crypto.Digest)
@@ -104,7 +104,7 @@ func (suite *ReissueTxSuite) Test_ReissueNegative() {
 			utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, name, "Version: ", i)
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 2*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
