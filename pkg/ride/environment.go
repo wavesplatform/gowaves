@@ -1022,6 +1022,7 @@ func NewEnvironmentWithWrappedState(
 	sender proto.WavesAddress,
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
+	checkSenderBalance bool,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
 	st := newWrappedState(env, rootScriptLibVersion)
@@ -1048,7 +1049,7 @@ func NewEnvironmentWithWrappedState(
 		if err != nil {
 			return nil, err
 		}
-		if senderBalance < payment.Amount {
+		if checkSenderBalance && senderBalance < payment.Amount {
 			return nil, errors.Errorf("not enough money for tx attached payment #%d of asset '%s' with amount %d",
 				i+1, payment.Asset.String(), payment.Amount)
 		}
