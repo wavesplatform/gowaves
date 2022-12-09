@@ -4498,7 +4498,7 @@ func TestCreateAliasWithSigBinaryRoundTrip(t *testing.T) {
 	}
 }
 
-func TestCreateAliasWithSigToJSON(t *testing.T) {
+func TestCreateAliasWithSigJSON(t *testing.T) {
 	tests := []struct {
 		scheme byte
 		alias  string
@@ -4510,20 +4510,51 @@ func TestCreateAliasWithSigToJSON(t *testing.T) {
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
+
+	checkUnmarshal := func(t *testing.T, js []byte, expected *CreateAliasWithSig) {
+		tx := new(CreateAliasWithSig)
+		err := json.Unmarshal(js, tx)
+		require.NoError(t, err)
+		require.Nil(t, tx.ID)
+		require.Zero(t, tx.Alias.Scheme)
+
+		err = expected.GenerateID(expected.Alias.Scheme)
+		require.NoError(t, err)
+		err = tx.GenerateID(expected.Alias.Scheme)
+		require.NoError(t, err)
+		require.Equal(t, expected.Alias.Scheme, tx.Alias.Scheme)
+
+		assert.Equal(t, expected, tx)
+	}
+
 	for _, tc := range tests {
 		a := NewAlias(tc.scheme, tc.alias)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedCreateAliasWithSig(pk, *a, tc.fee, ts)
-		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":10,\"version\":1,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), a.String(), tc.fee, ts)
-			assert.Equal(t, ej, string(j))
-			if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
-				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
-					assert.Equal(t, esj, string(sj))
-				}
-			}
-		}
+		testName := func(base string) string { return fmt.Sprintf("%s-%c-%s", base, tc.scheme, tc.alias) }
+
+		t.Run(testName("Unsigned"), func(t *testing.T) {
+			tx := NewUnsignedCreateAliasWithSig(pk, *a, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":10,\"version\":1,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+				base58.Encode(pk[:]), a.Alias, tc.fee, ts)
+			j, err := json.Marshal(tx)
+			require.NoError(t, err)
+			assert.JSONEq(t, ej, string(j))
+
+			checkUnmarshal(t, []byte(ej), tx)
+		})
+
+		t.Run(testName("Signed"), func(t *testing.T) {
+			tx := NewUnsignedCreateAliasWithSig(pk, *a, tc.fee, ts)
+			err := tx.Sign(tc.scheme, sk)
+			require.NoError(t, err)
+			esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+				base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.Alias, tc.fee, ts)
+			sj, err := json.Marshal(tx)
+			require.NoError(t, err)
+			assert.JSONEq(t, esj, string(sj))
+
+			checkUnmarshal(t, []byte(esj), tx)
+		})
 	}
 }
 
@@ -4696,7 +4727,7 @@ func TestCreateAliasWithProofsBinaryRoundTrip(t *testing.T) {
 	}
 }
 
-func TestCreateAliasWithProofsToJSON(t *testing.T) {
+func TestCreateAliasWithProofsJSON(t *testing.T) {
 	tests := []struct {
 		scheme byte
 		alias  string
@@ -4708,21 +4739,51 @@ func TestCreateAliasWithProofsToJSON(t *testing.T) {
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
+
+	checkUnmarshal := func(t *testing.T, js []byte, expected *CreateAliasWithProofs) {
+		tx := new(CreateAliasWithProofs)
+		err := json.Unmarshal(js, tx)
+		require.NoError(t, err)
+		require.Nil(t, tx.ID)
+		require.Zero(t, tx.Alias.Scheme)
+
+		err = expected.GenerateID(expected.Alias.Scheme)
+		require.NoError(t, err)
+		err = tx.GenerateID(expected.Alias.Scheme)
+		require.NoError(t, err)
+		require.Equal(t, expected.Alias.Scheme, tx.Alias.Scheme)
+
+		assert.Equal(t, expected, tx)
+	}
+
 	for _, tc := range tests {
 		a := NewAlias(tc.scheme, tc.alias)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedCreateAliasWithProofs(2, pk, *a, tc.fee, ts)
-		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":10,\"version\":2,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), a.String(), tc.fee, ts)
-			assert.Equal(t, ej, string(j))
-			if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
-				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":10,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
-					assert.Equal(t, esj, string(sj))
-				}
-			}
-		}
+		testName := func(base string) string { return fmt.Sprintf("%s-%c-%s", base, tc.scheme, tc.alias) }
+
+		t.Run(testName("Unsigned"), func(t *testing.T) {
+			tx := NewUnsignedCreateAliasWithProofs(2, pk, *a, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":10,\"version\":2,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+				base58.Encode(pk[:]), a.Alias, tc.fee, ts)
+			j, err := json.Marshal(tx)
+			require.NoError(t, err)
+			assert.JSONEq(t, ej, string(j))
+
+			checkUnmarshal(t, []byte(ej), tx)
+		})
+
+		t.Run(testName("Signed"), func(t *testing.T) {
+			tx := NewUnsignedCreateAliasWithProofs(2, pk, *a, tc.fee, ts)
+			err := tx.Sign(tc.scheme, sk)
+			require.NoError(t, err)
+			esj := fmt.Sprintf("{\"type\":10,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+				base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), a.Alias, tc.fee, ts)
+			sj, err := json.Marshal(tx)
+			require.NoError(t, err)
+			assert.JSONEq(t, esj, string(sj))
+
+			checkUnmarshal(t, []byte(esj), tx)
+		})
 	}
 }
 
@@ -6655,4 +6716,24 @@ func TestEthereumGetSenderAndFromPK(t *testing.T) {
 	actualAddr, err := tx.GetSender(TestNetScheme)
 	require.NoError(t, err)
 	require.Equal(t, ethereumAddr, actualAddr)
+}
+
+func TestShadowedCreateAliasWithProofs_DoesNotImplementJSONMarshaler(t *testing.T) {
+	// this test is necessary check for correct shadowing in CreateAliasWithProofs.MarshalJSON method
+	type shadowed CreateAliasWithProofs
+	var v shadowed
+	_, typeImplements := interface{}(v).(json.Marshaler)
+	require.False(t, typeImplements, "type must not implement Marshaler")
+	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	require.False(t, pointerImlements, "pointer must not implement Marshaler")
+}
+
+func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) {
+	// this test is necessary check for correct shadowing in CreateAliasWithSig.MarshalJSON method
+	type shadowed CreateAliasWithSig
+	var v shadowed
+	_, typeImplements := interface{}(v).(json.Marshaler)
+	require.False(t, typeImplements, "type must not implement Marshaler")
+	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	require.False(t, pointerImlements, "pointer must not implement Marshaler")
 }

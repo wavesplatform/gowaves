@@ -227,7 +227,7 @@ func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
 	if tx.ChainId().Cmp(big.NewInt(int64(scheme))) != 0 {
 		// TODO: introduce new error type for scheme validation
 		txChainID := tx.ChainId().Uint64()
-		return nil, errs.NewTxValidationError(fmt.Sprintf(
+		return tx, errs.NewTxValidationError(fmt.Sprintf(
 			"Address belongs to another network: expected: %d(%c), actual: %d(%c)",
 			scheme, scheme,
 			txChainID, txChainID,
@@ -235,44 +235,44 @@ func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
 	}
 	// accept only EthereumLegacyTxType (this check doesn't exist in scala)
 	if tx.EthereumTxType() != EthereumLegacyTxType {
-		return nil, errs.NewTxValidationError("the ethereum transaction's type is not legacy tx")
+		return tx, errs.NewTxValidationError("the ethereum transaction's type is not legacy tx")
 	}
 	// max size of EthereumTransaction is 1Mb (this check doesn't exist in scala)
 	if tx.innerBinarySize > 1024*1024 {
-		return nil, errs.NewTxValidationError("too big size of transaction")
+		return tx, errs.NewTxValidationError("too big size of transaction")
 	}
 	// insufficient fee
 	if tx.Gas() <= 0 {
-		return nil, errs.NewFeeValidation("insufficient fee")
+		return tx, errs.NewFeeValidation("insufficient fee")
 	}
 	// too many waves (this check doesn't exist in scala)
 	wavelets, err := EthereumWeiToWavelet(tx.Value())
 	if err != nil {
-		return nil, errs.NewFeeValidation(err.Error())
+		return tx, errs.NewFeeValidation(err.Error())
 	}
 	// non positive amount
 	if wavelets < 0 {
-		return nil, errs.NewNonPositiveAmount(wavelets, "waves")
+		return tx, errs.NewNonPositiveAmount(wavelets, "waves")
 	}
 	// a cancel transaction: value == 0 && data == 0x
 	if tx.Value().Cmp(big0) == 0 && len(tx.Data()) == 0 {
-		return nil, errs.NewTxValidationError("Transaction cancellation is not supported")
+		return tx, errs.NewTxValidationError("Transaction cancellation is not supported")
 	}
 	// either data or value field is set
 	if tx.Value().Cmp(big0) != 0 && len(tx.Data()) != 0 {
-		return nil, errs.NewTxValidationError("Transaction should have either data or value")
+		return tx, errs.NewTxValidationError("Transaction should have either data or value")
 	}
 	// gasPrice == 10GWei
 	if tx.GasPrice().Cmp(new(big.Int).SetUint64(EthereumGasPrice)) != 0 {
-		return nil, errs.NewTxValidationError("Gas price must be 10 Gwei")
+		return tx, errs.NewTxValidationError("Gas price must be 10 Gwei")
 	}
 	// deny a contract creation transaction (this check doesn't exist in scala)
 	if tx.To() == nil {
-		return nil, errs.NewTxValidationError("Contract creation transaction is not supported")
+		return tx, errs.NewTxValidationError("Contract creation transaction is not supported")
 	}
 	// positive timestamp (this check doesn't exist in scala)
 	if tx.Nonce() <= 0 {
-		return nil, errs.NewTxValidationError("invalid timestamp")
+		return tx, errs.NewTxValidationError("invalid timestamp")
 	}
 	return tx, nil
 }

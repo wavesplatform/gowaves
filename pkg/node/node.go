@@ -2,12 +2,12 @@ package node
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"

@@ -17,7 +17,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -287,9 +286,7 @@ func TestBroadcast(t *testing.T) {
 	h := mock.NewMockGrpcHandlers(ctrl)
 	h.EXPECT().Broadcast(gomock.Any(), gomock.Any()).Return(&pb.SignedTransaction{}, nil)
 
-	server, err := NewServerWithHandlers(services.Services{}, h)
-	require.NoError(t, err)
-
+	gRPCServer := createGRPCServerWithHandlers(h)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -297,11 +294,11 @@ func TestBroadcast(t *testing.T) {
 	require.NoError(t, err)
 	defer lis.Close()
 	go func() {
-		if err := server.Serve(lis); err != nil {
+		if err := gRPCServer.Serve(lis); err != nil {
 			log.Fatalf("server.Run(): %v\n", err)
 		}
 	}()
-	defer server.Stop()
+	defer gRPCServer.Stop()
 
 	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)

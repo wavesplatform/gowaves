@@ -3,6 +3,7 @@ package state_fsm
 import (
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -22,19 +23,42 @@ func newPeer(fsm FSM, p peer.Peer, peers peer_manager.PeerManager) (FSM, Async, 
 	return fsm, nil, nil
 }
 
-func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	t, err := t.Validate(baseInfo.scheme)
-	if err != nil {
+func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (_ FSM, _ Async, err error) {
+	defer func() {
+		if err != nil {
+			err = fsm.Errorf(proto.NewInfoMsg(err))
+		}
+	}()
+	if zap.S().Level() <= zap.DebugLevel {
+		defer func() {
+			if genIDErr := t.GenerateID(baseInfo.scheme); genIDErr != nil {
+				zap.S().Errorf("[%s] Failed to generate ID for transaction: %v", fsm.String(), genIDErr)
+				return
+			}
+			txIDBytes, getIDErr := t.GetID(baseInfo.scheme)
+			if getIDErr != nil {
+				zap.S().Errorf("[%s] Failed to get ID for transaction: %v", fsm.String(), getIDErr)
+				return
+			}
+			txID := base58.Encode(txIDBytes)
+			if err != nil {
+				err = errors.Wrapf(err, "Failed to broadcast transaction %q", txID)
+			} else {
+				zap.S().Debugf("[%s] Transaction %q broadcasted successfuly", fsm.String(), txID)
+			}
+		}()
+	}
+	if _, err := t.Validate(baseInfo.scheme); err != nil {
 		err = errors.Wrap(err, "Failed to validate transaction")
 		if p != nil {
 			baseInfo.peers.AddToBlackList(p, time.Now(), err.Error())
 		}
-		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
+		return fsm, nil, err
 	}
 
 	if err := baseInfo.utx.Add(t); err != nil {
 		err = errors.Wrap(err, "Failed to add transaction to utx")
-		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
+		return fsm, nil, err
 	}
 	baseInfo.BroadcastTransaction(t, p)
 	return fsm, nil, nil

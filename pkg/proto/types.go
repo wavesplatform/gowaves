@@ -69,7 +69,7 @@ type Score = big.Int
 type Scheme = byte
 type Height = uint64
 
-var jsonNullBytes = []byte("null")
+var jsonNullBytes = []byte(jsonNull)
 
 type Bytes []byte
 
@@ -1869,7 +1869,8 @@ func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
 	}
-	// TODO(nickeskov): Should we validate 'V' signature value?
+	// we don't have to validate V param here because in ethereum it's used to chainID verification (mostly),
+	// but we have own scheme validation in ethereumTypedDataHash
 	_, r, s := o.Eip712Signature.AsVRS()
 	return VerifyEthereumSignature(o.SenderPK.inner, r, s, hash[:]), nil
 }
@@ -3088,6 +3089,9 @@ func (s Script) String() string {
 
 // MarshalJSON writes Script as JSON
 func (s Script) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return jsonNullBytes, nil
+	}
 	var sb strings.Builder
 	sb.WriteRune('"')
 	sb.WriteString(s.String())
@@ -3101,14 +3105,17 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	if bytes.Equal(value, jsonNullBytes) {
 		return nil
 	}
+	if len(value) < len(scriptPrefixBytes)+2 { // +2 for quotes
+		return wrapError(errors.New("insufficient length"))
+	}
 	if value[0] != '"' || value[len(value)-1] != '"' {
 		return wrapError(errors.New("no quotes"))
 	}
 	value = value[1 : len(value)-1]
-	if !bytes.Equal(value[0:7], scriptPrefixBytes) {
+	if !bytes.Equal(value[0:len(scriptPrefixBytes)], scriptPrefixBytes) {
 		return wrapError(errors.New("no prefix"))
 	}
-	value = value[7:]
+	value = value[len(scriptPrefixBytes):]
 	sb := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
 	n, err := base64.StdEncoding.Decode(sb, value)
 	if err != nil {
@@ -3172,7 +3179,7 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
-	case "list":
+	case "list", "array":
 		r = &ListArgument{}
 	}
 	if r == nil {

@@ -39,12 +39,12 @@ gotest-race-coverage:
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -parallel 3 $$(go list ./... | grep "/itests")
+	go test -timeout 20m -parallel 3 $$(go list ./... | grep "/itests")
 
 itest-ci:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -parallel 1 $$(go list ./... | grep "/itests")
+	go test -timeout 30m -parallel 1 $$(go list ./... | grep "/itests")
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go" | grep -v ".*bn254/.*\.go"; if [ "$$?" = "0" ]; then exit 1; fi

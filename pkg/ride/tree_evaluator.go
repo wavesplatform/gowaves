@@ -350,13 +350,13 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	if !ok {
 		return nil, EvaluationFailure.Errorf("failed to get cost of system function '%s'", name)
 	}
-	defer func() {
-		e.cc.addNativeFunctionComplexity(cost)
-	}()
 	args, err := e.materializeArguments(arguments)
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
+	defer func() {
+		e.cc.addNativeFunctionComplexity(cost)
+	}()
 	r, err := f(e.env, args...)
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)

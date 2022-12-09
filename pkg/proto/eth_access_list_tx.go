@@ -1,10 +1,11 @@
 package proto
 
 import (
-	"github.com/pkg/errors"
-	"github.com/umbracle/fastrlp"
 	"io"
 	"math/big"
+
+	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 )
 
 // EthereumAccessList is an EIP-2930 access list.
@@ -159,7 +160,7 @@ func (tx *EthereumAccessListTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 		return errors.Wrap(err, "failed to parse accessList")
 	}
 
-	V, R, S, err := unmarshalSignatureValuesFastRLP(elems[8], elems[9], elems[10])
+	v, r, s, err := unmarshalSignatureValuesFastRLP(elems[8], elems[9], elems[10])
 	if err != nil {
 		return errors.Wrap(err, "failed to parse signature value")
 	}
@@ -173,9 +174,9 @@ func (tx *EthereumAccessListTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 		Value:      &weiAmount,
 		Data:       contractData,
 		AccessList: accessList,
-		V:          &V,
-		R:          &R,
-		S:          &S,
+		V:          &v,
+		R:          &r,
+		S:          &s,
 	}
 	return nil
 }

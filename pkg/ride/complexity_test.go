@@ -47,7 +47,7 @@ func checkFunctionCallComplexityV6(t *testing.T, code, fn string, fa proto.Argum
 }
 
 func TestSimpleScriptsComplexity(t *testing.T) {
-	env := newTestEnv(t).withTransaction(testTransferWithProofs(t)).toEnv()
+	env := newTestEnv(t).withLibVersion(ast.LibV4).withTransaction(testTransferWithProofs(t)).toEnv()
 	for _, test := range []struct {
 		comment    string
 		source     string

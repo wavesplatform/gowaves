@@ -46,20 +46,20 @@ func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthereumAddress,
 	return addrTo, nil
 }
 
-func unmarshalSignatureValuesFastRLP(vValue, rValue, sValue *fastrlp.Value) (V, R, S big.Int, err error) {
-	if getErr := vValue.GetBigInt(&V); getErr != nil {
+func unmarshalSignatureValuesFastRLP(vValue, rValue, sValue *fastrlp.Value) (v, r, s big.Int, err error) {
+	if getErr := vValue.GetBigInt(&v); getErr != nil {
 		return big.Int{}, big.Int{}, big.Int{}, errors.Wrap(getErr, "failed to parse signature value 'V'")
 	}
 
-	if getErr := rValue.GetBigInt(&R); getErr != nil {
+	if getErr := rValue.GetBigInt(&r); getErr != nil {
 		return big.Int{}, big.Int{}, big.Int{}, errors.Wrap(getErr, "failed to parse signature value 'R'")
 	}
 
-	if getErr := sValue.GetBigInt(&S); getErr != nil {
+	if getErr := sValue.GetBigInt(&s); getErr != nil {
 		return big.Int{}, big.Int{}, big.Int{}, errors.Wrap(getErr, "failed to parse signature value 'S'")
 	}
 
-	return V, R, S, nil
+	return v, r, s, nil
 }
 
 // copyBytes returns an exact copy of the provided bytes.
