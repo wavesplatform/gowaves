@@ -1076,6 +1076,7 @@ func NewEnvironmentWithWrappedState(
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		ver:                   env.ver,
 		isBlockV5Activated:    env.isBlockV5Activated,
 		isRideV6Activated:     env.isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,
@@ -1102,7 +1103,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
-	e.ver = v
+	e.setLibVersion(v)
 	if v > ast.LibV2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
@@ -1167,7 +1168,12 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 		return err
 	}
 	e.id = rideBytes(id)
-	obj, err := transactionToObject(e.sch, e.isInvokeExpressionActivated, tx)
+
+	ver, err := e.libVersion()
+	if err != nil {
+		return err
+	}
+	obj, err := transactionToObject(ver, e.sch, e.isInvokeExpressionActivated, tx)
 	if err != nil {
 		return err
 	}
@@ -1260,8 +1266,15 @@ func (e *EvaluationEnvironment) setInvocation(inv rideType) {
 	e.inv = inv
 }
 
-func (e *EvaluationEnvironment) libVersion() ast.LibraryVersion {
-	return e.ver
+func (e *EvaluationEnvironment) setLibVersion(v ast.LibraryVersion) {
+	e.ver = v
+}
+
+func (e *EvaluationEnvironment) libVersion() (ast.LibraryVersion, error) {
+	if e.ver == 0 {
+		return 0, errors.New("library version is uninitialized")
+	}
+	return e.ver, nil
 }
 
 func (e *EvaluationEnvironment) validateInternalPayments() bool {

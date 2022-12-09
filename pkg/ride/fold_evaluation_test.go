@@ -24,8 +24,8 @@ var (
 		stateFunc: func() types.SmartState {
 			return nativeFoldTestState
 		},
-		libVersionFunc: func() ast.LibraryVersion {
-			return ast.LibV5
+		libVersionFunc: func() (ast.LibraryVersion, error) {
+			return ast.LibV5, nil
 		},
 		rideV6ActivatedFunc: func() bool {
 			return true
