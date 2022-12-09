@@ -24,7 +24,6 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Issue
 		*utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
 		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 }
-
 func NewSignIssueTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.IssueTestData[T]) proto.Transaction {
 	var tx proto.Transaction
 	if version == 1 {
