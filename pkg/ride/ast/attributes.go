@@ -1,6 +1,10 @@
 package ast
 
-import "github.com/pkg/errors"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
 
 type ContentType byte
 
@@ -21,6 +25,21 @@ func NewContentType(b byte) (ContentType, error) {
 
 type LibraryVersion byte
 
+func (lv *LibraryVersion) UnmarshalJSON(data []byte) error {
+	var version byte
+	if err := json.Unmarshal(data, &version); err != nil {
+		return errors.Wrap(err, "unmarshal LibraryVersion failed")
+	}
+
+	v, err := NewLibraryVersion(version)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal LibraryVersion failed")
+	}
+
+	*lv = v
+	return nil
+}
+
 const (
 	LibV1 LibraryVersion = iota + 1
 	LibV2
@@ -29,6 +48,11 @@ const (
 	LibV5
 	LibV6
 )
+
+// CurrentMaxLibraryVersion reports the max lib version. Update it when a new version was added.
+func CurrentMaxLibraryVersion() LibraryVersion {
+	return LibV6
+}
 
 func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	lv := LibraryVersion(b)
