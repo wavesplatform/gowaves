@@ -38,7 +38,7 @@ func (st *VarStack) GetVariable(name string) (s.Variable, bool) {
 
 func (st *VarStack) GetFunc(name string) (s.FunctionParams, bool) {
 	for i := len(st.funcs) - 1; i >= 0; i-- {
-		if name == st.funcs[i].ID {
+		if name == st.funcs[i].ID.Name() {
 			return st.funcs[i], true
 		}
 	}

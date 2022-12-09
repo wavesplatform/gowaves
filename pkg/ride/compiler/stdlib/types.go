@@ -1,65 +1,19 @@
 package stdlib
 
-//go:generate peg -output=type.peg.go type.peg
-
 import (
-	"embed"
-	"encoding/json"
 	"reflect"
 
 	"github.com/pkg/errors"
 )
 
-//go:embed funcs.json
-var embedFunc embed.FS
-
-var Funcs = mustLoadFuncs()
-
-type FunctionsSignaturesJson struct {
-	Funcs map[string]FunctionParamsJson `json:"funcs"`
-}
-
-type FunctionParamsJson struct {
-	ID         string   `json:"id"`
-	Arguments  []string `json:"arguments"`
-	ReturnType string   `json:"return_type"`
-}
-
-type FunctionsSignatures struct {
-	Funcs map[string]FunctionParams
-}
-
-type FunctionParams struct {
-	ID         string
-	Arguments  []Type
-	ReturnType Type
-}
-
-func mustLoadFuncs() *FunctionsSignatures {
-	f, err := embedFunc.ReadFile("funcs.json")
-	if err != nil {
-		panic(err)
-	}
-	s := &FunctionsSignaturesJson{}
-	if err = json.Unmarshal(f, s); err != nil {
-		panic(err)
-	}
-	res := &FunctionsSignatures{
-		Funcs: map[string]FunctionParams{},
-	}
-	for k, v := range s.Funcs {
-		var args []Type
-		for _, a := range v.Arguments {
-			args = append(args, ParseType(a))
-		}
-		res.Funcs[k] = FunctionParams{
-			ID:         v.ID,
-			Arguments:  args,
-			ReturnType: ParseType(v.ReturnType),
-		}
-	}
-	return res
-}
+var (
+	Any            = SimpleType{"Any"}
+	BooleanType    = SimpleType{"Boolean"}
+	IntType        = SimpleType{"Int"}
+	StringType     = SimpleType{"String"}
+	ByteVectorType = SimpleType{"ByteVector"}
+	BigIntType     = SimpleType{"BigInt"}
+)
 
 func ParseType(t string) Type {
 	p := Types{Buffer: t}
@@ -142,15 +96,6 @@ func handleGeneric(node *node32, t string) Type {
 	return ListType{Type: handleTypes(curNode, t)}
 }
 
-var (
-	Any            = SimpleType{"Any"}
-	BooleanType    = SimpleType{"Boolean"}
-	IntType        = SimpleType{"Int"}
-	StringType     = SimpleType{"String"}
-	ByteVectorType = SimpleType{"ByteVector"}
-	BigIntType     = SimpleType{"BigInt"}
-)
-
 type Type interface {
 	Comp(Type) bool
 	String() string
@@ -170,6 +115,9 @@ func (t SimpleType) Comp(rideType Type) bool {
 	T, ok := rideType.(SimpleType)
 	if !ok {
 		return false
+	}
+	if T.Type == "Any" {
+		return true
 	}
 	return t.Type == T.Type
 }

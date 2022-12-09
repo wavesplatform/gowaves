@@ -283,7 +283,60 @@ func TestBuildInVars(t *testing.T) {
 
 		code := DappV6Directive + test.code
 		rawAST, buf, err := buildAST(t, code, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
+func TestFuncCalls(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`let a = 1.toBytes()`, false, "BgICCAIBAAFhCQCaAwEAAQAAWQ+cBQ=="},
+		{`let a = addressFromPublicKey(base58'')`, false, "BgICCAIBAAFhCQCnCAEBAAAAG+9EKQ=="},
+	} {
+
+		code := DappV6Directive + test.code
+		rawAST, buf, err := buildAST(t, code, false)
+		require.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
+func TestFuncCallsPrevVers(t *testing.T) {
+	// addressFromPublicKey has id "addressFromPublicKey" up to version 6, and in 6 version id = 1063
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = addressFromPublicKey(base58'')`, false, "AAIEAAAAAAAAAAIIAgAAAAEAAAAAAWEJAQAAABRhZGRyZXNzRnJvbVB1YmxpY0tleQAAAAEBAAAAAAAAAAAAAAAATbuPXQ=="},
+	} {
+
+		rawAST, buf, err := buildAST(t, test.code, false)
+		require.NoError(t, err)
 		astParser := NewASTParser(rawAST, buf)
 		astParser.Parse()
 		if !test.fail {

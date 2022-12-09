@@ -78,7 +78,7 @@ NotOp <- '!'
 
 ReservedWords <- 'let' / 'strict' / 'base16' / 'base58' / 'base64' / 'true' / 'false' / 'if' / 'then' / 'else' / 'match' / 'case' / 'func' / 'FOLD'
 
-Const <- Integer / String / ByteVector / Boolean
+Const <- Integer / String / ByteVector / Boolean / List / Tuple
 Identifier <- (!ReservedWords ([A-Za-z] / [_] &[A-Za-z]) ([A-Za-z0-9] / ([_] ![_]))*) / (ReservedWords (([A-Za-z0-9]) / ([_] ![_]))+)
 
 # Types
@@ -106,7 +106,7 @@ List <- '[' _ ExprSeq? _ ']'
 ExprSeq <- Expr (_ ',' _ ExprSeq)?
 
 # Expressions
-AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match / Const / List / Tuple)
+AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ListGroupOpAtom <- SumGroupOpAtom (_ ListGroupOp _ SumGroupOpAtom)*
@@ -118,7 +118,7 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 Expr <- OrOpAtom
 ParExpr <- '(' _ Expr _ ')'
 
-GettableExpr <- (ParExpr / Block / FunctionCall / Identifier / List / Tuple) (_ (ListAccess / ('.' _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / Identifier / Const) (_ (ListAccess / ('.' _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
 FunctionCallAccess <- FunctionCall
 IdentifierAccess <- Identifier
 ListAccess <- '[' _ (Expr / Identifier) _ ']'
@@ -138,9 +138,9 @@ Match <- 'match' _ Expr _ '{' (_ Case)+ _ '}'
 Case <- 'case' _ (ValuePattern / TuplePattern / ObjectPattern / Placeholder) _ '=>' _ (Block / BlockWithoutPar)
 Placeholder <- '_'
 ValuePattern <- (Placeholder / Identifier) _ ':' _ Types
-TupleValuesPattern <- (ValuePattern / Placeholder / Expr/ Const / GettableExpr) (_ ',' _ TupleValuesPattern)?
+TupleValuesPattern <- (ValuePattern / Placeholder / Expr/ GettableExpr) (_ ',' _ TupleValuesPattern)?
 TuplePattern <- '(' _ TupleValuesPattern _ ')'
-ObjectFieldsPattern <- (Identifier _ '=' _ (Expr/ Const / GettableExpr)) (_ ',' _ ObjectFieldsPattern)?
+ObjectFieldsPattern <- (Identifier _ '=' _ (Expr / GettableExpr)) (_ ',' _ ObjectFieldsPattern)?
 ObjectPattern <- Identifier _ '('_ ObjectFieldsPattern _ ')'
 
 Tuple <- '(' _ AtomExpr (_ ',' _ AtomExpr)+ _ ')'
