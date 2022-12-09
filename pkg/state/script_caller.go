@@ -152,7 +152,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
+func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, setTx func(*ride.EvaluationEnvironment) error, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
 	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID))
 	if err != nil {
 		return nil, err
@@ -160,6 +160,12 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
+
+	// Set transaction only after library version is set by `env.ChooseSizeCheck`
+	if err = setTx(env); err != nil {
+		return nil, err
+	}
+
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		assetInfo, err := a.state.NewestAssetInfo(assetID)
@@ -210,8 +216,11 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 	if err != nil {
 		return nil, err
 	}
-	env.SetTransactionFromScriptTransfer(tr)
-	return a.callAssetScriptCommon(env, assetID, params)
+	setTx := func(env *ride.EvaluationEnvironment) error {
+		env.SetTransactionFromScriptTransfer(tr)
+		return nil
+	}
+	return a.callAssetScriptCommon(env, setTx, assetID, params)
 }
 
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
@@ -226,11 +235,11 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	if err != nil {
 		return nil, err
 	}
-	err = env.SetTransactionWithoutProofs(tx)
-	if err != nil {
-		return nil, err
+
+	setTx := func(env *ride.EvaluationEnvironment) error {
+		return env.SetTransactionWithoutProofs(tx)
 	}
-	return a.callAssetScriptCommon(env, assetID, params)
+	return a.callAssetScriptCommon(env, setTx, assetID, params)
 }
 
 func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
@@ -248,13 +257,14 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(info.blockInfo)
 	env.SetTimestamp(tx.GetTimestamp())
+	env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return nil, err
 	}
-	env.ChooseSizeCheck(tree.LibVersion)
-	env.ChooseTakeString(info.rideV5Activated)
-	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 	var (
 		functionName      string
