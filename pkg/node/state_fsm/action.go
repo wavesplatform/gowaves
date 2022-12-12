@@ -36,7 +36,7 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		peer.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
+	zap.S().Debugf("Network message '%T' sent to %d peers: currentScore=%s", msg, cnt, curScore)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
@@ -65,5 +65,5 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		p.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
+	zap.S().Debugf("Network message '%T' sent to %d peers: blockID='%s'", msg, cnt, block.BlockID())
 }
