@@ -139,7 +139,7 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 				Description:    "Cats are the best",
 				Decimals:       6,
 				Reissuable:     true,
-				CompiledScript: &expectedScript,
+				CompiledScript: expectedScript,
 			},
 			{
 				AssetID:        expectedAssetId,

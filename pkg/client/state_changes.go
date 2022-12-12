@@ -23,7 +23,7 @@ type IssueAction struct {
 	Decimals       int32         `json:"decimals"`
 	Quantity       int64         `json:"quantity"`
 	Reissuable     bool          `json:"isReissuable"`
-	CompiledScript *[]byte       `json:"compiledScript"` // optional
+	CompiledScript []byte        `json:"compiledScript"` // optional
 	Nonce          int64         `json:"nonce"`
 }
 
