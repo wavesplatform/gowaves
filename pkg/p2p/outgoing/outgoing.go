@@ -48,7 +48,12 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	}
 	p.connection = connection
 
-	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
+	peerImpl, err := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
+	if err != nil {
+		_ = c.Close() // TODO: handle error
+		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", params.Address, err)
+		return errors.Wrapf(err, "failed to establish connection to %s", params.Address.String())
+	}
 
 	connected := peer.InfoMessage{
 		Peer: peerImpl,
