@@ -264,40 +264,6 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstGoMsg:    "",
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		/*"Custom chainID": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
-			assetID,
-			100000,
-			utl.GetCurrentTimestampInMs(),
-			'T',
-			10000000,
-			true,
-			ReissueExpectedValuesNegative{
-				WavesDiffBalance:  0,
-				AssetDiffBalance:  0,
-				Reissuable:        true,
-				ErrGoMsg:          errMsg,
-				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
-			}),
-		"Invalid chainID (value=0)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
-			assetID,
-			100000,
-			utl.GetCurrentTimestampInMs(),
-			0,
-			10000000,
-			true,
-			ReissueExpectedValuesNegative{
-				WavesDiffBalance:  0,
-				AssetDiffBalance:  0,
-				Reissuable:        true,
-				ErrGoMsg:          errMsg,
-				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
-			}),*/
 		"Reissue by another account": *NewReissueTestData(
 			utl.GetAccount(suite, 3),
 			assetID,
@@ -331,6 +297,46 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Referenced assetId not found",
+			}),
+	}
+	return t
+}
+
+func GetReissueChainIDNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
+	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
+		"Custom chainID": *NewReissueTestData(
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			'T',
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				Reissuable:        true,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
+			}),
+		"Invalid chainID (value=0)": *NewReissueTestData(
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			0,
+			10000000,
+			true,
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				Reissuable:        true,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
 			}),
 	}
 	return t

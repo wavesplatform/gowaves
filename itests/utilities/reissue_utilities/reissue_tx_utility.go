@@ -10,14 +10,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
 
 // MakeTxAndGetDiffBalances This function returns txID with difference balances after tx for both nodes
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
-	timeout time.Duration, positive bool, madeTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	timeout time.Duration, positive bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
 	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
-	tx := madeTx(suite, testdata, version, timeout, positive)
+	tx := makeTx(suite, testdata, version, timeout, positive)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
