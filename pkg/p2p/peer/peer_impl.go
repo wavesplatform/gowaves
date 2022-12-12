@@ -13,17 +13,21 @@ import (
 )
 
 type peerImplID struct {
-	addr  net.Addr
+	addr  string
 	nonce uint64
 }
 
 func newPeerImplID(addr net.Addr, nonce uint64) peerImplID {
-	return peerImplID{addr: addr, nonce: nonce}
+	a := addr.String()
+	if idx := strings.LastIndexByte(a, ':'); idx != -1 {
+		a = a[:idx]               // "192.0.2.1:25" -> "192.0.2.1"; "[2001:db8::1]:80 -> "[2001:db8::1]"
+		a = strings.Trim(a, "[]") // for IPV4 - no changes, for IPV6 "[2001:db8::1]" -> "2001:db8::1"
+	}
+	return peerImplID{addr: a, nonce: nonce}
 }
 
 func (id peerImplID) String() string {
-	a := strings.Split(id.addr.String(), ":")[0]
-	return fmt.Sprintf("%s-%d", a, id.nonce)
+	return fmt.Sprintf("%s-%d", id.addr, id.nonce)
 }
 
 type PeerImpl struct {
