@@ -254,7 +254,9 @@ func (a *NGFsm) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
 		cnt++
 	})
 	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
-	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
+	zap.S().Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
+		msg, cnt, inv.TotalBlockID, inv.Reference,
+	)
 	return nil
 }
 
