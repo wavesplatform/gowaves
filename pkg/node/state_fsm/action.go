@@ -28,10 +28,15 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		zap.S().Errorf("Failed to get current score: %v", err)
 		return
 	}
-	bts := curScore.Bytes()
+	var (
+		msg = &proto.ScoreMessage{Score: curScore.Bytes()}
+		cnt int
+	)
 	a.services.Peers.EachConnected(func(peer peer.Peer, score *proto.Score) {
-		peer.SendMessage(&proto.ScoreMessage{Score: bts})
+		peer.SendMessage(msg)
+		cnt++
 	})
+	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
