@@ -94,6 +94,7 @@ func (suite *ReissueTxSuite) Test_ReissueNegative() {
 		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, 15*timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala, "Issue: "+itx.TxID.String(), "Version", v)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
+		//TODO (ipereiaslavskaia) For v1 of reissue tx negative cases for chainID will be ignored
 		if v >= 2 {
 			maps.Copy(tdmatrix, testdata.GetReissueChainIDNegativeDataMatrix(&suite.BaseSuite, itx.TxID))
 		}
