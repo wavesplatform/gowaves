@@ -103,11 +103,6 @@ type InvokeAction struct {
 	StateChanges StateChanges          `json:"stateChanges"`
 }
 
-type ErrorMessage struct {
-	Code uint32 `json:"code"`
-	Text string `json:"text"`
-}
-
 type StateChanges struct {
 	Data         DataEntries         `json:"data"`
 	Transfers    []TransferAction    `json:"transfers"`
@@ -118,5 +113,4 @@ type StateChanges struct {
 	Leases       []LeaseAction       `json:"leases"`
 	LeaseCancels []LeaseCancelAction `json:"leaseCancels"`
 	Invokes      []InvokeAction      `json:"invokes"`
-	Error        *ErrorMessage       `json:"error"`
 }
