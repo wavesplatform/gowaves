@@ -107,10 +107,10 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
-		zap.S().Debugf("Key-block '%s' has parent '%s' which is not the top block '%s'",
-			block.ID.String(), block.Parent.String(), top.ID.String())
+		zap.S().Debugf("[%s] Key-block '%s' has parent '%s' which is not the top block '%s'",
+			a, block.ID.String(), block.Parent.String(), top.ID.String())
 		if blockFromCache, ok := a.blocksCache.Get(block.Parent); ok {
-			zap.S().Debugf("Re-applying block '%s' from cache", blockFromCache.ID.String())
+			zap.S().Debugf("[%s] Re-applying block '%s' from cache", a, blockFromCache.ID.String())
 			err := a.rollbackToStateFromCache(blockFromCache)
 			if err != nil {
 				return a, nil, a.Errorf(err)
@@ -124,6 +124,7 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
 	}
 	metrics.FSMKeyBlockApplied("ng", block)
+	zap.S().Debugf("[%s] Handle received key block message: block '%s' applied to state", a, block.BlockID())
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
@@ -143,12 +144,12 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 		return err
 	})
 	if err != nil {
-		zap.S().Warnf("Failed to apply mined block '%s': %v", block.ID.String(), err)
+		zap.S().Warnf("[%s] Failed to apply mined block '%s': %v", a, block.ID.String(), err)
 		metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, a.Errorf(err)
 	}
-	zap.S().Infof("Key block '%s' generated and applied", block.ID.String())
 	metrics.FSMKeyBlockApplied("ng", block)
+	zap.S().Infof("[%s] Generating key block: block '%s' applied to state", a, block.ID.String())
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
