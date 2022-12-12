@@ -47,13 +47,18 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		return
 	}
 
+	var (
+		msg proto.Message
+		cnt int
+	)
 	if activated {
-		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-			p.SendMessage(&proto.PBBlockMessage{PBBlockBytes: bts})
-		})
+		msg = &proto.PBBlockMessage{PBBlockBytes: bts}
 	} else {
-		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-			p.SendMessage(&proto.BlockMessage{BlockBytes: bts})
-		})
+		msg = &proto.BlockMessage{BlockBytes: bts}
 	}
+	a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+		p.SendMessage(msg)
+		cnt++
+	})
+	zap.S().Debugf("Network message '%T' sent to %d peers", msg, cnt)
 }
