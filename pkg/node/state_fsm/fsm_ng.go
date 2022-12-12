@@ -244,8 +244,7 @@ func (a *NGFsm) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
 		}
 	)
 	a.baseInfo.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-		msg := *msg
-		p.SendMessage(&msg)
+		p.SendMessage(msg)
 		cnt++
 	})
 	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
