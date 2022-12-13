@@ -61,3 +61,27 @@ func TestPeerImplID(t *testing.T) {
 		})
 	}
 }
+
+func TestPeerImplId_InMap(t *testing.T) {
+	const (
+		net  = "tcp"
+		addr = "127.0.0.1:8080"
+	)
+	type noncePair struct{ first, second uint64 }
+	for i, np := range []noncePair{{100, 500}, {100, 100}} {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			first, err := newPeerImplID(netAddr{net: net, addr: addr}, np.first)
+			require.NoError(t, err)
+			second, err := newPeerImplID(netAddr{net: net, addr: addr}, np.second)
+			require.NoError(t, err)
+
+			m := map[ID]struct{}{first: {}}
+			_, ok := m[second]
+			if unique := np.first != np.second; unique {
+				assert.False(t, ok)
+			} else {
+				assert.True(t, ok)
+			}
+		})
+	}
+}
