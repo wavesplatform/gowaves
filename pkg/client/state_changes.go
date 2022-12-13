@@ -21,8 +21,10 @@ type IssueAction struct {
 	Name           string        `json:"name"`
 	Description    string        `json:"description"`
 	Decimals       int32         `json:"decimals"`
+	Quantity       int64         `json:"quantity"`
 	Reissuable     bool          `json:"isReissuable"`
-	CompiledScript []byte        `json:"compiledScript"`
+	CompiledScript []byte        `json:"compiledScript"` // optional
+	Nonce          int64         `json:"nonce"`
 }
 
 type ReissueAction struct {
@@ -38,7 +40,7 @@ type BurnAction struct {
 
 type SponsorFeeAction struct {
 	AssetID              crypto.Digest `json:"assetId"`
-	MinSponsoredAssetFee int64         `json:"minSponsoredAssetFee"`
+	MinSponsoredAssetFee *int64        `json:"minSponsoredAssetFee"` // optional
 }
 
 type LeaseAction struct {
@@ -49,8 +51,8 @@ type LeaseAction struct {
 	Amount              int64              `json:"amount"`
 	Height              uint32             `json:"height"`
 	Status              LeaseStatus        `json:"status"`
-	CancelHeight        *uint32            `json:"cancelHeight,omitempty"`
-	CancelTransactionId *crypto.Digest     `json:"cancelTransactionId,omitempty"`
+	CancelHeight        *uint32            `json:"cancelHeight,omitempty"`        // optional
+	CancelTransactionId *crypto.Digest     `json:"cancelTransactionId,omitempty"` // optional
 }
 
 type LeaseStatus byte
@@ -92,9 +94,7 @@ func (s LeaseStatus) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.Quote(s.String())), nil
 }
 
-type LeaseCancelAction struct {
-	LeaseID crypto.Digest `json:"leaseId"`
-}
+type LeaseCancelAction LeaseAction
 
 type InvokeAction struct {
 	DApp         proto.WavesAddress    `json:"dApp"`
@@ -104,13 +104,13 @@ type InvokeAction struct {
 }
 
 type StateChanges struct {
-	Data        DataEntries         `json:"data"`
-	Transfers   []TransferAction    `json:"transfers"`
-	Issues      []IssueAction       `json:"issues"`
-	Reissues    []ReissueAction     `json:"reissues"`
-	Burns       []BurnAction        `json:"burns"`
-	SponsorFees []SponsorFeeAction  `json:"sponsorFees"`
-	Leases      []LeaseAction       `json:"leases"`
-	LeaseCancel []LeaseCancelAction `json:"leaseCancel"`
-	Invokes     []InvokeAction      `json:"invokes"`
+	Data         DataEntries         `json:"data"`
+	Transfers    []TransferAction    `json:"transfers"`
+	Issues       []IssueAction       `json:"issues"`
+	Reissues     []ReissueAction     `json:"reissues"`
+	Burns        []BurnAction        `json:"burns"`
+	SponsorFees  []SponsorFeeAction  `json:"sponsorFees"`
+	Leases       []LeaseAction       `json:"leases"`
+	LeaseCancels []LeaseCancelAction `json:"leaseCancels"`
+	Invokes      []InvokeAction      `json:"invokes"`
 }
