@@ -37,6 +37,12 @@ type ReissueExpectedValuesNegative struct {
 	_                 struct{}
 }
 
+type ReissueNotReissuableExpectedValuesNegative struct {
+	Positive ReissueExpectedValuesPositive
+	Negative ReissueExpectedValuesNegative
+	_        struct{}
+}
+
 func NewReissueTestData[T any](account config.AccountInfo, assetID crypto.Digest, fee uint64, timestamp uint64,
 	chainID proto.Scheme, quantity uint64, reissuable bool, expected T) *ReissueTestData[T] {
 	return &ReissueTestData[T]{
@@ -49,6 +55,11 @@ func NewReissueTestData[T any](account config.AccountInfo, assetID crypto.Digest
 		Reissuable: reissuable,
 		Expected:   expected,
 	}
+}
+
+func ReissueDataChangedTimestamp[T any](td *ReissueTestData[T]) ReissueTestData[T] {
+	return *NewReissueTestData(td.Account, td.AssetID, td.Fee, utl.GetCurrentTimestampInMs(),
+		td.ChainID, td.Quantity, td.Reissuable, td.Expected)
 }
 
 func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesPositive] {
@@ -121,6 +132,35 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Asset is not reissuable",
+			}),
+	}
+	return t
+}
+
+func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative] {
+	var t = map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative]{
+		"Reissue not reissuable token": *NewReissueTestData(
+			utl.GetAccount(suite, 2),
+			assetID,
+			100000,
+			utl.GetCurrentTimestampInMs(),
+			TestChainID,
+			100000,
+			false,
+			ReissueNotReissuableExpectedValuesNegative{
+				Positive: ReissueExpectedValuesPositive{
+					WavesDiffBalance: 100000,
+					AssetDiffBalance: 100000,
+				},
+				Negative: ReissueExpectedValuesNegative{
+					WavesDiffBalance:  0,
+					AssetDiffBalance:  0,
+					Reissuable:        false,
+					ErrGoMsg:          errMsg,
+					ErrScalaMsg:       errMsg,
+					ErrBrdCstGoMsg:    errBrdCstMsg,
+					ErrBrdCstScalaMsg: "Asset is not reissuable",
+				},
 			}),
 	}
 	return t
