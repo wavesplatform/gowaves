@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	CommonSymbolSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	CommonSymbolSet  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	LettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 type Response struct {
@@ -61,6 +62,13 @@ func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
 	}
 }
 
+func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
+	return &BalanceInAsset{
+		BalanceInAssetGo:    balanceGo,
+		BalanceInAssetScala: balanceScala,
+	}
+}
+
 func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,
 	errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
 	return &ConsideredTransaction{
@@ -99,8 +107,22 @@ func GetTransactionJsonOrErrMsg(tx proto.Transaction) string {
 	return result
 }
 
+func RandDigest(t *testing.T, n int, symbolSet string) crypto.Digest {
+	id, err := crypto.NewDigestFromBytes([]byte(RandStringBytes(n, symbolSet)))
+	require.NoError(t, err, "Failed to create random Digest")
+	return id
+}
+
 func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
+}
+
+// Abs returns the absolute value of x.
+func Abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // AddNewAccount function creates and adds new AccountInfo to suite accounts list. Returns index of new account in
@@ -171,9 +193,16 @@ func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId cry
 
 func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) (int64, int64) {
 	currentBalanceInWavesGo, currentBalanceInWavesScala := GetAvailableBalanceInWaves(suite, address)
-	actualDiffBalanceInWavesGo := initBalanceGo - currentBalanceInWavesGo
-	actualDiffBalanceInWavesScala := initBalanceScala - currentBalanceInWavesScala
+	actualDiffBalanceInWavesGo := Abs(initBalanceGo - currentBalanceInWavesGo)
+	actualDiffBalanceInWavesScala := Abs(initBalanceScala - currentBalanceInWavesScala)
 	return actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala
+}
+
+func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest, initBalanceGo, initBalanceScala int64) (int64, int64) {
+	currentBalanceInAssetGo, currentBalanceInAssetScala := GetAssetBalance(suite, address, assetId)
+	actualDiffBalanceInAssetGo := Abs(currentBalanceInAssetGo - initBalanceGo)
+	actualDiffBalanceInAssetScala := Abs(currentBalanceInAssetScala - initBalanceScala)
+	return actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala
 }
 
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,

@@ -10,13 +10,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
 
 // MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
-	timeout time.Duration, positive bool, madeTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+	timeout time.Duration, positive bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
-	tx := madeTx(suite, testdata, version, timeout, positive)
+	tx := makeTx(suite, testdata, version, timeout, positive)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
