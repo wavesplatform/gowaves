@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	CommonSymbolSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	CommonSymbolSet  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	LettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 type Response struct {
@@ -106,6 +107,12 @@ func GetTransactionJsonOrErrMsg(tx proto.Transaction) string {
 	return result
 }
 
+func RandDigest(t *testing.T, n int, symbolSet string) crypto.Digest {
+	id, err := crypto.NewDigestFromBytes([]byte(RandStringBytes(n, symbolSet)))
+	require.NoError(t, err, "Failed to create random Digest")
+	return id
+}
+
 func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
 }
@@ -186,8 +193,8 @@ func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId cry
 
 func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) (int64, int64) {
 	currentBalanceInWavesGo, currentBalanceInWavesScala := GetAvailableBalanceInWaves(suite, address)
-	actualDiffBalanceInWavesGo := initBalanceGo - currentBalanceInWavesGo
-	actualDiffBalanceInWavesScala := initBalanceScala - currentBalanceInWavesScala
+	actualDiffBalanceInWavesGo := Abs(initBalanceGo - currentBalanceInWavesGo)
+	actualDiffBalanceInWavesScala := Abs(initBalanceScala - currentBalanceInWavesScala)
 	return actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala
 }
 

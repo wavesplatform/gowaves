@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -18,6 +19,7 @@ var (
 	height           = flag.Uint64("height", 0, "Height to rollback")
 	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	buildStateHashes = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
+	cfgPath          = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 )
 
 func main() {
@@ -35,11 +37,25 @@ func main() {
 		zap.S().Fatalf("Initialization error: %v", err)
 	}
 
-	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
-	if err != nil {
-		zap.S().Error(err)
-		return
+	var cfg *settings.BlockchainSettings
+	if *cfgPath != "" {
+		f, err := os.Open(*cfgPath)
+		if err != nil {
+			zap.S().Fatalf("Failed to open configuration file: %v", err)
+		}
+		defer func() { _ = f.Close() }()
+		cfg, err = settings.ReadBlockchainSettings(f)
+		if err != nil {
+			zap.S().Fatalf("Failed to read configuration file: %v", err)
+		}
+	} else {
+		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
+
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.BuildStateHashes = *buildStateHashes
