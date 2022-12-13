@@ -18,7 +18,6 @@ type IssueTxSuite struct {
 
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	versions := testdata.GetVersions()
-
 	positive := true
 	timeout := 30 * time.Second
 	for _, i := range versions {

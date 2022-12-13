@@ -19,8 +19,8 @@ type BurnTestData[T any] struct {
 }
 
 type BurnExpectedValuesPositive struct {
-	WavesDiffBalance uint64
-	AssetDiffBalance uint64
+	WavesDiffBalance int64
+	AssetDiffBalance int64
 	_                struct{} // this field is necessary to force using explicit struct initialization
 }
 
@@ -29,8 +29,8 @@ type BurnExpectedValuesNegative struct {
 	ErrScalaMsg       string
 	ErrBrdCstGoMsg    string
 	ErrBrdCstScalaMsg string
-	WavesDiffBalance  uint64
-	AssetBalance      uint64
+	WavesDiffBalance  int64
+	AssetDiffBalance  int64
 	_                 struct{} // this field is necessary to force using explicit struct initialization
 }
 
@@ -48,7 +48,7 @@ func NewBurnTestData[T any](account config.AccountInfo, assetID crypto.Digest, q
 }
 
 func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
-	middleAssetValue := uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId) / 2)
+	middleAssetValue := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId) / 2
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
 		"Valid min values for amount(quantity) of asset": *NewBurnTestData(
 			utl.GetAccount(suite, 2),
@@ -64,7 +64,7 @@ func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 		"Valid middle values for amount(quantity) of asset": *NewBurnTestData(
 			utl.GetAccount(suite, 2),
 			assetId,
-			middleAssetValue,
+			uint64(middleAssetValue),
 			TestChainID,
 			utl.GetCurrentTimestampInMs(),
 			100000,

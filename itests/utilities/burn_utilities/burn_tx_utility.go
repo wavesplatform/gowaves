@@ -1,4 +1,4 @@
-package burn_utility
+package burn_utilities
 
 import (
 	"time"
@@ -10,17 +10,21 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MadeTx[T any] func(suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
-	timeout time.Duration, positive bool, makedTx MadeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves) {
-	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
-	tx := makedTx(suite, testdata, version, timeout, positive)
+	timeout time.Duration, positive bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
+	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
+	tx := makeTx(suite, testdata, version, timeout, positive)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
-		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
+		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
+	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
+		testdata.Account.Address, testdata.AssetID, initBalanceInAssetGo, initBalanceInAssetScala)
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
 			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
-		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
+		*utl.NewBalanceInAsset(actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
 func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.BurnTestData[T]) proto.Transaction {
@@ -48,12 +52,12 @@ func BurnBroadcast[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T],
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout, positive)
 }
 
-func SendBurnTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) (
-	utl.ConsideredTransaction, utl.BalanceInWaves) {
+func SendBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) (
+	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, BurnSend[T])
 }
 
-func BroadcastBurnTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) (
-	utl.ConsideredTransaction, utl.BalanceInWaves) {
+func BroadcastBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, timeout time.Duration, positive bool) (
+	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, BurnBroadcast[T])
 }
