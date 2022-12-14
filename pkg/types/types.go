@@ -110,10 +110,6 @@ type MessageSender interface {
 	SendMessage(proto.Message)
 }
 
-type InvRequester interface {
-	Request(MessageSender, []byte)
-}
-
 type BaseTarget = uint64
 
 type Miner interface {

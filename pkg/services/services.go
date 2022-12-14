@@ -33,7 +33,6 @@ type Services struct {
 	BlocksApplier   BlocksApplier
 	UtxPool         types.UtxPool
 	Scheme          proto.Scheme
-	InvRequester    types.InvRequester
 	LoggableRunner  runner.LogRunner
 	Time            types.Time
 	Wallet          types.EmbeddedWallet
