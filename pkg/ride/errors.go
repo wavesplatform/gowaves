@@ -12,6 +12,7 @@ const (
 	RuntimeError
 	InternalInvocationError
 	EvaluationFailure
+	ComplexityLimitExceed
 )
 
 type EvaluationError uint

@@ -187,16 +187,19 @@ func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 type complexityCalculator interface {
 	overflow() bool
 	complexity() int
+	limit() int
 	addNativeFunctionComplexity(int)
 	addAdditionalUserFunctionComplexity()
 	addConditionalComplexity()
 	addReferenceComplexity()
 	addPropertyComplexity()
+	limitExceeded(int) bool
 }
 
 type complexityCalculatorV1 struct {
 	o bool
 	c int
+	l int
 }
 
 func (cc *complexityCalculatorV1) overflow() bool {
@@ -205,6 +208,10 @@ func (cc *complexityCalculatorV1) overflow() bool {
 
 func (cc *complexityCalculatorV1) complexity() int {
 	return cc.c
+}
+
+func (cc *complexityCalculatorV1) limit() int {
+	return cc.l
 }
 
 func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
@@ -237,9 +244,18 @@ func (cc *complexityCalculatorV1) addPropertyComplexity() {
 	cc.addOne()
 }
 
+func (cc *complexityCalculatorV1) limitExceeded(c int) bool {
+	nc, err := common.AddInt(cc.c, c)
+	if err != nil {
+		return true
+	}
+	return nc > cc.l
+}
+
 type complexityCalculatorV2 struct {
 	o bool
 	c int
+	l int
 }
 
 func (cc *complexityCalculatorV2) overflow() bool {
@@ -248,6 +264,10 @@ func (cc *complexityCalculatorV2) overflow() bool {
 
 func (cc *complexityCalculatorV2) complexity() int {
 	return cc.c
+}
+
+func (cc *complexityCalculatorV2) limit() int {
+	return cc.l
 }
 
 func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
@@ -271,6 +291,14 @@ func (cc *complexityCalculatorV2) addConditionalComplexity() {}
 func (cc *complexityCalculatorV2) addReferenceComplexity() {}
 
 func (cc *complexityCalculatorV2) addPropertyComplexity() {}
+
+func (cc *complexityCalculatorV2) limitExceeded(c int) bool {
+	nc, err := common.AddInt(cc.c, c)
+	if err != nil {
+		return true
+	}
+	return nc > cc.l
+}
 
 type treeEvaluator struct {
 	dapp bool
@@ -354,6 +382,10 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
+	if e.cc.limitExceeded(cost) {
+		return nil, ComplexityLimitExceed.Errorf("current complexity %d and function complexity %d exceeds the limit %d",
+			e.cc.complexity(), cost, e.cc.limit())
+	}
 	defer func() {
 		e.cc.addNativeFunctionComplexity(cost)
 	}()
@@ -393,6 +425,11 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	}
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
+
+	if initialComplexity == e.cc.complexity() && e.cc.limitExceeded(1) {
+		return nil, ComplexityLimitExceed.Errorf("current complexity %d and function complexity %d exceeds the limit %d",
+			e.cc.complexity(), 1, e.cc.limit())
+	}
 	return r, nil
 }
 
