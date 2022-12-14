@@ -306,8 +306,12 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block,
 
 func (a *NGFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
-	zap.S().Debugf("[%s] Handle received microblock-inv message: requesting '%s' about block '%s'", a, p.ID(), inv.TotalBlockID)
-	a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes()) // TODO: add logs about microblock request
+	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes()) // TODO: add logs about microblock request
+	if existed {
+		zap.S().Debugf("[%s] Handle received microblock-inv message: block '%s' already in cache", a, inv.TotalBlockID)
+	} else {
+		zap.S().Debugf("[%s] Handle received microblock-inv message: requested '%s' about block '%s'", a, p.ID(), inv.TotalBlockID)
+	}
 	a.baseInfo.MicroBlockInvCache.Add(inv.TotalBlockID, inv)
 	return a, nil, nil
 }
