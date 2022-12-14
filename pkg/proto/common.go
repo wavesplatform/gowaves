@@ -159,6 +159,19 @@ func NetworkStrFromScheme(scheme Scheme) string {
 	return prefix + string(scheme)
 }
 
+func ParseSchemeFromStr(scheme string) (Scheme, error) {
+	switch scheme {
+	case "mainnet":
+		return MainNetScheme, nil
+	case "stagenet":
+		return StageNetScheme, nil
+	case "testnet":
+		return TestNetScheme, nil
+	default:
+		return Scheme('0'), errors.New("wrong network scheme")
+	}
+}
+
 // EncodeToHexString encodes b as a hex string with 0x prefix.
 func EncodeToHexString(b []byte) string {
 	enc := make([]byte, len(b)*2+2)
