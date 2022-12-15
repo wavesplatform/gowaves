@@ -29,7 +29,8 @@ type EstablishParams struct {
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {
 	ctx, cancel := context.WithCancel(ctx)
-	// FIXME: cancel should be defered
+	defer cancel()
+
 	remote := peer.NewRemote()
 	p := connector{
 		params: params,
@@ -50,7 +51,6 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		zap.S().Debugf("Outgoing connection to address %s failed with error: %v", params.Address.String(), err)
 		return errors.Wrapf(err, "%q", params.Address)
 	}
-	p.connection = connection
 
 	peerImpl, err := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
 	if err != nil {
@@ -71,7 +71,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	return peer.Handle(peer.HandlerParams{
 		Ctx:              ctx,
 		ID:               peerImpl.ID().String(),
-		Connection:       p.connection,
+		Connection:       connection,
 		Remote:           remote,
 		Parent:           params.Parent,
 		Peer:             peerImpl,
@@ -80,10 +80,9 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 }
 
 type connector struct {
-	params     EstablishParams
-	cancel     context.CancelFunc
-	remote     peer.Remote
-	connection conn.Connection
+	params EstablishParams
+	cancel context.CancelFunc
+	remote peer.Remote
 }
 
 func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (conn.Connection, *proto.Handshake, error) {
@@ -115,7 +114,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 		select {
 		case <-ctx.Done():
 			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
-		case <-time.After(5 * time.Minute):
+		case <-time.After(5 * time.Minute): // TODO: is it correct??
 			return nil, nil, err
 		}
 	}
