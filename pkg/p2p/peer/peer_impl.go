@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
+	"net/netip"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -13,17 +13,27 @@ import (
 )
 
 type peerImplID struct {
-	addr  net.Addr
-	nonce uint64
+	addr16 [16]byte
+	nonce  uint64
 }
 
-func newPeerImplID(addr net.Addr, nonce uint64) peerImplID {
-	return peerImplID{addr: addr, nonce: nonce}
+func newPeerImplID(addr net.Addr, nonce uint64) (peerImplID, error) {
+	var (
+		netStr  = addr.Network()
+		addrStr = addr.String()
+	)
+	tcpAddr, err := net.ResolveTCPAddr(netStr, addrStr)
+	if err != nil {
+		return peerImplID{}, errors.Wrapf(err, "failed to resolve '%s' addr from '%s'", netStr, addrStr)
+	}
+	var addr16 [16]byte
+	copy(addr16[:], tcpAddr.IP.To16())
+	return peerImplID{addr16: addr16, nonce: nonce}, nil
 }
 
 func (id peerImplID) String() string {
-	a := strings.Split(id.addr.String(), ":")[0]
-	return fmt.Sprintf("%s-%d", a, id.nonce)
+	addr := netip.AddrFrom16(id.addr16).Unmap()
+	return fmt.Sprintf("%s-%d", addr.String(), id.nonce)
 }
 
 type PeerImpl struct {
@@ -35,15 +45,19 @@ type PeerImpl struct {
 	cancel    context.CancelFunc
 }
 
-func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote, cancel context.CancelFunc) *PeerImpl {
+func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote, cancel context.CancelFunc) (*PeerImpl, error) {
+	id, err := newPeerImplID(conn.Conn().RemoteAddr(), handshake.NodeNonce)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create new peer")
+	}
 	return &PeerImpl{
 		handshake: handshake,
 		conn:      conn,
 		direction: direction,
 		remote:    remote,
-		id:        newPeerImplID(conn.Conn().RemoteAddr(), handshake.NodeNonce),
+		id:        id,
 		cancel:    cancel,
-	}
+	}, nil
 }
 
 func (a *PeerImpl) Direction() Direction {

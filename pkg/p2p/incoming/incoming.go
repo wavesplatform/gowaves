@@ -76,7 +76,12 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	remote := peer.NewRemote()
 	connection := conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
-	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
+	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
+	if err != nil {
+		_ = c.Close() // TODO: handle error
+		zap.S().Warn("Failed to create new peer impl: ", err)
+		return errors.Wrap(err, "failed to run incoming peer")
+	}
 
 	out := peer.InfoMessage{
 		Peer: peerImpl,
