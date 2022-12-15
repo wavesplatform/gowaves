@@ -50,7 +50,18 @@ func NewBurnTestData[T any](account config.AccountInfo, assetID crypto.Digest, q
 func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
 	middleAssetValue := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId) / 2
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
-		"Valid min values for amount(quantity) of asset": *NewBurnTestData(
+		"Burn zero amount(quantity) of asset": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			0,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesPositive{
+				WavesDiffBalance: 100000,
+				AssetDiffBalance: 0,
+			}),
+		"Burn valid min values for amount(quantity) of asset": *NewBurnTestData(
 			utl.GetAccount(suite, 2),
 			assetId,
 			1,
@@ -71,6 +82,215 @@ func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 			BurnExpectedValuesPositive{
 				WavesDiffBalance: 100000,
 				AssetDiffBalance: middleAssetValue,
+			}),
+	}
+	return t
+}
+
+func GetBurnNFTFromAnotherAccount(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
+	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
+		"Burn NFT from another account": *NewBurnTestData(
+			utl.GetAccount(suite, 3),
+			assetId,
+			1,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesPositive{
+				WavesDiffBalance: 100000,
+				AssetDiffBalance: 1,
+			}),
+	}
+	return t
+}
+
+func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesNegative] {
+	var t = map[string]BurnTestData[BurnExpectedValuesNegative]{
+		"Burn amount > max of asset": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			9223372036854775808,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Invalid asset ID (asset ID not exist)": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
+			100,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Referenced assetId not found",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs()-7215000,
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs()+54160000,
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Invalid fee (fee = 0)": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			0,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "insufficient fee",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Invalid fee (0 < fee < min)": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			10,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value of 100000 WAVES",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Invalid fee (fee > max)": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			9223372036854775808,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Burn token when there are not enougth funds on the account balance": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Accounts balance error",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Burn WAVES": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			proto.NewOptionalAssetWaves().ID,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Referenced assetId not found",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Burn from account that not own asset": *NewBurnTestData(
+			utl.GetAccount(suite, 4),
+			assetId,
+			10000,
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Accounts balance errors",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+	}
+	return t
+}
+
+func GetBurnChainIDNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesNegative] {
+	var t = map[string]BurnTestData[BurnExpectedValuesNegative]{
+		"Custom chainID": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			9223372036854775808,
+			'T',
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "failed to parse json message",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
+		"Invalid chainID (value=0)": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			100000,
+			0,
+			utl.GetCurrentTimestampInMs(),
+			100000,
+			BurnExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
 			}),
 	}
 	return t

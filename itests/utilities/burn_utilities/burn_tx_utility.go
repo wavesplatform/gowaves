@@ -37,7 +37,7 @@ func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte, testdata te
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)
-	suite.T().Logf("Issue Transaction JSON after sign: %s", txJson)
+	suite.T().Logf("Burn Transaction JSON after sign: %s", txJson)
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }

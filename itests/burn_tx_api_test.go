@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -15,24 +16,27 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type BurnTxSuite struct {
+type BurnTxApiSuite struct {
 	f.BaseSuite
 }
 
-func (suite *BurnTxSuite) Test_BurnTxPositive() {
+func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
 	timeout := 30 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, timeout, positive)
+
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Case: ", name, "Version: ", v)
+
 				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name,
 					"Burn: "+tx.TxID.String(), "Version: ", v)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
@@ -44,14 +48,15 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnNFTFromAnotherAccountPositive() {
+func (suite *BurnTxApiSuite) Test_BurnNFTFromAnotherAccountApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
 	timeout := 30 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
 		//get NFT
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["NFT"], v, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["NFT"], v, timeout, positive)
+		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, itx, "NFT", "version", v)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		//data for transfer
@@ -60,12 +65,14 @@ func (suite *BurnTxSuite) Test_BurnNFTFromAnotherAccountPositive() {
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
 				//transfer NFT from Account 2 to Account 3
-				ttx := transfer_utilities.TransferSend(&suite.BaseSuite, transferdata["NFT"], v, timeout, positive)
+				ttx := transfer_utilities.TransferBroadcast(&suite.BaseSuite, transferdata["NFT"], v, timeout, positive)
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, name, "version", v)
 				utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
 					"Transfer: "+ttx.TxID.String(), "version:")
 				//burn NFT from Account 3
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, timeout, positive)
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Case: ", name, "Version: ", v)
 				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name,
 					"Burn: "+tx.TxID.String(), "Version: ", v)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
@@ -77,13 +84,14 @@ func (suite *BurnTxSuite) Test_BurnNFTFromAnotherAccountPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxNegative() {
+func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 	versions := testdata.GetVersions()
 	positive := true
 	timeout := 1 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, 15*timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, 15*timeout, positive)
+		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, itx, "reissuable", "version", v)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
@@ -94,8 +102,14 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, timeout, !positive)
+
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
+					"Case: ", name, "Version: ", v)
+				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, "Case: ", name, "Version: ", v)
+
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
@@ -111,7 +125,7 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 	}
 }
 
-func TestBurnTxSuite(t *testing.T) {
+func TestBurnTxApiSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxSuite))
+	suite.Run(t, new(BurnTxApiSuite))
 }

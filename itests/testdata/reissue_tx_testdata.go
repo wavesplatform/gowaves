@@ -123,7 +123,7 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 			utl.GetCurrentTimestampInMs(),
 			TestChainID,
 			1,
-			true,
+			false,
 			ReissueExpectedValuesNegative{
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
