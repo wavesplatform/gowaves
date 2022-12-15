@@ -59,7 +59,8 @@ jobs:
     name: integration_tests
     runs-on: self-hosted
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'wavesplatform/gowaves'
-
+    env:
+      DOCKER_HOST: 172.17.0.1
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go 1.18
