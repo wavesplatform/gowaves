@@ -78,7 +78,7 @@ jobs:
         run: go mod vendor
 
       - name: Tests
-        run: make itest-ci
+        run: make itest
 
       - name: Upload itest logs
         uses: actions/upload-artifact@v3
