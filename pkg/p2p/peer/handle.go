@@ -74,7 +74,7 @@ func Handle(params HandlerParams) error {
 			if err != nil {
 				out := InfoMessage{
 					Peer:  params.Peer,
-					Value: err,
+					Value: &InternalErr{Err: err},
 				}
 				select {
 				case params.Parent.InfoCh <- out:
@@ -86,7 +86,7 @@ func Handle(params HandlerParams) error {
 		case err := <-params.Remote.ErrCh:
 			out := InfoMessage{
 				Peer:  params.Peer,
-				Value: err,
+				Value: &InternalErr{Err: err},
 			}
 			params.Parent.InfoCh <- out
 		}

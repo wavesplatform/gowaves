@@ -96,7 +96,8 @@ func TestHandleError(t *testing.T) {
 	}()
 	err := errors.New("error")
 	remote.ErrCh <- err
-	assert.Equal(t, err, (<-parent.InfoCh).Value)
+	actualErr := (<-parent.InfoCh).Value.(*InternalErr).Err
+	assert.Equal(t, err, actualErr)
 	cancel()
 	wg.Wait()
 }

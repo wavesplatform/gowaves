@@ -200,8 +200,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			switch t := m.Value.(type) {
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)
-			case error:
-				fsm, async, err = fsm.PeerError(m.Peer, t)
+			case *peer.InternalErr:
+				fsm, async, err = fsm.PeerError(m.Peer, t.Err)
+			default:
+				zap.S().Warnf("[%s] Unknown info message '%T'", fsm.String(), m)
 			}
 		case mess := <-p.MessageCh:
 			zap.S().Debugf("[%s] Network message '%T' received", fsm.String(), mess.Message)
