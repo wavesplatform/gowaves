@@ -257,6 +257,7 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 		BindHostPort:    res.GetHostPort(BindPort + tcp),
 	}
 
+	d.pool.MaxWait = 3 * time.Minute
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
 			BaseUrl: "http://" + portCfg.RestApiHostPort + "/",
@@ -345,6 +346,7 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 		BindHostPort:    res.GetHostPort(BindPort + tcp),
 	}
 
+	d.pool.MaxWait = 3 * time.Minute
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
 			BaseUrl: "http://" + portCfg.RestApiHostPort + "/",
