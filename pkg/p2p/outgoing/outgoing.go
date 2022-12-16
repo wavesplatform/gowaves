@@ -36,7 +36,6 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	remote := peer.NewRemote()
 	p := connector{
 		params: params,
-		cancel: cancel,
 		remote: remote,
 	}
 	addr := params.Address.String()
@@ -63,7 +62,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 			Peer: peerImpl,
 		},
 	}
-	params.Parent.InfoCh <- connected
+	params.Parent.InfoCh <- connected // Notify FSM about new peer
 	zap.S().Debugf("Connected outgoing peer with addr '%s', id '%s'", addr, peerImpl.ID())
 
 	return peer.Handle(peer.HandlerParams{
@@ -79,7 +78,6 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 type connector struct {
 	params EstablishParams
-	cancel context.CancelFunc
 	remote peer.Remote
 }
 
