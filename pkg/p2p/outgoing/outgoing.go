@@ -125,5 +125,5 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 			return nil, proto.Handshake{}, err
 		}
 	}
-	return conn.WrapConnection(c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), handshake, nil
+	return conn.WrapConnection(ctx, c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), handshake, nil
 }

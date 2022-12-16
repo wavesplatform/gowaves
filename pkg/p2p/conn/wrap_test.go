@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestWrapConnection(t *testing.T) {
 	require.NoError(t, err)
 
 	ch := make(chan *bytebufferpool.ByteBuffer, 1)
-	wrapped := WrapConnection(conn, nil, ch, nil, func(bytes proto.Header) bool {
+	wrapped := WrapConnection(context.Background(), conn, nil, ch, nil, func(bytes proto.Header) bool {
 		return false
 	})
 

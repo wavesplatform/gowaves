@@ -10,8 +10,8 @@ import (
 	"go.uber.org/atomic"
 )
 
-func WrapConnection(conn net.Conn, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
-	return wrapConnection(wrapParams{
+func WrapConnection(ctx context.Context, conn net.Conn, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
+	return wrapConnection(ctx, wrapParams{
 		conn:         conn,
 		toRemoteCh:   toRemoteCh,
 		fromRemoteCh: fromRemoteCh,
@@ -32,8 +32,8 @@ type wrapParams struct {
 	skip         SkipFilter
 }
 
-func wrapConnection(params wrapParams) *ConnectionImpl {
-	ctx, cancel := context.WithCancel(context.TODO()) // TODO: pass parent context
+func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
+	ctx, cancel := context.WithCancel(ctx)
 
 	impl := &ConnectionImpl{
 		cancel:        cancel,

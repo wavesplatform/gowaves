@@ -101,7 +101,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 			select {
 			case <-ctx.Done():
 				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
-			case <-time.After(5 * time.Minute):
+			case <-time.After(5 * time.Minute): // TODO: is it correct??
 				continue
 			}
 		}
@@ -139,7 +139,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 				continue
 			}
 		}
-		return conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
+		return conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
 	}
 
 	return nil, nil, errors.Errorf("can't connect 20 times")

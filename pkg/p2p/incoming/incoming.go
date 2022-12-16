@@ -75,7 +75,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
+	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
 	if err != nil {
 		_ = c.Close() // TODO: handle error

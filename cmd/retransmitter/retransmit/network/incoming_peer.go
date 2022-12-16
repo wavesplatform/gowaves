@@ -88,7 +88,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
+	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &IncomingPeer{

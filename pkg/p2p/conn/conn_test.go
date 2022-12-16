@@ -2,6 +2,7 @@ package conn
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"testing"
 	"time"
@@ -42,7 +43,7 @@ func TestConnectionImpl_Close(t *testing.T) {
 		receiveFunc:  receiveFromRemote,
 	}
 
-	conn := wrapConnection(params)
+	conn := wrapConnection(context.Background(), params)
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)
