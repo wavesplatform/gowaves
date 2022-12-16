@@ -20,7 +20,7 @@ type IssueTxApiSuite struct {
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
@@ -45,7 +45,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
@@ -94,7 +94,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }

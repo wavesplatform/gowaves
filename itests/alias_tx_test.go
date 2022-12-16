@@ -19,7 +19,7 @@ type AliasTxSuite struct {
 func (suite *AliasTxSuite) Test_AliasPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
@@ -40,7 +40,7 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, v := range versions {
 		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
 		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
@@ -77,7 +77,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 					actualDiffBalanceInWaves.BalanceInWavesScala)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds, "Version: %#v", v)
 	}
 }
@@ -113,7 +113,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 			})
 		}
 		//should have same tx ID for Go and Scala v1 and v2
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version:", v)
 	}
 }
@@ -147,7 +147,7 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 				}
 			}
 		})
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds, "Version: %#v", v)
 	}
 }

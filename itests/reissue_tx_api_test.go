@@ -21,7 +21,7 @@ type ReissueTxApiSuite struct {
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	versions := testdata.GetVersions()
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	positive := true
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
@@ -45,7 +45,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	versions := testdata.GetVersions()
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	positive := true
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
@@ -105,7 +105,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, name, "Version: ", v)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
@@ -136,7 +136,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, name, "Version: ", v)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
@@ -171,7 +171,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, name, "Version: ", v)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }

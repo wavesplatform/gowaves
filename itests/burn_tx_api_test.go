@@ -23,7 +23,7 @@ type BurnTxApiSuite struct {
 func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
 		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
@@ -51,7 +51,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, v := range versions {
 		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
 		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
@@ -81,7 +81,7 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 15 * time.Second
+	timeout := 20 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
 		//get NFT
@@ -150,7 +150,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, "Case: ", name, "Version: ", v)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
