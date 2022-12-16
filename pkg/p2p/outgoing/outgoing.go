@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const outgoingPeerDialTimeout = 5 * time.Second
+
 type DuplicateChecker interface {
 	Add([]byte) (isNew bool)
 }
@@ -38,8 +40,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		remote: remote,
 	}
 
-	// TODO: use net.DialTimeout
-	c, err := net.Dial("tcp", params.Address.String())
+	c, err := net.DialTimeout("tcp", params.Address.String(), outgoingPeerDialTimeout)
 	if err != nil {
 		return err
 	}
