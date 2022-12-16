@@ -30,6 +30,7 @@ type PeerParams struct {
 
 func RunIncomingPeer(ctx context.Context, params PeerParams) error {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	return runIncomingPeer(ctx, cancel, params)
 }
 
@@ -89,7 +90,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 			Peer: peerImpl,
 		},
 	}
-	params.Parent.InfoCh <- out
+	params.Parent.InfoCh <- out // Notify FSM about new peer
 
 	return peer.Handle(peer.HandlerParams{
 		Ctx:              ctx,
