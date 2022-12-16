@@ -19,9 +19,9 @@ type HttpClient struct {
 	timeout time.Duration
 }
 
-func NewHttpClient(t *testing.T, port string) *HttpClient {
+func NewHttpClient(t *testing.T, hostPort string) *HttpClient {
 	c, err := client.NewClient(client.Options{
-		BaseUrl: "http://" + d.Localhost + ":" + port + "/",
+		BaseUrl: "http://" + hostPort + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
 	})

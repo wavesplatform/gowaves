@@ -17,10 +17,10 @@ type NodeClients struct {
 	GrpcClient *GrpcClient
 }
 
-func NewNodeClient(t *testing.T, httpPort string, grpcPort string) *NodeClients {
+func NewNodeClient(t *testing.T, httpHostPort, grpcHostPort string) *NodeClients {
 	return &NodeClients{
-		HttpClient: NewHttpClient(t, httpPort),
-		GrpcClient: NewGrpcClient(t, grpcPort),
+		HttpClient: NewHttpClient(t, httpHostPort),
+		GrpcClient: NewGrpcClient(t, grpcHostPort),
 	}
 }
 
@@ -31,8 +31,8 @@ type NodesClients struct {
 
 func NewNodesClients(t *testing.T, ports *d.Ports) *NodesClients {
 	return &NodesClients{
-		GoClients:    NewNodeClient(t, ports.Go.RestApiPort, ports.Go.GrpcPort),
-		ScalaClients: NewNodeClient(t, ports.Scala.RestApiPort, ports.Scala.GrpcPort),
+		GoClients:    NewNodeClient(t, ports.Go.RestApiHostPort, ports.Go.GrpcHostPort),
+		ScalaClients: NewNodeClient(t, ports.Scala.RestApiHostPort, ports.Scala.GrpcHostPort),
 	}
 }
 
