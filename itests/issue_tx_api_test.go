@@ -20,12 +20,13 @@ type IssueTxApiSuite struct {
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 30 * time.Second
+	timeout := 15 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
-				tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(&suite.BaseSuite, td, i, timeout, positive)
+				tx, _, actualDiffBalanceInWaves := issue_utilities.BroadcastIssueTxAndGetWavesBalances(
+					&suite.BaseSuite, td, i, timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", i)
 
 				actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
@@ -34,7 +35,8 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i, tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 					actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo,
+					actualAssetBalanceScala, name, "version", i)
 			})
 		}
 	}
@@ -43,7 +45,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 30 * time.Second
+	timeout := 15 * time.Second
 	for _, i := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
@@ -92,7 +94,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }

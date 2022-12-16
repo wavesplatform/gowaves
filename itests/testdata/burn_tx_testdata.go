@@ -87,9 +87,28 @@ func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 	return t
 }
 
-func GetBurnNFTFromAnotherAccount(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
+func GetBurnAllAssetWithMaxAvailableFee(suite *f.BaseSuite, assetId crypto.Digest, accNumber int) map[string]BurnTestData[BurnExpectedValuesPositive] {
+	assetValue := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId)
+	fee := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
-		"Burn NFT from another account": *NewBurnTestData(
+		"Burn all available asset, max available fee": *NewBurnTestData(
+			utl.GetAccount(suite, 2),
+			assetId,
+			uint64(assetValue),
+			TestChainID,
+			utl.GetCurrentTimestampInMs(),
+			uint64(fee),
+			BurnExpectedValuesPositive{
+				WavesDiffBalance: fee,
+				AssetDiffBalance: assetValue,
+			}),
+	}
+	return t
+}
+
+func GetBurnNFTFromOwnerAccount(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
+	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
+		"Burn NFT from owner account": *NewBurnTestData(
 			utl.GetAccount(suite, 3),
 			assetId,
 			1,

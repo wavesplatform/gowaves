@@ -22,7 +22,7 @@ type BurnTxSuite struct {
 func (suite *BurnTxSuite) Test_BurnTxPositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 30 * time.Second
+	timeout := 15 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
 		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
@@ -44,10 +44,37 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnNFTFromAnotherAccountPositive() {
+func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 	versions := testdata.GetVersions()
 	positive := true
-	timeout := 30 * time.Second
+	timeout := 15 * time.Second
+	for _, v := range versions {
+		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
+		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
+		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
+			"Issue: "+itx.TxID.String(), "Version: ", v)
+		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
+		for name, td := range tdmatrix {
+			suite.T().Run(name, func(t *testing.T) {
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
+					&suite.BaseSuite, td, v, timeout, positive)
+				utl.ExistenceTxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name,
+					"Burn: "+tx.TxID.String(), "Version: ", v)
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Case: ", name, "Version: ", v)
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Case: ", name, "Version: ", v)
+			})
+		}
+	}
+}
+
+func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
+	versions := testdata.GetVersions()
+	positive := true
+	timeout := 15 * time.Second
 	for _, v := range versions {
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
 		//get NFT
@@ -56,7 +83,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromAnotherAccountPositive() {
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		//data for transfer
 		transferdata := testdata.GetCommonTransferData(&suite.BaseSuite, itx.TxID)
-		tdmatrix := testdata.GetBurnNFTFromAnotherAccount(&suite.BaseSuite, itx.TxID)
+		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
 				//transfer NFT from Account 2 to Account 3
@@ -106,7 +133,7 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, "Case: ", name, "Version: ", v)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 30*timeout, timeout)
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds, 20*timeout, timeout)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
