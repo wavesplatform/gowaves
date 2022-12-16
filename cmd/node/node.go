@@ -95,6 +95,7 @@ var (
 	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
 	dbFileDescriptors                     = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
 	newConnectionsLimit                   = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
+	disableNTP                            = flag.Bool("disable-ntp", false, "Disable NTP synchronization. Useful when running the node in a docker container.")
 )
 
 var defaultPeers = map[string]string{
@@ -136,6 +137,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
 	zap.S().Debugf("enable-metamask: %v", *enableMetaMaskAPI)
+	zap.S().Debugf("disable-ntp: %t", *disableNTP)
 }
 
 func main() {
@@ -172,6 +174,7 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if *metricsURL != "" && *metricsID != -1 {
 		err := metrics.Start(ctx, *metricsID, *metricsURL)
@@ -256,17 +259,15 @@ func main() {
 		return
 	}
 
-	ntpTime, err := getNtp(ctx)
+	ntpTime, err := getNtp(ctx, *disableNTP)
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to get NTP time: %v", err)
 		return
 	}
 
 	outdatePeriodSeconds, err := common.ParseDuration(*outdatePeriod)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
@@ -283,20 +284,17 @@ func main() {
 	st, err := state.NewState(path, true, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
 	features, err := miner.ParseVoteFeatures(*minerVoteFeatures)
 	if err != nil {
-		cancel()
 		zap.S().Error(err)
 		return
 	}
 
 	features, err = miner.ValidateFeatures(st, features)
 	if err != nil {
-		cancel()
 		zap.S().Error(err)
 		return
 	}
@@ -304,7 +302,6 @@ func main() {
 	// Check if we need to start serving extended API right now.
 	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
@@ -320,14 +317,12 @@ func main() {
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), proto.ProtocolVersion)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
-		cancel()
 		return
 	}
 	if *dropPeers {
@@ -336,7 +331,6 @@ func main() {
 				"Failed to drop peers storage. Drop peers storage manually. Err: %v",
 				err,
 			)
-			cancel()
 			return
 		}
 		zap.S().Info("Successfully dropped peers storage")
@@ -397,13 +391,11 @@ func main() {
 			if tcpAddr.Empty() {
 				// That means that configuration parameter is invalid
 				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
-				cancel()
 				return
 			}
 			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
 				// That means that we have problems with peers storage
 				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
-				cancel()
 				return
 			}
 		}
@@ -412,7 +404,6 @@ func main() {
 	app, err := api.NewApp(*apiKey, minerScheduler, svs)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
@@ -513,8 +504,8 @@ func applyIntegrationSettings(blockchainSettings *settings.BlockchainSettings) *
 	return blockchainSettings
 }
 
-func getNtp(ctx context.Context) (types.Time, error) {
-	if *blockchainType == "integration" {
+func getNtp(ctx context.Context, disable bool) (types.Time, error) {
+	if disable {
 		return ntptime.Stub{}, nil
 	}
 	tm, err := ntptime.TryNew("pool.ntp.org", 10)
