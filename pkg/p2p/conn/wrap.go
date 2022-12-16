@@ -33,7 +33,7 @@ type wrapParams struct {
 }
 
 func wrapConnection(params wrapParams) *ConnectionImpl {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.TODO()) // TODO: pass parent context
 
 	impl := &ConnectionImpl{
 		cancel:        cancel,
