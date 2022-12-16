@@ -79,7 +79,9 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
 	if err != nil {
-		_ = c.Close() // TODO: handle error
+		if err := connection.Close(); err != nil {
+			zap.S().Errorf("Failed to close incoming connection: %v", err)
+		}
 		zap.S().Warn("Failed to create new peer impl: ", err)
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
