@@ -39,25 +39,22 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		cancel: cancel,
 		remote: remote,
 	}
-
-	c, err := net.DialTimeout("tcp", params.Address.String(), outgoingPeerDialTimeout)
-	if err != nil {
-		return err
-	}
+	addr := params.Address.String()
 	// FIXME: connection.close should be called in case of any error, or it should be deferred in any case
 
-	connection, handshake, err := p.connect(ctx, c, v)
+	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v)
 	if err != nil {
-		// FIXME: close connection
-		zap.S().Debugf("Outgoing connection to address %s failed with error: %v", params.Address.String(), err)
-		return errors.Wrapf(err, "%q", params.Address)
+		zap.S().Debugf("Outgoing connection to address '%s' failed with error: %v", addr, err)
+		return errors.Wrapf(err, "%q", addr)
 	}
 
-	peerImpl, err := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
+	peerImpl, err := peer.NewPeerImpl(handshake, connection, peer.Outgoing, remote, cancel)
 	if err != nil {
-		_ = c.Close() // TODO: handle error
-		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", params.Address, err)
-		return errors.Wrapf(err, "failed to establish connection to %s", params.Address.String())
+		if err := connection.Close(); err != nil {
+			zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
+		}
+		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", addr, err)
+		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
 
 	connected := peer.InfoMessage{
@@ -67,7 +64,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		},
 	}
 	params.Parent.InfoCh <- connected
-	zap.S().Debugf("connected %s, id: %s", params.Address, peerImpl.ID())
+	zap.S().Debugf("Connected outgoing peer with addr '%s', id '%s'", addr, peerImpl.ID())
 
 	return peer.Handle(peer.HandlerParams{
 		Ctx:              ctx,
@@ -86,7 +83,19 @@ type connector struct {
 	remote peer.Remote
 }
 
-func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (conn.Connection, *proto.Handshake, error) {
+func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.Duration, v proto.Version) (_ conn.Connection, _ proto.Handshake, err error) {
+	c, err := net.DialTimeout("tcp", addr, dialTimeout)
+	if err != nil {
+		return nil, proto.Handshake{}, err
+	}
+	defer func() {
+		if err != nil { // close connection on error
+			if err := c.Close(); err != nil {
+				zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
+			}
+		}
+	}()
+
 	handshake := proto.Handshake{
 		AppName:      a.params.WavesNetwork,
 		Version:      v,
@@ -96,28 +105,25 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	_, err := handshake.WriteTo(c)
-	if err != nil {
+	if _, err := handshake.WriteTo(c); err != nil {
 		zap.S().Errorf("Failed to send handshake with addr %q: %v", a.params.Address.String(), err)
-		return nil, nil, err
+		return nil, proto.Handshake{}, err
 	}
 
 	select {
 	case <-ctx.Done():
-		_ = c.Close()
-		return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
+		return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "connector.connect")
 	default:
 	}
 
-	_, err = handshake.ReadFrom(c)
-	if err != nil {
-		zap.S().Debugf("[%s] Failed to read handshake: %v", a.params.Address.String(), err)
+	if _, err := handshake.ReadFrom(c); err != nil {
+		zap.S().Debugf("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
 		select {
 		case <-ctx.Done():
-			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
+			return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "connector.connect")
 		case <-time.After(5 * time.Minute): // TODO: is it correct??
-			return nil, nil, err
+			return nil, proto.Handshake{}, err
 		}
 	}
-	return conn.WrapConnection(c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), &handshake, nil
+	return conn.WrapConnection(c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), handshake, nil
 }
