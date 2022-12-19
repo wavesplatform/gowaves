@@ -62,7 +62,8 @@ type ASTParser struct {
 	globalStack  *VarStack
 	currentStack *VarStack
 
-	stdFuncs s.FunctionsSignatures
+	stdFuncs   s.FunctionsSignatures
+	stdObjects s.ObjectsSignatures
 
 	scriptType ScriptType
 }
@@ -144,6 +145,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 		_ = curNode
 	}
 	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
+	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
 	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
@@ -169,6 +171,7 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		_ = curNode
 	}
 	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
+	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
 	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
@@ -1055,8 +1058,11 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 			}
 			expr, varType = newExpr, newExprType
 		case ruleIdentifierAccess:
-			// TODO(anton)
-			break
+			newExpr, newExprType := p.ruleIdentifierAccessHandler(curNode.up, expr, varType)
+			if newExpr == nil {
+				return expr, varType
+			}
+			expr, varType = newExpr, newExprType
 		case ruleTupleAccess:
 			if t, ok := varType.(s.TupleType); !ok {
 				p.addError(fmt.Sprintf("type must be Tuple but is %s", varType.String()), curNode.token32)
@@ -1097,11 +1103,6 @@ func (p *ASTParser) ruleParExprHandler(node *node32) (ast.Node, s.Type) {
 	return p.ruleExprHandler(curNode)
 }
 
-type ArgsNodes struct {
-	Node    ast.Node
-	ASTNode *node32
-}
-
 func (p *ASTParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, firstArgType s.Type) (ast.Node, s.Type) {
 	curNode := node.up
 	funcName := string(p.buffer[curNode.begin:curNode.end])
@@ -1126,8 +1127,11 @@ func (p *ASTParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, fir
 	if !ok {
 		funcSign, ok = p.stdFuncs.Get(funcName, argsTypes)
 		if !ok {
-			p.addError(fmt.Sprintf("undefined function: \"%s\"", funcName), nameNode.token32)
-			return nil, nil
+			funcSign, ok = p.stdObjects.GetConstruct(funcName, argsTypes)
+			if !ok {
+				p.addError(fmt.Sprintf("undefined function: \"%s\"", funcName), nameNode.token32)
+				return nil, nil
+			}
 		}
 		return ast.NewFunctionCallNode(funcSign.ID, argsNodes), funcSign.ReturnType
 	}
@@ -1168,6 +1172,19 @@ func (p *ASTParser) ruleArgSeqHandler(node *node32) ([]ast.Node, []s.Type, []*no
 		curNode = curNode.up
 	}
 	return resultNodes, resultTypes, resultAstNodes
+}
+
+func (p *ASTParser) ruleIdentifierAccessHandler(node *node32, obj ast.Node, objType s.Type) (ast.Node, s.Type) {
+	curNode := node
+	fieldName := string(p.buffer[curNode.begin:curNode.end])
+
+	fieldType, ok := p.stdObjects.GetField(objType, fieldName)
+	if !ok {
+		p.addError(fmt.Sprintf("type %s has not filed %s", objType.String(), fieldName), curNode.token32)
+		return nil, nil
+	}
+	return ast.NewPropertyNode(fieldName, obj), fieldType
+
 }
 
 func (p *ASTParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
@@ -1449,7 +1466,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 	} else {
 		possibleTypes[varType.String()] = varType
 	}
-	matchName := "$match0"
+	matchName := "$match0" // TODO(anton): add counter to match name
 	var conds, trueStates []ast.Node
 	var defaultCase ast.Node
 	retType := s.UnionType{Types: map[string]s.Type{}}
@@ -1458,6 +1475,8 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 			curNode = curNode.next
 		}
 		if curNode != nil && curNode.pegRule == ruleCase {
+			// new stack for each case
+			p.currentStack = NewVarStack(p.currentStack)
 			cond, trueState, varType := p.ruleCaseHandle(curNode, matchName, possibleTypes)
 			if trueState == nil {
 				if defaultCase != nil {
@@ -1470,6 +1489,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 			}
 			retType.AppendType(varType)
 			curNode = curNode.next
+			p.currentStack = p.globalStack
 		}
 		if curNode == nil {
 			break
@@ -1525,6 +1545,22 @@ func (p *ASTParser) ruleCaseHandle(node *node32, matchName string, possibleTypes
 			trueState = expr
 		}
 	case ruleObjectPattern:
+		ifCond, decls := p.ruleObjectPatternHandler(statementNode, matchName, possibleTypes)
+		if ifCond == nil {
+			return block, nil, blockType
+		}
+		cond = ifCond
+		if decls == nil {
+			trueState = block
+		} else {
+			var expr ast.Node
+			for i := len(decls) - 1; i >= 0; i-- {
+				decls[i].SetBlock(expr)
+				expr = decls[i]
+			}
+			expr.SetBlock(block)
+			trueState = expr
+		}
 	case rulePlaceholder:
 		return block, nil, blockType
 	}
@@ -1563,6 +1599,119 @@ func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, poss
 		ast.NewAssignmentNode(name, ast.NewReferenceNode(matchName), nil)
 }
 
+func (p *ASTParser) ruleObjectPatternHandler(node *node32, matchName string, possibleTypes map[string]s.Type) (ast.Node, []ast.Node) {
+	curNode := node.up
+	structName := string(p.buffer[curNode.begin:curNode.end])
+	if !p.stdObjects.IsExist(structName) {
+		p.addError(fmt.Sprintf("Object with this name %s doesn't exist", structName), curNode.token32)
+		return nil, nil
+	}
+	if _, ok := possibleTypes[structName]; !ok {
+		// TODO: write normal possible variants
+		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes, structName), curNode.token32)
+		return nil, nil
+	}
+	curNode = curNode.next
+
+	var exprs []ast.Node
+	var shadowDeclarations []ast.Node
+	exprs = append(exprs, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(structName)}))
+	shadowDeclarations = append(shadowDeclarations, ast.NewAssignmentNode(matchName, ast.NewReferenceNode(matchName), nil))
+	for {
+		if curNode == nil {
+			break
+		}
+		expr, decl, newNode := p.ruleObjectFieldsPatternHandler(curNode, matchName, structName)
+		curNode = newNode
+		for {
+			if curNode == nil || curNode.pegRule == ruleObjectFieldsPattern {
+				break
+			}
+			curNode = curNode.next
+		}
+		if expr == nil && decl == nil {
+			continue
+		}
+		exprs = append(exprs, expr)
+		if decl != nil {
+			shadowDeclarations = append(shadowDeclarations, decl)
+		}
+	}
+
+	if len(exprs) == 1 {
+		return ast.NewConditionalNode(
+			exprs[0],
+			ast.NewAssignmentNode(matchName, ast.NewReferenceNode(matchName), ast.NewBooleanNode(true)),
+			ast.NewBooleanNode(false)), shadowDeclarations
+	}
+
+	var resExpr ast.Node
+
+	for i := len(exprs) - 1; i >= 0; i-- {
+		if i == len(exprs)-1 && i != 0 {
+			resExpr = exprs[i]
+			continue
+		}
+		if i == 0 {
+			resExpr = ast.NewConditionalNode(exprs[i], ast.NewAssignmentNode(
+				matchName,
+				ast.NewReferenceNode(matchName),
+				resExpr,
+			), ast.NewBooleanNode(false))
+			continue
+		}
+		resExpr = ast.NewConditionalNode(exprs[i], resExpr, ast.NewBooleanNode(false))
+	}
+
+	return resExpr, shadowDeclarations
+
+}
+
+func (p *ASTParser) ruleObjectFieldsPatternHandler(node *node32, matchName string, structName string) (ast.Node, ast.Node, *node32) {
+	curNode := node.up
+	fieldName := string(p.buffer[curNode.begin:curNode.end])
+	t, ok := p.stdObjects.GetField(s.SimpleType{Type: structName}, fieldName)
+	if !ok {
+		p.addError(fmt.Sprintf("Object %s doesn't has field %s", structName, fieldName), curNode.token32)
+		return nil, nil, curNode
+	}
+	curNode = curNode.next
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	if curNode.pegRule == rule_ {
+		curNode = curNode.next
+	}
+	switch curNode.pegRule {
+	case ruleIdentifier:
+		name := string(p.buffer[curNode.begin:curNode.end])
+		if _, ok := p.currentStack.GetVariable(name); ok {
+			p.addError(fmt.Sprintf("Variable %s exist", name), curNode.token32)
+			return nil, nil, curNode
+		}
+		p.currentStack.PushVariable(s.Variable{
+			Name: name,
+			Type: t,
+		})
+		return nil,
+			ast.NewAssignmentNode(name, ast.NewPropertyNode(fieldName, ast.NewReferenceNode(matchName)), nil), curNode
+	case ruleExpr:
+		expr, exprType := p.ruleExprHandler(curNode)
+		if expr == nil {
+			return nil, nil, curNode
+		}
+		if !exprType.Comp(t) {
+			p.addError(fmt.Sprintf("Can't match inferred types: field %s has type %s, but %s provided", fieldName, t.String(), exprType.String()), curNode.token32)
+			return nil, nil, curNode
+		}
+		return ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{
+			expr,
+			ast.NewPropertyNode(fieldName, ast.NewReferenceNode(matchName)),
+		}), nil, curNode
+	}
+	return nil, nil, nil
+}
+
 func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, possibleTypes map[string]s.Type) (ast.Node, []ast.Node) {
 	curNode := node.up.up
 	var exprs []ast.Node
@@ -1588,6 +1737,7 @@ func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 		}
 	}
 	if !eq {
+		// TODO: write normal possible variants
 		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes, tupleType), curNode.token32)
 	}
 	var cond ast.Node

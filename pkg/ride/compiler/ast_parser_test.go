@@ -304,6 +304,43 @@ func TestFuncCalls(t *testing.T) {
 	}{
 		{`let a = 1.toBytes()`, false, "BgICCAIBAAFhCQCaAwEAAQAAWQ+cBQ=="},
 		{`let a = addressFromPublicKey(base58'')`, false, "BgICCAIBAAFhCQCnCAEBAAAAG+9EKQ=="},
+		{`let a = AssetPair(base58'', base58'')
+		let b = a.amountAsset`, false, "AAIEAAAAAAAAAAIIAgAAAAIAAAAAAWEJAQAAAAlBc3NldFBhaXIAAAACAQAAAAABAAAAAAAAAAABYggFAAAAAWEAAAALYW1vdW50QXNzZXQAAAAAAAAAAIKGPR8="},
+	} {
+
+		code := DappV6Directive + test.code
+		rawAST, buf, err := buildAST(t, code, false)
+		require.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
+func TestMatchCase(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`let a = if true then AssetPair(base58'', base58'') else 10
+		
+let b = match a {
+   case AssetPair(amountAsset = base16'', priceAsset = base16'') => true
+   case _ => false
+}`, false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDADCQAAAgEACAUHJG1hdGNoMAthbW91bnRBc3NldAkAAAIBAAgFByRtYXRjaDAKcHJpY2VBc3NldAcHBAckbWF0Y2gwBQckbWF0Y2gwBgcAAEe/y1c="},
+		{`let a = if true then AssetPair(base58'', base58'') else 10
+
+let b = match a {
+    case AssetPair() => true
+    case _ => false
+}`, false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDAGBwQHJG1hdGNoMAUHJG1hdGNoMAYHAAD1dYoP"},
 	} {
 
 		code := DappV6Directive + test.code

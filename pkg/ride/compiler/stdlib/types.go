@@ -6,6 +6,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Type interface {
+	Comp(Type) bool
+	String() string
+}
+
 var (
 	Any            = SimpleType{"Any"}
 	BooleanType    = SimpleType{"Boolean"}
@@ -94,11 +99,6 @@ func handleGeneric(node *node32, t string) Type {
 	}
 
 	return ListType{Type: handleTypes(curNode, t)}
-}
-
-type Type interface {
-	Comp(Type) bool
-	String() string
 }
 
 type SimpleType struct {

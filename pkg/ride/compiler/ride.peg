@@ -140,8 +140,8 @@ Placeholder <- '_'
 ValuePattern <- (Placeholder / Identifier) _ ':' _ Types
 TupleValuesPattern <- (ValuePattern / Placeholder / Expr/ GettableExpr) (_ ',' _ TupleValuesPattern)?
 TuplePattern <- '(' _ TupleValuesPattern _ ')'
-ObjectFieldsPattern <- (Identifier _ '=' _ (Expr / GettableExpr)) (_ ',' _ ObjectFieldsPattern)?
-ObjectPattern <- Identifier _ '('_ ObjectFieldsPattern _ ')'
+ObjectFieldsPattern <- (Identifier _ '=' _ (Identifier / Expr)) (_ ',' _ ObjectFieldsPattern)?
+ObjectPattern <- Identifier _ '('_ ObjectFieldsPattern? _ ')'
 
 Tuple <- '(' _ AtomExpr (_ ',' _ AtomExpr)+ _ ')'
 TupleRef <- '(' _ Identifier (_ ',' _ Identifier)+ _ ')'
