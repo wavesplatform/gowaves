@@ -57,8 +57,8 @@ jobs:
 
   itest:
     name: integration_tests
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'wavesplatform/gowaves'
+    runs-on: self-hosted
+    if: github.event_name == 'pull_request' && github.repository == 'wavesplatform/gowaves'
 
     steps:
       - uses: actions/checkout@v3
@@ -77,7 +77,7 @@ jobs:
         run: go mod vendor
 
       - name: Tests
-        run: make itest-ci
+        run: make itest
 
       - name: Upload itest logs
         uses: actions/upload-artifact@v3
