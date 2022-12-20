@@ -14,19 +14,15 @@ type DuplicateChecker interface {
 	Add([]byte) (isNew bool)
 }
 
-func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
-	defer func() {
-		bytebufferpool.Put(b)
-	}()
-
+func bytesToMessage(data []byte, d DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
 	if d != nil {
-		isNew := d.Add(b.Bytes())
+		isNew := d.Add(data)
 		if !isNew {
 			return nil
 		}
 	}
 
-	m, err := proto.UnmarshalMessage(b.Bytes())
+	m, err := proto.UnmarshalMessage(data)
 	if err != nil {
 		return err
 	}
@@ -57,7 +53,7 @@ type HandlerParams struct {
 // Handle sends and receives messages no matter outgoing or incoming connection.
 // TODO: caller should be responsible for closing network connection
 func Handle(params HandlerParams) error {
-	// TODO: error message to the params.Parent.InfoCh should be sent only once
+	var errSentToParent bool // if errSentToParent is true then we need to wait params.Ctx cancellation
 	for {
 		select {
 		case <-params.Ctx.Done():
@@ -71,25 +67,22 @@ func Handle(params HandlerParams) error {
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bb := <-params.Remote.FromCh:
-			err := bytesToMessage(bb, params.DuplicateChecker, params.Parent.MessageCh, params.Peer)
-			if err != nil {
-				out := InfoMessage{
-					Peer:  params.Peer,
-					Value: &InternalErr{Err: err},
-				}
-				select {
-				case params.Parent.InfoCh <- out:
-				default:
-					zap.S().Warnf("[%s] Failed to send error message '%s' to upstream channel because it's full", params.Peer.ID(), err.Error())
+			if !errSentToParent {
+				err := bytesToMessage(bb.Bytes(), params.DuplicateChecker, params.Parent.MessageCh, params.Peer)
+				if err != nil {
+					out := InfoMessage{Peer: params.Peer, Value: &InternalErr{Err: err}}
+					params.Parent.InfoCh <- out
+					errSentToParent = true
 				}
 			}
+			bytebufferpool.Put(bb) // bytes buffer should be returned to the pool in any execution branch
 
 		case err := <-params.Remote.ErrCh:
-			out := InfoMessage{
-				Peer:  params.Peer,
-				Value: &InternalErr{Err: err},
+			if !errSentToParent {
+				out := InfoMessage{Peer: params.Peer, Value: &InternalErr{Err: err}}
+				params.Parent.InfoCh <- out
+				errSentToParent = true
 			}
-			params.Parent.InfoCh <- out
 		}
 	}
 }
