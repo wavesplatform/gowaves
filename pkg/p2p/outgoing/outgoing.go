@@ -104,10 +104,10 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 	}
 
 	if _, err := handshake.WriteTo(c); err != nil {
-		zap.S().Errorf("Failed to send handshake with addr %q: %v", a.params.Address.String(), err)
-		return nil, proto.Handshake{}, err
+		addr := a.params.Address.String()
+		zap.S().Infof("Failed to send handshake with addr %q: %v", addr, err)
+		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to send handshake with addr %q", addr)
 	}
-
 	select {
 	case <-ctx.Done():
 		return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "connector.connect")
@@ -115,13 +115,15 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 	}
 
 	if _, err := handshake.ReadFrom(c); err != nil {
-		zap.S().Debugf("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
-		select {
-		case <-ctx.Done():
-			return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "connector.connect")
-		case <-time.After(5 * time.Minute): // TODO: is it correct??
-			return nil, proto.Handshake{}, err
-		}
+		addr := a.params.Address.String()
+		zap.S().Infof("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
+		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
 	}
+	select {
+	case <-ctx.Done():
+		return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "connector.connect")
+	default:
+	}
+
 	return conn.WrapConnection(ctx, c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), handshake, nil
 }
