@@ -32,8 +32,7 @@ func handleErr(err error, errCh chan<- error) {
 }
 
 // send to remote
-func sendToRemote(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error) {
-	defer closed.Store(true)
+func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -60,8 +59,7 @@ func nonRecoverableError(err error) bool {
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
-	defer stopped.Store(true)
+func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
 	for {
 		header := proto.Header{}
 		_, err := header.ReadFrom(conn)

@@ -27,25 +27,31 @@ type wrapParams struct {
 	toRemoteCh   chan []byte
 	fromRemoteCh chan *bytebufferpool.ByteBuffer
 	errCh        chan error
-	sendFunc     func(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error)
-	receiveFunc  func(closed *atomic.Bool, reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string)
+	sendFunc     func(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error)
+	receiveFunc  func(reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string)
 	skip         SkipFilter
 }
 
 func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 	ctx, cancel := context.WithCancel(ctx)
 
-	impl := &ConnectionImpl{
+	receiveClosed := atomic.NewBool(false)
+	go func() {
+		defer receiveClosed.Store(true)
+		bufReader := bufio.NewReader(params.conn)
+		params.receiveFunc(bufReader, params.fromRemoteCh, params.errCh, params.skip, params.conn.RemoteAddr().String())
+	}()
+
+	sendClosed := atomic.NewBool(false)
+	go func() {
+		defer sendClosed.Store(true)
+		params.sendFunc(params.conn, ctx, params.toRemoteCh, params.errCh)
+	}()
+
+	return &ConnectionImpl{
 		cancel:        cancel,
 		conn:          params.conn,
-		receiveClosed: atomic.NewBool(false),
-		sendClosed:    atomic.NewBool(false),
+		receiveClosed: receiveClosed,
+		sendClosed:    sendClosed,
 	}
-
-	bufReader := bufio.NewReader(params.conn)
-
-	go params.receiveFunc(impl.receiveClosed, bufReader, params.fromRemoteCh, params.errCh, params.skip, params.conn.RemoteAddr().String())
-	go params.sendFunc(impl.sendClosed, params.conn, ctx, params.toRemoteCh, params.errCh)
-
-	return impl
 }

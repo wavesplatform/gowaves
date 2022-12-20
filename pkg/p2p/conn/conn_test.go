@@ -12,7 +12,6 @@ import (
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -66,7 +65,7 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
 	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
-	receiveFromRemote(atomic.NewBool(false), bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
+	receiveFromRemote(bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
 		return false
 	}, "test")
 
