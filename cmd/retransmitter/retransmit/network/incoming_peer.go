@@ -127,8 +127,8 @@ func (a *IncomingPeer) run(ctx context.Context) error {
 }
 
 func (a *IncomingPeer) Close() error {
-	a.cancel()
-	return nil
+	defer a.cancel()
+	return a.conn.Close()
 }
 
 func (a *IncomingPeer) SendMessage(m proto.Message) {

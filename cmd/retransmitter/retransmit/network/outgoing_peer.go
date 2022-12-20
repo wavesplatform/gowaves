@@ -80,14 +80,15 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	params.Parent.InfoCh <- connected
 	zap.S().Debugf("connected %s", params.Address)
 
-	if err := peer.Handle(peer.HandlerParams{
+	handleParams := peer.HandlerParams{
 		Ctx:        ctx,
 		ID:         params.Address,
 		Connection: p.connection,
 		Remote:     remote,
 		Parent:     params.Parent,
 		Peer:       p,
-	}); err != nil {
+	}
+	if err := peer.Handle(handleParams); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
 		return
 	}
@@ -177,8 +178,8 @@ func (a *OutgoingPeer) Direction() peer.Direction {
 }
 
 func (a *OutgoingPeer) Close() error {
-	a.cancel()
-	return nil
+	defer a.cancel()
+	return a.connection.Close()
 }
 
 func (a *OutgoingPeer) ID() peer.ID {
