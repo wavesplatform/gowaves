@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	alias_utl "github.com/wavesplatform/gowaves/itests/utilities/alias_utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/transfer_utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -41,12 +42,13 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
-		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9,
+			10000000000, timeout)
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
-				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+					td, v, timeout, positive)
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", v)
 
@@ -67,7 +69,8 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
-				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+					td, v, timeout, positive)
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, name, "version: ", v)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
@@ -98,18 +101,23 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 		for _, td := range tdslice {
 			suite.T().Run(name, func(t *testing.T) {
 				//first alias tx should be successful
-				tx1, _, actualDiffBalanceInWaves1 := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, 15*timeout, positive)
+				tx1, _, actualDiffBalanceInWaves1 := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+					td, v, 15*timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, name, "version: ", v)
 
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-				utl.ExistenceTxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, name, "version:", v, tx1.TxID.String())
-				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddressAfterFirstTx.Bytes(), addrByAliasGo, addrByAliasScala)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceAfterFirstTx, actualDiffBalanceInWaves1.BalanceInWavesGo,
+				utl.ExistenceTxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, name, "version:", v,
+					tx1.TxID.String())
+				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddressAfterFirstTx.Bytes(), addrByAliasGo,
+					addrByAliasScala)
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceAfterFirstTx,
+					actualDiffBalanceInWaves1.BalanceInWavesGo,
 					actualDiffBalanceInWaves1.BalanceInWavesScala, name, "version:", v)
 
 				//second alias tx with same alias had same ID for v1 and v2
-				tx2, _, actualDiffBalanceInWaves2 := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, td, v, timeout, positive)
+				tx2, _, actualDiffBalanceInWaves2 := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+					td, v, timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx2, name, "version: ", v)
 				//already there for v1 and v2, and should be new for v3
 				txIds[name] = &tx2.TxID
@@ -146,7 +154,8 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
 			//send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
-				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite, tdSlice[j], v, timeout, positive)
+				tx, _, actualDiffBalanceInWaves := alias_utl.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+					tdSlice[j], v, timeout, positive)
 				txIds[name] = &tx.TxID
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, name, "version: ", v)

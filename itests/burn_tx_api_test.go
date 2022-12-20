@@ -53,9 +53,9 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		n, _ := utl.AddNewAccount(&suite.BaseSuite, testdata.TestChainID)
-		utl.TransferFunds(&suite.BaseSuite, testdata.TestChainID, 5, n, 1000_00000000)
 		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9,
+			10000000000, timeout)
 		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
@@ -95,7 +95,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
 				//transfer NFT from Account 2 to Account 3
-				ttx := transfer_utilities.TransferBroadcast(&suite.BaseSuite, transferdata["NFT"], v, timeout, positive)
+				ttx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, transferdata["NFT"], v, timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, name, "version", v)
 				utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
 					"Transfer: "+ttx.TxID.String(), "version:")

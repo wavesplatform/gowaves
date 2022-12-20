@@ -293,13 +293,3 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
-
-func TransferFunds(suite *f.BaseSuite, scheme proto.Scheme, from, to int, amount int) ConsideredTransaction {
-	sender := GetAccount(suite, from)
-	recipient := GetAccount(suite, to)
-	tx := proto.NewUnsignedTransferWithSig(sender.PublicKey, proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(),
-		uint64(time.Now().UnixMilli()), uint64(amount), 100000, proto.NewRecipientFromAddress(recipient.Address), nil)
-	err := tx.Sign(scheme, sender.SecretKey)
-	require.NoError(suite.T(), err)
-	return SendAndWaitTransaction(suite, tx, scheme, 5*time.Second, true)
-}
