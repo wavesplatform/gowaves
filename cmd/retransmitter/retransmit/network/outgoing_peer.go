@@ -129,6 +129,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 
 		_, err = handshake.WriteTo(c)
 		if err != nil {
+			_ = c.Close()
 			zap.S().Error("failed to send handshake: ", err, a.Address)
 			continue
 		}
@@ -142,6 +143,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 
 		_, err = handshake.ReadFrom(c)
 		if err != nil {
+			_ = c.Close()
 			zap.S().Debugf("failed to read handshake: %s %s", err, a.Address)
 			index += 1
 			select {
