@@ -101,7 +101,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 			select {
 			case <-ctx.Done():
 				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
-			case <-time.After(5 * time.Minute): // TODO: is it correct??
+			case <-time.After(5 * time.Minute): // wait scala node blacklist interval
 				continue
 			}
 		}
