@@ -98,7 +98,6 @@ func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *
 				handleErr(err, errCh)
 				return
 			}
-			handleErr(err, errCh)
 			continue
 		}
 		// then read all message to remaining buffer
@@ -112,7 +111,6 @@ func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *
 				handleErr(err, errCh)
 				return
 			}
-			handleErr(err, errCh)
 			continue
 		}
 		select {
