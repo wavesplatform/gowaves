@@ -57,6 +57,7 @@ type HandlerParams struct {
 // Handle sends and receives messages no matter outgoing or incoming connection.
 // TODO: caller should be responsible for closing network connection
 func Handle(params HandlerParams) error {
+	// TODO: error message to the params.Parent.InfoCh should be sent only once
 	for {
 		select {
 		case <-params.Ctx.Done():

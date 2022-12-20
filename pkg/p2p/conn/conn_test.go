@@ -3,6 +3,7 @@ package conn
 import (
 	"bytes"
 	"context"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -65,9 +66,10 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
 	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
-	receiveFromRemote(bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
+	err := receiveFromRemote(bytes.NewReader(messBytes), fromRemoteCh, func(headerBytes proto.Header) bool {
 		return false
 	}, "test")
+	require.ErrorIs(t, err, io.EOF)
 
 	bb := <-fromRemoteCh
 	assert.Equal(t, messBytes, bb.Bytes())

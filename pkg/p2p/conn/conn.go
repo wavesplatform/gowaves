@@ -23,24 +23,16 @@ type Connection interface {
 	ReceiveClosed() bool
 }
 
-func handleErr(err error, errCh chan<- error) {
-	select {
-	case errCh <- err:
-	default:
-		zap.L().Warn("can't send error, chan is full", zap.Error(err))
-	}
-}
-
 // send to remote
-func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error) {
+func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case bts := <-toRemoteCh:
 			_, err := conn.Write(bts)
 			if err != nil {
-				handleErr(err, errCh)
+				return err
 			}
 		}
 	}
@@ -59,14 +51,13 @@ func nonRecoverableError(err error) bool {
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
+func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string) error {
 	for {
 		header := proto.Header{}
 		_, err := header.ReadFrom(conn)
 		if err != nil {
 			if nonRecoverableError(err) {
-				handleErr(err, errCh)
-				return
+				return err
 			}
 			continue
 		}
@@ -74,8 +65,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		if skip(header) {
 			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
-				handleErr(err, errCh)
-				return
+				return err
 			}
 			continue
 		}
@@ -83,8 +73,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		if int(header.HeaderLength()+header.PayloadLength) > maxMessageSize {
 			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
-				handleErr(err, errCh)
-				return
+				return err
 			}
 			continue
 		}
@@ -93,8 +82,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		if _, err := header.WriteTo(b); err != nil {
 			bytebufferpool.Put(b)
 			if nonRecoverableError(err) {
-				handleErr(err, errCh)
-				return
+				return err
 			}
 			continue
 		}
@@ -106,8 +94,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		if err != nil {
 			bytebufferpool.Put(b)
 			if nonRecoverableError(err) {
-				handleErr(err, errCh)
-				return
+				return err
 			}
 			continue
 		}
