@@ -24,10 +24,16 @@ func TestConnectionImpl_Close(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 
+	sendData := []byte{42, 21}
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
 			require.NoError(t, err)
+			out := make([]byte, len(sendData))
+			_, err = conn.Read(out)
+			require.NoError(t, err)
+			require.Equal(t, sendData, out)
 			_ = conn.Close()
 		}
 	}()
@@ -36,15 +42,17 @@ func TestConnectionImpl_Close(t *testing.T) {
 	require.NoError(t, err)
 	params := wrapParams{
 		conn:         c,
-		toRemoteCh:   nil,
-		fromRemoteCh: make(chan *bytebufferpool.ByteBuffer, 2),
-		errCh:        make(chan error, 1),
+		toRemoteCh:   make(chan []byte, 1),
+		fromRemoteCh: make(chan *bytebufferpool.ByteBuffer, 1),
+		errCh:        make(chan error, 2),
 		sendFunc:     sendToRemote,
 		receiveFunc:  receiveFromRemote,
 	}
 
 	conn := wrapConnection(context.Background(), params)
 	require.NoError(t, err)
+	params.toRemoteCh <- sendData
+	<-time.After(10 * time.Millisecond)
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)
 	assert.True(t, conn.sendClosed.Load())
