@@ -85,6 +85,11 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 		zap.S().Warn("Failed to create new peer impl: ", err)
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
+	defer func() { // ensure that connection is closed and resources has been released
+		if err := peerImpl.Close(); err != nil {
+			zap.S().Errorf("Failed to close incoming peer: %v", err)
+		}
+	}()
 
 	out := peer.InfoMessage{
 		Peer: peerImpl,

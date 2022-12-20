@@ -55,6 +55,11 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", addr, err)
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
+	defer func() { // ensure that connection is closed and resources has been released
+		if err := peerImpl.Close(); err != nil {
+			zap.S().Errorf("Failed to close outgoing peer: %v", err)
+		}
+	}()
 
 	connected := peer.InfoMessage{
 		Peer: peerImpl,

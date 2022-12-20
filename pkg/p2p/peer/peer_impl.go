@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -37,12 +38,30 @@ func (id peerImplID) String() string {
 }
 
 type PeerImpl struct {
+	conn      *releaseOnceConn
 	handshake proto.Handshake
-	conn      conn.Connection
 	direction Direction
 	remote    Remote
 	id        peerImplID
-	cancel    context.CancelFunc
+}
+
+type releaseOnceConn struct {
+	conn.Connection
+	once         sync.Once
+	cancel       context.CancelFunc
+	errOnRelease error
+}
+
+func newReleaseOnceConn(conn conn.Connection, cancel context.CancelFunc) *releaseOnceConn {
+	return &releaseOnceConn{Connection: conn, cancel: cancel}
+}
+
+func (c *releaseOnceConn) Close() error {
+	c.once.Do(func() {
+		defer c.cancel()
+		c.errOnRelease = c.Connection.Close()
+	})
+	return c.errOnRelease
 }
 
 func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote, cancel context.CancelFunc) (*PeerImpl, error) {
@@ -52,11 +71,10 @@ func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Dire
 	}
 	return &PeerImpl{
 		handshake: handshake,
-		conn:      conn,
+		conn:      newReleaseOnceConn(conn, cancel),
 		direction: direction,
 		remote:    remote,
 		id:        id,
-		cancel:    cancel,
 	}, nil
 }
 
@@ -65,8 +83,7 @@ func (a *PeerImpl) Direction() Direction {
 }
 
 func (a *PeerImpl) Close() error {
-	defer a.cancel()
-	return a.conn.Close()
+	return a.conn.Close() // we're using releaseOnceConn, so inner conn.Close() will be called exactly once
 }
 
 func (a *PeerImpl) SendMessage(m proto.Message) {
