@@ -85,27 +85,5 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 		zap.S().Warn("Failed to create new peer impl: ", err)
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
-	defer func() { // ensure that connection is closed and resources has been released
-		if err := peerImpl.Close(); err != nil {
-			zap.S().Errorf("Failed to close incoming peer: %v", err)
-		}
-	}()
-
-	out := peer.InfoMessage{
-		Peer: peerImpl,
-		Value: &peer.Connected{
-			Peer: peerImpl,
-		},
-	}
-	params.Parent.InfoCh <- out // Notify FSM about new peer
-
-	return peer.Handle(peer.HandlerParams{
-		Ctx:              ctx,
-		ID:               peerImpl.ID().String(),
-		Connection:       connection,
-		Remote:           remote,
-		Parent:           params.Parent,
-		Peer:             peerImpl,
-		DuplicateChecker: params.DuplicateChecker,
-	})
+	return peer.Handle(ctx, peerImpl, params.Parent, remote, params.DuplicateChecker)
 }

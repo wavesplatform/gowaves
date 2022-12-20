@@ -2,10 +2,10 @@ package peer
 
 import (
 	"context"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
-	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -40,47 +40,62 @@ func bytesToMessage(data []byte, d DuplicateChecker, resendTo chan ProtoMessage,
 	return nil
 }
 
-type HandlerParams struct {
-	Ctx              context.Context
-	ID               string
-	Connection       conn.Connection
-	Remote           Remote
-	Parent           Parent
-	Peer             Peer
-	DuplicateChecker DuplicateChecker
+type peerOnceCloser struct {
+	Peer
+	once       sync.Once
+	errOnClose error
+}
+
+func newPeerOnceCloser(p Peer) *peerOnceCloser {
+	return &peerOnceCloser{Peer: p}
+}
+
+func (p *peerOnceCloser) Close() error {
+	p.once.Do(func() {
+		p.errOnClose = p.Peer.Close()
+	})
+	return p.errOnClose
 }
 
 // Handle sends and receives messages no matter outgoing or incoming connection.
-// TODO: caller should be responsible for closing network connection
-func Handle(params HandlerParams) error {
-	var errSentToParent bool // if errSentToParent is true then we need to wait params.Ctx cancellation
+// Handle consumes provided peer parameter and closes it when the function ends.
+func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote, duplicateChecker DuplicateChecker) error {
+	peer = newPeerOnceCloser(peer) // wrap peer in order to prevent multiple peer.Close() calls
+	defer func(p Peer) {
+		if err := p.Close(); err != nil {
+			zap.S().Errorf("Failed to close '%s' peer '%s': %v", p.Direction(), p.ID(), err)
+		}
+	}(peer)
+	connectedMsg := InfoMessage{Peer: peer, Value: &Connected{Peer: peer}}
+	parent.InfoCh <- connectedMsg // notify parent about new connection
+
+	var errSentToParent bool // if errSentToParent is true then we need to wait ctx cancellation
 	for {
 		select {
-		case <-params.Ctx.Done():
-			_ = params.Connection.Close()
+		case <-ctx.Done():
 			//TODO: On Done() Err() contains only Canceled or DeadlineExceeded.
 			// Actually, those errors are only logged in different places and not used to alter behavior.
 			// Consider removing wrapping. For now, if context was canceled no error is passed by.
-			if errors.Is(params.Ctx.Err(), context.Canceled) {
+			if errors.Is(ctx.Err(), context.Canceled) {
 				return nil
 			}
-			return errors.Wrap(params.Ctx.Err(), "Handle")
+			return errors.Wrap(ctx.Err(), "Handle")
 
-		case bb := <-params.Remote.FromCh:
+		case bb := <-remote.FromCh:
 			if !errSentToParent {
-				err := bytesToMessage(bb.Bytes(), params.DuplicateChecker, params.Parent.MessageCh, params.Peer)
+				err := bytesToMessage(bb.Bytes(), duplicateChecker, parent.MessageCh, peer)
 				if err != nil {
-					out := InfoMessage{Peer: params.Peer, Value: &InternalErr{Err: err}}
-					params.Parent.InfoCh <- out
+					out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
+					parent.InfoCh <- out
 					errSentToParent = true
 				}
 			}
 			bytebufferpool.Put(bb) // bytes buffer should be returned to the pool in any execution branch
 
-		case err := <-params.Remote.ErrCh:
+		case err := <-remote.ErrCh:
 			if !errSentToParent {
-				out := InfoMessage{Peer: params.Peer, Value: &InternalErr{Err: err}}
-				params.Parent.InfoCh <- out
+				out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
+				parent.InfoCh <- out
 				errSentToParent = true
 			}
 		}

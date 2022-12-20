@@ -101,29 +101,13 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
-
-	out := peer.InfoMessage{
-		Peer: p,
-		Value: &peer.Connected{
-			Peer: p,
-		},
-	}
-	params.Parent.InfoCh <- out
 	if err := p.run(ctx); err != nil {
 		zap.S().Error("peer.run(): ", err)
 	}
 }
 
 func (a *IncomingPeer) run(ctx context.Context) error {
-	handleParams := peer.HandlerParams{
-		Connection: a.conn,
-		Ctx:        ctx,
-		Remote:     a.remote,
-		ID:         a.ID().String(),
-		Parent:     a.params.Parent,
-		Peer:       a,
-	}
-	return peer.Handle(handleParams)
+	return peer.Handle(ctx, a, a.params.Parent, a.remote, nil)
 }
 
 func (a *IncomingPeer) Close() error {

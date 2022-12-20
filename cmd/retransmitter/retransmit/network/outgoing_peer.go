@@ -71,24 +71,8 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		handshake:  handshake,
 	}
 
-	connected := peer.InfoMessage{
-		Peer: p,
-		Value: &peer.Connected{
-			Peer: p,
-		},
-	}
-	params.Parent.InfoCh <- connected
 	zap.S().Debugf("connected %s", params.Address)
-
-	handleParams := peer.HandlerParams{
-		Ctx:        ctx,
-		ID:         params.Address,
-		Connection: p.connection,
-		Remote:     remote,
-		Parent:     params.Parent,
-		Peer:       p,
-	}
-	if err := peer.Handle(handleParams); err != nil {
+	if err := peer.Handle(ctx, p, params.Parent, remote, nil); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
 		return
 	}

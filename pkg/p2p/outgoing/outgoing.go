@@ -39,7 +39,6 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		remote: remote,
 	}
 	addr := params.Address.String()
-	// FIXME: connection.close should be called in case of any error, or it should be deferred in any case
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v)
 	if err != nil {
@@ -55,30 +54,8 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", addr, err)
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
-	defer func() { // ensure that connection is closed and resources has been released
-		if err := peerImpl.Close(); err != nil {
-			zap.S().Errorf("Failed to close outgoing peer: %v", err)
-		}
-	}()
-
-	connected := peer.InfoMessage{
-		Peer: peerImpl,
-		Value: &peer.Connected{
-			Peer: peerImpl,
-		},
-	}
-	params.Parent.InfoCh <- connected // Notify FSM about new peer
 	zap.S().Debugf("Connected outgoing peer with addr '%s', id '%s'", addr, peerImpl.ID())
-
-	return peer.Handle(peer.HandlerParams{
-		Ctx:              ctx,
-		ID:               peerImpl.ID().String(),
-		Connection:       connection,
-		Remote:           remote,
-		Parent:           params.Parent,
-		Peer:             peerImpl,
-		DuplicateChecker: params.DuplicateChecker,
-	})
+	return peer.Handle(ctx, peerImpl, params.Parent, remote, params.DuplicateChecker)
 }
 
 type connector struct {
