@@ -82,9 +82,10 @@ type connector struct {
 }
 
 func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.Duration, v proto.Version) (_ conn.Connection, _ proto.Handshake, err error) {
-	c, err := net.DialTimeout("tcp", addr, dialTimeout)
+	dialer := net.Dialer{Timeout: dialTimeout}
+	c, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, proto.Handshake{}, err
+		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to dial with addr %q", addr)
 	}
 	defer func() {
 		if err != nil { // close connection on error
