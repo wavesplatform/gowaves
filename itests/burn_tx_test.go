@@ -24,8 +24,8 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, reissuable, v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
@@ -49,10 +49,10 @@ func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9,
 			10000000000, timeout)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, reissuable, v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
@@ -76,9 +76,9 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
 		//get NFT
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["NFT"], v, timeout, positive)
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, nft, v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		//data for transfer
@@ -109,8 +109,8 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 	positive := true
 	timeout := 1 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueSend(&suite.BaseSuite, issuedata["reissuable"], v, 15*timeout, positive)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueSend(&suite.BaseSuite, reissuable, v, 15*timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnNegativeDataMatrix(&suite.BaseSuite, itx.TxID)

@@ -25,8 +25,8 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, reissuable, v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
@@ -53,10 +53,10 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9,
 			10000000000, timeout)
-		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, reissuable, v, timeout, positive)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
@@ -83,9 +83,9 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	positive := true
 	timeout := 20 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
+		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
 		//get NFT
-		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["NFT"], v, timeout, positive)
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, nft, v, timeout, positive)
 		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, itx, "NFT", "version", v)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
@@ -119,8 +119,8 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 	positive := true
 	timeout := 1 * time.Second
 	for _, v := range versions {
-		issuedata := testdata.GetCommonIssueData(&suite.BaseSuite)
-		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, issuedata["reissuable"], v, 15*timeout, positive)
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueBroadcast(&suite.BaseSuite, reissuable, v, 15*timeout, positive)
 		utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, itx, "reissuable", "version", v)
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
