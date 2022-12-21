@@ -44,10 +44,15 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 	}
 }
 
-func GetCommonTransferData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesPositive] {
+type CommonTransferData struct {
+	Asset TransferTestData[TransferExpectedValuesPositive]
+	NFT   TransferTestData[TransferExpectedValuesPositive]
+}
+
+func GetCommonTransferData(suite *f.BaseSuite, assetId crypto.Digest) CommonTransferData {
 	commonAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId) / 4
-	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
-		"asset": *NewTransferTestData(
+	return CommonTransferData{
+		Asset: *NewTransferTestData(
 			utl.GetAccount(suite, 2),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			*proto.NewOptionalAssetFromDigest(assetId),
@@ -62,7 +67,7 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId crypto.Digest) map[string
 				AssetDiffBalance: commonAmount,
 			},
 		),
-		"NFT": *NewTransferTestData(
+		NFT: *NewTransferTestData(
 			utl.GetAccount(suite, 2),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			*proto.NewOptionalAssetFromDigest(assetId),
@@ -78,5 +83,4 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId crypto.Digest) map[string
 			},
 		),
 	}
-	return t
 }

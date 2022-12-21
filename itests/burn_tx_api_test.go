@@ -90,12 +90,12 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 		utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), itx.WtErr.ErrWtGo, itx.WtErr.ErrWtScala,
 			"Issue: "+itx.TxID.String(), "Version: ", v)
 		//data for transfer
-		transferdata := testdata.GetCommonTransferData(&suite.BaseSuite, itx.TxID)
+		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, itx.TxID).NFT
 		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
 				//transfer NFT from Account 2 to Account 3
-				ttx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, transferdata["NFT"], v, timeout, positive)
+				ttx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, transferNFT, v, timeout, positive)
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, name, "version", v)
 				utl.ExistenceTxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
 					"Transfer: "+ttx.TxID.String(), "version:")
