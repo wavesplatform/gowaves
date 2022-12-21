@@ -23,7 +23,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTFlat()
+	return pbTx.MarshalVTStrict()
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -31,7 +31,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTFlat()
+	return pbTx.MarshalVTStrict()
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
