@@ -290,8 +290,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
-	ws.totalComplexity += res.Complexity()
-
 	if !env.invokeExpressionActivated() { // Check payments result balances here before invoke expression activation.
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err

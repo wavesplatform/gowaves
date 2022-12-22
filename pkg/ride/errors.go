@@ -28,11 +28,6 @@ func (e evaluationError) Error() string {
 	return e.originalError.Error()
 }
 
-func (e evaluationError) AddComplexity(complexity int) error {
-	e.spentComplexity += complexity
-	return e
-}
-
 func (e EvaluationError) New(msg string) error {
 	return evaluationError{errorType: e, originalError: errors.New(msg)}
 }
@@ -78,9 +73,9 @@ func EvaluationErrorPush(err error, format string, args ...interface{}) error {
 	return errors.Wrapf(err, format, args...)
 }
 
-func EvaluationErrorAddComplexity(err error, complexity int) error {
+func EvaluationErrorSetComplexity(err error, complexity int) error {
 	if ee, ok := err.(evaluationError); ok {
-		ee.spentComplexity += complexity
+		ee.spentComplexity = complexity
 		return ee
 	}
 	return err

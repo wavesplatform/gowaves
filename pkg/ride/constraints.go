@@ -6,12 +6,15 @@ import (
 )
 
 const (
-	MaxChainInvokeComplexityV3V4 = 4000
-	MaxChainInvokeComplexityV5   = 26000
-	MaxChainInvokeComplexityV6   = 52000
+	MaxChainInvokeComplexityV3V4   = 4000
+	MaxChainInvokeComplexityV5     = 26000
+	MaxChainInvokeComplexityV6     = 52000
+	MaxVerifierComplexity          = 2000
+	MaxAssetVerifierComplexityV1V2 = 2000
+	MaxAssetVerifierComplexityV3V6 = 4000
 )
 
-func maxChainInvokeComplexityByVersion(version ast.LibraryVersion) (int, error) {
+func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (int, error) {
 	// libV1 and libV2 don't have callables
 	switch version {
 	case ast.LibV3, ast.LibV4:
@@ -23,4 +26,11 @@ func maxChainInvokeComplexityByVersion(version ast.LibraryVersion) (int, error) 
 	default:
 		return 0, errors.Errorf("unsupported library version %d", version)
 	}
+}
+
+func MaxAssetVerifierComplexity(v ast.LibraryVersion) int {
+	if v > ast.LibV2 {
+		return MaxAssetVerifierComplexityV3V6
+	}
+	return MaxAssetVerifierComplexityV1V2
 }

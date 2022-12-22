@@ -3,7 +3,6 @@ package ride
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type esConstant struct {
@@ -184,132 +183,15 @@ func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 	}
 }
 
-type complexityCalculator interface {
-	overflow() bool
-	complexity() int
-	limit() int
-	addNativeFunctionComplexity(int)
-	addAdditionalUserFunctionComplexity()
-	addConditionalComplexity()
-	addReferenceComplexity()
-	addPropertyComplexity()
-	limitExceeded(int) bool
-}
-
-type complexityCalculatorV1 struct {
-	o bool
-	c int
-	l int
-}
-
-func (cc *complexityCalculatorV1) overflow() bool {
-	return cc.o
-}
-
-func (cc *complexityCalculatorV1) complexity() int {
-	return cc.c
-}
-
-func (cc *complexityCalculatorV1) limit() int {
-	return cc.l
-}
-
-func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		cc.o = true
-	}
-	cc.c = nc
-}
-
-func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity() {}
-
-func (cc *complexityCalculatorV1) addOne() {
-	nc, err := common.AddInt(cc.c, 1)
-	if err != nil {
-		cc.o = true
-	}
-	cc.c = nc
-}
-
-func (cc *complexityCalculatorV1) addConditionalComplexity() {
-	cc.addOne()
-}
-
-func (cc *complexityCalculatorV1) addReferenceComplexity() {
-	cc.addOne()
-}
-
-func (cc *complexityCalculatorV1) addPropertyComplexity() {
-	cc.addOne()
-}
-
-func (cc *complexityCalculatorV1) limitExceeded(c int) bool {
-	nc, err := common.AddInt(cc.c, c)
-	if err != nil {
-		return true
-	}
-	return nc > cc.l
-}
-
-type complexityCalculatorV2 struct {
-	o bool
-	c int
-	l int
-}
-
-func (cc *complexityCalculatorV2) overflow() bool {
-	return cc.o
-}
-
-func (cc *complexityCalculatorV2) complexity() int {
-	return cc.c
-}
-
-func (cc *complexityCalculatorV2) limit() int {
-	return cc.l
-}
-
-func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
-	nc, err := common.AddInt(cc.c, fc)
-	if err != nil {
-		cc.o = true
-	}
-	cc.c = nc
-}
-
-func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity() {
-	nc, err := common.AddInt(cc.c, 1)
-	if err != nil {
-		cc.o = true
-	}
-	cc.c = nc
-}
-
-func (cc *complexityCalculatorV2) addConditionalComplexity() {}
-
-func (cc *complexityCalculatorV2) addReferenceComplexity() {}
-
-func (cc *complexityCalculatorV2) addPropertyComplexity() {}
-
-func (cc *complexityCalculatorV2) limitExceeded(c int) bool {
-	nc, err := common.AddInt(cc.c, c)
-	if err != nil {
-		return true
-	}
-	return nc > cc.l
-}
-
 type treeEvaluator struct {
 	dapp bool
-	cc   complexityCalculator
 	f    ast.Node
 	s    evaluationScope
 	env  environment
 }
 
 func (e *treeEvaluator) complexity() int {
-	return e.cc.complexity()
+	return e.env.complexityCalculator().complexity()
 }
 
 func (e *treeEvaluator) evaluate() (Result, error) {
@@ -382,12 +264,12 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
-	if e.cc.limitExceeded(cost) {
-		return nil, ComplexityLimitExceed.Errorf("current complexity %d and function complexity %d exceeds the limit %d",
-			e.cc.complexity(), cost, e.cc.limit())
+	if !e.env.complexityCalculator().testNativeFunctionComplexity(cost) {
+		return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
+			e.env.complexityCalculator().complexity()+cost, e.env.complexityCalculator().limit())
 	}
 	defer func() {
-		e.cc.addNativeFunctionComplexity(cost)
+		e.env.complexityCalculator().addNativeFunctionComplexity(cost)
 	}()
 	r, err := f(e.env, args...)
 	if err != nil {
@@ -397,11 +279,9 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 }
 
 func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (rideType, error) {
-	initialComplexity := e.cc.complexity()
+	initialComplexity := e.env.complexityCalculator().complexity()
 	defer func() {
-		if initialComplexity == e.cc.complexity() {
-			e.cc.addAdditionalUserFunctionComplexity()
-		}
+		e.env.complexityCalculator().addAdditionalUserFunctionComplexity(initialComplexity)
 	}()
 	uf, cl, found := e.s.userFunction(name)
 	if !found {
@@ -426,15 +306,15 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
 
-	if initialComplexity == e.cc.complexity() && e.cc.limitExceeded(1) {
-		return nil, ComplexityLimitExceed.Errorf("current complexity %d and function complexity %d exceeds the limit %d",
-			e.cc.complexity(), 1, e.cc.limit())
+	if !e.env.complexityCalculator().testAdditionalUserFunctionComplexity(initialComplexity) {
+		return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
+			e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
 	}
 	return r, nil
 }
 
 func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
-	if e.cc.overflow() {
+	if e.env.complexityCalculator().overflow() {
 		return nil, RuntimeError.New("evaluation complexity overflow")
 	}
 	switch n := node.(type) {
@@ -451,8 +331,12 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return rideString(n.Value), nil
 
 	case *ast.ConditionalNode:
+		if !e.env.complexityCalculator().testConditionalComplexity() {
+			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
+				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+		}
 		defer func() {
-			e.cc.addConditionalComplexity()
+			e.env.complexityCalculator().addConditionalComplexity()
 		}()
 		ce, err := e.walk(n.Condition)
 		if err != nil {
@@ -479,8 +363,12 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return r, nil
 
 	case *ast.ReferenceNode:
+		if !e.env.complexityCalculator().testReferenceComplexity() {
+			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
+				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+		}
 		defer func() {
-			e.cc.addReferenceComplexity()
+			e.env.complexityCalculator().addReferenceComplexity()
 		}()
 		id := n.Name
 		v, ok, f, p := e.s.value(id)
@@ -536,8 +424,12 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		}
 
 	case *ast.PropertyNode:
+		if !e.env.complexityCalculator().testPropertyComplexity() {
+			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
+				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+		}
 		defer func() {
-			e.cc.addPropertyComplexity()
+			e.env.complexityCalculator().addPropertyComplexity()
 		}()
 		name := n.Name
 		obj, err := e.walk(n.Object)
@@ -561,10 +453,6 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
 	}
-	var cc complexityCalculator = &complexityCalculatorV1{}
-	if env.rideV6Activated() {
-		cc = &complexityCalculatorV2{}
-	}
 	if tree.IsDApp() {
 		if tree.HasVerifier() {
 			verifier, ok := tree.Verifier.(*ast.FunctionDeclarationNode)
@@ -580,7 +468,6 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 			s.constants[verifier.InvocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
 				dapp: tree.IsDApp(),
-				cc:   cc,
 				f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
 				s:    s,
 				env:  env,
@@ -590,7 +477,6 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 	}
 	return &treeEvaluator{
 		dapp: tree.IsDApp(),
-		cc:   cc,
 		f:    tree.Verifier, // In simple script verifier is an expression itself
 		s:    s,
 		env:  env,
@@ -611,10 +497,6 @@ func treeFunctionEvaluator(env environment, tree *ast.Tree, name string, args []
 	if !tree.IsDApp() {
 		return nil, EvaluationFailure.Errorf("unable to call function '%s' on simple script", name)
 	}
-	var cc complexityCalculator = &complexityCalculatorV1{}
-	if env.rideV6Activated() {
-		cc = &complexityCalculatorV2{}
-	}
 	for i := 0; i < len(tree.Functions); i++ {
 		function, ok := tree.Functions[i].(*ast.FunctionDeclarationNode)
 		if !ok {
@@ -628,7 +510,7 @@ func treeFunctionEvaluator(env environment, tree *ast.Tree, name string, args []
 			for i, arg := range args {
 				s.pushValue(function.Arguments[i], arg)
 			}
-			return &treeEvaluator{dapp: true, cc: cc, f: function.Body, s: s, env: env}, nil
+			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
 		}
 	}
 	return nil, EvaluationFailure.Errorf("function '%s' not found", name)
