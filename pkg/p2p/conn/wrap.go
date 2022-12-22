@@ -37,8 +37,8 @@ type wrapParams struct {
 func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 	ctx, cancel := context.WithCancel(ctx)
 	var (
-		once                           = new(sync.Once)
-		notifyAboutNonRecoverableError = func(err error) {
+		once             = new(sync.Once)
+		notifyAboutError = func(err error) {
 			if err == nil {
 				return
 			}
@@ -60,9 +60,10 @@ func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 		defer receiveClosed.Store(true)
 		defer cancel() // ensure cleanup (mostly in case if the parent context has been canceled)
 		bufReader := bufio.NewReader(params.conn)
-		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, params.conn.RemoteAddr().String())
+		remoteAddr := params.conn.RemoteAddr().String()
+		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, remoteAddr)
 		if err != nil {
-			notifyAboutNonRecoverableError(errors.Wrap(err, "receiveFunc"))
+			notifyAboutError(errors.Wrapf(err, "receiveFunc failed with addr %q", remoteAddr))
 		}
 	}()
 
@@ -72,7 +73,8 @@ func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 		defer cancel() // ensure cleanup (mostly in case if the parent context has been canceled)
 		err := params.sendFunc(params.conn, ctx, params.toRemoteCh)
 		if err != nil {
-			notifyAboutNonRecoverableError(errors.Wrap(err, "sendFunc"))
+			remoteAddr := params.conn.RemoteAddr().String()
+			notifyAboutError(errors.Wrapf(err, "sendFunc failed with addr %q", remoteAddr))
 		}
 	}()
 

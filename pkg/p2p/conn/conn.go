@@ -2,10 +2,10 @@ package conn
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/atomic"
@@ -38,16 +38,6 @@ func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte) e
 	}
 }
 
-// nonRecoverableError returns `true` if we can't recover from such error.
-// On non-recoverable errors we should close connection and exit.
-func nonRecoverableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	// for more details with net.ErrClosed see https://github.com/golang/go/issues/4373
-	return errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)
-}
-
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
@@ -56,24 +46,22 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		header := proto.Header{}
 		_, err := header.ReadFrom(conn)
 		if err != nil {
-			if nonRecoverableError(err) {
-				return err
-			}
-			continue
+			return errors.Wrap(err, "failed to read header")
 		}
 
 		if skip(header) {
 			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
-			if nonRecoverableError(err) {
-				return err
+			if err != nil {
+				return errors.Wrap(err, "failed to skip payload")
 			}
 			continue
 		}
 		// received too long message than we expected, probably it is error, discard
-		if int(header.HeaderLength()+header.PayloadLength) > maxMessageSize {
+		// TODO: Is it necessary to discard such message instead of returning error?
+		if l := int(header.HeaderLength() + header.PayloadLength); l > maxMessageSize {
 			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
-			if nonRecoverableError(err) {
-				return err
+			if err != nil {
+				return errors.Wrapf(err, "failed to skip too big message (%d > %d)", l, maxMessageSize)
 			}
 			continue
 		}
@@ -81,22 +69,12 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		// put header before payload
 		if _, err := header.WriteTo(b); err != nil {
 			bytebufferpool.Put(b)
-			if nonRecoverableError(err) {
-				return err
-			}
-			continue
+			return errors.Wrap(err, "failed to write header into buff")
 		}
 		// then read all message to remaining buffer
-		//hl := header.HeaderLength()
-		pl := int64(header.PayloadLength)
-		_, err = io.CopyN(b, conn, pl)
-		//_, err = proto.ReadPayload(b.B[hl:hl+pl], conn)
-		if err != nil {
+		if _, err = io.CopyN(b, conn, int64(header.PayloadLength)); err != nil {
 			bytebufferpool.Put(b)
-			if nonRecoverableError(err) {
-				return err
-			}
-			continue
+			return errors.Wrap(err, "failed to read payload into buffer")
 		}
 		select {
 		case fromRemoteCh <- b:
