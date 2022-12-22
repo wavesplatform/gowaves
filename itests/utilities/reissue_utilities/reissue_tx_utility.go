@@ -1,8 +1,6 @@
 package reissue_utilities
 
 import (
-	"time"
-
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -10,14 +8,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
 
 // MakeTxAndGetDiffBalances This function returns txID with difference balances after tx for both nodes
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
-	timeout time.Duration, positive bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
 	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
-	tx := makeTx(suite, testdata, version, timeout, positive)
+	tx := makeTx(suite, testdata, version, waitForTx)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
@@ -45,22 +43,23 @@ func NewSignReissueTransaction[T any](suite *f.BaseSuite, version byte, testdata
 	return tx
 }
 
-func ReissueSend[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction {
+func ReissueSend[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignReissueTransaction(suite, version, testdata)
-	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, timeout, positive)
+	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func ReissueBroadcast[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) utl.ConsideredTransaction {
+func ReissueBroadcast[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignReissueTransaction(suite, version, testdata)
-	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, timeout, positive)
+	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func SendReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) (
-	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, ReissueSend[T])
+func SendReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
+	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, ReissueSend[T])
 }
 
-func BroadcastReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, timeout time.Duration, positive bool) (
+func BroadcastReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T],
+	version byte, waitForTx bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, timeout, positive, ReissueBroadcast[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, ReissueBroadcast[T])
 }
