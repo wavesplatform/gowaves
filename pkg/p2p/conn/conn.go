@@ -44,14 +44,12 @@ type SkipFilter func(proto.Header) bool
 func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string) error {
 	for {
 		header := proto.Header{}
-		_, err := header.ReadFrom(conn)
-		if err != nil {
+		if _, err := header.ReadFrom(conn); err != nil {
 			return errors.Wrap(err, "failed to read header")
 		}
 
 		if skip(header) {
-			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
-			if err != nil {
+			if _, err := io.CopyN(io.Discard, conn, int64(header.PayloadLength)); err != nil {
 				return errors.Wrap(err, "failed to skip payload")
 			}
 			continue
@@ -59,8 +57,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 		// received too long message than we expected, probably it is error, discard
 		// TODO: Is it necessary to discard such message instead of returning error?
 		if l := int(header.HeaderLength() + header.PayloadLength); l > maxMessageSize {
-			_, err = io.CopyN(io.Discard, conn, int64(header.PayloadLength))
-			if err != nil {
+			if _, err := io.CopyN(io.Discard, conn, int64(header.PayloadLength)); err != nil {
 				return errors.Wrapf(err, "failed to skip too big message (%d > %d)", l, maxMessageSize)
 			}
 			continue
@@ -72,7 +69,7 @@ func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuf
 			return errors.Wrap(err, "failed to write header into buff")
 		}
 		// then read all message to remaining buffer
-		if _, err = io.CopyN(b, conn, int64(header.PayloadLength)); err != nil {
+		if _, err := io.CopyN(b, conn, int64(header.PayloadLength)); err != nil {
 			bytebufferpool.Put(b)
 			return errors.Wrap(err, "failed to read payload into buffer")
 		}
