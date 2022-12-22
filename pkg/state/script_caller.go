@@ -68,7 +68,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
-	env.SetLimit(ride.MaxVerifierComplexity)
+	env.SetLimit(ride.MaxVerifierComplexity(info.rideV5Activated))
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -128,7 +128,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(params.blockInfo)
-	env.SetLimit(ride.MaxVerifierComplexity)
+	env.SetLimit(ride.MaxVerifierComplexity(params.rideV5Activated))
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
