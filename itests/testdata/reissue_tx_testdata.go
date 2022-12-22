@@ -123,7 +123,7 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 			utl.GetCurrentTimestampInMs(),
 			TestChainID,
 			1,
-			true,
+			false,
 			ReissueExpectedValuesNegative{
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
@@ -274,7 +274,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			utl.GetAccount(suite, 2),
 			assetID,
 			100000,
-			utl.GetCurrentTimestampInMs()-7215000,
+			utl.GetCurrentTimestampInMs()-7217000,
 			TestChainID,
 			10000000,
 			true,
