@@ -205,8 +205,9 @@ func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress
 	return actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala
 }
 
-func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest,
-	timeout, tick time.Duration) map[string]string {
+func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest) map[string]string {
+	timeout := 20 * time.Second
+	tick := timeout
 	var (
 		ticker      = time.NewTicker(tick)
 		ctx, cancel = context.WithTimeout(context.Background(), timeout)
@@ -264,12 +265,14 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
-	positive bool) ConsideredTransaction {
-
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
+	timeout := 5 * time.Millisecond
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
-	scala := !positive
+	if waitForTx {
+		timeout = 15 * time.Second
+	}
+	scala := !waitForTx
 
 	suite.Clients.ClearBlackList(suite.T())
 
@@ -280,26 +283,17 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
-func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, timeout time.Duration,
-	positive bool) ConsideredTransaction {
+func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
+	timeout := 15 * time.Second
 	id := ExtractTxID(suite.T(), tx, scheme)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	var respScala *client.Response = nil
 	var errBrdCstScala error = nil
-	if !positive {
+	if !waitForTx {
+		timeout = time.Millisecond
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
-}
-
-func TransferFunds(suite *f.BaseSuite, scheme proto.Scheme, from, to int, amount int) ConsideredTransaction {
-	sender := GetAccount(suite, from)
-	recipient := GetAccount(suite, to)
-	tx := proto.NewUnsignedTransferWithSig(sender.PublicKey, proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(),
-		uint64(time.Now().UnixMilli()), uint64(amount), 100000, proto.NewRecipientFromAddress(recipient.Address), nil)
-	err := tx.Sign(scheme, sender.SecretKey)
-	require.NoError(suite.T(), err)
-	return SendAndWaitTransaction(suite, tx, scheme, 5*time.Second, true)
 }

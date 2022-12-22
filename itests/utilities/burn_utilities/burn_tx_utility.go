@@ -1,4 +1,4 @@
-package reissue_utilities
+package burn_utilities
 
 import (
 	"github.com/stretchr/testify/require"
@@ -8,10 +8,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
 
-// MakeTxAndGetDiffBalances This function returns txID with difference balances after tx for both nodes
-func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
+func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
 	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
@@ -26,40 +25,37 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Reiss
 		*utl.NewBalanceInAsset(actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
-func NewSignReissueTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.ReissueTestData[T]) proto.Transaction {
+func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.BurnTestData[T]) proto.Transaction {
 	var tx proto.Transaction
 	if version == 1 {
-		tx = proto.NewUnsignedReissueWithSig(
-			testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Reissuable,
-			testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedBurnWithSig(testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedReissueWithProofs(version, testdata.ChainID, testdata.Account.PublicKey,
-			testdata.AssetID, testdata.Quantity, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedBurnWithProofs(version, testdata.ChainID, testdata.Account.PublicKey, testdata.AssetID,
+			testdata.Quantity, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)
-	suite.T().Logf("Reissue Transaction JSON: %s", txJson)
+	suite.T().Logf("Burn Transaction JSON after sign: %s", txJson)
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }
 
-func ReissueSend[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignReissueTransaction(suite, version, testdata)
+func BurnSend[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+	tx := NewSignBurnTransaction(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func ReissueBroadcast[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignReissueTransaction(suite, version, testdata)
+func BurnBroadcast[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+	tx := NewSignBurnTransaction(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func SendReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
-	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, ReissueSend[T])
+func SendBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) (
+	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BurnSend[T])
 }
 
-func BroadcastReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T],
-	version byte, waitForTx bool) (
+func BroadcastBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, ReissueBroadcast[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BurnBroadcast[T])
 }
