@@ -1,8 +1,6 @@
 package stdlib
 
 import (
-	"reflect"
-
 	"github.com/pkg/errors"
 )
 
@@ -51,7 +49,7 @@ func handleTypes(node *node32, t string) Type {
 		return T
 	}
 
-	resType := UnionType{Types: map[string]Type{}}
+	resType := UnionType{Types: []Type{}}
 	resType.AppendType(T)
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
@@ -127,32 +125,61 @@ func (t SimpleType) String() string {
 }
 
 type UnionType struct {
-	Types map[string]Type
+	Types []Type
 }
 
 func (t UnionType) Comp(rideType Type) bool {
-	if T, ok := rideType.(UnionType); ok {
-		return reflect.DeepEqual(t, T)
+	if rideType == Any {
+		return true
 	}
-	_, ok := t.Types[rideType.String()]
-	return ok
+	if T, ok := rideType.(UnionType); ok {
+		for _, typeName := range T.Types {
+			for _, checkTypeName := range t.Types {
+				if !checkTypeName.Comp(typeName) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	for _, typeName := range t.Types {
+		if typeName.Comp(rideType) {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *UnionType) AppendType(rideType Type) {
-	if T, ok := rideType.(UnionType); ok {
-		for k, v := range T.Types {
-			t.Types[k] = v
+	if newT, ok := rideType.(UnionType); ok {
+		var newTypes []Type
+		for _, newType := range newT.Types {
+			for _, existType := range t.Types {
+				if !newType.Comp(existType) {
+					newTypes = append(newTypes, newType)
+				}
+			}
 		}
+		t.Types = append(t.Types, newTypes...)
 		return
 	}
-	t.Types[rideType.String()] = rideType
+	if len(t.Types) == 0 {
+		t.Types = append(t.Types, rideType)
+		return
+	}
+	for _, existType := range t.Types {
+		if !rideType.Comp(existType) {
+			t.Types = append(t.Types, rideType)
+			return
+		}
+	}
 }
 
 func (t UnionType) String() string {
 	var res string
 	cnt := 0
-	for k := range t.Types {
-		res += k
+	for _, T := range t.Types {
+		res += T.String()
 		cnt++
 		if cnt < len(t.Types) {
 			res += "|"
@@ -180,7 +207,7 @@ func (t ListType) String() string {
 }
 
 func (t *ListType) AppendType(rideType Type) {
-	resType := UnionType{Types: map[string]Type{}}
+	resType := UnionType{Types: []Type{}}
 	if T, ok := rideType.(UnionType); ok {
 		resType.AppendType(T)
 	}
@@ -194,7 +221,7 @@ func (t *ListType) AppendType(rideType Type) {
 
 func (t *ListType) AppendList(rideType Type) {
 	T := rideType.(ListType)
-	resType := UnionType{Types: map[string]Type{}}
+	resType := UnionType{Types: []Type{}}
 	resType.AppendType(t.Type)
 	resType.AppendType(T.Type)
 }
@@ -205,7 +232,10 @@ type TupleType struct {
 
 func (t TupleType) Comp(rideType Type) bool {
 	if T, ok := rideType.(TupleType); ok {
-		for i := 0; i <= len(t.Types); i++ {
+		if len(T.Types) != len(t.Types) {
+			return false
+		}
+		for i := 0; i < len(t.Types); i++ {
 			if t.Types[i] == nil || T.Types[i] == nil {
 				continue
 			}

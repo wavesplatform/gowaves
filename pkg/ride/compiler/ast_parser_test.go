@@ -329,18 +329,156 @@ func TestMatchCase(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`let a = if true then AssetPair(base58'', base58'') else 10
-		
-let b = match a {
-   case AssetPair(amountAsset = base16'', priceAsset = base16'') => true
-   case _ => false
-}`, false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDADCQAAAgEACAUHJG1hdGNoMAthbW91bnRBc3NldAkAAAIBAAgFByRtYXRjaDAKcHJpY2VBc3NldAcHBAckbWF0Y2gwBQckbWF0Y2gwBgcAAEe/y1c="},
-		{`let a = if true then AssetPair(base58'', base58'') else 10
+		{`
+let a = if true then "" else 10
 
 let b = match a {
-    case AssetPair() => true
-    case _ => false
-}`, false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDAGBwQHJG1hdGNoMAUHJG1hdGNoMAYHAAD1dYoP"},
+	case x: Int => true
+	case _ => false
+	case _ => false
+}`,
+			true, "(10:2, 11:0): Match should have at most one default case"},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => true
+}`,
+			true, "(7:9, 9:2): Match should have default case"},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYCAAAKAAFiBAckbWF0Y2gwBQFhAwkAAQIFByRtYXRjaDACA0ludAQBeAUHJG1hdGNoMAYHAACgeGuK"},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => true
+	case x: String => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYCAAAKAAFiBAckbWF0Y2gwBQFhAwkAAQIFByRtYXRjaDACA0ludAQBeAUHJG1hdGNoMAYDCQABAgUHJG1hdGNoMAIGU3RyaW5nBAF4BQckbWF0Y2gwBgcAANXZst4="},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => true
+	case x: Boolean => true
+	case _ => false
+}`,
+			true, "(9:10, 9:17): Matching not exhaustive: possibleTypes are \"String|Int\", while matched are \"Boolean\""},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => x
+	case x: String => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYCAAAKAAFiBAckbWF0Y2gwBQFhAwkAAQIFByRtYXRjaDACA0ludAQBeAUHJG1hdGNoMAUBeAMJAAECBQckbWF0Y2gwAgZTdHJpbmcEAXgFByRtYXRjaDAGBwAAbSLfzg=="},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+	case x: Int => y
+	case x: String => true
+	case _ => false
+}`,
+			true, "(8:17, 9:0): Variable \"y\" doesnt't exist"},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+case x: Int|String => true
+case _ => false
+}`,
+			false, "BgICCAICAAFhAwYCAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAgZTdHJpbmcGCQABAgUHJG1hdGNoMAIDSW50BAF4BQckbWF0Y2gwBgcAACOY/Cg="},
+		{`
+let a = if true then "" else 10
+
+let b = match a {
+case x: Int|Boolean => true
+case _ => false
+}`,
+			true, "(8:9, 8:20): Matching not exhaustive: possibleTypes are \"String|Int\", while matched are \"Int|Boolean\""},
+		{`
+let a = if true then "" else 10
+
+let c = if true then true else a
+
+let b = match c {
+	case x: Int|String => true
+	case _ => false
+}`,
+			false, "BgICCAIDAAFhAwYCAAAKAAFjAwYGBQFhAAFiBAckbWF0Y2gwBQFjAwMJAAECBQckbWF0Y2gwAgZTdHJpbmcGCQABAgUHJG1hdGNoMAIDSW50BAF4BQckbWF0Y2gwBgcAALnOhIw="},
+		{`
+let a = (1, "")
+
+let b = match a {
+	case (Int, String) => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhCQCUCgIAAQIAAAFiBAckbWF0Y2gwBQFhAwMGCQAAAgkAxgoBBQckbWF0Y2gwAAIHBANJbnQIBQckbWF0Y2gwAl8xBAZTdHJpbmcIBQckbWF0Y2gwAl8yBgcAAGRbLC8="},
+		{`
+let a = (1, "")
+
+let b = match a {
+	case (x: Int, y: String) => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhCQCUCgIAAQIAAAFiBAckbWF0Y2gwBQFhAwMDCQABAggFByRtYXRjaDACXzECA0ludAkAAQIIBQckbWF0Y2gwAl8yAgZTdHJpbmcHCQABAgUHJG1hdGNoMAINKEludCwgU3RyaW5nKQcEAXgIBQckbWF0Y2gwAl8xBAF5CAUHJG1hdGNoMAJfMgYHAADymI82"},
+		{`
+let a = (1, "")
+
+let b = match a {
+	case (_: Int, _: String) => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhCQCUCgIAAQIAAAFiBAckbWF0Y2gwBQFhAwMDCQABAggFByRtYXRjaDACXzECA0ludAkAAQIIBQckbWF0Y2gwAl8yAgZTdHJpbmcHCQABAgUHJG1hdGNoMAINKEludCwgU3RyaW5nKQcGBwAATi06Ag=="},
+		{`
+let a = (1, "")
+
+let b = match a {
+	case (_: Int, "") => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhCQCUCgIAAQIAAAFiBAckbWF0Y2gwBQFhAwMDCQABAggFByRtYXRjaDACXzECA0ludAkAAAICAAgFByRtYXRjaDACXzIHCQABAgUHJG1hdGNoMAINKEludCwgU3RyaW5nKQcGBwAAAi3jiw=="},
+		{`
+let a = (1, "")
+
+let b = match a {
+	case (10, base16'') => true
+	case _ => false
+}`,
+			true, "(8:12, 8:20): Matching not exhaustive: possibleTypes are \"(Int, String)\", while matched are \"(Int, ByteVector)\""},
+		{`
+let a = if true then AssetPair(base58'', base58'') else 10
+
+let b = match a {
+	case AssetPair(amountAsset = base16'', priceAsset = base16'') => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDADCQAAAgEACAUHJG1hdGNoMAthbW91bnRBc3NldAkAAAIBAAgFByRtYXRjaDAKcHJpY2VBc3NldAcHBAckbWF0Y2gwBQckbWF0Y2gwBgcAAEe/y1c="},
+		{`
+let a = if true then AssetPair(base58'', base58'') else 10
+
+let b = match a {
+	case AssetPair(amountAsset = x, priceAsset = base16'') => x
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDAJAAACAQAIBQckbWF0Y2gwCnByaWNlQXNzZXQHBAckbWF0Y2gwBQckbWF0Y2gwBAF4CAUHJG1hdGNoMAthbW91bnRBc3NldAUBeAcAAMEpH0Q="},
+		{`
+let a = if true then AssetPair(base58'', base58'') else 10
+
+let b = match a {
+	case AssetPair() => true
+	case _ => false
+}`,
+			false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDAGBwQHJG1hdGNoMAUHJG1hdGNoMAYHAAD1dYoP"},
 	} {
 
 		code := DappV6Directive + test.code

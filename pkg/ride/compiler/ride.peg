@@ -138,7 +138,7 @@ Match <- 'match' _ Expr _ '{' (_ Case)+ _ '}'
 Case <- 'case' _ (ValuePattern / TuplePattern / ObjectPattern / Placeholder) _ '=>' _ (Block / BlockWithoutPar)
 Placeholder <- '_'
 ValuePattern <- (Placeholder / Identifier) _ ':' _ Types
-TupleValuesPattern <- (ValuePattern / Placeholder / Expr/ GettableExpr) (_ ',' _ TupleValuesPattern)?
+TupleValuesPattern <- (ValuePattern / Placeholder / Identifier / Expr / GettableExpr) (_ ',' _ TupleValuesPattern)?
 TuplePattern <- '(' _ TupleValuesPattern _ ')'
 ObjectFieldsPattern <- (Identifier _ '=' _ (Identifier / Expr)) (_ ',' _ ObjectFieldsPattern)?
 ObjectPattern <- Identifier _ '('_ ObjectFieldsPattern? _ ')'

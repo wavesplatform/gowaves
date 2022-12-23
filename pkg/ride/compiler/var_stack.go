@@ -1,6 +1,9 @@
 package compiler
 
-import s "github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
+import (
+	s "github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
+	"strings"
+)
 
 type VarStack struct {
 	up *VarStack
@@ -34,6 +37,18 @@ func (st *VarStack) GetVariable(name string) (s.Variable, bool) {
 		return s.Variable{}, false
 	}
 	return st.up.GetVariable(name)
+}
+
+func (st *VarStack) GetLastMatchName() (string, bool) {
+	for i := len(st.vars) - 1; i >= 0; i-- {
+		if strings.HasPrefix("$match", st.vars[i].Name) {
+			return st.vars[i].Name, true
+		}
+	}
+	if st.up == nil {
+		return "", false
+	}
+	return st.up.GetLastMatchName()
 }
 
 func (st *VarStack) GetFunc(name string) (s.FunctionParams, bool) {
