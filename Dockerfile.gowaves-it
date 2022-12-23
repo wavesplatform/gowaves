@@ -36,8 +36,7 @@ USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
 
-# we need to wait some time due to NTP problems
-CMD sleep 5 && /app/node \
+CMD /app/node \
     -cfg-path=$CONFIG_PATH \
     -peers=$PEERS \
     -state-path=$STATE_PATH \
@@ -56,4 +55,4 @@ CMD sleep 5 && /app/node \
     -log-level=debug \
     -outdate=1h \
     -reward=600000000 \
-    -bloom=true
+    -disable-ntp \

@@ -23,16 +23,16 @@ type IncomingPeer struct {
 }
 
 type incomingPeerID struct {
-	remoteAddr net.Addr
-	localAddr  net.Addr
+	remoteAddr string
+	localAddr  string
 }
 
 func newPeerID(remoteAddr net.Addr, localAddr net.Addr) incomingPeerID {
-	return incomingPeerID{remoteAddr: remoteAddr, localAddr: localAddr}
+	return incomingPeerID{remoteAddr: remoteAddr.String(), localAddr: localAddr.String()}
 }
 
 func (id incomingPeerID) String() string {
-	return fmt.Sprintf("incoming Connection %s -> %s", id.remoteAddr.String(), id.localAddr.String())
+	return fmt.Sprintf("incoming Connection %s -> %s", id.remoteAddr, id.localAddr)
 }
 
 type IncomingPeerParams struct {
@@ -60,7 +60,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	default:
 	}
 
-	id := fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
+	id := newPeerID(c.RemoteAddr(), c.LocalAddr())
 	zap.S().Infof("read handshake from %s %+v", id, readHandshake)
 
 	writeHandshake := proto.Handshake{
@@ -95,7 +95,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 		params:    params,
 		conn:      connection,
 		remote:    remote,
-		uniqueID:  newPeerID(c.RemoteAddr(), c.LocalAddr()),
+		uniqueID:  id,
 		cancel:    cancel,
 		handshake: readHandshake,
 	}

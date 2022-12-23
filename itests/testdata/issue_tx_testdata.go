@@ -71,6 +71,44 @@ func DataChangedTimestamp[T any](td *IssueTestData[T]) IssueTestData[T] {
 		utl.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
 }
 
+type CommonIssueData struct {
+	NFT        IssueTestData[ExpectedValuesPositive]
+	Reissuable IssueTestData[ExpectedValuesPositive]
+}
+
+func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
+	return CommonIssueData{
+		NFT: *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			utl.RandStringBytes(4, utl.CommonSymbolSet),
+			"",
+			1,
+			0,
+			false,
+			100000000,
+			utl.GetCurrentTimestampInMs(),
+			TestChainID,
+			ExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetBalance:     1,
+			}),
+		Reissuable: *NewIssueTestData(
+			utl.GetAccount(suite, 2),
+			utl.RandStringBytes(8, utl.CommonSymbolSet),
+			utl.RandStringBytes(500, utl.CommonSymbolSet),
+			100000000000,
+			4,
+			true,
+			100000000,
+			utl.GetCurrentTimestampInMs(),
+			TestChainID,
+			ExpectedValuesPositive{
+				WavesDiffBalance: 100000000,
+				AssetBalance:     100000000000,
+			}),
+	}
+}
+
 func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
 	var t = map[string]IssueTestData[ExpectedValuesPositive]{
 		"Min values, empty description, NFT": *NewIssueTestData(
@@ -346,7 +384,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			8,
 			true,
 			100000000,
-			utl.GetCurrentTimestampInMs()-7215000,
+			utl.GetCurrentTimestampInMs()-7217000,
 			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,

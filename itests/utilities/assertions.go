@@ -25,7 +25,7 @@ func StatusCodesCheck(t *testing.T, goCode, scalaCode int, b ConsideredTransacti
 	}
 }
 
-func ExistenceTxInfoCheck(t *testing.T, errGo, errScala error, args ...interface{}) {
+func TxInfoCheck(t *testing.T, errGo, errScala error, args ...interface{}) {
 	errMsg := makeErrorMessage("Failed to get TransactionInfo in testcase: ", args...)
 	assert.NoErrorf(t, errGo, "Node Go: "+errMsg)
 	assert.NoErrorf(t, errScala, "Node Scala: "+errMsg)

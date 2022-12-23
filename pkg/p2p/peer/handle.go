@@ -55,6 +55,7 @@ type HandlerParams struct {
 }
 
 // Handle sends and receives messages no matter outgoing or incoming connection.
+// TODO: caller should be responsible for closing network connection
 func Handle(params HandlerParams) error {
 	for {
 		select {

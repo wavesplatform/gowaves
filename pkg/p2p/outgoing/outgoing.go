@@ -29,6 +29,7 @@ type EstablishParams struct {
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {
 	ctx, cancel := context.WithCancel(ctx)
+	// FIXME: cancel should be defered
 	remote := peer.NewRemote()
 	p := connector{
 		params: params,
@@ -36,19 +37,27 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		remote: remote,
 	}
 
+	// TODO: use net.DialTimeout
 	c, err := net.Dial("tcp", params.Address.String())
 	if err != nil {
 		return err
 	}
+	// FIXME: connection.close should be called in case of any error, or it should be deferred in any case
 
 	connection, handshake, err := p.connect(ctx, c, v)
 	if err != nil {
+		// FIXME: close connection
 		zap.S().Debugf("Outgoing connection to address %s failed with error: %v", params.Address.String(), err)
 		return errors.Wrapf(err, "%q", params.Address)
 	}
 	p.connection = connection
 
-	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
+	peerImpl, err := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
+	if err != nil {
+		_ = c.Close() // TODO: handle error
+		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", params.Address, err)
+		return errors.Wrapf(err, "failed to establish connection to %s", params.Address.String())
+	}
 
 	connected := peer.InfoMessage{
 		Peer: peerImpl,

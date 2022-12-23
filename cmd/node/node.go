@@ -13,10 +13,8 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -53,48 +51,43 @@ const (
 )
 
 var (
-	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath                             = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType                        = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses                         = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr                              = flag.String("declared-address", "", "Address to listen on")
-	nodeName                              = flag.String("name", "gowaves", "Node name.")
-	cfgPath                               = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
-	apiAddr                               = flag.String("api-address", "", "Address for REST API")
-	apiKey                                = flag.String("api-key", "", "Api key")
-	apiMaxConnections                     = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API")
-	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	grpcApiMaxConnections                 = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
-	enableMetaMaskAPI                     = flag.Bool("enable-metamask", true, "Enables/disables metamask API")
-	enableMetaMaskAPILog                  = flag.Bool("enable-metamask-log", false, "Enables/disables metamask API logging.")
-	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
-	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
-	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	buildStateHashes                      = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	bindAddress                           = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	disableOutgoingConnections            = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
-	minerVoteFeatures                     = flag.String("vote", "", "Miner vote features")
-	bloomFilter                           = flag.Bool("bloom", true, "Enable/Disable bloom filter. Less memory usage, but decrease performance. Usage: -bloom=false")
-	reward                                = flag.String("reward", "", "Miner reward: for example 600000000")
-	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
-	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
-	walletPassword                        = flag.String("wallet-password", "", "Pass password for wallet.")
-	limitAllConnections                   = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction. Default value is 60.")
-	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
-	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
-	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
-	prometheus                            = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
-	integrationGenesisSignature           = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
-	integrationGenesisTimestamp           = flag.Int("integration.genesis.timestamp", 0, "??")
-	integrationGenesisBlockTimestamp      = flag.Int("integration.genesis.block-timestamp", 0, "??")
-	integrationAccountSeed                = flag.String("integration.account-seed", "", "??")
-	integrationAddressSchemeCharacter     = flag.String("integration.address-scheme-character", "", "??")
-	integrationMinAssetInfoUpdateInterval = flag.Int("integration.min-asset-info-update-interval", 100000, "Minimum asset info update interval for integration tests.")
-	metricsID                             = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
-	metricsURL                            = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
-	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
-	dbFileDescriptors                     = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
-	newConnectionsLimit                   = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
+	logLevel                   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath                  = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType             = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses              = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr                   = flag.String("declared-address", "", "Address to listen on")
+	nodeName                   = flag.String("name", "gowaves", "Node name.")
+	cfgPath                    = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+	apiAddr                    = flag.String("api-address", "", "Address for REST API")
+	apiKey                     = flag.String("api-key", "", "Api key")
+	apiMaxConnections          = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API")
+	grpcAddr                   = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	grpcApiMaxConnections      = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
+	enableMetaMaskAPI          = flag.Bool("enable-metamask", true, "Enables/disables metamask API")
+	enableMetaMaskAPILog       = flag.Bool("enable-metamask-log", false, "Enables/disables metamask API logging.")
+	enableGrpcApi              = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
+	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
+	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	buildStateHashes           = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
+	bindAddress                = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
+	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
+	minerVoteFeatures          = flag.String("vote", "", "Miner vote features")
+	disableBloomFilter         = flag.Bool("disable-bloom", false, "Disable bloom filter. Less memory usage, but decrease performance.")
+	reward                     = flag.String("reward", "", "Miner reward: for example 600000000")
+	outdatePeriod              = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
+	walletPath                 = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
+	walletPassword             = flag.String("wallet-password", "", "Pass password for wallet.")
+	limitAllConnections        = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction. Default value is 60.")
+	minPeersMining             = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
+	disableMiner               = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
+	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	prometheus                 = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
+	metricsID                  = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
+	metricsURL                 = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
+	dropPeers                  = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+	dbFileDescriptors          = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
+	newConnectionsLimit        = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
+	disableNTP                 = flag.Bool("disable-ntp", false, "Disable NTP synchronization. Useful when running the node in a docker container.")
 )
 
 var defaultPeers = map[string]string{
@@ -118,24 +111,25 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("api-address: %s", *apiAddr)
 	zap.S().Debugf("api-key: %s", *apiKey)
 	zap.S().Debugf("grpc-address: %s", *grpcAddr)
-	zap.S().Debugf("enable-grpc-api: %v", *enableGrpcApi)
-	zap.S().Debugf("build-extended-api: %v", *buildExtendedApi)
-	zap.S().Debugf("serve-extended-api: %v", *serveExtendedApi)
-	zap.S().Debugf("build-state-hashes: %v", *buildStateHashes)
+	zap.S().Debugf("enable-grpc-api: %t", *enableGrpcApi)
+	zap.S().Debugf("build-extended-api: %t", *buildExtendedApi)
+	zap.S().Debugf("serve-extended-api: %t", *serveExtendedApi)
+	zap.S().Debugf("build-state-hashes: %t", *buildStateHashes)
 	zap.S().Debugf("bind-address: %s", *bindAddress)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
 	zap.S().Debugf("miner-delay: %s", *outdatePeriod)
-	zap.S().Debugf("disable-miner %v", *disableMiner)
+	zap.S().Debugf("disable-miner %t", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("hashed wallet-password: %s", crypto.MustFastHash([]byte(*walletPassword)))
 	zap.S().Debugf("limit-connections: %d", *limitAllConnections)
-	zap.S().Debugf("profiler: %v", *profiler)
-	zap.S().Debugf("bloom: %v", *bloomFilter)
-	zap.S().Debugf("drop-peers: %v", *dropPeers)
+	zap.S().Debugf("profiler: %t", *profiler)
+	zap.S().Debugf("disable-bloom: %t", *disableBloomFilter)
+	zap.S().Debugf("drop-peers: %t", *dropPeers)
 	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
-	zap.S().Debugf("enable-metamask: %v", *enableMetaMaskAPI)
+	zap.S().Debugf("enable-metamask: %t", *enableMetaMaskAPI)
+	zap.S().Debugf("disable-ntp: %t", *disableNTP)
 }
 
 func main() {
@@ -171,7 +165,8 @@ func main() {
 		}()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
 
 	if *metricsURL != "" && *metricsID != -1 {
 		err := metrics.Start(ctx, *metricsID, *metricsURL)
@@ -186,57 +181,41 @@ func main() {
 	debugCommandLineParameters()
 
 	var cfg *settings.BlockchainSettings
-	if *blockchainType == "integration" {
-		cfg = settings.GetIntegrationSetting()
-		cfg = applyIntegrationSettings(cfg)
-		zap.S().Debugf("cfg: %+v", cfg)
+	if *cfgPath != "" {
+		f, err := os.Open(*cfgPath)
+		if err != nil {
+			zap.S().Fatalf("Failed to open configuration file: %v", err)
+		}
+		defer func() { _ = f.Close() }()
+		cfg, err = settings.ReadBlockchainSettings(f)
+		if err != nil {
+			zap.S().Fatalf("Failed to read configuration file: %v", err)
+		}
 	} else {
-		if *cfgPath != "" {
-			f, err := os.Open(*cfgPath)
-			if err != nil {
-				zap.S().Fatalf("Failed to open configuration file: %v", err)
-			}
-			defer func() { _ = f.Close() }()
-			cfg, err = settings.ReadBlockchainSettings(f)
-			if err != nil {
-				zap.S().Fatalf("Failed to read configuration file: %v", err)
-			}
-		} else {
-			cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
-			if err != nil {
-				zap.S().Error(err)
-				return
-			}
+		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
+		if err != nil {
+			zap.S().Errorf("Failed to get blockchain settings: %v", err)
+			return
 		}
 	}
 
 	conf := &settings.NodeSettings{}
 	if err := settings.ApplySettings(conf, FromArgs(cfg.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to apply node settings: %v", err)
 		return
 	}
 
 	err = conf.Validate()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to validate node settings: %v", err)
 		return
 	}
 
 	var wal types.EmbeddedWallet = wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
-	if *blockchainType == "integration" {
-		decoded, err := base58.Decode(*integrationAccountSeed)
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-		wal = wallet.Stub{
-			S: [][]byte{decoded},
-		}
-	}
 	if *walletPassword != "" {
 		err := wal.Load([]byte(*walletPassword))
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Failed to load wallet: %v", err)
 			return
 		}
 	}
@@ -245,28 +224,26 @@ func main() {
 	if path == "" {
 		path, err = common.GetStatePath()
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Failed to get state path: %v", err)
 			return
 		}
 	}
 
 	reward, err := miner.ParseReward(*reward)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to parse '-reward': %v", err)
 		return
 	}
 
-	ntpTime, err := getNtp(ctx)
+	ntpTime, err := getNtp(ctx, *disableNTP)
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to get NTP time: %v", err)
 		return
 	}
 
 	outdatePeriodSeconds, err := common.ParseDuration(*outdatePeriod)
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to parse '-outdate': %v", err)
 		return
 	}
 
@@ -276,35 +253,29 @@ func main() {
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntpTime
-	if !*bloomFilter {
-		params.DbParams.BloomFilterParams.Disable = true
-	}
+	params.DbParams.BloomFilterParams.Disable = *disableBloomFilter
 
 	st, err := state.NewState(path, true, params, cfg)
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Error("Failed to initialize node's state: %v", err)
 		return
 	}
 
 	features, err := miner.ParseVoteFeatures(*minerVoteFeatures)
 	if err != nil {
-		cancel()
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to parse '-vote': %v", err)
 		return
 	}
 
 	features, err = miner.ValidateFeatures(st, features)
 	if err != nil {
-		cancel()
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to validate features: %v", err)
 		return
 	}
 
 	// Check if we need to start serving extended API right now.
 	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to enable extended API: %v", err)
 		return
 	}
 
@@ -319,24 +290,18 @@ func main() {
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to get node's nonce: %v", err)
 		return
 	}
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), proto.ProtocolVersion)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
-		cancel()
 		return
 	}
 	if *dropPeers {
 		if err := peerStorage.DropStorage(); err != nil {
-			zap.S().Errorf(
-				"Failed to drop peers storage. Drop peers storage manually. Err: %v",
-				err,
-			)
-			cancel()
+			zap.S().Errorf("Failed to drop peers storage. Drop peers storage manually. Err: %v", err)
 			return
 		}
 		zap.S().Info("Successfully dropped peers storage")
@@ -397,13 +362,11 @@ func main() {
 			if tcpAddr.Empty() {
 				// That means that configuration parameter is invalid
 				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
-				cancel()
 				return
 			}
 			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
 				// That means that we have problems with peers storage
 				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
-				cancel()
 				return
 			}
 		}
@@ -411,8 +374,7 @@ func main() {
 
 	app, err := api.NewApp(*apiKey, minerScheduler, svs)
 	if err != nil {
-		zap.S().Error(err)
-		cancel()
+		zap.S().Errorf("Failed to initialize application: %v", err)
 		return
 	}
 
@@ -448,13 +410,8 @@ func main() {
 		}()
 	}
 
-	var gracefulStop = make(chan os.Signal, 1)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
-
-	sig := <-gracefulStop
-	zap.S().Infof("Caught signal '%s', stopping...", sig)
-	cancel()
+	<-ctx.Done()
+	zap.S().Info("User termination in progress...")
 	n.Close()
 	<-time.After(1 * time.Second)
 }
@@ -494,27 +451,8 @@ func grpcApiRunOptsFromCLIFlags() *server.RunOptions {
 	return opts
 }
 
-func applyIntegrationSettings(blockchainSettings *settings.BlockchainSettings) *settings.BlockchainSettings {
-	blockchainSettings.Genesis.BlockSignature = crypto.MustSignatureFromBase58(*integrationGenesisSignature)
-	blockchainSettings.Genesis.Timestamp = uint64(*integrationGenesisBlockTimestamp)
-
-	zap.S().Debugf("applyIntegrationSettings: *integrationGenesisBlockTimestamp = %d", *integrationGenesisBlockTimestamp)
-
-	for _, t := range blockchainSettings.Genesis.Transactions {
-		t.(*proto.Genesis).Timestamp = uint64(*integrationGenesisTimestamp)
-	}
-	blockchainSettings.AddressSchemeCharacter = (*integrationAddressSchemeCharacter)[0]
-	blockchainSettings.AverageBlockDelaySeconds = blockchainSettings.AverageBlockDelaySeconds / 2
-	blockchainSettings.MinUpdateAssetInfoInterval = uint64(*integrationMinAssetInfoUpdateInterval)
-
-	// scala value is 50_000
-	blockchainSettings.Genesis.BaseTarget = 500_000
-
-	return blockchainSettings
-}
-
-func getNtp(ctx context.Context) (types.Time, error) {
-	if *blockchainType == "integration" {
+func getNtp(ctx context.Context, disable bool) (types.Time, error) {
+	if disable {
 		return ntptime.Stub{}, nil
 	}
 	tm, err := ntptime.TryNew("pool.ntp.org", 10)
