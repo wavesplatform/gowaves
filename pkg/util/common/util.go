@@ -87,42 +87,6 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	return logger, logger.Sugar()
 }
 
-func ParseDuration(str string) (uint64, error) {
-	if str == "" {
-		return 0, errors.New("empty string")
-	}
-	total := uint64(0)
-	cur := uint64(0)
-	expectNum := true
-	for _, v := range str {
-		switch v {
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			expectNum = false
-			cur = cur*10 + uint64(v-'0')
-		case 'd', 'h', 'm':
-			if expectNum {
-				return 0, errors.Errorf("invalid char %c, expected 0 <= value <= 9", v)
-			}
-			expectNum = true
-			switch v {
-			case 'd':
-				total += cur * 86400
-			case 'h':
-				total += cur * 3600
-			case 'm':
-				total += cur * 60
-			}
-			cur = 0
-		default:
-			return 0, errors.Errorf("invalid char '%c'", v)
-		}
-	}
-	if !expectNum {
-		return 0, errors.Errorf("invalid format")
-	}
-	return total, nil
-}
-
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
 	var sb bytes.Buffer

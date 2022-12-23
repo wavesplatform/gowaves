@@ -74,7 +74,7 @@ var (
 	minerVoteFeatures          = flag.String("vote", "", "Miner vote features")
 	disableBloomFilter         = flag.Bool("disable-bloom", false, "Disable bloom filter. Less memory usage, but decrease performance.")
 	reward                     = flag.String("reward", "", "Miner reward: for example 600000000")
-	outdatePeriod              = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
+	obsolescencePeriod         = flag.Duration("obsolescence", 4*time.Hour, "Blockchain obsolescence period. Disable mining if last block older then given value. Default value is 4h.")
 	walletPath                 = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
 	walletPassword             = flag.String("wallet-password", "", "Pass password for wallet.")
 	limitAllConnections        = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction. Default value is 60.")
@@ -88,6 +88,7 @@ var (
 	dbFileDescriptors          = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
 	newConnectionsLimit        = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
 	disableNTP                 = flag.Bool("disable-ntp", false, "Disable NTP synchronization. Useful when running the node in a docker container.")
+	microblockInterval         = flag.Duration("microblock-interval", 5*time.Second, "Interval between microblocks. Default value is 5s.")
 )
 
 var defaultPeers = map[string]string{
@@ -118,7 +119,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("bind-address: %s", *bindAddress)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
-	zap.S().Debugf("miner-delay: %s", *outdatePeriod)
+	zap.S().Debugf("obsolescence: %s", *obsolescencePeriod)
 	zap.S().Debugf("disable-miner %t", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("hashed wallet-password: %s", crypto.MustFastHash([]byte(*walletPassword)))
@@ -130,6 +131,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
 	zap.S().Debugf("enable-metamask: %t", *enableMetaMaskAPI)
 	zap.S().Debugf("disable-ntp: %t", *disableNTP)
+	zap.S().Debugf("microblock-interval: %s", *microblockInterval)
 }
 
 func main() {
@@ -241,12 +243,6 @@ func main() {
 		return
 	}
 
-	outdatePeriodSeconds, err := common.ParseDuration(*outdatePeriod)
-	if err != nil {
-		zap.S().Errorf("Failed to parse '-outdate': %v", err)
-		return
-	}
-
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = *dbFileDescriptors
 	params.StoreExtendedApiData = *buildExtendedApi
@@ -285,7 +281,12 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
-	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
+	utxValidator, err := utxpool.NewValidator(st, ntpTime, *obsolescencePeriod)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize UTX: %v", err)
+		return
+	}
+	utx := utxpool.New(uint64(1024*mb), utxValidator, cfg)
 	parent := peer.NewParent()
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
@@ -318,14 +319,19 @@ func main() {
 	)
 	go peerManager.Run(ctx)
 
-	var minerScheduler Scheduler = scheduler.NewScheduler(
+	var minerScheduler Scheduler
+	minerScheduler, err = scheduler.NewScheduler(
 		st,
 		wal,
 		cfg,
 		ntpTime,
 		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
-		proto.NewTimestampFromUSeconds(outdatePeriodSeconds),
+		*obsolescencePeriod,
 	)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize miner scheduler: %v", err)
+		return
+	}
 	if *disableMiner {
 		minerScheduler = scheduler.DisabledScheduler{}
 	}
@@ -350,7 +356,7 @@ func main() {
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	n := node.NewNode(svs, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
+	n := node.NewNode(svs, declAddr, bindAddr)
 	go n.Run(ctx, parent, svs.InternalChannel)
 
 	go minerScheduler.Reschedule()

@@ -41,10 +41,9 @@ type Node struct {
 	scheduler types.Scheduler
 	utx       types.UtxPool
 	services  services.Services
-	outdate   proto.Timestamp
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, outdate proto.Timestamp) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
@@ -56,7 +55,6 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 		scheduler: services.Scheduler,
 		utx:       services.UtxPool,
 		services:  services,
-		outdate:   outdate,
 	}
 }
 
@@ -166,7 +164,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate)
+	fsm, async, err := state_fsm.NewFsm(a.services)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return

@@ -36,12 +36,7 @@ type BaseInfo struct {
 	// ntp time
 	tm types.Time
 
-	// outdate period
-	outdatePeriod proto.Timestamp
-
-	scheme proto.Scheme
-
-	//
+	scheme        proto.Scheme
 	invRequester  InvRequester
 	blocksApplier BlocksApplier
 
@@ -51,8 +46,7 @@ type BaseInfo struct {
 	// scheduler
 	types.Scheduler
 
-	microMiner *miner.MicroMiner
-
+	microMiner         *miner.MicroMiner
 	MicroBlockCache    services.MicroBlockCache
 	MicroBlockInvCache services.MicroBlockInvCache
 
@@ -104,16 +98,12 @@ type FSM interface {
 	Errorf(err error) error
 }
 
-func NewFsm(
-	services services.Services,
-	outdatePeriod proto.Timestamp,
-) (FSM, Async, error) {
+func NewFsm(services services.Services) (FSM, Async, error) {
 	b := BaseInfo{
-		peers:         services.Peers,
-		storage:       services.State,
-		tm:            services.Time,
-		outdatePeriod: outdatePeriod,
-		scheme:        services.Scheme,
+		peers:   services.Peers,
+		storage: services.State,
+		tm:      services.Time,
+		scheme:  services.Scheme,
 
 		//
 		invRequester:  ng.NewInvRequester(),

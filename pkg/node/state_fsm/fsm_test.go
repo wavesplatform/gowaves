@@ -24,7 +24,7 @@ func (noopReschedule) Reschedule() {
 }
 
 func TestNewFsm(t *testing.T) {
-	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, SkipMessageList: &messages.SkipMessageList{}}, 1000)
+	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, SkipMessageList: &messages.SkipMessageList{}})
 
 	require.NoError(t, err)
 	require.Equal(t, []int{tasks.AskPeers, tasks.Ping}, mapAsync(async))
