@@ -1,6 +1,7 @@
 package state_fsm
 
 import (
+	"errors"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -49,6 +50,7 @@ type BaseInfo struct {
 	microMiner         *miner.MicroMiner
 	MicroBlockCache    services.MicroBlockCache
 	MicroBlockInvCache services.MicroBlockInvCache
+	microblockInterval time.Duration
 
 	actions Actions
 
@@ -98,7 +100,10 @@ type FSM interface {
 	Errorf(err error) error
 }
 
-func NewFsm(services services.Services) (FSM, Async, error) {
+func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, Async, error) {
+	if microblockInterval <= 0 {
+		return nil, nil, errors.New("microblock interval must be positive")
+	}
 	b := BaseInfo{
 		peers:   services.Peers,
 		storage: services.State,
@@ -118,6 +123,7 @@ func NewFsm(services services.Services) (FSM, Async, error) {
 
 		MicroBlockCache:    services.MicroBlockCache,
 		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
+		microblockInterval: microblockInterval,
 
 		actions: &ActionsImpl{services: services},
 
