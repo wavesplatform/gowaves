@@ -5,22 +5,19 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-type DuplicateChecker interface {
-	Add([]byte) (isNew bool)
-}
-
-func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
+func bytesToMessage(b *bytebufferpool.ByteBuffer, d common.DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
 	defer func() {
 		bytebufferpool.Put(b)
 	}()
 
 	if d != nil {
-		isNew := d.Add(b.Bytes())
+		isNew := d.Add(p.ID().String(), b.Bytes())
 		if !isNew {
 			return nil
 		}
@@ -51,7 +48,7 @@ type HandlerParams struct {
 	Remote           Remote
 	Parent           Parent
 	Peer             Peer
-	DuplicateChecker DuplicateChecker
+	DuplicateChecker common.DuplicateChecker
 }
 
 // Handle sends and receives messages no matter outgoing or incoming connection.

@@ -6,15 +6,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
-
-type DuplicateChecker interface {
-	Add([]byte) bool
-}
 
 type PeerParams struct {
 	WavesNetwork     string
@@ -25,7 +22,7 @@ type PeerParams struct {
 	NodeName         string
 	NodeNonce        uint64
 	Version          proto.Version
-	DuplicateChecker DuplicateChecker
+	DuplicateChecker common.DuplicateChecker
 }
 
 func RunIncomingPeer(ctx context.Context, params PeerParams) error {

@@ -6,15 +6,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
-
-type DuplicateChecker interface {
-	Add([]byte) (isNew bool)
-}
 
 type EstablishParams struct {
 	Address          proto.TCPAddr
@@ -24,7 +21,7 @@ type EstablishParams struct {
 	Skip             conn.SkipFilter
 	NodeName         string
 	NodeNonce        uint64
-	DuplicateChecker DuplicateChecker
+	DuplicateChecker common.DuplicateChecker
 }
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {

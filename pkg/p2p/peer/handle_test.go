@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/bytebufferpool"
-	"github.com/wavesplatform/gowaves/pkg/p2p/common"
+	gcradupchecker "github.com/wavesplatform/gowaves/pkg/p2p/common/gcra_dup_checker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
@@ -59,6 +59,8 @@ func TestHandleReceive(t *testing.T) {
 	remote := NewRemote()
 	parent := NewParent()
 	var wg sync.WaitGroup
+	dc, err := gcradupchecker.NewDuplicateChecker(10000)
+	require.NoError(t, err)
 	wg.Add(1)
 	go func() {
 		_ = Handle(HandlerParams{
@@ -66,12 +68,12 @@ func TestHandleReceive(t *testing.T) {
 			Connection:       c,
 			Parent:           parent,
 			Remote:           remote,
-			DuplicateChecker: common.NewDuplicateChecker(),
+			DuplicateChecker: dc, // TODO(aremreyt): fix magic number
 		})
 		wg.Done()
 	}()
 	bb := bytebufferpool.Get()
-	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
+	_, err = bb.Write(byte_helpers.TransferWithSig.MessageBytes)
 	require.NoError(t, err)
 	remote.FromCh <- bb
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)

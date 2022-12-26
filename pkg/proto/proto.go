@@ -1767,14 +1767,23 @@ func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// UnmarshalMessageID tries unmarshal only peer message ID from message
+func UnmarshalMessageID(b []byte) (PeerMessageID, error) {
+	if len(b) < headerSizeWithoutPayload {
+		return 0, errors.Errorf("message is too short")
+	}
+	return PeerMessageID(b[HeaderContentIDPosition]), nil
+}
+
 // UnmarshalMessage tries unmarshal bytes to proper type
 func UnmarshalMessage(b []byte) (Message, error) {
-	if len(b) < headerSizeWithoutPayload {
-		return nil, errors.Errorf("message is too short")
+	messageID, err := UnmarshalMessageID(b)
+	if err != nil {
+		return nil, err
 	}
 
 	var m Message
-	switch messageID := b[HeaderContentIDPosition]; PeerMessageID(messageID) {
+	switch messageID {
 	case ContentIDGetPeers:
 		m = &GetPeersMessage{}
 	case ContentIDPeers:
@@ -1814,7 +1823,7 @@ func UnmarshalMessage(b []byte) (Message, error) {
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
 	}
 
-	err := m.UnmarshalBinary(b)
+	err = m.UnmarshalBinary(b)
 	return m, err
 
 }

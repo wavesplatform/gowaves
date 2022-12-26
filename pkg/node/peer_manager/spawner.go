@@ -6,16 +6,13 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/p2p/common"
+	gcradupchecker "github.com/wavesplatform/gowaves/pkg/p2p/common/gcra_dup_checker"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
 	"github.com/wavesplatform/gowaves/pkg/p2p/outgoing"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-type DuplicateChecker interface {
-	Add([]byte) bool
-}
 
 func NewSkipFilter(list *messages.SkipMessageList) conn.SkipFilter {
 	return func(header proto.Header) bool {
@@ -43,10 +40,14 @@ type PeerSpawnerImpl struct {
 	nodeName         string
 	nodeNonce        uint64
 	version          proto.Version
-	DuplicateChecker DuplicateChecker
+	DuplicateChecker common.DuplicateChecker
 }
 
 func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+	dc, err := gcradupchecker.NewDuplicateChecker(1000) // TODO(artemreyt): fix magic number
+	if err != nil {
+		panic(err) // TODO(artemreyt): handle error
+	}
 	return &PeerSpawnerImpl{
 		skipFunc:         NewSkipFilter(parent.SkipMessageList),
 		parent:           parent,
@@ -55,7 +56,7 @@ func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPA
 		nodeName:         nodeName,
 		nodeNonce:        nodeNonce,
 		version:          version,
-		DuplicateChecker: common.NewDuplicateChecker(),
+		DuplicateChecker: dc,
 	}
 }
 
