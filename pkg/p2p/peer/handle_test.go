@@ -21,18 +21,12 @@ func TestHandleStopContext(t *testing.T) {
 		<-time.After(1 * time.Millisecond)
 		cancel()
 	}()
-	var closeCalls int
 	parent := NewParent()
 	remote := NewRemote()
-	peer := &mockPeer{
-		CloseFunc: func() error {
-			closeCalls++
-			return nil
-		},
-	}
+	peer := &mockPeer{CloseFunc: func() error { return nil }}
 	err := Handle(ctx, peer, parent, remote, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, closeCalls)
+	assert.Len(t, peer.CloseCalls(), 1)
 	require.Len(t, parent.InfoCh, 1)
 	connected := (<-parent.InfoCh).Value.(*Connected)
 	connectedPeer := connected.Peer.(*peerOnceCloser).Peer
@@ -46,15 +40,9 @@ func TestHandleReceive(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		var closeCalls int
-		peer := &mockPeer{
-			CloseFunc: func() error {
-				closeCalls++
-				return nil
-			},
-		}
+		peer := &mockPeer{CloseFunc: func() error { return nil }}
 		_ = Handle(ctx, peer, parent, remote, common.NewDuplicateChecker())
-		assert.Equal(t, 1, closeCalls)
+		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
@@ -74,15 +62,9 @@ func TestHandleError(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		var closeCalls int
-		peer := &mockPeer{
-			CloseFunc: func() error {
-				closeCalls++
-				return nil
-			},
-		}
+		peer := &mockPeer{CloseFunc: func() error { return nil }}
 		_ = Handle(ctx, peer, parent, remote, nil)
-		assert.Equal(t, 1, closeCalls)
+		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
