@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"os/user"
 	"path/filepath"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -43,8 +44,22 @@ Available Commands:
   show         Print the wallet data
 
 Flags:
-	
+ --wallet <wallet path>
+ --number <account number>
+ --scheme <mainnet | testnet | stagenet>
+ --seedPhraseBase58 <true | false>
+ --seedPhrase <seed phrase> (base-58 or non-base-58)
+ --accountSeed <account seed>  (base-58 only)
 
+Examples:
+ 1) Create a new wallet based on new generated seed phrase:
+	./wallet create --scheme mainnet
+
+ 2) Create a new wallet based on an existing seed phrase:
+	./wallet create --scheme mainnet --seedPhrase "one two three one two three one two three one two three one two three"
+
+ 3) Show the credentials of an existing wallet
+	./wallet show --wallet "/home/user/wallet/.waves"
 `
 
 type Opts struct {
@@ -65,7 +80,7 @@ func main() {
 	flag.IntVar(&opts.AccountNumber, "number", 0, "Input account number. 0 is default")
 	flag.StringVar(&scheme, "scheme", "mainnet", "Input the network scheme: mainnet, testnet, stagenet")
 	flag.StringVar(&opts.SeedPhrase, "seedPhrase", "", "Input your seed phrase")
-	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedBase58", false, "Seed phrase is written in Base58 format")
+	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedPhraseBase58", false, "Seed phrase is written in Base58 format")
 
 	flag.StringVar(&opts.Base58AccountSeed, "accountSeed", "", "Input your account seed in Base58 format")
 
@@ -143,9 +158,9 @@ func show(opts Opts) {
 		}
 
 		fmt.Printf("Account seed: %s\n", accountSeedDigest.String())
-		log.Printf("Public Key: %s\n", pk.String())
-		log.Printf("Secret Key: %s\n", sk.String())
-		log.Printf("Address: %s\n", address.String())
+		fmt.Printf("Public Key: %s\n", pk.String())
+		fmt.Printf("Secret Key: %s\n", sk.String())
+		fmt.Printf("Address: %s\n", address.String())
 	}
 
 }
