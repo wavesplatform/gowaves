@@ -14,8 +14,6 @@ import (
 
 const maxMessageSize = 2 << (10 * 2)
 
-type Dialer func(network string, addr string) (net.Conn, error)
-
 type Connection interface {
 	io.Closer
 	Conn() net.Conn
