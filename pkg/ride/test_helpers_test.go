@@ -113,7 +113,6 @@ type testEnv struct {
 	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
 	leasings    map[crypto.Digest]*proto.LeaseInfo
 	scripts     map[proto.WavesAddress]proto.Script
-	cc          complexityCalculator
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -361,12 +360,9 @@ func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 
 func (e *testEnv) withComplexityLimit(v ast.LibraryVersion, limit int) *testEnv {
 	require.True(e.t, limit >= 0)
-	e.cc = &complexityCalculatorV1{l: limit}
-	if v >= ast.LibV6 {
-		e.cc = &complexityCalculatorV2{l: limit}
-	}
+	cc := newComplexityCalculator(v, uint32(limit))
 	e.me.complexityCalculatorFunc = func() complexityCalculator {
-		return e.cc
+		return cc
 	}
 	return e
 }

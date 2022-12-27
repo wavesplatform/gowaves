@@ -1004,10 +1004,6 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	if err != nil {
 		return nil, err
 	}
-	var cc complexityCalculator = &complexityCalculatorV1{}
-	if rideV6 {
-		cc = &complexityCalculatorV2{}
-	}
 	return &EvaluationEnvironment{
 		sch:                         scheme,
 		st:                          state,
@@ -1018,7 +1014,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		isBlockV5Activated:          blockV5,
 		isRideV6Activated:           rideV6,
 		isInvokeExpressionActivated: invokeExpression,
-		cc:                          cc,
+		cc:                          newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
 }
 
@@ -1217,7 +1213,7 @@ func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction,
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetLimit(limit int) {
+func (e *EvaluationEnvironment) SetLimit(limit uint32) {
 	e.cc.setLimit(limit)
 }
 

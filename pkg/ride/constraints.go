@@ -17,7 +17,7 @@ const (
 	unlimitedVerifierComplexity    = math.MaxInt16
 )
 
-func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (int, error) {
+func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (uint32, error) {
 	// libV1 and libV2 don't have callables
 	switch version {
 	case ast.LibV3, ast.LibV4:
@@ -31,14 +31,14 @@ func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (int, error) 
 	}
 }
 
-func MaxAssetVerifierComplexity(v ast.LibraryVersion) int {
+func MaxAssetVerifierComplexity(v ast.LibraryVersion) uint32 {
 	if v > ast.LibV2 {
 		return maxAssetVerifierComplexityV3V6
 	}
 	return maxAssetVerifierComplexityV1V2
 }
 
-func MaxVerifierComplexity(rideV5Activated bool) int {
+func MaxVerifierComplexity(rideV5Activated bool) uint32 {
 	if rideV5Activated {
 		return maxVerifierComplexity
 	}

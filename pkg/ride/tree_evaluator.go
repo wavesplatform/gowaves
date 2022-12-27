@@ -264,9 +264,9 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	if err != nil {
 		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
-	if !e.env.complexityCalculator().testNativeFunctionComplexity(cost) {
+	if ok, nc := e.env.complexityCalculator().testNativeFunctionComplexity(cost); !ok {
 		return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
-			e.env.complexityCalculator().complexity()+cost, e.env.complexityCalculator().limit())
+			nc, e.env.complexityCalculator().limit())
 	}
 	defer func() {
 		e.env.complexityCalculator().addNativeFunctionComplexity(cost)
@@ -306,9 +306,9 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
 
-	if !e.env.complexityCalculator().testAdditionalUserFunctionComplexity(initialComplexity) {
+	if ok, nc := e.env.complexityCalculator().testAdditionalUserFunctionComplexity(initialComplexity); !ok {
 		return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
-			e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+			nc, e.env.complexityCalculator().limit())
 	}
 	return r, nil
 }
@@ -331,9 +331,9 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return rideString(n.Value), nil
 
 	case *ast.ConditionalNode:
-		if !e.env.complexityCalculator().testConditionalComplexity() {
+		if ok, nc := e.env.complexityCalculator().testConditionalComplexity(); !ok {
 			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
-				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+				nc, e.env.complexityCalculator().limit())
 		}
 		defer func() {
 			e.env.complexityCalculator().addConditionalComplexity()
@@ -363,9 +363,9 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return r, nil
 
 	case *ast.ReferenceNode:
-		if !e.env.complexityCalculator().testReferenceComplexity() {
+		if ok, nc := e.env.complexityCalculator().testReferenceComplexity(); !ok {
 			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
-				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+				nc, e.env.complexityCalculator().limit())
 		}
 		defer func() {
 			e.env.complexityCalculator().addReferenceComplexity()
@@ -424,9 +424,9 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		}
 
 	case *ast.PropertyNode:
-		if !e.env.complexityCalculator().testPropertyComplexity() {
+		if ok, nc := e.env.complexityCalculator().testPropertyComplexity(); !ok {
 			return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
-				e.env.complexityCalculator().complexity()+1, e.env.complexityCalculator().limit())
+				nc, e.env.complexityCalculator().limit())
 		}
 		defer func() {
 			e.env.complexityCalculator().addPropertyComplexity()
