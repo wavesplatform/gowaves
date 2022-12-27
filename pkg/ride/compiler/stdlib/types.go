@@ -16,6 +16,7 @@ var (
 	StringType     = SimpleType{"String"}
 	ByteVectorType = SimpleType{"ByteVector"}
 	BigIntType     = SimpleType{"BigInt"}
+	ThrowType      = SimpleType{"Throw"}
 )
 
 func ParseType(t string) Type {
@@ -168,6 +169,9 @@ func (t *UnionType) AppendType(rideType Type) {
 		return
 	}
 	for _, existType := range t.Types {
+		if rideType.Comp(ThrowType) {
+			continue
+		}
 		if !rideType.Comp(existType) {
 			t.Types = append(t.Types, rideType)
 			return
@@ -207,23 +211,26 @@ func (t ListType) String() string {
 }
 
 func (t *ListType) AppendType(rideType Type) {
-	resType := UnionType{Types: []Type{}}
-	if T, ok := rideType.(UnionType); ok {
-		resType.AppendType(T)
+	union := UnionType{Types: []Type{}}
+	union.AppendType(t.Type)
+	union.AppendType(rideType)
+	if len(union.Types) == 1 {
+		t.Type = union.Types[0]
+	} else {
+		t.Type = union
 	}
-	resType.AppendType(t.Type)
-	if T, ok := rideType.(UnionType); ok {
-		resType.AppendType(T)
-		return
-	}
-	resType.AppendType(rideType)
 }
 
 func (t *ListType) AppendList(rideType Type) {
 	T := rideType.(ListType)
-	resType := UnionType{Types: []Type{}}
-	resType.AppendType(t.Type)
-	resType.AppendType(T.Type)
+	union := UnionType{Types: []Type{}}
+	union.AppendType(t.Type)
+	union.AppendType(T.Type)
+	if len(union.Types) == 1 {
+		t.Type = union.Types[0]
+	} else {
+		t.Type = union
+	}
 }
 
 type TupleType struct {

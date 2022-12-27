@@ -105,6 +105,49 @@ func parseObjectFieldsTypes(rawTypes []string) Type {
 	return ParseType(resRawType)
 }
 
+func appendRemainingStructs(s *rideObjects) {
+	remainingObjects := []rideObject{
+		{
+			Name: "Address",
+			Actions: []actionsObject{
+				{
+					LibVersion: ast.LibV1,
+					Deleted:    nil,
+					Fields: []actionField{
+						{
+							Name:  "bytes",
+							Types: []string{"rideBytes"},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Alias",
+			Actions: []actionsObject{
+				{
+					LibVersion: ast.LibV1,
+					Deleted:    nil,
+					Fields: []actionField{
+						{
+							Name:  "alias",
+							Types: []string{"rideString"},
+						},
+					},
+				},
+			},
+		},
+	}
+	s.Objects = append(s.Objects, remainingObjects...)
+}
+
+func changeName(name string) string {
+	if name == "assetID" {
+		return "assetId"
+	}
+	return name
+}
+
 func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -125,7 +168,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 	if err = jsonParser.Decode(s); err != nil {
 		panic(err)
 	}
-
+	appendRemainingStructs(s)
 	res := map[ast.LibraryVersion]ObjectsSignatures{
 		ast.LibV1: {
 			map[string][]ObjectFields{},
@@ -151,13 +194,15 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			return int(obj.Actions[i].LibVersion) < int(obj.Actions[j].LibVersion)
 		})
 		for _, ver := range obj.Actions {
+
 			var resFields []ObjectFields
 			sort.SliceStable(ver.Fields, func(i, j int) bool {
 				return ver.Fields[i].ConstructorOrder < ver.Fields[j].ConstructorOrder
 			})
 			for _, f := range ver.Fields {
+				name := changeName(f.Name)
 				resFields = append(resFields, ObjectFields{
-					Name: f.Name,
+					Name: name,
 					Type: parseObjectFieldsTypes(f.Types),
 				})
 			}

@@ -392,7 +392,7 @@
         "isDefined": [
           {
             "arguments": [
-              "T|Unit"
+              "Any|Unit"
             ],
             "return_type": "Boolean",
             "id": "isDefined"
@@ -401,9 +401,9 @@
         "extract": [
           {
             "arguments": [
-              "T|Unit"
+              "Any|Unit"
             ],
-            "return_type": "T",
+            "return_type": "Any",
             "id": "extract"
           }
         ],
@@ -412,13 +412,13 @@
             "arguments": [
               "String"
             ],
-            "return_type": "Throw",
+            "return_type": "Unknown",
             "id": "2"
           },
           {
             "arguments": [
             ],
-            "return_type": "Throw",
+            "return_type": "Unknown",
             "id": "throw0"
           }
         ],
@@ -1787,6 +1787,32 @@
             "return_type": "Address",
             "id": "@extrNative(1062)"
           }
+        ],
+        "Issue": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int",
+              "Int",
+              "Boolean",
+              "Script|Unit",
+              "Int"
+            ],
+            "return_type": "Issue",
+            "id": "1091"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int",
+              "Int",
+              "Boolean"
+            ],
+            "return_type": "Issue",
+            "id": "1090"
+          }
         ]
       },
       "remove": [
@@ -2376,6 +2402,25 @@
             ],
             "return_type": "Int",
             "id": "317"
+          }
+        ],
+        "Lease": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "Int",
+              "Int"
+            ],
+            "return_type": "Lease",
+            "id": "1093"
+          },
+          {
+            "arguments": [
+              "Address|Alias",
+              "Int"
+            ],
+            "return_type": "Lease",
+            "id": "1092"
           }
         ]
       },

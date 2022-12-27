@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strconv"
 	"strings"
 
@@ -313,7 +314,7 @@ func (p *ASTParser) ruleDeclarationHandler(node *node32) ([]ast.Node, []s.Type) 
 	case ruleVariable:
 		return p.ruleVariableHandler(node)
 	case ruleFunc:
-		expr, varType := p.ruleFuncHandler(node)
+		expr, varType, _ := p.ruleFuncHandler(node)
 		if expr == nil {
 			return nil, nil
 		}
@@ -677,21 +678,22 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			funcId = ast.UserFunction("cons")
 			resListType.AppendList(nextVarType)
 		case ruleAppendOp:
-			if _, ok := varType.(s.ListType); !ok {
+			if l, ok := varType.(s.ListType); !ok {
 				p.addError(fmt.Sprintf("Unexpected types for +: operator: %s, %s", varType, nextVarType), curNode.token32)
 				return nil, nil
+			} else {
+				funcId = ast.NativeFunction("1101")
+				l.AppendType(nextVarType)
 			}
-			funcId = ast.NativeFunction("1101")
-			resListType.AppendType(nextVarType)
 		case ruleConcatOp:
 			_, ok1 := nextVarType.(s.ListType)
-			_, ok2 := varType.(s.ListType)
+			l, ok2 := varType.(s.ListType)
 			if !ok1 && !ok2 {
 				p.addError(fmt.Sprintf("Unexpected types for ++ operator: %s, %s", varType, nextVarType), curNode.token32)
 				return nil, nil
 			}
 			funcId = ast.NativeFunction("1102")
-			resListType.AppendList(nextVarType)
+			l.AppendList(nextVarType)
 		}
 		expr = ast.NewFunctionCallNode(funcId, []ast.Node{expr, nextExpr})
 		curNode = curNode.next
@@ -907,19 +909,18 @@ func (p *ASTParser) ruleListHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *ASTParser) ruleListExprSeqHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
-	listType := s.UnionType{Types: []s.Type{}}
 	elem, varType := p.ruleExprHandler(curNode)
-	listType.AppendType(varType)
+	listType := s.ListType{Type: varType}
 	curNode = curNode.next
 	if curNode == nil {
-		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, ast.NewReferenceNode("nil")}), s.ListType{Type: listType}
+		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, ast.NewReferenceNode("nil")}), listType
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
 	secondElem, varType := p.ruleListExprSeqHandler(curNode)
-	listType.AppendType(varType)
-	return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, secondElem}), s.ListType{Type: listType}
+	listType.AppendList(varType)
+	return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, secondElem}), listType
 }
 
 func (p *ASTParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -945,7 +946,7 @@ func (p *ASTParser) ruleTupleHandler(node *node32) (ast.Node, s.Type) {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
-		if curNode.pegRule == ruleAtomExpr {
+		if curNode != nil && curNode.pegRule == ruleAtomExpr {
 			expr, varType := p.ruleAtomExprHandler(curNode)
 			exprs = append(exprs, expr)
 			types = append(types, varType)
@@ -997,7 +998,11 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 		union := s.UnionType{Types: []s.Type{}}
 		union.AppendType(thenType)
 		union.AppendType(elseType)
-		resType = union
+		if len(union.Types) == 1 {
+			resType = union.Types[0]
+		} else {
+			resType = union
+		}
 	} else {
 		resType = thenType
 	}
@@ -1215,7 +1220,7 @@ func (p *ASTParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
 	return expr, varType
 }
 
-func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type) {
+func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type, []s.Type) {
 	p.currentStack = NewVarStack(p.currentStack)
 	curNode := node.up
 	if curNode.pegRule == rule_ {
@@ -1257,7 +1262,7 @@ func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type) {
 		Body:                expr,
 		Block:               nil,
 		InvocationParameter: "",
-	}, varType
+	}, varType, argsTypes
 }
 
 func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
@@ -1385,8 +1390,7 @@ func (p *ASTParser) parseAnnotatedFunc(node *node32) {
 	curNode := node
 	for {
 		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
-			expr, _ := p.ruleAnnotatedFunc(curNode.up)
-			p.Tree.Functions = append(p.Tree.Declarations, expr)
+			p.ruleAnnotatedFunc(curNode.up)
 			curNode = curNode.next
 		}
 		if curNode != nil && curNode.pegRule == rule_ {
@@ -1398,30 +1402,79 @@ func (p *ASTParser) parseAnnotatedFunc(node *node32) {
 	}
 }
 
-func (p *ASTParser) ruleAnnotatedFunc(node *node32) (ast.Node, s.Type) {
+func (p *ASTParser) loadMeta(name string, argsTypes []s.Type) error {
+	res := meta.Function{
+		Name:      name,
+		Arguments: []meta.Type{},
+	}
+	for _, t := range argsTypes {
+		T := t
+		isList := false
+		if list, ok := t.(s.ListType); ok {
+			T = list.Type
+			isList = true
+		}
+		isValid := true
+		var argType meta.Type
+		if simpleType, ok := T.(s.SimpleType); ok {
+			switch simpleType.Type {
+			case "String":
+				argType = meta.String
+			case "Int":
+				argType = meta.Int
+			case "Boolean":
+				argType = meta.Boolean
+			case "ByteVector":
+				argType = meta.Bytes
+			default:
+				isValid = false
+			}
+		}
+		if !isValid {
+			return errors.Errorf("Unexpected type in callable args : %s", t.String())
+		} else {
+			if isList {
+				argType = meta.ListType{Inner: argType}
+			}
+			res.Arguments = append(res.Arguments, argType)
+		}
+	}
+	p.Tree.Meta.Functions = append(p.Tree.Meta.Functions, res)
+	return nil
+}
+
+func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
+	p.currentStack = NewVarStack(p.currentStack)
 	curNode := node
 	annotation, _ := p.ruleAnnotationSeqHandler(curNode)
 	if annotation == "" {
-		return nil, nil
+		return
 	}
 	curNode = curNode.next
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	expr, _ := p.ruleFuncHandler(curNode)
+	expr, _, types := p.ruleFuncHandler(curNode)
 	switch annotation {
 	case "Callable":
 		p.Tree.Functions = append(p.Tree.Functions, expr)
+		f := expr.(*ast.FunctionDeclarationNode)
+		err := p.loadMeta(f.Name, types)
+		if err != nil {
+			p.addError(fmt.Sprintf("%s", err), node.token32)
+		}
 	case "Verifier":
 		if p.Tree.Verifier != nil {
 			p.addError("More than one Verifier", node.token32)
 		}
 		f := expr.(*ast.FunctionDeclarationNode)
 		p.Tree.Verifier = f.Body
+		if len(types) != 0 {
+			p.addError("Verifyer must not have arguments", node.token32)
+		}
 	}
-
+	p.currentStack = p.currentStack.up
 	// TODO(anton): add callable with specific flag in stack
-	return nil, nil
 }
 
 func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
@@ -1447,6 +1500,19 @@ func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 	curNode = curNode.next
 	if curNode != nil {
 		p.addError("More then one annotation", curNode.token32)
+	}
+
+	switch name {
+	case "Callable":
+		p.currentStack.PushVariable(s.Variable{
+			Name: varName,
+			Type: s.SimpleType{Type: "Invocation"},
+		})
+	case "Verifier":
+		p.currentStack.PushVariable(s.Variable{
+			Name: varName,
+			Type: s.SimpleType{Type: "Transaction"},
+		})
 	}
 	return name, varName
 }
@@ -1484,7 +1550,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 	})
 	var conds, trueStates []ast.Node
 	var defaultCase ast.Node
-	retType := s.UnionType{Types: []s.Type{}}
+	unionRetType := s.UnionType{Types: []s.Type{}}
 	for {
 		if curNode != nil && curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -1502,9 +1568,9 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 				conds = append(conds, cond)
 				trueStates = append(trueStates, trueState)
 			}
-			retType.AppendType(varType)
+			unionRetType.AppendType(varType)
 			curNode = curNode.next
-			p.currentStack = p.globalStack
+			p.currentStack = p.currentStack.up
 		}
 		if curNode == nil {
 			break
@@ -1518,7 +1584,13 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 	for i := len(conds) - 1; i >= 0; i-- {
 		falseState = ast.NewConditionalNode(conds[i], trueStates[i], falseState)
 	}
-	p.currentStack = p.globalStack
+	p.currentStack = p.currentStack.up
+	var retType s.Type
+	if len(unionRetType.Types) == 1 {
+		retType = unionRetType.Types[0]
+	} else {
+		retType = unionRetType
+	}
 	return ast.NewAssignmentNode(matchName, expr, falseState), retType
 }
 

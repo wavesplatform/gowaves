@@ -106,7 +106,7 @@ List <- '[' _ ExprSeq? _ ']'
 ExprSeq <- Expr (_ ',' _ ExprSeq)?
 
 # Expressions
-AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match)
+AtomExpr <- UnaryOp? (FoldMacro / GettableExpr / IfWithError / Match)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ListGroupOpAtom <- SumGroupOpAtom (_ ListGroupOp _ SumGroupOpAtom)*
@@ -126,7 +126,7 @@ ListAccess <- '[' _ (Expr / Identifier) _ ']'
 Block <- '{' (_ Declaration)* _ Expr _ '}'
 BlockWithoutPar <- (_ Declaration)* _ Expr
 
-FunctionCall <- Identifier _ '(' _ ExprSeq? _ ')'
+FunctionCall <- Identifier '(' _ ExprSeq? _ ')'
 
 FoldMacro <- 'FOLD' _ '<' _ Integer _ '>' _ '(' _ Expr _ ',' _ Expr _ ',' _ Identifier _ ')'
 

@@ -4730,7 +4730,7 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 			position, tokenIndex = position518, tokenIndex518
 			return false
 		},
-		/* 67 AtomExpr <- <(UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match))> */
+		/* 67 AtomExpr <- <(UnaryOp? (FoldMacro / GettableExpr / IfWithError / Match))> */
 		func() bool {
 			position522, tokenIndex522 := position, tokenIndex
 			{
@@ -4745,9 +4745,6 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 					position, tokenIndex = position524, tokenIndex524
 				}
 			l525:
-				if !_rules[rule_]() {
-					goto l522
-				}
 				{
 					position526, tokenIndex526 := position, tokenIndex
 					if !_rules[ruleFoldMacro]() {
@@ -5293,15 +5290,12 @@ func (p *Parser) Init(options ...func(*Parser) error) error {
 			position, tokenIndex = position588, tokenIndex588
 			return false
 		},
-		/* 83 FunctionCall <- <(Identifier _ '(' _ ExprSeq? _ ')')> */
+		/* 83 FunctionCall <- <(Identifier '(' _ ExprSeq? _ ')')> */
 		func() bool {
 			position592, tokenIndex592 := position, tokenIndex
 			{
 				position593 := position
 				if !_rules[ruleIdentifier]() {
-					goto l592
-				}
-				if !_rules[rule_]() {
 					goto l592
 				}
 				if buffer[position] != rune('(') {
