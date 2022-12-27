@@ -384,7 +384,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			8,
 			true,
 			100000000,
-			utl.GetCurrentTimestampInMs()-7217000,
+			utl.GetCurrentTimestampInMs()-7260000,
 			TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
