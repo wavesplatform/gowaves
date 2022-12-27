@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
@@ -29,8 +30,8 @@ type wrapParams struct {
 	toRemoteCh   chan []byte
 	fromRemoteCh chan *bytebufferpool.ByteBuffer
 	errCh        chan error
-	sendFunc     func(conn io.Writer, ctx context.Context, toRemoteCh chan []byte) error
-	receiveFunc  func(reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string) error
+	sendFunc     func(ctx context.Context, conn deadlineWriter, toRemoteCh chan []byte, now func() time.Time) error
+	receiveFunc  func(reader deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string, now func() time.Time) error
 	skip         SkipFilter
 }
 
@@ -55,13 +56,18 @@ func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 		}
 	)
 
+	now := func() time.Time { return time.Now() }
+
 	receiveClosed := atomic.NewBool(false)
 	go func() {
 		defer receiveClosed.Store(true)
 		defer cancel() // ensure cleanup (mostly in case if the parent context has been canceled)
-		bufReader := bufio.NewReader(params.conn)
+		bufReader := &struct {
+			io.Reader
+			readDeadlineSetter
+		}{bufio.NewReader(params.conn), params.conn}
 		remoteAddr := params.conn.RemoteAddr().String()
-		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, remoteAddr)
+		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, remoteAddr, now)
 		if err != nil {
 			notifyAboutError(errors.Wrapf(err, "receiveFunc failed with addr %q", remoteAddr))
 		}
@@ -71,7 +77,7 @@ func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 	go func() {
 		defer sendClosed.Store(true)
 		defer cancel() // ensure cleanup (mostly in case if the parent context has been canceled)
-		err := params.sendFunc(params.conn, ctx, params.toRemoteCh)
+		err := params.sendFunc(ctx, params.conn, params.toRemoteCh, now)
 		if err != nil {
 			remoteAddr := params.conn.RemoteAddr().String()
 			notifyAboutError(errors.Wrapf(err, "sendFunc failed with addr %q", remoteAddr))

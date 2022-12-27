@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
@@ -12,7 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const maxMessageSize = 2 << (10 * 2)
+const (
+	maxMessageSize              = 2 << (10 * 2)
+	MaxConnIODurationPerMessage = 5 * time.Minute
+)
 
 type Connection interface {
 	io.Closer
@@ -21,16 +25,35 @@ type Connection interface {
 	ReceiveClosed() bool
 }
 
-// send to remote
-func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte) error {
+type readDeadlineSetter interface {
+	SetReadDeadline(t time.Time) error
+}
+
+//go:generate moq -out deadline_reader_moq.go ./ deadlineReader:mockDeadlineReader
+type deadlineReader interface {
+	io.Reader
+	readDeadlineSetter
+}
+
+type deadlineWriter interface {
+	io.Writer
+	SetWriteDeadline(t time.Time) error
+}
+
+func sendToRemote(ctx context.Context, conn deadlineWriter, toRemoteCh chan []byte, now func() time.Time) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case bts := <-toRemoteCh:
+			now := now()
+			deadline := now.Add(MaxConnIODurationPerMessage)
+			if err := conn.SetWriteDeadline(deadline); err != nil {
+				return errors.Wrapf(err, "failed to set write deadline to %q", deadline.String())
+			}
 			_, err := conn.Write(bts)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to write data to remote")
 			}
 		}
 	}
@@ -39,8 +62,14 @@ func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte) e
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string) error {
+func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string, now func() time.Time) error {
 	for {
+		now := now()
+		deadline := now.Add(MaxConnIODurationPerMessage)
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			return errors.Wrapf(err, "failed to set read deadline to %q", deadline.String())
+		}
+
 		header := proto.Header{}
 		if _, err := header.ReadFrom(conn); err != nil {
 			return errors.Wrap(err, "failed to read header")

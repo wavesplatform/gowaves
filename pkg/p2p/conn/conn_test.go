@@ -66,10 +66,21 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
 	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
-	err := receiveFromRemote(bytes.NewReader(messBytes), fromRemoteCh, func(headerBytes proto.Header) bool {
-		return false
-	}, "test")
+	now := time.Now()
+	nowFn := func() time.Time { return now }
+	filter := func(headerBytes proto.Header) bool { return false }
+
+	rdr := &mockDeadlineReader{
+		ReadFunc: bytes.NewReader(messBytes).Read,
+		SetReadDeadlineFunc: func(tm time.Time) error {
+			assert.Equal(t, now.Add(MaxConnIODurationPerMessage), tm)
+			return nil
+		},
+	}
+
+	err := receiveFromRemote(rdr, fromRemoteCh, filter, "test", nowFn)
 	require.ErrorIs(t, err, io.EOF)
+	assert.Len(t, rdr.SetReadDeadlineCalls(), 2)
 
 	bb := <-fromRemoteCh
 	assert.Equal(t, messBytes, bb.Bytes())
