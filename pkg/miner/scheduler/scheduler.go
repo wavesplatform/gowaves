@@ -298,7 +298,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 }
 
 type seeder interface {
-	Seeds() [][]byte
+	AccountSeeds() [][]byte
 }
 
 func NewScheduler(state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
@@ -327,12 +327,12 @@ func (a *SchedulerImpl) Mine() chan Emit {
 }
 
 func (a *SchedulerImpl) Reschedule() {
-	if len(a.seeder.Seeds()) == 0 {
+	if len(a.seeder.AccountSeeds()) == 0 {
 		zap.S().Debug("Scheduler: Mining is not possible because no seeds registered")
 		return
 	}
 
-	zap.S().Debugf("Scheduler: Trying to mine with %d seeds", len(a.seeder.Seeds()))
+	zap.S().Debugf("Scheduler: Trying to mine with %d seeds", len(a.seeder.AccountSeeds()))
 
 	if !a.consensus.IsMiningAllowed() {
 		zap.S().Debug("Scheduler: Mining is not allowed because of lack of connected nodes")
@@ -364,7 +364,7 @@ func (a *SchedulerImpl) Reschedule() {
 }
 
 func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
-	if len(a.seeder.Seeds()) == 0 {
+	if len(a.seeder.AccountSeeds()) == 0 {
 		return
 	}
 	a.mu.Lock()
@@ -377,7 +377,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 	a.cancel = nil
 	a.emits = nil
 
-	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
+	keyPairs, err := makeKeyPairs(a.seeder.AccountSeeds())
 	if err != nil {
 		zap.S().Errorf("Scheduler: Failed to make key pairs from seeds: %v", err)
 		return

@@ -136,5 +136,5 @@ type MinerConsensus interface {
 type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 	Load(password []byte) error
-	Seeds() [][]byte
+	AccountSeeds() [][]byte
 }
