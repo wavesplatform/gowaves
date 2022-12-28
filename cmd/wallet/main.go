@@ -36,7 +36,6 @@ const (
 )
 
 var usage = `
-
 Usage:
   wallet <command> [flags]
 
@@ -45,13 +44,9 @@ Available Commands:
   show         Print the wallet credentials
 
 Flags:
- --wallet <wallet path>
- --number <account number>
- --scheme <mainnet | testnet | stagenet>
- --seedPhraseBase58 <true | false>
- --seedPhrase <seed phrase> (base-58 or non-base-58)
- --accountSeed <account seed>  (base-58 only)
+`
 
+var examples = `
 Examples:
  1) Create a new wallet based on new generated seed phrase:
 	./wallet create --scheme mainnet
@@ -75,12 +70,12 @@ type Opts struct {
 func main() {
 	opts := Opts{}
 	var scheme string
-	flag.StringVar(&opts.PathToWallet, "wallet", "", "Path to wallet")
+	flag.StringVar(&opts.PathToWallet, "wallet", "", "Path to the wallet file")
 	flag.IntVar(&opts.AccountNumber, "number", 0, "Input account number. 0 is default")
 	flag.StringVar(&scheme, "scheme", "mainnet", "Input the network scheme: mainnet, testnet, stagenet")
-	flag.StringVar(&opts.SeedPhrase, "seedPhrase", "", "Input your seed phrase")
-	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedPhraseBase58", false, "Seed phrase is written in Base58 format")
-	flag.StringVar(&opts.Base58AccountSeed, "accountSeed", "", "Input your account seed in Base58 format")
+	flag.StringVar(&opts.SeedPhrase, "seedPhrase", "", "Input your seed phrase (Optional)")
+	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedPhraseBase58", false, "Seed phrase is written in Base58 format (Optional)")
+	flag.StringVar(&opts.Base58AccountSeed, "accountSeed", "", "Input your account seed in Base58 format (Optional)")
 
 	flag.Parse()
 
@@ -88,7 +83,7 @@ func main() {
 
 	schemeByte, err := proto.ParseSchemeFromStr(scheme)
 	if err != nil {
-		fmt.Printf("failed to parse network scheme: %v", err)
+		log.Printf("failed to parse network scheme: %v", err)
 		return
 	}
 	opts.Scheme = schemeByte
@@ -97,12 +92,12 @@ func main() {
 	case "create":
 		err = createWallet(opts)
 		if err != nil {
-			fmt.Printf("failed to create a new wallet: %v", err)
+			log.Printf("failed to create a new wallet: %v", err)
 		}
 	case "show":
 		err = show(opts)
 		if err != nil {
-			fmt.Printf("failed to show wallet's credentials: %v", err)
+			log.Printf("failed to show wallet's credentials: %v", err)
 		}
 	default:
 		showUsageAndExit()
@@ -159,6 +154,7 @@ func show(opts Opts) error {
 func showUsageAndExit() {
 	fmt.Print(usage)
 	flag.PrintDefaults()
+	fmt.Print(examples)
 	os.Exit(0)
 }
 
