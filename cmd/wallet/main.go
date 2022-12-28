@@ -9,9 +9,9 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/mr-tron/base58"
 	flag "github.com/spf13/pflag"
 
-	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/howeyc/gopass"
@@ -31,7 +31,8 @@ const (
 )
 
 const (
-	defaultBitSize = 160
+	defaultBitSize    = 160
+	walletDefaultName = ".waves"
 )
 
 var usage = `
@@ -41,7 +42,7 @@ Usage:
 
 Available Commands:
   create       Create a wallet
-  show         Print the wallet data
+  show         Print the wallet credentials
 
 Flags:
  --wallet <wallet path>
@@ -63,14 +64,12 @@ Examples:
 `
 
 type Opts struct {
-	PathToWallet  string
-	AccountNumber int
-	Scheme        proto.Scheme
-
+	PathToWallet       string
+	AccountNumber      int
+	Scheme             proto.Scheme
 	SeedPhrase         string
 	IsSeedPhraseBase58 bool
-
-	Base58AccountSeed string
+	Base58AccountSeed  string
 }
 
 func main() {
@@ -81,7 +80,6 @@ func main() {
 	flag.StringVar(&scheme, "scheme", "mainnet", "Input the network scheme: mainnet, testnet, stagenet")
 	flag.StringVar(&opts.SeedPhrase, "seedPhrase", "", "Input your seed phrase")
 	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedPhraseBase58", false, "Seed phrase is written in Base58 format")
-
 	flag.StringVar(&opts.Base58AccountSeed, "accountSeed", "", "Input your account seed in Base58 format")
 
 	flag.Parse()
@@ -97,72 +95,65 @@ func main() {
 
 	switch command {
 	case "create":
-		err := createWallet(opts)
+		err = createWallet(opts)
 		if err != nil {
 			fmt.Printf("failed to create a new wallet: %v", err)
 		}
 	case "show":
-		show(opts)
+		err = show(opts)
+		if err != nil {
+			fmt.Printf("failed to show wallet's credentials: %v", err)
+		}
 	default:
 		showUsageAndExit()
 	}
 }
 
-func show(opts Opts) {
-	walletPath := getWalletPath(opts.PathToWallet)
+func show(opts Opts) error {
+	walletPath, err := getWalletPath(opts.PathToWallet)
+	if err != nil {
+		return errors.Wrap(err, "failed to handle wallet's path")
+	}
 	if !exists(walletPath) {
-		fmt.Println("Err: wallet not found")
-		return
+		return errors.New("wallet does not exist")
 	}
 
 	fmt.Print("Enter password to decode your wallet: ")
 	pass, err := gopass.GetPasswd()
 	if err != nil {
-		fmt.Println("Interrupt")
-		return
+		return errors.Wrap(err, "failed to get the input password")
 	}
-
 	if len(pass) == 0 {
-		fmt.Println("Err: password required")
-		return
+		return errors.New("empty password")
 	}
 
 	b, err := os.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return
+		return errors.Wrap(err, "failed to read the wallet")
 	}
-
 	wlt, err := wallet.Decode(b, pass)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return
+		return errors.Wrap(err, "failed to decode the wallet")
+
 	}
 
-	for _, s := range wlt.AccountSeeds() {
+	for i, s := range wlt.AccountSeeds() {
 		accountSeedDigest, err := crypto.NewDigestFromBytes(s)
 		if err != nil {
-			fmt.Printf("err: %v", err)
-			return
+			return errors.Wrap(err, "failed to receive digest from account seed bytes")
 		}
-
-		sk, pk, err := crypto.GenerateKeyPair(accountSeedDigest.Bytes())
+		pk, sk, address, err := generateOnAccountSeed(accountSeedDigest, opts.Scheme)
 		if err != nil {
-			fmt.Printf("err: %v", err)
-			return
+			return errors.Wrap(err, "failed to receive wallet's credentials")
 		}
-		address, err := proto.NewAddressFromPublicKey(opts.Scheme, pk)
-		if err != nil {
-			fmt.Printf("err: %v", err)
-			return
-		}
-
+		fmt.Printf("Account number: %d\n", i)
 		fmt.Printf("Account seed: %s\n", accountSeedDigest.String())
 		fmt.Printf("Public Key: %s\n", pk.String())
 		fmt.Printf("Secret Key: %s\n", sk.String())
 		fmt.Printf("Address: %s\n", address.String())
+		fmt.Println()
 	}
-
+	return nil
 }
 
 func showUsageAndExit() {
@@ -219,32 +210,20 @@ type WalletCredentials struct {
 
 var wrongProgramArguments = errors.New("wrong program arguments were provided")
 
-func createWallet(opts Opts) error {
-	walletPath := getWalletPath(opts.PathToWallet)
-	fmt.Println(`Available options: 
-		 1: Generate new seed phrase and wallet
-		 2: Create a wallet based on an existing seed phrase. Requires seed phrase argument to be provided
-		 3: Create a wallet based on an existing base58-encoded seed phrase. Requires seed phrase argument to be provided and seed-base58 flag marked "true"
-		 4: Create a wallet based on an existing base58-encoded account seed. Requires account seed argument in Base58 format`)
+func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*WalletCredentials, error) {
+	var walletCredentials *WalletCredentials
 
-	var walletCredentials WalletCredentials
-	var choice WalletGenerationChoice
-	_, err := fmt.Scanf("%s", &choice)
-	if err != nil {
-		fmt.Println("Interrupt")
-		return err
-	}
 	switch choice {
 	case newSeedPhrase:
 		seedPhrase, err := generateMnemonic()
 		if err != nil {
-			return errors.Wrap(err, "failed to generate seed phrase")
+			return nil, errors.Wrap(err, "failed to generate seed phrase")
 		}
 		accountSeed, pk, sk, address, err := generateOnSeedPhrase(seedPhrase, opts.AccountNumber, opts.Scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		walletCredentials = WalletCredentials{
+		walletCredentials = &WalletCredentials{
 			accountSeed: accountSeed,
 			pk:          pk,
 			sk:          sk,
@@ -255,17 +234,17 @@ func createWallet(opts Opts) error {
 
 	case existingSeedPhrase:
 		if opts.SeedPhrase == "" {
-			return errors.Wrap(wrongProgramArguments, "no seed phrase was provided")
+			return nil, errors.Wrap(wrongProgramArguments, "no seed phrase was provided")
 		}
 		if opts.IsSeedPhraseBase58 {
-			return errors.Wrap(wrongProgramArguments, "seed phrase base-58-encoding flag was true, but non-base-58 option was chosen")
+			return nil, errors.Wrap(wrongProgramArguments, "seed phrase base-58-encoding flag was true, but non-base-58 option was chosen")
 		}
 
 		accountSeed, pk, sk, address, err := generateOnSeedPhrase(opts.SeedPhrase, opts.AccountNumber, opts.Scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		walletCredentials = WalletCredentials{
+		walletCredentials = &WalletCredentials{
 			accountSeed: accountSeed,
 			pk:          pk,
 			sk:          sk,
@@ -273,19 +252,19 @@ func createWallet(opts Opts) error {
 		}
 	case existingBase58SeedPhrase:
 		if !opts.IsSeedPhraseBase58 {
-			return errors.Wrap(wrongProgramArguments, "seed phrase base-58-encoding flag was false, but base-58 option was chosen")
+			return nil, errors.Wrap(wrongProgramArguments, "seed phrase base-58-encoding flag was false, but base-58 option was chosen")
 		}
 		b, err := base58.Decode(opts.SeedPhrase)
 		if err != nil {
-			return errors.Wrap(err, "failed to decode base58-encoded seed phrase")
+			return nil, errors.Wrap(err, "failed to decode base58-encoded seed phrase")
 		}
 		decodedSeedPhrase := string(b)
 
 		accountSeed, pk, sk, address, err := generateOnSeedPhrase(decodedSeedPhrase, opts.AccountNumber, opts.Scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		walletCredentials = WalletCredentials{
+		walletCredentials = &WalletCredentials{
 			accountSeed: accountSeed,
 			pk:          pk,
 			sk:          sk,
@@ -294,17 +273,17 @@ func createWallet(opts Opts) error {
 
 	case existingBase58AccountSeed:
 		if opts.Base58AccountSeed == "" {
-			return errors.Wrap(wrongProgramArguments, "no base58 account seed was provided")
+			return nil, errors.Wrap(wrongProgramArguments, "no base58 account seed was provided")
 		}
 		accountSeed, err := crypto.NewDigestFromBase58(opts.Base58AccountSeed)
 		if err != nil {
-			return errors.Wrap(err, "failed to decode base58-encoded account seed")
+			return nil, errors.Wrap(err, "failed to decode base58-encoded account seed")
 		}
 		pk, sk, address, err := generateOnAccountSeed(accountSeed, opts.Scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		walletCredentials = WalletCredentials{
+		walletCredentials = &WalletCredentials{
 			accountSeed: accountSeed,
 			pk:          pk,
 			sk:          sk,
@@ -315,56 +294,80 @@ func createWallet(opts Opts) error {
 		showUsageAndExit()
 	}
 
-	fmt.Print("Enter password that will be used to encode your account seed: ")
+	return walletCredentials, nil
+}
+
+func createWallet(opts Opts) error {
+	walletPath, err := getWalletPath(opts.PathToWallet)
+	if err != nil {
+		return errors.Wrap(err, "failed to handle wallet's path")
+	}
+	fmt.Println(`Available options: 
+		 1: Generate new seed phrase and wallet
+		 2: Create a wallet based on an existing seed phrase. Requires seed phrase argument to be provided
+		 3: Create a wallet based on an existing base58-encoded seed phrase. Requires seed phrase argument to be provided and seed-base58 flag marked "true"
+		 4: Create a wallet based on an existing base58-encoded account seed. Requires account seed argument in Base58 format`)
+
+	var walletCredentials *WalletCredentials
+	var choice WalletGenerationChoice
+	_, err = fmt.Scanf("%s", &choice)
+	if err != nil {
+		return errors.Wrap(err, "failed to scan the choice of how to create the wallet")
+	}
+
+	walletCredentials, err = generateWalletCredentials(choice, opts)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate wallet's credentials")
+	}
+	if walletCredentials == nil {
+		return errors.New("failed to generate wallet's credentials")
+	}
+
+	fmt.Print("Enter password to encode your account seed: ")
 	pass, err := gopass.GetPasswd()
 	if err != nil {
-		fmt.Println("Interrupt")
-		return err
+		return errors.Wrap(err, "failed to get the password to encode the account seed")
 	}
 
 	if len(pass) == 0 {
-		fmt.Println("Err: Password required")
-		return err
+		return errors.Wrap(err, "the password's length is zero")
 	}
 
 	var wlt wallet.Wallet
 	if exists(walletPath) {
-		fmt.Print("Wallet already exists on the provided path. Rewrite? Y/N")
+		fmt.Print("Wallet already exists on the provided path. Rewrite? Y/N: ")
 		var answer string
 		_, err := fmt.Scanf("%s", &answer)
 		if err != nil {
-			fmt.Println("Interrupt")
-			return err
+			return errors.Wrap(err, "failed to get the answer on rewriting the existing wallet")
 		}
 		switch answer {
 		case "Y":
 			wlt = wallet.NewWallet()
 		case "N":
-			return errors.New("program interrupted")
+			return nil
 		default:
 			return errors.New("unknown command")
 		}
-
 	} else {
 		wlt = wallet.NewWallet()
 	}
 
 	err = wlt.AddAccountSeed(walletCredentials.accountSeed.Bytes())
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return err
+		return errors.Wrap(err, "failed to add the account seed to the wallet")
 	}
 
 	bts, err := wlt.Encode(pass)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return err
+		return errors.Wrap(err, "failed to encode the wallet with the provided password")
+
 	}
 
 	err = os.WriteFile(walletPath, bts, 0600)
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return err
+		return errors.Wrap(err, "failed to write the wallet's data to the wallet")
+
 	}
 
 	log.Printf("Account Number: %d\n", opts.AccountNumber)
@@ -384,16 +387,15 @@ func userHomeDir() (string, error) {
 	return u.HomeDir, nil
 }
 
-func getWalletPath(userDefinedPath string) string {
+func getWalletPath(userDefinedPath string) (string, error) {
 	if userDefinedPath != "" {
-		return filepath.Clean(userDefinedPath)
+		return filepath.Clean(userDefinedPath), nil
 	}
 	home, err := userHomeDir()
 	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		os.Exit(0)
+		return "", errors.Wrap(err, "failed to get user's home directory")
 	}
-	return filepath.Join(home, ".waves")
+	return filepath.Join(home, walletDefaultName), nil
 }
 
 func exists(name string) bool {
