@@ -99,3 +99,10 @@ func (c *HttpClient) ClearBlackList(t *testing.T) *client.Response {
 	require.NoError(t, err)
 	return resp
 }
+
+func (c *HttpClient) ConnectedPeers(t *testing.T) ([]*client.PeersConnectedRow, *client.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	connectedPeers, resp, err := c.cli.Peers.Connected(ctx)
+	return connectedPeers, resp, err
+}
