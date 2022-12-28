@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"flag"
-	"fmt"
 	"math"
 	"math/big"
 	"net/http"
@@ -51,43 +50,44 @@ const (
 )
 
 var (
-	logLevel                   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath                  = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType             = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses              = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr                   = flag.String("declared-address", "", "Address to listen on")
+	logLevel                   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL.")
+	statePath                  = flag.String("state-path", "", "Path to node's state directory.")
+	blockchainType             = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet.")
+	peerAddresses              = flag.String("peers", "", "Addresses of peers to connect to.")
+	declAddr                   = flag.String("declared-address", "", "Address to listen on.")
 	nodeName                   = flag.String("name", "gowaves", "Node name.")
 	cfgPath                    = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
-	apiAddr                    = flag.String("api-address", "", "Address for REST API")
-	apiKey                     = flag.String("api-key", "", "Api key")
-	apiMaxConnections          = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API")
-	grpcAddr                   = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	grpcApiMaxConnections      = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API")
-	enableMetaMaskAPI          = flag.Bool("enable-metamask", true, "Enables/disables metamask API")
+	apiAddr                    = flag.String("api-address", "", "Address for REST API.")
+	apiKey                     = flag.String("api-key", "", "Api key.")
+	apiMaxConnections          = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API.")
+	grpcAddr                   = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API.")
+	grpcApiMaxConnections      = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API.")
+	enableMetaMaskAPI          = flag.Bool("enable-metamask", true, "Enables/disables metamask API.")
 	enableMetaMaskAPILog       = flag.Bool("enable-metamask-log", false, "Enables/disables metamask API logging.")
-	enableGrpcApi              = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
-	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
-	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	enableGrpcApi              = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API.")
+	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set.")
+	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point.")
 	buildStateHashes           = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 	bindAddress                = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
-	minerVoteFeatures          = flag.String("vote", "", "Miner vote features")
+	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers.")
+	minerVoteFeatures          = flag.String("vote", "", "Miner vote features.")
 	disableBloomFilter         = flag.Bool("disable-bloom", false, "Disable bloom filter. Less memory usage, but decrease performance.")
-	reward                     = flag.String("reward", "", "Miner reward: for example 600000000")
-	outdatePeriod              = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
+	reward                     = flag.String("reward", "", "Miner reward: for example 600000000.")
+	obsolescencePeriod         = flag.Duration("obsolescence", 4*time.Hour, "Blockchain obsolescence period. Disable mining if last block older then given value.")
 	walletPath                 = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
 	walletPassword             = flag.String("wallet-password", "", "Pass password for wallet.")
-	limitAllConnections        = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction. Default value is 60.")
+	limitAllConnections        = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction.")
 	minPeersMining             = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
-	disableMiner               = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
-	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	disableMiner               = flag.Bool("disable-miner", false, "Disable miner.")
+	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'.")
 	prometheus                 = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
-	metricsID                  = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
-	metricsURL                 = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
+	metricsID                  = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system.")
+	metricsURL                 = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'.")
 	dropPeers                  = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
-	dbFileDescriptors          = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
+	dbFileDescriptors          = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, "Maximum allowed file descriptors count that will be used by state database.")
 	newConnectionsLimit        = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
 	disableNTP                 = flag.Bool("disable-ntp", false, "Disable NTP synchronization. Useful when running the node in a docker container.")
+	microblockInterval         = flag.Duration("microblock-interval", 5*time.Second, "Interval between microblocks.")
 )
 
 var defaultPeers = map[string]string{
@@ -118,7 +118,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("bind-address: %s", *bindAddress)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
-	zap.S().Debugf("miner-delay: %s", *outdatePeriod)
+	zap.S().Debugf("obsolescence: %s", *obsolescencePeriod)
 	zap.S().Debugf("disable-miner %t", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("hashed wallet-password: %s", crypto.MustFastHash([]byte(*walletPassword)))
@@ -130,6 +130,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
 	zap.S().Debugf("enable-metamask: %t", *enableMetaMaskAPI)
 	zap.S().Debugf("disable-ntp: %t", *disableNTP)
+	zap.S().Debugf("microblock-interval: %s", *microblockInterval)
 }
 
 func main() {
@@ -241,12 +242,6 @@ func main() {
 		return
 	}
 
-	outdatePeriodSeconds, err := common.ParseDuration(*outdatePeriod)
-	if err != nil {
-		zap.S().Errorf("Failed to parse '-outdate': %v", err)
-		return
-	}
-
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = *dbFileDescriptors
 	params.StoreExtendedApiData = *buildExtendedApi
@@ -285,7 +280,12 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
-	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
+	utxValidator, err := utxpool.NewValidator(st, ntpTime, *obsolescencePeriod)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize UTX: %v", err)
+		return
+	}
+	utx := utxpool.New(uint64(1024*mb), utxValidator, cfg)
 	parent := peer.NewParent()
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
@@ -318,16 +318,22 @@ func main() {
 	)
 	go peerManager.Run(ctx)
 
-	var minerScheduler Scheduler = scheduler.NewScheduler(
-		st,
-		wal,
-		cfg,
-		ntpTime,
-		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
-		proto.NewTimestampFromUSeconds(outdatePeriodSeconds),
-	)
+	var minerScheduler Scheduler
 	if *disableMiner {
 		minerScheduler = scheduler.DisabledScheduler{}
+	} else {
+		minerScheduler, err = scheduler.NewScheduler(
+			st,
+			wal,
+			cfg,
+			ntpTime,
+			scheduler.NewMinerConsensus(peerManager, *minPeersMining),
+			*obsolescencePeriod,
+		)
+		if err != nil {
+			zap.S().Errorf("Failed to initialize miner scheduler: %v", err)
+			return
+		}
 	}
 	blockApplier := blocks_applier.NewBlocksApplier()
 
@@ -350,7 +356,7 @@ func main() {
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	n := node.NewNode(svs, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
+	n := node.NewNode(svs, declAddr, bindAddr, *microblockInterval)
 	go n.Run(ctx, parent, svs.InternalChannel)
 
 	go minerScheduler.Reschedule()

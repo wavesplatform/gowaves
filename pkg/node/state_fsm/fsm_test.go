@@ -2,6 +2,7 @@ package state_fsm
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -24,7 +25,7 @@ func (noopReschedule) Reschedule() {
 }
 
 func TestNewFsm(t *testing.T) {
-	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, SkipMessageList: &messages.SkipMessageList{}}, 1000)
+	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}, SkipMessageList: &messages.SkipMessageList{}}, 5*time.Second)
 
 	require.NoError(t, err)
 	require.Equal(t, []int{tasks.AskPeers, tasks.Ping}, mapAsync(async))

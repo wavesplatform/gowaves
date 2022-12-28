@@ -34,29 +34,29 @@ type Config struct {
 }
 
 type Node struct {
-	peers     peer_manager.PeerManager
-	state     state.State
-	declAddr  proto.TCPAddr
-	bindAddr  proto.TCPAddr
-	scheduler types.Scheduler
-	utx       types.UtxPool
-	services  services.Services
-	outdate   proto.Timestamp
+	peers              peer_manager.PeerManager
+	state              state.State
+	declAddr           proto.TCPAddr
+	bindAddr           proto.TCPAddr
+	scheduler          types.Scheduler
+	utx                types.UtxPool
+	services           services.Services
+	microblockInterval time.Duration
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, outdate proto.Timestamp) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
 	return &Node{
-		state:     services.State,
-		peers:     services.Peers,
-		declAddr:  declAddr,
-		bindAddr:  bindAddr,
-		scheduler: services.Scheduler,
-		utx:       services.UtxPool,
-		services:  services,
-		outdate:   outdate,
+		state:              services.State,
+		peers:              services.Peers,
+		declAddr:           declAddr,
+		bindAddr:           bindAddr,
+		scheduler:          services.Scheduler,
+		utx:                services.UtxPool,
+		services:           services,
+		microblockInterval: microblockInterval,
 	}
 }
 
@@ -166,7 +166,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate)
+	fsm, async, err := state_fsm.NewFsm(a.services, a.microblockInterval)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return
