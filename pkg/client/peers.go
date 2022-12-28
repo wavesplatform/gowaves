@@ -62,7 +62,7 @@ type PeersConnectedRow struct {
 	Address            proto.PeerInfo `json:"address"`
 	DeclaredAddress    proto.PeerInfo `json:"declaredAddress"`
 	PeerName           string         `json:"peerName"`
-	PeerNonce          uint64         `json:"peerNonce"`
+	PeerNonce          int64          `json:"peerNonce"`
 	ApplicationName    string         `json:"applicationName"`
 	ApplicationVersion string         `json:"applicationVersion"`
 }
