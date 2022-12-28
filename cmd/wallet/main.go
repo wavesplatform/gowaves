@@ -371,7 +371,7 @@ func createWallet(opts Opts) error {
 	log.Printf("Public Key:     %s\n", walletCredentials.pk.String())
 	log.Printf("Secret Key:     %s\n", walletCredentials.sk.String())
 	log.Printf("Address:        %s\n", walletCredentials.address.String())
-	fmt.Println("Your wallet has been successfully created")
+	fmt.Printf("Your wallet has been successfully created in %s\n", walletPath)
 	return nil
 }
 
