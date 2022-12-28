@@ -7,12 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO remove this test.
 func TestWallet_EncodeDecode(t *testing.T) {
 	password := []byte("123456")
 
 	w := NewWallet()
-	err := w.AddAccountSeed([]byte("exile region inmate brass mobile hour best spy gospel gown grace actor armed gift radar"))
+	err := w.AddAccountSeed([]byte("BjABqgaAhXb13wAcjUNBv1hzaxDmzT9hdQC3uCzZGmVmL79kzru97FKVnz8jKvpEFECwTxZvMGZxEhfGteDuhGL2euXMt9UuopJH1x9ti52Nmz5uuigU4Wm"))
 	require.NoError(t, err)
 
 	bts, err := w.Encode(password)
