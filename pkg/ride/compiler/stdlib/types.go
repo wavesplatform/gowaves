@@ -16,7 +16,46 @@ var (
 	StringType     = SimpleType{"String"}
 	ByteVectorType = SimpleType{"ByteVector"}
 	BigIntType     = SimpleType{"BigInt"}
-	ThrowType      = SimpleType{"Throw"}
+	ThrowType      = SimpleType{"Unknown"}
+
+	CallableRetV3 = UnionType{Types: []Type{
+		SimpleType{Type: "ScriptResult"},
+		SimpleType{Type: "TransferSet"},
+		SimpleType{Type: "WriteSet"},
+	}}
+	CallableRetV4 = ListType{Type: UnionType{Types: []Type{
+		SimpleType{Type: "BinaryEntry"},
+		SimpleType{Type: "BooleanEntry"},
+		SimpleType{Type: "Burn"},
+		SimpleType{Type: "DeleteEntry"},
+		SimpleType{Type: "IntegerEntry"},
+		SimpleType{Type: "Issue"},
+		SimpleType{Type: "Reissue"},
+		SimpleType{Type: "ScriptTransfer"},
+		SimpleType{Type: "SponsorFee"},
+		SimpleType{Type: "StringEntry"},
+	}}}
+	callableRetV5OnlyList = ListType{Type: UnionType{Types: []Type{
+		SimpleType{Type: "BinaryEntry"},
+		SimpleType{Type: "BooleanEntry"},
+		SimpleType{Type: "Burn"},
+		SimpleType{Type: "DeleteEntry"},
+		SimpleType{Type: "IntegerEntry"},
+		SimpleType{Type: "Issue"},
+		SimpleType{Type: "Lease"},
+		SimpleType{Type: "LeaseCancel"},
+		SimpleType{Type: "Reissue"},
+		SimpleType{Type: "ScriptTransfer"},
+		SimpleType{Type: "SponsorFee"},
+		SimpleType{Type: "StringEntry"},
+	}}}
+	CallableRetV5 = UnionType{Types: []Type{
+		TupleType{Types: []Type{
+			callableRetV5OnlyList,
+			Any,
+		}},
+		callableRetV5OnlyList,
+	}}
 )
 
 func ParseType(t string) Type {
@@ -106,7 +145,11 @@ type SimpleType struct {
 
 func (t SimpleType) Comp(rideType Type) bool {
 	if t.Type == "Any" {
-		return true
+		if T, ok := rideType.(SimpleType); ok {
+			if T.Type != "Unknown" {
+				return true
+			}
+		}
 	}
 	if _, ok := rideType.(UnionType); ok {
 		return rideType.Comp(t)
@@ -135,10 +178,15 @@ func (t UnionType) Comp(rideType Type) bool {
 	}
 	if T, ok := rideType.(UnionType); ok {
 		for _, typeName := range T.Types {
+			eq := false
 			for _, checkTypeName := range t.Types {
-				if !checkTypeName.Comp(typeName) {
-					return false
+				if checkTypeName.Comp(typeName) {
+					eq = true
+					break
 				}
+			}
+			if !eq {
+				return false
 			}
 		}
 		return true
@@ -152,6 +200,9 @@ func (t UnionType) Comp(rideType Type) bool {
 }
 
 func (t *UnionType) AppendType(rideType Type) {
+	if rideType == nil {
+		return
+	}
 	if newT, ok := rideType.(UnionType); ok {
 		var newTypes []Type
 		for _, newType := range newT.Types {
@@ -165,6 +216,9 @@ func (t *UnionType) AppendType(rideType Type) {
 		return
 	}
 	if len(t.Types) == 0 {
+		if rideType.Comp(ThrowType) {
+			return
+		}
 		t.Types = append(t.Types, rideType)
 		return
 	}

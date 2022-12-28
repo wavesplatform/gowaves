@@ -106,7 +106,7 @@ List <- '[' _ ExprSeq? _ ']'
 ExprSeq <- Expr (_ ',' _ ExprSeq)?
 
 # Expressions
-AtomExpr <- UnaryOp? (FoldMacro / GettableExpr / IfWithError / Match)
+AtomExpr <- UnaryOp? _ (FoldMacro / GettableExpr / IfWithError / Match)
 MultGroupOpAtom <- AtomExpr (_ MultGroupOp _ AtomExpr)*
 SumGroupOpAtom <- MultGroupOpAtom (_ SumGroupOp _ MultGroupOpAtom)*
 ListGroupOpAtom <- SumGroupOpAtom (_ ListGroupOp _ SumGroupOpAtom)*

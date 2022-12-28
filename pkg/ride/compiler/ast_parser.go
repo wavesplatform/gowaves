@@ -1403,40 +1403,110 @@ func (p *ASTParser) parseAnnotatedFunc(node *node32) {
 }
 
 func (p *ASTParser) loadMeta(name string, argsTypes []s.Type) error {
+	switch p.Tree.LibVersion {
+	case ast.LibV1, ast.LibV2, ast.LibV3, ast.LibV4, ast.LibV5:
+		return p.loadMetaBeforeV6(name, argsTypes)
+	case ast.LibV6:
+		return p.loadMetaV6(name, argsTypes)
+	}
+	return nil
+}
+
+func (p *ASTParser) loadMetaV6(name string, argsTypes []s.Type) error {
 	res := meta.Function{
 		Name:      name,
 		Arguments: []meta.Type{},
 	}
 	for _, t := range argsTypes {
-		T := t
-		isList := false
-		if list, ok := t.(s.ListType); ok {
-			T = list.Type
-			isList = true
-		}
-		isValid := true
-		var argType meta.Type
-		if simpleType, ok := T.(s.SimpleType); ok {
-			switch simpleType.Type {
-			case "String":
-				argType = meta.String
-			case "Int":
-				argType = meta.Int
-			case "Boolean":
-				argType = meta.Boolean
-			case "ByteVector":
-				argType = meta.Bytes
-			default:
-				isValid = false
+		switch T := t.(type) {
+		case s.SimpleType:
+			metaT, err := getMetaType(t)
+			if err != nil {
+				return err
 			}
-		}
-		if !isValid {
+			res.Arguments = append(res.Arguments, metaT)
+		case s.ListType:
+			if _, ok := T.Type.(s.SimpleType); !ok {
+				return errors.Errorf("Unexpected type in callable args : %s", t.String())
+			}
+			metaT, err := getMetaType(T.Type)
+			if err != nil {
+				return err
+			}
+			res.Arguments = append(res.Arguments, meta.ListType{Inner: metaT})
+		default:
 			return errors.Errorf("Unexpected type in callable args : %s", t.String())
-		} else {
-			if isList {
-				argType = meta.ListType{Inner: argType}
+		}
+	}
+	p.Tree.Meta.Functions = append(p.Tree.Meta.Functions, res)
+	return nil
+}
+
+func getMetaType(t s.Type) (meta.SimpleType, error) {
+	if simpleType, ok := t.(s.SimpleType); ok {
+		switch simpleType.Type {
+		case "String":
+			return meta.String, nil
+		case "Int":
+			return meta.Int, nil
+		case "Boolean":
+			return meta.Boolean, nil
+		case "ByteVector":
+			return meta.Bytes, nil
+		}
+	}
+	return meta.SimpleType(byte(0)), errors.Errorf("Unexpected type in callable args : %s", t.String())
+}
+
+func (p *ASTParser) loadMetaBeforeV6(name string, argsTypes []s.Type) error {
+	res := meta.Function{
+		Name:      name,
+		Arguments: []meta.Type{},
+	}
+	for _, t := range argsTypes {
+		switch T := t.(type) {
+		case s.SimpleType:
+			metaT, err := getMetaType(t)
+			if err != nil {
+				return err
 			}
-			res.Arguments = append(res.Arguments, argType)
+			res.Arguments = append(res.Arguments, metaT)
+		case s.ListType:
+			switch u := T.Type.(type) {
+			case s.SimpleType:
+				metaT, err := getMetaType(T.Type)
+				if err != nil {
+					return err
+				}
+				res.Arguments = append(res.Arguments, meta.ListType{Inner: metaT})
+			case s.UnionType:
+				var resType []meta.SimpleType
+				for _, unionT := range u.Types {
+					metaT, err := getMetaType(unionT)
+					if err != nil {
+						return err
+					}
+					resType = append(resType, metaT)
+				}
+				res.Arguments = append(res.Arguments, meta.ListType{Inner: meta.UnionType(resType)})
+			}
+			metaT, err := getMetaType(T.Type)
+			if err != nil {
+				return err
+			}
+			res.Arguments = append(res.Arguments, meta.ListType{Inner: metaT})
+		case s.UnionType:
+			var resType []meta.SimpleType
+			for _, unionT := range T.Types {
+				metaT, err := getMetaType(unionT)
+				if err != nil {
+					return err
+				}
+				resType = append(resType, metaT)
+			}
+			res.Arguments = append(res.Arguments, meta.UnionType(resType))
+		default:
+			return errors.Errorf("Unexpected type in callable args : %s", t.String())
 		}
 	}
 	p.Tree.Meta.Functions = append(p.Tree.Meta.Functions, res)
@@ -1454,7 +1524,7 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	expr, _, types := p.ruleFuncHandler(curNode)
+	expr, retType, types := p.ruleFuncHandler(curNode)
 	switch annotation {
 	case "Callable":
 		p.Tree.Functions = append(p.Tree.Functions, expr)
@@ -1463,6 +1533,20 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		if err != nil {
 			p.addError(fmt.Sprintf("%s", err), node.token32)
 		}
+		switch p.Tree.LibVersion {
+		case ast.LibV1, ast.LibV2, ast.LibV3:
+			if !s.CallableRetV3.Comp(retType) {
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV3.String()), node.token32)
+			}
+		case ast.LibV4:
+			if !s.CallableRetV4.Comp(retType) {
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV4.String()), node.token32)
+			}
+		case ast.LibV5, ast.LibV6:
+			if !s.CallableRetV5.Comp(retType) {
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV5.String()), node.token32)
+			}
+		}
 	case "Verifier":
 		if p.Tree.Verifier != nil {
 			p.addError("More than one Verifier", node.token32)
@@ -1470,7 +1554,10 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		f := expr.(*ast.FunctionDeclarationNode)
 		p.Tree.Verifier = f.Body
 		if len(types) != 0 {
-			p.addError("Verifyer must not have arguments", node.token32)
+			p.addError("Verifier must not have arguments", node.token32)
+		}
+		if !s.BooleanType.Comp(retType) {
+			p.addError("VerifierFunction must return Boolean or it super type", node.token32)
 		}
 	}
 	p.currentStack = p.currentStack.up
@@ -1558,7 +1645,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 		if curNode != nil && curNode.pegRule == ruleCase {
 			// new stack for each case
 			p.currentStack = NewVarStack(p.currentStack)
-			cond, trueState, varType := p.ruleCaseHandle(curNode, matchName, possibleTypes)
+			cond, trueState, caseVarType := p.ruleCaseHandle(curNode, matchName, possibleTypes)
 			if trueState == nil {
 				if defaultCase != nil {
 					p.addError("Match should have at most one default case", curNode.token32)
@@ -1568,7 +1655,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 				conds = append(conds, cond)
 				trueStates = append(trueStates, trueState)
 			}
-			unionRetType.AppendType(varType)
+			unionRetType.AppendType(caseVarType)
 			curNode = curNode.next
 			p.currentStack = p.currentStack.up
 		}
