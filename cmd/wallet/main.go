@@ -141,12 +141,12 @@ func show(opts Opts) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to receive wallet's credentials")
 		}
-		fmt.Printf("Account number: %d\n", i)
-		fmt.Printf("Account seed: %s\n", accountSeedDigest.String())
-		fmt.Printf("Public Key: %s\n", pk.String())
-		fmt.Printf("Secret Key: %s\n", sk.String())
-		fmt.Printf("Address: %s\n", address.String())
 		fmt.Println()
+		fmt.Printf("Account number: %d\n", i)
+		fmt.Printf("Account seed:   %s\n", accountSeedDigest.String())
+		fmt.Printf("Public Key:     %s\n", pk.String())
+		fmt.Printf("Secret Key:     %s\n", sk.String())
+		fmt.Printf("Address:        %s\n", address.String())
 	}
 	return nil
 }
@@ -365,12 +365,12 @@ func createWallet(opts Opts) error {
 		return errors.Wrap(err, "failed to write the wallet's data to the wallet")
 
 	}
-
+	fmt.Println()
 	log.Printf("Account Number: %d\n", opts.AccountNumber)
-	log.Printf("Account Seed: %s\n", walletCredentials.accountSeed.String())
-	log.Printf("Public Key: %s\n", walletCredentials.pk.String())
-	log.Printf("Secret Key: %s\n", walletCredentials.sk.String())
-	log.Printf("Address: %s\n", walletCredentials.address.String())
+	log.Printf("Account Seed:   %s\n", walletCredentials.accountSeed.String())
+	log.Printf("Public Key:     %s\n", walletCredentials.pk.String())
+	log.Printf("Secret Key:     %s\n", walletCredentials.sk.String())
+	log.Printf("Address:        %s\n", walletCredentials.address.String())
 	fmt.Println("Your wallet has been successfully created")
 	return nil
 }
