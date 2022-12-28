@@ -11,7 +11,8 @@ import (
 )
 
 type InvRequester interface {
-	Request(p types.MessageSender, id []byte)
+	Add2Cache(id []byte) (existed bool)
+	Request(p types.MessageSender, id []byte) (existed bool)
 }
 
 var (

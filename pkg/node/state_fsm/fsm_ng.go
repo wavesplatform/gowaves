@@ -246,6 +246,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 			},
 		)
 	})
+	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
 
 	return a, Tasks(NewMineMicroTask(5*time.Second, block, rest, keyPair, vrf)), nil
 }

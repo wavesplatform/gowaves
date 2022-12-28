@@ -72,9 +72,9 @@ func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 	return currentHeight.Height
 }
 
-func retry(timeout time.Duration, f func() error) error {
+func Retry(timeout time.Duration, f func() error) error {
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = time.Second * 2
+	bo.MaxInterval = time.Second * 1
 	bo.MaxElapsedTime = timeout
 	if err := backoff.Retry(f, bo); err != nil {
 		if bo.NextBackOff() == backoff.Stop {
@@ -86,11 +86,11 @@ func retry(timeout time.Duration, f func() error) error {
 }
 
 func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duration) (error, error) {
-	errGo := retry(timeout, func() error {
+	errGo := Retry(timeout, func() error {
 		_, _, err := c.GoClients.HttpClient.TransactionInfoRaw(id)
 		return err
 	})
-	errScala := retry(timeout, func() error {
+	errScala := Retry(timeout, func() error {
 		_, _, err := c.ScalaClients.HttpClient.TransactionInfoRaw(id)
 		return err
 	})
