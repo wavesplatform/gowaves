@@ -288,7 +288,7 @@ func main() {
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 	parent := peer.NewParent()
 
-	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
+	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
 		zap.S().Errorf("Failed to get node's nonce: %v", err)
 		return
