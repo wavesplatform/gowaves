@@ -1,7 +1,6 @@
 package node_client
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -106,14 +105,14 @@ func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration
 	errGo := Retry(timeout, func() error {
 		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
 		if len(cp) == 0 && err == nil {
-			err = fmt.Errorf("no connected peers")
+			err = errors.New("no connected peers")
 		}
 		return err
 	})
 	errScala := Retry(timeout, func() error {
 		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers(t)
 		if len(cp) == 0 && err == nil {
-			err = fmt.Errorf("no connected peers")
+			err = errors.New("no connected peers")
 		}
 		return err
 	})
