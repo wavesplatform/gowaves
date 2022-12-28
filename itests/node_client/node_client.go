@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -100,4 +99,22 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 func (c *NodesClients) ClearBlackList(t *testing.T) {
 	c.GoClients.HttpClient.ClearBlackList(t)
 	c.ScalaClients.HttpClient.ClearBlackList(t)
+}
+
+func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration) (error, error) {
+	errGo := Retry(timeout, func() error {
+		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
+		if len(cp) == 0 && err == nil {
+			err = errors.New("no connected peers")
+		}
+		return err
+	})
+	errScala := Retry(timeout, func() error {
+		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers(t)
+		if len(cp) == 0 && err == nil {
+			err = errors.New("no connected peers")
+		}
+		return err
+	})
+	return errGo, errScala
 }
