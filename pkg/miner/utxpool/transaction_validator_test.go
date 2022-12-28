@@ -25,12 +25,13 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	now := time.Now()
 
 	m := NewMockstateWrapper(ctrl)
-	v := NewValidator(m, tm(now), 86400*1000)
+	v, err := NewValidator(m, tm(now), 24*time.Hour)
+	require.NoError(t, err)
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().
 		TxValidation(gomock.Any())
 
-	err := v.Validate(byte_helpers.BurnWithSig.Transaction)
+	err = v.Validate(byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)
 }

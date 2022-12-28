@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,9 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
-	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}, 86400*1000), sets), sch)
+	validator, err := utxpool.NewValidator(st, ntptime.Stub{}, 24*time.Hour)
+	require.NoError(t, err)
+	err = server.initServer(st, utxpool.New(utxSize, validator, sets), sch)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

@@ -1,7 +1,9 @@
 package utxpool
 
 import (
-	"errors"
+	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -13,27 +15,31 @@ type Validator interface {
 }
 
 type ValidatorImpl struct {
-	state     stateWrapper
-	tm        types.Time
-	outdateMs uint64
+	state        stateWrapper
+	tm           types.Time
+	obsolescence time.Duration
 }
 
-func NewValidator(state stateWrapper, tm types.Time, outdateMs uint64) *ValidatorImpl {
-	return &ValidatorImpl{
-		state:     state,
-		tm:        tm,
-		outdateMs: outdateMs,
+func NewValidator(state stateWrapper, tm types.Time, obsolescence time.Duration) (*ValidatorImpl, error) {
+	if obsolescence <= 0 {
+		return nil, errors.New("blockchain obsolescence period must be positive")
 	}
+	return &ValidatorImpl{
+		state:        state,
+		tm:           tm,
+		obsolescence: obsolescence,
+	}, nil
 }
 
-func (a *ValidatorImpl) Validate(t proto.Transaction) error {
-	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	lastKnownBlock := a.state.TopBlock()
-	if currentTimestamp-lastKnownBlock.Timestamp > a.outdateMs {
+func (a *ValidatorImpl) Validate(tx proto.Transaction) error {
+	now := a.tm.Now()
+	lastBlock := a.state.TopBlock()
+	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
+	if now.Add(-a.obsolescence).After(lastBlockTime) {
 		return errors.New("state outdated, transaction not accepted")
 	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+		return validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
 	})
 }
 

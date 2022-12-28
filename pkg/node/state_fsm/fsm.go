@@ -1,6 +1,7 @@
 package state_fsm
 
 import (
+	"errors"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -36,12 +37,7 @@ type BaseInfo struct {
 	// ntp time
 	tm types.Time
 
-	// outdate period
-	outdatePeriod proto.Timestamp
-
-	scheme proto.Scheme
-
-	//
+	scheme        proto.Scheme
 	invRequester  InvRequester
 	blocksApplier BlocksApplier
 
@@ -51,10 +47,10 @@ type BaseInfo struct {
 	// scheduler
 	types.Scheduler
 
-	microMiner *miner.MicroMiner
-
+	microMiner         *miner.MicroMiner
 	MicroBlockCache    services.MicroBlockCache
 	MicroBlockInvCache services.MicroBlockInvCache
+	microblockInterval time.Duration
 
 	actions Actions
 
@@ -104,16 +100,15 @@ type FSM interface {
 	Errorf(err error) error
 }
 
-func NewFsm(
-	services services.Services,
-	outdatePeriod proto.Timestamp,
-) (FSM, Async, error) {
+func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, Async, error) {
+	if microblockInterval <= 0 {
+		return nil, nil, errors.New("microblock interval must be positive")
+	}
 	b := BaseInfo{
-		peers:         services.Peers,
-		storage:       services.State,
-		tm:            services.Time,
-		outdatePeriod: outdatePeriod,
-		scheme:        services.Scheme,
+		peers:   services.Peers,
+		storage: services.State,
+		tm:      services.Time,
+		scheme:  services.Scheme,
 
 		//
 		invRequester:  ng.NewInvRequester(),
@@ -128,6 +123,7 @@ func NewFsm(
 
 		MicroBlockCache:    services.MicroBlockCache,
 		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
+		microblockInterval: microblockInterval,
 
 		actions: &ActionsImpl{services: services},
 

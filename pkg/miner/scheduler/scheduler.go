@@ -26,18 +26,18 @@ type Emit struct {
 	Parent       proto.BlockID
 }
 
-type SchedulerImpl struct {
-	seeder        seeder
-	mine          chan Emit
-	cancel        []func()
-	settings      *settings.BlockchainSettings
-	mu            sync.Mutex
-	internal      internal
-	emits         []Emit
-	storage       state.State
-	tm            types.Time
-	consensus     types.MinerConsensus
-	outdatePeriod proto.Timestamp
+type Default struct {
+	seeder       seeder
+	mine         chan Emit
+	cancel       []func()
+	settings     *settings.BlockchainSettings
+	mu           sync.Mutex
+	internal     internal
+	emits        []Emit
+	storage      state.State
+	tm           types.Time
+	consensus    types.MinerConsensus
+	obsolescence time.Duration
 }
 
 type internal interface {
@@ -301,32 +301,42 @@ type seeder interface {
 	Seeds() [][]byte
 }
 
-func NewScheduler(state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay)
+func NewScheduler(
+	state state.State,
+	seeder seeder,
+	settings *settings.BlockchainSettings,
+	tm types.Time,
+	consensus types.MinerConsensus,
+	minerDelay time.Duration) (*Default, error) {
+	if minerDelay <= 0 {
+		return nil, errors.New("minerDelay must be positive")
+	}
+	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay), nil
 }
 
-func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings,
+	tm types.Time, consensus types.MinerConsensus, minerDelay time.Duration) *Default {
 	if seeder == nil {
 		seeder = wallet.NewWallet()
 	}
-	return &SchedulerImpl{
-		seeder:        seeder,
-		mine:          make(chan Emit, 1),
-		settings:      settings,
-		internal:      internal,
-		storage:       state,
-		mu:            sync.Mutex{},
-		tm:            tm,
-		consensus:     consensus,
-		outdatePeriod: minerDelay,
+	return &Default{
+		seeder:       seeder,
+		mine:         make(chan Emit, 1),
+		settings:     settings,
+		internal:     internal,
+		storage:      state,
+		mu:           sync.Mutex{},
+		tm:           tm,
+		consensus:    consensus,
+		obsolescence: minerDelay,
 	}
 }
 
-func (a *SchedulerImpl) Mine() chan Emit {
+func (a *Default) Mine() chan Emit {
 	return a.mine
 }
 
-func (a *SchedulerImpl) Reschedule() {
+func (a *Default) Reschedule() {
 	if len(a.seeder.Seeds()) == 0 {
 		zap.S().Debug("Scheduler: Mining is not possible because no seeds registered")
 		return
@@ -339,12 +349,13 @@ func (a *SchedulerImpl) Reschedule() {
 		return
 	}
 
-	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	lastKnownBlock := a.storage.TopBlock()
-	if currentTimestamp-a.outdatePeriod > lastKnownBlock.Timestamp {
-		zap.S().Debugf("Scheduler: Mining is not allowed because blockchain is too old: cur %d, block.ts %d, outdate: %d, id: %s",
-			currentTimestamp, lastKnownBlock.Timestamp, a.outdatePeriod, lastKnownBlock.ID,
-		)
+	now := a.tm.Now()
+	obsolescenceTime := now.Add(-a.obsolescence)
+	lastBlock := a.storage.TopBlock()
+	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
+	if obsolescenceTime.After(lastBlockTime) {
+		zap.S().Debugf("Scheduler: Mining is not allowed because last block (ID: %s) time %s is before the obsolesence time %s",
+			lastBlock.ID, lastBlockTime, obsolescenceTime)
 		return
 	}
 
@@ -363,7 +374,7 @@ func (a *SchedulerImpl) Reschedule() {
 	a.reschedule(block, h)
 }
 
-func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
+func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
 	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
@@ -417,7 +428,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 	}
 }
 
-func (a *SchedulerImpl) Emits() []Emit {
+func (a *Default) Emits() []Emit {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.emits

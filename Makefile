@@ -150,10 +150,6 @@ build-custom-windows:
 
 build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
-build-docker:
-	docker build -t com.wavesplatform/node-it:latest .
-	date "+%Y-%m-%d %H:%M:%S"
-
 build-importer-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-darwin:
@@ -214,9 +210,6 @@ proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/lang/*.proto
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/events/*.proto
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-grpc_out=$(GOPATH)/src --go-grpc_opt=require_unimplemented_servers=false pkg/grpc/protobuf-schemas/proto/waves/events/grpc/*.proto
-
-build-integration-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/integration ./cmd/integration
 
 build-wmd-deb-package: release-wmd
 	@mkdir -p build/dist
