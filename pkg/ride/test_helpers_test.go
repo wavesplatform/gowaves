@@ -358,6 +358,15 @@ func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 	return e
 }
 
+func (e *testEnv) withComplexityLimit(v ast.LibraryVersion, limit int) *testEnv {
+	require.True(e.t, limit >= 0)
+	cc := newComplexityCalculator(v, uint32(limit))
+	e.me.complexityCalculatorFunc = func() complexityCalculator {
+		return cc
+	}
+	return e
+}
+
 func (e *testEnv) withBlockV5Activated() *testEnv {
 	e.me.blockV5ActivatedFunc = func() bool {
 		return true

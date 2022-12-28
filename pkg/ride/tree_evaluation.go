@@ -34,51 +34,30 @@ func CallFunction(env environment, tree *ast.Tree, name string, args proto.Argum
 		// Produced actions are not stored for failed transactions, no need to return them here
 		et := GetEvaluationErrorType(err)
 		if et == Undefined {
-			return nil, EvaluationErrorAddComplexity(
+			return nil, EvaluationErrorSetComplexity(
 				et.Wrap(err, "unhandled error"),
 				// Error was not handled in wrapped state properly,
 				// so we need to add both complexity from current evaluation and from internal invokes
-				e.complexity()+wrappedStateComplexity(env.state()),
+				e.complexity(),
 			)
 		}
-		return nil, EvaluationErrorAddComplexity(err, e.complexity()+wrappedStateComplexity(env.state()))
+		return nil, EvaluationErrorSetComplexity(err, e.complexity())
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
-		return nil, EvaluationErrorAddComplexity(
+		return nil, EvaluationErrorSetComplexity(
 			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
 			// New error, both complexities should be added
-			e.complexity()+wrappedStateComplexity(env.state()),
+			e.complexity(),
 		)
 	}
 	if tree.LibVersion < ast.LibV5 { // Shortcut because no wrapped state before version 5
 		return rideResult, nil
 	}
-	maxChainInvokeComplexity, err := maxChainInvokeComplexityByVersion(ast.LibraryVersion(tree.LibVersion))
-	if err != nil {
-		return nil, EvaluationFailure.Errorf("failed to get max chain invoke complexity: %v", err)
-	}
-	// Add actions and complexity from wrapped state
+	// Add actions from wrapped state
 	// Append actions of the original call to the end of actions collected in wrapped state
-	dAppResult.complexity += wrappedStateComplexity(env.state())
-	if dAppResult.complexity > maxChainInvokeComplexity {
-		return nil, EvaluationErrorAddComplexity(
-			RuntimeError.Errorf("evaluation complexity %d exceeds %d limit for library version %d",
-				dAppResult.complexity, maxChainInvokeComplexity, tree.LibVersion,
-			),
-			maxChainInvokeComplexity,
-		)
-	}
 	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)
 	return dAppResult, nil
-}
-
-func wrappedStateComplexity(state types.SmartState) int {
-	ws, ok := state.(*WrappedState)
-	if !ok {
-		return 0
-	}
-	return ws.totalComplexity
 }
 
 func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
