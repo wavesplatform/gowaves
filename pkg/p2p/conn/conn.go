@@ -74,6 +74,10 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 		if _, err := header.ReadFrom(conn); err != nil {
 			return errors.Wrap(err, "failed to read header")
 		}
+		// received too big message, probably it's an error
+		if l := int(header.HeaderLength() + header.PayloadLength); l > maxMessageSize {
+			return errors.Errorf("received too long message, size=%d > max=%d", l, maxMessageSize)
+		}
 
 		if skip(header) {
 			if _, err := io.CopyN(io.Discard, conn, int64(header.PayloadLength)); err != nil {
@@ -81,10 +85,7 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 			}
 			continue
 		}
-		// received too big message, probably it's an error
-		if l := int(header.HeaderLength() + header.PayloadLength); l > maxMessageSize {
-			return errors.Errorf("received too long message, size=%d > max=%d", l, maxMessageSize)
-		}
+
 		b := bytebufferpool.Get()
 		// put header before payload
 		if _, err := header.WriteTo(b); err != nil {
