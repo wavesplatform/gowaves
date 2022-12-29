@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -166,7 +167,7 @@ func main() {
 		}()
 	}
 
-	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 
 	if *metricsURL != "" && *metricsID != -1 {
