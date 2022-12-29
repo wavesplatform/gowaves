@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 )
 
 func TestDefaultImpl_PeerError(t *testing.T) {
@@ -42,4 +43,8 @@ func TestDefaultImpl_Noop(t *testing.T) {
 	require.Nil(t, fsm)
 	require.Nil(t, async)
 	require.Nil(t, err)
+}
+
+func TestAskPeersInterval(t *testing.T) {
+	require.LessOrEqual(t, askPeersInterval, conn.MaxConnIdleIODuration)
 }

@@ -64,12 +64,6 @@ func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Tr
 	return fsm, nil, nil
 }
 
-// TODO handle no peers
-func peerError(fsm FSM, p peer.Peer, peers peer_manager.PeerManager, _ error) (FSM, Async, error) {
-	peers.Disconnect(p)
-	return fsm, nil, nil
-}
-
 func noop(fsm FSM) (FSM, Async, error) {
 	return fsm, nil, nil
 }

@@ -63,7 +63,7 @@ func (a *NGFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 }
 
 func (a *NGFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
-	return peerError(a, p, a.baseInfo.peers, e)
+	return a.baseInfo.d.PeerError(a, p, a.baseInfo, e)
 }
 
 func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
