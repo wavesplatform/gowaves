@@ -68,6 +68,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+	env.SetLimit(ride.MaxVerifierComplexity(info.rideV5Activated))
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -127,6 +128,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(params.blockInfo)
+	env.SetLimit(ride.MaxVerifierComplexity(params.rideV5Activated))
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
@@ -160,6 +162,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
+	env.SetLimit(ride.MaxAssetVerifierComplexity(tree.LibVersion))
 
 	// Set transaction only after library version is set by `env.ChooseSizeCheck`
 	if err = setTx(env); err != nil {
@@ -260,6 +263,11 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+	limit, err := ride.MaxChainInvokeComplexityByVersion(tree.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to set limit for invoke")
+	}
+	env.SetLimit(limit)
 
 	err = env.SetTransaction(tx)
 	if err != nil {

@@ -16,7 +16,7 @@ func invokeFunctionFromDApp(env environment, tree *ast.Tree, fnName rideString, 
 	res, err := e.evaluate()
 	if err != nil {
 		// Evaluation failed we have to add spent execution complexity to an error
-		return nil, EvaluationErrorAddComplexity(err, e.complexity())
+		return nil, EvaluationErrorSetComplexity(err, e.complexity())
 	}
 	return res, nil
 }

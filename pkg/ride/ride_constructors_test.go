@@ -51,7 +51,7 @@ func TestConstructorsDifferentVersions(t *testing.T) {
 	check := func(src string, dataEntry proto.DataEntry) {
 		_, tree := parseBase64Script(t, src)
 
-		env := newTestEnv(t).withLibVersion(ast.LibV6).withRideV6Activated().
+		env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 52000).withRideV6Activated().
 			withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree).
 			withInvocation("test")
 
