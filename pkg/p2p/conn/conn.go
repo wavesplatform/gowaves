@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -15,7 +16,8 @@ import (
 
 const (
 	maxMessageSize              = 2 << (10 * 2)
-	MaxConnIODurationPerMessage = 5 * time.Minute
+	maxConnIODurationPerMessage = 15 * time.Second
+	MaxConnIdleIODuration       = 5 * time.Minute
 )
 
 type Connection interface {
@@ -46,8 +48,7 @@ func sendToRemote(ctx context.Context, conn deadlineWriter, toRemoteCh chan []by
 		case <-ctx.Done():
 			return nil
 		case bts := <-toRemoteCh:
-			now := now()
-			deadline := now.Add(MaxConnIODurationPerMessage)
+			deadline := now().Add(maxConnIODurationPerMessage)
 			if err := conn.SetWriteDeadline(deadline); err != nil {
 				return errors.Wrapf(err, "failed to set write deadline to %q", deadline.String())
 			}
@@ -59,19 +60,63 @@ func sendToRemote(ctx context.Context, conn deadlineWriter, toRemoteCh chan []by
 	}
 }
 
+type multiReader struct {
+	readers []io.Reader
+}
+
+func newMultiReader(readers ...io.Reader) *multiReader {
+	return &multiReader{readers: readers}
+}
+
+func (mr *multiReader) Read(p []byte) (n int, err error) {
+	for len(mr.readers) > 0 {
+		n, err = mr.readers[0].Read(p)
+		if errors.Is(err, io.EOF) {
+			mr.readers[0] = nil // permit earlier GC
+			mr.readers = mr.readers[1:]
+		}
+		if n > 0 || !errors.Is(err, io.EOF) {
+			if errors.Is(err, io.EOF) && len(mr.readers) > 0 {
+				// Don't return EOF yet. More readers remain.
+				err = nil
+			}
+			return
+		}
+	}
+	return 0, io.EOF
+}
+
+func (mr *multiReader) Reset(readers ...io.Reader) {
+	mr.readers = readers
+}
+
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
 func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string, now func() time.Time) error {
+	var (
+		firstByteBuff   = make([]byte, 1)
+		firstByteReader = bytes.NewReader(firstByteBuff)
+		reader          = newMultiReader(firstByteReader, conn)
+	)
 	for {
-		now := now()
-		deadline := now.Add(MaxConnIODurationPerMessage)
-		if err := conn.SetReadDeadline(deadline); err != nil {
-			return errors.Wrapf(err, "failed to set read deadline to %q", deadline.String())
+		idleDeadline := now().Add(MaxConnIdleIODuration)
+		if err := conn.SetReadDeadline(idleDeadline); err != nil {
+			return errors.Wrapf(err, "failed to set read deadline to %q", idleDeadline.String())
+		}
+		if _, err := io.ReadFull(conn, firstByteBuff); err != nil {
+			return errors.Wrap(err, "failed to message first byte")
 		}
 
+		messageDeadline := now().Add(maxConnIODurationPerMessage)
+		if err := conn.SetReadDeadline(messageDeadline); err != nil {
+			return errors.Wrapf(err, "failed to set read deadline to %q", messageDeadline.String())
+		}
+		firstByteReader.Reset(firstByteBuff)
+		reader.Reset(firstByteReader, conn)
+
 		header := proto.Header{}
-		if _, err := header.ReadFrom(conn); err != nil {
+		if _, err := header.ReadFrom(reader); err != nil {
 			return errors.Wrap(err, "failed to read header")
 		}
 		// received too big message, probably it's an error
@@ -80,7 +125,7 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 		}
 
 		if skip(header) {
-			if _, err := io.CopyN(io.Discard, conn, int64(header.PayloadLength)); err != nil {
+			if _, err := io.CopyN(io.Discard, reader, int64(header.PayloadLength)); err != nil {
 				return errors.Wrap(err, "failed to skip payload")
 			}
 			continue
@@ -93,7 +138,7 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 			return errors.Wrap(err, "failed to write header into buff")
 		}
 		// then read all message to remaining buffer
-		if _, err := io.CopyN(b, conn, int64(header.PayloadLength)); err != nil {
+		if _, err := io.CopyN(b, reader, int64(header.PayloadLength)); err != nil {
 			bytebufferpool.Put(b)
 			return errors.Wrap(err, "failed to read payload into buffer")
 		}

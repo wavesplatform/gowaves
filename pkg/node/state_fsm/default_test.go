@@ -46,5 +46,5 @@ func TestDefaultImpl_Noop(t *testing.T) {
 }
 
 func TestAskPeersInterval(t *testing.T) {
-	require.LessOrEqual(t, askPeersInterval, conn.MaxConnIODurationPerMessage)
+	require.LessOrEqual(t, askPeersInterval, conn.MaxConnIdleIODuration)
 }
