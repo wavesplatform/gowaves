@@ -1,8 +1,6 @@
 package state_fsm
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -161,7 +159,8 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	return NewNGFsm12(a.baseInfo), Tasks(NewMineMicroTask(1*time.Second, block, limits, keyPair, vrf)), nil
+	// Try to mine micro-block just after key-block generation
+	return NewNGFsm12(a.baseInfo), Tasks(NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
 func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
@@ -204,7 +203,7 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
 	if err == miner.NoTransactionsErr {
-		return a, Tasks(NewMineMicroTask(5*time.Second, minedBlock, rest, keyPair, vrf)), nil
+		return a, Tasks(NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
 	}
 	if err == miner.StateChangedErr {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
@@ -248,7 +247,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	})
 	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
 
-	return a, Tasks(NewMineMicroTask(5*time.Second, block, rest, keyPair, vrf)), nil
+	return a, Tasks(NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil
 }
 
 // Check than microblock is appendable and append it

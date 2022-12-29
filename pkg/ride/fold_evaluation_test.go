@@ -6,31 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
-	"github.com/wavesplatform/gowaves/pkg/types"
-)
-
-var (
-	nativeFoldTestState = &MockSmartState{}
-	nativeFoldTestEnv   = &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		stateFunc: func() types.SmartState {
-			return nativeFoldTestState
-		},
-		libVersionFunc: func() (ast.LibraryVersion, error) {
-			return ast.LibV5, nil
-		},
-		rideV6ActivatedFunc: func() bool {
-			return true
-		},
-	}
 )
 
 func evaluateFold(t *testing.T, code string) {
@@ -41,7 +18,8 @@ func evaluateFold(t *testing.T, code string) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	_, err = CallVerifier(nativeFoldTestEnv, tree)
+	env := newTestEnv(t).withComplexityLimit(ast.LibV5, 26000).toEnv()
+	_, err = CallVerifier(env, tree)
 	require.Error(t, err)
 	foldId := "450"
 	expectedError := EvaluationFailure.Errorf("failed to find system function '%s'", foldId).Error()
