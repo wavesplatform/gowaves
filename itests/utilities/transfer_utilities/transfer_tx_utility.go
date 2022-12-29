@@ -62,6 +62,13 @@ func TransferBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
+
+func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T],
+	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
+
+}
+
 func TransferFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int, amount uint64) utl.ConsideredTransaction {
 	sender := utl.GetAccount(suite, from)
 	recipient := utl.GetAccount(suite, to)

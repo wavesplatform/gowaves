@@ -55,6 +55,11 @@ type ConsideredTransaction struct {
 	BrdCstErr BroadcastingError
 }
 
+type AccountDiffBalances struct {
+	DiffBalanceWaves BalanceInWaves
+	DiffBalanceAsset BalanceInAsset
+}
+
 func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
 	return &BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
@@ -67,6 +72,10 @@ func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
 		BalanceInAssetGo:    balanceGo,
 		BalanceInAssetScala: balanceScala,
 	}
+}
+
+func NewDiffBalances(initBalanceInWavesGo, initBalanceInWavesScala) *AccountDiffBalances {
+
 }
 
 func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,
