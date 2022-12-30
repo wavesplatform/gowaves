@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const outgoingPeerDialTimeout = 5 * time.Second
+
 type OutgoingPeerParams struct {
 	Address      string
 	WavesNetwork string
@@ -48,60 +50,55 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	remote := peer.NewRemote()
-	p := &OutgoingPeer{
-		params: params,
-		cancel: cancel,
-		remote: remote,
-		id:     newOutgoingPeerID(params.Address),
-	}
 
-	connection, handshake, err := p.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
+	peerConnector := connector{
+		Address: params.Address,
+		Skip:    params.Skip,
+	}
+	connection, handshake, err := peerConnector.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
 	if err != nil {
 		zap.S().Error(err, params.Address)
 		return
 	}
-	p.connection = connection
-	p.handshake = *handshake
-
-	connected := peer.InfoMessage{
-		Peer: p,
-		Value: &peer.Connected{
-			Peer: p,
-		},
+	p := &OutgoingPeer{
+		params:     params,
+		cancel:     cancel,
+		remote:     remote,
+		id:         newOutgoingPeerID(params.Address),
+		connection: connection,
+		handshake:  handshake,
 	}
-	params.Parent.InfoCh <- connected
-	zap.S().Debugf("connected %s", params.Address)
 
-	if err := peer.Handle(peer.HandlerParams{
-		Ctx:        ctx,
-		ID:         params.Address,
-		Connection: p.connection,
-		Remote:     remote,
-		Parent:     params.Parent,
-		Peer:       p,
-	}); err != nil {
+	zap.S().Debugf("connected %s", params.Address)
+	if err := peer.Handle(ctx, p, params.Parent, remote, nil); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
 		return
 	}
 }
 
-func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, *proto.Handshake, error) {
+type connector struct {
+	Address string
+	Skip    conn.SkipFilter
+}
+
+func (a *connector) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, proto.Handshake, error) {
 	possibleVersions := []proto.Version{
 		proto.NewVersion(1, 2, 0),
 		proto.NewVersion(1, 1, 0),
 	}
 	index := 0
 
+	dialer := net.Dialer{Timeout: outgoingPeerDialTimeout}
 	for i := 0; i < len(possibleVersions); i++ {
-
-		c, err := net.Dial("tcp", a.params.Address)
+		c, err := dialer.DialContext(ctx, "tcp", a.Address)
 		if err != nil {
-			zap.S().Infof("failed to connect, %s ID %s", err, a.params.Address)
+			zap.S().Infof("failed to connect, %s ID %s", err, a.Address)
 			select {
 			case <-ctx.Done():
-				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
-			case <-time.After(5 * time.Minute):
+				return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
+			case <-time.After(5 * time.Minute): // wait scala node blacklist interval
 				continue
 			}
 		}
@@ -117,32 +114,34 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 
 		_, err = handshake.WriteTo(c)
 		if err != nil {
-			zap.S().Error("failed to send handshake: ", err, a.params.Address)
+			_ = c.Close()
+			zap.S().Error("failed to send handshake: ", err, a.Address)
 			continue
 		}
 
 		select {
 		case <-ctx.Done():
 			_ = c.Close()
-			return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
+			return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 		default:
 		}
 
 		_, err = handshake.ReadFrom(c)
 		if err != nil {
-			zap.S().Debugf("failed to read handshake: %s %s", err, a.params.Address)
+			_ = c.Close()
+			zap.S().Debugf("failed to read handshake: %s %s", err, a.Address)
 			index += 1
 			select {
 			case <-ctx.Done():
-				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
+				return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 			case <-time.After(5 * time.Minute):
 				continue
 			}
 		}
-		return conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
+		return conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, a.Skip), handshake, nil
 	}
 
-	return nil, nil, errors.Errorf("can't connect 20 times")
+	return nil, proto.Handshake{}, errors.Errorf("can't connect 20 times")
 }
 
 func (a *OutgoingPeer) SendMessage(m proto.Message) {
@@ -163,8 +162,8 @@ func (a *OutgoingPeer) Direction() peer.Direction {
 }
 
 func (a *OutgoingPeer) Close() error {
-	a.cancel()
-	return nil
+	defer a.cancel()
+	return a.connection.Close()
 }
 
 func (a *OutgoingPeer) ID() peer.ID {

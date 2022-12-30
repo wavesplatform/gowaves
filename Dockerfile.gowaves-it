@@ -53,6 +53,7 @@ CMD /app/node \
     -build-state-hashes \
     -serve-extended-api \
     -log-level=debug \
-    -outdate=1h \
+    -obsolescence=1h \
     -reward=600000000 \
     -disable-ntp \
+    -microblock-interval 2s \

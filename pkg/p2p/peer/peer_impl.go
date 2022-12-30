@@ -69,6 +69,9 @@ func (a *PeerImpl) Close() error {
 	return a.conn.Close()
 }
 
+// SendMessage marshals provided message and sends it to its internal Remote.ToCh channel.
+// It sends the error to internal Remote.ErrCh if Remote.ToCh is full.
+// That notifies Handle to propagate this error to FMS through Parent.InfoCh.
 func (a *PeerImpl) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {

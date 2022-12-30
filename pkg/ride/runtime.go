@@ -549,4 +549,5 @@ type environment interface {
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 	isProtobufTx() bool
+	complexityCalculator() complexityCalculator
 }
