@@ -63,22 +63,25 @@ func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 // WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
 // Function returns actual nodes' height.
 func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
-	var h uint64
+	var hg, hs uint64
 	for {
-		h = c.GoClients.HttpClient.GetHeight(t).Height
-		if h >= height {
+		hg = c.GoClients.HttpClient.GetHeight(t).Height
+		if hg >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
 	for {
-		h = c.ScalaClients.HttpClient.GetHeight(t).Height
-		if h >= height {
+		hs = c.ScalaClients.HttpClient.GetHeight(t).Height
+		if hs >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
-	return h
+	if hg < hs {
+		return hg
+	}
+	return hs
 }
 
 func Retry(timeout time.Duration, f func() error) error {
