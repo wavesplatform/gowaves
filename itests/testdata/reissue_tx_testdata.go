@@ -274,7 +274,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 			utl.GetAccount(suite, 2),
 			assetID,
 			100000,
-			utl.GetCurrentTimestampInMs()-7217000,
+			utl.GetCurrentTimestampInMs()-7260000,
 			TestChainID,
 			10000000,
 			true,

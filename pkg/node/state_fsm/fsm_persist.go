@@ -11,7 +11,7 @@ import (
 // Save transactions by address from temporary file into storage.
 // Only read operations permitted.
 type PersistFsm struct {
-	BaseInfo
+	baseInfo BaseInfo
 }
 
 var (
@@ -33,15 +33,15 @@ var (
 )
 
 func (a *PersistFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	return newPeer(a, p, a.peers)
+	return newPeer(a, p, a.baseInfo.peers)
 }
 
 func (a *PersistFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
-	return peerError(a, p, a.peers, e)
+	return a.baseInfo.d.PeerError(a, p, a.baseInfo, e)
 }
 
 func (a *PersistFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
-	err := a.peers.UpdateScore(p, score)
+	err := a.baseInfo.peers.UpdateScore(p, score)
 	if err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
@@ -63,7 +63,7 @@ func (a *PersistFsm) BlockIDs(peer peer.Peer, ids []proto.BlockID) (FSM, Async, 
 func (a *PersistFsm) Task(t tasks.AsyncTask) (FSM, Async, error) {
 	switch t.TaskType {
 	case tasks.PersistComplete:
-		return NewIdleFsm(a.BaseInfo), nil, nil
+		return NewIdleFsm(a.baseInfo), nil, nil
 	default:
 		return noop(a)
 	}
@@ -82,7 +82,7 @@ func (a *PersistFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, 
 }
 
 func (a *PersistFsm) Halt() (FSM, Async, error) {
-	return HaltTransition(a.BaseInfo)
+	return HaltTransition(a.baseInfo)
 }
 
 func (a *PersistFsm) String() string {

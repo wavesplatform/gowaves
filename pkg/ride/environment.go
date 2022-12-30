@@ -20,7 +20,6 @@ type WrappedState struct {
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
-	totalComplexity           int
 	dataEntriesSize           int
 	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
@@ -434,6 +433,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 	localEnv.ChooseSizeCheck(tree.LibVersion)
+	localEnv.SetLimit(MaxAssetVerifierComplexity(tree.LibVersion))
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		assetInfo, err := ws.NewestAssetInfo(asset.ID)
@@ -996,6 +996,7 @@ type EvaluationEnvironment struct {
 	isInvokeExpressionActivated bool // isInvokeExpression is feature after RideV6, i.e. isInvokeExpressionActivated == nodeVersion >= 1.5.0
 	isProtobufTransaction       bool
 	mds                         int
+	cc                          complexityCalculator
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64, blockV5, rideV6, invokeExpression bool) (*EvaluationEnvironment, error) {
@@ -1013,6 +1014,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		isBlockV5Activated:          blockV5,
 		isRideV6Activated:           rideV6,
 		isInvokeExpressionActivated: invokeExpression,
+		cc:                          newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
 }
 
@@ -1081,6 +1083,7 @@ func NewEnvironmentWithWrappedState(
 		isBlockV5Activated:    env.isBlockV5Activated,
 		isRideV6Activated:     env.isRideV6Activated,
 		isProtobufTransaction: isProtobufTransaction,
+		cc:                    env.cc,
 	}, nil
 }
 
@@ -1210,6 +1213,10 @@ func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction,
 	return nil
 }
 
+func (e *EvaluationEnvironment) SetLimit(limit uint32) {
+	e.cc.setLimit(limit)
+}
+
 func (e *EvaluationEnvironment) timestamp() uint64 {
 	return e.time
 }
@@ -1292,4 +1299,8 @@ func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 
 func (e *EvaluationEnvironment) isProtobufTx() bool {
 	return e.isProtobufTransaction
+}
+
+func (e *EvaluationEnvironment) complexityCalculator() complexityCalculator {
+	return e.cc
 }

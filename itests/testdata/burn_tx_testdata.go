@@ -160,7 +160,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 			assetId,
 			10000,
 			TestChainID,
-			utl.GetCurrentTimestampInMs()-7217000,
+			utl.GetCurrentTimestampInMs()-7260000,
 			100000,
 			BurnExpectedValuesNegative{
 				ErrGoMsg:          errMsg,

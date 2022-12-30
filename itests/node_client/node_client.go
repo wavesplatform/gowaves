@@ -7,7 +7,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -53,23 +52,36 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) {
 	assert.Equal(t, scalaStateHash, goStateHash)
 }
 
+// WaitForNewHeight waits for nodes to generate new block.
+// Returns the height that was *before* generation of new block.
 func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
-	currentHeight := c.ScalaClients.HttpClient.GetHeight(t)
+	initialHeight := c.ScalaClients.HttpClient.GetHeight(t).Height
+	c.WaitForHeight(t, initialHeight+1)
+	return initialHeight
+}
+
+// WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
+// Function returns actual nodes' height.
+func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
+	var hg, hs uint64
 	for {
-		h := c.GoClients.HttpClient.GetHeight(t)
-		if h.Height >= currentHeight.Height+1 {
+		hg = c.GoClients.HttpClient.GetHeight(t).Height
+		if hg >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
 	for {
-		h := c.ScalaClients.HttpClient.GetHeight(t)
-		if h.Height >= currentHeight.Height+1 {
+		hs = c.ScalaClients.HttpClient.GetHeight(t).Height
+		if hs >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
-	return currentHeight.Height
+	if hg < hs {
+		return hg
+	}
+	return hs
 }
 
 func Retry(timeout time.Duration, f func() error) error {
@@ -100,4 +112,22 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 func (c *NodesClients) ClearBlackList(t *testing.T) {
 	c.GoClients.HttpClient.ClearBlackList(t)
 	c.ScalaClients.HttpClient.ClearBlackList(t)
+}
+
+func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration) (error, error) {
+	errGo := Retry(timeout, func() error {
+		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
+		if len(cp) == 0 && err == nil {
+			err = errors.New("no connected peers")
+		}
+		return err
+	})
+	errScala := Retry(timeout, func() error {
+		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers(t)
+		if len(cp) == 0 && err == nil {
+			err = errors.New("no connected peers")
+		}
+		return err
+	})
+	return errGo, errScala
 }

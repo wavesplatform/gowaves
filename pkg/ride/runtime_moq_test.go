@@ -29,6 +29,9 @@ var _ environment = &mockRideEnvironment{}
 //			checkMessageLengthFunc: func(n int) bool {
 //				panic("mock out the checkMessageLength method")
 //			},
+//			complexityCalculatorFunc: func() complexityCalculator {
+//				panic("mock out the complexityCalculator method")
+//			},
 //			heightFunc: func() rideInt {
 //				panic("mock out the height method")
 //			},
@@ -102,6 +105,9 @@ type mockRideEnvironment struct {
 	// checkMessageLengthFunc mocks the checkMessageLength method.
 	checkMessageLengthFunc func(n int) bool
 
+	// complexityCalculatorFunc mocks the complexityCalculator method.
+	complexityCalculatorFunc func() complexityCalculator
+
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
 
@@ -171,6 +177,9 @@ type mockRideEnvironment struct {
 		checkMessageLength []struct {
 			// N is the n argument value.
 			N int
+		}
+		// complexityCalculator holds details about calls to the complexityCalculator method.
+		complexityCalculator []struct {
 		}
 		// height holds details about calls to the height method.
 		height []struct {
@@ -243,6 +252,7 @@ type mockRideEnvironment struct {
 	lockblock                            sync.RWMutex
 	lockblockV5Activated                 sync.RWMutex
 	lockcheckMessageLength               sync.RWMutex
+	lockcomplexityCalculator             sync.RWMutex
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
@@ -347,6 +357,33 @@ func (mock *mockRideEnvironment) checkMessageLengthCalls() []struct {
 	mock.lockcheckMessageLength.RLock()
 	calls = mock.calls.checkMessageLength
 	mock.lockcheckMessageLength.RUnlock()
+	return calls
+}
+
+// complexityCalculator calls complexityCalculatorFunc.
+func (mock *mockRideEnvironment) complexityCalculator() complexityCalculator {
+	if mock.complexityCalculatorFunc == nil {
+		panic("mockRideEnvironment.complexityCalculatorFunc: method is nil but environment.complexityCalculator was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockcomplexityCalculator.Lock()
+	mock.calls.complexityCalculator = append(mock.calls.complexityCalculator, callInfo)
+	mock.lockcomplexityCalculator.Unlock()
+	return mock.complexityCalculatorFunc()
+}
+
+// complexityCalculatorCalls gets all the calls that were made to complexityCalculator.
+// Check the length with:
+//
+//	len(mockedenvironment.complexityCalculatorCalls())
+func (mock *mockRideEnvironment) complexityCalculatorCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockcomplexityCalculator.RLock()
+	calls = mock.calls.complexityCalculator
+	mock.lockcomplexityCalculator.RUnlock()
 	return calls
 }
 
