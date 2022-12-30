@@ -52,23 +52,33 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) {
 	assert.Equal(t, scalaStateHash, goStateHash)
 }
 
+// WaitForNewHeight waits for nodes to generate new block.
+// Returns the height that was *before* generation of new block.
 func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
-	currentHeight := c.ScalaClients.HttpClient.GetHeight(t)
+	initialHeight := c.ScalaClients.HttpClient.GetHeight(t).Height
+	c.WaitForHeight(t, initialHeight+1)
+	return initialHeight
+}
+
+// WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
+// Function returns actual nodes' height.
+func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
+	var h uint64
 	for {
-		h := c.GoClients.HttpClient.GetHeight(t)
-		if h.Height >= currentHeight.Height+1 {
+		h = c.GoClients.HttpClient.GetHeight(t).Height
+		if h >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
 	for {
-		h := c.ScalaClients.HttpClient.GetHeight(t)
-		if h.Height >= currentHeight.Height+1 {
+		h = c.ScalaClients.HttpClient.GetHeight(t).Height
+		if h >= height {
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
-	return currentHeight.Height
+	return h
 }
 
 func Retry(timeout time.Duration, f func() error) error {

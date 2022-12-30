@@ -66,6 +66,7 @@ func (suite *BaseSuite) SetupTest() {
 	errGo, errScala := suite.Clients.WaitForConnectedPeers(suite.T(), 5*time.Second)
 	suite.Require().NoError(errGo, "Go: no connected peers")
 	suite.Require().NoError(errScala, "Scala: no connected peers")
+	suite.Clients.WaitForHeight(suite.T(), 2) // Wait for nodes to start mining
 	suite.Clients.SendStartMessage(suite.T())
 }
 
