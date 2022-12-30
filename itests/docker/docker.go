@@ -256,7 +256,6 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
 		BindPort:    res.GetPort(BindPort + tcp),
 	}
-	d.pool.MaxWait = 3 * time.Minute
 
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
