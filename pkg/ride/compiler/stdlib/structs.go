@@ -32,29 +32,37 @@ type rideObjects struct {
 	Objects []rideObject `json:"objects"`
 }
 
-type ObjectFields struct {
+type ObjectField struct {
 	Name string
 	Type Type
 }
 
+type ObjectInfo struct {
+	NotConstruct bool
+	Fields       []ObjectField
+}
+
 type ObjectsSignatures struct {
-	Obj map[string][]ObjectFields
+	Obj map[string]ObjectInfo
 }
 
 func (s *ObjectsSignatures) GetConstruct(name string, args []Type) (FunctionParams, bool) {
-	fields, ok := s.Obj[name]
+	info, ok := s.Obj[name]
 	if !ok {
 		return FunctionParams{}, ok
 	}
-	if len(args) != len(fields) {
-		return FunctionParams{}, ok
+	if info.NotConstruct {
+		return FunctionParams{}, false
+	}
+	if len(args) != len(info.Fields) {
+		return FunctionParams{}, false
 	}
 	var resTypes []Type
-	for i := range fields {
-		if !fields[i].Type.Comp(args[i]) {
-			return FunctionParams{}, ok
+	for i := range info.Fields {
+		if !info.Fields[i].Type.Comp(args[i]) {
+			return FunctionParams{}, false
 		}
-		resTypes = append(resTypes, fields[i].Type)
+		resTypes = append(resTypes, info.Fields[i].Type)
 	}
 	return FunctionParams{
 		ID:         ast.UserFunction(name),
@@ -69,12 +77,12 @@ func (s *ObjectsSignatures) GetField(objType Type, fieldName string) (Type, bool
 		return nil, false
 	}
 
-	fields, ok := s.Obj[t.Type]
+	info, ok := s.Obj[t.Type]
 	if !ok {
 		return nil, false
 	}
 	var resType Type
-	for _, f := range fields {
+	for _, f := range info.Fields {
 		if fieldName == f.Name {
 			resType = f.Type
 			break
@@ -171,22 +179,22 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 	appendRemainingStructs(s)
 	res := map[ast.LibraryVersion]ObjectsSignatures{
 		ast.LibV1: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 		ast.LibV2: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 		ast.LibV3: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 		ast.LibV4: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 		ast.LibV5: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 		ast.LibV6: {
-			map[string][]ObjectFields{},
+			map[string]ObjectInfo{},
 		},
 	}
 	for _, obj := range s.Objects {
@@ -194,24 +202,26 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			return int(obj.Actions[i].LibVersion) < int(obj.Actions[j].LibVersion)
 		})
 		for _, ver := range obj.Actions {
-
-			var resFields []ObjectFields
+			var resInfo ObjectInfo
 			sort.SliceStable(ver.Fields, func(i, j int) bool {
 				return ver.Fields[i].ConstructorOrder < ver.Fields[j].ConstructorOrder
 			})
 			for _, f := range ver.Fields {
 				name := changeName(f.Name)
-				resFields = append(resFields, ObjectFields{
+				resInfo.Fields = append(resInfo.Fields, ObjectField{
 					Name: name,
 					Type: parseObjectFieldsTypes(f.Types),
 				})
+			}
+			if strings.HasSuffix(obj.Name, "Transaction") {
+				resInfo.NotConstruct = true
 			}
 			maxVer := int(ast.CurrentMaxLibraryVersion())
 			if ver.Deleted != nil {
 				maxVer = int(*ver.Deleted)
 			}
 			for i := int(ver.LibVersion); i <= maxVer; i++ {
-				res[ast.LibraryVersion(byte(i))].Obj[obj.Name] = resFields
+				res[ast.LibraryVersion(byte(i))].Obj[obj.Name] = resInfo
 			}
 		}
 	}

@@ -194,10 +194,13 @@ func TestOperators(t *testing.T) {
 	}{
 		{`let a = 1 + 2 + 3 + 4`, false, "BgICCAIBAAFhCQBkAgkAZAIJAGQCAAEAAgADAAQAADk9Pyk="},
 		{`let a = "a" + "b"`, false, "BgICCAIBAAFhCQCsAgICAWECAWIAABJCapY="},
+		{`let a = "a" + 1`, true, "(4:9, 4:16): Unexpected types for + operator: String, Int"},
 		{`let a = 1 > 2`, false, "BgICCAIBAAFhCQBmAgABAAIAAKf+6ug="},
 		{`let a = 1 < 2`, false, "BgICCAIBAAFhCQBmAgACAAEAAAO8zuo="},
 		{`let a = 1 <= 2`, false, "BgICCAIBAAFhCQBnAgACAAEAAJShBI8="},
 		{`let a = 1 >= 2`, false, "BgICCAIBAAFhCQBnAgABAAIAAPdIIeU="},
+		{`let a = 1 >= "a"`, true, "(4:14, 4:17): Unexpected type, required: Int, but String found"},
+		{`let a = 1 == "a"`, true, "(4:14, 4:17): Unexpected type, required: Int, but String found"},
 	} {
 
 		code := DappV6Directive + test.code
@@ -283,6 +286,33 @@ func TestBuildInVars(t *testing.T) {
 
 		code := DappV6Directive + test.code
 		rawAST, buf, err := buildAST(t, code, false)
+		require.NoError(t, err)
+		astParser := NewASTParser(rawAST, buf)
+		astParser.Parse()
+		if !test.fail {
+			_, tree := parseBase64Script(t, test.expected)
+			assert.Equal(t, tree.Declarations, astParser.Tree.Declarations)
+		} else {
+			assert.Len(t, astParser.ErrorsList, 1)
+			assert.Equal(t, astParser.ErrorsList[0].Error(), test.expected)
+		}
+	}
+}
+
+func TestTypesInFuncs(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefinded type BigInt"},
+	} {
+		rawAST, buf, err := buildAST(t, test.code, false)
 		require.NoError(t, err)
 		astParser := NewASTParser(rawAST, buf)
 		astParser.Parse()
@@ -503,11 +533,13 @@ func TestFuncCallsPrevVers(t *testing.T) {
 		fail     bool
 		expected string
 	}{
-		{`{-# STDLIB_VERSION 4 #-}
+		{`
+{-# STDLIB_VERSION 4 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
-let a = addressFromPublicKey(base58'')`, false, "AAIEAAAAAAAAAAIIAgAAAAEAAAAAAWEJAQAAABRhZGRyZXNzRnJvbVB1YmxpY0tleQAAAAEBAAAAAAAAAAAAAAAATbuPXQ=="},
+let a = addressFromPublicKey(base58'')`,
+			false, "AAIEAAAAAAAAAAIIAgAAAAEAAAAAAWEJAQAAABRhZGRyZXNzRnJvbVB1YmxpY0tleQAAAAEBAAAAAAAAAAAAAAAATbuPXQ=="},
 	} {
 
 		rawAST, buf, err := buildAST(t, test.code, false)
@@ -525,7 +557,6 @@ let a = addressFromPublicKey(base58'')`, false, "AAIEAAAAAAAAAAIIAgAAAAEAAAAAAWE
 }
 
 func TestFuncCallableFunc(t *testing.T) {
-	// addressFromPublicKey has id "addressFromPublicKey" up to version 6, and in 6 version id = 1063
 	for _, test := range []struct {
 		code     string
 		fail     bool
@@ -537,53 +568,111 @@ func TestFuncCallableFunc(t *testing.T) {
 {-# SCRIPT_TYPE ACCOUNT #-}
 
 @Callable(i)
-func deposit() = {
-  let pmt =
-    if i.payments.size() == 1 then
-      i.payments[0]
-    else throw("Attached payment is required")
-  if (isDefined(pmt.assetId))
-    then throw("works with waves only")
-    else {
-     let currentKey = toBase58String(i.caller.bytes)
-     let currentAmount = match getInteger(this, currentKey) {
-       case a:Int => a
-       case _ => 0
-     }
-     let newAmount = currentAmount + pmt.amount
-     (
-       [
-         IntegerEntry(currentKey, newAmount)
-       ],
-       unit
-     )
-   }
-}
-
-@Callable(i)
-func withdraw(amount: Int) = {
-  let currentKey = toBase58String(i.caller.bytes)
-  let currentAmount = match getInteger(this, currentKey) {
-    case a:Int => a
-    case _ => 0
-  }
-  let newAmount = currentAmount - amount
-  if (amount < 0)
-    then throw("Can't withdraw negative amount")
-    else if (newAmount < 0)
-      then throw("Not enough balance")
-      else (
-        [
-          IntegerEntry(currentKey, newAmount),
-          ScriptTransfer(i.caller, amount, unit)
-        ],
-        unit
-      )
+func test() = {
+	([StringEntry("a", "a")], unit)
 }
 `,
-			false, "BgIJCAISABIDCgEBAAIBaQEHZGVwb3NpdAAEA3BtdAMJAAACCQCQAwEIBQFpCHBheW1lbnRzAAEJAJEDAggFAWkIcGF5bWVudHMAAAkAAgECHEF0dGFjaGVkIHBheW1lbnQgaXMgcmVxdWlyZWQDCQEJaXNEZWZpbmVkAQgFA3BtdAdhc3NldElkCQACAQIVd29ya3Mgd2l0aCB3YXZlcyBvbmx5BApjdXJyZW50S2V5CQDYBAEICAUBaQZjYWxsZXIFYnl0ZXMEDWN1cnJlbnRBbW91bnQEByRtYXRjaDAJAJoIAgUEdGhpcwUKY3VycmVudEtleQMJAAECBQckbWF0Y2gwAgNJbnQEAWEFByRtYXRjaDAFAWEAAAQJbmV3QW1vdW50CQBkAgUNY3VycmVudEFtb3VudAgFA3BtdAZhbW91bnQJAJQKAgkAzAgCCQEMSW50ZWdlckVudHJ5AgUKY3VycmVudEtleQUJbmV3QW1vdW50BQNuaWwFBHVuaXQBaQEId2l0aGRyYXcBBmFtb3VudAQKY3VycmVudEtleQkA2AQBCAgFAWkGY2FsbGVyBWJ5dGVzBA1jdXJyZW50QW1vdW50BAckbWF0Y2gwCQCaCAIFBHRoaXMFCmN1cnJlbnRLZXkDCQABAgUHJG1hdGNoMAIDSW50BAFhBQckbWF0Y2gwBQFhAAAECW5ld0Ftb3VudAkAZQIFDWN1cnJlbnRBbW91bnQFBmFtb3VudAMJAGYCAAAFBmFtb3VudAkAAgECHkNhbid0IHdpdGhkcmF3IG5lZ2F0aXZlIGFtb3VudAMJAGYCAAAFCW5ld0Ftb3VudAkAAgECEk5vdCBlbm91Z2ggYmFsYW5jZQkAlAoCCQDMCAIJAQxJbnRlZ2VyRW50cnkCBQpjdXJyZW50S2V5BQluZXdBbW91bnQJAMwIAgkBDlNjcmlwdFRyYW5zZmVyAwgFAWkGY2FsbGVyBQZhbW91bnQFBHVuaXQFA25pbAUEdW5pdAAwrSJg"},
-	} {
+			false, "BgIECAISAAABAWkBBHRlc3QACQCUCgIJAMwIAgkBC1N0cmluZ0VudHJ5AgIBYQIBYQUDbmlsBQR1bml0ACkqhGo="},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
 
+@Callable(i)
+func test(a: Int, b: List[Int]) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			false, "BgIICAISBAoCAREAAQFpAQR0ZXN0AgFhAWIJAJQKAgkAzAgCCQELU3RyaW5nRW50cnkCAgFhAgFhBQNuaWwFBHVuaXQAZIKXrA=="},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: Int|String) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			true, "(7:1, 10:0): Unexpected type in callable args : Int|String"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: List[Int|String]) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			true, "(7:1, 10:0): Unexpected type in callable args : List[Int|String]"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: Int) = {
+	(10, unit)
+}
+`,
+			true, "(7:1, 10:0): CallableFunc must return (List[BinaryEntry|BooleanEntry|Burn|DeleteEntry|IntegerEntry|Issue|Lease|LeaseCancel|Reissue|ScriptTransfer|SponsorFee|StringEntry], Any)|List[BinaryEntry|BooleanEntry|Burn|DeleteEntry|IntegerEntry|Issue|Lease|LeaseCancel|Reissue|ScriptTransfer|SponsorFee|StringEntry]"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test() = {
+	[StringEntry("a", "a")]
+}
+`,
+			false, "BgIECAISAAABAWkBBHRlc3QACQDMCAIJAQtTdHJpbmdFbnRyeQICAWECAWEFA25pbAD/5CEG"},
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: Int|String) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			false, "AAIFAAAAAAAAAAcIAhIDCgEJAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAEAAAABYQkABRQAAAACCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAICAAAAAWECAAAAAWEFAAAAA25pbAUAAAAEdW5pdAAAAAAR1sWX"},
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: Int|List[Int]) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			true, "(7:1, 10:0): Unexpected type in callable args : List[Int]"},
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: List[Int|String]) = {
+	([StringEntry("a", "a")], unit)
+}
+`,
+			false, "AAIFAAAAAAAAAAcIAhIDCgEZAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAEAAAABYQkABRQAAAACCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAICAAAAAWECAAAAAWEFAAAAA25pbAUAAAAEdW5pdAAAAADfRbxk"},
+		{`
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func test(a: Int) = {
+	WriteSet([DataEntry("a", a)])
+}
+`,
+			false, "AAIDAAAAAAAAAAcIARIDCgEBAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAEAAAABYQkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQUAAAABYQUAAAADbmlsAAAAACP3g+E="},
+	} {
 		rawAST, buf, err := buildAST(t, test.code, false)
 		require.NoError(t, err)
 		astParser := NewASTParser(rawAST, buf)

@@ -65,6 +65,7 @@ type ASTParser struct {
 
 	stdFuncs   s.FunctionsSignatures
 	stdObjects s.ObjectsSignatures
+	stdTypes   map[string]s.Type
 
 	scriptType ScriptType
 }
@@ -112,6 +113,12 @@ func (p *ASTParser) loadBuildInVarsToStackByVersion() {
 	for _, v := range resVars {
 		p.currentStack.PushVariable(v)
 	}
+	if !p.Tree.IsDApp() {
+		p.currentStack.PushVariable(s.Variable{
+			Name: "tx",
+			Type: p.stdTypes["Transaction"],
+		})
+	}
 	if p.Tree.LibVersion == ast.LibV5 || p.Tree.LibVersion == ast.LibV6 {
 		if p.scriptType == Asset {
 			p.currentStack.PushVariable(s.Variable{
@@ -147,6 +154,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 	}
 	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
 	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
+	p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
 	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
@@ -173,6 +181,7 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 	}
 	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
 	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
+	p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
 	p.loadBuildInVarsToStackByVersion()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
@@ -269,7 +278,6 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 			p.scriptType = Asset
 		case libraryValueName:
 			break
-			// TODO
 		default:
 			p.addError(fmt.Sprintf("Illegal directive value \"%s\" for key \"%s\"", dirValue, scriptTypeDirectiveName), dirNameNode.token32)
 		}
@@ -534,7 +542,7 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 		}
 		nextExpr, nextExprVarType := p.ruleCompareGroupOpAtomHandler(curNode)
 		if !nextExprVarType.Comp(varType) {
-			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
+			p.addError(fmt.Sprintf("Unexpected type, required: %s, but %s found", varType.String(), nextExprVarType.String()), curNode.token32)
 		}
 		expr = ast.NewFunctionCallNode(funcId, []ast.Node{expr, nextExpr})
 		varType = s.BooleanType
@@ -572,14 +580,14 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 				gltFun = "319"
 				gleFun = "320"
 			} else {
-				p.addError(fmt.Sprintf("Unexpected type, required: BigInt, but %s found", varType.String()), curNode.token32)
+				p.addError(fmt.Sprintf("Unexpected type, required: BigInt, but %s found", nextExprVarType.String()), curNode.token32)
 			}
 		} else if varType.Comp(s.IntType) {
 			if nextExprVarType.Comp(s.IntType) {
 				gltFun = "102"
 				gleFun = "103"
 			} else {
-				p.addError(fmt.Sprintf("Unexpected type, required: Int, but %s found", varType.String()), curNode.token32)
+				p.addError(fmt.Sprintf("Unexpected type, required: Int, but %s found", nextExprVarType.String()), curNode.token32)
 			}
 		}
 		switch operator {
@@ -1250,6 +1258,9 @@ func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type, []s.Type) {
 	}
 	argsNames, argsTypes := p.ruleFuncArgSeqHandler(argsNode)
 	expr, varType := p.ruleExprHandler(curNode)
+	if argsTypes == nil || expr == nil {
+		return nil, nil, nil
+	}
 	p.currentStack.up.PushFunc(s.FunctionParams{
 		ID:         ast.UserFunction(funcName),
 		Arguments:  argsTypes,
@@ -1269,9 +1280,11 @@ func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
 	if node == nil {
 		return []string{}, []s.Type{}
 	}
-	// TODO(anton): add Tuple
 	curNode := node.up
 	argName, argType := p.ruleFuncArgHandler(curNode)
+	if argType == nil {
+		return nil, nil
+	}
 	curNode = curNode.next
 	argsNames := []string{argName}
 	argsTypes := []s.Type{argType}
@@ -1285,13 +1298,19 @@ func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
 		curNode = curNode.next
 	}
 	nextArgsNames, nextArgsTypes := p.ruleFuncArgSeqHandler(curNode)
+	if nextArgsTypes == nil {
+		return nil, nil
+	}
 	return append(argsNames, nextArgsNames...), append(argsTypes, nextArgsTypes...)
 }
 
 func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 	curNode := node.up
 	argName := string(p.buffer[curNode.begin:curNode.end])
-	// TODO(anton): check if name exist args
+	if _, ok := p.currentStack.GetVariable(argName); ok {
+		p.addError(fmt.Sprintf("Variable %s already exist", argName), curNode.token32)
+		argName = "$error"
+	}
 	curNode = curNode.next
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
@@ -1300,6 +1319,9 @@ func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 		curNode = curNode.next
 	}
 	argType := p.ruleTypesHandler(curNode)
+	if argType == nil {
+		return "", nil
+	}
 	p.currentStack.PushVariable(s.Variable{
 		Name: argName,
 		Type: argType,
@@ -1316,8 +1338,12 @@ func (p *ASTParser) ruleTypesHandler(node *node32) s.Type {
 	case ruleTupleType:
 		T = p.ruleTupleTypeHandler(curNode)
 	case ruleType:
-		// TODO: check Types
-		T = s.SimpleType{Type: string(p.buffer[curNode.begin:curNode.end])}
+		name := string(p.buffer[curNode.begin:curNode.end])
+		if foundType, ok := p.stdTypes[name]; !ok {
+			p.addError(fmt.Sprintf("Undefinded type %s", name), curNode.token32)
+		} else {
+			T = foundType
+		}
 	}
 	if T == nil {
 		return nil
@@ -1525,39 +1551,42 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		curNode = curNode.next
 	}
 	expr, retType, types := p.ruleFuncHandler(curNode)
+	if expr == nil {
+		return
+	}
 	switch annotation {
 	case "Callable":
 		p.Tree.Functions = append(p.Tree.Functions, expr)
 		f := expr.(*ast.FunctionDeclarationNode)
 		err := p.loadMeta(f.Name, types)
 		if err != nil {
-			p.addError(fmt.Sprintf("%s", err), node.token32)
+			p.addError(fmt.Sprintf("%s", err), curNode.token32)
 		}
 		switch p.Tree.LibVersion {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
 			if !s.CallableRetV3.Comp(retType) {
-				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV3.String()), node.token32)
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV3.String()), curNode.token32)
 			}
 		case ast.LibV4:
 			if !s.CallableRetV4.Comp(retType) {
-				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV4.String()), node.token32)
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV4.String()), curNode.token32)
 			}
 		case ast.LibV5, ast.LibV6:
 			if !s.CallableRetV5.Comp(retType) {
-				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV5.String()), node.token32)
+				p.addError(fmt.Sprintf("CallableFunc must return %s", s.CallableRetV5.String()), curNode.token32)
 			}
 		}
 	case "Verifier":
 		if p.Tree.Verifier != nil {
-			p.addError("More than one Verifier", node.token32)
+			p.addError("More than one Verifier", curNode.token32)
 		}
 		f := expr.(*ast.FunctionDeclarationNode)
 		p.Tree.Verifier = f.Body
 		if len(types) != 0 {
-			p.addError("Verifier must not have arguments", node.token32)
+			p.addError("Verifier must not have arguments", curNode.token32)
 		}
 		if !s.BooleanType.Comp(retType) {
-			p.addError("VerifierFunction must return Boolean or it super type", node.token32)
+			p.addError("VerifierFunction must return Boolean or it super type", curNode.token32)
 		}
 	}
 	p.currentStack = p.currentStack.up
@@ -1598,7 +1627,7 @@ func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 	case "Verifier":
 		p.currentStack.PushVariable(s.Variable{
 			Name: varName,
-			Type: s.SimpleType{Type: "Transaction"},
+			Type: p.stdTypes["Transaction"],
 		})
 	}
 	return name, varName

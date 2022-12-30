@@ -1,8 +1,16 @@
 package stdlib
 
 import (
+	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 )
+
+var DefaultTypes = mustLoadDefaultTypes()
 
 type Type interface {
 	Comp(Type) bool
@@ -323,5 +331,100 @@ func (t TupleType) String() string {
 		}
 	}
 	res += ")"
+	return res
+}
+
+func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
+	for i := int(ast.LibV1); i <= int(ast.LibV6); i++ {
+		res[ast.LibraryVersion(byte(i))]["Int"] = IntType
+		res[ast.LibraryVersion(byte(i))]["String"] = StringType
+		res[ast.LibraryVersion(byte(i))]["Boolean"] = BooleanType
+		res[ast.LibraryVersion(byte(i))]["ByteVector"] = ByteVectorType
+		res[ast.LibraryVersion(byte(i))]["Unit"] = SimpleType{Type: "Unit"}
+		res[ast.LibraryVersion(byte(i))]["Ceiling"] = SimpleType{Type: "Ceiling"}
+		res[ast.LibraryVersion(byte(i))]["HalfUp"] = SimpleType{Type: "HalfUp"}
+		res[ast.LibraryVersion(byte(i))]["HalfEven"] = SimpleType{Type: "HalfEven"}
+		res[ast.LibraryVersion(byte(i))]["Down"] = SimpleType{Type: "Down"}
+		res[ast.LibraryVersion(byte(i))]["Floor"] = SimpleType{Type: "Floor"}
+	}
+	for i := int(ast.LibV1); i <= int(ast.LibV4); i++ {
+		res[ast.LibraryVersion(byte(i))]["HalfDown"] = SimpleType{Type: "HalfDown"}
+		res[ast.LibraryVersion(byte(i))]["Up"] = SimpleType{Type: "Up"}
+	}
+	for i := int(ast.LibV2); i <= int(ast.LibV6); i++ {
+		res[ast.LibraryVersion(byte(i))]["OrderType"] = SimpleType{Type: "OrderType"}
+	}
+	for i := int(ast.LibV3); i <= int(ast.LibV6); i++ {
+		res[ast.LibraryVersion(byte(i))]["DigestAlgorithmType"] = SimpleType{Type: "DigestAlgorithmType"}
+	}
+	for i := int(ast.LibV4); i <= int(ast.LibV6); i++ {
+		res[ast.LibraryVersion(byte(i))]["BlockInfo"] = SimpleType{Type: "BlockInfo"}
+	}
+	for i := int(ast.LibV5); i <= int(ast.LibV6); i++ {
+		res[ast.LibraryVersion(byte(i))]["BigInt"] = BigIntType
+	}
+}
+
+func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
+	res := map[ast.LibraryVersion]map[string]Type{
+		ast.LibV1: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV2: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV3: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV4: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV5: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV6: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	filePath := filepath.Clean(filepath.Join(pwd, structJsonPath))
+	f, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	jsonParser := json.NewDecoder(f)
+	s := &rideObjects{}
+	if err = jsonParser.Decode(s); err != nil {
+		panic(err)
+	}
+	loadNonConfigTypes(res)
+	for _, obj := range s.Objects {
+		sort.SliceStable(obj.Actions, func(i, j int) bool {
+			return int(obj.Actions[i].LibVersion) < int(obj.Actions[j].LibVersion)
+		})
+		for _, ver := range obj.Actions {
+			maxVer := int(ast.CurrentMaxLibraryVersion())
+			if ver.Deleted != nil {
+				maxVer = int(*ver.Deleted)
+			}
+			for i := int(ver.LibVersion); i <= maxVer; i++ {
+				res[ast.LibraryVersion(byte(i))][obj.Name] = SimpleType{Type: obj.Name}
+				if strings.HasSuffix(obj.Name, "Transaction") {
+					tx := res[ast.LibraryVersion(byte(i))]["Transaction"].(UnionType)
+					tx.AppendType(SimpleType{Type: obj.Name})
+					res[ast.LibraryVersion(byte(i))]["Transaction"] = tx
+				}
+			}
+		}
+	}
 	return res
 }
