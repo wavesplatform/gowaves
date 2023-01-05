@@ -10,6 +10,8 @@ import (
 )
 
 /*
+	TODO(artemreyt): add description to this duplicator
+
 	Map for RateLimiters "heavy", "middle", "light" with different settings.
 	RateLimiter key = peerId + sep + fastHash(messageBytes)
 */
