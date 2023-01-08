@@ -2,15 +2,16 @@ package main
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/mr-tron/base58"
-	flag "github.com/spf13/pflag"
 
 	"github.com/pkg/errors"
 
@@ -21,13 +22,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 )
 
-type WalletGenerationChoice string
-
 const (
-	newSeedPhrase             = WalletGenerationChoice("1")
-	existingSeedPhrase        = WalletGenerationChoice("2")
-	existingBase58SeedPhrase  = WalletGenerationChoice("3")
-	existingBase58AccountSeed = WalletGenerationChoice("4")
+	newOpt               = "new"
+	showOpt              = "show"
+	seedPhraseOpt        = "seed-phrase"
+	seedPhraseBase58Opt  = "seed-phrase-base58"
+	accountSeedBase58Opt = "account-seed-base58"
+
+	schemeOpt = "scheme"
 )
 
 const (
@@ -37,25 +39,18 @@ const (
 
 var usage = `
 Usage:
-  wallet <command> [flags]
-
-Available Commands:
-  create       Create a wallet
-  show         Print the wallet credentials
+  wallet [flags]
 
 Flags:
 `
 
 var examples = `
 Examples:
- 1) Create a new wallet based on new generated seed phrase:
-	./wallet create --scheme mainnet
-
- 2) Create a new wallet based on an existing seed phrase:
-	./wallet create --scheme mainnet --seedPhrase "one two three one two three one two three one two three one two three"
-
- 3) Show the credentials of an existing wallet
-	./wallet show --wallet "/home/user/wallet/.waves"
+	./wallet -show -wallet <wallet path> // Show existing wallet credentials
+	./wallet -new // Generate a seed phrase and a wallet 
+	./wallet -seed-phrase "..." // Import a seed phrase
+	./wallet -seed-phrase-base58 "..." // Import a Base58 encoded seed phrase
+	./wallet -account-seed "..." // Import a Base58 encoded account seed
 `
 
 type Opts struct {
@@ -65,39 +60,68 @@ type Opts struct {
 	SeedPhrase         string
 	IsSeedPhraseBase58 bool
 	Base58AccountSeed  string
+	New                bool
+	Show               bool
+}
+
+type SchemeFlag byte
+
+func (sch *SchemeFlag) String() string {
+	str := string(*sch)
+	return str
+}
+func (sch *SchemeFlag) Set(s string) error {
+	val := []byte(s)
+	if len(val) > 1 {
+		return errors.New("failed to parse scheme: more than one letter was provided")
+	}
+
+	*sch = SchemeFlag(val[0])
+	return nil
 }
 
 func main() {
 	opts := Opts{}
-	var scheme string
+	var scheme SchemeFlag
+	flag.BoolVar(&opts.New, newOpt, false, "Generate and add a new seed phrase (Primary flag)")
+	flag.BoolVar(&opts.New, showOpt, false, "Show existing wallet credentials (Primary flag)")
+	flag.StringVar(&opts.SeedPhrase, seedPhraseOpt, "", "Import a seed phrase (Primary flag)")
+	flag.BoolVar(&opts.IsSeedPhraseBase58, seedPhraseBase58Opt, false, "Import a base58-encoded seed phrase (Primary flag)")
+	flag.StringVar(&opts.Base58AccountSeed, accountSeedBase58Opt, "", "Import a base58-encoded account seed (Primary flag)")
 	flag.StringVar(&opts.PathToWallet, "wallet", "", "Path to the wallet file")
-	flag.IntVar(&opts.AccountNumber, "number", 0, "Input account number. 0 is default")
-	flag.StringVar(&scheme, "scheme", "mainnet", "Input the network scheme: mainnet, testnet, stagenet")
-	flag.StringVar(&opts.SeedPhrase, "seedPhrase", "", "Input your seed phrase (Optional)")
-	flag.BoolVar(&opts.IsSeedPhraseBase58, "seedPhraseBase58", false, "Seed phrase is written in Base58 format (Optional)")
-	flag.StringVar(&opts.Base58AccountSeed, "accountSeed", "", "Input your account seed in Base58 format (Optional)")
+	flag.IntVar(&opts.AccountNumber, "number", 0, "Account number. 0 is default")
+	flag.Var(&scheme, schemeOpt, "Network scheme: MainNet=W, TestNet=T, StageNet=S, CustomNet=E. MainNet is default")
 
 	flag.Parse()
 
-	command := flag.Arg(0)
-
-	schemeByte, err := proto.ParseSchemeFromStr(scheme)
-	if err != nil {
-		log.Printf("failed to parse network scheme: %v", err)
-		return
+	possibleFlags := []string{newOpt, showOpt, seedPhraseOpt, seedPhraseBase58Opt, accountSeedBase58Opt}
+	if moreThanOnePrimaryFlagPassed(possibleFlags) {
+		fmt.Print("failed to handle more than one primary flag")
+		showUsageAndExit()
 	}
-	opts.Scheme = schemeByte
+
+	if isFlagPassed(schemeOpt) {
+		opts.Scheme = byte(scheme)
+	} else {
+		opts.Scheme = proto.MainNetScheme
+	}
+
+	command, err := passedCommand(possibleFlags)
+	if err != nil {
+		fmt.Println(err)
+		showUsageAndExit()
+	}
 
 	switch command {
-	case "create":
-		err = createWallet(opts)
-		if err != nil {
-			log.Printf("failed to create a new wallet: %v", err)
-		}
-	case "show":
+	case showOpt:
 		err = show(opts)
 		if err != nil {
 			log.Printf("failed to show wallet's credentials: %v", err)
+		}
+	case newOpt, seedPhraseOpt, seedPhraseBase58Opt, accountSeedBase58Opt:
+		err = createWallet(opts, command)
+		if err != nil {
+			log.Printf("failed to create a new wallet: %v", err)
 		}
 	default:
 		showUsageAndExit()
@@ -206,11 +230,11 @@ type WalletCredentials struct {
 
 var wrongProgramArguments = errors.New("wrong program arguments were provided")
 
-func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*WalletCredentials, error) {
+func generateWalletCredentials(choice string, opts Opts) (*WalletCredentials, error) {
 	var walletCredentials *WalletCredentials
 
 	switch choice {
-	case newSeedPhrase:
+	case newOpt:
 		seedPhrase, err := generateMnemonic()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate seed phrase")
@@ -227,8 +251,7 @@ func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*Walle
 		}
 
 		fmt.Printf("Seed Phrase: '%s'\n", seedPhrase)
-
-	case existingSeedPhrase:
+	case seedPhraseOpt:
 		if opts.SeedPhrase == "" {
 			return nil, errors.Wrap(wrongProgramArguments, "no seed phrase was provided")
 		}
@@ -246,7 +269,7 @@ func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*Walle
 			sk:          sk,
 			address:     address,
 		}
-	case existingBase58SeedPhrase:
+	case seedPhraseBase58Opt:
 		if !opts.IsSeedPhraseBase58 {
 			return nil, errors.Wrap(wrongProgramArguments, "seed phrase base-58-encoding flag was false, but base-58 option was chosen")
 		}
@@ -266,8 +289,7 @@ func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*Walle
 			sk:          sk,
 			address:     address,
 		}
-
-	case existingBase58AccountSeed:
+	case accountSeedBase58Opt:
 		if opts.Base58AccountSeed == "" {
 			return nil, errors.Wrap(wrongProgramArguments, "no base58 account seed was provided")
 		}
@@ -293,25 +315,15 @@ func generateWalletCredentials(choice WalletGenerationChoice, opts Opts) (*Walle
 	return walletCredentials, nil
 }
 
-func createWallet(opts Opts) error {
+func createWallet(opts Opts, command string) error {
 	walletPath, err := getWalletPath(opts.PathToWallet)
 	if err != nil {
 		return errors.Wrap(err, "failed to handle wallet's path")
 	}
-	fmt.Println(`Available options: 
-		 1: Generate new seed phrase and wallet
-		 2: Create a wallet based on an existing seed phrase. Requires seed phrase argument to be provided
-		 3: Create a wallet based on an existing base58-encoded seed phrase. Requires seed phrase argument to be provided and seed-base58 flag marked "true"
-		 4: Create a wallet based on an existing base58-encoded account seed. Requires account seed argument in Base58 format`)
 
 	var walletCredentials *WalletCredentials
-	var choice WalletGenerationChoice
-	_, err = fmt.Scanf("%s", &choice)
-	if err != nil {
-		return errors.Wrap(err, "failed to scan the choice of how to create the wallet")
-	}
 
-	walletCredentials, err = generateWalletCredentials(choice, opts)
+	walletCredentials, err = generateWalletCredentials(command, opts)
 	if err != nil {
 		return errors.Wrap(err, "failed to generate wallet's credentials")
 	}
@@ -332,18 +344,19 @@ func createWallet(opts Opts) error {
 	var wlt wallet.Wallet
 	if exists(walletPath) {
 		fmt.Print("Wallet already exists on the provided path. Rewrite? Y/N: ")
-		var answer string
-		_, err := fmt.Scanf("%s", &answer)
+		var a string
+		_, err := fmt.Scanf("%s", &a)
 		if err != nil {
 			return errors.Wrap(err, "failed to get the answer on rewriting the existing wallet")
 		}
+		answer := strings.ToLower(a)
 		switch answer {
-		case "Y":
+		case "y":
 			wlt = wallet.NewWallet()
-		case "N":
+		case "n":
 			return nil
 		default:
-			return errors.New("unknown command")
+			return nil
 		}
 	} else {
 		wlt = wallet.NewWallet()
@@ -401,4 +414,34 @@ func exists(name string) bool {
 		}
 	}
 	return true
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func moreThanOnePrimaryFlagPassed(flags []string) bool {
+	passedFlagsNum := 0
+	for _, f := range flags {
+		if isFlagPassed(f) {
+			passedFlagsNum++
+		}
+	}
+
+	return passedFlagsNum > 1
+}
+
+func passedCommand(flags []string) (string, error) {
+	for _, f := range flags {
+		if isFlagPassed(f) {
+			return f, nil
+		}
+	}
+	return "", errors.New("no flag was provided")
 }
