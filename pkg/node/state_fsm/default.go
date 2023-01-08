@@ -1,8 +1,14 @@
 package state_fsm
 
 import (
+	"time"
+
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
+const (
+	askPeersInterval = 5 * time.Minute
 )
 
 type Default interface {

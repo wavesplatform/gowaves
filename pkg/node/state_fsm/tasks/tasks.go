@@ -26,9 +26,11 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 
 type TaskType int
 
+type TaskData interface{ taskDataMarker() }
+
 type AsyncTask struct {
 	TaskType int
-	Data     interface{}
+	Data     TaskData
 }
 
 type Task interface {
@@ -110,6 +112,8 @@ type MineMicroTaskData struct {
 	KeyPair proto.KeyPair
 	Vrf     []byte
 }
+
+func (MineMicroTaskData) taskDataMarker() {}
 
 type MineMicroTask struct {
 	timeout           time.Duration

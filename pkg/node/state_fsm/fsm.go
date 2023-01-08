@@ -139,7 +139,7 @@ func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, 
 	// default tasks
 	tasks := Async{
 		// ask about peers for every 5 minutes
-		NewAskPeersTask(5 * time.Minute),
+		NewAskPeersTask(askPeersInterval),
 		NewPingTask(),
 	}
 
