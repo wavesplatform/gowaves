@@ -404,6 +404,25 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 	return out, nil
 }
 
+type unmarshalerWithScheme interface {
+	UnmarshalJSONWithScheme(data []byte, scheme Scheme) error
+}
+
+var (
+	_ = unmarshalerWithScheme(&CreateAliasWithProofs{})
+	_ = unmarshalerWithScheme(&CreateAliasWithSig{})
+)
+
+func UnmarshalTransactionFromJSON(data []byte, scheme Scheme, tx Transaction) (err error) {
+	switch u := tx.(type) {
+	case unmarshalerWithScheme:
+		err = u.UnmarshalJSONWithScheme(data, scheme)
+	default:
+		err = json.Unmarshal(data, tx)
+	}
+	return err
+}
+
 // Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
