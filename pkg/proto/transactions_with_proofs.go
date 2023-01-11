@@ -2340,7 +2340,6 @@ func (tx *CreateAliasWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if !ok {
 		return tx, err
 	}
-	//TODO: add script validations
 	return tx, nil
 }
 
