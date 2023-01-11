@@ -65,7 +65,7 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 		return nil, &BadRequestError{err}
 	}
 
-	err = json.Unmarshal(b, realType)
+	err = proto.UnmarshalTransactionFromJSON(b, a.services.Scheme, realType)
 	if err != nil {
 		return nil, &BadRequestError{err}
 	}
