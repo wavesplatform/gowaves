@@ -2138,8 +2138,13 @@ func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 	return nil
 }
 
+// Deprecated: use UnmarshalJSONWithScheme.
 func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	const ignoreChainID Scheme = 0
+	return tx.UnmarshalJSONWithScheme(data, ignoreChainID)
+}
+
+func (tx *CreateAliasWithSig) UnmarshalJSONWithScheme(data []byte, scheme Scheme) error {
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
 		Version   byte              `json:"version,omitempty"`
@@ -2157,7 +2162,7 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	tx.Version = tmp.Version
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
+	tx.Alias = *NewAlias(scheme, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
