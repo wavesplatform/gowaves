@@ -74,8 +74,17 @@ func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
 	}
 }
 
-func NewDiffBalances(initBalanceInWavesGo, initBalanceInWavesScala) *AccountDiffBalances {
-
+func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAssetGo, diffBalanceAssetScala int64) *AccountDiffBalances {
+	return &AccountDiffBalances{
+		DiffBalanceWaves: BalanceInWaves{
+			BalanceInWavesGo:    diffBalanceWavesGo,
+			BalanceInWavesScala: diffBalanceWavesScala,
+		},
+		DiffBalanceAsset: BalanceInAsset{
+			BalanceInAssetGo:    diffBalanceAssetGo,
+			BalanceInAssetScala: diffBalanceAssetScala,
+		},
+	}
 }
 
 func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,

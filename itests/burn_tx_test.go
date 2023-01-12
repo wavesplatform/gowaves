@@ -73,7 +73,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 		//get NFT
 		itx := issue_utilities.IssueSend(&suite.BaseSuite, nft, v, waitForTx)
 		//data for transfer
-		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, itx.TxID).NFT
+		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).NFT
 		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {
