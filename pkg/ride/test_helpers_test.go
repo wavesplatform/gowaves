@@ -138,6 +138,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		rideV6ActivatedFunc: func() bool {
 			return false
 		},
+		consensusImprovementsActivatedFunc: func() bool {
+			return false
+		},
 		invokeExpressionActivatedFunc: func() bool {
 			return false
 		},
