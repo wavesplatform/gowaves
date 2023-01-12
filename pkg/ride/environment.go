@@ -381,6 +381,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.internalPaymentsValidationHeight(),
 		env.blockV5Activated(),
 		env.rideV6Activated(),
+		env.consensusImprovementsActivated(),
 		env.invokeExpressionActivated(),
 	)
 	if err != nil {
@@ -978,43 +979,47 @@ func (ws *WrappedState) ApplyToState(
 }
 
 type EvaluationEnvironment struct {
-	sch                         proto.Scheme
-	st                          types.SmartState
-	h                           rideInt
-	tx                          rideType
-	id                          rideType
-	th                          rideType
-	time                        uint64
-	b                           rideType
-	check                       func(int) bool
-	takeStr                     func(s string, n int) rideString
-	inv                         rideType
-	ver                         ast.LibraryVersion
-	validatePaymentsAfter       uint64
-	isBlockV5Activated          bool
-	isRideV6Activated           bool
-	isInvokeExpressionActivated bool // isInvokeExpression is feature after RideV6, i.e. isInvokeExpressionActivated == nodeVersion >= 1.5.0
-	isProtobufTransaction       bool
-	mds                         int
-	cc                          complexityCalculator
+	sch                              proto.Scheme
+	st                               types.SmartState
+	h                                rideInt
+	tx                               rideType
+	id                               rideType
+	th                               rideType
+	time                             uint64
+	b                                rideType
+	check                            func(int) bool
+	takeStr                          func(s string, n int) rideString
+	inv                              rideType
+	ver                              ast.LibraryVersion
+	validatePaymentsAfter            uint64
+	isBlockV5Activated               bool
+	isRideV6Activated                bool
+	isConsensusImprovementsActivated bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
+	isInvokeExpressionActivated      bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
+	isProtobufTransaction            bool
+	mds                              int
+	cc                               complexityCalculator
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64, blockV5, rideV6, invokeExpression bool) (*EvaluationEnvironment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
+	blockV5, rideV6, consensusImprovements, invokeExpression bool,
+) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 	return &EvaluationEnvironment{
-		sch:                         scheme,
-		st:                          state,
-		h:                           rideInt(height),
-		check:                       func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
-		takeStr:                     func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
-		validatePaymentsAfter:       internalPaymentsValidationHeight,
-		isBlockV5Activated:          blockV5,
-		isRideV6Activated:           rideV6,
-		isInvokeExpressionActivated: invokeExpression,
-		cc:                          newComplexityCalculatorByRideV6Activation(rideV6),
+		sch:                              scheme,
+		st:                               state,
+		h:                                rideInt(height),
+		check:                            func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		takeStr:                          func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		validatePaymentsAfter:            internalPaymentsValidationHeight,
+		isBlockV5Activated:               blockV5,
+		isRideV6Activated:                rideV6,
+		isInvokeExpressionActivated:      invokeExpression,
+		isConsensusImprovementsActivated: consensusImprovements,
+		cc:                               newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
 }
 
@@ -1066,25 +1071,14 @@ func NewEnvironmentWithWrappedState(
 		}
 	}
 
-	return &EvaluationEnvironment{
-		sch:                   env.sch,
-		st:                    st,
-		h:                     env.h,
-		tx:                    env.tx,
-		id:                    env.id,
-		th:                    env.th,
-		b:                     env.b,
-		check:                 env.check,
-		takeStr:               env.takeStr,
-		inv:                   env.inv,
-		validatePaymentsAfter: env.validatePaymentsAfter,
-		mds:                   env.mds,
-		ver:                   env.ver,
-		isBlockV5Activated:    env.isBlockV5Activated,
-		isRideV6Activated:     env.isRideV6Activated,
-		isProtobufTransaction: isProtobufTransaction,
-		cc:                    env.cc,
-	}, nil
+	newEnv := *env
+	newEnv.st = st
+	newEnv.isProtobufTransaction = isProtobufTransaction
+	return &newEnv, nil
+}
+
+func (e *EvaluationEnvironment) consensusImprovementsActivated() bool {
+	return e.isConsensusImprovementsActivated
 }
 
 func (e *EvaluationEnvironment) invokeExpressionActivated() bool {
@@ -1177,7 +1171,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	obj, err := transactionToObject(ver, e.sch, e.isInvokeExpressionActivated, tx)
+	obj, err := transactionToObject(ver, e.sch, e.consensusImprovementsActivated(), tx)
 	if err != nil {
 		return err
 	}
