@@ -5873,7 +5873,7 @@ func TestSetAssetScriptWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a, _ := crypto.NewDigestFromBase58("J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR")
 		s, _ := base58.Decode(tc.script)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, 'W', spk, a, s, tc.fee, 0)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, spk, a, s, tc.fee, 0)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -5900,7 +5900,7 @@ func TestSetAssetScriptWithProofsFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.scheme, spk, a, s, tc.fee, tc.timestamp)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, spk, a, s, tc.fee, tc.timestamp)
 		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -5927,7 +5927,7 @@ func TestSetAssetScriptWithProofsProtobufRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, pk, a, s, tc.fee, ts)
 		err = tx.GenerateID(tc.chainID)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
@@ -5969,7 +5969,7 @@ func TestSetAssetScriptWithProofsBinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, pk, a, s, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(tc.chainID)
@@ -5995,14 +5995,13 @@ func TestSetAssetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, pk, a, s, tc.fee, ts)
 		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetAssetScriptWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, tc.chainID); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.Equal(t, tx.AssetID, atx.AssetID)
 				assert.ElementsMatch(t, tx.Script, atx.Script)
 				assert.Equal(t, tx.Fee, atx.Fee)
@@ -6019,7 +6018,6 @@ func TestSetAssetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
-				assert.Equal(t, tc.chainID, atx.ChainID)
 				assert.Equal(t, a, atx.AssetID)
 				assert.Equal(t, tc.script, base64.StdEncoding.EncodeToString(atx.Script))
 				assert.Equal(t, tc.fee, atx.Fee)
@@ -6048,7 +6046,7 @@ func TestSetAssetScriptWithProofsToJSON(t *testing.T) {
 		require.NoError(t, err)
 		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
 		require.NoError(t, err)
-		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
+		tx := NewUnsignedSetAssetScriptWithProofs(1, pk, a, s, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":15,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.asset, tc.script, tc.fee, ts)
 			assert.Equal(t, ej, string(j))

@@ -1027,7 +1027,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &SetAssetScriptWithProofs{
 			Type:      SetAssetScriptTransaction,
 			Version:   v,
-			ChainID:   scheme,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
 			AssetID:   c.digest(d.SetAssetScript.AssetId),
 			Script:    c.script(d.SetAssetScript.Script),

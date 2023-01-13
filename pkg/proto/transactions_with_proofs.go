@@ -4028,7 +4028,6 @@ type SetAssetScriptWithProofs struct {
 	Version   byte             `json:"version,omitempty"`
 	ID        *crypto.Digest   `json:"id,omitempty"`
 	Proofs    *ProofsV1        `json:"proofs,omitempty"`
-	ChainID   byte             `json:"-"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
 	Script    Script           `json:"script"`
@@ -4102,8 +4101,8 @@ func (tx *SetAssetScriptWithProofs) Clone() *SetAssetScriptWithProofs {
 }
 
 // NewUnsignedSetAssetScriptWithProofs creates new unsigned SetAssetScriptWithProofs transaction.
-func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptWithProofs {
-	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
+func NewUnsignedSetAssetScriptWithProofs(v byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptWithProofs {
+	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
@@ -4116,7 +4115,8 @@ func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-	//TODO: validate blockchain scheme and script type
+	// we don't need to validate scheme here because scheme is included in binary representation of tx
+	// so if scheme is invalid == signature is invalid
 	return tx, nil
 }
 
@@ -4125,7 +4125,7 @@ func (tx *SetAssetScriptWithProofs) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	var p int
 	sl := 0
 	if tx.NonEmptyScript() {
@@ -4136,7 +4136,7 @@ func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	p++
 	buf[p] = tx.Version
 	p++
-	buf[p] = tx.ChainID
+	buf[p] = scheme
 	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
@@ -4154,13 +4154,15 @@ func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *SetAssetScriptWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *SetAssetScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setAssetScriptWithProofsFixedBodyLen {
 		return errors.Errorf("not enough data for SetAssetScriptWithProofs transaction, expected not less then %d, received %d", setAssetScriptWithProofsFixedBodyLen, l)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	if tx.Type != SetAssetScriptTransaction {
 		return errors.Errorf("unexpected transaction type %d for SetAssetScriptWithProofs transaction", tx.Type)
 	}
@@ -4247,7 +4249,7 @@ func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) 
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal SetAssetScriptWithProofs transaction from bytes")
 	}

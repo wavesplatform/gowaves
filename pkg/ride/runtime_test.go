@@ -219,7 +219,7 @@ func makeSetAssetScriptTransactionObject(t *testing.T, sig, senderPublicKey, ass
 	require.NoError(t, err)
 	script, err := base58.Decode(scriptBytes)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedSetAssetScriptWithProofs(2, proto.TestNetScheme, senderPK, asset, script, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedSetAssetScriptWithProofs(2, senderPK, asset, script, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

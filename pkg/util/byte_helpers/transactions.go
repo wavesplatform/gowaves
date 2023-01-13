@@ -632,7 +632,7 @@ func initSetAssetScriptWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedSetAssetScriptWithProofs(1, proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
+	t := proto.NewUnsignedSetAssetScriptWithProofs(1, pk, d, []byte("hello"), 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
