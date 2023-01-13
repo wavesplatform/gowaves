@@ -58,7 +58,6 @@ const (
 type IssueWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version"`
-	ChainID byte            `json:"-"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Script  Script          `json:"script"`
@@ -173,7 +172,7 @@ func (tx *IssueWithProofs) Clone() *IssueWithProofs {
 }
 
 // NewUnsignedIssueWithProofs creates a new IssueWithProofs transaction with empty Proofs.
-func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueWithProofs {
+func NewUnsignedIssueWithProofs(v byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueWithProofs {
 	i := Issue{
 		SenderPK:    senderPK,
 		Name:        name,
@@ -184,7 +183,7 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 		Timestamp:   timestamp,
 		Fee:         fee,
 	}
-	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
+	return &IssueWithProofs{Type: IssueTransaction, Version: v, Script: script, Issue: i}
 }
 
 func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
@@ -200,6 +199,8 @@ func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 			return tx, err
 		}
 	}
+	// we don't need to validate scheme here because scheme is included in binary representation of tx
+	// so if scheme is invalid == signature is invalid
 	return tx, nil
 }
 
@@ -208,7 +209,7 @@ func (tx *IssueWithProofs) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *IssueWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *IssueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	var p int
 	nl := len(tx.Name)
 	dl := len(tx.Description)
@@ -219,7 +220,7 @@ func (tx *IssueWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, issueWithProofsFixedBodyLen+nl+dl+sl)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
-	buf[2] = tx.ChainID
+	buf[2] = scheme
 	p = 3
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
@@ -245,7 +246,7 @@ func (tx *IssueWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	const message = "failed to unmarshal field %q of IssueWithProofs transaction"
 	if l := len(data); l < issueWithProofsMinBodyLen {
 		return errors.Errorf("not enough data for IssueWithProofs transaction %d, expected not less then %d", l, issueWithProofsMinBodyLen)
@@ -255,7 +256,9 @@ func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected transaction type %d for IssueWithProofs transaction", tx.Type)
 	}
 	tx.Version = data[1]
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -361,7 +364,7 @@ func (tx *IssueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Errorf("unexpected first byte value %d for IssueWithProofs transaction, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal IssueWithProofs transaction")
 	}

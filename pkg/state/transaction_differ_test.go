@@ -234,14 +234,14 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 }
 
 func createIssueWithProofs(t *testing.T, feeUnits int) *proto.IssueWithProofs {
-	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	tx := proto.NewUnsignedIssueWithProofs(2, testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
 
 func createNFTIssueWithProofs(t *testing.T) *proto.IssueWithProofs {
-	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
+	tx := proto.NewUnsignedIssueWithProofs(2, testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx

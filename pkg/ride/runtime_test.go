@@ -302,7 +302,7 @@ func makeIssueTransactionAndObject(t *testing.T, sig, senderPublicKey, name, des
 	require.NoError(t, err)
 	script, err := base58.Decode(scriptBytes)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedIssueWithProofs(2, proto.TestNetScheme, senderPK, name, description, uint64(quantity), byte(decimals), reissuable, script, uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedIssueWithProofs(2, senderPK, name, description, uint64(quantity), byte(decimals), reissuable, script, uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

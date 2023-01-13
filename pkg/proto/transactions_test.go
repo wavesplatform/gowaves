@@ -630,7 +630,7 @@ func TestIssueWithProofsValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		tx := NewUnsignedIssueWithProofs(2, 'T', spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -659,7 +659,7 @@ func TestIssueWithProofsFromMainNet(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		tx := NewUnsignedIssueWithProofs(2, scheme, spk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, []byte{}, tc.timestamp, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, spk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, []byte{}, tc.timestamp, tc.fee)
 		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -690,7 +690,7 @@ func TestIssueWithProofsBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		err := tx.Sign(tc.chain, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(tc.chain)
@@ -720,13 +720,12 @@ func TestIssueWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		if bb, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx IssueWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, tc.chain); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
 				assert.Equal(t, tx.Name, atx.Name)
 				assert.Equal(t, tx.Description, atx.Description)
@@ -747,7 +746,6 @@ func TestIssueWithProofsBinaryRoundTrip(t *testing.T) {
 			var atx IssueWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chain); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
-				assert.Equal(t, tc.chain, atx.ChainID)
 				assert.Equal(t, tc.name, atx.Name)
 				assert.Equal(t, tc.desc, atx.Description)
 				assert.Equal(t, tc.quantity, atx.Quantity)
@@ -783,7 +781,7 @@ func TestIssueWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		err = tx.GenerateID(tc.chain)
 		assert.NoError(t, err)
 		b, err := tx.MarshalToProtobuf(tc.chain)
@@ -827,7 +825,7 @@ func TestIssueWithProofsToJSON(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
 		require.NoError(t, err)
-		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
+		tx := NewUnsignedIssueWithProofs(2, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"script\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
 				tc.script, base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, ts, tc.fee)

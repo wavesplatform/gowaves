@@ -768,7 +768,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &IssueWithProofs{
 				Type:    IssueTransaction,
 				Version: v,
-				ChainID: scheme,
 				Script:  c.script(d.Issue.Script),
 				Issue:   pi,
 			}

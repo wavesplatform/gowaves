@@ -307,18 +307,7 @@ func initIssueWithProofs() {
 
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
-	t := proto.NewUnsignedIssueWithProofs(
-		2,
-		proto.MainNetScheme,
-		pk,
-		"name",
-		"description",
-		1000,
-		4,
-		false,
-		[]byte("script"),
-		proto.NewTimestampFromTime(time.Now()),
-		10000)
+	t := proto.NewUnsignedIssueWithProofs(2, pk, "name", "description", 1000, 4, false, []byte("script"), proto.NewTimestampFromTime(time.Now()), 10000)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, _ := t.MarshalBinary(proto.MainNetScheme)
