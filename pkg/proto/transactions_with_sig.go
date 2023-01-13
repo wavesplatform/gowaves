@@ -169,7 +169,7 @@ func (tx *IssueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 }
 
 // MarshalBinary saves transaction's binary representation to slice of bytes.
-func (tx *IssueWithSig) MarshalBinary() ([]byte, error) {
+func (tx *IssueWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -446,7 +446,7 @@ func (tx *TransferWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary saves transaction to its binary representation.
-func (tx *TransferWithSig) MarshalBinary() ([]byte, error) {
+func (tx *TransferWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -704,7 +704,7 @@ func (tx *ReissueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *ReissueWithSig) MarshalBinary() ([]byte, error) {
+func (tx *ReissueWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -939,7 +939,7 @@ func (tx *BurnWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, 
 }
 
 // MarshalBinary saves transaction to
-func (tx *BurnWithSig) MarshalBinary() ([]byte, error) {
+func (tx *BurnWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithSig transaction to bytes")
@@ -1398,7 +1398,7 @@ func (tx *ExchangeWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *ExchangeWithSig) MarshalBinary() ([]byte, error) {
+func (tx *ExchangeWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeWithSig transaction to bytes")
@@ -1638,7 +1638,7 @@ func (tx *LeaseWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *LeaseWithSig) MarshalBinary() ([]byte, error) {
+func (tx *LeaseWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
@@ -1871,7 +1871,7 @@ func (tx *LeaseCancelWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 }
 
 // MarshalBinary saves transaction to its binary representation.
-func (tx *LeaseCancelWithSig) MarshalBinary() ([]byte, error) {
+func (tx *LeaseCancelWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithSig transaction to bytes")
@@ -2104,7 +2104,7 @@ func (tx *CreateAliasWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
-func (tx *CreateAliasWithSig) MarshalBinary() ([]byte, error) {
+func (tx *CreateAliasWithSig) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithSig transaction to bytes")

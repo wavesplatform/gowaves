@@ -299,7 +299,7 @@ func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
 	return errors.New("Sign method for EthereumTransaction isn't implemented")
 }
 
-func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
+func (tx *EthereumTransaction) MarshalBinary(Scheme) ([]byte, error) {
 	return nil, errors.New("EthereumTransaction does not support 'MarshalBinary' method.")
 }
 

@@ -301,7 +301,7 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 			return nil, err
 		}
 	} else {
-		txBytes, err = tx.MarshalBinary()
+		txBytes, err = tx.MarshalBinary(rw.scheme)
 		if err != nil {
 			return nil, err
 		}

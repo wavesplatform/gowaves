@@ -63,7 +63,7 @@ func (transaction) BodyMarshalBinary() ([]byte, error) {
 	panic("not implemented")
 }
 
-func (transaction) MarshalBinary() ([]byte, error) {
+func (transaction) MarshalBinary(proto.Scheme) ([]byte, error) {
 	panic("not implemented")
 }
 

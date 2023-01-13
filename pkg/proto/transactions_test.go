@@ -67,7 +67,7 @@ func TestGenesisBinarySize(t *testing.T) {
 			assert.Nil(t, err)
 			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
-			txBytes, err := tx.MarshalBinary()
+			txBytes, err := tx.MarshalBinary(MainNetScheme)
 			assert.Nil(t, err)
 			assert.Equal(t, len(txBytes), tx.BinarySize())
 		}
@@ -99,7 +99,7 @@ func TestGenesisFromMainNet(t *testing.T) {
 				assert.Equal(t, tc.amount, tx.Amount)
 				assert.Equal(t, tc.recipient, tx.Recipient.String())
 				assert.Equal(t, tc.timestamp, tx.Timestamp)
-				b, err := tx.MarshalBinary()
+				b, err := tx.MarshalBinary(MainNetScheme)
 				assert.NoError(t, err)
 				var at Genesis
 				err = at.UnmarshalBinary(b, MainNetScheme)
@@ -214,7 +214,7 @@ func TestPaymentBinarySize(t *testing.T) {
 		tx := NewUnsignedPayment(pk, addr, tc.amount, tc.fee, 1)
 		err = tx.Sign(TestNetScheme, sk)
 		require.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		require.NoError(t, err)
 		require.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -237,7 +237,7 @@ func TestPaymentMarshalUnmarshal(t *testing.T) {
 		tx := NewUnsignedPayment(pk, addr, tc.amount, tc.fee, 1)
 		err = tx.Sign(TestNetScheme, sk)
 		require.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		var tx1 Payment
 		err = tx1.UnmarshalBinary(txBytes, TestNetScheme)
@@ -321,7 +321,7 @@ func TestPaymentFromMainNet(t *testing.T) {
 			vr, err := tx.Verify(TestNetScheme, spk)
 			require.NoError(t, err)
 			assert.True(t, vr)
-			b, _ = tx.MarshalBinary()
+			b, _ = tx.MarshalBinary(TestNetScheme)
 			err = at.UnmarshalBinary(b, TestNetScheme)
 			assert.NoError(t, err)
 			err = at.GenerateID(TestNetScheme)
@@ -355,7 +355,7 @@ func BenchmarkPayment_MarshalBinary(t *testing.B) {
 	tx.ID = &sig
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
-		b, err = tx.MarshalBinary()
+		b, err = tx.MarshalBinary(TestNetScheme)
 	}
 	t.StopTimer()
 	if err != nil || len(b) == 0 {
@@ -469,7 +469,7 @@ func TestIssueWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedIssueWithSig(pk, "TOKEN", "description", 1000, 10, false, ts, 100000)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -546,7 +546,7 @@ func TestIssueWithSigBinaryRoundTrip(t *testing.T) {
 			assert.Equal(t, tc.fee, at.Fee)
 		}
 		if err := tx.Sign(TestNetScheme, sk); assert.NoError(t, err) {
-			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+			if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 				var at IssueWithSig
 				if err = at.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 					err = at.GenerateID(TestNetScheme)
@@ -691,7 +691,7 @@ func TestIssueWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		err := tx.Sign(tc.chain, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.chain)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -741,7 +741,7 @@ func TestIssueWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx IssueWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chain); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
@@ -964,7 +964,7 @@ func TestTransferWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.scheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -1023,7 +1023,7 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithSig
 			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
@@ -1263,7 +1263,7 @@ func TestTransferWithProofsJSONRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Fee, tx2.Fee)
 					assert.Equal(t, tx.Timestamp, tx2.Timestamp)
 					assert.True(t, bytes.Equal(tx.Attachment, tx2.Attachment))
-					_, err := tx2.MarshalBinary()
+					_, err := tx2.MarshalBinary(tc.scheme)
 					require.NoError(t, err)
 				}
 			}
@@ -1361,7 +1361,7 @@ func TestTransferWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.scheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -1421,7 +1421,7 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithProofs
 			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
@@ -1659,7 +1659,7 @@ func TestReissueWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedReissueWithSig(pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -1700,7 +1700,7 @@ func TestReissueWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ReissueWithSig
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
@@ -1866,7 +1866,7 @@ func TestReissueWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		err := tx.Sign(tc.chain, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.chain)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -1909,7 +1909,7 @@ func TestReissueWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx ReissueWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chain); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
@@ -2064,7 +2064,7 @@ func TestBurnWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedBurnWithSig(pk, aid, tc.amount, ts, tc.fee)
 		err := tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -2091,7 +2091,7 @@ func TestBurnWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx BurnWithSig
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Signature, atx.Signature)
@@ -2243,7 +2243,7 @@ func TestBurnWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedBurnWithProofs(2, 'T', pk, aid, tc.amount, ts, tc.fee)
 		err := tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		require.NoError(t, err)
 		require.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -2283,7 +2283,7 @@ func TestBurnWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx BurnWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
@@ -2588,7 +2588,7 @@ func TestExchangeWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, msk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -2647,7 +2647,7 @@ func TestExchangeWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithSig
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -2961,7 +2961,7 @@ func TestExchangeWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedExchangeWithProofs(2, tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, msk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -3028,7 +3028,7 @@ func TestExchangeWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -3325,7 +3325,7 @@ func TestExchangeWithProofsFromJSON3(t *testing.T) {
 	assert.True(t, ok)
 	assert.NotNil(t, so)
 
-	b, err := tx.MarshalBinary()
+	b, err := tx.MarshalBinary(TestNetScheme)
 	require.NoError(t, err)
 	assert.Equal(t, uint8(0xcb), b[6])
 }
@@ -3707,7 +3707,7 @@ func TestLeaseWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedLeaseWithSig(pk, rcp, tc.amount, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -3748,7 +3748,7 @@ func TestLeaseWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithSig
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
@@ -3917,7 +3917,7 @@ func TestLeaseWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedLeaseWithProofs(2, pk, rcp, tc.amount, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -3958,7 +3958,7 @@ func TestLeaseWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
@@ -4104,7 +4104,7 @@ func TestLeaseCancelWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedLeaseCancelWithSig(pk, l, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -4141,7 +4141,7 @@ func TestLeaseCancelWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithSig
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
@@ -4279,12 +4279,13 @@ func TestLeaseCancelWithProofsBinarySize(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
 	for _, tc := range tests {
-		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		const scheme = 'T'
+		l := crypto.MustDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', pk, l, tc.fee, ts)
+		tx := NewUnsignedLeaseCancelWithProofs(2, scheme, pk, l, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(scheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -4321,7 +4322,7 @@ func TestLeaseCancelWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
@@ -4466,7 +4467,7 @@ func TestCreateAliasWithSigBinarySize(t *testing.T) {
 		tx := NewUnsignedCreateAliasWithSig(pk, *a, tc.fee, ts)
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.scheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -4504,7 +4505,7 @@ func TestCreateAliasWithSigBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithSig
 			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
@@ -4695,7 +4696,7 @@ func TestCreateAliasWithProofsBinarySize(t *testing.T) {
 		}
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.scheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -4733,7 +4734,7 @@ func TestCreateAliasWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithProofs
 			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
@@ -4944,7 +4945,7 @@ func TestMassTransferWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedMassTransferWithProofs(1, pk, *a, tc.transfers, tc.fee, ts, att)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -4988,7 +4989,7 @@ func TestMassTransferWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx MassTransferWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, len(tx.Proofs.Proofs), len(atx.Proofs.Proofs))
@@ -5139,7 +5140,7 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test custom format.
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		var tx2 DataWithProofs
 		err = tx2.UnmarshalBinary(txBytes, TestNetScheme)
@@ -5286,7 +5287,7 @@ func TestDataWithProofsBinarySize(t *testing.T) {
 		}
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -5342,7 +5343,7 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx DataWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, len(tx.Proofs.Proofs), len(atx.Proofs.Proofs))
@@ -5585,7 +5586,7 @@ func TestSetScriptWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.chainID)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -5624,7 +5625,7 @@ func TestSetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetScriptWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
@@ -5775,7 +5776,7 @@ func TestSponsorshipWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedSponsorshipWithProofs(1, pk, a, tc.assetFee, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -5814,7 +5815,7 @@ func TestSponsorshipWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx SponsorshipWithProofs
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
@@ -5971,7 +5972,7 @@ func TestSetAssetScriptWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.chainID)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -6013,7 +6014,7 @@ func TestSetAssetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetAssetScriptWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
@@ -6238,7 +6239,7 @@ func TestInvokeScriptWithProofsBinarySize(t *testing.T) {
 		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.chainID)
 		assert.NoError(t, err)
 		assert.Equal(t, len(txBytes), tx.BinarySize())
 	}
@@ -6293,7 +6294,7 @@ func TestInvokeScriptWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.True(t, r)
 			}
 		}
-		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.MarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx InvokeScriptWithProofs
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)

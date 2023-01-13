@@ -22,7 +22,7 @@ type PeerWrapperImpl struct {
 
 func (a PeerWrapperImpl) SendTransaction(t proto.Transaction) error {
 	if a.p.Handshake().Version.Cmp(peerVersionWithProtobuf) < 0 {
-		bts, err := t.MarshalBinary()
+		bts, err := t.MarshalBinary(a.scheme)
 		if err != nil {
 			return err
 		}

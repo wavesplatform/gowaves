@@ -214,7 +214,7 @@ type Transaction interface {
 
 	// MarshalBinary functions for custom binary format serialization.
 	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
-	MarshalBinary() ([]byte, error)
+	MarshalBinary(Scheme) ([]byte, error)
 	// UnmarshalBinary parse Bytes without signature.
 	UnmarshalBinary([]byte, Scheme) error
 	// BodyMarshalBinary is analogous to MarshalToProtobuf() for Protobuf.
@@ -248,7 +248,7 @@ func MarshalTx(scheme Scheme, tx Transaction) ([]byte, error) {
 	if IsProtobufTx(tx) {
 		return tx.MarshalSignedToProtobuf(scheme)
 	}
-	return tx.MarshalBinary()
+	return tx.MarshalBinary(scheme)
 }
 
 func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
@@ -597,7 +597,7 @@ func (tx *Genesis) GenerateSig() error {
 }
 
 // MarshalBinary writes transaction bytes to slice of bytes.
-func (tx *Genesis) MarshalBinary() ([]byte, error) {
+func (tx *Genesis) MarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Genesis transaction to bytes")
@@ -897,7 +897,7 @@ func (tx *Payment) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, erro
 }
 
 // MarshalBinary returns a bytes representation of Payment transaction.
-func (tx *Payment) MarshalBinary() ([]byte, error) {
+func (tx *Payment) MarshalBinary(Scheme) ([]byte, error) {
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)
 	if err != nil {

@@ -329,7 +329,7 @@ func (tx *IssueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary converts transaction to its binary representation.
-func (tx *IssueWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *IssueWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueWithProofs transaction to bytes")
@@ -605,7 +605,7 @@ func (tx *TransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 }
 
 // MarshalBinary writes TransferWithProofs transaction to its bytes representation.
-func (tx *TransferWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *TransferWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithProofs transaction to bytes")
@@ -904,7 +904,7 @@ func (tx *ReissueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (
 }
 
 // MarshalBinary writes ReissueWithProofs transaction to its bytes representation.
-func (tx *ReissueWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *ReissueWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs transaction to bytes")
@@ -1152,7 +1152,7 @@ func (tx *BurnWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 }
 
 // MarshalBinary writes BurnWithProofs transaction to its bytes representation.
-func (tx *BurnWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *BurnWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs transaction to bytes")
@@ -1704,7 +1704,7 @@ func (tx *ExchangeWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *ExchangeWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *ExchangeWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeWithProofs transaction to bytes")
@@ -2032,7 +2032,7 @@ func (tx *LeaseWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *LeaseWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *LeaseWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithProofs transaction to bytes")
@@ -2278,7 +2278,7 @@ func (tx *LeaseCancelWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *LeaseCancelWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *LeaseCancelWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs transaction to bytes")
@@ -2526,7 +2526,7 @@ func (tx *CreateAliasWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *CreateAliasWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *CreateAliasWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithProofs transaction to bytes")
@@ -2910,7 +2910,7 @@ func (tx *MassTransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *MassTransferWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *MassTransferWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction to bytes")
@@ -3306,7 +3306,7 @@ func (tx *DataWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 }
 
 // MarshalBinary saves the transaction to bytes.
-func (tx *DataWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *DataWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal DataWithProofs transaction to bytes")
@@ -3619,7 +3619,7 @@ func (tx *SetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey)
 }
 
 // MarshalBinary writes SetScriptWithProofs transaction to its bytes representation.
-func (tx *SetScriptWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *SetScriptWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetScriptWithProofs transaction to bytes")
@@ -3895,7 +3895,7 @@ func (tx *SponsorshipWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 }
 
 // MarshalBinary writes SponsorshipWithProofs transaction to its bytes representation.
-func (tx *SponsorshipWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *SponsorshipWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SponsorshipWithProofs transaction to bytes")
@@ -4208,7 +4208,7 @@ func (tx *SetAssetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.Publi
 }
 
 // MarshalBinary writes SetAssetScriptWithProofs transaction to its bytes representation.
-func (tx *SetAssetScriptWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *SetAssetScriptWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetAssetScriptWithProofs transaction to bytes")
@@ -4603,7 +4603,7 @@ func (tx *InvokeScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 }
 
 // MarshalBinary writes InvokeScriptWithProofs transaction to its bytes representation.
-func (tx *InvokeScriptWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *InvokeScriptWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptWithProofs transaction to bytes")
@@ -4899,7 +4899,7 @@ func NewUnsignedUpdateAssetInfoWithProofs(v, chainID byte, assetID crypto.Digest
 	}
 }
 
-func (tx *UpdateAssetInfoWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *UpdateAssetInfoWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	return nil, errors.New("binary format is not defined for UpdateAssetInfoTransaction")
 }
 
@@ -5094,7 +5094,7 @@ func (tx *InvokeExpressionTransactionWithProofs) MerkleBytes(scheme Scheme) ([]b
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx *InvokeExpressionTransactionWithProofs) MarshalBinary() ([]byte, error) {
+func (tx *InvokeExpressionTransactionWithProofs) MarshalBinary(Scheme) ([]byte, error) {
 	panic("MarshalBinary is not implemented")
 }
 
