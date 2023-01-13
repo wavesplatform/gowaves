@@ -1199,7 +1199,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 }
 
 func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithProofs {
-	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, 'W', testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

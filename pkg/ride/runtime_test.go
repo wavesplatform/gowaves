@@ -266,7 +266,7 @@ func makeUpdateAssetInfoTransactionObject(t *testing.T, sig, senderPublicKey, fe
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(2, proto.TestNetScheme, asset, senderPK, name, description, uint64(ts), *fa, uint64(fee))
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(2, asset, senderPK, name, description, uint64(ts), *fa, uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

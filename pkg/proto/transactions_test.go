@@ -6382,7 +6382,7 @@ func TestUpdateAssetInfoWithProofsValidations(t *testing.T) {
 		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
+		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
 		_, err = tx.Validate(tc.chain)
 		if !tc.valid {
 			assert.Equal(t, tc.err.Error(), err.Error())
@@ -6414,7 +6414,7 @@ func TestUpdateAssetInfoWithProofsProtobufRoundTrip(t *testing.T) {
 		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
+		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
 		err = tx.GenerateID(tc.chain)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.chain); assert.NoError(t, err) {
@@ -6464,14 +6464,14 @@ func TestUpdateAssetInfoWithProofsToJSON(t *testing.T) {
 		if tc.feeAsset == "WAVES" {
 			feeAssetIDJSON = "null"
 		}
-		tx := NewUnsignedUpdateAssetInfoWithProofs(1, tc.chain, aid, pk, tc.name, tc.description, ts, *a, tc.fee)
+		tx := NewUnsignedUpdateAssetInfoWithProofs(1, aid, pk, tc.name, tc.description, ts, *a, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf(`{"type":17,"version":1,"chainId":%d,"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`, tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
+			ej := fmt.Sprintf(`{"type":17,"version":1,"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(tc.chain, sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf(`{"type":17,"version":1,"id":"%s","proofs":["%s"],"chainId":%d,"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`,
-						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
+					esj := fmt.Sprintf(`{"type":17,"version":1,"id":"%s","proofs":["%s"],"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`,
+						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
 					assert.Equal(t, esj, string(sj))
 				}
 			}
@@ -6494,7 +6494,6 @@ func TestUpdateAssetInfoWithProofsFromJSON(t *testing.T) {
 	assert.Equal(t, 1234567890, int(tx.Fee))
 	assert.True(t, tx.FeeAsset.Present)
 	assert.Equal(t, 1, len(tx.Proofs.Proofs))
-	assert.Equal(t, MainNetScheme, tx.ChainID)
 	assert.Equal(t, spk[:], tx.SenderPK[:])
 	assert.Equal(t, "AssetName", tx.Name)
 	assert.Equal(t, "description of asset", tx.Description)
