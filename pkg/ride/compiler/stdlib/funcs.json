@@ -425,10 +425,10 @@
         "getElement": [
           {
             "arguments": [
-              "List[T]",
+              "List[Any]",
               "Int"
             ],
-            "return_type": "T",
+            "return_type": "Any",
             "id": "401"
           }
         ]
@@ -707,19 +707,19 @@
         "value": [
           {
             "arguments": [
-              "T|Unit"
+              "Any|Unit"
             ],
-            "return_type": "T",
+            "return_type": "Any",
             "id": "value"
           }
         ],
         "valueOrErrorMessage": [
           {
             "arguments": [
-              "T|Unit",
+              "Any|Unit",
               "String"
             ],
-            "return_type": "T",
+            "return_type": "Any",
             "id": "valueOrErrorMessage"
           }
         ],
@@ -808,7 +808,7 @@
               "ByteVector"
             ],
             "return_type": "Int",
-            "id": "1004"
+            "id": "1008"
           }
         ],
         "wavesBalance": [
@@ -817,7 +817,7 @@
               "Address|Alias"
             ],
             "return_type": "BalanceDetails",
-            "id": "1008"
+            "id": "1007"
           }
         ],
         "assetInfo": [
@@ -1220,8 +1220,8 @@
           },
           {
             "arguments": [
-              "List[T]",
-              "T"
+              "List[Any]",
+              "Any"
             ],
             "return_type": "Int|Unit",
             "id": "1103"
@@ -1247,8 +1247,8 @@
           },
           {
             "arguments": [
-              "List[T]",
-              "T"
+              "List[Any]",
+              "Any"
             ],
             "return_type": "Int|Unit",
             "id": "1104"
@@ -1257,8 +1257,8 @@
         "containsElement": [
           {
             "arguments": [
-              "List[T]",
-              "T"
+              "List[Any]",
+              "Any"
             ],
             "return_type": "Boolean",
             "id": "containsElement"
@@ -1277,20 +1277,20 @@
         "removeByIndex": [
           {
             "arguments": [
-              "List[T]",
+              "List[Any]",
               "Int"
             ],
-            "return_type": "List[T]",
+            "return_type": "List[Any]",
             "id": "1105"
           }
         ],
         "valueOrElse": [
           {
             "arguments": [
-              "T|Unit",
-              "T"
+              "Any|Unit",
+              "Any"
             ],
-            "return_type": "T",
+            "return_type": "Any",
             "id": "valueOrElse"
           }
         ],

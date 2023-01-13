@@ -29,6 +29,7 @@ func (sig *FunctionsSignatures) Get(name string, args []Type) (FunctionParams, b
 	if !ok {
 		return FunctionParams{}, ok
 	}
+	var res FunctionParams
 	for _, o := range overloaded {
 		if len(o.Arguments) != len(args) {
 			continue
@@ -41,9 +42,14 @@ func (sig *FunctionsSignatures) Get(name string, args []Type) (FunctionParams, b
 			}
 		}
 		if isMatched {
-			return o, true
+			res = o
+			break
 		}
 	}
+	if res.ID != nil {
+		return getGenericFuncsSign(name, args, res), true
+	}
+
 	return FunctionParams{}, false
 }
 
@@ -114,4 +120,31 @@ func mustLoadFuncs() map[ast.LibraryVersion]FunctionsSignatures {
 		res[ast.LibraryVersion(byte(v+1))] = funcsInVersion
 	}
 	return res
+}
+
+// handleTemplateFuncs
+
+func getGenericFuncsSign(name string, args []Type, findFuncPar FunctionParams) FunctionParams {
+	switch name {
+	case "extract", "value", "valueOrErrorMessage":
+		var resType Type
+		if u, ok := args[0].(UnionType); ok {
+			resType = u.Types[0]
+		} else {
+			resType = args[0]
+		}
+		findFuncPar.ReturnType = resType
+	case "getElement":
+		l := args[0].(ListType)
+		findFuncPar.ReturnType = l.Type
+	case "removeByIndex":
+		findFuncPar.ReturnType = args[0]
+	case "cons":
+		l := args[1].(ListType)
+		l.AppendType(args[0])
+		findFuncPar.ReturnType = l
+	case "valueOrElse":
+		findFuncPar.ReturnType = args[1]
+	}
+	return findFuncPar
 }

@@ -14,7 +14,7 @@ ScriptRoot <- _ (Directive _)* (_ Declaration)* _ Expr _ EOF
 # Whitespaces and new line symbols
 WS <- [ \t]
 EOL <- [\n\r\f]
-Comment <- '#' [^\r^\n]*
+Comment <- '#' [^\r\n]*
 _ <- (Comment / (WS / EOL)+)*
 
 EOF <- !.
@@ -131,11 +131,11 @@ FunctionCall <- Identifier '(' _ ExprSeq? _ ')'
 FoldMacro <- 'FOLD' _ '<' _ Integer _ '>' _ '(' _ Expr _ ',' _ Expr _ ',' _ Identifier _ ')'
 
 IfWithError <- If / FailedIfWithoutElse
-If <- 'if' _ Expr _ 'then' _ Expr _ 'else' _ Expr
-FailedIfWithoutElse <- 'if' _ Expr _ 'then' _ Expr
+If <- 'if' _ Expr _ 'then' _ (Expr / BlockWithoutPar) _ 'else' _ (Expr / BlockWithoutPar)
+FailedIfWithoutElse <- 'if' _ Expr _ 'then' _ (Expr / BlockWithoutPar)
 
 Match <- 'match' _ Expr _ '{' (_ Case)+ _ '}'
-Case <- 'case' _ (ValuePattern / TuplePattern / ObjectPattern / Placeholder) _ '=>' _ (Block / BlockWithoutPar)
+Case <- 'case' _ (ValuePattern / TuplePattern / ObjectPattern / Placeholder / Expr) _ '=>' _ (Block / BlockWithoutPar)
 Placeholder <- '_'
 ValuePattern <- (Placeholder / Identifier) _ ':' _ Types
 TupleValuesPattern <- (ValuePattern / Placeholder / Identifier / Expr / GettableExpr) (_ ',' _ TupleValuesPattern)?
@@ -143,6 +143,6 @@ TuplePattern <- '(' _ TupleValuesPattern _ ')'
 ObjectFieldsPattern <- (Identifier _ '=' _ (Identifier / Expr)) (_ ',' _ ObjectFieldsPattern)?
 ObjectPattern <- Identifier _ '('_ ObjectFieldsPattern? _ ')'
 
-Tuple <- '(' _ AtomExpr (_ ',' _ AtomExpr)+ _ ')'
+Tuple <- '(' _ Expr (_ ',' _ Expr)+ _ ')'
 TupleRef <- '(' _ Identifier (_ ',' _ Identifier)+ _ ')'
 TupleAccess <- '_' [0-9]+

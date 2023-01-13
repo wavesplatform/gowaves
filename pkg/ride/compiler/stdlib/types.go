@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 var DefaultTypes = mustLoadDefaultTypes()
@@ -98,14 +97,14 @@ func handleTypes(node *node32, t string) Type {
 	}
 
 	resType := UnionType{Types: []Type{}}
-	resType.AppendType(T)
+	resType.Types = append(resType.Types, T)
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	resType.AppendType(handleTypes(curNode, t))
+	resType.Types = append(resType.Types, handleTypes(curNode, t))
 	return resType
 }
 
@@ -157,6 +156,8 @@ func (t SimpleType) Comp(rideType Type) bool {
 			if T.Type != "Unknown" {
 				return true
 			}
+		} else {
+			return true
 		}
 	}
 	if _, ok := rideType.(UnionType); ok {
@@ -214,6 +215,9 @@ func (t *UnionType) AppendType(rideType Type) {
 	if newT, ok := rideType.(UnionType); ok {
 		var newTypes []Type
 		for _, newType := range newT.Types {
+			if len(t.Types) == 0 {
+				newTypes = append(newTypes, newType)
+			}
 			for _, existType := range t.Types {
 				if !newType.Comp(existType) {
 					newTypes = append(newTypes, newType)
@@ -230,15 +234,15 @@ func (t *UnionType) AppendType(rideType Type) {
 		t.Types = append(t.Types, rideType)
 		return
 	}
+	if rideType.Comp(ThrowType) {
+		return
+	}
 	for _, existType := range t.Types {
-		if rideType.Comp(ThrowType) {
-			continue
-		}
-		if !rideType.Comp(existType) {
-			t.Types = append(t.Types, rideType)
+		if rideType.Comp(existType) {
 			return
 		}
 	}
+	t.Types = append(t.Types, rideType)
 }
 
 func (t UnionType) String() string {
@@ -260,6 +264,12 @@ type ListType struct {
 
 func (t ListType) Comp(rideType Type) bool {
 	if T, ok := rideType.(ListType); ok {
+		if t.Type == nil {
+			return false
+		}
+		if T.Type == nil {
+			return true
+		}
 		return t.Type.Comp(T.Type)
 	}
 	return false
@@ -346,6 +356,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[ast.LibraryVersion(byte(i))]["HalfEven"] = SimpleType{Type: "HalfEven"}
 		res[ast.LibraryVersion(byte(i))]["Down"] = SimpleType{Type: "Down"}
 		res[ast.LibraryVersion(byte(i))]["Floor"] = SimpleType{Type: "Floor"}
+		res[ast.LibraryVersion(byte(i))]["Any"] = SimpleType{Type: "Any"}
 	}
 	for i := int(ast.LibV1); i <= int(ast.LibV4); i++ {
 		res[ast.LibraryVersion(byte(i))]["HalfDown"] = SimpleType{Type: "HalfDown"}
@@ -362,7 +373,76 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 	}
 	for i := int(ast.LibV5); i <= int(ast.LibV6); i++ {
 		res[ast.LibraryVersion(byte(i))]["BigInt"] = BigIntType
+
 	}
+	res[ast.LibV1]["Transaction"] = UnionType{Types: []Type{
+		SimpleType{"ReissueTransaction"},
+		SimpleType{"BurnTransaction"},
+		SimpleType{"MassTransferTransaction"},
+		SimpleType{"ExchangeTransaction"},
+		SimpleType{"TransferTransaction"},
+		SimpleType{"SetAssetScriptTransaction"},
+		SimpleType{"IssueTransaction"},
+		SimpleType{"LeaseTransaction"},
+		SimpleType{"LeaseCancelTransaction"},
+		SimpleType{"CreateAliasTransaction"},
+		SimpleType{"SetScriptTransaction"},
+		SimpleType{"SponsorFeeTransaction"},
+		SimpleType{"DataTransaction"},
+	}}
+	res[ast.LibV2]["Transaction"] = res[ast.LibV1]["Transaction"]
+	res[ast.LibV3]["Transaction"] = UnionType{Types: []Type{
+		SimpleType{"ReissueTransaction"},
+		SimpleType{"BurnTransaction"},
+		SimpleType{"MassTransferTransaction"},
+		SimpleType{"ExchangeTransaction"},
+		SimpleType{"TransferTransaction"},
+		SimpleType{"SetAssetScriptTransaction"},
+		SimpleType{"InvokeScriptTransaction"},
+		SimpleType{"IssueTransaction"},
+		SimpleType{"LeaseTransaction"},
+		SimpleType{"LeaseCancelTransaction"},
+		SimpleType{"CreateAliasTransaction"},
+		SimpleType{"SetScriptTransaction"},
+		SimpleType{"SponsorFeeTransaction"},
+		SimpleType{"DataTransaction"},
+	}}
+	res[ast.LibV4]["Transaction"] = UnionType{Types: []Type{
+		SimpleType{"ReissueTransaction"},
+		SimpleType{"BurnTransaction"},
+		SimpleType{"MassTransferTransaction"},
+		SimpleType{"ExchangeTransaction"},
+		SimpleType{"TransferTransaction"},
+		SimpleType{"SetAssetScriptTransaction"},
+		SimpleType{"InvokeScriptTransaction"},
+		SimpleType{"UpdateAssetInfoTransaction"},
+		SimpleType{"IssueTransaction"},
+		SimpleType{"LeaseTransaction"},
+		SimpleType{"LeaseCancelTransaction"},
+		SimpleType{"CreateAliasTransaction"},
+		SimpleType{"SetScriptTransaction"},
+		SimpleType{"SponsorFeeTransaction"},
+		SimpleType{"DataTransaction"},
+	}}
+	res[ast.LibV5]["Transaction"] = res[ast.LibV4]["Transaction"]
+	res[ast.LibV6]["Transaction"] = UnionType{Types: []Type{
+		SimpleType{"ReissueTransaction"},
+		SimpleType{"BurnTransaction"},
+		SimpleType{"MassTransferTransaction"},
+		SimpleType{"ExchangeTransaction"},
+		SimpleType{"TransferTransaction"},
+		SimpleType{"SetAssetScriptTransaction"},
+		SimpleType{"InvokeScriptTransaction"},
+		SimpleType{"UpdateAssetInfoTransaction"},
+		SimpleType{"InvokeExpressionTransaction"},
+		SimpleType{"IssueTransaction"},
+		SimpleType{"LeaseTransaction"},
+		SimpleType{"LeaseCancelTransaction"},
+		SimpleType{"CreateAliasTransaction"},
+		SimpleType{"SetScriptTransaction"},
+		SimpleType{"SponsorFeeTransaction"},
+		SimpleType{"DataTransaction"},
+	}}
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
@@ -406,6 +486,7 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 	if err = jsonParser.Decode(s); err != nil {
 		panic(err)
 	}
+	appendRemainingStructs(s)
 	loadNonConfigTypes(res)
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
@@ -418,11 +499,6 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 			}
 			for i := int(ver.LibVersion); i <= maxVer; i++ {
 				res[ast.LibraryVersion(byte(i))][obj.Name] = SimpleType{Type: obj.Name}
-				if strings.HasSuffix(obj.Name, "Transaction") {
-					tx := res[ast.LibraryVersion(byte(i))]["Transaction"].(UnionType)
-					tx.AppendType(SimpleType{Type: obj.Name})
-					res[ast.LibraryVersion(byte(i))]["Transaction"] = tx
-				}
 			}
 		}
 	}

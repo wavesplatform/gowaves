@@ -72,6 +72,26 @@ func (s *ObjectsSignatures) GetConstruct(name string, args []Type) (FunctionPara
 }
 
 func (s *ObjectsSignatures) GetField(objType Type, fieldName string) (Type, bool) {
+	if u, okU := objType.(UnionType); okU {
+		resType := UnionType{Types: []Type{}}
+		for _, t := range u.Types {
+			fieldType, ok := s.getFieldForSimpleType(t, fieldName)
+			if !ok {
+				return nil, false
+			}
+			resType.AppendType(fieldType)
+		}
+		if len(resType.Types) == 1 {
+			return resType.Types[0], true
+		} else {
+			return resType, true
+		}
+	}
+
+	return s.getFieldForSimpleType(objType, fieldName)
+}
+
+func (s *ObjectsSignatures) getFieldForSimpleType(objType Type, fieldName string) (Type, bool) {
 	t, ok := objType.(SimpleType)
 	if !ok {
 		return nil, false
@@ -152,6 +172,9 @@ func appendRemainingStructs(s *rideObjects) {
 func changeName(name string) string {
 	if name == "assetID" {
 		return "assetId"
+	}
+	if name == "transactionID" {
+		return "transactionId"
 	}
 	return name
 }
