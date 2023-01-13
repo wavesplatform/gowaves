@@ -5496,7 +5496,7 @@ func TestSetScriptWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		s, _ := base58.Decode(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, TestNetScheme, spk, s, tc.fee, 0)
+		tx := NewUnsignedSetScriptWithProofs(1, spk, s, tc.fee, 0)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -5520,7 +5520,7 @@ func TestSetScriptWithProofsFromMainNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, tc.scheme, spk, s, tc.fee, tc.timestamp)
+		tx := NewUnsignedSetScriptWithProofs(1, spk, s, tc.fee, tc.timestamp)
 		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -5545,7 +5545,7 @@ func TestSetScriptWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
+		tx := NewUnsignedSetScriptWithProofs(1, pk, s, tc.fee, ts)
 		err = tx.GenerateID(tc.chainID)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
@@ -5585,7 +5585,7 @@ func TestSetScriptWithProofsBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
+		tx := NewUnsignedSetScriptWithProofs(1, pk, s, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(tc.chainID)
@@ -5609,14 +5609,13 @@ func TestSetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
+		tx := NewUnsignedSetScriptWithProofs(1, pk, s, tc.fee, ts)
 		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetScriptWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, tc.chainID); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.ElementsMatch(t, tx.Script, atx.Script)
 				assert.Equal(t, tx.Fee, atx.Fee)
 				assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -5632,7 +5631,6 @@ func TestSetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
-				assert.Equal(t, tc.chainID, atx.ChainID)
 				assert.Equal(t, tc.script, base64.StdEncoding.EncodeToString(atx.Script))
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)
@@ -5657,7 +5655,7 @@ func TestSetScriptWithProofsToJSON(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
 		require.NoError(t, err)
-		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
+		tx := NewUnsignedSetScriptWithProofs(1, pk, s, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":13,\"version\":1,\"senderPublicKey\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.script, tc.fee, ts)
 			assert.Equal(t, ej, string(j))

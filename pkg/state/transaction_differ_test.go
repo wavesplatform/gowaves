@@ -1085,7 +1085,7 @@ func createSetScriptWithProofs(t *testing.T, customScriptBytes ...[]byte) *proto
 	}
 	feeConst, ok := feeConstants[proto.SetScriptTransaction]
 	assert.Equal(t, ok, true)
-	tx := proto.NewUnsignedSetScriptWithProofs(1, proto.TestNetScheme, testGlobal.senderInfo.pk, scriptBytes, FeeUnit*feeConst, defaultTimestamp)
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk, scriptBytes, FeeUnit*feeConst, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

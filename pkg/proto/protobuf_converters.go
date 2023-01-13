@@ -1005,7 +1005,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &SetScriptWithProofs{
 			Type:      SetScriptTransaction,
 			Version:   v,
-			ChainID:   scheme,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
 			Script:    c.script(d.SetScript.Script),
 			Fee:       c.amount(tx.Fee),
