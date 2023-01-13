@@ -1038,7 +1038,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &InvokeExpressionTransactionWithProofs{
 			Type:       InvokeExpressionTransaction,
 			Version:    v,
-			ChainID:    scheme,
 			SenderPK:   c.publicKey(tx.SenderPublicKey),
 			FeeAsset:   feeAsset,
 			Fee:        feeAmount,

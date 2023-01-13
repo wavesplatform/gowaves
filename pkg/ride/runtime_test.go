@@ -285,7 +285,7 @@ func makeInvokeExpressionTransactionObject(t *testing.T, sig, senderPublicKey, f
 	require.NoError(t, err)
 	expr, err := base58.Decode(expression)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedInvokeExpressionWithProofs(2, proto.TestNetScheme, senderPK, expr, *fa, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedInvokeExpressionWithProofs(2, senderPK, expr, *fa, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

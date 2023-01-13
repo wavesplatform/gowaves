@@ -4934,7 +4934,6 @@ type InvokeExpressionTransactionWithProofs struct {
 	ID         *crypto.Digest   `json:"id,omitempty"`
 	Type       TransactionType  `json:"type"`
 	Version    byte             `json:"version,omitempty"`
-	ChainID    byte             `json:"-"`
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	Fee        uint64           `json:"fee"`
 	FeeAsset   OptionalAsset    `json:"feeAssetId"`
@@ -4944,11 +4943,10 @@ type InvokeExpressionTransactionWithProofs struct {
 }
 
 // NewUnsignedInvokeExpressionWithProofs creates new unsigned InvokeExpressionTransactionWithProofs transaction.
-func NewUnsignedInvokeExpressionWithProofs(v, chain byte, senderPK crypto.PublicKey, expression B64Bytes, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeExpressionTransactionWithProofs {
+func NewUnsignedInvokeExpressionWithProofs(v byte, senderPK crypto.PublicKey, expression B64Bytes, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeExpressionTransactionWithProofs {
 	return &InvokeExpressionTransactionWithProofs{
 		Type:       InvokeExpressionTransaction,
 		Version:    v,
-		ChainID:    chain,
 		SenderPK:   senderPK,
 		FeeAsset:   feeAsset,
 		Fee:        fee,
@@ -5007,9 +5005,6 @@ func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transa
 	}
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
-	}
-	if tx.ChainID != scheme {
-		return tx, errors.New("the chain id of InvokeExpressionWithProofs is not equal to network byte")
 	}
 	return tx, nil
 }

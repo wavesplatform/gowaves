@@ -1224,14 +1224,7 @@ func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 }
 
 func createInvokeExpressionWithProofs(t *testing.T, expression proto.B64Bytes, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeExpressionTransactionWithProofs {
-	tx := proto.NewUnsignedInvokeExpressionWithProofs(1,
-		'W',
-		testGlobal.senderInfo.pk,
-		expression,
-		feeAsset,
-		fee,
-		defaultTimestamp,
-	)
+	tx := proto.NewUnsignedInvokeExpressionWithProofs(1, testGlobal.senderInfo.pk, expression, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
