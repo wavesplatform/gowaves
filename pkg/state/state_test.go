@@ -346,12 +346,6 @@ func TestTransactionByID(t *testing.T) {
 	assert.Equal(t, correctTx, tx)
 }
 
-func TestStateManager_Mutex(t *testing.T) {
-	manager := newTestStateManager(t, true, DefaultTestingStateParams(), settings.MainNetSettings)
-	mu := manager.Mutex()
-	mu.Lock().Unlock()
-}
-
 func TestStateManager_TopBlock(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
