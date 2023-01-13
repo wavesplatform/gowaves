@@ -20,11 +20,14 @@ import (
 )
 
 var (
-	_digest                   = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
-	_asset                    = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
-	_empty                    = rideBytes(nil)
+	_digest                             = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
+	_asset                              = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
+	_empty                              = rideBytes(nil)
+	transactionToObjectWithSchemeTestFn = func(ver ast.LibraryVersion, scheme proto.Scheme, tx proto.Transaction) (rideType, error) {
+		return transactionToObject(ver, scheme, false, tx)
+	}
 	transactionToObjectTestFn = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObject(ver, proto.TestNetScheme, false, tx)
+		return transactionToObjectWithSchemeTestFn(ver, proto.TestNetScheme, tx)
 	}
 )
 
@@ -624,13 +627,17 @@ func TestNewVariablesFromReissueWithSig(t *testing.T) {
 
 type ReissueWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.ReissueWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.ReissueWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *ReissueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.ReissueWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *ReissueWithProofsTestSuite) Test_quantity() {
@@ -693,7 +700,7 @@ func (a *ReissueWithProofsTestSuite) Test_version() {
 func (a *ReissueWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
@@ -846,13 +853,17 @@ func TestNewVariablesFromBurnWithSig(t *testing.T) {
 
 type BurnWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.BurnWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.BurnWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *BurnWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.BurnWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *BurnWithProofsTestSuite) Test_quantity() {
@@ -906,7 +917,7 @@ func (a *BurnWithProofsTestSuite) Test_version() {
 func (a *BurnWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
@@ -1599,13 +1610,17 @@ func TestNewVariablesFromEthereumOrderV4(t *testing.T) {
 
 type SetAssetScriptWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.SetAssetScriptWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.SetAssetScriptWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.SetAssetScriptWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
@@ -1627,7 +1642,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID(proto.TestNetScheme)
+	id, err := a.tx.GetID(a.scheme)
 	a.NoError(err)
 	ID, err := rs.get(idField)
 	a.NoError(err)
@@ -1661,7 +1676,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_version() {
 func (a *SetAssetScriptWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
@@ -1869,13 +1884,17 @@ func TestNewVariablesInvocation(t *testing.T) {
 
 type InvokeScriptWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.InvokeScriptWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.InvokeScriptWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
@@ -1985,7 +2004,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_version() {
 func (a *InvokeScriptWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
@@ -2170,13 +2189,17 @@ func TestNewVariablesFromIssueWithSig(t *testing.T) {
 
 type IssueWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.IssueWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.IssueWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *IssueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.IssueWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *IssueWithProofsTestSuite) Test_quantity() {
@@ -2230,7 +2253,7 @@ func (a *IssueWithProofsTestSuite) Test_script() {
 func (a *IssueWithProofsTestSuite) Test_id() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	id, _ := a.tx.GetID(proto.TestNetScheme)
+	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
 	a.Equal(rideBytes(id), ID)
@@ -2263,7 +2286,7 @@ func (a *IssueWithProofsTestSuite) Test_version() {
 func (a *IssueWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
@@ -2620,13 +2643,17 @@ func TestNewVariablesFromLeaseCancelWithSig(t *testing.T) {
 
 type LeaseCancelWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.LeaseCancelWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	tx     *proto.LeaseCancelWithProofs
+	scheme proto.Scheme
+	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseCancelWithProofs.Transaction.Clone()
-	a.f = transactionToObjectTestFn
+	a.scheme = proto.MainNetScheme
+	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	}
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
@@ -2640,7 +2667,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 func (a *LeaseCancelWithProofsTestSuite) Test_id() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	id, _ := a.tx.GetID(proto.TestNetScheme)
+	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
 	a.Equal(rideBytes(id), ID)
@@ -2673,7 +2700,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_version() {
 func (a *LeaseCancelWithProofsTestSuite) Test_sender() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
 	sender, err := rs.get(senderField)
 	a.NoError(err)
