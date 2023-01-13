@@ -93,7 +93,7 @@ func makeBurnTransactionObject(t *testing.T, sig, senderPublicKey, assetID strin
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedBurnWithProofs(2, proto.TestNetScheme, senderPK, asset, uint64(amount), uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedBurnWithProofs(2, senderPK, asset, uint64(amount), uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

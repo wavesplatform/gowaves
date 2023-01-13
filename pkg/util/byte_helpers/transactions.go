@@ -460,7 +460,7 @@ func initBurnWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedBurnWithProofs(2, proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
+	t := proto.NewUnsignedBurnWithProofs(2, pk, d, 100000, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {

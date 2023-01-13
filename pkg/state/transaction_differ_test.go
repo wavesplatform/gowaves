@@ -346,7 +346,7 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 }
 
 func createBurnWithProofs(t *testing.T) *proto.BurnWithProofs {
-	tx := proto.NewUnsignedBurnWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
+	tx := proto.NewUnsignedBurnWithProofs(2, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

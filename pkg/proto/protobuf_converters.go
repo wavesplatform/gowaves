@@ -850,7 +850,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &BurnWithProofs{
 				Type:    BurnTransaction,
 				Version: v,
-				ChainID: scheme,
 				Burn:    pb,
 			}
 		} else {

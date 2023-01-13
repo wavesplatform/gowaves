@@ -954,7 +954,6 @@ func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 type BurnWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ChainID byte            `json:"-"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
@@ -1063,7 +1062,7 @@ func (tx *BurnWithProofs) Clone() *BurnWithProofs {
 }
 
 // NewUnsignedBurnWithProofs creates new BurnWithProofs transaction without proofs and ID.
-func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnWithProofs {
+func NewUnsignedBurnWithProofs(v byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnWithProofs {
 	b := Burn{
 		SenderPK:  senderPK,
 		AssetID:   assetID,
@@ -1071,7 +1070,7 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
+	return &BurnWithProofs{Type: BurnTransaction, Version: v, Burn: b}
 }
 
 func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
@@ -1082,15 +1081,16 @@ func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !ok {
 		return tx, err
 	}
-	//TODO: check current blockchain scheme
+	// we don't need to validate scheme here because scheme is included in binary representation of tx
+	// so if scheme is invalid == signature is invalid
 	return tx, nil
 }
 
-func (tx *BurnWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *BurnWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := make([]byte, burnWithProofsBodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
-	buf[2] = tx.ChainID
+	buf[2] = scheme
 	b, err := tx.Burn.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs body")
@@ -1099,7 +1099,7 @@ func (tx *BurnWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithProofsBodyLen {
 		return errors.Errorf("%d bytes is not enough for BurnWithProofs transaction, expected not less then %d bytes", l, burnWithProofsBodyLen)
 	}
@@ -1111,7 +1111,9 @@ func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if v := tx.Version; v < 2 {
 		return errors.Errorf("unexpected version %d for BurnWithProofs transaction", v)
 	}
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	var b Burn
 	err := b.UnmarshalBinary(data[3:])
 	if err != nil {
@@ -1181,7 +1183,7 @@ func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal BurnWithProofs transaction from bytes")
 	}

@@ -2151,7 +2151,7 @@ func TestBurnWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		tx := NewUnsignedBurnWithProofs(2, tc.chain, spk, aid, tc.amount, 0, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, spk, aid, tc.amount, 0, tc.fee)
 		_, err := tx.Validate(tc.chain)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -2179,7 +2179,7 @@ func TestBurnWithProofsFromMainNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
-		tx := NewUnsignedBurnWithProofs(2, scheme, spk, aid, tc.amount, tc.timestamp, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, spk, aid, tc.amount, tc.timestamp, tc.fee)
 		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -2204,7 +2204,7 @@ func TestBurnWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedBurnWithProofs(2, 'T', pk, aid, tc.amount, ts, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, pk, aid, tc.amount, ts, tc.fee)
 		err = tx.GenerateID(TestNetScheme)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(TestNetScheme); assert.NoError(t, err) {
@@ -2244,7 +2244,7 @@ func TestBurnWithProofsBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedBurnWithProofs(2, 'T', pk, aid, tc.amount, ts, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, pk, aid, tc.amount, ts, tc.fee)
 		err := tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(TestNetScheme)
@@ -2268,13 +2268,12 @@ func TestBurnWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedBurnWithProofs(2, TestNetScheme, pk, aid, tc.amount, ts, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, pk, aid, tc.amount, ts, tc.fee)
 		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx BurnWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
 				assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
 				assert.Equal(t, tx.Amount, atx.Amount)
@@ -2316,7 +2315,7 @@ func TestBurnWithProofsToJSON(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().Unix() * 1000)
-		tx := NewUnsignedBurnWithProofs(2, 'T', pk, aid, tc.amount, ts, tc.fee)
+		tx := NewUnsignedBurnWithProofs(2, pk, aid, tc.amount, ts, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":6,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
 			assert.Equal(t, ej, string(j))
