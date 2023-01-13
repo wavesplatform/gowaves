@@ -328,7 +328,7 @@ func TestPaymentFromMainNet(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, *tx, at)
 
-			signable, err := tx.BodyMarshalBinary()
+			signable, err := tx.BodyMarshalBinary(TestNetScheme)
 			require.NoError(t, err)
 			require.True(t, crypto.Verify(spk, *tx.Signature, signable))
 		}
@@ -416,7 +416,7 @@ func TestIssueWithSigFromMainNet(t *testing.T) {
 		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
 		if assert.NoError(t, err) {
 			tx := NewUnsignedIssueWithSig(spk, "WBTC", "Bitcoin Token", 2100000000000000, 8, false, 1480690876160, 100000000)
-			if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+			if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 				h, err := crypto.FastHash(b)
 				if assert.NoError(t, err) {
 					assert.Equal(t, tc.id, base58.Encode(h[:]))
@@ -531,7 +531,7 @@ func TestIssueWithSigBinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedIssueWithSig(pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.ts, tc.fee)
-		b, err := tx.BodyMarshalBinary()
+		b, err := tx.BodyMarshalBinary(TestNetScheme)
 		assert.NoError(t, err)
 		var at IssueWithSig
 		if err := at.bodyUnmarshalBinary(b); assert.NoError(t, err) {
@@ -637,6 +637,8 @@ func TestIssueWithProofsValidations(t *testing.T) {
 }
 
 func TestIssueWithProofsFromMainNet(t *testing.T) {
+	const scheme = MainNetScheme
+
 	tests := []struct {
 		pk         string
 		sig        string
@@ -657,8 +659,8 @@ func TestIssueWithProofsFromMainNet(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		tx := NewUnsignedIssueWithProofs(2, 'W', spk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, []byte{}, tc.timestamp, tc.fee)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		tx := NewUnsignedIssueWithProofs(2, scheme, spk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, []byte{}, tc.timestamp, tc.fee)
+		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -719,7 +721,7 @@ func TestIssueWithProofsBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedIssueWithProofs(2, tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx IssueWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -1002,7 +1004,7 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		att := Attachment(tc.attachment)
 		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -1090,7 +1092,7 @@ func TestTransferWithSigFromMainNet(t *testing.T) {
 		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, att)
 		tx.Signature = &sig
 		tx.ID = &id
-		b, err := tx.BodyMarshalBinary()
+		b, err := tx.BodyMarshalBinary(TestNetScheme)
 		require.NoError(t, err)
 		h, _ := crypto.FastHash(b)
 		assert.Equal(t, *tx.ID, h)
@@ -1206,7 +1208,7 @@ func TestTransferWithProofsFromMainNet(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.attachment)
 		tx := NewUnsignedTransferWithProofs(2, spk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, att)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -1399,7 +1401,7 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.attachment)
 		tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithProofs
 			if err := atx.BodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -1590,7 +1592,7 @@ func TestReissueWithSigFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedReissueWithSig(spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -1682,7 +1684,7 @@ func TestReissueWithSigBinaryRoundTrip(t *testing.T) {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedReissueWithSig(pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ReissueWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -1795,7 +1797,7 @@ func TestReissueWithProofsFromMainNetAndTestNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedReissueWithProofs(2, tc.chain, spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -1890,7 +1892,7 @@ func TestReissueWithProofsBinaryRoundTrip(t *testing.T) {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx ReissueWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -1997,7 +1999,7 @@ func TestBurnWithSigFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedBurnWithSig(spk, aid, tc.amount, tc.timestamp, tc.fee)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -2156,6 +2158,8 @@ func TestBurnWithProofsValidations(t *testing.T) {
 }
 
 func TestBurnWithProofsFromMainNet(t *testing.T) {
+	const scheme = MainNetScheme
+
 	tests := []struct {
 		pk        string
 		sig       string
@@ -2175,8 +2179,8 @@ func TestBurnWithProofsFromMainNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
-		tx := NewUnsignedBurnWithProofs(2, 'W', spk, aid, tc.amount, tc.timestamp, tc.fee)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		tx := NewUnsignedBurnWithProofs(2, scheme, spk, aid, tc.amount, tc.timestamp, tc.fee)
+		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -2264,8 +2268,8 @@ func TestBurnWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedBurnWithProofs(2, 'T', pk, aid, tc.amount, ts, tc.fee)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		tx := NewUnsignedBurnWithProofs(2, TestNetScheme, pk, aid, tc.amount, ts, tc.fee)
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx BurnWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -2490,7 +2494,7 @@ func TestExchangeWithSigFromMainNet(t *testing.T) {
 		so.ID = &sID
 		so.Signature = &sSig
 		tx := NewUnsignedExchangeWithSig(bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -2626,7 +2630,7 @@ func TestExchangeWithSigBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithSig
 			if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -2842,7 +2846,7 @@ func TestExchangeWithProofsFromTestNet(t *testing.T) {
 		so.ID = &sID
 		so.Signature = &sSig
 		tx := NewUnsignedExchangeWithProofs(2, bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3007,7 +3011,7 @@ func TestExchangeWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedExchangeWithProofs(2, tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithProofs
 			if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -3636,7 +3640,7 @@ func TestLeaseWithSigFromMainNet(t *testing.T) {
 		require.NoError(t, err)
 		rcp := NewRecipientFromAddress(addr)
 		tx := NewUnsignedLeaseWithSig(spk, rcp, tc.amount, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3731,7 +3735,7 @@ func TestLeaseWithSigBinaryRoundTrip(t *testing.T) {
 		rcp := NewRecipientFromAddress(addr)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedLeaseWithSig(pk, rcp, tc.amount, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -3846,7 +3850,7 @@ func TestLeaseWithProofsFromMainNet(t *testing.T) {
 		require.NoError(t, err)
 		rcp := NewRecipientFromAddress(addr)
 		tx := NewUnsignedLeaseWithProofs(2, spk, rcp, tc.amount, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3941,7 +3945,7 @@ func TestLeaseWithProofsBinaryRoundTrip(t *testing.T) {
 		rcp := NewRecipientFromAddress(addr)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedLeaseWithProofs(2, pk, rcp, tc.amount, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4039,7 +4043,7 @@ func TestLeaseCancelWithSigFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithSig(spk, l, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -4125,7 +4129,7 @@ func TestLeaseCancelWithSigBinaryRoundTrip(t *testing.T) {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedLeaseCancelWithSig(pk, l, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4202,6 +4206,8 @@ func TestLeaseCancelWithProofsValidations(t *testing.T) {
 }
 
 func TestLeaseCancelWithProofsFromMainNet(t *testing.T) {
+	const scheme = MainNetScheme
+
 	tests := []struct {
 		pk        string
 		sig       string
@@ -4218,8 +4224,8 @@ func TestLeaseCancelWithProofsFromMainNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'W', spk, l, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		tx := NewUnsignedLeaseCancelWithProofs(2, scheme, spk, l, tc.fee, tc.timestamp)
+		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -4305,8 +4311,8 @@ func TestLeaseCancelWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', pk, l, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		tx := NewUnsignedLeaseCancelWithProofs(2, TestNetScheme, pk, l, tc.fee, ts)
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4400,7 +4406,7 @@ func TestCreateAliasWithSigFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithSig(spk, *a, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := tx.id(); assert.NoError(t, err) {
 				assert.Equal(t, id, *h)
 			}
@@ -4489,7 +4495,7 @@ func TestCreateAliasWithSigBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithSig(pk, *a, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4618,7 +4624,7 @@ func TestCreateAliasWithProofsFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, spk, *a, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := tx.id(); assert.NoError(t, err) {
 				assert.Equal(t, id, *h)
 			}
@@ -4683,7 +4689,7 @@ func TestCreateAliasWithProofsBinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, pk, *a, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4718,7 +4724,7 @@ func TestCreateAliasWithProofsBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, pk, *a, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -4870,7 +4876,7 @@ func TestMassTransferWithProofsFromMainNet(t *testing.T) {
 		}
 		att := []byte(tc.attachment)
 		tx := NewUnsignedMassTransferWithProofs(1, spk, *a, transfers, tc.fee, tc.timestamp, att)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -4971,7 +4977,7 @@ func TestMassTransferWithProofsBinaryRoundTrip(t *testing.T) {
 		a, _ := NewOptionalAssetFromString(tc.asset)
 		att := Attachment(tc.attachment)
 		tx := NewUnsignedMassTransferWithProofs(1, pk, *a, tc.transfers, tc.fee, ts, att)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx MassTransferWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -5184,7 +5190,7 @@ func TestDataWithProofsFromMainNet(t *testing.T) {
 			err := tx.AppendEntry(e)
 			require.NoError(t, err)
 		}
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -5327,7 +5333,7 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 			err := tx.AppendEntry(e)
 			assert.NoError(t, err)
 		}
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx DataWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -5519,7 +5525,7 @@ func TestSetScriptWithProofsFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetScriptWithProofs(1, tc.scheme, spk, s, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -5608,7 +5614,7 @@ func TestSetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetScriptWithProofs(1, tc.chainID, pk, s, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetScriptWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -5709,7 +5715,7 @@ func TestSponsorshipWithProofsFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedSponsorshipWithProofs(1, spk, a, tc.assetFee, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(MainNetScheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -5798,7 +5804,7 @@ func TestSponsorshipWithProofsBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedSponsorshipWithProofs(1, pk, a, tc.assetFee, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx SponsorshipWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -5901,7 +5907,7 @@ func TestSetAssetScriptWithProofsFromMainNet(t *testing.T) {
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.scheme, spk, a, s, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -5996,7 +6002,7 @@ func TestSetAssetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetAssetScriptWithProofs(1, tc.chainID, pk, a, s, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx SetAssetScriptWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -6146,7 +6152,7 @@ func TestInvokeScriptWithProofsFromTestNet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, tc.payments, string(pjs))
 		tx := NewUnsignedInvokeScriptWithProofs(1, tc.scheme, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
-		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -6274,7 +6280,7 @@ func TestInvokeScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
 		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx InvokeScriptWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

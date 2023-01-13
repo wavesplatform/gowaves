@@ -307,7 +307,7 @@ func (tx *EthereumTransaction) UnmarshalBinary(_ []byte, _ Scheme) error {
 	return errors.New("EthereumTransaction does not support 'UnmarshalBinary' method.")
 }
 
-func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
+func (tx *EthereumTransaction) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return nil, errors.New("EthereumTransaction does not support 'BodyMarshalBinary' method.")
 }
 
