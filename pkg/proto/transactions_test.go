@@ -6095,7 +6095,7 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
-		tx := NewUnsignedInvokeScriptWithProofs(tc.version, 'T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
+		tx := NewUnsignedInvokeScriptWithProofs(tc.version, spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -6143,7 +6143,7 @@ func TestInvokeScriptWithProofsFromTestNet(t *testing.T) {
 		pjs, err := json.Marshal(payments)
 		require.NoError(t, err)
 		assert.Equal(t, tc.payments, string(pjs))
-		tx := NewUnsignedInvokeScriptWithProofs(1, tc.scheme, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
+		tx := NewUnsignedInvokeScriptWithProofs(1, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
 		if b, err := tx.BodyMarshalBinary(tc.scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -6181,7 +6181,7 @@ func TestInvokeScriptWithProofsProtobufRoundTrip(t *testing.T) {
 		sps := ScriptPayments{}
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
-		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptWithProofs(1, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		err = tx.GenerateID(tc.chainID)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
@@ -6234,7 +6234,7 @@ func TestInvokeScriptWithProofsBinarySize(t *testing.T) {
 		sps := ScriptPayments{}
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
-		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptWithProofs(1, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		err = tx.Sign(tc.chainID, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(tc.chainID)
@@ -6271,14 +6271,13 @@ func TestInvokeScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		sps := ScriptPayments{}
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
-		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptWithProofs(1, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		if bb, err := tx.BodyMarshalBinary(tc.chainID); assert.NoError(t, err) {
 			var atx InvokeScriptWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, tc.chainID); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.Equal(t, tx.ScriptRecipient, atx.ScriptRecipient)
 				assert.Equal(t, tx.FunctionCall, atx.FunctionCall)
 				assert.Equal(t, tx.Payments, atx.Payments)
@@ -6297,7 +6296,6 @@ func TestInvokeScriptWithProofsBinaryRoundTrip(t *testing.T) {
 			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
-				assert.Equal(t, tc.chainID, atx.ChainID)
 				assert.Equal(t, *a, atx.FeeAsset)
 				assert.Equal(t, NewRecipientFromAddress(ad), atx.ScriptRecipient)
 				assert.Equal(t, sps, atx.Payments)
@@ -6341,7 +6339,7 @@ func TestInvokeScriptWithProofsToJSON(t *testing.T) {
 		if tc.feeAsset == "WAVES" {
 			feeAssetIDJSON = "null"
 		}
-		tx := NewUnsignedInvokeScriptWithProofs(1, tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptWithProofs(1, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":16,\"version\":1,\"senderPublicKey\":\"%s\",\"dApp\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
 			assert.Equal(t, ej, string(j))

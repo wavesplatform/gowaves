@@ -1137,16 +1137,7 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeScriptWithProofs {
-	tx := proto.NewUnsignedInvokeScriptWithProofs(1,
-		'W',
-		testGlobal.senderInfo.pk,
-		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr),
-		fc,
-		pmts,
-		feeAsset,
-		fee,
-		defaultTimestamp,
-	)
+	tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), fc, pmts, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

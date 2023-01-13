@@ -1056,7 +1056,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &InvokeScriptWithProofs{
 			Type:            InvokeScriptTransaction,
 			Version:         v,
-			ChainID:         scheme,
 			SenderPK:        c.publicKey(tx.SenderPublicKey),
 			ScriptRecipient: rcp,
 			FunctionCall:    c.functionCall(d.InvokeScript.FunctionCall),

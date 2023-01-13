@@ -1714,6 +1714,7 @@ type presenceCase struct {
 type InvocationTestSuite struct {
 	suite.Suite
 	tx             *proto.InvokeScriptWithProofs
+	scheme         proto.Scheme
 	f              func(ver ast.LibraryVersion, scheme byte, tx proto.Transaction) (rideType, error)
 	presenceChecks func(string, []presenceCase, rideType)
 }
@@ -1721,9 +1722,10 @@ type InvocationTestSuite struct {
 func (a *InvocationTestSuite) SetupTest() {
 	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	a.f = invocationToObject
+	a.scheme = proto.TestNetScheme
 	a.presenceChecks = func(fieldName string, cases []presenceCase, expected rideType) {
 		for _, testCase := range cases {
-			rs, err := a.f(testCase.v, a.tx.ChainID, a.tx)
+			rs, err := a.f(testCase.v, a.scheme, a.tx)
 			a.NoError(err, testCase.v)
 
 			fieldVal, err := rs.get(fieldName)
@@ -1786,7 +1788,7 @@ func (a *InvocationTestSuite) Test_transactionID() {
 }
 
 func (a *InvocationTestSuite) Test_caller() {
-	addr, err := a.tx.GetSender(a.tx.ChainID)
+	addr, err := a.tx.GetSender(a.scheme)
 	a.NoError(err)
 	expected, ok := addr.(proto.WavesAddress)
 	a.True(ok)
@@ -1832,7 +1834,7 @@ func (a *InvocationTestSuite) Test_payments() {
 }
 
 func (a *InvocationTestSuite) Test_originCaller() {
-	addr, err := a.tx.GetSender(a.tx.ChainID)
+	addr, err := a.tx.GetSender(a.scheme)
 	a.NoError(err)
 	expected, ok := addr.(proto.WavesAddress)
 	a.True(ok)

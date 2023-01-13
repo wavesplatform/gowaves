@@ -245,7 +245,7 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	pa, err := proto.NewOptionalAssetFromString(paymentAsset)
 	require.NoError(t, err)
 	ps := []proto.ScriptPayment{{Amount: uint64(paymentAmount), Asset: *pa}}
-	tx := proto.NewUnsignedInvokeScriptWithProofs(2, proto.TestNetScheme, senderPK, rcp, fc, ps, *fa, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedInvokeScriptWithProofs(2, senderPK, rcp, fc, ps, *fa, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

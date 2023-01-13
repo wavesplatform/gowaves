@@ -496,7 +496,6 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 		Version:         1,
 		ID:              makeRandomTxID(e.t),
 		Proofs:          proto.NewProofs(),
-		ChainID:         e.me.scheme(),
 		SenderPK:        e.sender.publicKey(),
 		ScriptRecipient: e.dApp.recipient(),
 		FunctionCall:    call,

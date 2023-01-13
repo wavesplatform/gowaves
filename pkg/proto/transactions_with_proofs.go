@@ -4336,7 +4336,6 @@ type InvokeScriptWithProofs struct {
 	Version         byte             `json:"version,omitempty"`
 	ID              *crypto.Digest   `json:"id,omitempty"`
 	Proofs          *ProofsV1        `json:"proofs,omitempty"`
-	ChainID         byte             `json:"-"`
 	SenderPK        crypto.PublicKey `json:"senderPublicKey"`
 	ScriptRecipient Recipient        `json:"dApp"`
 	FunctionCall    FunctionCall     `json:"call"`
@@ -4408,11 +4407,10 @@ func (tx *InvokeScriptWithProofs) Clone() *InvokeScriptWithProofs {
 }
 
 // NewUnsignedInvokeScriptWithProofs creates new unsigned InvokeScriptWithProofs transaction.
-func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptWithProofs {
+func NewUnsignedInvokeScriptWithProofs(v byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptWithProofs {
 	return &InvokeScriptWithProofs{
 		Type:            InvokeScriptTransaction,
 		Version:         v,
-		ChainID:         chain,
 		SenderPK:        senderPK,
 		ScriptRecipient: scriptRecipient,
 		FunctionCall:    call,
@@ -4447,18 +4445,19 @@ func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 			return tx, errors.New("at least one payment has a too big amount")
 		}
 	}
-	//TODO: check blockchain scheme and script type
+	// we don't need to validate scheme here because scheme is included in binary representation of tx
+	// so if scheme is invalid == signature is invalid
 	return tx, nil
 }
 
-func (tx *InvokeScriptWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *InvokeScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	p := 0
 	buf := make([]byte, invokeScriptWithProofsFixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.BinarySize()+tx.Payments.BinarySize()+tx.FeeAsset.BinarySize())
 	buf[p] = byte(tx.Type)
 	p++
 	buf[p] = tx.Version
 	p++
-	buf[p] = tx.ChainID
+	buf[p] = scheme
 	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
@@ -4498,53 +4497,15 @@ func (tx *InvokeScriptWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *InvokeScriptWithProofs) BodySerialize(s *serializer.Serializer) error {
-	err := s.Byte(byte(tx.Type))
-	if err != nil {
-		return err
-	}
-	err = s.Byte(tx.Version)
-	if err != nil {
-		return err
-	}
-	err = s.Byte(tx.ChainID)
-	if err != nil {
-		return err
-	}
-	err = s.Bytes(tx.SenderPK[:])
-	if err != nil {
-		return err
-	}
-	err = tx.ScriptRecipient.Serialize(s)
-	if err != nil {
-		return err
-	}
-	err = tx.FunctionCall.Serialize(s)
-	if err != nil {
-		return err
-	}
-	err = tx.Payments.Serialize(s)
-	if err != nil {
-		return err
-	}
-	err = s.Uint64(tx.Fee)
-	if err != nil {
-		return err
-	}
-	err = tx.FeeAsset.Serialize(s)
-	if err != nil {
-		return err
-	}
-	return s.Uint64(tx.Timestamp)
-}
-
-func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < invokeScriptWithProofsFixedBodyLen {
 		return errors.Errorf("not enough data for InvokeScriptWithProofs transaction, expected not less then %d, received %d", invokeScriptWithProofsFixedBodyLen, l)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	if tx.Type != InvokeScriptTransaction {
 		return errors.Errorf("unexpected transaction type %d for InvokeScriptWithProofs transaction", tx.Type)
 	}
@@ -4635,22 +4596,6 @@ func (tx *InvokeScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-// Serialize InvokeScriptWithProofs transaction to its bytes representation.
-func (tx *InvokeScriptWithProofs) Serialize(s *serializer.Serializer) error {
-	err := s.Byte(0)
-	if err != nil {
-		return err
-	}
-	err = tx.BodySerialize(s)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal InvokeScriptWithProofs transaction to bytes")
-	}
-	if tx.Proofs == nil {
-		return errors.New("failed to marshal InvokeScriptWithProofs transaction to bytes: no proofs")
-	}
-	return tx.Proofs.Serialize(s)
-}
-
 // UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
 func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if len(data) > maxInvokeScriptWithProofsBinaryTransactionsBytes {
@@ -4663,7 +4608,7 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) er
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction from bytes")
 	}
