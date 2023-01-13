@@ -2085,7 +2085,6 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 type LeaseCancelWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ChainID byte            `json:"chainId"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
@@ -2194,14 +2193,14 @@ func (tx *LeaseCancelWithProofs) Clone() *LeaseCancelWithProofs {
 }
 
 // NewUnsignedLeaseCancelWithProofs creates new LeaseCancelWithProofs transaction structure without a signature and an ID.
-func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelWithProofs {
+func NewUnsignedLeaseCancelWithProofs(v byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelWithProofs {
 	lc := LeaseCancel{
 		SenderPK:  senderPK,
 		LeaseID:   leaseID,
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
+	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, LeaseCancel: lc}
 }
 
 func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
@@ -2212,15 +2211,16 @@ func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !ok {
 		return tx, err
 	}
-	//TODO: add scheme validation
+	// we don't need to validate scheme here because scheme is included in binary representation of tx
+	// so if scheme is invalid == signature is invalid
 	return tx, nil
 }
 
-func (tx *LeaseCancelWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := make([]byte, leaseCancelWithProofsBodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
-	buf[2] = tx.ChainID
+	buf[2] = scheme
 	b, err := tx.LeaseCancel.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs to bytes")
@@ -2229,7 +2229,7 @@ func (tx *LeaseCancelWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseCancelWithProofsBodyLen {
 		return errors.Errorf("not enough data for LeaseCancelWithProofs transaction, expected not less then %d, received %d", leaseCancelWithProofsBodyLen, l)
 	}
@@ -2239,7 +2239,9 @@ func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte) error {
 
 	}
 	tx.Version = data[1]
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	var lc LeaseCancel
 	err := lc.UnmarshalBinary(data[3:])
 	if err != nil {
@@ -2309,7 +2311,7 @@ func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte, scheme Scheme) err
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs transaction from bytes")
 	}

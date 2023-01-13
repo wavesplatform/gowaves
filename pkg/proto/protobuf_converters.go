@@ -950,7 +950,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &LeaseCancelWithProofs{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
-				ChainID:     scheme,
 				LeaseCancel: plc,
 			}
 		} else {

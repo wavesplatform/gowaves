@@ -886,7 +886,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 }
 
 func createLeaseCancelWithProofs(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelWithProofs {
-	tx := proto.NewUnsignedLeaseCancelWithProofs(2, 'W', testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedLeaseCancelWithProofs(2, testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

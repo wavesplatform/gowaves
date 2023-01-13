@@ -336,7 +336,7 @@ func makeLeaseCancelTransactionObject(t *testing.T, sig, senderPublicKey, leaseI
 	require.NoError(t, err)
 	lease, err := crypto.NewDigestFromBase58(leaseID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedLeaseCancelWithProofs(2, proto.TestNetScheme, senderPK, lease, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedLeaseCancelWithProofs(2, senderPK, lease, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

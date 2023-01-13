@@ -770,12 +770,7 @@ func initLeaseCancelWithSig() {
 }
 
 func initLeaseCancelWithProofs() {
-	t := proto.NewUnsignedLeaseCancelWithProofs(
-		2,
-		proto.MainNetScheme,
-		pk,
-		Digest,
-		10000, TIMESTAMP)
+	t := proto.NewUnsignedLeaseCancelWithProofs(2, pk, Digest, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {

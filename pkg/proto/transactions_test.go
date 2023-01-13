@@ -4198,7 +4198,7 @@ func TestLeaseCancelWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', spk, l, tc.fee, 0)
+		tx := NewUnsignedLeaseCancelWithProofs(2, spk, l, tc.fee, 0)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -4223,7 +4223,7 @@ func TestLeaseCancelWithProofsFromMainNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
-		tx := NewUnsignedLeaseCancelWithProofs(2, scheme, spk, l, tc.fee, tc.timestamp)
+		tx := NewUnsignedLeaseCancelWithProofs(2, spk, l, tc.fee, tc.timestamp)
 		if b, err := tx.BodyMarshalBinary(scheme); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -4247,7 +4247,7 @@ func TestLeaseCancelWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', pk, l, tc.fee, ts)
+		tx := NewUnsignedLeaseCancelWithProofs(2, pk, l, tc.fee, ts)
 		err = tx.GenerateID(TestNetScheme)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(TestNetScheme); assert.NoError(t, err) {
@@ -4287,7 +4287,7 @@ func TestLeaseCancelWithProofsBinarySize(t *testing.T) {
 		const scheme = 'T'
 		l := crypto.MustDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, scheme, pk, l, tc.fee, ts)
+		tx := NewUnsignedLeaseCancelWithProofs(2, pk, l, tc.fee, ts)
 		err = tx.Sign(TestNetScheme, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(scheme)
@@ -4310,10 +4310,10 @@ func TestLeaseCancelWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, TestNetScheme, pk, l, tc.fee, ts)
+		tx := NewUnsignedLeaseCancelWithProofs(2, pk, l, tc.fee, ts)
 		if bb, err := tx.BodyMarshalBinary(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, TestNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
@@ -4354,14 +4354,14 @@ func TestLeaseCancelWithProofsToJSON(t *testing.T) {
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', pk, l, tc.fee, ts)
+		tx := NewUnsignedLeaseCancelWithProofs(2, pk, l, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":9,\"version\":2,\"chainId\":%d,\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", 'T', base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":9,\"version\":2,\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(TestNetScheme, sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"chainId\":%d,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-						'T', base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+					esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 					assert.Equal(t, esj, string(sj))
 				}
 			}
