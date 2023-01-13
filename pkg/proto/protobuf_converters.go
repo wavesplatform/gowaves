@@ -825,7 +825,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &ReissueWithProofs{
 				Type:    ReissueTransaction,
 				Version: v,
-				ChainID: scheme,
 				Reissue: pr,
 			}
 		} else {

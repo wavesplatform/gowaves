@@ -708,7 +708,6 @@ func (tx *TransferWithProofs) UnmarshalJSON(data []byte) error {
 type ReissueWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ChainID byte            `json:"-"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Reissue
@@ -817,7 +816,7 @@ func (tx *ReissueWithProofs) Clone() *ReissueWithProofs {
 }
 
 // NewUnsignedReissueWithProofs creates new ReissueWithProofs transaction without signature and ID.
-func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueWithProofs {
+func NewUnsignedReissueWithProofs(v byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueWithProofs {
 	r := Reissue{
 		SenderPK:   senderPK,
 		AssetID:    assetID,
@@ -826,7 +825,7 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 		Fee:        fee,
 		Timestamp:  timestamp,
 	}
-	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
+	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, Reissue: r}
 }
 
 func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
@@ -841,11 +840,11 @@ func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	return tx, nil
 }
 
-func (tx *ReissueWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
+func (tx *ReissueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := make([]byte, reissueWithProofsBodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
-	buf[2] = tx.ChainID
+	buf[2] = scheme
 	b, err := tx.Reissue.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs body")
@@ -854,7 +853,7 @@ func (tx *ReissueWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte) error {
+func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithProofsBodyLen {
 		return errors.Errorf("%d bytes is not enough for ReissueWithProofs transaction, expected not less then %d bytes", l, reissueWithProofsBodyLen)
 	}
@@ -866,7 +865,9 @@ func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if v := tx.Version; v < 2 {
 		return errors.Errorf("unexpected version %d for ReissueWithProofs transaction", v)
 	}
-	tx.ChainID = data[2]
+	if unmarshalledScheme := data[2]; unmarshalledScheme != scheme {
+		return errors.Errorf("scheme mismatch: got %d, want %d", unmarshalledScheme, scheme)
+	}
 	var r Reissue
 	err := r.UnmarshalBinary(data[3:])
 	if err != nil {
@@ -936,7 +937,7 @@ func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data, scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs transaction from bytes")
 	}

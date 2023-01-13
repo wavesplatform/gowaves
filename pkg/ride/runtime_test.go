@@ -76,7 +76,7 @@ func makeReissueTransactionObject(t *testing.T, sig, senderPublicKey, assetID st
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedReissueWithProofs(2, proto.TestNetScheme, senderPK, asset, uint64(quantity), reissuable, uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedReissueWithProofs(2, senderPK, asset, uint64(quantity), reissuable, uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)

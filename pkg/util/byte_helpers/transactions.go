@@ -400,7 +400,7 @@ func initReissueWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedReissueWithProofs(2, proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
+	t := proto.NewUnsignedReissueWithProofs(2, pk, d, 100000, true, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {

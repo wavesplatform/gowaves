@@ -294,7 +294,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 }
 
 func createReissueWithProofs(t *testing.T, feeUnits int) *proto.ReissueWithProofs {
-	tx := proto.NewUnsignedReissueWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	tx := proto.NewUnsignedReissueWithProofs(2, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

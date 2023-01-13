@@ -1761,7 +1761,7 @@ func TestReissueWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		tx := NewUnsignedReissueWithProofs(2, 'T', spk, aid, tc.quantity, false, 0, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, spk, aid, tc.quantity, false, 0, tc.fee)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -1794,7 +1794,7 @@ func TestReissueWithProofsFromMainNetAndTestNet(t *testing.T) {
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
-		tx := NewUnsignedReissueWithProofs(2, tc.chain, spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee)
 		if b, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1821,7 +1821,7 @@ func TestReissueWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		err = tx.GenerateID(tc.chain)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.chain); assert.NoError(t, err) {
@@ -1863,7 +1863,7 @@ func TestReissueWithProofsBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		err := tx.Sign(tc.chain, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary(tc.chain)
@@ -1889,13 +1889,12 @@ func TestReissueWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		if bb, err := tx.BodyMarshalBinary(tc.chain); assert.NoError(t, err) {
 			var atx ReissueWithProofs
-			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+			if err := atx.bodyUnmarshalBinary(bb, tc.chain); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
-				assert.Equal(t, tx.ChainID, atx.ChainID)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
 				assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
 				assert.Equal(t, tx.Reissuable, atx.Reissuable)
@@ -1941,7 +1940,7 @@ func TestReissueWithProofsToJSON(t *testing.T) {
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().Unix() * 1000)
-		tx := NewUnsignedReissueWithProofs(2, tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		tx := NewUnsignedReissueWithProofs(2, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":5,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}", base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
 			assert.Equal(t, ej, string(j))
