@@ -206,10 +206,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				zap.S().Warnf("[%s] Unknown info message '%T'", fsm.String(), m)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("[%s] Network message '%T' received", fsm.String(), mess.Message)
+			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.String(), mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T'", fsm.String(), mess.Message)
+				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm.String(), mess.Message, mess.ID.ID())
 				continue
 			}
 			fsm, async, err = action(a.services, mess, fsm)
