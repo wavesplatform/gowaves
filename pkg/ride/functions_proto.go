@@ -257,7 +257,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	if env.invokeExpressionActivated() { // Check payments result balances here after invoke expression activation.
+	invokeExpressionActivated := env.invokeExpressionActivated()
+	if invokeExpressionActivated { // Check payments result balances here after invoke expression activation.
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -290,7 +291,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
-	if !env.invokeExpressionActivated() { // Check payments result balances here before invoke expression activation.
+	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -432,7 +433,7 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -860,7 +861,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}

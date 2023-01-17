@@ -3330,9 +3330,9 @@ func TestSetScriptRideObjectScriptField(t *testing.T) {
 		return res
 	}
 	tests := []struct {
-		expectedScriptField       rideType
-		scriptBytes               string
-		invokeExpressionActivated bool
+		expectedScriptField            rideType
+		scriptBytes                    string
+		consensusImprovementsActivated bool
 	}{
 		{rideUnit{}, "", false},
 		{rideBytes(mustDecodeBase58(dig)), dig, false},
@@ -3341,7 +3341,7 @@ func TestSetScriptRideObjectScriptField(t *testing.T) {
 		{rideBytes(mustDecodeBase58(bigPlusString)), bigPlusString, true},
 	}
 	for _, tc := range tests {
-		testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, tc.scriptBytes, 1, 2, tc.invokeExpressionActivated)
+		testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, tc.scriptBytes, 1, 2, tc.consensusImprovementsActivated)
 		actualScriptField, err := testSetScriptTransaction.get(scriptField)
 		require.NoError(t, err)
 		assert.Equal(t, tc.expectedScriptField, actualScriptField)
