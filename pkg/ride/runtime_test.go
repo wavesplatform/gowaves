@@ -190,7 +190,7 @@ func makeTransferTransactionObject(t *testing.T, sig, senderPublicKey, amountAss
 	return obj
 }
 
-func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int, invokeExpressionActivated bool) rideType {
+func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBytes string, fee, ts int, consensusImprovementsActivated bool) rideType {
 	s, err := crypto.NewSignatureFromBase58(sig)
 	require.NoError(t, err)
 	senderPK, err := crypto.NewPublicKeyFromBase58(senderPublicKey)
@@ -204,7 +204,7 @@ func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBy
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := setScriptWithProofsToObject(proto.TestNetScheme, invokeExpressionActivated, tx)
+	obj, err := setScriptWithProofsToObject(proto.TestNetScheme, consensusImprovementsActivated, tx)
 	require.NoError(t, err)
 	replaceFirstProof(obj, s)
 	return obj

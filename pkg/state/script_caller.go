@@ -58,6 +58,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
 		info.blockV5Activated,
 		info.rideV6Activated,
+		info.consensusImprovementsActivated,
 		info.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -118,6 +119,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
+		params.consensusImprovementsActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -214,6 +216,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
+		params.consensusImprovementsActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -233,6 +236,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
+		params.consensusImprovementsActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -252,6 +256,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
 		info.blockV5Activated,
 		info.rideV6Activated,
+		info.consensusImprovementsActivated,
 		info.invokeExpressionActivated,
 	)
 	if err != nil {
