@@ -70,7 +70,7 @@ func serveJson(pathToJSON string, scheme proto.Scheme) error {
 		return err
 	}
 
-	bts, err := realType.MarshalBinary()
+	bts, err := realType.MarshalBinary(scheme)
 	if err != nil {
 		return err
 	}

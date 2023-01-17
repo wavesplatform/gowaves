@@ -299,7 +299,7 @@ func (s *storage) appendBlock(block *proto.Block) (uint32, uint32, error) {
 	}
 
 	// Put the block bytes in storage
-	bb, err := block.MarshalBinary()
+	bb, err := block.MarshalBinary(s.scheme)
 	if err != nil {
 		return 0, 0, err
 	}
