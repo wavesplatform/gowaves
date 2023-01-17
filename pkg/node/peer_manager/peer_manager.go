@@ -384,8 +384,13 @@ func (a *PeerManagerImpl) AskPeers() {
 func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.active.remove(p.ID())
-	_ = p.Close()
+	peerID := p.ID()
+	a.active.remove(peerID)
+	if err := p.Close(); err != nil {
+		zap.S().Debugf("Disconnection of peer '%s' faled with error: %v", peerID, err)
+	} else {
+		zap.S().Debugf("Disconnected peer '%s'", peerID)
+	}
 }
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {
