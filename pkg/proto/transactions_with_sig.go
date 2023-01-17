@@ -111,7 +111,7 @@ func NewUnsignedIssueWithSig(senderPK crypto.PublicKey, name, description string
 	return &IssueWithSig{Type: IssueTransaction, Version: 1, Issue: i}
 }
 
-func (tx *IssueWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *IssueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.Issue.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueWithSig body")
@@ -169,9 +169,9 @@ func (tx *IssueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 }
 
 // MarshalBinary saves transaction's binary representation to slice of bytes.
-func (tx *IssueWithSig) MarshalBinary() ([]byte, error) {
+func (tx *IssueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueWithSig transaction to bytes")
 	}
@@ -348,7 +348,7 @@ func NewUnsignedTransferWithSig(senderPK crypto.PublicKey, amountAsset, feeAsset
 	return &TransferWithSig{Type: TransferTransaction, Version: 1, Transfer: t}
 }
 
-func (tx *TransferWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *TransferWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	b, err := tx.Transfer.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithSig body")
@@ -446,9 +446,9 @@ func (tx *TransferWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary saves transaction to its binary representation.
-func (tx *TransferWithSig) MarshalBinary() ([]byte, error) {
+func (tx *TransferWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithSig transaction to bytes")
 	}
@@ -642,7 +642,7 @@ func NewUnsignedReissueWithSig(senderPK crypto.PublicKey, assetID crypto.Digest,
 	return &ReissueWithSig{Type: ReissueTransaction, Version: 1, Reissue: r}
 }
 
-func (tx *ReissueWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *ReissueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, reissueWithSigBodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Reissue.marshalBinary()
@@ -704,9 +704,9 @@ func (tx *ReissueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *ReissueWithSig) MarshalBinary() ([]byte, error) {
+func (tx *ReissueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.BodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithSig transaction to bytes")
 	}
@@ -878,7 +878,7 @@ func NewUnsignedBurnWithSig(senderPK crypto.PublicKey, assetID crypto.Digest, am
 	return &BurnWithSig{Type: BurnTransaction, Version: 1, Burn: b}
 }
 
-func (tx *BurnWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *BurnWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, burnWithSigBodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Burn.marshalBinary()
@@ -939,8 +939,8 @@ func (tx *BurnWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, 
 }
 
 // MarshalBinary saves transaction to
-func (tx *BurnWithSig) MarshalBinary() ([]byte, error) {
-	b, err := tx.BodyMarshalBinary()
+func (tx *BurnWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithSig transaction to bytes")
 	}
@@ -1223,7 +1223,7 @@ func (tx *ExchangeWithSig) Validate(_ Scheme) (Transaction, error) {
 	return tx, nil
 }
 
-func (tx *ExchangeWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *ExchangeWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	bob, err := tx.Order1.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
@@ -1398,8 +1398,8 @@ func (tx *ExchangeWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bo
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *ExchangeWithSig) MarshalBinary() ([]byte, error) {
-	b, err := tx.BodyMarshalBinary()
+func (tx *ExchangeWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeWithSig transaction to bytes")
 	}
@@ -1576,7 +1576,7 @@ func NewUnsignedLeaseWithSig(senderPK crypto.PublicKey, recipient Recipient, amo
 	return &LeaseWithSig{Type: LeaseTransaction, Version: 1, Lease: l}
 }
 
-func (tx *LeaseWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	rl := tx.Recipient.len
 	buf := make([]byte, leaseWithSigBodyLen+rl)
 	buf[0] = byte(tx.Type)
@@ -1638,8 +1638,8 @@ func (tx *LeaseWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool,
 }
 
 // MarshalBinary saves the transaction to its binary representation.
-func (tx *LeaseWithSig) MarshalBinary() ([]byte, error) {
-	b, err := tx.BodyMarshalBinary()
+func (tx *LeaseWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
 	}
@@ -1810,7 +1810,7 @@ func NewUnsignedLeaseCancelWithSig(senderPK crypto.PublicKey, leaseID crypto.Dig
 	return &LeaseCancelWithSig{Type: LeaseCancelTransaction, Version: 1, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseCancelWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, leaseCancelWithSigBodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.LeaseCancel.marshalBinary()
@@ -1871,8 +1871,8 @@ func (tx *LeaseCancelWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 }
 
 // MarshalBinary saves transaction to its binary representation.
-func (tx *LeaseCancelWithSig) MarshalBinary() ([]byte, error) {
-	b, err := tx.BodyMarshalBinary()
+func (tx *LeaseCancelWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithSig transaction to bytes")
 	}
@@ -2048,7 +2048,7 @@ func NewUnsignedCreateAliasWithSig(senderPK crypto.PublicKey, alias Alias, fee, 
 	return &CreateAliasWithSig{Type: CreateAliasTransaction, Version: 1, CreateAlias: ca}
 }
 
-func (tx *CreateAliasWithSig) BodyMarshalBinary() ([]byte, error) {
+func (tx *CreateAliasWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, createAliasWithSigFixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
 	b, err := tx.CreateAlias.marshalBinary()
@@ -2104,8 +2104,8 @@ func (tx *CreateAliasWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
-func (tx *CreateAliasWithSig) MarshalBinary() ([]byte, error) {
-	b, err := tx.BodyMarshalBinary()
+func (tx *CreateAliasWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
+	b, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithSig transaction to bytes")
 	}

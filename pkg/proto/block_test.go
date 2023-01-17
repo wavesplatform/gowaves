@@ -76,18 +76,20 @@ func blockFromProtobufToProtobuf(t *testing.T, hexStr string) {
 }
 
 func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
+	const scheme = MainNetScheme
+
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var b Block
-	err = b.UnmarshalBinary(decoded, MainNetScheme)
+	err = b.UnmarshalBinary(decoded, scheme)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
 	bts, err := json.Marshal(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bts)
 	assert.Equalf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
-	bin, err := b.MarshalBinary()
+	bin, err := b.MarshalBinary(scheme)
 	assert.NoError(t, err, "MarshalBinary() for block failed")
 	assert.Equal(t, decoded, bin, "bin for block differs")
 }
@@ -160,13 +162,15 @@ func TestHeaderSerialization(t *testing.T) {
 }
 
 func TestAppendHeaderBytesToTransactions(t *testing.T) {
+	const scheme = TestNetScheme
+
 	block := makeBlock(t)
 	headerBytes, err := block.MarshalHeaderToBinary()
 	assert.NoError(t, err, "MarshalHeaderToBinary() failed")
 	transactions := block.Transactions
-	blockBytes, err := block.MarshalBinary()
+	blockBytes, err := block.MarshalBinary(scheme)
 	assert.NoError(t, err, "block.MarshalBinary() failed")
-	transactionsBts, err := transactions.MarshalBinary()
+	transactionsBts, err := transactions.MarshalBinary(scheme)
 	assert.NoError(t, err)
 	blockBytes1, err := AppendHeaderBytesToTransactions(headerBytes, transactionsBts)
 	assert.NoError(t, err, "AppendHeaderBytesToTransactions() failed")
@@ -200,18 +204,20 @@ func TestBlockGetSignature(t *testing.T) {
 }
 
 func TestTransactions_WriteToBinary(t *testing.T) {
+	const scheme = TestNetScheme
+
 	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
 	assert.NoError(t, err)
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasWithSig(public, *alias, 10000, NewTimestampFromTime(time.Now()))
-	require.NoError(t, createAlias.Sign(TestNetScheme, secret))
-	bts, _ := createAlias.MarshalBinary()
+	require.NoError(t, createAlias.Sign(scheme, secret))
+	bts, _ := createAlias.MarshalBinary(scheme)
 
 	buf := new(bytes.Buffer)
 	ts := Transactions{createAlias}
 
-	_, err = ts.WriteToBinary(buf)
+	_, err = ts.WriteToBinary(buf, scheme)
 	require.NoError(t, err)
 
 	length := binary.BigEndian.Uint32(buf.Bytes()[:4])
@@ -220,6 +226,8 @@ func TestTransactions_WriteToBinary(t *testing.T) {
 }
 
 func TestBlock_WriteTo(t *testing.T) {
+	const scheme = TestNetScheme
+
 	sig, err := crypto.NewSignatureFromBase58("2kcBqiM5y3DAtg8UrDp5X5dqhKUQ2cNSndZ98c7QMDWgXaz7g1gPGKyND16vSGYvoVN2UqxNk9dSonJUqWmjE5Ee")
 	require.NoError(t, err)
 	parentSig, err := crypto.NewSignatureFromBase58("3ov5nyERRYrNd8Uun7nuUWYwztXL8jjt3Cbr5HMfsGhoXAKkctAYVVmUFChz95fPHKyrWopuaygdirQ4kMa3fkwJ")
@@ -234,7 +242,7 @@ func TestBlock_WriteTo(t *testing.T) {
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasWithSig(public, *alias, 10000, NewTimestampFromTime(time.Now()))
-	require.NoError(t, createAlias.Sign(TestNetScheme, secret))
+	require.NoError(t, createAlias.Sign(scheme, secret))
 
 	transactions := Transactions{createAlias}
 
@@ -261,9 +269,9 @@ func TestBlock_WriteTo(t *testing.T) {
 	}
 
 	buf := new(bytes.Buffer)
-	_, err = block.WriteToWithoutSignature(buf)
+	_, err = block.WriteToWithoutSignature(buf, scheme)
 	require.NoError(t, err)
-	marshaledBytes, _ := block.MarshalBinary()
+	marshaledBytes, _ := block.MarshalBinary(scheme)
 
 	// writeTo doesn't write signature
 	require.Equal(t, marshaledBytes[:len(marshaledBytes)-crypto.SignatureSize], buf.Bytes())
@@ -358,12 +366,14 @@ func TestBlock_Clone(t *testing.T) {
 
 // TODO, empty block should not marshal, or unmarshal successfully
 func TestEmptyBlockMarshall(t *testing.T) {
+	const scheme = TestNetScheme
+
 	b1 := Block{}
-	bts, err := b1.MarshalBinary()
+	bts, err := b1.MarshalBinary(scheme)
 	require.NoError(t, err)
 
 	b2 := Block{}
-	err = b2.UnmarshalBinary(bts, MainNetScheme)
+	err = b2.UnmarshalBinary(bts, scheme)
 	require.Error(t, err)
 }
 

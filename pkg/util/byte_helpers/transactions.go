@@ -226,7 +226,7 @@ func init() {
 
 func initTransferWithSig() {
 	t := util.NewTransferWithSigBuilder().MustBuild()
-	b, _ := t.MarshalBinary()
+	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
@@ -261,7 +261,7 @@ func initTransferWithProofs() {
 	)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, _ := t.MarshalBinary()
+	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
@@ -290,7 +290,7 @@ func initIssueWithSig() {
 		10000)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, _ := t.MarshalBinary()
+	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
@@ -307,21 +307,10 @@ func initIssueWithProofs() {
 
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
-	t := proto.NewUnsignedIssueWithProofs(
-		2,
-		proto.MainNetScheme,
-		pk,
-		"name",
-		"description",
-		1000,
-		4,
-		false,
-		[]byte("script"),
-		proto.NewTimestampFromTime(time.Now()),
-		10000)
+	t := proto.NewUnsignedIssueWithProofs(2, pk, "name", "description", 1000, 4, false, []byte("script"), proto.NewTimestampFromTime(time.Now()), 10000)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, _ := t.MarshalBinary()
+	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
@@ -342,7 +331,7 @@ func initGenesis() {
 	}
 	t := proto.NewUnsignedGenesis(addr, 100000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, _ := t.MarshalBinary()
+	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
@@ -364,7 +353,7 @@ func initPayment() {
 	t := proto.NewUnsignedPayment(pk, addr, 100000, 10000, TIMESTAMP)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -389,7 +378,7 @@ func initReissueWithSig() {
 
 	t := proto.NewUnsignedReissueWithSig(pk, d, 100000, true, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -411,9 +400,9 @@ func initReissueWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedReissueWithProofs(2, proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
+	t := proto.NewUnsignedReissueWithProofs(2, pk, d, 100000, true, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -438,7 +427,7 @@ func initBurnWithSig() {
 
 	t := proto.NewUnsignedBurnWithSig(pk, d, 100000, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -460,9 +449,9 @@ func initBurnWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedBurnWithProofs(2, proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
+	t := proto.NewUnsignedBurnWithProofs(2, pk, d, 100000, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -495,7 +484,7 @@ func initMassTransferWithProofs() {
 	}
 	t := proto.NewUnsignedMassTransferWithProofs(1, pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, []byte("attachment"))
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -557,7 +546,7 @@ func initExchangeWithSig() {
 		TIMESTAMP,
 	)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -620,7 +609,7 @@ func initExchangeWithProofs() {
 		TIMESTAMP,
 	)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -643,9 +632,9 @@ func initSetAssetScriptWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedSetAssetScriptWithProofs(1, proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
+	t := proto.NewUnsignedSetAssetScriptWithProofs(1, pk, d, []byte("hello"), 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -665,25 +654,16 @@ func initSetAssetScriptWithProofs() {
 func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
-	t := proto.NewUnsignedInvokeScriptWithProofs(
-		1,
-		proto.MainNetScheme,
-		pk,
-		proto.NewRecipientFromAddress(address),
-		proto.FunctionCall{
-			Default:   true,
-			Name:      "funcname",
-			Arguments: proto.Arguments{proto.NewStringArgument("StringArgument")},
-		},
-		proto.ScriptPayments{proto.ScriptPayment{
-			Amount: 100000,
-			Asset:  *asset,
-		}},
-		*asset,
-		10000,
-		TIMESTAMP)
+	t := proto.NewUnsignedInvokeScriptWithProofs(1, pk, proto.NewRecipientFromAddress(address), proto.FunctionCall{
+		Default:   true,
+		Name:      "funcname",
+		Arguments: proto.Arguments{proto.NewStringArgument("StringArgument")},
+	}, proto.ScriptPayments{proto.ScriptPayment{
+		Amount: 100000,
+		Asset:  *asset,
+	}}, *asset, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -707,7 +687,7 @@ func initLeaseWithSig() {
 		proto.NewRecipientFromAddress(addr),
 		100000, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -731,7 +711,7 @@ func initLeaseWithProofs() {
 		proto.NewRecipientFromAddress(addr),
 		100000, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -753,7 +733,7 @@ func initLeaseCancelWithSig() {
 		Digest,
 		10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -770,14 +750,9 @@ func initLeaseCancelWithSig() {
 }
 
 func initLeaseCancelWithProofs() {
-	t := proto.NewUnsignedLeaseCancelWithProofs(
-		2,
-		proto.MainNetScheme,
-		pk,
-		Digest,
-		10000, TIMESTAMP)
+	t := proto.NewUnsignedLeaseCancelWithProofs(2, pk, Digest, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -834,7 +809,7 @@ func initDataWithProofs() {
 
 	_ = t.Sign(proto.MainNetScheme, sk)
 
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -861,7 +836,7 @@ func initSponsorshipWithProofs() {
 
 	_ = t.Sign(proto.MainNetScheme, sk)
 
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -887,7 +862,7 @@ func initCreateAliasWithSig() {
 
 	_ = t.Sign(proto.MainNetScheme, sk)
 
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}
@@ -914,7 +889,7 @@ func initCreateAliasWithProofs() {
 
 	_ = t.Sign(proto.MainNetScheme, sk)
 
-	b, err := t.MarshalBinary()
+	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {
 		panic(err)
 	}

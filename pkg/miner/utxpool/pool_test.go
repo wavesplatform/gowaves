@@ -59,11 +59,11 @@ func (transaction) Validate(_ proto.Scheme) (proto.Transaction, error) {
 	panic("not implemented")
 }
 
-func (transaction) BodyMarshalBinary() ([]byte, error) {
+func (transaction) BodyMarshalBinary(proto.Scheme) ([]byte, error) {
 	panic("not implemented")
 }
 
-func (transaction) MarshalBinary() ([]byte, error) {
+func (transaction) MarshalBinary(proto.Scheme) ([]byte, error) {
 	panic("not implemented")
 }
 

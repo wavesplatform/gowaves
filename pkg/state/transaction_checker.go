@@ -1138,7 +1138,7 @@ func (tc *transactionChecker) checkDataWithProofsSize(tx *proto.DataWithProofs, 
 			)
 		}
 	default:
-		txBytes, err := tx.MarshalBinary()
+		txBytes, err := tx.MarshalBinary(tc.settings.AddressSchemeCharacter)
 		if err != nil {
 			return err
 		}
