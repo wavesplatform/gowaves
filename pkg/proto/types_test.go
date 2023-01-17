@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"testing"
@@ -228,9 +229,6 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 }
 
 func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
-	bts := make([]byte, 0, 1024*1024)
-	buf := bytes.NewBuffer(bts)
-
 	tests := []struct {
 		seed        string
 		matcher     string
@@ -255,31 +253,31 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 	err := o.Sign(TestNetScheme, sk)
 	require.NoError(t, err)
+	s := serializer.New(io.Discard)
+
+	t.StopTimer()
 
 	t.Run("serialize", func(b *testing.B) {
 		b.ReportAllocs()
-		b.StopTimer()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			buf.Reset()
-			s := serializer.New(buf)
-			b.StartTimer()
-			for j := 0; j < 10; j++ {
-				_ = o.Serialize(s)
-			}
-			b.StopTimer()
+			err = o.Serialize(s)
+		}
+		b.StopTimer()
+		if err != nil {
+			b.FailNow()
 		}
 	})
 	t.Run("marshal", func(b *testing.B) {
+		var bts []byte
 		b.ReportAllocs()
-		b.StopTimer()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			b.StartTimer()
-			for j := 0; j < 10; j++ {
-				_, _ = o.MarshalBinary()
-			}
-			b.StopTimer()
+			bts, err = o.MarshalBinary()
+		}
+		b.StopTimer()
+		if err != nil || len(bts) == 0 {
+			b.FailNow()
 		}
 	})
 }

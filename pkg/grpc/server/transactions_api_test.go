@@ -125,7 +125,7 @@ func TestGetStatuses(t *testing.T) {
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), proto.Attachment("attachment"))
 	err = tx.Sign(server.scheme, sk)
 	require.NoError(t, err)
-	txBytes, err := tx.MarshalBinary()
+	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)
@@ -180,7 +180,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), []byte("attachment"))
 	err = tx.Sign(server.scheme, sk)
 	require.NoError(t, err)
-	txBytes, err := tx.MarshalBinary()
+	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)

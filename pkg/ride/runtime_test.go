@@ -76,7 +76,7 @@ func makeReissueTransactionObject(t *testing.T, sig, senderPublicKey, assetID st
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedReissueWithProofs(2, proto.TestNetScheme, senderPK, asset, uint64(quantity), reissuable, uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedReissueWithProofs(2, senderPK, asset, uint64(quantity), reissuable, uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func makeBurnTransactionObject(t *testing.T, sig, senderPublicKey, assetID strin
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedBurnWithProofs(2, proto.TestNetScheme, senderPK, asset, uint64(amount), uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedBurnWithProofs(2, senderPK, asset, uint64(amount), uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -200,7 +200,7 @@ func makeSetScriptTransactionObject(t *testing.T, sig, senderPublicKey, scriptBy
 		script, err = base58.Decode(scriptBytes)
 		require.NoError(t, err)
 	}
-	tx := proto.NewUnsignedSetScriptWithProofs(2, proto.TestNetScheme, senderPK, script, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedSetScriptWithProofs(2, senderPK, script, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func makeSetAssetScriptTransactionObject(t *testing.T, sig, senderPublicKey, ass
 	require.NoError(t, err)
 	script, err := base58.Decode(scriptBytes)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedSetAssetScriptWithProofs(2, proto.TestNetScheme, senderPK, asset, script, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedSetAssetScriptWithProofs(2, senderPK, asset, script, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -245,7 +245,7 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	pa, err := proto.NewOptionalAssetFromString(paymentAsset)
 	require.NoError(t, err)
 	ps := []proto.ScriptPayment{{Amount: uint64(paymentAmount), Asset: *pa}}
-	tx := proto.NewUnsignedInvokeScriptWithProofs(2, proto.TestNetScheme, senderPK, rcp, fc, ps, *fa, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedInvokeScriptWithProofs(2, senderPK, rcp, fc, ps, *fa, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -266,7 +266,7 @@ func makeUpdateAssetInfoTransactionObject(t *testing.T, sig, senderPublicKey, fe
 	require.NoError(t, err)
 	asset, err := crypto.NewDigestFromBase58(assetID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(2, proto.TestNetScheme, asset, senderPK, name, description, uint64(ts), *fa, uint64(fee))
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(2, asset, senderPK, name, description, uint64(ts), *fa, uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -285,7 +285,7 @@ func makeInvokeExpressionTransactionObject(t *testing.T, sig, senderPublicKey, f
 	require.NoError(t, err)
 	expr, err := base58.Decode(expression)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedInvokeExpressionWithProofs(2, proto.TestNetScheme, senderPK, expr, *fa, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedInvokeExpressionWithProofs(2, senderPK, expr, *fa, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -302,7 +302,7 @@ func makeIssueTransactionAndObject(t *testing.T, sig, senderPublicKey, name, des
 	require.NoError(t, err)
 	script, err := base58.Decode(scriptBytes)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedIssueWithProofs(2, proto.TestNetScheme, senderPK, name, description, uint64(quantity), byte(decimals), reissuable, script, uint64(ts), uint64(fee))
+	tx := proto.NewUnsignedIssueWithProofs(2, senderPK, name, description, uint64(quantity), byte(decimals), reissuable, script, uint64(ts), uint64(fee))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
@@ -336,7 +336,7 @@ func makeLeaseCancelTransactionObject(t *testing.T, sig, senderPublicKey, leaseI
 	require.NoError(t, err)
 	lease, err := crypto.NewDigestFromBase58(leaseID)
 	require.NoError(t, err)
-	tx := proto.NewUnsignedLeaseCancelWithProofs(2, proto.TestNetScheme, senderPK, lease, uint64(fee), uint64(ts))
+	tx := proto.NewUnsignedLeaseCancelWithProofs(2, senderPK, lease, uint64(fee), uint64(ts))
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
