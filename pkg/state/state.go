@@ -21,7 +21,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -348,7 +347,7 @@ func (n *newBlocks) reset() {
 }
 
 type stateManager struct {
-	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
+	mu *sync.RWMutex
 
 	// Last added block.
 	lastBlock atomic.Value
@@ -540,10 +539,6 @@ func (s *stateManager) NewestScriptBytesByAccount(account proto.Recipient) (prot
 func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	assetID := proto.AssetIDFromDigest(asset)
 	return s.stor.scriptsStorage.newestScriptByAsset(assetID)
-}
-
-func (s *stateManager) Mutex() *lock.RwMutex {
-	return lock.NewRwMutex(s.mu)
 }
 
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {

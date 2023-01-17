@@ -5,7 +5,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const TIMESTAMP = proto.Timestamp(1544715621)
@@ -225,7 +224,7 @@ func init() {
 }
 
 func initTransferWithSig() {
-	t := util.NewTransferWithSigBuilder().MustBuild()
+	t := newTransferWithSigBuilder().MustBuild()
 	b, _ := t.MarshalBinary(proto.MainNetScheme)
 	tm := proto.TransactionMessage{
 		Transaction: b,
