@@ -221,7 +221,7 @@ func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 		return Alias{}
 	}
 	a := NewAlias(scheme, alias)
-	_, err := a.Valid()
+	_, err := a.Valid(scheme)
 	if err != nil {
 		c.err = err
 		return Alias{}

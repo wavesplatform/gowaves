@@ -24,19 +24,20 @@ func main() {
 	if *file == "" {
 		zap.S().Fatal("please, provide file argument")
 	}
+	if *schemeByte == "" {
+		zap.S().Fatal("please, provide scheme-byte argument")
+	}
+	if len(*schemeByte) != 1 {
+		zap.S().Fatal("invalid scheme-byte argument %q", *schemeByte)
+	}
+	scheme := []byte(*schemeByte)[0]
 	switch *command {
 	case "json":
-		if err := serveJson(*file); err != nil {
+		if err := serveJson(*file, scheme); err != nil {
 			zap.S().Fatalf("failed to serveJSON: %v", err)
 		}
 	case "bytes":
-		if *schemeByte == "" {
-			zap.S().Fatal("please, provide scheme-byte argument")
-		}
-		if len(*schemeByte) != 1 {
-			zap.S().Fatal("invalid scheme-byte argument %q", *schemeByte)
-		}
-		if err := serveBinary(*file, []byte(*schemeByte)[0]); err != nil {
+		if err := serveBinary(*file, scheme); err != nil {
 			zap.S().Fatalf("failed to serveBinary: %v", err)
 		}
 	case "":
@@ -47,7 +48,7 @@ func main() {
 	}
 }
 
-func serveJson(pathToJSON string) error {
+func serveJson(pathToJSON string, scheme proto.Scheme) error {
 	b, err := inputBytes(pathToJSON)
 	if err != nil {
 		return err
@@ -64,7 +65,7 @@ func serveJson(pathToJSON string) error {
 		return err
 	}
 
-	err = json.Unmarshal(b, realType)
+	err = proto.UnmarshalTransactionFromJSON(b, scheme, realType)
 	if err != nil {
 		return err
 	}
