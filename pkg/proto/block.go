@@ -426,7 +426,7 @@ func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
 	} else {
-		return b.MarshalBinary()
+		return b.MarshalBinary(scheme)
 	}
 }
 
@@ -449,7 +449,7 @@ func (b *Block) Sign(scheme Scheme, secret crypto.SecretKey) error {
 	} else {
 		buf := bytebufferpool.Get()
 		defer bytebufferpool.Put(buf)
-		if _, err := b.WriteToWithoutSignature(buf); err != nil {
+		if _, err := b.WriteToWithoutSignature(buf, scheme); err != nil {
 			return err
 		}
 		bb = buf.Bytes()
@@ -489,7 +489,7 @@ func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 	} else {
 		buf := bytebufferpool.Get()
 		defer bytebufferpool.Put(buf)
-		if _, err := b.WriteToWithoutSignature(buf); err != nil {
+		if _, err := b.WriteToWithoutSignature(buf, scheme); err != nil {
 			return false, err
 		}
 		bb = buf.Bytes()
@@ -510,14 +510,14 @@ func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 }
 
 // MarshalBinary encodes Block to binary form
-func (b *Block) MarshalBinary() ([]byte, error) {
+func (b *Block) MarshalBinary(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return nil, errors.New("binary format is not defined for Block versions > 4")
 	}
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	_, err := b.WriteTo(buf)
+	_, err := b.WriteTo(buf, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -527,11 +527,11 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (b *Block) WriteTo(w io.Writer) (int64, error) {
+func (b *Block) WriteTo(w io.Writer, scheme Scheme) (int64, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
 	}
-	n, err := b.WriteToWithoutSignature(w)
+	n, err := b.WriteToWithoutSignature(w, scheme)
 	if err != nil {
 		return 0, err
 	}
@@ -600,7 +600,7 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.B
 
 // WriteToWithoutSignature writes binary representation of block into Writer.
 // It does not sign and write signature.
-func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
+func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
 	}
@@ -623,7 +623,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 	} else {
 		s.Byte(byte(b.TransactionCount))
 	}
-	if _, err := b.Transactions.WriteToBinary(s); err != nil {
+	if _, err := b.Transactions.WriteToBinary(s, scheme); err != nil {
 		return 0, err
 	}
 
@@ -788,7 +788,7 @@ func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
 	if a.b.Version >= ProtobufBlockVersion {
 		return a.b.MarshalToProtobuf(scheme)
 	} else {
-		return a.b.MarshalBinary()
+		return a.b.MarshalBinary(scheme)
 	}
 }
 
@@ -806,10 +806,10 @@ func (a Transactions) BinarySize() int {
 	return size
 }
 
-func (a Transactions) MarshalBinary() ([]byte, error) {
+func (a Transactions) MarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteToBinary(buf)
+	_, err := a.WriteToBinary(buf, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +820,7 @@ func (a Transactions) MarshalBinary() ([]byte, error) {
 
 func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, error) {
 	if !proto {
-		return a.WriteToBinary(w)
+		return a.WriteToBinary(w, scheme)
 	}
 	s := serializer.New(w)
 	for _, t := range a {
@@ -842,10 +842,10 @@ func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, er
 	return s.N(), nil
 }
 
-func (a Transactions) WriteToBinary(w io.Writer) (int64, error) {
+func (a Transactions) WriteToBinary(w io.Writer, scheme Scheme) (int64, error) {
 	s := serializer.New(w)
 	for _, t := range a {
-		bts, err := t.MarshalBinary()
+		bts, err := t.MarshalBinary(scheme)
 		if err != nil {
 			return 0, err
 		}

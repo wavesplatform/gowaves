@@ -32,7 +32,7 @@ func TestGenerateMainNet(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 	block, err := RecreateGenesisBlock(proto.MainNetScheme, txs, 153722867, 1460678400000, sig)
 	require.NoError(t, err)
-	bb, err := block.MarshalBinary()
+	bb, err := block.MarshalBinary(proto.MainNetScheme)
 	require.NoError(t, err)
 	assert.Equal(t, 500, len(bb))
 	assert.Equal(t, 6, block.TransactionCount)
