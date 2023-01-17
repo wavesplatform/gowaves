@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -62,9 +63,9 @@ func TestGenesisBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			err = tx.Sign(TestNetScheme, sk)
+			err = tx.Sign(MainNetScheme, sk)
 			assert.Nil(t, err)
-			_, err := tx.Validate(TestNetScheme)
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			txBytes, err := tx.MarshalBinary()
 			assert.Nil(t, err)
@@ -91,9 +92,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate(TestNetScheme)
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
-			if err := tx.GenerateSigID(TestNetScheme); assert.NoError(t, err) {
+			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
 				assert.Equal(t, tc.amount, tx.Amount)
 				assert.Equal(t, tc.recipient, tx.Recipient.String())
@@ -101,9 +102,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 				b, err := tx.MarshalBinary()
 				assert.NoError(t, err)
 				var at Genesis
-				err = at.UnmarshalBinary(b, TestNetScheme)
+				err = at.UnmarshalBinary(b, MainNetScheme)
 				assert.NoError(t, err)
-				err = at.GenerateID(TestNetScheme)
+				err = at.GenerateID(MainNetScheme)
 				assert.NoError(t, err)
 				assert.Equal(t, *tx, at)
 			}
@@ -156,21 +157,29 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 
 func TestGenesisValidations(t *testing.T) {
 	tests := []struct {
+		scheme  Scheme
 		address string
 		amount  uint64
 		err     string
 	}{
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid WavesAddress checksum"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", math.MaxInt64, ""},
+		{MainNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", math.MaxInt64 + 1, "amount is too big"},
+		{TestNetScheme, "3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW': invalid scheme 'W', expected 'T'"},
+		{MainNetScheme, "3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g", 1000, "invalid recipient address '3N8qPqNS7PYKd8xohXaqQUGkibf58EACN7g': invalid scheme 'T', expected 'W'"},
+		{MainNetScheme, "3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE", 1000, "invalid recipient address '3PLrCnhKyX5iFbE9t9Fhn7x2Jd2egp68GKE': invalid WavesAddress checksum"},
+		{MainNetScheme, "2JCiMDURsukbNXQddDVHrVefRRXo4kKjLNAp", 1000, "invalid recipient address '2JCiMDURsukbNXQddDVHrVefRRXo4kKjLNAp': unsupported address version 42"},
 	}
 	for _, tc := range tests {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedGenesis(addr, tc.amount, 0)
-		assert.NotNil(t, tx)
-		_, err = tx.Validate(TestNetScheme)
-		assert.EqualError(t, err, tc.err)
+		_, err = tx.Validate(tc.scheme)
+		if tc.err != "" {
+			assert.EqualError(t, err, tc.err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 }
 
@@ -326,7 +335,7 @@ func TestPaymentFromMainNet(t *testing.T) {
 	}
 }
 
-func BenchmarkPaymentFromMainNet(t *testing.B) {
+func BenchmarkPayment_MarshalBinary(t *testing.B) {
 	t.ReportAllocs()
 	tc := struct {
 		sig       string
@@ -336,19 +345,21 @@ func BenchmarkPaymentFromMainNet(t *testing.B) {
 		amount    uint64
 		fee       uint64
 	}{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3P7NaMWCosRTbVwTfiiU6M6tHpQ6DuNFtYp", 20999990, 1}
+	var b []byte
+	sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+	spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+	rcp, err := NewAddressFromString(tc.recipient)
+	require.NoError(t, err)
+	tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
+	tx.Signature = &sig
+	tx.ID = &sig
 	t.ResetTimer()
-	t.StopTimer()
 	for i := 0; i < t.N; i++ {
-		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
-		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
-			tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
-			tx.Signature = &sig
-			tx.ID = &sig
-			t.StartTimer()
-			_, _ = tx.MarshalBinary()
-			t.StopTimer()
-		}
+		b, err = tx.MarshalBinary()
+	}
+	t.StopTimer()
+	if err != nil || len(b) == 0 {
+		t.FailNow()
 	}
 }
 
@@ -839,13 +850,16 @@ func TestTransferWithSigValidations(t *testing.T) {
 		err       string
 	}{
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
-		{"alias:W:nickname", 1000, 0, "The attachment", "fee should be positive"},
+		{"alias:T:nickname", 1000, 0, "The attachment", "fee should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 10, 1, "The attachment", "amount is too big"},
-		{"alias:W:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
+		{"alias:T:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
-		{"alias:W:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
-		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:T:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN", 1000, 10, "The attachment", "invalid recipient '3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN': invalid WavesAddress checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid scheme 'W', expected 'T'"},
+		{"alias:T:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:T:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:W:invalid-scheme", 1000, 10, "The attachment", "invalid recipient 'alias:W:invalid-scheme': invalid scheme 'W', expected 'T'"},
+		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': invalid scheme 'W', expected 'T'"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
@@ -1136,12 +1150,15 @@ func TestTransferWithProofsValidations(t *testing.T) {
 	}{
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 0, "The attachment", "fee should be positive"},
-		{"alias:W:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
-		{"alias:W:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
-		{"alias:W:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
+		{"alias:T:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
+		{"alias:T:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
+		{"alias:T:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
-		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN", 1000, 10, "The attachment", "invalid recipient '3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN': invalid WavesAddress checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid scheme 'W', expected 'T'"},
+		{"alias:T:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:T:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:W:invalid-scheme", 1000, 10, "The attachment", "invalid recipient 'alias:W:invalid-scheme': invalid scheme 'W', expected 'T'"},
+		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': invalid scheme 'W', expected 'T'"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
@@ -1422,12 +1439,6 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 }
 
 func BenchmarkTransferWithProofsBinary(t *testing.B) {
-	t.ResetTimer()
-	t.StopTimer()
-	t.ReportAllocs()
-
-	buf := bytes.NewBuffer(make([]byte, 1024*1024))
-
 	tc := struct {
 		scheme              byte
 		amountAsset         string
@@ -1442,27 +1453,31 @@ func BenchmarkTransferWithProofsBinary(t *testing.B) {
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
-	for i := 0; i < t.N; i++ {
-		ts := uint64(time.Now().UnixNano() / 1000000)
-		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
-		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
-		aa, err := NewOptionalAssetFromString(tc.amountAsset)
-		require.NoError(t, err)
-		fa, err := NewOptionalAssetFromString(tc.feeAsset)
-		require.NoError(t, err)
-		att := []byte(tc.attachment)
-		tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
-		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
-			if r, err := tx.Verify(tc.scheme, pk); assert.NoError(t, err) {
-				assert.True(t, r)
-			}
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	addr, err := NewAddressFromPublicKey(tc.scheme, pk)
+	require.NoError(t, err)
+	rcp := NewRecipientFromAddress(addr)
+	aa, err := NewOptionalAssetFromString(tc.amountAsset)
+	require.NoError(t, err)
+	fa, err := NewOptionalAssetFromString(tc.feeAsset)
+	require.NoError(t, err)
+	att := []byte(tc.attachment)
+	tx := NewUnsignedTransferWithProofs(2, pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, att)
+	if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
+		if r, err := tx.Verify(tc.scheme, pk); assert.NoError(t, err) {
+			assert.True(t, r)
 		}
-		buf.Reset()
-		s := serializer.New(buf)
-		t.StartTimer()
-		_ = tx.Serialize(s)
-		t.StopTimer()
+	}
+	s := serializer.New(io.Discard)
+
+	t.ReportAllocs()
+	t.ResetTimer()
+	for i := 0; i < t.N; i++ {
+		err = tx.Serialize(s)
+	}
+	t.StopTimer()
+	if err != nil {
+		t.FailNow()
 	}
 }
 
@@ -3569,27 +3584,30 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 }
 
 func TestLeaseWithSigValidations(t *testing.T) {
+	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	require.NoError(t, err)
 	tests := []struct {
 		recipient string
+		senderPk  crypto.PublicKey
 		amount    uint64
 		fee       uint64
 		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "amount should be positive"},
-		{"alias:T:nickname", math.MaxInt64 + 1, 100000, "amount is too big"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
-		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
-		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
-		//TODO: add test on leasing to oneself
+
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, 0, 100000, "amount should be positive"},
+		{"alias:T:nickname", spk, math.MaxInt64 + 1, 100000, "amount is too big"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, 100000, 0, "fee should be positive"},
+		{"alias:T:nickname", spk, 100000, math.MaxInt64 + 1, "fee is too big"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", spk, 100000, 100000, "invalid recipient: invalid scheme 'W', expected 'T'"},
+		{"3MxW8ZFCQUQDg39G3Zbr3LjCLPnWNtjodve", spk, 100000, 100000, "invalid recipient: invalid WavesAddress checksum"},
+		{"alias:T:прозвище", spk, 100000, 100000, "invalid recipient: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{MustAddressFromPublicKey(TestNetScheme, spk).String(), spk, 100000, 100000, "addr \"3Mz43r3B8uBX49oY1RCTPa9wScoToJM3mT3\" trying to lease money to itself"},
 	}
 	for _, tc := range tests {
-		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		require.NoError(t, err)
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		tx := NewUnsignedLeaseWithSig(spk, rcp, tc.amount, tc.fee, 0)
+		tx := NewUnsignedLeaseWithSig(tc.senderPk, rcp, tc.amount, tc.fee, 0)
 		_, err = tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -3776,27 +3794,29 @@ func TestLeaseWithSigToJSON(t *testing.T) {
 }
 
 func TestLeaseWithProofsValidations(t *testing.T) {
+	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	require.NoError(t, err)
 	tests := []struct {
 		recipient string
+		senderPK  crypto.PublicKey
 		amount    uint64
 		fee       uint64
 		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "amount should be positive"},
-		{"alias:T:nickname", math.MaxInt64 + 1, 100000, "amount is too big"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
-		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
-		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
-		//TODO: add test on leasing to oneself
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, 0, 100000, "amount should be positive"},
+		{"alias:T:nickname", spk, math.MaxInt64 + 1, 100000, "amount is too big"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, 100000, 0, "fee should be positive"},
+		{"alias:T:nickname", spk, 100000, math.MaxInt64 + 1, "fee is too big"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn", spk, math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", spk, 100000, 100000, "invalid recipient: invalid scheme 'W', expected 'T'"},
+		{"3MxW8ZFCQUQDg39G3Zbr3LjCLPnWNtjodve", spk, 100000, 100000, "invalid recipient: invalid WavesAddress checksum"},
+		{"alias:T:прозвище", spk, 100000, 100000, "invalid recipient: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{MustAddressFromPublicKey(TestNetScheme, spk).String(), spk, 100000, 100000, "addr \"3Mz43r3B8uBX49oY1RCTPa9wScoToJM3mT3\" trying to lease money to itself"},
 	}
 	for _, tc := range tests {
-		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		require.NoError(t, err)
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		tx := NewUnsignedLeaseWithProofs(2, spk, rcp, tc.amount, tc.fee, 0)
+		tx := NewUnsignedLeaseWithProofs(2, tc.senderPK, rcp, tc.amount, tc.fee, 0)
 		_, err = tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
@@ -4795,7 +4815,8 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		}
 		return r
 	}
-	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	addr := MustAddressFromString("3MxW8ZFCQUQDg7xagmGQQcwbQDmNGLfZVAn")
+	addrWithOtherScheme := MustAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
 	tests := []struct {
 		asset      string
 		transfers  []MassTransferEntry
@@ -4808,6 +4829,7 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", repeat(MassTransferEntry{NewRecipientFromAddress(addr), 100}, 101), 10, "", "Number of transfers 202 is greater than 100"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 + 1}, {NewRecipientFromAddress(addr), 20}}, 20, "", "at least one of the transfers amount is bigger than JVM long"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 / 2}, {NewRecipientFromAddress(addr), math.MaxInt64 / 2}}, 1000, "", "sum of amounts of transfers and transaction fee is bigger than JVM long"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 100}, {NewRecipientFromAddress(addrWithOtherScheme), 100}}, 1000, "", "invalid recipient: invalid scheme 'W', expected 'T'"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 10}, {NewRecipientFromAddress(addr), 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
 	}
 	for _, tc := range tests {

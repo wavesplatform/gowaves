@@ -277,11 +277,11 @@ func (tx TransferWithSig) GetProofs() *ProofsV1 {
 	return NewProofsFromSignature(tx.Signature)
 }
 
-func (tx *TransferWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *TransferWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid()
+	ok, err := tx.Transfer.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
@@ -1508,11 +1508,11 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx *LeaseWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *LeaseWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
-	ok, err := tx.Lease.Valid()
+	ok, err := tx.Lease.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
@@ -1970,11 +1970,11 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithSig) Validate(_ Scheme) (Transaction, error) {
+func (tx *CreateAliasWithSig) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid()
+	ok, err := tx.CreateAlias.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
@@ -2138,8 +2138,13 @@ func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error 
 	return nil
 }
 
+// Deprecated: use UnmarshalJSONWithScheme.
 func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	const ignoreChainID Scheme = 0
+	return tx.UnmarshalJSONWithScheme(data, ignoreChainID)
+}
+
+func (tx *CreateAliasWithSig) UnmarshalJSONWithScheme(data []byte, scheme Scheme) error {
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
 		Version   byte              `json:"version,omitempty"`
@@ -2157,7 +2162,7 @@ func (tx *CreateAliasWithSig) UnmarshalJSON(data []byte) error {
 	tx.Version = tmp.Version
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
+	tx.Alias = *NewAlias(scheme, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
