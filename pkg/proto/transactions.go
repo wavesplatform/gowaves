@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -57,7 +58,6 @@ const (
 	MaxAssetNameLen          = 16
 	MinAssetNameLen          = 4
 	MaxDecimals              = 8
-	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + WavesAddressSize + 8
 	paymentBodyLen = 1 + 8 + crypto.PublicKeySize + WavesAddressSize + 8 + 8
@@ -404,6 +404,25 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 	return out, nil
 }
 
+type unmarshalerWithScheme interface {
+	UnmarshalJSONWithScheme(data []byte, scheme Scheme) error
+}
+
+var (
+	_ = unmarshalerWithScheme(&CreateAliasWithProofs{})
+	_ = unmarshalerWithScheme(&CreateAliasWithSig{})
+)
+
+func UnmarshalTransactionFromJSON(data []byte, scheme Scheme, tx Transaction) (err error) {
+	switch u := tx.(type) {
+	case unmarshalerWithScheme:
+		err = u.UnmarshalJSONWithScheme(data, scheme)
+	default:
+		err = json.Unmarshal(data, tx)
+	}
+	return err
+}
+
 // Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
@@ -507,7 +526,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 // Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
+func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -517,7 +536,7 @@ func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Amount) {
 		return tx, errors.New("amount is too big")
 	}
-	if ok, err := tx.Recipient.Valid(); !ok {
+	if ok, err := tx.Recipient.Valid(scheme); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	return tx, nil
@@ -760,7 +779,7 @@ func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}
-	if ok, err := tx.Recipient.Valid(); !ok {
+	if ok, err := tx.Recipient.validVersionAndChecksum(); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	if tx.Amount == 0 {
@@ -1138,7 +1157,7 @@ func (tr Transfer) GetTimestamp() uint64 {
 	return tr.Timestamp
 }
 
-func (tr Transfer) Valid() (bool, error) {
+func (tr Transfer) Valid(scheme Scheme) (bool, error) {
 	if tr.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
@@ -1157,7 +1176,7 @@ func (tr Transfer) Valid() (bool, error) {
 	if tr.attachmentSize() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
 	}
-	if ok, err := tr.Recipient.Valid(); !ok {
+	if ok, err := tr.Recipient.Valid(scheme); !ok {
 		return false, errors.Wrapf(err, "invalid recipient '%s'", tr.Recipient.String())
 	}
 	return true, nil
@@ -1522,9 +1541,9 @@ func (l Lease) GetTimestamp() uint64 {
 	return l.Timestamp
 }
 
-func (l Lease) Valid() (bool, error) {
-	if ok, err := l.Recipient.Valid(); !ok {
-		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
+func (l Lease) Valid(scheme Scheme) (bool, error) {
+	if ok, err := l.Recipient.Valid(scheme); !ok {
+		return false, errors.Wrap(err, "invalid recipient")
 	}
 	if l.Amount == 0 {
 		return false, errors.New("amount should be positive")
@@ -1541,7 +1560,17 @@ func (l Lease) Valid() (bool, error) {
 	if !validJVMLong(l.Amount + l.Fee) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	//TODO: check that sender and recipient is not the same
+	if rcpAddr := l.Recipient.Address; rcpAddr != nil {
+		sender, err := NewAddressFromPublicKey(scheme, l.SenderPK)
+		if err != nil {
+			return false, errors.Wrapf(err, "failed to generate address from pk=%q and scheme=%q", l.SenderPK, scheme)
+		}
+		if sender == *rcpAddr {
+			return false, errors.Errorf("addr %q trying to lease money to itself", sender)
+		}
+	}
+	// check that sender and recipient is not the same in case when Recipient is alias you can find in transactionChecker
+	// here we can't do it because we don't have access to state
 	return true, nil
 }
 
@@ -1687,14 +1716,14 @@ func (ca CreateAlias) GetTimestamp() uint64 {
 	return ca.Timestamp
 }
 
-func (ca CreateAlias) Valid() (bool, error) {
+func (ca CreateAlias) Valid(scheme Scheme) (bool, error) {
 	if ca.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(ca.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	ok, err := ca.Alias.Valid()
+	ok, err := ca.Alias.Valid(scheme)
 	if !ok {
 		return false, err
 	}
@@ -1757,5 +1786,5 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 }
 
 func validJVMLong(x uint64) bool {
-	return x <= maxLongValue
+	return x <= math.MaxInt64
 }

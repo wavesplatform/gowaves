@@ -516,15 +516,15 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *TransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid()
+	ok, err := tx.Transfer.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: validate script and scheme
+	//TODO: validate script
 	return tx, nil
 }
 
@@ -1841,15 +1841,14 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *LeaseWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
-	ok, err := tx.Lease.Valid()
+	ok, err := tx.Lease.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: add scheme validation
 	return tx, nil
 }
 
@@ -2333,15 +2332,14 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *CreateAliasWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid()
+	ok, err := tx.CreateAlias.Valid(scheme)
 	if !ok {
 		return tx, err
 	}
-	//TODO: add script and scheme validations
 	return tx, nil
 }
 
@@ -2574,8 +2572,13 @@ func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte, scheme Scheme) err
 	return nil
 }
 
+// Deprecated: use UnmarshalJSONWithScheme.
 func (tx *CreateAliasWithProofs) UnmarshalJSON(data []byte) error {
 	const ignoreChainID Scheme = 0
+	return tx.UnmarshalJSONWithScheme(data, ignoreChainID)
+}
+
+func (tx *CreateAliasWithProofs) UnmarshalJSONWithScheme(data []byte, scheme Scheme) error {
 	tmp := struct {
 		Type      TransactionType  `json:"type"`
 		Version   byte             `json:"version,omitempty"`
@@ -2593,7 +2596,7 @@ func (tx *CreateAliasWithProofs) UnmarshalJSON(data []byte) error {
 	tx.Version = tmp.Version
 	tx.Proofs = tmp.Proofs
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = *NewAlias(ignoreChainID, tmp.Alias)
+	tx.Alias = *NewAlias(scheme, tmp.Alias)
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
@@ -2743,7 +2746,7 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *MassTransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
@@ -2764,6 +2767,9 @@ func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 		total += t.Amount
 		if !validJVMLong(total) {
 			return tx, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
+		}
+		if ok, err := t.Recipient.Valid(scheme); !ok {
+			return tx, errors.Wrap(err, "invalid recipient")
 		}
 	}
 	if tx.attachmentSize() > maxAttachmentLengthBytes {
