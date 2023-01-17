@@ -90,11 +90,11 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 	}
 }
 
-func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
+func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 	_, connected := a.connected(p)
 	if connected {
 		_ = p.Close()
-		return errors.New("already connected")
+		return errors.Errorf("already connected peer '%s'", p.ID())
 	}
 
 	now := time.Now()
@@ -109,27 +109,28 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
-			"versions are too different, current %s, connected %s",
+			"versions are too different, current %s, connected %s (peer '%s')",
 			a.version.String(),
 			p.Handshake().Version.String(),
+			p.ID(),
 		)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return proto.NewInfoMsg(err)
+		return err
 	}
 	if p.Handshake().AppName != a.networkName {
 		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
 			p.ID(), p.Handshake().AppName, a.networkName)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return proto.NewInfoMsg(err)
+		return err
 	}
 	in, out := a.countDirections()
 	switch p.Direction() {
 	case peer.Incoming:
 		if in >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.New("exceed incoming connections limit"))
+			return proto.NewInfoMsg(errors.Errorf("exceed incoming connections limit, incoming peer '%s'", p.ID()))
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
@@ -139,11 +140,11 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.New("exceed outgoing connections limit"))
+			return proto.NewInfoMsg(errors.Errorf("exceed outgoing connections limit, outgoing peer '%s'", p.ID()))
 		}
 	default:
 		_ = p.Close()
-		return errors.New("unknown connection direction")
+		return errors.Errorf("unknown connection direction for peer '%s'", p.ID())
 	}
 	a.addConnected(p)
 	return nil
