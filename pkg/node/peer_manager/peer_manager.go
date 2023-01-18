@@ -116,14 +116,14 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 		)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return err
+		return proto.NewInfoMsg(err)
 	}
 	if p.Handshake().AppName != a.networkName {
 		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
 			p.ID(), p.Handshake().AppName, a.networkName)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return err
+		return proto.NewInfoMsg(err)
 	}
 	in, out := a.countDirections()
 	switch p.Direction() {
