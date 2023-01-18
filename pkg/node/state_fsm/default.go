@@ -4,7 +4,6 @@ import (
 	"time"
 
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -14,7 +13,6 @@ const (
 type Default interface {
 	Noop(FSM) (FSM, Async, error)
 	PeerError(fsm FSM, p Peer, baseInfo BaseInfo, _ error) (FSM, Async, error)
-	NewPeer(fsm FSM, p Peer, info BaseInfo) (FSM, Async, error)
 }
 
 type DefaultImpl struct {
@@ -29,14 +27,5 @@ func (a DefaultImpl) PeerError(fsm FSM, p Peer, baseInfo BaseInfo, _ error) (FSM
 	if baseInfo.peers.ConnectedCount() == 0 {
 		return NewIdleFsm(baseInfo), nil, nil
 	}
-	return fsm, nil, nil
-}
-
-func (a DefaultImpl) NewPeer(fsm FSM, p Peer, info BaseInfo) (FSM, Async, error) {
-	err := info.peers.NewConnection(p)
-	if err != nil {
-		return fsm, nil, proto.NewInfoMsg(err)
-	}
-	info.Reschedule()
 	return fsm, nil, nil
 }
