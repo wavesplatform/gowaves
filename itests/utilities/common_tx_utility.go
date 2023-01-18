@@ -143,6 +143,21 @@ func Abs(x int64) int64 {
 	return x
 }
 
+func SetFromToAccounts(accountNumbers []int) (int, int) {
+	var from, to int
+	switch len(accountNumbers) {
+	case 1:
+		from = accountNumbers[0]
+	case 2:
+		from = accountNumbers[0]
+		to = accountNumbers[1]
+	default:
+		from = 2
+		to = 3
+	}
+	return from, to
+}
+
 // AddNewAccount function creates and adds new AccountInfo to suite accounts list. Returns index of new account in
 // the list and AccountInfo.
 func AddNewAccount(suite *f.BaseSuite, chainID proto.Scheme) (int, config.AccountInfo) {

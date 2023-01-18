@@ -54,6 +54,16 @@ func NewSignTransferTransactionWithTestData[T any](suite *f.BaseSuite, version b
 		testdata.Fee, testdata.Recipient, testdata.Attachment)
 }
 
+func getAddressFromRecipientAlias(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
+	var address proto.WavesAddress
+	var err error
+	if recipient.Alias != nil {
+		address, err = proto.NewAddressFromBytes(utl.GetAddressByAliasGo(suite, recipient.Alias.Alias))
+		require.NoError(suite.T(), err, "Can't get address from bytes")
+	}
+	return &address
+}
+
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
@@ -63,6 +73,10 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 	initBalanceWavesGoSender, initBalanceWavesScalaSender := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
 	initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.Asset.ID)
 	//начальный баланс получателя
+	//для Recipient может быть задан алиас вместо адреса
+	if testdata.Recipient.Address == nil {
+		testdata.Recipient.Address = getAddressFromRecipientAlias(suite, testdata.Recipient)
+	}
 	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient := utl.GetAvailableBalanceInWaves(suite, *testdata.Recipient.Address)
 	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient := utl.GetAssetBalance(suite, *testdata.Recipient.Address,
 		testdata.Asset.ID)
@@ -135,4 +149,21 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	})
 	require.NoError(suite.T(), err)
 	return accNumber
+}
+
+// amount of Asset that transfered from one account to another, by default it will be all amount of Asset
+func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
+	from, to int, assetAmount ...uint64) {
+	var amount, currentAmount uint64
+	currentAmount = uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, assetId))
+	if len(assetAmount) == 1 && assetAmount[0] <= currentAmount {
+		amount = assetAmount[0]
+	} else {
+		amount = currentAmount
+	}
+	tx := TransferSend(suite, version, scheme, utl.GetAccount(suite, from).PublicKey, utl.GetAccount(suite, from).SecretKey,
+		*proto.NewOptionalAssetFromDigest(assetId), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount,
+		100000, proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
+	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
+	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 }
