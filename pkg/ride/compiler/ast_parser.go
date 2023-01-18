@@ -78,6 +78,11 @@ func NewASTParser(node *node32, buffer []rune) ASTParser {
 			ContentType:  ast.ContentTypeApplication,
 			Declarations: []ast.Node{},
 			Functions:    []ast.Node{},
+			Meta: meta.DApp{
+				Version:       2,
+				Functions:     []meta.Function{},
+				Abbreviations: meta.Abbreviations{},
+			},
 		},
 		buffer:      buffer,
 		ErrorsList:  []error{},
@@ -121,7 +126,7 @@ func (p *ASTParser) loadBuildInVarsToStackByVersion() {
 			Type: txType,
 		})
 	}
-	if p.Tree.LibVersion == ast.LibV5 || p.Tree.LibVersion == ast.LibV6 {
+	if p.Tree.LibVersion == ast.LibV5 || p.Tree.LibVersion == ast.LibV6 || p.Tree.LibVersion == ast.LibV4 {
 		if p.scriptType == Asset {
 			p.currentStack.PushVariable(s.Variable{
 				Name: "this",
@@ -222,6 +227,10 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		block = expr
 	}
 	p.Tree.Verifier = block
+	p.Tree.Declarations = nil
+	p.Tree.Functions = nil
+	p.Tree.Meta.Functions = nil
+	p.Tree.Meta.Version = 0
 }
 
 func (p *ASTParser) parseDirectives(node *node32) *node32 {
@@ -749,7 +758,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 				p.addError(fmt.Sprintf("Unexpected types for :: operator: %s, %s", varType, nextVarType), curNode.token32)
 				return nil, nil
 			}
-			funcId = ast.UserFunction("cons")
+			funcId = ast.NativeFunction("1100")
 			resListType.AppendList(nextVarType)
 		case ruleAppendOp:
 			if _, ok := varType.(s.ListType); !ok {
@@ -933,8 +942,10 @@ func (p *ASTParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 				res += "\r"
 			case "\\t":
 				res += "\t"
+			case "\\\"":
+				res += "\""
 			default:
-				p.addError(fmt.Sprintf("unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t", escapedChar), curNode.token32)
+				p.addError(fmt.Sprintf("unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t, \\\"", escapedChar), curNode.token32)
 			}
 		case ruleUnicodeChar:
 			unicodeChar := string(p.buffer[curNode.begin:curNode.end])
@@ -1079,6 +1090,9 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 		elseExpr, elseType = p.ruleBlockHandler(curNode)
 	}
 	var resType s.Type
+	if thenType == nil || elseType == nil {
+		return nil, nil
+	}
 	if !thenType.Comp(elseType) {
 		union := s.UnionType{Types: []s.Type{}}
 		union.AppendType(thenType)
@@ -1229,7 +1243,11 @@ func (p *ASTParser) ruleParExprHandler(node *node32) (ast.Node, s.Type) {
 func listArgsToString(l []s.Type) string {
 	res := ""
 	for i, t := range l {
-		res += t.String()
+		if t == nil {
+			res += "Unknown"
+		} else {
+			res += t.String()
+		}
 		if i < len(l)-1 {
 			res += ", "
 		}
@@ -1568,7 +1586,11 @@ func (p *ASTParser) parseAnnotatedFunc(node *node32) {
 }
 
 func (p *ASTParser) loadMeta(name string, argsTypes []s.Type) error {
-	p.Tree.Meta.Version = 2
+	if int(p.Tree.LibVersion) <= 3 {
+		p.Tree.Meta.Version = 1
+	} else {
+		p.Tree.Meta.Version = 2
+	}
 	switch p.Tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3, ast.LibV4, ast.LibV5:
 		return p.loadMetaBeforeV6(name, argsTypes)
@@ -1656,11 +1678,6 @@ func (p *ASTParser) loadMetaBeforeV6(name string, argsTypes []s.Type) error {
 				}
 				res.Arguments = append(res.Arguments, meta.ListType{Inner: meta.UnionType(resType)})
 			}
-			metaT, err := getMetaType(T.Type)
-			if err != nil {
-				return err
-			}
-			res.Arguments = append(res.Arguments, meta.ListType{Inner: metaT})
 		case s.UnionType:
 			var resType []meta.SimpleType
 			for _, unionT := range T.Types {
