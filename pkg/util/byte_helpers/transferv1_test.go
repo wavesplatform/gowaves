@@ -1,4 +1,4 @@
-package util
+package byte_helpers
 
 import (
 	"testing"
@@ -7,6 +7,6 @@ import (
 )
 
 func TestTransferWithSigBuilder(t *testing.T) {
-	tr := NewTransferWithSigBuilder().MustBuild()
+	tr := newTransferWithSigBuilder().MustBuild()
 	assert.Equal(t, "9ar4tAzhzw3gt6NPAG4hjb1Y3BeV85DAqfaeQPHmuiNG", tr.ID.String())
 }
