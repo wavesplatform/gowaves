@@ -1170,8 +1170,10 @@ func (tr Transfer) Valid(scheme Scheme) (bool, error) {
 	if !validJVMLong(tr.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if x := tr.Amount + tr.Fee; !validJVMLong(x) {
-		return false, errors.New("sum of amount and fee overflows JVM long")
+	if tr.AmountAsset.Eq(tr.FeeAsset) {
+		if x := tr.Amount + tr.Fee; !validJVMLong(x) {
+			return false, errors.New("sum of amount and fee in the same asset overflows JVM long")
+		}
 	}
 	if tr.attachmentSize() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
