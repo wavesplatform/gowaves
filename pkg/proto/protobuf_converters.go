@@ -1276,6 +1276,12 @@ func (c *ProtobufConverter) ethereumTransaction(canonicalEthTx []byte) (Transact
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
+	if mb == nil {
+		return MicroBlock{}, errors.New("empty signed microblock")
+	}
+	if mb.MicroBlock == nil {
+		return MicroBlock{}, errors.New("empty microblock")
+	}
 	txs, err := c.SignedTransactions(mb.MicroBlock.Transactions)
 	if err != nil {
 		return MicroBlock{}, err
