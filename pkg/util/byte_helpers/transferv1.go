@@ -1,35 +1,36 @@
-package util
+package byte_helpers
 
 import (
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"time"
 )
 
-type TransferWithSigBuilder struct {
+type transferWithSigBuilder struct {
 	seed      string
 	timestamp time.Time
 }
 
-func NewTransferWithSigBuilder() TransferWithSigBuilder {
-	return TransferWithSigBuilder{
+func newTransferWithSigBuilder() transferWithSigBuilder {
+	return transferWithSigBuilder{
 		seed:      "test",
 		timestamp: time.Unix(1544715621, 0),
 	}
 
 }
 
-func (a TransferWithSigBuilder) Seed(s string) TransferWithSigBuilder {
+func (a transferWithSigBuilder) Seed(s string) transferWithSigBuilder {
 	a.seed = s
 	return a
 }
 
-func (a TransferWithSigBuilder) Timestamp(t time.Time) TransferWithSigBuilder {
+func (a transferWithSigBuilder) Timestamp(t time.Time) transferWithSigBuilder {
 	a.timestamp = t
 	return a
 }
 
-func (a TransferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
+func (a transferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
 	priv, pub, err := crypto.GenerateKeyPair([]byte(a.seed))
 	if err != nil {
 		return nil, err
@@ -57,7 +58,7 @@ func (a TransferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
 	return t, nil
 }
 
-func (a TransferWithSigBuilder) MustBuild() *proto.TransferWithSig {
+func (a transferWithSigBuilder) MustBuild() *proto.TransferWithSig {
 	out, err := a.Build()
 	if err != nil {
 		panic(err)

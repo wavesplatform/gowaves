@@ -28,8 +28,7 @@ func NewSignIssueTransaction[T any](suite *f.BaseSuite, version byte, testdata t
 		tx = proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
 			testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedIssueWithProofs(version, testdata.ChainID, testdata.Account.PublicKey, testdata.AssetName,
-			testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, nil, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedIssueWithProofs(version, testdata.Account.PublicKey, testdata.AssetName, testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, nil, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)

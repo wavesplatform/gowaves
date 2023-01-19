@@ -2,13 +2,11 @@ package blocks_applier
 
 import (
 	"math/big"
-	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 func notFound() state.StateError {
@@ -108,10 +106,6 @@ func (a *MockStateManager) WavesAddressesNumber() (uint64, error) {
 
 func (a *MockStateManager) AddressesNumber(_ bool) (uint64, error) {
 	panic("implement me")
-}
-
-func (a *MockStateManager) Mutex() *lock.RwMutex {
-	return lock.NewRwMutex(&sync.RWMutex{})
 }
 
 func (a *MockStateManager) RollbackToHeight(height uint64) error {

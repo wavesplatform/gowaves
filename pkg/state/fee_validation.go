@@ -147,7 +147,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 			}
 			dtxBytesForFee = len(dtxBytes)
 		default:
-			dtxBytes, err := dtx.MarshalBinary()
+			dtxBytes, err := dtx.MarshalBinary(scheme)
 			if err != nil {
 				return 0, err
 			}
