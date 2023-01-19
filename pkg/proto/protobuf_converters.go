@@ -1132,6 +1132,9 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
+	if stx == nil {
+		return nil, errors.New("empty signed transaction")
+	}
 	switch wrappedTx := stx.Transaction.(type) {
 	case *g.SignedTransaction_WavesTransaction:
 		tx, err := c.Transaction(wrappedTx.WavesTransaction)
