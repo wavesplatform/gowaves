@@ -159,6 +159,8 @@ func (c *ProtobufConverter) convertAmount(amount *g.Amount) (OptionalAsset, uint
 	if c.err != nil {
 		return OptionalAsset{}, 0
 	}
+	// amount != nil will be checked by the functions below
+	// do not forget to check it if you're going to work with amount here
 	return c.extractOptionalAsset(amount), c.amount(amount)
 }
 
