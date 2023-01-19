@@ -165,14 +165,14 @@ func (s *Synchronizer) recvBlockRange(h int, delta int, stream g.BlocksApi_GetBl
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}
-		header, err := cnv.BlockHeader(block.Block)
+		header, err := cnv.BlockHeader(block.GetBlock())
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}
 		headersIDs = append(headersIDs, header.ID)
 		headersGenPublicKeys = append(headersGenPublicKeys, header.GeneratorPublicKey)
 
-		txs, err := cnv.BlockTransactions(block.Block)
+		txs, err := cnv.SignedTransactions(block.GetBlock().GetTransactions())
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}

@@ -1310,7 +1310,7 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
-	txs, err := c.BlockTransactions(block)
+	txs, err := c.SignedTransactions(block.Transactions)
 	if err != nil {
 		return Block{}, err
 	}
@@ -1323,10 +1323,6 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 		BlockHeader:  header,
 		Transactions: txs,
 	}, nil
-}
-
-func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.SignedTransactions(block.Transactions)
 }
 
 func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
