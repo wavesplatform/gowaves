@@ -30,8 +30,7 @@ func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte, testdata te
 	if version == 1 {
 		tx = proto.NewUnsignedBurnWithSig(testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedBurnWithProofs(version, testdata.ChainID, testdata.Account.PublicKey, testdata.AssetID,
-			testdata.Quantity, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedBurnWithProofs(version, testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)

@@ -11,7 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, invokeExpressionActivated bool, tx proto.Transaction) (rideType, error) {
+func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, consensusImprovementsActivated bool, tx proto.Transaction) (rideType, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)
@@ -54,7 +54,7 @@ func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, invokeExpr
 	case *proto.DataWithProofs:
 		return dataWithProofsToObject(scheme, transaction)
 	case *proto.SetScriptWithProofs:
-		return setScriptWithProofsToObject(scheme, invokeExpressionActivated, transaction)
+		return setScriptWithProofsToObject(scheme, consensusImprovementsActivated, transaction)
 	case *proto.SponsorshipWithProofs:
 		return sponsorshipWithProofsToObject(scheme, transaction)
 	case *proto.SetAssetScriptWithProofs:
@@ -725,7 +725,7 @@ func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideDataTran
 	), nil
 }
 
-func setScriptWithProofsToObject(scheme byte, invokeExpressionActivated bool, tx *proto.SetScriptWithProofs) (rideSetScriptTransaction, error) {
+func setScriptWithProofsToObject(scheme byte, consensusImprovementsActivated bool, tx *proto.SetScriptWithProofs) (rideSetScriptTransaction, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
@@ -735,7 +735,7 @@ func setScriptWithProofsToObject(scheme byte, invokeExpressionActivated bool, tx
 		return rideSetScriptTransaction{}, EvaluationFailure.Wrap(err, "setScriptWithProofsToObject")
 	}
 	var sf rideType = rideUnit{}
-	if l := len(tx.Script); l > 0 && (l <= proto.MaxContractScriptSizeV1V5 || invokeExpressionActivated) {
+	if l := len(tx.Script); l > 0 && (l <= proto.MaxContractScriptSizeV1V5 || consensusImprovementsActivated) {
 		sf = rideBytes(common.Dup(tx.Script))
 	}
 	return newRideSetScriptTransaction(

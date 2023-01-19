@@ -1049,6 +1049,7 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 		ia.settings.InternalInvokePaymentsValidationAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
+		params.consensusImprovementsActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {

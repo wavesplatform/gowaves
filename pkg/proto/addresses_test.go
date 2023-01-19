@@ -94,14 +94,26 @@ func TestAddressFromBytes(t *testing.T) {
 }
 
 func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
+	var addr WavesAddress
 	seed := make([]byte, 32)
 	_, _ = rand.Read(seed)
 	_, pk, err := crypto.GenerateKeyPair(seed)
 	if err != nil {
 		b.Fatalf("crypto.GenerateKeyPair(): %v", err)
 	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _ = NewAddressFromPublicKey(TestNetScheme, pk)
+		addr, err = NewAddressFromPublicKey(TestNetScheme, pk)
+	}
+	b.StopTimer()
+
+	if err != nil {
+		b.Fatal(err.Error())
+	}
+	if MustAddressFromPublicKey(TestNetScheme, pk) != addr {
+		b.Fatal("different addresses")
 	}
 }
 
@@ -123,23 +135,31 @@ func TestAliasFromString(t *testing.T) {
 	}
 }
 
-func TestIncorrectAlias(t *testing.T) {
-	aliases := []string{"xxx", "xxxl-very-very-very-long-alias-that-is-incorrect", "asd=asd", "QazWsxEdc"}
-	for _, alias := range aliases {
-		a := NewAlias(TestNetScheme, alias)
-		v, err := a.Valid()
-		assert.False(t, v)
-		assert.Error(t, err)
-	}
-}
-
-func TestCorrectAlias(t *testing.T) {
-	aliases := []string{"alias", "qwerty", "correct"}
-	for _, alias := range aliases {
-		a := NewAlias(TestNetScheme, alias)
-		v, err := a.Valid()
-		assert.True(t, v)
-		assert.NoError(t, err)
+func TestAlias_Valid(t *testing.T) {
+	const okScheme = TestNetScheme
+	for _, test := range []struct {
+		alias  string
+		scheme Scheme
+		valid  bool
+	}{
+		{"alias", okScheme, true},
+		{"qwerty", okScheme, true},
+		{"correct", okScheme, true},
+		{"xxx", okScheme, false},
+		{"valid", 'I', false},
+		{"xxxl-very-very-very-long-alias-that-is-incorrect", okScheme, false},
+		{"asd=asd", okScheme, false},
+		{"QazWsxEdc", okScheme, false},
+	} {
+		a := NewAlias(okScheme, test.alias)
+		ok, err := a.Valid(test.scheme)
+		if test.valid {
+			assert.True(t, ok)
+			assert.NoError(t, err)
+		} else {
+			assert.False(t, ok)
+			assert.Error(t, err)
+		}
 	}
 }
 

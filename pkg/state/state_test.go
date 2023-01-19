@@ -87,7 +87,7 @@ func TestGenesisConfig(t *testing.T) {
 	ss := &settings.BlockchainSettings{
 		Type:                  settings.Custom,
 		Genesis:               settings.TestNetSettings.Genesis,
-		FunctionalitySettings: settings.FunctionalitySettings{BlockRewardTerm: 100000},
+		FunctionalitySettings: settings.FunctionalitySettings{BlockRewardTerm: 100000, AddressSchemeCharacter: proto.TestNetScheme},
 	}
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
@@ -344,12 +344,6 @@ func TestTransactionByID(t *testing.T) {
 	tx, err := manager.TransactionByID(id)
 	assert.NoError(t, err, "TransactionByID() failed")
 	assert.Equal(t, correctTx, tx)
-}
-
-func TestStateManager_Mutex(t *testing.T) {
-	manager := newTestStateManager(t, true, DefaultTestingStateParams(), settings.MainNetSettings)
-	mu := manager.Mutex()
-	mu.Lock().Unlock()
 }
 
 func TestStateManager_TopBlock(t *testing.T) {
