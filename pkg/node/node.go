@@ -175,6 +175,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 	actions := createActions()
 
 	// TODO: implement graceful shutdown
+	_ = fmt.Stringer(fsm) // check that fsm implements fmt.Stringer interface
 	for {
 		select {
 		case internalMess := <-internalMessageCh:
@@ -191,7 +192,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				default:
 				}
 			default:
-				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm.String(), t)
+				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm, t)
 				continue
 			}
 		case task := <-tasksCh:
@@ -200,16 +201,19 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			switch t := m.Value.(type) {
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)
+				if err == nil {
+					zap.S().Debugf("[%s] Established connection with %s peer '%s'", fsm, t.Peer.Direction(), t.Peer.ID())
+				}
 			case *peer.InternalErr:
 				fsm, async, err = fsm.PeerError(m.Peer, t.Err)
 			default:
-				zap.S().Warnf("[%s] Unknown info message '%T'", fsm.String(), m)
+				zap.S().Warnf("[%s] Unknown info message '%T'", fsm, m)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.String(), mess.Message, mess.ID.ID())
+			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm.String(), mess.Message, mess.ID.ID())
+				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm, mess.Message, mess.ID.ID())
 				continue
 			}
 			fsm, async, err = action(a.services, mess, fsm)

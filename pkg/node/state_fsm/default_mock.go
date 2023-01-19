@@ -34,22 +34,6 @@ func (m *MockDefault) EXPECT() *MockDefaultMockRecorder {
 	return m.recorder
 }
 
-// NewPeer mocks base method.
-func (m *MockDefault) NewPeer(fsm FSM, p Peer, info BaseInfo) (FSM, Async, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewPeer", fsm, p, info)
-	ret0, _ := ret[0].(FSM)
-	ret1, _ := ret[1].(Async)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// NewPeer indicates an expected call of NewPeer.
-func (mr *MockDefaultMockRecorder) NewPeer(fsm, p, info interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPeer", reflect.TypeOf((*MockDefault)(nil).NewPeer), fsm, p, info)
-}
-
 // Noop mocks base method.
 func (m *MockDefault) Noop(arg0 FSM) (FSM, Async, error) {
 	m.ctrl.T.Helper()

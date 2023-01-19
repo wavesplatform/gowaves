@@ -853,7 +853,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		{"alias:T:nickname", 1000, 0, "The attachment", "fee should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 10, 1, "The attachment", "amount is too big"},
 		{"alias:T:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee in the same asset overflows JVM long"},
 		{"alias:T:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
 		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN", 1000, 10, "The attachment", "invalid recipient '3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN': invalid WavesAddress checksum"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid scheme 'W', expected 'T'"},
@@ -1141,35 +1141,50 @@ func TestTransferWithSigToJSON(t *testing.T) {
 }
 
 func TestTransferWithProofsValidations(t *testing.T) {
+	var (
+		w      = NewOptionalAssetWaves()
+		a, err = NewOptionalAssetFromString("93H1i2jgP21Eh4Q5uzwmCYCVfGHZcAMzpC6PPbwvCSTs")
+	)
+	require.NoError(t, err)
 	tests := []struct {
-		recipient string
-		amount    uint64
-		fee       uint64
-		att       string
-		err       string
+		recipient   string
+		amount      uint64
+		amountAsset OptionalAsset
+		fee         uint64
+		feeAsset    OptionalAsset
+		att         string
+		err         string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 0, "The attachment", "fee should be positive"},
-		{"alias:T:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
-		{"alias:T:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
-		{"alias:T:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN", 1000, 10, "The attachment", "invalid recipient '3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN': invalid WavesAddress checksum"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid scheme 'W', expected 'T'"},
-		{"alias:T:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:T:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
-		{"alias:W:invalid-scheme", 1000, 10, "The attachment", "invalid recipient 'alias:W:invalid-scheme': invalid scheme 'W', expected 'T'"},
-		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': invalid scheme 'W', expected 'T'"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, w, 10, w, "The attachment", "amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, w, 0, w, "The attachment", "fee should be positive"},
+		{"alias:T:nickname", math.MaxInt64 + 1, w, 10, w, "The attachment", "amount is too big"},
+		{"alias:T:nickname", 1000, w, math.MaxInt64 + 1, w, "The attachment", "fee is too big"},
+		{"alias:T:nickname", 1000, w, math.MaxInt64, w, "The attachment", "sum of amount and fee in the same asset overflows JVM long"},
+		{"alias:T:nickname", math.MaxInt64, w, 1000, w, "The attachment", "sum of amount and fee in the same asset overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, w, 10, w, strings.Repeat("The attachment", 100), "attachment is too long"},
+		{"3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN", 1000, w, 10, w, "The attachment", "invalid recipient '3MxW8ZFCQUQDg7xagmGQQcwbQDmNGQQgnWN': invalid WavesAddress checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, w, 10, w, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid scheme 'W', expected 'T'"},
+		{"alias:T:прозвище", 1000, w, 10, w, "The attachment", "invalid recipient 'alias:T:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		{"alias:W:invalid-scheme", 1000, w, 10, w, "The attachment", "invalid recipient 'alias:W:invalid-scheme': invalid scheme 'W', expected 'T'"},
+		{"alias:W:прозвище", 1000, w, 10, w, "The attachment", "invalid recipient 'alias:W:прозвище': invalid scheme 'W', expected 'T'"},
+		{"alias:T:nickname", 1000, w, math.MaxInt64, *a, "The attachment", ""},
+		{"alias:T:nickname", math.MaxInt64, w, math.MaxInt64, *a, "The attachment", ""},
 	}
-	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-	for _, tc := range tests {
-		rcp, err := recipientFromString(tc.recipient)
-		require.NoError(t, err)
-		a, err := NewOptionalAssetFromString("WAVES")
-		require.NoError(t, err)
-		att := []byte(tc.att)
-		tx := NewUnsignedTransferWithProofs(2, spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate(TestNetScheme)
-		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
+	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	require.NoError(t, err)
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			rcp, err := recipientFromString(tc.recipient)
+			require.NoError(t, err)
+			att := []byte(tc.att)
+			tx := NewUnsignedTransferWithProofs(2, spk, tc.amountAsset, tc.feeAsset, 0, tc.amount, tc.fee, rcp, att)
+			_, err = tx.Validate(TestNetScheme)
+			if tc.err != "" {
+				assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
 
