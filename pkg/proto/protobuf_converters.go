@@ -1360,6 +1360,12 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 }
 
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
+	if block == nil {
+		return BlockHeader{}, errors.New("empty block")
+	}
+	if block.Header == nil {
+		return BlockHeader{}, errors.New("empty block header")
+	}
 	features := c.features(block.Header.FeatureVotes)
 	consensus := c.consensus(block.Header)
 	v := BlockVersion(c.byte(block.Header.Version))
