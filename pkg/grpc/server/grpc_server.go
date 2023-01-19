@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"net"
+	"runtime/debug"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -14,8 +16,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -52,11 +56,18 @@ func NewServer(services services.Services) (*Server, error) {
 }
 
 func createGRPCServerWithHandlers(handlers GrpcHandlers) *grpc.Server {
+	recoveryHandler := grpc_recovery.WithRecoveryHandler(func(p interface{}) (err error) {
+		zap.S().Errorf("PANIC TRIGGERED, BUG, CREATE REPORT: %+v\n%s", p, debug.Stack())
+		// TODO: Is it necessary to provide info about error to the caller?
+		return status.Errorf(codes.Unknown, "panic triggered: %v", p)
+	})
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime:             10 * time.Second,
 			PermitWithoutStream: true,
 		}),
+		grpc.UnaryInterceptor(grpc_recovery.UnaryServerInterceptor(recoveryHandler)),
+		grpc.StreamInterceptor(grpc_recovery.StreamServerInterceptor(recoveryHandler)),
 	)
 	g.RegisterAccountsApiServer(grpcServer, handlers)
 	g.RegisterAssetsApiServer(grpcServer, handlers)
