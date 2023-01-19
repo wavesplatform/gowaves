@@ -117,7 +117,7 @@ func main() {
 	case showOpt:
 		err = showWallet(walletPath, scheme)
 		if err != nil {
-			log.Printf("Failed to showWallet wallet's credentials: %v", err)
+			log.Printf("Failed to show wallet's credentials: %v", err)
 		}
 	case newOpt, seedPhraseOpt, seedPhraseBase58Opt, accountSeedBase58Opt:
 		err = createWallet(command, walletPath, accountNumber, scheme, opts)
