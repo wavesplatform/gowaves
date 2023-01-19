@@ -655,12 +655,13 @@ func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScr
 	}
 	res := make([]*SponsorshipScriptAction, len(sponsorships))
 	for i, x := range sponsorships {
-		res[i] = &SponsorshipScriptAction{
-			AssetID: c.digest(x.MinFee.AssetId),
-			MinFee:  x.MinFee.Amount,
-		}
+		assetID, amount := c.convertAssetAmount(x.MinFee)
 		if c.err != nil {
 			return nil, c.err
+		}
+		res[i] = &SponsorshipScriptAction{
+			AssetID: assetID,
+			MinFee:  int64(amount),
 		}
 	}
 	return res, nil
