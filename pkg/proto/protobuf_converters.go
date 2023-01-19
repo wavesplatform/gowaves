@@ -578,9 +578,12 @@ func (c *ProtobufConverter) TransferScriptActions(scheme byte, payments []*g.Inv
 	res := make([]*TransferScriptAction, len(payments))
 	for i, p := range payments {
 		asset, amount := c.convertAmount(p.Amount)
+		if c.err != nil {
+			return nil, c.err
+		}
 		addr, err := c.Address(scheme, p.Address)
 		if err != nil {
-			return nil, c.err
+			return nil, err
 		}
 		res[i] = &TransferScriptAction{
 			Recipient: NewRecipientFromAddress(addr),
