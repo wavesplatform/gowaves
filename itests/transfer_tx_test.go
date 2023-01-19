@@ -25,7 +25,7 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 		//создаем произвольный алиас
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 		//устанавливаем алиас аккаунту, которому будем пересылать токены
-		alias_utilities.SetAliasToAccount(&suite.BaseSuite, v, testdata.TestChainID, alias, 3)
+		alias_utilities.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, alias, 3)
 		//выпускаем токен, который будем переводить другому аккаунту
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
@@ -60,21 +60,19 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 	}
 }
 
-// TODO need to fix transfer , it should be 2 transfers
+// TODO need to wait fix for transfer max amount of asset
 func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 	versions := testdata.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		//создаем новый аккаунт с ненулевым балансом
-		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9, 10000000000)
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID, 9, 10000000000)
 		//выпускаем токен, который будем переводить другому аккаунту
-		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		//itxID := issue_utilities.IssueAssetAmount(&suite.BaseSuite, v, testdata.TestChainID, 2)
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itxID := issue_utilities.IssueAssetAmount(&suite.BaseSuite, v, utl.TestChainID, 2)
 		//переводим токен с аккаунта эмитента на новый аккаунт
-		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, v, testdata.TestChainID, itx.TxID, 2, n)
+		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, v, utl.TestChainID, itxID, 2, n)
 		//используя новый токен, создаем тестовые данные для проверки транзакции перевода
-		tdmatrix := testdata.GetTransferMaxAmountPositive(&suite.BaseSuite, itx.TxID, n)
+		tdmatrix := testdata.GetTransferMaxAmountPositive(&suite.BaseSuite, itxID, n)
 		for name, td := range tdmatrix {
 			//suite.T().Run(name, func(t *testing.T) {})
 			//выпускаем транзакцию перевода

@@ -26,7 +26,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 		//создаем произвольный алиас
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 		//устанавливаем алиас аккаунту, которому будем пересылать токены
-		alias_utilities.SetAliasToAccount(&suite.BaseSuite, v, testdata.TestChainID, alias, 3)
+		alias_utilities.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, alias, 3)
 		//выпускаем токен, который будем переводить другому аккаунту
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)

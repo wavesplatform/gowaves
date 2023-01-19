@@ -25,8 +25,7 @@ type TransferExpectedValuesPositive struct {
 	WavesDiffBalanceSender    int64
 	AssetDiffBalance          int64
 	WavesDiffBalanceRecipient int64
-
-	_ struct{}
+	_                         struct{}
 }
 
 type TransferExpectedValuesNegative struct {
@@ -81,13 +80,13 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
 			assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          assetAmount / 4,
 				WavesDiffBalanceRecipient: 0,
 			},
@@ -97,13 +96,13 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
 			assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			1,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          1,
 				WavesDiffBalanceRecipient: 0,
 			},
@@ -121,13 +120,13 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			1,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          1,
 				WavesDiffBalanceRecipient: 0,
 			},
@@ -135,16 +134,16 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 		//валидные зн-я fee,amount,attach
 		"Valid values for fee, amount, attachment, alias": *NewTransferTestData(
 			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAlias(*proto.NewAlias(TestChainID, alias)),
+			proto.NewRecipientFromAlias(*proto.NewAlias(utl.TestChainID, alias)),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			proto.Attachment("6oCrsKJu7Ev52rjB72t1d3y98G5DQmvt7TYVvW7HT4vGbqgKJxJmBzA77LpC9vcW4WNQqZ2imMghaK2gkCX5J"),
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          assetAmount / 4,
 				WavesDiffBalanceRecipient: 0,
 			}),
@@ -154,13 +153,13 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			nil,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(wavesAmount/4),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			proto.Attachment("2qcsACR1T95dchPf3anZ6W2CEMyNHnwUYuFeHDQt"),
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000 + wavesAmount/4,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/4,
 				AssetDiffBalance:          0,
 				WavesDiffBalanceRecipient: wavesAmount / 4,
 			}),
@@ -179,14 +178,14 @@ func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, acc
 			&assetId,
 			nil,
 			uint64(wavesAmount),
-			9223372036854775807,
+			utl.MaxAmount,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRML6CVyKVbatfbcNWst"+
 				"N3cuernPDaF4kgpn5g1DdPkfH6gge94TesYMkhdSHwVoVvXwacr"),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    wavesAmount,
-				AssetDiffBalance:          9223372036854775807,
+				AssetDiffBalance:          utl.MaxAmount,
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
@@ -204,10 +203,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRML6CVyKVbatfbcNWst"+
 				"N3cuernPDaF4kgpn5g1DdPkfH6gge94TesYMkhdSHwVoVvXwacr2Gj"),
 			TransferExpectedValuesNegative{
@@ -219,38 +218,16 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "",
 			},
 		),
-		//Перевод токена, значение attachment содержит в невалидной кодировке, в качестве получателя указан адрес аккаунта
-		//TODO seems it bug in this case (utf-8 and utf-16)
-		/*"Attachment in invalid encoding": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
-			&assetId,
-			nil,
-			100000,
-			uint64(assetAmount),
-			utl.GetCurrentTimestampInMs(),
-			TestChainID,
-			proto.Attachment("\\xff\\xfea\\x00b\\x00c\\x00d\\x00e\\x00f\\x00g\\x00h\\x00i\\x00j\\x00k\\x00l\\x00m"+
-				"\\x00n\\x00o\\x00p\\x00q\\x00r\\x00s\\x00t\\x00u\\x00v\\x00w\\x00x\\x00y\\x00z\\"),
-			TransferExpectedValuesNegative{
-				WavesDiffBalance:  0,
-				AssetDiffBalance:  0,
-				ErrGoMsg:          errMsg,
-				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
-			},
-		),*/
 		//Перевод токена, значение amount=0, указан адрес аккаунта
 		"Asset amount = 0": *NewTransferTestData(
 			utl.GetAccount(suite, 2),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -267,10 +244,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			nil,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -287,10 +264,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
-			9223372036854775808,
+			utl.MinTxFeeWaves,
+			utl.MaxAmount+1,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -307,10 +284,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs()-7260000,
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -326,10 +303,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs()+54160000,
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -345,10 +322,10 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&invalidAssetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -367,7 +344,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			nil,
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -390,7 +367,7 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
 			0,
@@ -409,7 +386,7 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
 			nil,
-			100000,
+			utl.MinTxFeeWaves,
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
 			'T',

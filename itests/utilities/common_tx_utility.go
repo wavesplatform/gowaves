@@ -19,6 +19,10 @@ import (
 )
 
 const (
+	MaxAmount        = 9223372036854775807
+	MinIssueFeeWaves = 100000000
+	MinTxFeeWaves    = 100000
+	TestChainID      = 'L'
 	CommonSymbolSet  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )

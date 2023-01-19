@@ -40,7 +40,7 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	versions := testdata.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
-		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, testdata.TestChainID, 9, 10000000000)
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID, 9, 10000000000)
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
 			suite.T().Run(name, func(t *testing.T) {

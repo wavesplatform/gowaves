@@ -13,12 +13,8 @@ const (
 	errName      = "invalid name"
 )
 
-const (
-	TestChainID = 'L'
-)
-
 func GetVersions() []byte {
-	return []byte{1, 3}
+	return []byte{3}
 }
 
 type IssueTestData[T any] struct {
@@ -85,11 +81,11 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			1,
 			0,
 			false,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesPositive{
-				WavesDiffBalance: 100000000,
+				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     1,
 			}),
 		Reissuable: *NewIssueTestData(
@@ -99,11 +95,11 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			100000000000,
 			4,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesPositive{
-				WavesDiffBalance: 100000000,
+				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
 	}
@@ -118,11 +114,11 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			1,
 			0,
 			false,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesPositive{
-				WavesDiffBalance: 100000000,
+				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     1,
 			}),
 		"Middle values, special symbols in desc, not reissuable": *NewIssueTestData(
@@ -132,26 +128,26 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000000000,
 			4,
 			false,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesPositive{
-				WavesDiffBalance: 100000000,
+				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
 		"Max values": *NewIssueTestData(
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(16, utl.CommonSymbolSet),
 			utl.RandStringBytes(1000, utl.CommonSymbolSet),
-			9223372036854775807,
+			utl.MaxAmount,
 			8,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesPositive{
-				WavesDiffBalance: 100000000,
-				AssetBalance:     9223372036854775807,
+				WavesDiffBalance: utl.MinIssueFeeWaves,
+				AssetBalance:     utl.MaxAmount,
 			}),
 	}
 	return t
@@ -166,9 +162,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			1,
 			0,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -184,9 +180,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -202,9 +198,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -220,9 +216,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -241,7 +237,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 		true,
 		100000000,
 		utl.GetCurrentTimestampInMs(),
-		TestChainID,
+		utl.TestChainID,
 		ExpectedValuesNegative{
 			ErrGoMsg:         errMsg,
 			ErrScalaMsg:      errMsg,
@@ -257,9 +253,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -275,9 +271,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			0,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -290,12 +286,12 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			utl.GetAccount(suite, 2),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
-			9223372036854775808,
+			utl.MaxAmount+1,
 			2,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -311,9 +307,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			9,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -329,9 +325,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
-			9223372036854775808,
+			utl.MaxAmount+1,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -349,7 +345,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			10,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -367,7 +363,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -383,9 +379,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs()-7260000,
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -401,9 +397,9 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
-			100000000,
+			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs()+54160000,
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
@@ -421,7 +417,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			true,
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			ExpectedValuesNegative{
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
