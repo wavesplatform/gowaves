@@ -707,11 +707,14 @@ func (c *ProtobufConverter) LeaseCancelScriptActions(cancels []*g.InvokeScriptRe
 	return res, nil
 }
 
-func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
+func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (ScriptErrorMessage, error) {
 	if c.err != nil {
-		return nil, c.err
+		return ScriptErrorMessage{}, c.err
 	}
-	return &ScriptErrorMessage{
+	if msg == nil {
+		return ScriptErrorMessage{}, errors.New("empty invoke script result error message")
+	}
+	return ScriptErrorMessage{
 		Code: TxFailureReason(msg.Code),
 		Text: msg.Text,
 	}, nil
