@@ -48,11 +48,11 @@ Flags:
 
 var examples = `
 Examples:
-	./wallet -show							Show existing wallet credentials
-	./wallet -new 							Generate a seed phrase and a wallet 
-	./wallet -seed-phrase "..."				Import a seed phrase
+	./wallet -show					Show existing wallet credentials
+	./wallet -new					Generate a seed phrase and a wallet 
+	./wallet -seed-phrase "..."			Import a seed phrase
 	./wallet -seed-phrase-base58 "..."		Import a Base58 encoded seed phrase
-	./wallet -account-seed "..."			Import a Base58 encoded account seed
+	./wallet -account-seed-base58 "..."		Import a Base58 encoded account seed
 `
 
 func schemeFromString(s string) (proto.Scheme, error) {
