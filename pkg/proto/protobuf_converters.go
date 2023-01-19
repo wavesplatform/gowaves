@@ -1306,6 +1306,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 }
 
 func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
+	// block != nil will be check in BlockHeader method
 	header, err := c.BlockHeader(block)
 	if err != nil {
 		return Block{}, err
