@@ -251,6 +251,10 @@ func (c *ProtobufConverter) assetPair(pair *g.AssetPair) AssetPair {
 	if c.err != nil {
 		return AssetPair{}
 	}
+	if pair == nil {
+		c.err = errors.New("empty asset pair")
+		return AssetPair{}
+	}
 	return AssetPair{
 		AmountAsset: c.optionalAsset(pair.AmountAssetId),
 		PriceAsset:  c.optionalAsset(pair.PriceAssetId),
