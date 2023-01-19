@@ -349,6 +349,10 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
+	if o == nil {
+		c.err = errors.New("empty order")
+		return nil
+	}
 	orderVersion := c.byte(o.Version)
 	priceMode, err := c.orderPriceMode(o.PriceMode)
 	if err != nil {
