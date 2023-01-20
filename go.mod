@@ -35,6 +35,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.9.1
+	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible

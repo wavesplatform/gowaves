@@ -8,7 +8,7 @@ import (
 )
 
 type seeder interface {
-	Seeds() [][]byte
+	AccountSeeds() [][]byte
 }
 
 type EmbeddedWalletImpl struct {
@@ -19,7 +19,7 @@ type EmbeddedWalletImpl struct {
 }
 
 func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
-	seeds := a.seeder.Seeds()
+	seeds := a.seeder.AccountSeeds()
 	for _, s := range seeds {
 		secret, public, err := crypto.GenerateKeyPair(s)
 		if err != nil {
@@ -47,10 +47,10 @@ func (a *EmbeddedWalletImpl) Load(password []byte) error {
 	return nil
 }
 
-func (a *EmbeddedWalletImpl) Seeds() [][]byte {
+func (a *EmbeddedWalletImpl) AccountSeeds() [][]byte {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.seeder.Seeds()
+	return a.seeder.AccountSeeds()
 }
 
 func NewEmbeddedWallet(path Loader, seeder seeder, scheme proto.Scheme) *EmbeddedWalletImpl {

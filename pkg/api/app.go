@@ -109,7 +109,7 @@ func (a *App) LoadKeys(apiKey string, password []byte) error {
 }
 
 func (a *App) Accounts() ([]account, error) {
-	seeds := a.services.Wallet.Seeds()
+	seeds := a.services.Wallet.AccountSeeds()
 
 	accounts := make([]account, 0, len(seeds))
 	for _, seed := range seeds {

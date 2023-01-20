@@ -67,6 +67,7 @@ const (
 type Timestamp = uint64
 type Score = big.Int
 type Scheme = byte
+
 type Height = uint64
 
 var jsonNullBytes = []byte(jsonNull)
