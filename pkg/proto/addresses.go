@@ -584,19 +584,19 @@ var (
 
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
-	address *WavesAddress
-	alias   *Alias
-	len     int
+	address    *WavesAddress
+	alias      *Alias
+	binarySize int
 }
 
 // NewRecipientFromAddress creates the Recipient from given address.
 func NewRecipientFromAddress(a WavesAddress) Recipient {
-	return Recipient{address: &a, len: WavesAddressSize}
+	return Recipient{address: &a, binarySize: WavesAddressSize}
 }
 
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
-	return Recipient{alias: &a, len: aliasFixedSize + len(a.Alias)}
+	return Recipient{alias: &a, binarySize: aliasFixedSize + len(a.Alias)}
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
@@ -622,8 +622,12 @@ func (r Recipient) Address() *WavesAddress {
 	return r.address
 }
 
+func (r *Recipient) BinarySize() int {
+	return r.binarySize
+}
+
 func (r Recipient) Eq(r2 Recipient) bool {
-	res := r.len == r2.len
+	res := r.binarySize == r2.binarySize
 	if r.address != nil && r2.address != nil {
 		res = res && (*r.address == *r2.address)
 	} else {
@@ -684,7 +688,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 		}
 		r.alias = &a
-		r.len = aliasFixedSize + len(a.Alias)
+		r.binarySize = aliasFixedSize + len(a.Alias)
 		return nil
 	}
 	var a WavesAddress
@@ -693,12 +697,8 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
 	r.address = &a
-	r.len = WavesAddressSize
+	r.binarySize = WavesAddressSize
 	return nil
-}
-
-func (r *Recipient) BinarySize() int {
-	return r.len
 }
 
 // MarshalBinary makes bytes of the Recipient.
@@ -742,7 +742,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
 		r.address = &a
-		r.len = WavesAddressSize
+		r.binarySize = WavesAddressSize
 		return nil
 	case aliasVersion:
 		var a Alias
@@ -751,7 +751,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
 		r.alias = &a
-		r.len = aliasFixedSize + len(a.Alias)
+		r.binarySize = aliasFixedSize + len(a.Alias)
 		return nil
 	default:
 		return errors.Errorf("unsupported Recipient version %d", v)
