@@ -145,7 +145,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, RuntimeError.Errorf(
 			"DApp %s invoked DApp %s that uses RIDE %d, but dApp-to-dApp invocation requires version 5 or higher",
 			proto.WavesAddress(callerAddress),
-			recipient.Address,
+			recipient.Address(),
 			tree.LibVersion,
 		)
 	}
@@ -279,16 +279,16 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	if ws.invCount() > 1 {
-		if containsAddress(*recipient.Address, ws.blocklist) && proto.WavesAddress(callerAddress) != *recipient.Address {
+		if containsAddress(*recipient.Address(), ws.blocklist) && proto.WavesAddress(callerAddress) != *recipient.Address() {
 			return rideUnit{}, InternalInvocationError.Errorf(
 				"%s: function call of %s with dApp address %s is forbidden because it had already been called once by 'invoke'",
-				invocation.name(), fn, recipient.Address)
+				invocation.name(), fn, recipient.Address())
 		}
 	}
 
 	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
+		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address().String(), fn, arguments)
 	}
 
 	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
@@ -333,16 +333,15 @@ func invoke(env environment, args ...rideType) (rideType, error) {
 }
 
 func ensureRecipientAddress(env environment, recipient proto.Recipient) (proto.Recipient, error) {
-	if recipient.Address == nil {
-		if recipient.Alias == nil {
+	if recipient.Address() == nil {
+		if recipient.Alias() == nil {
 			return proto.Recipient{}, errors.New("empty recipient")
 		}
-		address, err := env.state().NewestAddrByAlias(*recipient.Alias)
+		address, err := env.state().NewestAddrByAlias(*recipient.Alias())
 		if err != nil {
 			return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
 		}
-		recipient.Address = &address
-		return recipient, nil
+		return proto.NewRecipientFromAddress(address), nil
 	}
 	return recipient, nil
 }

@@ -148,7 +148,7 @@ func ValidateAttachedPaymentScriptAction(action *AttachedPaymentScriptAction, re
 				return errors.Wrap(err, "failed to validate TransferScriptAction")
 			}
 		}
-		if action.Recipient.Address.Equal(senderAddress) {
+		if action.Recipient.Address().Equal(senderAddress) {
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
@@ -199,7 +199,7 @@ func ValidateTransferScriptAction(action *TransferScriptAction, restrictions Act
 				return errors.Wrap(err, "failed to validate TransferScriptAction")
 			}
 		}
-		if action.Recipient.Address.Equal(senderAddress) {
+		if action.Recipient.Address().Equal(senderAddress) {
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
@@ -239,7 +239,7 @@ func ValidateLeaseScriptAction(action *LeaseScriptAction, restrictions ActionsVa
 			return errors.Wrap(err, "failed to validate TransferScriptAction")
 		}
 	}
-	if action.Recipient.Address.Equal(senderAddress) {
+	if action.Recipient.Address().Equal(senderAddress) {
 		return errors.New("leasing to DApp itself is forbidden")
 	}
 	return nil

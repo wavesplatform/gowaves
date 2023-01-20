@@ -1556,17 +1556,17 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
-	if recipient.Address == nil {
-		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias)
+	if recipient.Address() == nil {
+		return s.stor.aliases.newestAddrByAlias(recipient.Alias().Alias)
 	}
-	return recipient.Address, nil
+	return recipient.Address(), nil
 }
 
 func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
-	if recipient.Address == nil {
-		return s.stor.aliases.addrByAlias(recipient.Alias.Alias)
+	if recipient.Address() == nil {
+		return s.stor.aliases.addrByAlias(recipient.Alias().Alias)
 	}
-	return recipient.Address, nil
+	return recipient.Address(), nil
 }
 
 func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {

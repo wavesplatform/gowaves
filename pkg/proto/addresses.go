@@ -580,19 +580,19 @@ func correctAlphabet(s string) bool {
 
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
-	Address *WavesAddress
-	Alias   *Alias
+	address *WavesAddress
+	alias   *Alias
 	len     int
 }
 
 // NewRecipientFromAddress creates the Recipient from given address.
 func NewRecipientFromAddress(a WavesAddress) Recipient {
-	return Recipient{Address: &a, len: WavesAddressSize}
+	return Recipient{address: &a, len: WavesAddressSize}
 }
 
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
-	return Recipient{Alias: &a, len: aliasFixedSize + len(a.Alias)}
+	return Recipient{alias: &a, len: aliasFixedSize + len(a.Alias)}
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
@@ -610,38 +610,46 @@ func NewRecipientFromString(s string) (Recipient, error) {
 	return NewRecipientFromAddress(a), nil
 }
 
+func (r Recipient) Alias() *Alias {
+	return r.alias
+}
+
+func (r Recipient) Address() *WavesAddress {
+	return r.address
+}
+
 func (r Recipient) Eq(r2 Recipient) bool {
 	res := r.len == r2.len
-	if r.Address != nil && r2.Address != nil {
-		res = res && (*r.Address == *r2.Address)
+	if r.address != nil && r2.address != nil {
+		res = res && (*r.address == *r2.address)
 	} else {
-		res = res && (r.Address == nil)
-		res = res && (r2.Address == nil)
+		res = res && (r.address == nil)
+		res = res && (r2.address == nil)
 	}
-	if r.Alias != nil && r2.Alias != nil {
-		res = res && (*r.Alias == *r2.Alias)
+	if r.alias != nil && r2.alias != nil {
+		res = res && (*r.alias == *r2.alias)
 	} else {
-		res = res && (r.Alias == nil)
-		res = res && (r2.Alias == nil)
+		res = res && (r.alias == nil)
+		res = res && (r2.alias == nil)
 	}
 	return res
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
-	if r.Address == nil {
-		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
+	if r.address == nil {
+		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.alias.Alias}}, nil
 	}
-	addrBody := r.Address.Body()
+	addrBody := r.address.Body()
 	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
 func (r Recipient) Valid(scheme Scheme) (bool, error) {
 	switch {
-	case r.Address != nil:
-		return r.Address.Valid(scheme)
-	case r.Alias != nil:
-		return r.Alias.Valid(scheme)
+	case r.address != nil:
+		return r.address.Valid(scheme)
+	case r.alias != nil:
+		return r.alias.Valid(scheme)
 	default:
 		return false, errors.New("empty recipient")
 	}
@@ -649,10 +657,10 @@ func (r Recipient) Valid(scheme Scheme) (bool, error) {
 
 // MarshalJSON converts the Recipient to its JSON representation.
 func (r Recipient) MarshalJSON() ([]byte, error) {
-	if r.Alias != nil {
-		return r.Alias.MarshalJSON()
+	if r.alias != nil {
+		return r.alias.MarshalJSON()
 	}
-	return r.Address.MarshalJSON()
+	return r.address.MarshalJSON()
 }
 
 // UnmarshalJSON reads the Recipient from its JSON representation.
@@ -664,7 +672,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 		}
-		r.Alias = &a
+		r.alias = &a
 		r.len = aliasFixedSize + len(a.Alias)
 		return nil
 	}
@@ -673,7 +681,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
-	r.Address = &a
+	r.address = &a
 	r.len = WavesAddressSize
 	return nil
 }
@@ -684,10 +692,10 @@ func (r *Recipient) BinarySize() int {
 
 // MarshalBinary makes bytes of the Recipient.
 func (r *Recipient) MarshalBinary() ([]byte, error) {
-	if r.Alias != nil {
-		return r.Alias.MarshalBinary()
+	if r.alias != nil {
+		return r.alias.MarshalBinary()
 	}
-	return r.Address[:], nil
+	return r.address[:], nil
 }
 
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
@@ -700,10 +708,10 @@ func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (r *Recipient) Serialize(s *serializer.Serializer) error {
-	if r.Alias != nil {
-		return r.Alias.Serialize(s)
+	if r.alias != nil {
+		return r.alias.Serialize(s)
 	}
-	return s.Bytes(r.Address[:])
+	return s.Bytes(r.address[:])
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
@@ -714,7 +722,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.Address = &a
+		r.address = &a
 		r.len = WavesAddressSize
 		return nil
 	case aliasVersion:
@@ -723,7 +731,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.Alias = &a
+		r.alias = &a
 		r.len = aliasFixedSize + len(a.Alias)
 		return nil
 	default:
@@ -733,8 +741,8 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 
 // String gives the string representation of the Recipient.
 func (r *Recipient) String() string {
-	if r.Alias != nil {
-		return r.Alias.String()
+	if r.alias != nil {
+		return r.alias.String()
 	}
-	return r.Address.String()
+	return r.address.String()
 }

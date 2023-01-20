@@ -69,8 +69,8 @@ func TestRecipientJSONRoundTrip(t *testing.T) {
 			err := json.Unmarshal(js, r2)
 			assert.NoError(t, err)
 			assert.Equal(t, r.len, r2.len)
-			assert.Equal(t, r.Alias, r2.Alias)
-			assert.Equal(t, r.Address, r2.Address)
+			assert.Equal(t, r.Alias(), r2.Alias())
+			assert.Equal(t, r.Address(), r2.Address())
 		}
 	}
 }

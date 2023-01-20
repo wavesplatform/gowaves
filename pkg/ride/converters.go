@@ -1302,10 +1302,10 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 
 func recipientToObject(recipient proto.Recipient) rideType {
 	switch {
-	case recipient.Alias != nil:
-		return rideAlias(*recipient.Alias)
-	case recipient.Address != nil:
-		return rideAddress(*recipient.Address)
+	case recipient.Alias() != nil:
+		return rideAlias(*recipient.Alias())
+	case recipient.Address() != nil:
+		return rideAddress(*recipient.Address())
 	default:
 		return rideUnit{}
 	}

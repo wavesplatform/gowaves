@@ -1562,7 +1562,7 @@ func (l Lease) Valid(scheme Scheme) (bool, error) {
 	if !validJVMLong(l.Amount + l.Fee) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	if rcpAddr := l.Recipient.Address; rcpAddr != nil {
+	if rcpAddr := l.Recipient.Address(); rcpAddr != nil {
 		sender, err := NewAddressFromPublicKey(scheme, l.SenderPK)
 		if err != nil {
 			return false, errors.Wrapf(err, "failed to generate address from pk=%q and scheme=%q", l.SenderPK, scheme)

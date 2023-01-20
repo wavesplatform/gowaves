@@ -38,12 +38,12 @@ func (a *Account) SetFromAddress(scheme byte, address proto.Address) error {
 }
 
 func (a *Account) SetFromRecipient(r proto.Recipient) error {
-	if r.Alias != nil {
-		a.Alias = *r.Alias
+	if r.Alias() != nil {
+		a.Alias = *r.Alias()
 		return nil
 	}
-	if r.Address != nil {
-		a.Address = *r.Address
+	if r.Address() != nil {
+		a.Address = *r.Address()
 		return nil
 	}
 	return errors.New("empty Recipient")
