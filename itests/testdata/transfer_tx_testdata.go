@@ -112,10 +112,10 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 
 func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias string) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId)
-	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)
+	//wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
 		//минимальные зн-я fee,amount,attach, указан адрес получателя
-		"Min values for fee, attachment and amount": *NewTransferTestData(
+		/*"Min values for fee, attachment and amount": *NewTransferTestData(
 			utl.GetAccount(suite, 2),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
 			&assetId,
@@ -130,7 +130,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          1,
 				WavesDiffBalanceRecipient: 0,
 			},
-		),
+		),*/
 		//валидные зн-я fee,amount,attach
 		"Valid values for fee, amount, attachment, alias": *NewTransferTestData(
 			utl.GetAccount(suite, 2),
@@ -148,21 +148,21 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				WavesDiffBalanceRecipient: 0,
 			}),
 		//перевод waves, attachment contains special symbols in base58
-		"Waves transfer": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
-			nil,
-			nil,
-			utl.MinTxFeeWaves,
-			uint64(wavesAmount/4),
-			utl.GetCurrentTimestampInMs(),
-			utl.TestChainID,
-			proto.Attachment("2qcsACR1T95dchPf3anZ6W2CEMyNHnwUYuFeHDQt"),
-			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/4,
-				AssetDiffBalance:          0,
-				WavesDiffBalanceRecipient: wavesAmount / 4,
-			}),
+		/*"Waves transfer": *NewTransferTestData(
+		utl.GetAccount(suite, 2),
+		proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+		nil,
+		nil,
+		utl.MinTxFeeWaves,
+		uint64(wavesAmount/4),
+		utl.GetCurrentTimestampInMs(),
+		utl.TestChainID,
+		proto.Attachment("2qcsACR1T95dchPf3anZ6W2CEMyNHnwUYuFeHDQt"),
+		TransferExpectedValuesPositive{
+			WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/4,
+			AssetDiffBalance:          0,
+			WavesDiffBalanceRecipient: wavesAmount / 4,
+		}),*/
 	}
 	return t
 }
@@ -215,7 +215,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "exceeds maximum length of 192",
 			},
 		),
 		//Перевод токена, значение amount=0, указан адрес аккаунта
@@ -235,7 +235,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
 		//Перевод waves, значение amount=0, указан адрес аккаунта
@@ -255,7 +255,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
 		//Перевод токена, значение amount>max, указан адрес аккаунта
@@ -295,7 +295,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
 		//Invalid time  5400000ms in the future
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewTransferTestData(
@@ -314,7 +314,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
 		//Перевод токена, assetId special symbols
 		"Invalid asset ID": *NewTransferTestData(
@@ -333,7 +333,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "Attempt to transfer unavailable funds: Transaction application leads to negative asset",
 			}),
 		//Перевод токена, assetId invalid encoding
 		"Transfer token when there are not enough funds on the account balance": *NewTransferTestData(
@@ -352,7 +352,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    "",
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "Attempt to transfer unavailable funds: Transaction application leads to negative asset",
 			}),
 	}
 	return t

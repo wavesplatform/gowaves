@@ -323,6 +323,12 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
 	timeout := 15 * time.Second
 	id := ExtractTxID(suite.T(), tx, scheme)
+	pbBytes, err := proto.MarshalTx(scheme, tx)
+	suite.NoError(err, "failed to marshal tx")
+	suite.T().Logf("Protobuf Tx Bytes: %s", base64.StdEncoding.EncodeToString(pbBytes))
+	//var respGo *client.Response = nil
+	//var errBrdCstGo error = nil
+	//respScala, errBrdCstScala := suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	var respScala *client.Response = nil
 	var errBrdCstScala error = nil
@@ -331,6 +337,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
-
+	//suite.T().Logf("Response Go: %s", spew.Sdump(respGo))
+	//suite.T().Logf("Broadcasting error: %s", spew.Sdump(errBrdCstGo))
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }

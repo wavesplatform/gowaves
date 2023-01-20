@@ -163,7 +163,7 @@ func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, 
 	}
 	tx := TransferSend(suite, version, scheme, utl.GetAccount(suite, from).PublicKey, utl.GetAccount(suite, from).SecretKey,
 		*proto.NewOptionalAssetFromDigest(assetId), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount,
-		100000, proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, false)
+		100000, proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 }

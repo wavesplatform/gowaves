@@ -16,7 +16,7 @@ func NewSignIssueTransaction(suite *f.BaseSuite, version byte, scheme proto.Sche
 	if version == 1 {
 		tx = proto.NewUnsignedIssueWithSig(senderPK, name, description, quantity, decimals, reissuable, timestamp, fee)
 	} else {
-		tx = proto.NewUnsignedIssueWithProofs(version, scheme, senderPK, name, description, quantity, decimals,
+		tx = proto.NewUnsignedIssueWithProofs(version, senderPK, name, description, quantity, decimals,
 			reissuable, nil, timestamp, fee)
 	}
 	err := tx.Sign(scheme, senderSK)
@@ -56,19 +56,7 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Issue
 		*utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
 		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 }
-func NewSignIssueTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.IssueTestData[T]) proto.Transaction {
-	var tx proto.Transaction
-	if version == 1 {
-		tx = proto.NewUnsignedIssueWithSig(testdata.Account.PublicKey, testdata.AssetName,
-			testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
-	} else {
-		tx = proto.NewUnsignedIssueWithProofs(version, testdata.Account.PublicKey, testdata.AssetName, testdata.AssetDesc, testdata.Quantity, testdata.Decimals, testdata.Reissuable, nil, testdata.Timestamp, testdata.Fee)
-	}
-	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
-	txJson := utl.GetTransactionJsonOrErrMsg(tx)
-	suite.T().Logf("Issue Transaction JSON after sign: %s", txJson)
-	require.NoError(suite.T(), err, "failed to create proofs from signature")
-	return tx
+
 func NewSignIssueTransactionWithTestData[T any](suite *f.BaseSuite, version byte, testdata testdata.IssueTestData[T]) proto.Transaction {
 	return NewSignIssueTransaction(suite, version, testdata.ChainID, testdata.Account.PublicKey, testdata.Account.SecretKey,
 		testdata.AssetName, testdata.AssetDesc, testdata.Quantity, testdata.Timestamp, testdata.Fee, testdata.Decimals,
@@ -103,10 +91,10 @@ func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, acc
 	if len(assetAmount) == 1 {
 		amount = assetAmount[0]
 	} else {
-		amount = 9223372036854775807
+		amount = 1
 	}
 	tx := IssueSend(suite, version, scheme, utl.GetAccount(suite, accountNumber).PublicKey,
 		utl.GetAccount(suite, accountNumber).SecretKey, "Asset", "Common Asset for testing", amount,
-		utl.GetCurrentTimestampInMs(), 100000000, 4, true, true)
+		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, 4, true, true)
 	return tx.TxID
 }

@@ -51,6 +51,12 @@ func SetAliasToAccount(suite *f.BaseSuite, version byte, scheme proto.Scheme, al
 		100000, utl.GetCurrentTimestampInMs(), true)
 }
 
+func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string, accNumber int) {
+	account := utl.GetAccount(suite, accNumber)
+	AliasBroadcast(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
+		100000, utl.GetCurrentTimestampInMs(), true)
+}
+
 func AliasBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK crypto.PublicKey,
 	accountSK crypto.SecretKey, aliasStr string, fee, timestamp uint64, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignAliasTransaction(suite, version, scheme, accountPK, accountSK, aliasStr, fee, timestamp)
