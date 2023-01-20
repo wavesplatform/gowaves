@@ -578,6 +578,10 @@ func correctAlphabet(s string) bool {
 	return true
 }
 
+var (
+	errEmtpyRecipient = errors.New("empty recipient")
+)
+
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
 	address *WavesAddress
@@ -636,11 +640,14 @@ func (r Recipient) Eq(r2 Recipient) bool {
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
-	if r.address == nil {
+	switch {
+	case r.address != nil:
+		return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: r.address.Body()}}, nil
+	case r.alias != nil:
 		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.alias.Alias}}, nil
+	default:
+		return nil, errEmtpyRecipient
 	}
-	addrBody := r.address.Body()
-	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
@@ -651,16 +658,20 @@ func (r Recipient) Valid(scheme Scheme) (bool, error) {
 	case r.alias != nil:
 		return r.alias.Valid(scheme)
 	default:
-		return false, errors.New("empty recipient")
+		return false, errEmtpyRecipient
 	}
 }
 
 // MarshalJSON converts the Recipient to its JSON representation.
 func (r Recipient) MarshalJSON() ([]byte, error) {
-	if r.alias != nil {
+	switch {
+	case r.address != nil:
+		return r.address.MarshalJSON()
+	case r.alias != nil:
 		return r.alias.MarshalJSON()
+	default:
+		return nil, errEmtpyRecipient
 	}
-	return r.address.MarshalJSON()
 }
 
 // UnmarshalJSON reads the Recipient from its JSON representation.
@@ -692,10 +703,14 @@ func (r *Recipient) BinarySize() int {
 
 // MarshalBinary makes bytes of the Recipient.
 func (r *Recipient) MarshalBinary() ([]byte, error) {
-	if r.alias != nil {
+	switch {
+	case r.address != nil:
+		return r.address[:], nil
+	case r.alias != nil:
 		return r.alias.MarshalBinary()
+	default:
+		return nil, errEmtpyRecipient
 	}
-	return r.address[:], nil
 }
 
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
@@ -708,10 +723,14 @@ func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (r *Recipient) Serialize(s *serializer.Serializer) error {
-	if r.alias != nil {
+	switch {
+	case r.address != nil:
+		return s.Bytes(r.address[:])
+	case r.alias != nil:
 		return r.alias.Serialize(s)
+	default:
+		return errEmtpyRecipient
 	}
-	return s.Bytes(r.address[:])
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
@@ -741,8 +760,12 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 
 // String gives the string representation of the Recipient.
 func (r *Recipient) String() string {
-	if r.alias != nil {
+	switch {
+	case r.address != nil:
+		return r.address.String()
+	case r.alias != nil:
 		return r.alias.String()
+	default:
+		return "<nil>"
 	}
-	return r.address.String()
 }
