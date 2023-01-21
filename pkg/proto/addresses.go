@@ -2,7 +2,9 @@ package proto
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -578,25 +580,126 @@ func correctAlphabet(s string) bool {
 	return true
 }
 
-var (
-	errEmtpyRecipient = errors.New("empty recipient")
-)
+type recipient interface {
+	Alias() *Alias
+	Address() *WavesAddress
+	BinarySize() int
+	Eq(r2 Recipient) bool
+	Serialize(s *serializer.Serializer) error
+	Valid(scheme Scheme) (bool, error)
+	ToProtobuf() (*g.Recipient, error)
+	fmt.Stringer
+	json.Marshaler
+	encoding.BinaryMarshaler
+}
+
+type aliasRecipient struct {
+	al Alias
+}
+
+func (r *aliasRecipient) Alias() *Alias {
+	return &r.al
+}
+
+func (r *aliasRecipient) Address() *WavesAddress {
+	return nil
+}
+
+func (r *aliasRecipient) Eq(r2 Recipient) bool {
+	if al2 := r2.Alias(); al2 != nil {
+		return r.al == *al2
+	}
+	return false
+}
+
+func (r *aliasRecipient) Serialize(s *serializer.Serializer) error {
+	return r.al.Serialize(s)
+}
+
+func (r *aliasRecipient) BinarySize() int {
+	return r.al.BinarySize()
+}
+
+func (r *aliasRecipient) Valid(scheme Scheme) (bool, error) {
+	return r.al.Valid(scheme)
+}
+
+func (r *aliasRecipient) ToProtobuf() (*g.Recipient, error) {
+	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.al.Alias}}, nil
+}
+
+func (r *aliasRecipient) String() string {
+	return r.al.String()
+}
+
+func (r *aliasRecipient) MarshalJSON() ([]byte, error) {
+	return r.al.MarshalJSON()
+}
+
+func (r *aliasRecipient) MarshalBinary() (data []byte, err error) {
+	return r.al.MarshalBinary()
+}
+
+type wavesAddressRecipient struct {
+	addr WavesAddress
+}
+
+func (r *wavesAddressRecipient) Alias() *Alias {
+	return nil
+}
+
+func (r *wavesAddressRecipient) Address() *WavesAddress {
+	return &r.addr
+}
+
+func (r *wavesAddressRecipient) BinarySize() int {
+	return WavesAddressSize
+}
+
+func (r *wavesAddressRecipient) Eq(r2 Recipient) bool {
+	if addr2 := r2.Address(); addr2 != nil {
+		return bytes.Equal(r.addr[:], addr2[:])
+	}
+	return false
+}
+
+func (r *wavesAddressRecipient) Serialize(s *serializer.Serializer) error {
+	return s.Bytes(r.addr[:])
+}
+
+func (r *wavesAddressRecipient) Valid(scheme Scheme) (bool, error) {
+	return r.addr.Valid(scheme)
+}
+
+func (r *wavesAddressRecipient) String() string {
+	return r.addr.String()
+}
+
+func (r *wavesAddressRecipient) ToProtobuf() (*g.Recipient, error) {
+	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: r.addr.Body()}}, nil
+}
+
+func (r *wavesAddressRecipient) MarshalJSON() ([]byte, error) {
+	return r.addr.MarshalJSON()
+}
+
+func (r *wavesAddressRecipient) MarshalBinary() (data []byte, err error) {
+	return r.addr[:], nil
+}
 
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
-	address    *WavesAddress
-	alias      *Alias
-	binarySize int
+	inner recipient
 }
 
 // NewRecipientFromAddress creates the Recipient from given address.
 func NewRecipientFromAddress(a WavesAddress) Recipient {
-	return Recipient{address: &a, binarySize: WavesAddressSize}
+	return Recipient{&wavesAddressRecipient{a}}
 }
 
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
-	return Recipient{alias: &a, binarySize: aliasFixedSize + len(a.Alias)}
+	return Recipient{&aliasRecipient{a}}
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
@@ -615,67 +718,33 @@ func NewRecipientFromString(s string) (Recipient, error) {
 }
 
 func (r Recipient) Alias() *Alias {
-	return r.alias
+	return r.inner.Alias()
 }
 
 func (r Recipient) Address() *WavesAddress {
-	return r.address
+	return r.inner.Address()
 }
 
 func (r *Recipient) BinarySize() int {
-	return r.binarySize
+	return r.inner.BinarySize()
 }
 
 func (r Recipient) Eq(r2 Recipient) bool {
-	res := r.binarySize == r2.binarySize
-	if r.address != nil && r2.address != nil {
-		res = res && (*r.address == *r2.address)
-	} else {
-		res = res && (r.address == nil)
-		res = res && (r2.address == nil)
-	}
-	if r.alias != nil && r2.alias != nil {
-		res = res && (*r.alias == *r2.alias)
-	} else {
-		res = res && (r.alias == nil)
-		res = res && (r2.alias == nil)
-	}
-	return res
+	return r.inner.Eq(r2)
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
-	switch {
-	case r.address != nil:
-		return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: r.address.Body()}}, nil
-	case r.alias != nil:
-		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.alias.Alias}}, nil
-	default:
-		return nil, errEmtpyRecipient
-	}
+	return r.inner.ToProtobuf()
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
 func (r Recipient) Valid(scheme Scheme) (bool, error) {
-	switch {
-	case r.address != nil:
-		return r.address.Valid(scheme)
-	case r.alias != nil:
-		return r.alias.Valid(scheme)
-	default:
-		return false, errEmtpyRecipient
-	}
+	return r.inner.Valid(scheme)
 }
 
 // MarshalJSON converts the Recipient to its JSON representation.
 func (r Recipient) MarshalJSON() ([]byte, error) {
-	switch {
-	case r.address != nil:
-		return r.address.MarshalJSON()
-	case r.alias != nil:
-		return r.alias.MarshalJSON()
-	default:
-		return nil, errEmtpyRecipient
-	}
+	return r.inner.MarshalJSON()
 }
 
 // UnmarshalJSON reads the Recipient from its JSON representation.
@@ -687,8 +756,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 		}
-		r.alias = &a
-		r.binarySize = aliasFixedSize + len(a.Alias)
+		*r = NewRecipientFromAlias(a)
 		return nil
 	}
 	var a WavesAddress
@@ -696,21 +764,13 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
-	r.address = &a
-	r.binarySize = WavesAddressSize
+	*r = NewRecipientFromAddress(a)
 	return nil
 }
 
 // MarshalBinary makes bytes of the Recipient.
 func (r *Recipient) MarshalBinary() ([]byte, error) {
-	switch {
-	case r.address != nil:
-		return r.address[:], nil
-	case r.alias != nil:
-		return r.alias.MarshalBinary()
-	default:
-		return nil, errEmtpyRecipient
-	}
+	return r.inner.MarshalBinary()
 }
 
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
@@ -723,14 +783,7 @@ func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (r *Recipient) Serialize(s *serializer.Serializer) error {
-	switch {
-	case r.address != nil:
-		return s.Bytes(r.address[:])
-	case r.alias != nil:
-		return r.alias.Serialize(s)
-	default:
-		return errEmtpyRecipient
-	}
+	return r.inner.Serialize(s)
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
@@ -741,8 +794,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.address = &a
-		r.binarySize = WavesAddressSize
+		*r = NewRecipientFromAddress(a)
 		return nil
 	case aliasVersion:
 		var a Alias
@@ -750,8 +802,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.alias = &a
-		r.binarySize = aliasFixedSize + len(a.Alias)
+		*r = NewRecipientFromAlias(a)
 		return nil
 	default:
 		return errors.Errorf("unsupported Recipient version %d", v)
@@ -760,12 +811,5 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 
 // String gives the string representation of the Recipient.
 func (r *Recipient) String() string {
-	switch {
-	case r.address != nil:
-		return r.address.String()
-	case r.alias != nil:
-		return r.alias.String()
-	default:
-		return "<nil>"
-	}
+	return r.inner.String()
 }
