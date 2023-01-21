@@ -4429,6 +4429,7 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	test := newTestAccount(t, "TEST")
+	alias := *proto.NewAlias(proto.TestNetScheme, "test")
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
@@ -4459,6 +4460,9 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 10}})
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
+	calls := env.ms.NewestAddrByAliasCalls()
+	require.Len(t, calls, 1)
+	require.Equal(t, alias, calls[0].Alias)
 
 	_, err = CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 1}})
 	require.Error(t, err)

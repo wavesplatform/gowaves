@@ -668,7 +668,7 @@ func (e *testEnv) withTree(acc *testAccount, tree *ast.Tree) *testEnv {
 
 func (e *testEnv) withAlias(acc *testAccount, alias *proto.Alias) *testEnv {
 	e.aliases[*alias] = acc.address()
-	e.recipients[alias.String()] = acc.address()
+	e.recipients[acc.rcp.String()] = acc.address()
 	return e
 }
 
