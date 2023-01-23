@@ -91,11 +91,28 @@ func (es *EthereumSignature) String() string {
 
 // AsVRS return ethereum signature as V, R, S signature values.
 // Note that V can be 27/28 for legacy reasons, but real V value is 0/1.
-func (es *EthereumSignature) AsVRS() (v, r, s *big.Int) {
-	r = new(big.Int).SetBytes(es.sig[:32])
-	s = new(big.Int).SetBytes(es.sig[32:64])
-	v = new(big.Int).SetBytes([]byte{es.sig[64]})
-	return v, r, s
+func (es *EthereumSignature) AsVRS() (v byte, r, s *big.Int) {
+	return es.V(), es.R(), es.S()
+}
+
+// V returns v signature value.
+// Note that V can be 27/28 for legacy reasons, but real V value is 0/1.
+func (es *EthereumSignature) V() byte {
+	return es.sig[64]
+}
+
+func (es *EthereumSignature) setV(newV byte) {
+	es.sig[64] = newV
+}
+
+// R returns r signature value.
+func (es *EthereumSignature) R() *big.Int {
+	return new(big.Int).SetBytes(es.sig[:32])
+}
+
+// S returns s signature value.
+func (es *EthereumSignature) S() *big.Int {
+	return new(big.Int).SetBytes(es.sig[32:64])
 }
 
 func (es *EthereumSignature) MarshalBinary() (data []byte, err error) {
