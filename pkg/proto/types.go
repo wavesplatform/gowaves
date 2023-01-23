@@ -1857,12 +1857,22 @@ func (o *EthereumOrderV4) GenerateSenderPK(scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to generate typed data hash for EthereumOrderV4.SenderPK")
 	}
-	pk, err := o.Eip712Signature.RecoverEthereumPublicKey(hash[:])
+	pk, err := recoverEthPubKeyForEthOrderV4(scheme, hash[:], o.Eip712Signature)
 	if err != nil {
 		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK")
 	}
 	o.SenderPK = ethereumPublicKeyBase58Wrapper{inner: pk}
 	return nil
+}
+
+func recoverEthPubKeyForEthOrderV4(scheme Scheme, digest []byte, sig EthereumSignature) (*EthereumPublicKey, error) {
+	v := sig.V()
+	if v <= 28 {
+		return sig.RecoverEthereumPublicKey(digest)
+	}
+	v = v - scheme*2 - 35 // according to the https://eips.ethereum.org/EIPS/eip-155
+	sig.setV(v)
+	return sig.RecoverEthereumPublicKey(digest)
 }
 
 func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
