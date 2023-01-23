@@ -111,13 +111,12 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 }
 
 func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias string) map[string]TransferTestData[TransferExpectedValuesPositive] {
-	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId)
-	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)
+	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
+	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
-		//минимальные зн-я fee,amount,attach, указан адрес получателя
 		"Min values for fee, attachment and amount": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -131,9 +130,8 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		//валидные зн-я fee,amount,attach
 		"Valid values for fee, amount, attachment, alias": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAlias(*proto.NewAlias(utl.TestChainID, alias)),
 			&assetId,
 			nil,
@@ -147,10 +145,9 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          assetAmount / 4,
 				WavesDiffBalanceRecipient: 0,
 			}),
-		//перевод waves, attachment contains special symbols in base58
 		"Waves transfer": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			nil,
 			nil,
 			utl.MinTxFeeWaves,
@@ -170,11 +167,9 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, accNumber int) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
-		//перевод токена с аккаунта, который не является его эмитентом
-		//максимальные зн-я amount,attach, указан адрес получателя, комиссия равна балансу вэйвов на счету аккаунта
 		"Max values for amount, attachment": *NewTransferTestData(
 			utl.GetAccount(suite, accNumber),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			uint64(wavesAmount),
@@ -194,13 +189,12 @@ func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, acc
 }
 
 func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
-	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId)
+	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	invalidAssetId := utl.RandDigest(suite.T(), 32, utl.LettersAndDigits)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
-		//Перевод токена, значение attachment >max, в качестве получателя указан адрес аккаунта
 		"Attachment > max": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -218,10 +212,9 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "exceeds maximum length of 192",
 			},
 		),
-		//Перевод токена, значение amount=0, указан адрес аккаунта
 		"Asset amount = 0": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -238,10 +231,9 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
-		//Перевод waves, значение amount=0, указан адрес аккаунта
 		"Waves amount = 0": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			nil,
 			nil,
 			utl.MinTxFeeWaves,
@@ -258,10 +250,9 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
-		//Перевод токена, значение amount>max, указан адрес аккаунта
 		"Asset amount > max": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -275,13 +266,12 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message", //strange error message
+				ErrBrdCstScalaMsg: "failed to parse json message",
 			},
 		),
-		//invalid time 7200000ms in the past
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -297,10 +287,9 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
-		//Invalid time  5400000ms in the future
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -316,10 +305,9 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		//Перевод токена, invalid assetId
 		"Invalid asset ID": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&invalidAssetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -335,13 +323,12 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Attempt to transfer unavailable funds: Transaction application leads to negative asset",
 			}),
-		//Перевод токена, у отправителя недостаточно средств
 		"Transfer token when there are not enough funds on the sender balance": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
-			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)),
 			uint64(assetAmount/4),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -359,12 +346,11 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 }
 
 func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
-	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetId)
+	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
-		//Перевод токена, invalid chainId=0
 		"Invalid chainID (value=0)": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -380,10 +366,9 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
 			}),
-		//Перевод токена, invalid chainId=T
 		"Custom chainID": *NewTransferTestData(
-			utl.GetAccount(suite, 2),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, 3).Address),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,

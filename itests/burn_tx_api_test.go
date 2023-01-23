@@ -49,7 +49,8 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID, 9, 10000000000)
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
+			utl.DefaultAccountForLoanFunds, 10000000000)
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
 		for name, td := range tdmatrix {

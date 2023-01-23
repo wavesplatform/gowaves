@@ -79,10 +79,13 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 				actualAssetBalanceGo, actualAssetBalanceScala := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Account.Address, tx.TxID)
 
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name, "version", i)
+				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+					tx.WtErr.ErrWtScala, name, "version", i)
 				utl.WavesDiffBalanceCheck(
-					suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo, actualAssetBalanceScala, name, "version", i)
+					suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves.BalanceInWavesScala, name, "version", i)
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetBalance, actualAssetBalanceGo,
+					actualAssetBalanceScala, name, "version", i)
 			})
 		}
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)

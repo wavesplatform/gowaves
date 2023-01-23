@@ -75,7 +75,7 @@ type CommonIssueData struct {
 func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 	return CommonIssueData{
 		NFT: *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(4, utl.CommonSymbolSet),
 			"",
 			1,
@@ -89,7 +89,7 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 				AssetBalance:     1,
 			}),
 		Reissuable: *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(500, utl.CommonSymbolSet),
 			100000000000,
@@ -108,7 +108,7 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
 	var t = map[string]IssueTestData[ExpectedValuesPositive]{
 		"Min values, empty description, NFT": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(4, utl.CommonSymbolSet),
 			"",
 			1,
@@ -122,7 +122,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:     1,
 			}),
 		"Middle values, special symbols in desc, not reissuable": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(500, utl.CommonSymbolSet),
 			100000000000,
@@ -136,7 +136,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:     100000000000,
 			}),
 		"Max values": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(16, utl.CommonSymbolSet),
 			utl.RandStringBytes(1000, utl.CommonSymbolSet),
 			utl.MaxAmount,
@@ -156,7 +156,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
 	var t = map[string]IssueTestData[ExpectedValuesNegative]{
 		"Invalid asset name (len < min)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(3, utl.CommonSymbolSet),
 			utl.RandStringBytes(1, utl.CommonSymbolSet),
 			1,
@@ -174,7 +174,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid asset name (len > max)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(17, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			10000,
@@ -192,7 +192,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Empty string in asset name": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			"",
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			10000,
@@ -210,7 +210,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid encoding in asset name": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			"\\u0061\\u0073\\u0073\\u0065",
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			10000,
@@ -229,7 +229,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			}),
 		//Error in Node Go
 		/*"Invalid encoding in asset description": *NewIssueTestData(
-		utl.GetAccount(suite, 2),
+		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 		utl.RandStringBytes(8, utl.CommonSymbolSet),
 		"\\u0061\\u0073\\u0073\\u0065\\u0074",
 		10000,
@@ -247,7 +247,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			AssetBalance:      0,
 		}),*/
 		"Invalid asset description (len > max)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(6, utl.CommonSymbolSet),
 			utl.RandStringBytes(1001, utl.CommonSymbolSet),
 			10000,
@@ -265,7 +265,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid token quantity (quantity < min)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			0,
@@ -283,7 +283,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid token quantity (quantity > max)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.MaxAmount+1,
@@ -301,7 +301,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid token decimals (decimals > max)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -319,7 +319,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid fee (fee > max)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -337,7 +337,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid fee (0 < fee < min)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -355,7 +355,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Invalid fee (fee = 0)": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -373,7 +373,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -391,7 +391,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
@@ -409,13 +409,13 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				AssetBalance:      0,
 			}),
 		"Creating a token when there are not enough funds on the account balance": *NewIssueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			utl.RandStringBytes(8, utl.CommonSymbolSet),
 			100000,
 			8,
 			true,
-			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
 			ExpectedValuesNegative{
