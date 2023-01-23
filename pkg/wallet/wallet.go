@@ -15,8 +15,8 @@ type WalletFormat struct {
 }
 
 type Wallet interface {
-	Seeds() [][]byte
-	AddSeed([]byte) error
+	AccountSeeds() [][]byte
+	AddAccountSeed([]byte) error
 	Encode(pass []byte) ([]byte, error)
 }
 
@@ -25,7 +25,7 @@ type WalletImpl struct {
 	format  WalletFormat
 }
 
-func (a *WalletImpl) Seeds() [][]byte {
+func (a *WalletImpl) AccountSeeds() [][]byte {
 	return a.format.Seed
 }
 
@@ -35,7 +35,7 @@ func NewWallet() *WalletImpl {
 	}
 }
 
-func (a *WalletImpl) AddSeed(seed []byte) error {
+func (a *WalletImpl) AddAccountSeed(seed []byte) error {
 	s := common.Dup(seed)
 	a.format.Seed = append(a.format.Seed, s)
 	return nil

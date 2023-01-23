@@ -97,7 +97,7 @@ func createTestNetWallet(t *testing.T) types.EmbeddedWallet {
 	w := wallet.NewWallet()
 	decoded, err := base58.Decode(seed)
 	require.NoError(t, err)
-	err = w.AddSeed(decoded)
+	err = w.AddAccountSeed(decoded)
 	require.NoError(t, err)
 	return wallet.NewEmbeddedWallet(nil, w, proto.TestNetScheme)
 }

@@ -12,7 +12,7 @@ import (
 
 type seederTest []byte
 
-func (a seederTest) Seeds() [][]byte {
+func (a seederTest) AccountSeeds() [][]byte {
 	return [][]byte{a}
 }
 
@@ -50,14 +50,14 @@ func (a testLoader) Load() ([]byte, error) {
 
 func TestEmbeddedWalletImpl_Load(t *testing.T) {
 	wal := NewWallet()
-	_ = wal.AddSeed([]byte("seed"))
+	_ = wal.AddAccountSeed([]byte("seed"))
 	bts, err := wal.Encode([]byte("pass"))
 	require.NoError(t, err)
 
 	t.Run("successful", func(t *testing.T) {
 		w := NewEmbeddedWallet(testLoader{bts: bts}, nil, proto.TestNetScheme)
 		require.NoError(t, w.Load([]byte("pass")))
-		require.Equal(t, [][]byte{[]byte("seed")}, w.Seeds())
+		require.Equal(t, [][]byte{[]byte("seed")}, w.AccountSeeds())
 	})
 
 	t.Run("failure", func(t *testing.T) {

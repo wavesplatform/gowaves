@@ -17,6 +17,6 @@ func (s Stub) Load(password []byte) error {
 	panic("Stub.Load: Unsopported operation")
 }
 
-func (s Stub) Seeds() [][]byte {
+func (s Stub) AccountSeeds() [][]byte {
 	return s.S
 }
