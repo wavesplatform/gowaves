@@ -64,6 +64,49 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 	}
 }
 
+func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
+	versions := testdata.GetVersions()
+	waitForTx := true
+	for _, v := range versions {
+		//создаем новый аккаунт с ненулевым балансом
+		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID, 9, 10000000000)
+		//выпускаем токен, который будем переводить другому аккаунту
+		itxID := issue_utilities.IssueAssetAmount(&suite.BaseSuite, v, utl.TestChainID, 2, utl.MaxAmount)
+		//переводим токен с аккаунта эмитента на новый аккаунт
+		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, v, utl.TestChainID, itxID, 2, n)
+		//используя новый токен, создаем тестовые данные для проверки транзакции перевода
+		tdmatrix := testdata.GetTransferMaxAmountPositive(&suite.BaseSuite, itxID, n)
+		for name, td := range tdmatrix {
+			suite.T().Run(name, func(t *testing.T) {
+				//выпускаем транзакцию перевода
+				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
+					&suite.BaseSuite, td, v, waitForTx)
+
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, name, "version", v)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, name,
+					"Transfer: "+tx.TxID.String(), "Version: ", v)
+				//проверяем балансы аккаунтов
+				//баланс вавесов аккаунта, с которого переводят, уменьшается на комиссию
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
+					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, name, "Version: ", v)
+				//баланс ассетов аккаунта, с которого переводят, уменьшается на количество токена, переводимое другому аккаунту
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, name, "Version: ", v)
+				//баланс вавесов аккаунта, на который переводят токен, не меняется
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
+					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, name, "Version: ", v)
+				//баланс ассетов аккаунта, на который переводят, увеличивается на количество переводимого токена
+				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, name, "Version: ", v)
+			})
+		}
+	}
+}
+
 func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 	versions := testdata.GetVersions()
 	waitForTx := true
@@ -73,7 +116,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		//используя новый токен, создаем тестовые данные для проверки транзакции перевода
 		tdmatrix := testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID)
-		//TODO (ipereiaslavskaia) For v1 of burn tx negative cases for chainID will be ignored
+
 		if v > 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDNegativeData(&suite.BaseSuite, itx.TxID))
 		}

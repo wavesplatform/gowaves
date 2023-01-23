@@ -110,7 +110,7 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		//используя новый токен, создаем тестовые данные для проверки транзакции перевода
 		tdmatrix := testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID)
-		//TODO (ipereiaslavskaia) For v1 and v2 of burn tx negative cases for chainID will be ignored
+
 		if v > 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDNegativeData(&suite.BaseSuite, itx.TxID))
 		}

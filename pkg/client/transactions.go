@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -168,8 +167,6 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Broadcast Tx Bytes: %s", base64.StdEncoding.EncodeToString(bts))
-	fmt.Println()
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))
 	if err != nil {
