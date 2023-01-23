@@ -70,26 +70,34 @@ Once the parameters were provided, the node would try loading and using private 
 #### How to create a wallet file
 
 To create a wallet file use the `wallet` utility. Please download a suitable version of the `wallet` utility from the [Releases](https://github.com/wavesplatform/gowaves/releases) page.
-The following command will add a seed to the wallet file:
+The following command will create and add a new seed to the wallet file:
 
-```
-./wallet add -w [path to the wallet file]
-```
-
-The utility would ask for a seed phrase and a password to encrypt the new wallet file. If a wallet file does not exist, the file will be created.
-
-It is possible to provide not only a seed phrase, but also a Base58 encoded seed in a compatible with waves.exchange application format. To do so add `-b` flag:
-
-```
-./wallet add -w [path to the wallet file] -b
+```bash
+./wallet -new
 ```
 
-Enter the string of a Base58 encoded seed (It will be asked).
+The utility would ask for a password to encrypt the new wallet file. If a wallet file does not exist, the file will be created.
+By default, new wallet file has name `.waves` and stored in user's home directory. Different wallet's file location can be set using `-wallet` option.
 
-To list the seed, run the next command and provide the password.
-
+Also, it's possible to import existing seed phrase. Please, use `-seed-phrase` option to do so.
+```bash
+./wallet -seed-phrase "words of seed phrase..."
 ```
-./wallet show -w [path to the wallet file]
+
+If you have a Base58 encoded seed phrase from Scala node configuration file. There is an option `-seed-phrase-base58` to import it.
+Also, this Base58 encoded seed phrase can be exported from Waves.Exchange wallet using `Settings | Security | Encoded Seed Phrase` menu option.
+```bash
+./wallet -seed-phrase-base58 <string of Base58 encoded seed phrase>
+```
+
+The last import option `-account-seed-base58` allows to import a Base58 encoded account seed. 
+```bash
+./wallet -account-seed-base58 <string of Base58 encoded account seed>
+```
+
+To list the seeds stored in the wallet, run the following command and provide a password.
+```bash
+./wallet -show
 ```
 
 
