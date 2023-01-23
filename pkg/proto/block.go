@@ -177,6 +177,11 @@ type BlockHeader struct {
 	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
 }
 
+type BlockVersionID struct {
+	BlockID BlockID      `json:"blockID"`
+	Version BlockVersion `json:"version"`
+}
+
 func featuresToBinary(features []int16) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, binary.BigEndian, features); err != nil {

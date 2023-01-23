@@ -97,19 +97,21 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
+func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, block proto.BlockVersionID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
-		BlockID: blockID,
+		Height:  height,
+		Version: block.Version,
+		BlockID: block.BlockID,
 		FieldsHashes: proto.FieldsHashes{
-			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
-			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+			WavesBalanceHash:  s.balances.wavesHashAt(block.BlockID),
+			AssetBalanceHash:  s.balances.assetsHashAt(block.BlockID),
+			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(block.BlockID),
+			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(block.BlockID),
+			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(block.BlockID),
+			LeaseBalanceHash:  s.balances.leaseHashAt(block.BlockID),
+			LeaseStatusHash:   s.leases.hasher.stateHashAt(block.BlockID),
+			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(block.BlockID),
+			AliasesHash:       s.aliases.hasher.stateHashAt(block.BlockID),
 		},
 	}
 	if err := sh.GenerateSumHash(prevHash); err != nil {
@@ -143,7 +145,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blocksVID []proto.BlockVersionID) error {
 	if !s.calculateHashes {
 		return nil
 	}
@@ -159,9 +161,9 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 		return err
 	}
 	startHeight := blockchainHeight + 1
-	for i, id := range blockIds {
+	for i, b := range blocksVID {
 		height := startHeight + uint64(i)
-		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
+		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, b)
 		if err != nil {
 			return err
 		}
@@ -575,7 +577,8 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.prepareHashes(); err != nil {
 		return err
 	}
-	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
+	blockVID := proto.BlockVersionID{Version: s.genesis.Version, BlockID: s.genesis.BlockID()}
+	if _, err := s.stor.putStateHash(nil, 1, blockVID); err != nil {
 		return err
 	}
 	if verifyError := chans.closeAndWait(); verifyError != nil {
@@ -1354,7 +1357,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	var ids []proto.BlockID
+	var blocks []proto.BlockVersionID
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
@@ -1401,7 +1404,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		}
 		headers[pos] = block.BlockHeader
 		pos++
-		ids = append(ids, block.BlockID())
+		blockVID := proto.BlockVersionID{BlockID: block.BlockID(), Version: block.Version}
+		blocks = append(blocks, blockVID)
 		lastAppliedBlock = block
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
@@ -1416,7 +1420,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, err
 	}
 	// Retrieve and store state hashes for each of new blocks.
-	if err := s.stor.handleStateHashes(height, ids); err != nil {
+	if err := s.stor.handleStateHashes(height, blocks); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
