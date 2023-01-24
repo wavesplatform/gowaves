@@ -4171,11 +4171,7 @@ type StateHashJS struct {
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(StateHashJS{
-		s.BlockID,
-		DigestWrapped(s.SumHash),
-		FieldHashesJSFromStateHash(s),
-	})
+	return json.Marshal(s.ToStateHashJS())
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
@@ -4197,16 +4193,26 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func FieldHashesJSFromStateHash(s StateHash) FieldsHashesJS {
-	return FieldsHashesJS{
-		DigestWrapped(s.DataEntryHash),
-		DigestWrapped(s.AccountScriptHash),
-		DigestWrapped(s.AssetScriptHash),
-		DigestWrapped(s.LeaseStatusHash),
-		DigestWrapped(s.SponsorshipHash),
-		DigestWrapped(s.AliasesHash),
-		DigestWrapped(s.WavesBalanceHash),
-		DigestWrapped(s.AssetBalanceHash),
-		DigestWrapped(s.LeaseBalanceHash),
+func (s *StateHash) ToStateHashJS() StateHashJS {
+	return StateHashJS{
+		s.BlockID,
+		DigestWrapped(s.SumHash),
+		FieldsHashesJS{
+			DigestWrapped(s.DataEntryHash),
+			DigestWrapped(s.AccountScriptHash),
+			DigestWrapped(s.AssetScriptHash),
+			DigestWrapped(s.LeaseStatusHash),
+			DigestWrapped(s.SponsorshipHash),
+			DigestWrapped(s.AliasesHash),
+			DigestWrapped(s.WavesBalanceHash),
+			DigestWrapped(s.AssetBalanceHash),
+			DigestWrapped(s.LeaseBalanceHash),
+		},
 	}
+}
+
+type StateHashJSDebug struct {
+	StateHashJS
+	Height  uint64 `json:"height"`
+	Version string `json:"version"`
 }

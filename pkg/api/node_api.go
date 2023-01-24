@@ -616,21 +616,12 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get state hash at height %d", height)
 	}
-	type response struct {
-		proto.StateHashJS
-		Height  uint64      `json:"height"`
-		Version nodeVersion `json:"version"`
+	stateHashDebug := proto.StateHashJSDebug{
+		StateHashJS: stateHash.ToStateHashJS(),
+		Height:      height,
+		Version:     a.app.version().Version,
 	}
-	resp := response{
-		proto.StateHashJS{
-			BlockID:        stateHash.BlockID,
-			SumHash:        proto.DigestWrapped(stateHash.SumHash),
-			FieldsHashesJS: proto.FieldHashesJSFromStateHash(*stateHash),
-		},
-		height,
-		a.app.version(),
-	}
-	if err := trySendJson(w, &resp); err != nil {
+	if err := trySendJson(w, &stateHashDebug); err != nil {
 		return errors.Wrap(err, "stateHash")
 	}
 	return nil
