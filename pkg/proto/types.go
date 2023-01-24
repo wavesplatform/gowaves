@@ -3982,7 +3982,7 @@ type FieldsHashes struct {
 	LeaseBalanceHash  crypto.Digest
 }
 
-type fieldsHashesJS struct {
+type FieldsHashesJS struct {
 	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
 	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
 	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
@@ -3995,7 +3995,7 @@ type fieldsHashesJS struct {
 }
 
 func (s FieldsHashes) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fieldsHashesJS{
+	return json.Marshal(FieldsHashesJS{
 		DigestWrapped(s.DataEntryHash),
 		DigestWrapped(s.AccountScriptHash),
 		DigestWrapped(s.AssetScriptHash),
@@ -4009,7 +4009,7 @@ func (s FieldsHashes) MarshalJSON() ([]byte, error) {
 }
 
 func (s *FieldsHashes) UnmarshalJSON(value []byte) error {
-	var sh fieldsHashesJS
+	var sh FieldsHashesJS
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
@@ -4164,32 +4164,22 @@ func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-type stateHashJS struct {
+type StateHashJS struct {
 	BlockID BlockID       `json:"blockId"`
 	SumHash DigestWrapped `json:"stateHash"`
-	fieldsHashesJS
+	FieldsHashesJS
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stateHashJS{
+	return json.Marshal(StateHashJS{
 		s.BlockID,
 		DigestWrapped(s.SumHash),
-		fieldsHashesJS{
-			DigestWrapped(s.DataEntryHash),
-			DigestWrapped(s.AccountScriptHash),
-			DigestWrapped(s.AssetScriptHash),
-			DigestWrapped(s.LeaseStatusHash),
-			DigestWrapped(s.SponsorshipHash),
-			DigestWrapped(s.AliasesHash),
-			DigestWrapped(s.WavesBalanceHash),
-			DigestWrapped(s.AssetBalanceHash),
-			DigestWrapped(s.LeaseBalanceHash),
-		},
+		FieldHashesJSFromStateHash(s),
 	})
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
-	var sh stateHashJS
+	var sh StateHashJS
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
@@ -4205,4 +4195,18 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	return nil
+}
+
+func FieldHashesJSFromStateHash(s StateHash) FieldsHashesJS {
+	return FieldsHashesJS{
+		DigestWrapped(s.DataEntryHash),
+		DigestWrapped(s.AccountScriptHash),
+		DigestWrapped(s.AssetScriptHash),
+		DigestWrapped(s.LeaseStatusHash),
+		DigestWrapped(s.SponsorshipHash),
+		DigestWrapped(s.AliasesHash),
+		DigestWrapped(s.WavesBalanceHash),
+		DigestWrapped(s.AssetBalanceHash),
+		DigestWrapped(s.LeaseBalanceHash),
+	}
 }
