@@ -3992,7 +3992,7 @@ type FieldsHashes struct {
 	LeaseBalanceHash  crypto.Digest
 }
 
-type FieldsHashesJS struct {
+type fieldsHashesJS struct {
 	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
 	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
 	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
@@ -4005,7 +4005,7 @@ type FieldsHashesJS struct {
 }
 
 func (s FieldsHashes) MarshalJSON() ([]byte, error) {
-	return json.Marshal(FieldsHashesJS{
+	return json.Marshal(fieldsHashesJS{
 		DigestWrapped(s.DataEntryHash),
 		DigestWrapped(s.AccountScriptHash),
 		DigestWrapped(s.AssetScriptHash),
@@ -4019,7 +4019,7 @@ func (s FieldsHashes) MarshalJSON() ([]byte, error) {
 }
 
 func (s *FieldsHashes) UnmarshalJSON(value []byte) error {
-	var sh FieldsHashesJS
+	var sh fieldsHashesJS
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
@@ -4174,10 +4174,10 @@ func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-type StateHashJS struct {
+type stateHashJS struct {
 	BlockID BlockID       `json:"blockId"`
 	SumHash DigestWrapped `json:"stateHash"`
-	FieldsHashesJS
+	fieldsHashesJS
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
@@ -4185,7 +4185,7 @@ func (s StateHash) MarshalJSON() ([]byte, error) {
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
-	var sh StateHashJS
+	var sh stateHashJS
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
@@ -4203,11 +4203,11 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (s *StateHash) ToStateHashJS() StateHashJS {
-	return StateHashJS{
+func (s *StateHash) ToStateHashJS() stateHashJS {
+	return stateHashJS{
 		s.BlockID,
 		DigestWrapped(s.SumHash),
-		FieldsHashesJS{
+		fieldsHashesJS{
 			DigestWrapped(s.DataEntryHash),
 			DigestWrapped(s.AccountScriptHash),
 			DigestWrapped(s.AssetScriptHash),
@@ -4222,7 +4222,7 @@ func (s *StateHash) ToStateHashJS() StateHashJS {
 }
 
 type StateHashJSDebug struct {
-	StateHashJS
+	stateHashJS
 	Height  uint64 `json:"height"`
 	Version string `json:"version"`
 }
