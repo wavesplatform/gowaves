@@ -203,6 +203,16 @@ func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
 	return GetAddressByAliasGo(suite, alias), GetAddressByAliasScala(suite, alias)
 }
 
+func GetAddressFromRecipientAlias(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
+	var address proto.WavesAddress
+	var err error
+	if recipient.Alias != nil {
+		address, err = proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias.Alias))
+		require.NoError(suite.T(), err, "Can't get address from bytes")
+	}
+	return &address
+}
+
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
 	return suite.Clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }

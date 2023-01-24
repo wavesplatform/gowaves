@@ -54,16 +54,6 @@ func NewSignTransferTransactionWithTestData[T any](suite *f.BaseSuite, version b
 		testdata.Fee, testdata.Recipient, testdata.Attachment)
 }
 
-func getAddressFromRecipientAlias(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
-	var address proto.WavesAddress
-	var err error
-	if recipient.Alias != nil {
-		address, err = proto.NewAddressFromBytes(utl.GetAddressByAliasGo(suite, recipient.Alias.Alias))
-		require.NoError(suite.T(), err, "Can't get address from bytes")
-	}
-	return &address
-}
-
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
@@ -77,7 +67,7 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 	//начальный баланс получателя
 	//для Recipient может быть задан алиас вместо адреса
 	if testdata.Recipient.Address == nil {
-		address = getAddressFromRecipientAlias(suite, testdata.Recipient)
+		address = utl.GetAddressFromRecipientAlias(suite, testdata.Recipient)
 	}
 	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient := utl.GetAvailableBalanceInWaves(suite, *address)
 	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient := utl.GetAssetBalance(suite, *address, testdata.Asset.ID)
