@@ -4181,7 +4181,7 @@ type stateHashJS struct {
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.ToStateHashJS())
+	return json.Marshal(s.toStateHashJS())
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
@@ -4203,7 +4203,7 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (s *StateHash) ToStateHashJS() stateHashJS {
+func (s *StateHash) toStateHashJS() stateHashJS {
 	return stateHashJS{
 		s.BlockID,
 		DigestWrapped(s.SumHash),
@@ -4225,4 +4225,8 @@ type StateHashJSDebug struct {
 	stateHashJS
 	Height  uint64 `json:"height"`
 	Version string `json:"version"`
+}
+
+func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashJSDebug {
+	return StateHashJSDebug{s.toStateHashJS(), h, v}
 }
