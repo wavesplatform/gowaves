@@ -1557,7 +1557,7 @@ func TestTransferWithProofsFromJSON(t *testing.T) {
 	assert.False(t, tx.FeeAsset.Present)
 	assert.Equal(t, 1, len(tx.Proofs.Proofs))
 	assert.ElementsMatch(t, spk[:], tx.SenderPK[:])
-	assert.ElementsMatch(t, addr[:], tx.Recipient.Address[:])
+	assert.ElementsMatch(t, addr[:], tx.Recipient.Address()[:])
 }
 
 func TestReissueWithSigValidations(t *testing.T) {
@@ -3752,7 +3752,7 @@ func TestLeaseWithSigBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
-				assert.ElementsMatch(t, *tx.Recipient.Address, *atx.Recipient.Address)
+				assert.ElementsMatch(t, *tx.Recipient.Address(), *atx.Recipient.Address())
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.Fee, atx.Fee)
 				assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -3768,7 +3768,7 @@ func TestLeaseWithSigBinaryRoundTrip(t *testing.T) {
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
-				assert.ElementsMatch(t, addr, *atx.Recipient.Address)
+				assert.ElementsMatch(t, addr, *atx.Recipient.Address())
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)
@@ -3962,7 +3962,7 @@ func TestLeaseWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
-				assert.ElementsMatch(t, *tx.Recipient.Address, *atx.Recipient.Address)
+				assert.ElementsMatch(t, *tx.Recipient.Address(), *atx.Recipient.Address())
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.Fee, atx.Fee)
 				assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -3978,7 +3978,7 @@ func TestLeaseWithProofsBinaryRoundTrip(t *testing.T) {
 			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
-				assert.ElementsMatch(t, addr, *atx.Recipient.Address)
+				assert.ElementsMatch(t, addr, *atx.Recipient.Address())
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)

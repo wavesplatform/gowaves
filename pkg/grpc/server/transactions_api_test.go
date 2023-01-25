@@ -44,7 +44,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	leaseTx, ok := tx.(*proto.LeaseWithSig)
 	assert.Equal(t, true, ok)
-	recipient := *leaseTx.Recipient.Address
+	recipient := *leaseTx.Recipient.Address()
 	sender, err := proto.NewAddressFromPublicKey(server.scheme, leaseTx.SenderPK)
 	require.NoError(t, err)
 

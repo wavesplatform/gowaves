@@ -356,10 +356,10 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 }
 
 func recipientToAddress(recipient proto.Recipient, aliases *aliases) (*proto.WavesAddress, error) {
-	if recipient.Address != nil {
-		return recipient.Address, nil
+	if addr := recipient.Address(); addr != nil {
+		return addr, nil
 	}
-	addr, err := aliases.newestAddrByAlias(recipient.Alias.Alias)
+	addr, err := aliases.newestAddrByAlias(recipient.Alias().Alias)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid alias")
 	}

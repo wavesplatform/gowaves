@@ -214,7 +214,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
-		Recipient:           *tx.Recipient.Address,
+		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 	}
 
@@ -235,7 +235,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
-		Recipient:           *tx.Recipient.Address,
+		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 	}
 
@@ -257,7 +257,7 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCanceled,
 		Amount:              leaseTx.Amount,
-		Recipient:           *leaseTx.Recipient.Address,
+		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 		CancelTransactionID: tx.ID,
 	}
@@ -282,7 +282,7 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCanceled,
 		Amount:              leaseTx.Amount,
-		Recipient:           *leaseTx.Recipient.Address,
+		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 		CancelTransactionID: tx.ID,
 	}
