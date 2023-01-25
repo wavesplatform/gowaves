@@ -111,8 +111,14 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 }
 
 func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias string) map[string]TransferTestData[TransferExpectedValuesPositive] {
+	rcpntAddress, errAddr := proto.NewRecipientFromString(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address.String())
+	suite.NoError(errAddr, "Error when creating recipient from string address: ")
+	rcpntAlias, errAls := proto.NewRecipientFromString(alias)
+	suite.NoError(errAls, "Error when creating recipient from string alias: ")
+
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
+
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
 		"Min values for fee, attachment and amount": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -136,13 +142,13 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
-			uint64(assetAmount/4),
+			uint64(assetAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
 			proto.Attachment("6oCrsKJu7Ev52rjB72t1d3y98G5DQmvt7TYVvW7HT4vGbqgKJxJmBzA77LpC9vcW4WNQqZ2imMghaK2gkCX5J"),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
-				AssetDiffBalance:          assetAmount / 4,
+				AssetDiffBalance:          assetAmount / 8,
 				WavesDiffBalanceRecipient: 0,
 			}),
 		"Waves transfer": *NewTransferTestData(
@@ -151,15 +157,77 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			nil,
 			nil,
 			utl.MinTxFeeWaves,
-			uint64(wavesAmount/4),
+			uint64(wavesAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
 			proto.Attachment("2qcsACR1T95dchPf3anZ6W2CEMyNHnwUYuFeHDQt"),
 			TransferExpectedValuesPositive{
-				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/4,
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/8,
 				AssetDiffBalance:          0,
-				WavesDiffBalanceRecipient: wavesAmount / 4,
+				WavesDiffBalanceRecipient: wavesAmount / 8,
 			}),
+		"Transfer assets to oneself": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address),
+			&assetId,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(assetAmount/8),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRM"),
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
+				AssetDiffBalance:          0,
+				WavesDiffBalanceRecipient: utl.MinTxFeeWaves,
+			}),
+		"Transfer waves to oneself": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address),
+			nil,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(wavesAmount/8),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRM"),
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
+				AssetDiffBalance:          0,
+				WavesDiffBalanceRecipient: utl.MinTxFeeWaves,
+			}),
+		"Address as string": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			rcpntAddress,
+			&assetId,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(assetAmount/8),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
+				AssetDiffBalance:          assetAmount / 8,
+				WavesDiffBalanceRecipient: 0,
+			},
+		),
+		"Alias as string": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			rcpntAlias,
+			nil,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(wavesAmount/8),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/8,
+				AssetDiffBalance:          0,
+				WavesDiffBalanceRecipient: wavesAmount / 8,
+			},
+		),
 	}
 	return t
 }

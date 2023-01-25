@@ -67,6 +67,7 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 	if testdata.Recipient.Address == nil {
 		address = utl.GetAddressFromRecipientAlias(suite, testdata.Recipient)
 	}
+
 	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient := utl.GetAvailableBalanceInWaves(suite, *address)
 	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient := utl.GetAssetBalance(suite, *address, testdata.Asset.ID)
 

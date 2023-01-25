@@ -134,7 +134,6 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 					tx.WtErr.ErrWtScala, "Case: ", name, "Version: ", v)
 			})
 		}
-
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
