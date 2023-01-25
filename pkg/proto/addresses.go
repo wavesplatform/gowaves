@@ -687,19 +687,25 @@ func (r *wavesAddressRecipient) MarshalBinary() (data []byte, err error) {
 	return r.addr[:], nil
 }
 
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type incomparable [0]func()
+
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
+	_     incomparable
 	inner recipient
 }
 
 // NewRecipientFromAddress creates the Recipient from given address.
 func NewRecipientFromAddress(a WavesAddress) Recipient {
-	return Recipient{&wavesAddressRecipient{a}}
+	return Recipient{inner: &wavesAddressRecipient{a}}
 }
 
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
-	return Recipient{&aliasRecipient{a}}
+	return Recipient{inner: &aliasRecipient{a}}
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {

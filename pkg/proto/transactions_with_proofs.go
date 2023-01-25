@@ -2685,7 +2685,7 @@ func (tx MassTransferWithProofs) BinarySize() int {
 
 func (tx MassTransferWithProofs) HasRecipient(rcp Recipient) bool {
 	for _, tr := range tx.Transfers {
-		if tr.Recipient == rcp {
+		if tr.Recipient.Eq(rcp) {
 			return true
 		}
 	}
