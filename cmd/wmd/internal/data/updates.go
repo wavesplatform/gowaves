@@ -38,15 +38,15 @@ func (a *Account) SetFromAddress(scheme byte, address proto.Address) error {
 }
 
 func (a *Account) SetFromRecipient(r proto.Recipient) error {
-	if r.Alias != nil {
-		a.Alias = *r.Alias
-		return nil
+	switch {
+	case r.Address() != nil:
+		a.Address = *r.Address()
+	case r.Alias() != nil:
+		a.Alias = *r.Alias()
+	default:
+		return errors.New("empty Recipient")
 	}
-	if r.Address != nil {
-		a.Address = *r.Address
-		return nil
-	}
-	return errors.New("empty Recipient")
+	return nil
 }
 
 type AccountChange struct {

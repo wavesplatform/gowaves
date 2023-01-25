@@ -69,7 +69,7 @@ func (s RPCService) Eth_GetBalance(ethAddr proto.EthereumAddress, blockOrTag str
 		// todo log err
 		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
-	amount, err := s.nodeRPCApp.State.WavesBalance(proto.Recipient{Address: &wavesAddr})
+	amount, err := s.nodeRPCApp.State.WavesBalance(proto.NewRecipientFromAddress(wavesAddr))
 	if err != nil {
 		// todo log err
 		return "", errors.Wrapf(err, "failed to get waves balance for address %q", wavesAddr)
@@ -279,7 +279,7 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 		if err != nil {
 			return nil, err
 		}
-		accountBalance, err := state.AssetBalance(proto.Recipient{Address: &wavesAddr}, shortAssetID)
+		accountBalance, err := state.AssetBalance(proto.NewRecipientFromAddress(wavesAddr), shortAssetID)
 		if err != nil {
 			zap.S().Errorf("Eth_Call: failed to fetch account balance for addr=%q, %s: %v",
 				wavesAddr.String(), params.String(), err,
@@ -306,7 +306,7 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
 
-	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.Recipient{Address: &wavesAddr})
+	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.NewRecipientFromAddress(wavesAddr))
 	switch {
 	case state.IsNotFound(err):
 		// account has no script, trying fetch data as asset

@@ -1299,7 +1299,7 @@ func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
-	data = data[tr.Recipient.len:]
+	data = data[tr.Recipient.BinarySize():]
 	a, err := BytesWithUInt16Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
@@ -1562,7 +1562,7 @@ func (l Lease) Valid(scheme Scheme) (bool, error) {
 	if !validJVMLong(l.Amount + l.Fee) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	if rcpAddr := l.Recipient.Address; rcpAddr != nil {
+	if rcpAddr := l.Recipient.Address(); rcpAddr != nil {
 		sender, err := NewAddressFromPublicKey(scheme, l.SenderPK)
 		if err != nil {
 			return false, errors.Wrapf(err, "failed to generate address from pk=%q and scheme=%q", l.SenderPK, scheme)
@@ -1577,7 +1577,7 @@ func (l Lease) Valid(scheme Scheme) (bool, error) {
 }
 
 func (l *Lease) marshalBinary() ([]byte, error) {
-	rl := l.Recipient.len
+	rl := l.Recipient.BinarySize()
 	buf := make([]byte, leaseLen+rl)
 	p := 0
 	copy(buf[p:], l.SenderPK[:])
@@ -1606,7 +1606,7 @@ func (l *Lease) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal lease from bytes")
 	}
-	data = data[l.Recipient.len:]
+	data = data[l.Recipient.BinarySize():]
 	l.Amount = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	l.Fee = binary.BigEndian.Uint64(data)

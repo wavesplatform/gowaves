@@ -669,7 +669,7 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error 
 		fal += crypto.DigestSize
 	}
 	atl := tx.attachmentSize()
-	rl := tx.Recipient.len
+	rl := tx.Recipient.BinarySize()
 	bl := transferWithProofsFixedBodyLen + aal + fal + atl + rl
 	data = data[bl:]
 	var p ProofsV1
@@ -1976,7 +1976,7 @@ func NewUnsignedLeaseWithProofs(v byte, senderPK crypto.PublicKey, recipient Rec
 }
 
 func (tx *LeaseWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	rl := tx.Recipient.len
+	rl := tx.Recipient.BinarySize()
 	buf := make([]byte, leaseWithProofsBodyLen+rl)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
@@ -2071,7 +2071,7 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
 	}
-	bl := leaseWithProofsBodyLen + tx.Recipient.len
+	bl := leaseWithProofsBodyLen + tx.Recipient.BinarySize()
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -2641,7 +2641,7 @@ func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferEntry")
 	}
-	rl := e.Recipient.len
+	rl := e.Recipient.BinarySize()
 	buf := make([]byte, massTransferEntryLen+rl)
 	copy(buf, rb)
 	binary.BigEndian.PutUint64(buf[rl:], e.Amount)
@@ -2656,7 +2656,7 @@ func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal MassTransferEntry from bytes")
 	}
-	e.Amount = binary.BigEndian.Uint64(data[e.Recipient.len:])
+	e.Amount = binary.BigEndian.Uint64(data[e.Recipient.BinarySize():])
 	return nil
 }
 
@@ -2685,7 +2685,7 @@ func (tx MassTransferWithProofs) BinarySize() int {
 
 func (tx MassTransferWithProofs) HasRecipient(rcp Recipient) bool {
 	for _, tr := range tx.Transfers {
-		if tr.Recipient == rcp {
+		if tr.Recipient.Eq(rcp) {
 			return true
 		}
 	}
@@ -2801,7 +2801,7 @@ func (tx *MassTransferWithProofs) bodyAndAssetLen() (int, int) {
 	}
 	rls := 0
 	for _, e := range tx.Transfers {
-		rls += e.Recipient.len
+		rls += e.Recipient.BinarySize()
 	}
 	al := tx.attachmentSize()
 	return massTransferWithProofsFixedLen + l + n*massTransferEntryLen + rls + al, l
@@ -2832,7 +2832,7 @@ func (tx *MassTransferWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 			return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction body to bytes")
 		}
 		copy(buf[p:], tb)
-		p += massTransferEntryLen + t.Recipient.len
+		p += massTransferEntryLen + t.Recipient.BinarySize()
 	}
 	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
 	p += 8
@@ -2871,7 +2871,7 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction body from bytes")
 		}
-		data = data[massTransferEntryLen+e.Recipient.len:]
+		data = data[massTransferEntryLen+e.Recipient.BinarySize():]
 		entries = append(entries, e)
 	}
 	tx.Transfers = entries
@@ -4452,7 +4452,7 @@ func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 
 func (tx *InvokeScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	p := 0
-	buf := make([]byte, invokeScriptWithProofsFixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.BinarySize()+tx.Payments.BinarySize()+tx.FeeAsset.BinarySize())
+	buf := make([]byte, invokeScriptWithProofsFixedBodyLen+tx.ScriptRecipient.BinarySize()+tx.FunctionCall.BinarySize()+tx.Payments.BinarySize()+tx.FeeAsset.BinarySize())
 	buf[p] = byte(tx.Type)
 	p++
 	buf[p] = tx.Version
@@ -4466,7 +4466,7 @@ func (tx *InvokeScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, erro
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptWithProofs body")
 	}
 	copy(buf[p:], rb)
-	p += tx.ScriptRecipient.len
+	p += tx.ScriptRecipient.BinarySize()
 	fcb, err := tx.FunctionCall.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -4518,7 +4518,7 @@ func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction")
 	}
 	tx.ScriptRecipient = recipient
-	data = data[tx.ScriptRecipient.len:]
+	data = data[tx.ScriptRecipient.BinarySize():]
 	functionCall := FunctionCall{}
 	err = functionCall.UnmarshalBinary(data)
 	if err != nil {
@@ -4612,7 +4612,7 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) er
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction from bytes")
 	}
-	bl := invokeScriptWithProofsFixedBodyLen + tx.ScriptRecipient.len + tx.FunctionCall.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize()
+	bl := invokeScriptWithProofsFixedBodyLen + tx.ScriptRecipient.BinarySize() + tx.FunctionCall.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize()
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)

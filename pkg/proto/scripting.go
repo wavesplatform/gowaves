@@ -84,9 +84,12 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 		AssetId: a.Asset.ToID(),
 		Amount:  a.Amount,
 	}
-	addrBody := a.Recipient.Address.Body()
+	addr := a.Recipient.Address()
+	if addr == nil {
+		return nil, errors.Errorf("failed to get addr from recipient '%s'", a.Recipient.String())
+	}
 	return &g.InvokeScriptResult_Payment{
-		Address: addrBody,
+		Address: addr.Body(),
 		Amount:  amount,
 	}, nil
 }
@@ -264,15 +267,16 @@ func (a *LeaseScriptAction) ToProtobuf() (*g.InvokeScriptResult_Lease, error) {
 // GenerateLeaseScriptActionID implements ID generation used in RIDE to create new ID for a Lease action.
 func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64, txID crypto.Digest) crypto.Digest {
 	rl := WavesAddressSize
-	if recipient.Alias != nil {
-		rl = 4 + len(recipient.Alias.Alias)
+	alias := recipient.Alias()
+	if alias != nil {
+		rl = 4 + len(alias.Alias)
 	}
 	buf := make([]byte, rl+crypto.DigestSize+8+8)
 	pos := 0
-	if recipient.Alias != nil {
-		PutStringWithUInt32Len(buf[pos:], recipient.Alias.Alias)
+	if alias != nil {
+		PutStringWithUInt32Len(buf[pos:], alias.Alias)
 	} else {
-		copy(buf[pos:], recipient.Address[:])
+		copy(buf[pos:], recipient.Address()[:])
 	}
 	pos += rl
 	copy(buf[pos:], txID[:])

@@ -1690,7 +1690,7 @@ func TestLeaseToSelf(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	// TODO: Test checks self transfer not leasing
-	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: transfers to DApp itself are forbidden since activation of RIDE V4")
+	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: payments to DApp itself are forbidden since activation of RIDE V4")
 	require.Nil(t, res)
 }
 
@@ -4429,6 +4429,7 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	test := newTestAccount(t, "TEST")
+	alias := *proto.NewAlias(proto.TestNetScheme, "test")
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
@@ -4459,6 +4460,9 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 10}})
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
+	calls := env.ms.NewestAddrByAliasCalls()
+	require.Len(t, calls, 1)
+	require.Equal(t, alias, calls[0].Alias)
 
 	_, err = CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 1}})
 	require.Error(t, err)

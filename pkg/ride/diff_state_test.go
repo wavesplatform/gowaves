@@ -34,7 +34,7 @@ func TestDataDiffTestSuite(t *testing.T) {
 func (s *DataDiffTestSuite) SetupTest() {
 	mock := &MockSmartState{
 		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
-			if recipient == validRecipient {
+			if recipient.Eq(validRecipient) {
 				return &validAddress, nil
 			}
 			return nil, errors.New("not found")
