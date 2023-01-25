@@ -585,6 +585,8 @@ type recipient interface {
 	Address() *WavesAddress
 	BinarySize() int
 	Eq(r2 Recipient) bool
+	EqAddr(addr WavesAddress) (bool, error)
+	EqAlias(alias Alias) (bool, error)
 	Serialize(s *serializer.Serializer) error
 	Valid(scheme Scheme) (bool, error)
 	ToProtobuf() (*g.Recipient, error)
@@ -610,6 +612,14 @@ func (r *aliasRecipient) Eq(r2 Recipient) bool {
 		return r.al == *al2
 	}
 	return false
+}
+
+func (r *aliasRecipient) EqAddr(addr WavesAddress) (bool, error) {
+	return false, errors.Errorf("failed to compare recipient '%s' with addr '%s'", r.String(), addr.String())
+}
+
+func (r *aliasRecipient) EqAlias(alias Alias) (bool, error) {
+	return r.al == alias, nil
 }
 
 func (r *aliasRecipient) Serialize(s *serializer.Serializer) error {
@@ -661,6 +671,14 @@ func (r *wavesAddressRecipient) Eq(r2 Recipient) bool {
 		return bytes.Equal(r.addr[:], addr2[:])
 	}
 	return false
+}
+
+func (r *wavesAddressRecipient) EqAddr(addr WavesAddress) (bool, error) {
+	return bytes.Equal(r.addr[:], addr[:]), nil
+}
+
+func (r *wavesAddressRecipient) EqAlias(alias Alias) (bool, error) {
+	return false, errors.Errorf("failed to compare recipient '%s' with alias '%s'", r.String(), alias.String())
 }
 
 func (r *wavesAddressRecipient) Serialize(s *serializer.Serializer) error {
@@ -737,6 +755,14 @@ func (r *Recipient) BinarySize() int {
 
 func (r Recipient) Eq(r2 Recipient) bool {
 	return r.inner.Eq(r2)
+}
+
+func (r Recipient) EqAddr(addr WavesAddress) (bool, error) {
+	return r.inner.EqAddr(addr)
+}
+
+func (r Recipient) EqAlias(alias Alias) (bool, error) {
+	return r.inner.EqAlias(alias)
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
