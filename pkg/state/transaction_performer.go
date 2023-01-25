@@ -185,13 +185,13 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		return err
 	}
 	var recipientAddr *proto.WavesAddress
-	if tx.Recipient.Address() == nil {
+	if addr := tx.Recipient.Address(); addr == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
 			return errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
-		recipientAddr = tx.Recipient.Address()
+		recipientAddr = addr
 	}
 	// Add leasing to lease state.
 	l := &leasing{

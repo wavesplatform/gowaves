@@ -1690,7 +1690,7 @@ func TestLeaseToSelf(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
 	// TODO: Test checks self transfer not leasing
-	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: transfers to DApp itself are forbidden since activation of RIDE V4")
+	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: payments to DApp itself are forbidden since activation of RIDE V4")
 	require.Nil(t, res)
 }
 
