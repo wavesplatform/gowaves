@@ -639,7 +639,7 @@ func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
 	}
 	stateHashDebug, err := a.stateHashDebug(height - 1)
 	if err != nil {
-		return errors.Wrap(err, "failed to the get last state hash")
+		return errors.Wrap(err, "failed to get last state hash")
 	}
 	if err := trySendJson(w, stateHashDebug); err != nil {
 		return errors.Wrap(err, "stateHash")
