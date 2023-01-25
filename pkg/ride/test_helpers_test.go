@@ -668,7 +668,7 @@ func (e *testEnv) withTree(acc *testAccount, tree *ast.Tree) *testEnv {
 
 func (e *testEnv) withAlias(acc *testAccount, alias *proto.Alias) *testEnv {
 	e.aliases[*alias] = acc.address()
-	e.recipients[alias.String()] = acc.address()
+	e.recipients[acc.rcp.String()] = acc.address()
 	return e
 }
 
@@ -722,8 +722,8 @@ func (e *testEnv) withNoTransactionAtHeight() *testEnv {
 }
 
 func (e *testEnv) resolveRecipient(rcp proto.Recipient) (proto.WavesAddress, error) {
-	if rcp.Address != nil {
-		return *rcp.Address, nil
+	if rcp.Address() != nil {
+		return *rcp.Address(), nil
 	}
 	if a, ok := e.recipients[rcp.String()]; ok {
 		return a, nil

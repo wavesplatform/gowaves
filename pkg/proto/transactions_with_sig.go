@@ -1577,7 +1577,7 @@ func NewUnsignedLeaseWithSig(senderPK crypto.PublicKey, recipient Recipient, amo
 }
 
 func (tx *LeaseWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
-	rl := tx.Recipient.len
+	rl := tx.Recipient.BinarySize()
 	buf := make([]byte, leaseWithSigBodyLen+rl)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Lease.marshalBinary()
@@ -1662,7 +1662,7 @@ func (tx *LeaseWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithSig transaction from bytes")
 	}
-	bl := leaseWithSigBodyLen + tx.Recipient.len
+	bl := leaseWithSigBodyLen + tx.Recipient.BinarySize()
 	data = data[bl:]
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])

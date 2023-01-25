@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
@@ -68,10 +69,61 @@ func TestRecipientJSONRoundTrip(t *testing.T) {
 			r2 := &Recipient{}
 			err := json.Unmarshal(js, r2)
 			assert.NoError(t, err)
-			assert.Equal(t, r.len, r2.len)
-			assert.Equal(t, r.Alias, r2.Alias)
-			assert.Equal(t, r.Address, r2.Address)
+			assert.Equal(t, r.BinarySize(), r2.BinarySize())
+			assert.Equal(t, r.Alias(), r2.Alias())
+			assert.Equal(t, r.Address(), r2.Address())
 		}
+	}
+}
+
+func TestRecipient_EqAddr(t *testing.T) {
+	tests := []struct {
+		rcp  Recipient
+		addr WavesAddress
+		res  bool
+		err  string
+	}{
+		{NewRecipientFromAddress(WavesAddress{1, 1, 1}), WavesAddress{1, 1, 1}, true, ""},
+		{NewRecipientFromAddress(WavesAddress{1, 1, 1}), WavesAddress{1, 2, 3}, false, ""},
+		{
+			NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), WavesAddress{1, 2, 3}, false,
+			"failed to compare recipient 'alias:T:blah' with addr '2npUV4bHHS5G9aTk5Wp5A2Exyh27UVz4GRm'",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			res, err := tc.rcp.EqAddr(tc.addr)
+			if err != nil {
+				assert.EqualError(t, err, tc.err)
+			}
+			assert.Equal(t, tc.res, res)
+		})
+	}
+}
+
+func TestRecipient_EqAlias(t *testing.T) {
+	tests := []struct {
+		rcp   Recipient
+		alias Alias
+		res   bool
+		err   string
+	}{
+
+		{NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), *NewAlias(TestNetScheme, "blah"), true, ""},
+		{NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), *NewAlias(TestNetScheme, "foo"), false, ""},
+		{
+			NewRecipientFromAddress(WavesAddress{1, 1, 1}), *NewAlias(TestNetScheme, "blah"), false,
+			"failed to compare recipient '2nQxJj6jMtYKshwRWMgKDbXCXBw6Tji6sZZ' with alias 'alias:T:blah'",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			res, err := tc.rcp.EqAlias(tc.alias)
+			if err != nil {
+				assert.EqualError(t, err, tc.err)
+			}
+			assert.Equal(t, tc.res, res)
+		})
 	}
 }
 
