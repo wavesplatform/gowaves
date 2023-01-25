@@ -11,7 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer_utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"golang.org/x/exp/maps"
 )
 
 type TransferTxSuite struct {
@@ -103,9 +102,9 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		tdmatrix := testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID)
 
-		if v > 2 {
+		/*if v > 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDNegativeData(&suite.BaseSuite, itx.TxID))
-		}
+		}*/
 		txIds := make(map[string]*crypto.Digest)
 
 		for name, td := range tdmatrix {

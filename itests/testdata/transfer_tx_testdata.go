@@ -113,7 +113,7 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias string) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	rcpntAddress, errAddr := proto.NewRecipientFromString(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address.String())
 	suite.NoError(errAddr, "Error when creating recipient from string address: ")
-	rcpntAlias, errAls := proto.NewRecipientFromString(alias)
+	rcpntAlias, errAls := proto.NewRecipientFromString("alias:" + string(utl.TestChainID) + ":" + alias)
 	suite.NoError(errAls, "Error when creating recipient from string alias: ")
 
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
