@@ -635,7 +635,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
 	height, err := a.state.Height()
 	if err != nil {
-		return errors.Wrap(err, "failed to get the last height")
+		return errors.Wrap(err, "failed to get last height")
 	}
 	stateHashDebug, err := a.stateHashDebug(height - 1)
 	if err != nil {
