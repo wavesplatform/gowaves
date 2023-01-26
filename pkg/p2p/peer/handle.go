@@ -17,6 +17,7 @@ func bytesToMessage(b *bytebufferpool.ByteBuffer, d common.DuplicateChecker, res
 	}()
 
 	if d != nil {
+		// TODO: screw here prometeus
 		isNew := d.Add(p.ID().String(), b.Bytes())
 		if !isNew {
 			return nil

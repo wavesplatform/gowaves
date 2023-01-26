@@ -44,7 +44,7 @@ type PeerSpawnerImpl struct {
 }
 
 func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
-	dc, err := gcradupchecker.NewDuplicateChecker(1000) // TODO(artemreyt): fix magic number
+	dc, err := gcradupchecker.NewDuplicateChecker(gcradupchecker.DefaultSettings()) // TODO(artemreyt): fix magic number
 	if err != nil {
 		panic(err) // TODO(artemreyt): handle error
 	}

@@ -39,13 +39,15 @@ var (
 
 const separator = "|"
 
+const defaultMaxMsgs = 1000
+
 type DuplicateChecker struct {
 	limiters [messageWeightTotal]throttled.RateLimiter
 	settings *Settings
 }
 
 func NewDuplicateChecker(settings Settings) (*DuplicateChecker, error) {
-	store, err := memstore.New(settings.maxMsgs)
+	store, err := memstore.New(settings.MaxMsgs)
 	if err != nil {
 		return nil, err
 	}
@@ -87,26 +89,22 @@ func (dc *DuplicateChecker) Add(peerID string, message []byte) bool {
 }
 
 func messageWeightByID(id proto.PeerMessageID) messageWeight {
-	return lightMessageWeight // TODO(artemreyt): implement
+	return heavyMessageWeight // TODO(artemreyt): implement
 }
 
-
-// settings set limits for all message types 
+// settings set limits for all message types
 // and also separates messages by type
 type Settings struct {
-	Quotes [messageWeightTotal]throttled.RateQuota
+	Quotes   [messageWeightTotal]throttled.RateQuota
 	MsgTypes map[proto.PeerMessageID]messageWeight
-	MaxMsgs int // max messages in store
+	MaxMsgs  int // max messages in store
 }
 
-func NewSettings() Settings {
-
-}
-
-func defaultSettings() Settings {
+func DefaultSettings() Settings {
 	return Settings{
-		Quotes: defaultQuotes(),
+		Quotes:   defaultQuotes(),
 		MsgTypes: defautMessageTypes(),
+		MaxMsgs:  defaultMaxMsgs,
 	}
 }
 
@@ -125,27 +123,29 @@ func defaultQuotes() [messageWeightTotal]throttled.RateQuota {
 		MaxRate:  throttled.PerMin(6),
 		MaxBurst: 0,
 	}
+
+	return quotes
 }
 
 func defautMessageTypes() map[proto.PeerMessageID]messageWeight {
 	msgTypes := make(map[proto.PeerMessageID]messageWeight)
 
-	for msgs := range []struct{
-		ids proto.PeerMessageIDs
+	for _, msgs := range []struct {
+		ids    proto.PeerMessageIDs
 		weight messageWeight
 	}{
 		{ids: lightWeightMessageList, weight: lightMessageWeight},
 		{ids: middleWeightMessageList, weight: middleMessageWeight},
 		{ids: heavyWeightMessageList, weight: heavyMessageWeight},
 	} {
-		for _, id := range ids {
+		for _, id := range msgs.ids {
 			msgTypes[id] = msgs.weight
 		}
 	}
 	return msgTypes
 }
 
-// TODO(artemreyt): implement
-func init() {
+// // TODO(artemreyt): implement
+// func init() {
 
-}
+// }

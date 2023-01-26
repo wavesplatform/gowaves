@@ -59,7 +59,7 @@ func TestHandleReceive(t *testing.T) {
 	remote := NewRemote()
 	parent := NewParent()
 	var wg sync.WaitGroup
-	dc, err := gcradupchecker.NewDuplicateChecker(10000)
+	dc, err := gcradupchecker.NewDuplicateChecker(gcradupchecker.DefaultSettings())
 	require.NoError(t, err)
 	wg.Add(1)
 	go func() {
