@@ -206,8 +206,8 @@ func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
 func GetAddressFromRecipientAlias(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
 	var address proto.WavesAddress
 	var err error
-	if recipient.Alias != nil {
-		address, err = proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias.Alias))
+	if recipient.Alias() != nil {
+		address, err = proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias().Alias))
 		require.NoError(suite.T(), err, "Can't get address from bytes")
 	}
 	return &address

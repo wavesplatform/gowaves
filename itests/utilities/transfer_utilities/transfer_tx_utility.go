@@ -59,12 +59,12 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T],
 	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.AccountDiffBalances, utl.AccountDiffBalances) {
-	address := testdata.Recipient.Address
+	address := testdata.Recipient.Address()
 
 	initBalanceWavesGoSender, initBalanceWavesScalaSender := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
 	initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.Asset.ID)
 
-	if testdata.Recipient.Address == nil {
+	if testdata.Recipient.Address() == nil {
 		address = utl.GetAddressFromRecipientAlias(suite, testdata.Recipient)
 	}
 
