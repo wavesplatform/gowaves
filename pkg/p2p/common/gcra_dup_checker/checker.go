@@ -25,14 +25,27 @@ const (
 	messageWeightTotal
 )
 
+var (
+	lightWeightMessageList = proto.PeerMessageIDs{
+		// TODO(artemreyt): fill
+	}
+	middleWeightMessageList = proto.PeerMessageIDs{
+		// TODO(artemreyt): fill
+	}
+	heavyWeightMessageList = proto.PeerMessageIDs{
+		// TODO(artemreyt): fill
+	}
+)
+
 const separator = "|"
 
 type DuplicateChecker struct {
 	limiters [messageWeightTotal]throttled.RateLimiter
+	settings *Settings
 }
 
-func NewDuplicateChecker(maxMessages int) (*DuplicateChecker, error) {
-	store, err := memstore.New(maxMessages)
+func NewDuplicateChecker(settings Settings) (*DuplicateChecker, error) {
+	store, err := memstore.New(settings.maxMsgs)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +88,61 @@ func (dc *DuplicateChecker) Add(peerID string, message []byte) bool {
 
 func messageWeightByID(id proto.PeerMessageID) messageWeight {
 	return lightMessageWeight // TODO(artemreyt): implement
+}
+
+
+// settings set limits for all message types 
+// and also separates messages by type
+type Settings struct {
+	Quotes [messageWeightTotal]throttled.RateQuota
+	MsgTypes map[proto.PeerMessageID]messageWeight
+	MaxMsgs int // max messages in store
+}
+
+func NewSettings() Settings {
+
+}
+
+func defaultSettings() Settings {
+	return Settings{
+		Quotes: defaultQuotes(),
+		MsgTypes: defautMessageTypes(),
+	}
+}
+
+func defaultQuotes() [messageWeightTotal]throttled.RateQuota {
+	var quotes [messageWeightTotal]throttled.RateQuota
+
+	quotes[lightMessageWeight] = throttled.RateQuota{
+		MaxRate:  throttled.PerMin(2),
+		MaxBurst: 0,
+	}
+	quotes[middleMessageWeight] = throttled.RateQuota{
+		MaxRate:  throttled.PerMin(4),
+		MaxBurst: 0,
+	}
+	quotes[heavyMessageWeight] = throttled.RateQuota{
+		MaxRate:  throttled.PerMin(6),
+		MaxBurst: 0,
+	}
+}
+
+func defautMessageTypes() map[proto.PeerMessageID]messageWeight {
+	msgTypes := make(map[proto.PeerMessageID]messageWeight)
+
+	for msgs := range []struct{
+		ids proto.PeerMessageIDs
+		weight messageWeight
+	}{
+		{ids: lightWeightMessageList, weight: lightMessageWeight},
+		{ids: middleWeightMessageList, weight: middleMessageWeight},
+		{ids: heavyWeightMessageList, weight: heavyMessageWeight},
+	} {
+		for _, id := range ids {
+			msgTypes[id] = msgs.weight
+		}
+	}
+	return msgTypes
 }
 
 // TODO(artemreyt): implement
