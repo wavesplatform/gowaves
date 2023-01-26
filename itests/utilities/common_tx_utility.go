@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
+	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -276,9 +277,11 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 	suite.Clients.ClearBlackList(suite.T())
 
-	suite.Conns.Reconnect(suite.T(), suite.Ports)
+	connections, err := net.NewNodeConnections(suite.Ports)
+	suite.Require().NoError(err, "failed to create new node connections")
+	defer connections.Close(suite.T())
+	connections.SendToNodes(suite.T(), txMsg, scala)
 
-	suite.Conns.SendToNodes(suite.T(), txMsg, scala)
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
