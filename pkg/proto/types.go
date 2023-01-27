@@ -4236,7 +4236,7 @@ func (s StateHashDebug) MarshalJSON() ([]byte, error) {
 }
 
 func (s *StateHashDebug) UnmarshalJSON(value []byte) error {
-	if err := json.Unmarshal(value, &s); err != nil {
+	if err := json.Unmarshal(value, s); err != nil {
 		return err
 	}
 	return nil
