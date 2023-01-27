@@ -208,7 +208,7 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 	out := &proto.StateHashDebug{}
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
-		return nil, response, err
+		return nil, nil, err
 	}
 	return out.GetStateHash(), response, nil
 }
@@ -226,7 +226,7 @@ func (a *Debug) StateHashLast(ctx context.Context) (*proto.StateHash, *Response,
 	out := &proto.StateHashDebug{}
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
-		return nil, response, err
+		return nil, nil, err
 	}
 	return out.GetStateHash(), response, nil
 }
