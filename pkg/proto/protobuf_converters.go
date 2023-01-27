@@ -159,8 +159,10 @@ func (c *ProtobufConverter) convertAmount(amount *g.Amount) (OptionalAsset, uint
 	if c.err != nil {
 		return OptionalAsset{}, 0
 	}
-	// amount != nil will be checked by the functions below
-	// do not forget to check it if you're going to work with amount here
+	if amount == nil {
+		c.err = errors.New("empty asset amount")
+		return OptionalAsset{}, 0
+	}
 	return c.extractOptionalAsset(amount), c.amount(amount)
 }
 
@@ -1308,7 +1310,9 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 }
 
 func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
-	// block != nil will be check in BlockHeader method
+	if block == nil {
+		return Block{}, errors.New("empty block")
+	}
 	header, err := c.BlockHeader(block)
 	if err != nil {
 		return Block{}, err
