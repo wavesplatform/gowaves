@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 var DefaultTypes = mustLoadDefaultTypes()
@@ -160,8 +161,13 @@ func (t SimpleType) Comp(rideType Type) bool {
 			return true
 		}
 	}
-	if _, ok := rideType.(UnionType); ok {
-		return rideType.Comp(t)
+	if u, ok := rideType.(UnionType); ok {
+		for _, uT := range u.Types {
+			if !t.Comp(uT) {
+				return false
+			}
+		}
+		return true
 	}
 	T, ok := rideType.(SimpleType)
 	if !ok {
@@ -213,18 +219,36 @@ func (t *UnionType) AppendType(rideType Type) {
 		return
 	}
 	if newT, ok := rideType.(UnionType); ok {
-		var newTypes []Type
+		listIndex := 0
+		listExist := false
+		for i, existType := range t.Types {
+			if _, ok := existType.(ListType); ok {
+				listIndex = i
+				listExist = true
+				break
+			}
+		}
 		for _, newType := range newT.Types {
 			if len(t.Types) == 0 {
-				newTypes = append(newTypes, newType)
+				t.Types = append(t.Types, newType)
+				continue
 			}
+			exist := false
 			for _, existType := range t.Types {
-				if !newType.Comp(existType) {
-					newTypes = append(newTypes, newType)
+				if newType.Comp(existType) && existType.Comp(newType) {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				if _, ok := newType.(ListType); ok && listExist {
+					list := t.Types[listIndex].(ListType)
+					list.AppendList(newType)
+				} else {
+					t.Types = append(t.Types, newType)
 				}
 			}
 		}
-		t.Types = append(t.Types, newTypes...)
 		return
 	}
 	if len(t.Types) == 0 {
@@ -237,25 +261,36 @@ func (t *UnionType) AppendType(rideType Type) {
 	if rideType.Comp(ThrowType) {
 		return
 	}
+	listIndex := 0
+	listExist := false
+	for i, existType := range t.Types {
+		if _, ok := existType.(ListType); ok {
+			listIndex = i
+			listExist = true
+			break
+		}
+	}
 	for _, existType := range t.Types {
-		if rideType.Comp(existType) {
+		if existType.Comp(rideType) && existType.Comp(rideType) {
 			return
 		}
 	}
-	t.Types = append(t.Types, rideType)
+	if _, ok := rideType.(ListType); ok && listExist {
+		list := t.Types[listIndex].(ListType)
+		list.AppendList(rideType)
+	} else {
+		t.Types = append(t.Types, rideType)
+	}
+	//t.Types = append(t.Types, rideType)
 }
 
 func (t UnionType) String() string {
-	var res string
-	cnt := 0
+	var stringTypes []string
 	for _, T := range t.Types {
-		res += T.String()
-		cnt++
-		if cnt < len(t.Types) {
-			res += "|"
-		}
+		stringTypes = append(stringTypes, T.String())
 	}
-	return res
+	sort.Strings(stringTypes)
+	return strings.Join(stringTypes, "|")
 }
 
 type ListType struct {
@@ -264,6 +299,9 @@ type ListType struct {
 
 func (t ListType) Comp(rideType Type) bool {
 	if T, ok := rideType.(ListType); ok {
+		if t.Type == nil && T.Type == nil {
+			return true
+		}
 		if t.Type == nil {
 			return false
 		}
@@ -271,6 +309,14 @@ func (t ListType) Comp(rideType Type) bool {
 			return true
 		}
 		return t.Type.Comp(T.Type)
+	}
+	if U, ok := rideType.(UnionType); ok {
+		for _, uT := range U.Types {
+			if !t.Comp(uT) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
@@ -375,6 +421,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[ast.LibraryVersion(byte(i))]["BigInt"] = BigIntType
 
 	}
+	// This is necessary for an exact match with scala compiler
 	res[ast.LibV1]["Transaction"] = UnionType{Types: []Type{
 		SimpleType{"ReissueTransaction"},
 		SimpleType{"BurnTransaction"},

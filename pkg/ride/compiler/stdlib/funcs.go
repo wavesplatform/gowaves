@@ -129,7 +129,13 @@ func getGenericFuncsSign(name string, args []Type, findFuncPar FunctionParams) F
 	case "extract", "value", "valueOrErrorMessage":
 		var resType Type
 		if u, ok := args[0].(UnionType); ok {
-			resType = u.Types[0]
+			uResType := UnionType{Types: []Type{}}
+			for _, uT := range u.Types {
+				if !uT.Comp(SimpleType{Type: "Unit"}) {
+					uResType.AppendType(uT)
+				}
+			}
+			resType = uResType
 		} else {
 			resType = args[0]
 		}

@@ -1185,8 +1185,7 @@
             {
               "name": "bodyBytes",
               "types": [
-                "rideBytes",
-                "rideUnit"
+                "rideBytes"
               ],
               "order": 2,
               "constructorOrder": 8
@@ -2459,8 +2458,7 @@
             {
               "name": "bodyBytes",
               "types": [
-                "rideBytes",
-                "rideUnit"
+                "rideBytes"
               ],
               "order": 2,
               "constructorOrder": 9
@@ -2836,8 +2834,7 @@
             {
               "name": "bodyBytes",
               "types": [
-                "rideBytes",
-                "rideUnit"
+                "rideBytes"
               ],
               "order": 2,
               "constructorOrder": 11

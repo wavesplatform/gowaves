@@ -118,10 +118,13 @@ OrOpAtom <- AndOpAtom (_ OrOp _ AndOpAtom)*
 Expr <- OrOpAtom
 ParExpr <- '(' _ Expr _ ')'
 
-GettableExpr <- (ParExpr / Block / FunctionCall / Identifier / Const) (_ (ListAccess / ('.' _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
+GettableExpr <- (ParExpr / Block / FunctionCall / Identifier / Const) ( (AsType / ListAccess / ( _ '.' _ (FunctionCallAccess / IdentifierAccess / TupleAccess))))*
 FunctionCallAccess <- FunctionCall
 IdentifierAccess <- Identifier
 ListAccess <- '[' _ (Expr / Identifier) _ ']'
+AsType <- _ '.' _ (AsString / ExactAsString) '[' _ Types _ ']'
+AsString <- 'as'
+ExactAsString <- 'exactAs'
 
 Block <- '{' (_ Declaration)* _ Expr _ '}'
 BlockWithoutPar <- (_ Declaration)* _ Expr
