@@ -605,7 +605,7 @@ func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashJSDebug, error) {
+func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
 	stateHash, err := a.state.StateHashAtHeight(height)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get state hash at height %d", height)

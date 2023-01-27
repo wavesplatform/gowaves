@@ -205,14 +205,30 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 	if err != nil {
 		return nil, nil, err
 	}
-
-	out := &proto.StateHash{}
+	out := &proto.StateHashDebug{}
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
+	return out.GetStateHash(), response, nil
+}
 
-	return out, response, nil
+func (a *Debug) StateHashLast(ctx context.Context) (*proto.StateHash, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/debug/stateHash/last")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := &proto.StateHashDebug{}
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+	return out.GetStateHash(), response, nil
 }
 
 type BalancesHistoryRow struct {

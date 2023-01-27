@@ -4221,12 +4221,42 @@ func (s *StateHash) toStateHashJS() stateHashJS {
 	}
 }
 
-type StateHashJSDebug struct {
+type StateHashDebug struct {
 	stateHashJS
 	Height  uint64 `json:"height"`
 	Version string `json:"version"`
 }
 
-func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashJSDebug {
-	return StateHashJSDebug{s.toStateHashJS(), h, v}
+func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
+	return StateHashDebug{s.toStateHashJS(), h, v}
+}
+
+func (s StateHashDebug) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s)
+}
+
+func (s *StateHashDebug) UnmarshalJSON(value []byte) error {
+	if err := json.Unmarshal(value, &s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s StateHashDebug) GetStateHash() *StateHash {
+	sh := &StateHash{
+		BlockID: s.BlockID,
+		SumHash: crypto.Digest(s.SumHash),
+		FieldsHashes: FieldsHashes{
+			crypto.Digest(s.DataEntryHash),
+			crypto.Digest(s.AccountScriptHash),
+			crypto.Digest(s.AssetScriptHash),
+			crypto.Digest(s.LeaseStatusHash),
+			crypto.Digest(s.SponsorshipHash),
+			crypto.Digest(s.AliasesHash),
+			crypto.Digest(s.WavesBalanceHash),
+			crypto.Digest(s.AssetBalanceHash),
+			crypto.Digest(s.LeaseBalanceHash),
+		},
+	}
+	return sh
 }
