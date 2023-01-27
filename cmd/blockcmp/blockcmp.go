@@ -229,7 +229,7 @@ func blockTransactions(c *g.ClientConn, scheme byte, height int) (proto.BlockID,
 		return proto.BlockID{}, nil, err
 	}
 
-	txs, err := cnv.BlockTransactions(b.Block)
+	txs, err := cnv.SignedTransactions(b.GetBlock().GetTransactions())
 	if err != nil {
 		return proto.BlockID{}, nil, err
 	}

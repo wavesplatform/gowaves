@@ -482,6 +482,6 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	if err != nil {
 		return err
 	}
-	sr.ErrorMsg = *errMsg
+	sr.ErrorMsg = errMsg
 	return nil
 }
