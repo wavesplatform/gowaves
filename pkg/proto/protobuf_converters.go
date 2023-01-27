@@ -150,7 +150,7 @@ func (c *ProtobufConverter) optionalAsset(asset []byte) OptionalAsset {
 		return OptionalAsset{}
 	}
 	if len(asset) == 0 {
-		return OptionalAsset{}
+		return NewOptionalAssetWaves()
 	}
 	return *NewOptionalAssetFromDigest(c.digest(asset))
 }
@@ -283,6 +283,7 @@ func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 		return nil
 	}
 	r := NewProofs()
+	r.Proofs = make([]B58Bytes, 0, len(proofs))
 	for _, proof := range proofs {
 		r.Proofs = append(r.Proofs, proof)
 	}
@@ -518,7 +519,7 @@ func (c *ProtobufConverter) script(script []byte) Script {
 		return Script{}
 	}
 	res := Script{}
-	if script != nil {
+	if len(script) != 0 {
 		res = script
 	}
 	return res
