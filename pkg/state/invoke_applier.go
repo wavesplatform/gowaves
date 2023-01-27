@@ -66,7 +66,7 @@ type payment struct {
 }
 
 func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.WavesAddress, action *proto.TransferScriptAction) (*payment, error) {
-	if action.Recipient.Address == nil {
+	if action.Recipient.Address() == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
 	if action.Amount < 0 {
@@ -74,14 +74,14 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 	}
 	return &payment{
 		sender:   senderAddress,
-		receiver: *action.Recipient.Address,
+		receiver: *action.Recipient.Address(),
 		amount:   uint64(action.Amount),
 		asset:    action.Asset,
 	}, nil
 }
 
 func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (*payment, error) {
-	if action.Recipient.Address == nil {
+	if action.Recipient.Address() == nil {
 		return nil, errors.New("payment has unresolved aliases")
 	}
 	if action.Amount < 0 {
@@ -89,7 +89,7 @@ func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto
 	}
 	return &payment{
 		sender:   senderAddress,
-		receiver: *action.Recipient.Address,
+		receiver: *action.Recipient.Address(),
 		amount:   uint64(action.Amount),
 		asset:    action.Asset,
 	}, nil
@@ -389,7 +389,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.TransferScriptAction:
 			// Perform transfers.
-			recipientAddress := a.Recipient.Address
+			recipientAddress := a.Recipient.Address()
 			totalChanges.appendAddr(*recipientAddress)
 			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
 			if !assetExists {
@@ -433,7 +433,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 		case *proto.AttachedPaymentScriptAction:
 			// Perform transfers.
-			recipientAddress := a.Recipient.Address
+			recipientAddress := a.Recipient.Address()
 			totalChanges.appendAddr(*recipientAddress)
 			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
 			if !assetExists {
@@ -642,10 +642,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
 
 		case *proto.LeaseScriptAction:
-			if a.Recipient.Address == nil {
+			if a.Recipient.Address() == nil {
 				return proto.DAppError, info.failedChanges, errors.New("transfer has unresolved aliases")
 			}
-			recipientAddress := *a.Recipient.Address
+			recipientAddress := *a.Recipient.Address()
 			if senderAddress == recipientAddress {
 				return proto.DAppError, info.failedChanges, errors.New("leasing to itself is not allowed")
 			}
@@ -662,7 +662,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				Amount:              uint64(a.Amount),
 				Height:              info.blockInfo.Height,
 				Status:              LeaseActive,
-				RecipientAlias:      a.Recipient.Alias,
+				RecipientAlias:      a.Recipient.Alias(),
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 

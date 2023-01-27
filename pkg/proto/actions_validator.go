@@ -145,11 +145,15 @@ func ValidateAttachedPaymentScriptAction(action *AttachedPaymentScriptAction, re
 			var err error
 			senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *action.SenderPK())
 			if err != nil {
-				return errors.Wrap(err, "failed to validate TransferScriptAction")
+				return errors.Wrap(err, "failed to validate AttachedPaymentScriptAction")
 			}
 		}
-		if action.Recipient.Address.Equal(senderAddress) {
-			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+		eq, err := action.Recipient.EqAddr(senderAddress)
+		if err != nil {
+			return errors.Wrap(err, "failed to compare recipient with sender addr")
+		}
+		if eq {
+			return errors.New("payments to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
 	return nil
@@ -199,7 +203,11 @@ func ValidateTransferScriptAction(action *TransferScriptAction, restrictions Act
 				return errors.Wrap(err, "failed to validate TransferScriptAction")
 			}
 		}
-		if action.Recipient.Address.Equal(senderAddress) {
+		eq, err := action.Recipient.EqAddr(senderAddress)
+		if err != nil {
+			return errors.Wrap(err, "failed to compare recipient with sender addr")
+		}
+		if eq {
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
@@ -236,10 +244,14 @@ func ValidateLeaseScriptAction(action *LeaseScriptAction, restrictions ActionsVa
 		var err error
 		senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *action.SenderPK())
 		if err != nil {
-			return errors.Wrap(err, "failed to validate TransferScriptAction")
+			return errors.Wrap(err, "failed to validate LeaseScriptAction")
 		}
 	}
-	if action.Recipient.Address.Equal(senderAddress) {
+	eq, err := action.Recipient.EqAddr(senderAddress)
+	if err != nil {
+		return errors.Wrap(err, "failed to compare recipient with sender addr")
+	}
+	if eq {
 		return errors.New("leasing to DApp itself is forbidden")
 	}
 	return nil

@@ -212,7 +212,7 @@ func TestActionsValidation(t *testing.T) {
 		for i := byte(0); i < payments; i++ {
 			action := &AttachedPaymentScriptAction{
 				Sender:    &pk0,
-				Recipient: Recipient{Address: &addr1},
+				Recipient: NewRecipientFromAddress(addr1),
 				Amount:    int64(i) + 100,
 				Asset:     NewOptionalAssetWaves(),
 			}

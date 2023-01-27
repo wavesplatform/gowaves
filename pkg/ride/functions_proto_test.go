@@ -379,7 +379,7 @@ func TestIntFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
 					return nil, errors.New("not found")
@@ -417,7 +417,7 @@ func TestBytesFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
 					return nil, errors.New("not found")
@@ -455,7 +455,7 @@ func TestStringFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
 					return nil, errors.New("not found")
@@ -493,7 +493,7 @@ func TestBooleanFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
 					return nil, errors.New("not found")
@@ -1068,7 +1068,7 @@ func TestIntValueFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
 					return nil, errors.New("not found")
@@ -1106,7 +1106,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
 					return nil, errors.New("not found")
@@ -1144,7 +1144,7 @@ func TestStringValueFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
 					return nil, errors.New("not found")
@@ -1182,7 +1182,7 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if *account.Address == correctAddress && key == "key" {
+					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
 					return nil, errors.New("not found")

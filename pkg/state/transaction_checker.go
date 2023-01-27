@@ -924,13 +924,13 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 		return err
 	}
 	var recipientAddr *proto.WavesAddress
-	if tx.Recipient.Address == nil {
-		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias)
+	if addr := tx.Recipient.Address(); addr == nil {
+		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
 			return errors.Errorf("invalid alias: %v", err)
 		}
 	} else {
-		recipientAddr = tx.Recipient.Address
+		recipientAddr = addr
 	}
 	if senderAddr == *recipientAddr {
 		return errs.NewToSelf("trying to lease money to self")

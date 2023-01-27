@@ -25,8 +25,8 @@ var (
 	cutCommentsRegex = regexp.MustCompile(`\s*#.*\n?`)
 )
 
-func invokeSenderRecipient() (proto.Recipient, proto.Recipient) {
-	return testGlobal.senderInfo.rcp, testGlobal.recipientInfo.rcp
+func invokeSenderRecipient() (proto.WavesAddress, proto.WavesAddress) {
+	return *testGlobal.senderInfo.rcp.Address(), *testGlobal.recipientInfo.rcp.Address()
 }
 
 type invokeApplierTestObjects struct {
@@ -143,12 +143,12 @@ func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
 }
 
 type rcpAsset struct {
-	rcp   proto.Recipient
+	rcp   proto.WavesAddress
 	asset *crypto.Digest
 }
 
 type rcpKey struct {
-	rcp proto.Recipient
+	rcp proto.WavesAddress
 	key string
 }
 
@@ -175,7 +175,7 @@ type invokeApplierTestData struct {
 
 	// Result state.
 	correctBalances     map[rcpAsset]uint64
-	correctFullBalances map[proto.Recipient]fullBalance
+	correctFullBalances map[proto.WavesAddress]fullBalance
 	dataEntries         map[rcpKey]proto.DataEntry
 	correctAddrs        []proto.WavesAddress
 	info                *fallibleValidationParams
@@ -207,17 +207,18 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		var (
 			balance uint64
 			err     error
+			rcp     = proto.NewRecipientFromAddress(aa.rcp)
 		)
 		if aa.asset != nil {
-			balance, err = to.state.NewestAssetBalance(aa.rcp, *aa.asset)
+			balance, err = to.state.NewestAssetBalance(rcp, *aa.asset)
 		} else {
-			balance, err = to.state.NewestWavesBalance(aa.rcp)
+			balance, err = to.state.NewestWavesBalance(rcp)
 		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
 	for aa, correct := range id.correctFullBalances {
-		fb, err := to.state.NewestFullWavesBalance(aa)
+		fb, err := to.state.NewestFullWavesBalance(proto.NewRecipientFromAddress(aa))
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct.available), int(fb.Available))
 		assert.Equal(t, int(correct.effective), int(fb.Effective))
@@ -225,7 +226,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		assert.Equal(t, int(correct.regular), int(fb.Regular))
 	}
 	for ak, correct := range id.dataEntries {
-		entry, err := to.state.RetrieveNewestEntry(ak.rcp, ak.key)
+		entry, err := to.state.RetrieveNewestEntry(proto.NewRecipientFromAddress(ak.rcp), ak.key)
 		assert.NoError(t, err)
 		assert.Equal(t, correct, entry)
 	}
@@ -242,11 +243,12 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		var (
 			balance uint64
 			err     error
+			rcp     = proto.NewRecipientFromAddress(aa.rcp)
 		)
 		if aa.asset != nil {
-			balance, err = to.state.AssetBalance(aa.rcp, proto.AssetIDFromDigest(*aa.asset))
+			balance, err = to.state.AssetBalance(rcp, proto.AssetIDFromDigest(*aa.asset))
 		} else {
-			balance, err = to.state.WavesBalance(aa.rcp)
+			balance, err = to.state.WavesBalance(rcp)
 		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
@@ -260,7 +262,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	//	assert.Equal(t, correct.regular, fb.Regular)
 	//}
 	for ak, correct := range id.dataEntries {
-		entry, err := to.state.RetrieveEntry(ak.rcp, ak.key)
+		entry, err := to.state.RetrieveEntry(proto.NewRecipientFromAddress(ak.rcp), ak.key)
 		assert.NoError(t, err)
 		assert.Equal(t, correct, entry)
 	}
@@ -960,7 +962,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 			correctBalances: map[rcpAsset]uint64{
 				{sender, nil}: 0,
 			},
-			correctFullBalances: map[proto.Recipient]fullBalance{
+			correctFullBalances: map[proto.WavesAddress]fullBalance{
 				sender: {regular: 0, generating: 0, available: 0, effective: uint64(thousandWaves)},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
 			},
@@ -993,7 +995,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
 	}
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc1, feeAsset, invokeFee)
-	id := proto.GenerateLeaseScriptActionID(sender, thousandWaves, 0, *tx.ID)
+	id := proto.GenerateLeaseScriptActionID(proto.NewRecipientFromAddress(sender), thousandWaves, 0, *tx.ID)
 	fc2 := proto.FunctionCall{
 		Name:      "cancel",
 		Arguments: []proto.Argument{&proto.BinaryArgument{Value: id.Bytes()}},
@@ -1007,7 +1009,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 			correctBalances: map[rcpAsset]uint64{
 				{sender, nil}: invokeFee,
 			},
-			correctFullBalances: map[proto.Recipient]fullBalance{
+			correctFullBalances: map[proto.WavesAddress]fullBalance{
 				sender: {regular: invokeFee, generating: 0, available: invokeFee, effective: uint64(thousandWaves) + invokeFee},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
 			},
@@ -1024,7 +1026,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 			correctBalances: map[rcpAsset]uint64{
 				{sender, nil}: 0,
 			},
-			correctFullBalances: map[proto.Recipient]fullBalance{
+			correctFullBalances: map[proto.WavesAddress]fullBalance{
 				sender: {regular: 0, generating: 0, available: 0, effective: 0},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(2 * thousandWaves), effective: uint64(2 * thousandWaves)},
 			},
