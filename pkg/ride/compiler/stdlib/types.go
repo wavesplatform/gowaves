@@ -215,6 +215,7 @@ func (t UnionType) Comp(rideType Type) bool {
 }
 
 func (t *UnionType) AppendType(rideType Type) {
+	// need refactor
 	if rideType == nil {
 		return
 	}
@@ -271,7 +272,7 @@ func (t *UnionType) AppendType(rideType Type) {
 		}
 	}
 	for _, existType := range t.Types {
-		if existType.Comp(rideType) && existType.Comp(rideType) {
+		if existType.Comp(rideType) && rideType.Comp(existType) {
 			return
 		}
 	}
@@ -281,7 +282,6 @@ func (t *UnionType) AppendType(rideType Type) {
 	} else {
 		t.Types = append(t.Types, rideType)
 	}
-	//t.Types = append(t.Types, rideType)
 }
 
 func (t UnionType) String() string {
