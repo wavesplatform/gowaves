@@ -542,8 +542,9 @@ func (c *ProtobufConverter) functionCall(data []byte) FunctionCall {
 	}
 	// FIXME: The following block fixes the bug introduced in Scala implementation of gRPC
 	// It should be removed after the release of fix.
+	// TODO: consider removing the block below
 	var d []byte
-	if data[0] == 1 && data[3] == 9 {
+	if len(data) > 3 && data[0] == 1 && data[3] == 9 {
 		d = make([]byte, len(data)-2)
 		d[0] = data[0]
 		copy(d[1:], data[3:])
