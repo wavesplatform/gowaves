@@ -605,6 +605,15 @@ func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
+	stateHash, err := a.state.StateHashAtHeight(height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get state hash at height %d", height)
+	}
+	stateHashDebug := proto.NewStateHashJSDebug(*stateHash, height, a.app.version().Version)
+	return &stateHashDebug, nil
+}
+
 func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
@@ -612,12 +621,27 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 		// TODO(nickeskov): which error it should send?
 		return &BadRequestError{err}
 	}
-
-	stateHash, err := a.state.StateHashAtHeight(height)
+	stateHashDebug, err := a.stateHashDebug(height)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get state hash at height %d", height)
+		return errors.Wrap(err, "failed to get state hash debug")
 	}
-	if err := trySendJson(w, stateHash); err != nil {
+
+	if err := trySendJson(w, stateHashDebug); err != nil {
+		return errors.Wrap(err, "stateHash")
+	}
+	return nil
+}
+
+func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
+	height, err := a.state.Height()
+	if err != nil {
+		return errors.Wrap(err, "failed to get last height")
+	}
+	stateHashDebug, err := a.stateHashDebug(height - 1)
+	if err != nil {
+		return errors.Wrap(err, "failed to get last state hash")
+	}
+	if err := trySendJson(w, stateHashDebug); err != nil {
 		return errors.Wrap(err, "stateHash")
 	}
 	return nil

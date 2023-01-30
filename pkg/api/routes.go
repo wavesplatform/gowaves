@@ -135,7 +135,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
-
+			r.Get("/stateHash/last", wrapper(a.stateHashLast))
 			rAuth := r.With(checkAuthMiddleware)
 			rAuth.Post("/print", wrapper(a.debugPrint))
 
