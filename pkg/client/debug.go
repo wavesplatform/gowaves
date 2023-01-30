@@ -208,7 +208,7 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 	out := new(proto.StateHash)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
-		return nil, nil, err
+		return nil, response, err
 	}
 	return out, response, nil
 }
@@ -226,7 +226,7 @@ func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.S
 	out := new(proto.StateHashDebug)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
-		return nil, nil, err
+		return nil, response, err
 	}
 	return out, response, nil
 }
