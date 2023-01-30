@@ -4223,8 +4223,8 @@ func (s *StateHash) toStateHashJS() stateHashJS {
 
 type StateHashDebug struct {
 	stateHashJS
-	Height  uint64 `json:"height"`
-	Version string `json:"version"`
+	Height  uint64 `json:"height,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
