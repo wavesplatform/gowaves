@@ -4231,17 +4231,6 @@ func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
 	return StateHashDebug{s.toStateHashJS(), h, v}
 }
 
-//func (s StateHashDebug) MarshalJSON() ([]byte, error) {
-//	return json.Marshal(s)
-//}
-//
-//func (s *StateHashDebug) UnmarshalJSON(value []byte) error {
-//	if err := json.Unmarshal(value, s); err != nil {
-//		return err
-//	}
-//	return nil
-//}
-
 func (s StateHashDebug) GetStateHash() *StateHash {
 	sh := &StateHash{
 		BlockID: s.BlockID,

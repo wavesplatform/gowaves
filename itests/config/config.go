@@ -27,6 +27,10 @@ func CreateScalaNodeConfig(cfg *Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	err = os.MkdirAll(filepath.Join(pwd, tmpDir), os.ModePerm)
+	if err != nil {
+		return "", err
+	}
 	configPath := filepath.Clean(filepath.Join(pwd, tmpDir, scalaConfigFilename))
 	f, err := os.Create(configPath)
 	if err != nil {

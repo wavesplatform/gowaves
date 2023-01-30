@@ -205,16 +205,16 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 	if err != nil {
 		return nil, nil, err
 	}
-	out := &proto.StateHashDebug{}
+	out := new(proto.StateHash)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, nil, err
 	}
-	return out.GetStateHash(), response, nil
+	return out, response, nil
 }
 
-func (a *Debug) StateHashLast(ctx context.Context) (*proto.StateHash, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, "/debug/stateHash/last")
+func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.StateHashDebug, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,12 +223,20 @@ func (a *Debug) StateHashLast(ctx context.Context) (*proto.StateHash, *Response,
 	if err != nil {
 		return nil, nil, err
 	}
-	out := &proto.StateHashDebug{}
+	out := new(proto.StateHashDebug)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, nil, err
 	}
-	return out.GetStateHash(), response, nil
+	return out, response, nil
+}
+
+func (a *Debug) StateHashDebug(ctx context.Context, height uint64) (*proto.StateHashDebug, *Response, error) {
+	return a.stateHashDebugAtPath(ctx, fmt.Sprintf("/debug/stateHash/%d", height))
+}
+
+func (a *Debug) StateHashDebugLast(ctx context.Context) (*proto.StateHashDebug, *Response, error) {
+	return a.stateHashDebugAtPath(ctx, "/debug/stateHash/last")
 }
 
 type BalancesHistoryRow struct {

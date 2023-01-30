@@ -2075,3 +2075,30 @@ func TestByteVectorJSONRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestStateHashDebutUnmarshalJSON(t *testing.T) {
+	for _, test := range []struct {
+		js  string
+		ver string
+		h   int
+	}{
+		{`{"accountScriptHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId" : "67nh4SNi2oMhrda7ppKMKz8Z92SF22m9D1mcBLSJWPscb2GFDwXUC8Aih4BuJdFBP5Y8Mg143U44epMdP8eMzK34","dataEntryHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","height" : 100,"leaseBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseStatusHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","sponsorshipHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash" : "303ae03f0eb9155f2c2352e6e8424d96b257aa3dfe3c4cb1f0827ad4f5d6ce29","version" : "Gowaves v0.0.0","wavesBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`,
+			"Gowaves v0.0.0",
+			100,
+		},
+		{`{"accountScriptHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId" : "67nh4SNi2oMhrda7ppKMKz8Z92SF22m9D1mcBLSJWPscb2GFDwXUC8Aih4BuJdFBP5Y8Mg143U44epMdP8eMzK34","dataEntryHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseStatusHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","sponsorshipHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash" : "303ae03f0eb9155f2c2352e6e8424d96b257aa3dfe3c4cb1f0827ad4f5d6ce29","wavesBalanceHash" : "0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`,
+			"",
+			0,
+		},
+	} {
+		sh := new(StateHash)
+		err := json.Unmarshal([]byte(test.js), sh)
+		require.NoError(t, err)
+		shd := new(StateHashDebug)
+		err = json.Unmarshal([]byte(test.js), shd)
+		require.NoError(t, err)
+		assert.Equal(t, test.ver, shd.Version)
+		assert.Equal(t, test.h, int(shd.Height))
+		assert.Equal(t, sh, shd.GetStateHash())
+	}
+}
