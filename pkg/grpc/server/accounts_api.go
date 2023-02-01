@@ -213,7 +213,7 @@ func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 	res := &g.LeaseResponse{
 		LeaseId:             id,
 		OriginTransactionId: id,
-		Sender:              sender.Body(),
+		Sender:              sender.Bytes(),
 		Recipient:           rcp,
 		Amount:              amount,
 		Height:              int64(height),
