@@ -4181,21 +4181,7 @@ type stateHashJS struct {
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stateHashJS{
-		s.BlockID,
-		DigestWrapped(s.SumHash),
-		fieldsHashesJS{
-			DigestWrapped(s.DataEntryHash),
-			DigestWrapped(s.AccountScriptHash),
-			DigestWrapped(s.AssetScriptHash),
-			DigestWrapped(s.LeaseStatusHash),
-			DigestWrapped(s.SponsorshipHash),
-			DigestWrapped(s.AliasesHash),
-			DigestWrapped(s.WavesBalanceHash),
-			DigestWrapped(s.AssetBalanceHash),
-			DigestWrapped(s.LeaseBalanceHash),
-		},
-	})
+	return json.Marshal(s.toStateHashJS())
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
@@ -4215,4 +4201,51 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	return nil
+}
+
+func (s *StateHash) toStateHashJS() stateHashJS {
+	return stateHashJS{
+		s.BlockID,
+		DigestWrapped(s.SumHash),
+		fieldsHashesJS{
+			DigestWrapped(s.DataEntryHash),
+			DigestWrapped(s.AccountScriptHash),
+			DigestWrapped(s.AssetScriptHash),
+			DigestWrapped(s.LeaseStatusHash),
+			DigestWrapped(s.SponsorshipHash),
+			DigestWrapped(s.AliasesHash),
+			DigestWrapped(s.WavesBalanceHash),
+			DigestWrapped(s.AssetBalanceHash),
+			DigestWrapped(s.LeaseBalanceHash),
+		},
+	}
+}
+
+type StateHashDebug struct {
+	stateHashJS
+	Height  uint64 `json:"height,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
+	return StateHashDebug{s.toStateHashJS(), h, v}
+}
+
+func (s StateHashDebug) GetStateHash() *StateHash {
+	sh := &StateHash{
+		BlockID: s.BlockID,
+		SumHash: crypto.Digest(s.SumHash),
+		FieldsHashes: FieldsHashes{
+			crypto.Digest(s.DataEntryHash),
+			crypto.Digest(s.AccountScriptHash),
+			crypto.Digest(s.AssetScriptHash),
+			crypto.Digest(s.LeaseStatusHash),
+			crypto.Digest(s.SponsorshipHash),
+			crypto.Digest(s.AliasesHash),
+			crypto.Digest(s.WavesBalanceHash),
+			crypto.Digest(s.AssetBalanceHash),
+			crypto.Digest(s.LeaseBalanceHash),
+		},
+	}
+	return sh
 }

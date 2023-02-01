@@ -205,14 +205,38 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 	if err != nil {
 		return nil, nil, err
 	}
-
-	out := &proto.StateHash{}
+	out := new(proto.StateHash)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
-
 	return out, response, nil
+}
+
+func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.StateHashDebug, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(proto.StateHashDebug)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+	return out, response, nil
+}
+
+func (a *Debug) StateHashDebug(ctx context.Context, height uint64) (*proto.StateHashDebug, *Response, error) {
+	return a.stateHashDebugAtPath(ctx, fmt.Sprintf("/debug/stateHash/%d", height))
+}
+
+func (a *Debug) StateHashDebugLast(ctx context.Context) (*proto.StateHashDebug, *Response, error) {
+	return a.stateHashDebugAtPath(ctx, "/debug/stateHash/last")
 }
 
 type BalancesHistoryRow struct {
