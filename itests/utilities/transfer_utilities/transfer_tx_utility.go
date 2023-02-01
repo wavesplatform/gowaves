@@ -39,14 +39,6 @@ func TransferSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderP
 	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
-func TransferBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
-	sk crypto.SecretKey, amountAsset, feeAsset proto.OptionalAsset, timestamp, amount, fee uint64,
-	recipient proto.Recipient, attachment proto.Attachment, waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignTransferTransaction(suite, version, scheme, senderPK, sk, amountAsset, feeAsset, timestamp, amount,
-		fee, recipient, attachment)
-	return utl.BroadcastAndWaitTransaction(suite, tx, scheme, waitForTx)
-}
-
 func NewSignTransferTransactionWithTestData[T any](suite *f.BaseSuite, version byte,
 	testdata testdata.TransferTestData[T]) proto.Transaction {
 	return NewSignTransferTransaction(suite, version, testdata.ChainID, testdata.Sender.PublicKey,
