@@ -37,7 +37,7 @@ func (c *GrpcClient) GetHeight(t *testing.T) *client.BlocksHeight {
 }
 
 func (c *GrpcClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *g.BalanceResponse_WavesBalances {
-	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Body()}).GetWaves()
+	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Bytes()}).GetWaves()
 }
 
 func (c *GrpcClient) GetAssetBalance(t *testing.T, address proto.WavesAddress, id []byte) *waves.Amount {
