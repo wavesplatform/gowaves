@@ -34,14 +34,6 @@ func IssueSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK c
 	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
-func IssueBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
-	senderSK crypto.SecretKey, name, description string, quantity, timestamp, fee uint64, decimals byte,
-	reissuable, waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignIssueTransaction(suite, version, scheme, senderPK, senderSK, name, description, quantity,
-		timestamp, fee, decimals, reissuable)
-	return utl.BroadcastAndWaitTransaction(suite, tx, scheme, waitForTx)
-}
-
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
 
 // MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes

@@ -13,10 +13,6 @@ const (
 	errName      = "invalid name"
 )
 
-func GetVersions() []byte {
-	return []byte{1, 2, 3}
-}
-
 type IssueTestData[T any] struct {
 	Account    config.AccountInfo
 	AssetName  string

@@ -72,7 +72,7 @@ type CommonTransferData struct {
 }
 
 func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNumbers ...int) CommonTransferData {
-	from, to := utl.SetFromToAccounts(accountNumbers)
+	from, to, _ := utl.SetFromToAccounts(accountNumbers...)
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, *assetId)
 	return CommonTransferData{
 		Asset: *NewTransferTestData(
@@ -418,7 +418,8 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
 		"Invalid chainID (value=0)": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			proto.NewRecipientFromAddress(utl.GetAddressWithNewSchema(
+				suite, 0, utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address)),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -432,11 +433,12 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
+				ErrBrdCstScalaMsg: "invalid address",
 			}),
 		"Custom chainID": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			proto.NewRecipientFromAddress(utl.GetAddressWithNewSchema(
+				suite, 'T', utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address)),
 			&assetId,
 			nil,
 			utl.MinTxFeeWaves,
@@ -450,7 +452,7 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
+				ErrBrdCstScalaMsg: "invalid address",
 			}),
 	}
 	return t

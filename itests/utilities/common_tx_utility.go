@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -23,7 +25,7 @@ const (
 	DefaultSenderNotMiner      = 2
 	DefaultRecipientNotMiner   = 3
 	DefaultAccountForLoanFunds = 9
-	MaxAmount                  = 9223372036854775807
+	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
 	MinTxFeeWaves              = 100000
 	TestChainID                = 'L'
@@ -143,6 +145,10 @@ func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
 }
 
+func GetTestcaseNameWithVersion(name string, v byte) string {
+	return fmt.Sprintf("%s (version %d)", name, v)
+}
+
 // Abs returns the absolute value of x.
 func Abs(x int64) int64 {
 	if x < 0 {
@@ -151,19 +157,22 @@ func Abs(x int64) int64 {
 	return x
 }
 
-func SetFromToAccounts(accountNumbers []int) (int, int) {
+func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {
+	case 0:
+		from = 2
+		to = 3
 	case 1:
 		from = accountNumbers[0]
+		to = 3
 	case 2:
 		from = accountNumbers[0]
 		to = accountNumbers[1]
 	default:
-		from = 2
-		to = 3
+		return 0, 0, errors.New("More than two parameters")
 	}
-	return from, to
+	return from, to, nil
 }
 
 // AddNewAccount function creates and adds new AccountInfo to suite accounts list. Returns index of new account in
@@ -204,14 +213,26 @@ func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
 	return GetAddressByAliasGo(suite, alias), GetAddressByAliasScala(suite, alias)
 }
 
-func GetAddressFromRecipientAlias(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
-	var address proto.WavesAddress
+func GetAddressWithNewSchema(suite *f.BaseSuite, chainId proto.Scheme, address proto.WavesAddress) proto.WavesAddress {
+	newAddr, err := proto.RebuildAddress(chainId, address.Body())
+	require.NoError(suite.T(), err, "Can't rebuild address")
+	return newAddr
+}
+
+func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
 	var err error
-	if recipient.Alias() != nil {
-		address, err = proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias().Alias))
-		require.NoError(suite.T(), err, "Can't get address from bytes")
+	address := recipient.Address()
+	if address == nil {
+		if recipient.Alias() == nil {
+			err = errors.New("Address and Alias are nil")
+			require.NoError(suite.T(), err, "Address and Alias shouldn't be nil at the same time")
+		} else {
+			addr, err := proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias().Alias))
+			require.NoError(suite.T(), err, "Can't get address from bytes")
+			address = &addr
+		}
 	}
-	return &address
+	return address
 }
 
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
@@ -348,4 +369,8 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+}
+
+func GetVersions() []byte {
+	return []byte{1, 2, 3}
 }
