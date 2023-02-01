@@ -41,7 +41,7 @@ func (c *GrpcClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *
 }
 
 func (c *GrpcClient) GetAssetBalance(t *testing.T, address proto.WavesAddress, id []byte) *waves.Amount {
-	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Body(), Assets: [][]byte{id}}).GetAsset()
+	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{id}}).GetAsset()
 }
 
 func getBalance(t *testing.T, conn *grpc.ClientConn, req *g.BalancesRequest) *g.BalanceResponse {
