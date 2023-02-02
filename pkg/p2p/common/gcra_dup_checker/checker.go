@@ -43,7 +43,7 @@ const defaultMaxMsgs = 1000
 
 type DuplicateChecker struct {
 	limiters [messageWeightTotal]throttled.RateLimiter
-	settings *Settings
+	msgTypes map[proto.PeerMessageID]messageWeight
 }
 
 func NewDuplicateChecker(settings Settings) (*DuplicateChecker, error) {
@@ -54,13 +54,7 @@ func NewDuplicateChecker(settings Settings) (*DuplicateChecker, error) {
 
 	dc := new(DuplicateChecker)
 	for i := range dc.limiters {
-		limiter, err := throttled.NewGCRARateLimiter(
-			store,
-			throttled.RateQuota{
-				MaxRate:  throttled.PerMin(2), // TODO(artemreyt): add settings
-				MaxBurst: 0,
-			},
-		)
+		limiter, err := throttled.NewGCRARateLimiter(store, settings.Quotes[i])
 		if err != nil {
 			return nil, err
 		}
@@ -72,10 +66,11 @@ func NewDuplicateChecker(settings Settings) (*DuplicateChecker, error) {
 func (dc *DuplicateChecker) Add(peerID string, message []byte) bool {
 	messageID, err := proto.UnmarshalMessageID(message)
 	if err != nil {
-		return false // TODO(artemreyt): think how to handle maybe
+		panic(err)
+		// return false // TODO(artemreyt): think how to handle maybe
 	}
 
-	weight := messageWeightByID(messageID)
+	weight := dc.messageWeightByID(messageID)
 
 	key := fmt.Sprintf("%s%s%s", peerID, separator, crypto.MustFastHash(message)) // TODO(artemreyt): check how to concat it better
 
@@ -85,10 +80,10 @@ func (dc *DuplicateChecker) Add(peerID string, message []byte) bool {
 	if err != nil {
 		return false
 	}
-	return ok
+	return !ok
 }
 
-func messageWeightByID(id proto.PeerMessageID) messageWeight {
+func (dc *DuplicateChecker) messageWeightByID(id proto.PeerMessageID) messageWeight {
 	return heavyMessageWeight // TODO(artemreyt): implement
 }
 

@@ -18,8 +18,9 @@ func bytesToMessage(b *bytebufferpool.ByteBuffer, d common.DuplicateChecker, res
 
 	if d != nil {
 		// TODO: screw here prometeus
-		isNew := d.Add(p.ID().String(), b.Bytes())
-		if !isNew {
+		ok := d.Add(p.ID().String(), b.Bytes())
+		if !ok {
+			zap.S().Debugf("[%s] Reached peer messages duplicate limit. Ignore peer", p.ID())
 			return nil
 		}
 	}
