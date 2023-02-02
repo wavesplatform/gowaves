@@ -3552,11 +3552,11 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 		require.Equal(t, unmarshaledOrder2, fromJsonTx.Order2)
 
 		// check orders protobuf
-		actualOrder1Bytes, err := fromJsonTx.Order1.ToProtobufSigned(tc.scheme).MarshalVTFlat()
+		actualOrder1Bytes, err := fromJsonTx.Order1.ToProtobufSigned(tc.scheme).MarshalVTStrict()
 		require.NoError(t, err)
 		require.Equal(t, expectedOrder1Bytes, actualOrder1Bytes)
 
-		actualOrder2Bytes, err := fromJsonTx.Order2.ToProtobufSigned(tc.scheme).MarshalVTFlat()
+		actualOrder2Bytes, err := fromJsonTx.Order2.ToProtobufSigned(tc.scheme).MarshalVTStrict()
 		require.NoError(t, err)
 		require.Equal(t, expectedOrder2Bytes, actualOrder2Bytes)
 
