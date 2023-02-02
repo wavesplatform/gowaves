@@ -223,25 +223,6 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
-		//Error in Node Go
-		/*"Invalid encoding in asset description": *NewIssueTestData(
-		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-		utl.RandStringBytes(8, utl.CommonSymbolSet),
-		"\\u0061\\u0073\\u0073\\u0065\\u0074",
-		10000,
-		2,
-		true,
-		100000000,
-		utl.GetCurrentTimestampInMs(),
-		utl.TestChainID,
-		ExpectedValuesNegative{
-			ErrGoMsg:         errMsg,
-			ErrScalaMsg:      errMsg,
-		    ErrBrdCstGoMsg:    errBrdCstMsg,
-		    ErrBrdCstScalaMsg: "",
-			WavesDiffBalance: 0,
-			AssetBalance:      0,
-		}),*/
 		"Invalid asset description (len > max)": *NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(6, utl.CommonSymbolSet),
