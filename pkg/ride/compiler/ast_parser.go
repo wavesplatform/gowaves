@@ -208,7 +208,7 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		}
 	}
 	block, varType := p.ruleExprHandler(curNode)
-	if !varType.Comp(s.BooleanType) {
+	if !s.BooleanType.Equal(varType) {
 		p.addError(fmt.Sprintf("script should return Boolean, but %s returned", varType.String()), curNode.token32)
 		return
 	}
@@ -508,10 +508,10 @@ func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return expr, varType
 	}
-	if !varType.Comp(s.BooleanType) {
-		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
-	}
 	for {
+		if !varType.Equal(s.BooleanType) {
+			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
+		}
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
@@ -521,16 +521,16 @@ func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
 			curNode = curNode.next
 		}
 		nextExpr, nextExprVarType := p.ruleAndOpAtomHandler(curNode)
-		if !s.BooleanType.Comp(nextExprVarType) && !s.ThrowType.Comp(nextExprVarType) {
-			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
-		}
+
+		varType = s.JoinTypes(varType, nextExprVarType)
+
 		expr = ast.NewConditionalNode(expr, ast.NewBooleanNode(true), nextExpr)
 		curNode = curNode.next
 		if curNode == nil {
 			break
 		}
 	}
-	return expr, s.BooleanType
+	return expr, varType
 }
 
 func (p *ASTParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -543,10 +543,10 @@ func (p *ASTParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return expr, varType
 	}
-	if !varType.Comp(s.BooleanType) {
-		p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
-	}
 	for {
+		if !varType.Equal(s.BooleanType) {
+			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", varType.String()), node.up.up.token32)
+		}
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
 		}
@@ -556,16 +556,16 @@ func (p *ASTParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
 			curNode = curNode.next
 		}
 		nextExpr, nextExprVarType := p.ruleEqualityGroupOpAtomHandler(curNode)
-		if !nextExprVarType.Comp(s.BooleanType) {
-			p.addError(fmt.Sprintf("Unexpected type, required: Boolean, but %s found", nextExprVarType.String()), curNode.token32)
-		}
+
+		varType = s.JoinTypes(varType, nextExprVarType)
+
 		expr = ast.NewConditionalNode(expr, nextExpr, ast.NewBooleanNode(false))
 		curNode = curNode.next
 		if curNode == nil {
 			break
 		}
 	}
-	return expr, s.BooleanType
+	return expr, varType
 }
 
 func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
@@ -596,7 +596,7 @@ func (p *ASTParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 		if nextExpr == nil {
 			return nil, nil
 		}
-		if !nextExprVarType.Comp(varType) && !varType.Comp(nextExprVarType) {
+		if !nextExprVarType.EqualWithEntry(varType) && !varType.EqualWithEntry(nextExprVarType) {
 			p.addError(fmt.Sprintf("Unexpected type, required: %s, but %s found", varType.String(), nextExprVarType.String()), curNode.token32)
 		}
 		expr = ast.NewFunctionCallNode(funcId, []ast.Node{expr, nextExpr})
@@ -619,7 +619,7 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 	if curNode == nil {
 		return expr, varType
 	}
-	if !s.BigIntType.Comp(varType) && !s.IntType.Comp(varType) {
+	if !s.BigIntType.Equal(varType) && !s.IntType.Equal(varType) {
 		p.addError(fmt.Sprintf("Unexpected type, required: BigInt or Int, but %s found", varType.String()), node.up.up.token32)
 	}
 	for {
@@ -636,15 +636,15 @@ func (p *ASTParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 			return nil, nil
 		}
 		var gltFun, gleFun string
-		if s.BigIntType.Comp(varType) {
-			if s.BigIntType.Comp(nextExprVarType) {
+		if s.BigIntType.Equal(varType) {
+			if s.BigIntType.Equal(nextExprVarType) {
 				gltFun = "319"
 				gleFun = "320"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected type, required: BigInt, but %s found", nextExprVarType.String()), curNode.token32)
 			}
-		} else if s.IntType.Comp(varType) {
-			if s.IntType.Comp(nextExprVarType) {
+		} else if s.IntType.Equal(varType) {
+			if s.IntType.Equal(nextExprVarType) {
 				gltFun = "102"
 				gleFun = "103"
 			} else {
@@ -693,21 +693,21 @@ func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		var funcId string
 		switch operator {
 		case ruleSumOp:
-			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "100"
-			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "311"
-			} else if varType.Comp(s.StringType) && nextExprVarType.Comp(s.StringType) {
+			} else if varType.Equal(s.StringType) && nextExprVarType.Equal(s.StringType) {
 				funcId = "300"
-			} else if varType.Comp(s.ByteVectorType) && nextExprVarType.Comp(s.ByteVectorType) {
+			} else if varType.Equal(s.ByteVectorType) && nextExprVarType.Equal(s.ByteVectorType) {
 				funcId = "203"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for + operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
 			}
 		case ruleSubOp:
-			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "101"
-			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "311"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for - operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
@@ -764,7 +764,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			resListType.AppendList(nextVarType)
 			resExprType = resListType
 		case ruleAppendOp:
-			if !anyList.Comp(varType) {
+			if !anyList.Equal(varType) {
 				p.addError(fmt.Sprintf("Unexpected types for +: operator: %s, %s", varType, nextVarType), curNode.token32)
 				return nil, nil
 			} else {
@@ -780,23 +780,13 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 							resType.AppendType(ul)
 						}
 					}
-					if len(resType.Types) == 1 {
-						resExprType = resType.Types[0]
-					} else {
-						resExprType = resType
-					}
+					resExprType = resType.Simplify()
 				} else {
 					p.addError(fmt.Sprintf("Unexpected types for :+ operator: %s, %s", varType, nextVarType), curNode.token32)
 					return nil, nil
 				}
 			}
 		case ruleConcatOp:
-			//_, ok1 := nextVarType.(s.ListType)
-			//_, ok2 := varType.(s.ListType)
-			//if !ok1 || !ok2 {
-			//	p.addError(fmt.Sprintf("Unexpected types for ++ operator: %s, %s", varType, nextVarType), curNode.token32)
-			//	return nil, nil
-			//}
 			funcId = ast.NativeFunction("1102")
 			if l1, ok := varType.(s.ListType); ok {
 				if l2, ok := nextVarType.(s.ListType); ok {
@@ -810,11 +800,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 							resType.AppendType(ul)
 						}
 					}
-					if len(resType.Types) == 1 {
-						resExprType = resType.Types[0]
-					} else {
-						resExprType = resType
-					}
+					resExprType = resType.Simplify()
 				} else {
 					p.addError(fmt.Sprintf("Unexpected types for ++ operator: %s, %s", varType, nextVarType), curNode.token32)
 					return nil, nil
@@ -828,11 +814,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 							resType.AppendType(ul)
 						}
 					}
-					if len(resType.Types) == 1 {
-						resExprType = resType.Types[0]
-					} else {
-						resExprType = resType
-					}
+					resExprType = resType.Simplify()
 				} else if u2, ok := nextVarType.(s.UnionType); ok {
 					resType := s.UnionType{Types: []s.Type{}}
 					for _, uT1 := range u1.Types {
@@ -845,11 +827,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 							}
 						}
 					}
-					if len(resType.Types) == 1 {
-						resExprType = resType.Types[0]
-					} else {
-						resExprType = resType
-					}
+					resExprType = resType.Simplify()
 				} else {
 					p.addError(fmt.Sprintf("Unexpected types for ++ operator: %s, %s", varType, nextVarType), curNode.token32)
 					return nil, nil
@@ -888,25 +866,25 @@ func (p *ASTParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 		var funcId string
 		switch operator {
 		case ruleMulOp:
-			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "104"
-			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "313"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for * operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
 			}
 		case ruleDivOp:
-			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "105"
-			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "314"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for / operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
 			}
 		case ruleModOp:
-			if varType.Comp(s.IntType) && nextExprVarType.Comp(s.IntType) {
+			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "106"
-			} else if varType.Comp(s.BigIntType) && nextExprVarType.Comp(s.BigIntType) {
+			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "315"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for * operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
@@ -940,27 +918,30 @@ func (p *ASTParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 	case ruleMatch:
 		expr, varType = p.ruleMatchHandler(curNode)
 	}
+	if expr == nil {
+		return nil, nil
+	}
 	switch unaryOp {
 	case ruleNegativeOp:
-		if varType.Comp(s.IntType) {
+		if varType.Equal(s.IntType) {
 			if i, ok := expr.(*ast.LongNode); ok {
 				expr = ast.NewLongNode(-i.Value)
 			} else {
 				expr = ast.NewFunctionCallNode(ast.UserFunction("-"), []ast.Node{expr})
 			}
-		} else if varType.Comp(s.BigIntType) {
+		} else if varType.Equal(s.BigIntType) {
 			expr = ast.NewFunctionCallNode(ast.NativeFunction("318"), []ast.Node{expr})
 		} else {
 			p.addError(fmt.Sprintf("Unexpected types for unary - operator, required: Int, BigInt, but %s found", varType.String()), curNode.token32)
 		}
 	case ruleNotOp:
-		if varType.Comp(s.BooleanType) {
+		if varType.Equal(s.BooleanType) {
 			expr = ast.NewFunctionCallNode(ast.UserFunction("!"), []ast.Node{expr})
 		} else {
 			p.addError(fmt.Sprintf("Unexpected types for unary ! operator, required: Boolean, but %s found", varType.String()), curNode.token32)
 		}
 	case rulePositiveOp:
-		if !varType.Comp(s.IntType) && !varType.Comp(s.BigIntType) {
+		if !varType.Equal(s.IntType) && !varType.Equal(s.BigIntType) {
 			p.addError(fmt.Sprintf("Unexpected types for unary + operator, required: Int, BigInt, but %s found", varType.String()), curNode.token32)
 		}
 	}
@@ -1174,18 +1155,7 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 	if thenType == nil || elseType == nil {
 		return nil, nil
 	}
-	if !thenType.Comp(elseType) {
-		union := s.UnionType{Types: []s.Type{}}
-		union.AppendType(thenType)
-		union.AppendType(elseType)
-		if len(union.Types) == 1 {
-			resType = union.Types[0]
-		} else {
-			resType = union
-		}
-	} else {
-		resType = thenType
-	}
+	resType = s.JoinTypes(thenType, elseType)
 	return ast.NewConditionalNode(cond, thenExpr, elseExpr), resType
 }
 
@@ -1299,7 +1269,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 				case ruleIdentifier:
 					index, indexType = p.ruleIdentifierHandler(listNode)
 				}
-				if !indexType.Comp(s.IntType) {
+				if !indexType.Equal(s.IntType) {
 					p.addError(fmt.Sprintf("index type must be Int but is %s", indexType.String()), listNode.token32)
 				}
 				expr = ast.NewFunctionCallNode(ast.NativeFunction("401"), []ast.Node{expr, index})
@@ -1442,7 +1412,7 @@ func (p *ASTParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, fir
 		return nil, funcSign.ReturnType
 	}
 	for i := range argsNodes {
-		if funcSign.Arguments[i].Comp(argsTypes[i]) {
+		if funcSign.Arguments[i].EqualWithEntry(argsTypes[i]) {
 			continue
 		}
 		p.addError(fmt.Sprintf("Cannot use type %s as the type %v", argsTypes[i], funcSign.Arguments[i]), astNodes[i].token32)
@@ -1872,15 +1842,15 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		}
 		switch p.Tree.LibVersion {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
-			if !s.CallableRetV3.Comp(retType) {
+			if !s.CallableRetV3.EqualWithEntry(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s, but return %s", s.CallableRetV3.String(), retType.String()), curNode.token32)
 			}
 		case ast.LibV4:
-			if !s.CallableRetV4.Comp(retType) {
+			if !s.CallableRetV4.EqualWithEntry(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s,but return %s", s.CallableRetV4.String(), retType.String()), curNode.token32)
 			}
 		case ast.LibV5, ast.LibV6:
-			if !s.CallableRetV5.Comp(retType) {
+			if !s.CallableRetV5.EqualWithEntry(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s, but return %s", s.CallableRetV5.String(), retType.String()), curNode.token32)
 			}
 		}
@@ -1892,7 +1862,7 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		if len(types) != 0 {
 			p.addError("Verifier must not have arguments", curNode.token32)
 		}
-		if !s.BooleanType.Comp(retType) {
+		if !s.BooleanType.Equal(retType) {
 			p.addError("VerifierFunction must return Boolean or it super type", curNode.token32)
 		}
 	}
@@ -2009,13 +1979,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 		falseState = ast.NewConditionalNode(conds[i], trueStates[i], falseState)
 	}
 	p.currentStack = p.currentStack.up
-	var retType s.Type
-	if len(unionRetType.Types) == 1 {
-		retType = unionRetType.Types[0]
-	} else {
-		retType = unionRetType
-	}
-	return ast.NewAssignmentNode(matchName, expr, falseState), retType
+	return ast.NewAssignmentNode(matchName, expr, falseState), unionRetType.Simplify()
 }
 
 func (p *ASTParser) ruleCaseHandle(node *node32, matchName string, possibleTypes s.UnionType) (ast.Node, ast.Node, s.Type) {
@@ -2076,7 +2040,7 @@ func (p *ASTParser) ruleCaseHandle(node *node32, matchName string, possibleTypes
 		return block, nil, blockType
 	case ruleExpr:
 		expr, varType := p.ruleExprHandler(statementNode)
-		if !possibleTypes.Comp(varType) {
+		if !possibleTypes.EqualWithEntry(varType) {
 			p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes.String(), varType.String()), curNode.token32)
 		}
 		cond = ast.NewFunctionCallNode(ast.NativeFunction("0"), []ast.Node{
@@ -2100,7 +2064,7 @@ func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, poss
 	}
 	t := p.ruleTypesHandler(curNode)
 
-	if !possibleTypes.Comp(t) {
+	if !possibleTypes.EqualWithEntry(t) {
 		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes.String(), t.String()), curNode.token32)
 	}
 
@@ -2145,7 +2109,7 @@ func (p *ASTParser) ruleObjectPatternHandler(node *node32, matchName string, pos
 		p.addError(fmt.Sprintf("Object with this name %s doesn't exist", structName), curNode.token32)
 		return nil, nil
 	}
-	if !possibleTypes.Comp(s.SimpleType{Type: structName}) {
+	if !possibleTypes.EqualWithEntry(s.SimpleType{Type: structName}) {
 		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes.String(), structName), curNode.token32)
 		return nil, nil
 	}
@@ -2241,7 +2205,7 @@ func (p *ASTParser) ruleObjectFieldsPatternHandler(node *node32, matchName strin
 		if expr == nil {
 			return nil, nil, curNode
 		}
-		if !t.Comp(exprType) {
+		if !t.EqualWithEntry(exprType) {
 			p.addError(fmt.Sprintf("Can't match inferred types: field %s has type %s, but %s provided", fieldName, t.String(), exprType.String()), curNode.token32)
 			return nil, nil, curNode
 		}
@@ -2280,7 +2244,7 @@ func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 		}
 	}
 	tupleType := s.TupleType{Types: varsTypes}
-	if !possibleTypes.Comp(tupleType) {
+	if !possibleTypes.EqualWithEntry(tupleType) {
 		p.addError(fmt.Sprintf("Matching not exhaustive: possibleTypes are \"%s\", while matched are \"%s\"", possibleTypes.String(), tupleType), curNode.token32)
 	}
 	var cond ast.Node
@@ -2430,7 +2394,7 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		return nil, nil
 	}
 	if len(funcSign.Arguments) != 2 {
-		if !funcSign.Arguments[0].Comp(startVarType) || !funcSign.Arguments[1].Comp(elemType) {
+		if !funcSign.Arguments[0].EqualWithEntry(startVarType) || !funcSign.Arguments[1].EqualWithEntry(elemType) {
 			p.addError(fmt.Sprintf("Can't find suitable function %s(%s, %s)", funcName, s.ListType{}.String(), startVarType.String()), curNode.token32)
 		}
 	}

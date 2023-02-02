@@ -36,7 +36,7 @@ func (sig *FunctionsSignatures) Get(name string, args []Type) (FunctionParams, b
 		}
 		isMatched := true
 		for i := range o.Arguments {
-			if !o.Arguments[i].Comp(args[i]) {
+			if !o.Arguments[i].EqualWithEntry(args[i]) {
 				isMatched = false
 				break
 			}
@@ -131,11 +131,15 @@ func getGenericFuncsSign(name string, args []Type, findFuncPar FunctionParams) F
 		if u, ok := args[0].(UnionType); ok {
 			uResType := UnionType{Types: []Type{}}
 			for _, uT := range u.Types {
-				if !uT.Comp(SimpleType{Type: "Unit"}) {
+				if !uT.Equal(SimpleType{Type: "Unit"}) {
 					uResType.AppendType(uT)
 				}
 			}
-			resType = uResType
+			if len(uResType.Types) != 1 {
+				resType = uResType
+			} else {
+				resType = uResType.Types[0]
+			}
 		} else {
 			resType = args[0]
 		}

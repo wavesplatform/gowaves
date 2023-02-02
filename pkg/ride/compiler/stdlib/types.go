@@ -13,8 +13,10 @@ import (
 var DefaultTypes = mustLoadDefaultTypes()
 
 type Type interface {
-	Comp(Type) bool
+	//Comp(Type) bool
 	String() string
+	Equal(Type) bool
+	EqualWithEntry(Type) bool
 }
 
 var (
@@ -151,7 +153,11 @@ type SimpleType struct {
 	Type string
 }
 
-func (t SimpleType) Comp(rideType Type) bool {
+func (t SimpleType) EqualWithEntry(rideType Type) bool {
+	return t.Equal(rideType)
+}
+
+func (t SimpleType) Equal(rideType Type) bool {
 	if t.Type == "Any" {
 		if T, ok := rideType.(SimpleType); ok {
 			if T.Type != "Unknown" {
@@ -160,14 +166,6 @@ func (t SimpleType) Comp(rideType Type) bool {
 		} else {
 			return true
 		}
-	}
-	if u, ok := rideType.(UnionType); ok {
-		for _, uT := range u.Types {
-			if !t.Comp(uT) {
-				return false
-			}
-		}
-		return true
 	}
 	T, ok := rideType.(SimpleType)
 	if !ok {
@@ -187,7 +185,25 @@ type UnionType struct {
 	Types []Type
 }
 
-func (t UnionType) Comp(rideType Type) bool {
+func (t UnionType) Equal(rideType Type) bool {
+	if rideType == Any {
+		return true
+	}
+	T, ok := rideType.(UnionType)
+	if !ok {
+		return false
+	}
+	for _, typeName := range T.Types {
+		for _, checkTypeName := range t.Types {
+			if !checkTypeName.Equal(typeName) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (t UnionType) EqualWithEntry(rideType Type) bool {
 	if rideType == Any {
 		return true
 	}
@@ -195,7 +211,7 @@ func (t UnionType) Comp(rideType Type) bool {
 		for _, typeName := range T.Types {
 			eq := false
 			for _, checkTypeName := range t.Types {
-				if checkTypeName.Comp(typeName) {
+				if checkTypeName.EqualWithEntry(typeName) {
 					eq = true
 					break
 				}
@@ -207,7 +223,7 @@ func (t UnionType) Comp(rideType Type) bool {
 		return true
 	}
 	for _, typeName := range t.Types {
-		if typeName.Comp(rideType) {
+		if typeName.EqualWithEntry(rideType) {
 			return true
 		}
 	}
@@ -236,7 +252,7 @@ func (t *UnionType) AppendType(rideType Type) {
 			}
 			exist := false
 			for _, existType := range t.Types {
-				if newType.Comp(existType) && existType.Comp(newType) {
+				if newType.Equal(existType) {
 					exist = true
 					break
 				}
@@ -253,13 +269,13 @@ func (t *UnionType) AppendType(rideType Type) {
 		return
 	}
 	if len(t.Types) == 0 {
-		if rideType.Comp(ThrowType) {
+		if rideType.Equal(ThrowType) {
 			return
 		}
 		t.Types = append(t.Types, rideType)
 		return
 	}
-	if rideType.Comp(ThrowType) {
+	if rideType.Equal(ThrowType) {
 		return
 	}
 	listIndex := 0
@@ -272,13 +288,14 @@ func (t *UnionType) AppendType(rideType Type) {
 		}
 	}
 	for _, existType := range t.Types {
-		if existType.Comp(rideType) && rideType.Comp(existType) {
+		if existType.Equal(rideType) {
 			return
 		}
 	}
 	if _, ok := rideType.(ListType); ok && listExist {
 		list := t.Types[listIndex].(ListType)
 		list.AppendList(rideType)
+		t.Types[listIndex] = list
 	} else {
 		t.Types = append(t.Types, rideType)
 	}
@@ -293,11 +310,43 @@ func (t UnionType) String() string {
 	return strings.Join(stringTypes, "|")
 }
 
+func (t UnionType) Simplify() Type {
+	if len(t.Types) == 1 {
+		return t.Types[0]
+	}
+	return t
+}
+
+func JoinTypes(types ...Type) Type {
+	union := UnionType{Types: []Type{}}
+	for _, t := range types {
+		union.AppendType(t)
+	}
+	if len(union.Types) == 1 {
+		return union.Types[0]
+	}
+	return union
+}
+
 type ListType struct {
 	Type Type
 }
 
-func (t ListType) Comp(rideType Type) bool {
+func (t ListType) Equal(rideType Type) bool {
+	T, ok := rideType.(ListType)
+	if !ok {
+		return false
+	}
+	if t.Type == nil && T.Type == nil {
+		return true
+	}
+	if t.Type == nil || T.Type == nil {
+		return false
+	}
+	return t.Type.Equal(T.Type)
+}
+
+func (t ListType) EqualWithEntry(rideType Type) bool {
 	if T, ok := rideType.(ListType); ok {
 		if t.Type == nil && T.Type == nil {
 			return true
@@ -308,15 +357,7 @@ func (t ListType) Comp(rideType Type) bool {
 		if T.Type == nil {
 			return true
 		}
-		return t.Type.Comp(T.Type)
-	}
-	if U, ok := rideType.(UnionType); ok {
-		for _, uT := range U.Types {
-			if !t.Comp(uT) {
-				return false
-			}
-		}
-		return true
+		return t.Type.EqualWithEntry(T.Type)
 	}
 	return false
 }
@@ -355,22 +396,42 @@ type TupleType struct {
 	Types []Type
 }
 
-func (t TupleType) Comp(rideType Type) bool {
-	if T, ok := rideType.(TupleType); ok {
-		if len(T.Types) != len(t.Types) {
+func (t TupleType) Equal(rideType Type) bool {
+	T, ok := rideType.(TupleType)
+	if !ok {
+		return false
+	}
+	if len(T.Types) != len(t.Types) {
+		return false
+	}
+	for i := 0; i < len(t.Types); i++ {
+		if t.Types[i] == nil || T.Types[i] == nil {
+			continue
+		}
+		if !t.Types[i].Equal(T.Types[i]) {
 			return false
 		}
-		for i := 0; i < len(t.Types); i++ {
-			if t.Types[i] == nil || T.Types[i] == nil {
-				continue
-			}
-			if !t.Types[i].Comp(T.Types[i]) {
-				return false
-			}
-		}
-		return true
 	}
-	return false
+	return true
+}
+
+func (t TupleType) EqualWithEntry(rideType Type) bool {
+	T, ok := rideType.(TupleType)
+	if !ok {
+		return false
+	}
+	if len(T.Types) != len(t.Types) {
+		return false
+	}
+	for i := 0; i < len(t.Types); i++ {
+		if t.Types[i] == nil || T.Types[i] == nil {
+			continue
+		}
+		if !t.Types[i].EqualWithEntry(T.Types[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (t TupleType) String() string {

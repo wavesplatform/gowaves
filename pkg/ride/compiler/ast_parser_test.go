@@ -5,12 +5,11 @@ import (
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
-	"testing"
-
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
+	"strings"
+	"testing"
 )
 
 func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
@@ -662,4 +661,22 @@ func test(a: List[Int|String]) = {
 //		require.NoError(t, err)
 //		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
 //	}
+//}
+//
+//func TestOneBigScripts(t *testing.T) {
+//	cli, err := client.NewClient(client.Options{
+//		BaseUrl: "https://nodes.wavesnodes.com",
+//		Client:  &http.Client{Timeout: 10 * time.Second},
+//	})
+//	require.NoError(t, err)
+//	//_, err := embedScripts.ReadDir("test_scripts")
+//	//require.NoError(t, err)
+//	//for _, file := range files {
+//	t.Logf("Test %s", "boosting.ride")
+//	code, err := embedScripts.ReadFile("test_scripts/" + "boosting.ride")
+//	require.NoError(t, err)
+//	res, _, err := cli.Utils.ScriptCompile(context.Background(), string(code))
+//	require.NoError(t, err)
+//	compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
+//	//}
 //}

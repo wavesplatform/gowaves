@@ -59,7 +59,7 @@ func (s *ObjectsSignatures) GetConstruct(name string, args []Type) (FunctionPara
 	}
 	var resTypes []Type
 	for i := range info.Fields {
-		if !info.Fields[i].Type.Comp(args[i]) {
+		if !info.Fields[i].Type.EqualWithEntry(args[i]) {
 			return FunctionParams{}, false
 		}
 		resTypes = append(resTypes, info.Fields[i].Type)
