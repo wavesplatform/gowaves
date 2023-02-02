@@ -28,7 +28,7 @@ If you want to update proto schemas:
 ```bash
 cd pkg/grpc/protobuf-schemas
 git submodule update --init
-git pull origin master
+git pull
 ```
 
 If you want to regenerate the code from updated schemas:
