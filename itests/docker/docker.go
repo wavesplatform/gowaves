@@ -12,6 +12,7 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/pkg/errors"
 	"github.com/xenolf/lego/log"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -51,9 +52,9 @@ type Ports struct {
 }
 
 type PortConfig struct {
-	RestApiPort string
-	GrpcPort    string
-	BindPort    string
+	RestApiHostPort string
+	GrpcHostPort    string
+	BindHostPort    string
 }
 
 type Docker struct {
@@ -252,14 +253,16 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 	d.goLogFile = logfile
 
 	portCfg := &PortConfig{
-		RestApiPort: res.GetPort(RESTApiPort + tcp),
-		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
-		BindPort:    res.GetPort(BindPort + tcp),
+		RestApiHostPort: res.GetHostPort(RESTApiPort + tcp),
+		GrpcHostPort:    res.GetHostPort(GrpcApiPort + tcp),
+		BindHostPort:    res.GetHostPort(BindPort + tcp),
 	}
+
+	zap.S().Infof("PORT CFG: %v", portCfg)
 
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
-			BaseUrl: "http://" + Localhost + ":" + portCfg.RestApiPort + "/",
+			BaseUrl: "http://" + portCfg.RestApiHostPort + "/",
 			Client:  &http.Client{Timeout: DefaultTimeout},
 			ApiKey:  "itest-api-key",
 		})
@@ -340,14 +343,14 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 	d.scalaLogFile = logfile
 
 	portCfg := &PortConfig{
-		RestApiPort: res.GetPort(RESTApiPort + tcp),
-		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
-		BindPort:    res.GetPort(BindPort + tcp),
+		RestApiHostPort: res.GetHostPort(RESTApiPort + tcp),
+		GrpcHostPort:    res.GetHostPort(GrpcApiPort + tcp),
+		BindHostPort:    res.GetHostPort(BindPort + tcp),
 	}
 
 	err = d.pool.Retry(func() error {
 		nodeClient, err := client.NewClient(client.Options{
-			BaseUrl: "http://" + Localhost + ":" + portCfg.RestApiPort + "/",
+			BaseUrl: "http://" + portCfg.RestApiHostPort + "/",
 			Client:  &http.Client{Timeout: DefaultTimeout},
 			ApiKey:  "itest-api-key",
 		})
