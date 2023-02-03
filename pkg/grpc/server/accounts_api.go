@@ -21,6 +21,8 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	if len(req.Assets) == 0 {
+		// TODO(nickeskov): send waves balance AND all assets balances (portfolio)
+		//  by the given address according to the scala node implementation
 		if err := s.sendWavesBalance(rcp, srv); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
 		}
