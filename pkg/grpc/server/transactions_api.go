@@ -206,23 +206,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 }
 
 func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransaction, error) {
-	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
-	tx, err := c.Transaction(req.Transaction)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
-	}
-	pk, err := crypto.NewPublicKeyFromBytes(req.SignerPublicKey)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
-	if err := s.wallet.SignTransactionWith(pk, tx); err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
-	}
-	txProto, err := tx.ToProtobufSigned(s.scheme)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-	return txProto, nil
+	return g.UnimplementedTransactionsApiServer{}.Sign(ctx, req)
 }
 
 func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *pb.SignedTransaction, err error) {
