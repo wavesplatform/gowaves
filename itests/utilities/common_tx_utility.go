@@ -169,9 +169,7 @@ func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress
 }
 
 func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddress) int64 {
-	//TODO(ipereiaslavskaia) return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable() after fixing grpc interface
-	wavesBalance := suite.Clients.ScalaClients.HttpClient.WavesBalance(suite.T(), address)
-	return int64(wavesBalance.Balance)
+	return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
@@ -183,9 +181,7 @@ func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId c
 }
 
 func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
-	//TODO (ipereiaslavskaia) return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount() after fixing grpc interface
-	assetBalance := suite.Clients.ScalaClients.HttpClient.AssetBalance(suite.T(), address, assetId)
-	return int64(assetBalance.Balance)
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount()
 }
 
 func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) (int64, int64) {
