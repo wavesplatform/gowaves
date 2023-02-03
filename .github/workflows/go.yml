@@ -59,6 +59,8 @@ jobs:
     name: integration_tests
     runs-on: self-hosted
     if: github.event_name == 'pull_request' && github.repository == 'wavesplatform/gowaves'
+    env:
+      DOCKER_HOST: http://172.17.0.1:2375
 
     steps:
       - uses: actions/checkout@v3
