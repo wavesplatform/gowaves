@@ -1,5 +1,6 @@
 PROJECT=gowaves
 ORGANISATION=wavesplatform
+MODULE=github.com/$(ORGANISATION)/$(PROJECT)
 SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
 SOURCE_DIRS = cmd pkg
 
@@ -205,11 +206,11 @@ mock:
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 
 proto:
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-vtproto_out=$(GOPATH)/src --plugin protoc-gen-go-vtproto="$(GOPATH)/bin/protoc-gen-go-vtproto" --go-vtproto_opt=features=marshal+unmarshal+size+flat_oneofs pkg/grpc/protobuf-schemas/proto/waves/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-grpc_out=$(GOPATH)/src --go-grpc_opt=require_unimplemented_servers=false pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/lang/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/events/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-grpc_out=$(GOPATH)/src --go-grpc_opt=require_unimplemented_servers=false pkg/grpc/protobuf-schemas/proto/waves/events/grpc/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-grpc_out=./ --go-grpc_opt=require_unimplemented_servers=false --go-grpc_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/lang/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/events/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-grpc_out=./ --go-grpc_opt=require_unimplemented_servers=false --go-grpc_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/events/grpc/*.proto
 
 build-wmd-deb-package: release-wmd
 	@mkdir -p build/dist
