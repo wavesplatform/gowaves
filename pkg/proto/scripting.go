@@ -89,7 +89,7 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 		return nil, errors.Errorf("failed to get addr from recipient '%s'", a.Recipient.String())
 	}
 	return &g.InvokeScriptResult_Payment{
-		Address: addr.Body(),
+		Address: addr.Bytes(),
 		Amount:  amount,
 	}, nil
 }
