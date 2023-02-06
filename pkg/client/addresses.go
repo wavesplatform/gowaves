@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -209,51 +208,6 @@ func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Wav
 	}
 
 	return out.Address, response, nil
-}
-
-type VerifyText struct {
-	Valid bool
-}
-
-type VerifyTextReq struct {
-	Message   string           `json:"message"`
-	PublicKey crypto.PublicKey `json:"publickey"`
-	Signature crypto.Signature `json:"signature"`
-}
-
-// VerifyText checks a signature of a message signed by an account
-func (a *Addresses) VerifyText(ctx context.Context, address proto.WavesAddress, body VerifyTextReq) (bool, *Response, error) {
-	if a.options.ApiKey == "" {
-		return false, nil, NoApiKeyError
-	}
-
-	u, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/verifyText/%s", address.String()))
-	if err != nil {
-		return false, nil, err
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return false, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", u.String(),
-		bytes.NewReader(bodyBytes))
-	if err != nil {
-		return false, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(VerifyText)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return false, response, err
-	}
-
-	return out.Valid, response, nil
-
 }
 
 type BalanceAfterConfirmations struct {
