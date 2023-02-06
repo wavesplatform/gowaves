@@ -18,7 +18,6 @@ import (
 
 const (
 	suspendDuration              = 5 * time.Minute
-	blackListDuration            = 5 * time.Minute
 	clearRestrictedPeersInterval = 1 * time.Minute
 )
 
@@ -68,6 +67,8 @@ type PeerManagerImpl struct {
 	peerStorage               PeerStorage
 	spawned                   map[proto.IpPort]struct{}
 	enableOutboundConnections bool
+	enableBlacklisting        bool
+	blackListDuration         time.Duration
 	limitConnections          int
 	newConnectionsLimit       int
 	version                   proto.Version
@@ -75,7 +76,8 @@ type PeerManagerImpl struct {
 }
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int, version proto.Version,
-	networkName string, enableOutboundConnections bool, newConnectionsLimit int) *PeerManagerImpl {
+	networkName string, enableOutboundConnections bool, newConnectionsLimit int,
+	enableBlackListing bool, blackListDuration time.Duration) *PeerManagerImpl {
 
 	return &PeerManagerImpl{
 		spawner:                   spawner,
@@ -83,6 +85,8 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 		peerStorage:               storage,
 		spawned:                   make(map[proto.IpPort]struct{}),
 		enableOutboundConnections: enableOutboundConnections,
+		enableBlacklisting:        enableBlackListing,
+		blackListDuration:         blackListDuration,
 		limitConnections:          limitConnections,
 		newConnectionsLimit:       newConnectionsLimit,
 		version:                   version,
@@ -189,13 +193,17 @@ func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 }
 
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
+	if !a.enableBlacklisting {
+		return
+	}
+
 	a.Disconnect(p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	blackListed := storage.NewBlackListedPeer(
 		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
 		blockTime.UnixMilli(),
-		blackListDuration,
+		a.blackListDuration,
 		reason,
 	)
 	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
