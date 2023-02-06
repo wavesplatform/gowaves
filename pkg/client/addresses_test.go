@@ -190,39 +190,6 @@ func TestAddresses_PublicKey(t *testing.T) {
 		resp.Request.URL.String())
 }
 
-var addressSignTextJson = `
-{
-  "message": "some-text",
-  "publicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "signature": "RP742bUjfrzWcXhnmkbim2dWk9mSUcPcmn77EcsD5t2TBUZqZGe8Vk211hAYbW4FNxWtWqcCmR1Trv8gUXKN6if"
-}`
-
-func TestAddresses_SignText(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
-	pubKey, _ := crypto.NewPublicKeyFromBase58("CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw")
-	sign, _ := crypto.NewSignatureFromBase58("RP742bUjfrzWcXhnmkbim2dWk9mSUcPcmn77EcsD5t2TBUZqZGe8Vk211hAYbW4FNxWtWqcCmR1Trv8gUXKN6if")
-	text := "some-text"
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		ApiKey:  "ApiKey",
-		Client:  NewMockHttpRequestFromString(addressSignTextJson, 200),
-	})
-	require.NoError(t, err)
-	body, resp, err :=
-		client.Addresses.SignText(context.Background(), address, text)
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, text, body.Message)
-	assert.Equal(t, &AddressesSignText{
-		Message:   text,
-		PublicKey: pubKey,
-		Signature: sign,
-	}, body)
-	assert.Equal(t,
-		"https://testnode1.wavesnodes.com/addresses/signText/3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp",
-		resp.Request.URL.String())
-}
-
 var addressVerifyTextJson = `
 {
   "valid": true
