@@ -263,26 +263,6 @@ func (a *Blocks) Signature(ctx context.Context, id proto.BlockID) (*Block, *Resp
 	return out, response, nil
 }
 
-func (a *Blocks) Child(ctx context.Context, id proto.BlockID) (*Block, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/child/%s", id.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	out := new(Block)
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 func (a *Blocks) First(ctx context.Context) (*Block, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/blocks/first")
 	if err != nil {

@@ -256,25 +256,6 @@ func TestBlocks_Height(t *testing.T) {
 	require.NotEqual(t, uint64(0), body.Height)
 }
 
-func TestBlocks_Child(t *testing.T) {
-	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
-	})
-	id := proto.NewBlockIDFromSignature(sign)
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Blocks.Child(context.Background(), id)
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	require.Equal(t, 1, len(body.Transactions))
-	assert.EqualValues(t, proto.TransferTransaction, body.Transactions[0].(*proto.TransferWithSig).Type)
-	assert.EqualValues(t, 330, body.Height)
-	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/child/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", resp.Request.URL.String())
-}
-
 var blocksFirstJson = `
 {
   "version": 1,
