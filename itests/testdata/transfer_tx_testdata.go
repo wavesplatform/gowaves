@@ -145,7 +145,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			uint64(assetAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("6oCrsKJu7Ev52rjB72t1d3y98G5DQmvt7TYVvW7HT4vGbqgKJxJmBzA77LpC9vcW4WNQqZ2imMghaK2gkCX5J"),
+			proto.Attachment("This is valid attach string (69 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          assetAmount / 8,
@@ -160,7 +160,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			uint64(wavesAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("2qcsACR1T95dchPf3anZ6W2CEMyNHnwUYuFeHDQt"),
+			proto.Attachment("This is valid attach string (69 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves + wavesAmount/8,
 				AssetDiffBalance:          0,
@@ -175,7 +175,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			uint64(assetAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRM"),
+			proto.Attachment("This is valid attach string (69 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          0,
@@ -190,7 +190,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 			uint64(wavesAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRM"),
+			proto.Attachment("This is valid attach string (69 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          0,
@@ -244,8 +244,8 @@ func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, acc
 			utl.MaxAmount,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRML6CVyKVbatfbcNWst"+
-				"N3cuernPDaF4kgpn5g1DdPkfH6gge94TesYMkhdSHwVoVvXwacr"),
+			proto.Attachment("This is valid attach string (140 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{}). "+
+				"This is valid attach string (140 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})"),
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    wavesAmount,
 				AssetDiffBalance:          utl.MaxAmount,
@@ -258,7 +258,7 @@ func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, acc
 
 func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
-	invalidAssetId := utl.RandDigest(suite.T(), 32, utl.LettersAndDigits)
+	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
 		"Attachment > max": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -269,15 +269,15 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 			uint64(assetAmount),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			proto.Attachment("2GjX8YcCcSdmYm3pVP41e1TL1t5nQrHUkCx6V9L7SC5LxQSEmcE3irKh2NtV2x57fNU5MoRML6CVyKVbatfbcNWst"+
-				"N3cuernPDaF4kgpn5g1DdPkfH6gge94TesYMkhdSHwVoVvXwacr2Gj"),
+			proto.Attachment("This is invalid attached str (141 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."+
+				" This is invalid attach str (141 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
 			TransferExpectedValuesNegative{
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "exceeds maximum length of 192",
+				ErrBrdCstScalaMsg: "base58-encoded string length (193) exceeds maximum length of 192",
 			},
 		),
 		"Asset amount = 0": *NewTransferTestData(
@@ -373,25 +373,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		"Invalid asset ID": *NewTransferTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
-			&invalidAssetId,
-			nil,
-			utl.MinTxFeeWaves,
-			uint64(assetAmount/4),
-			utl.GetCurrentTimestampInMs(),
-			utl.TestChainID,
-			nil,
-			TransferExpectedValuesNegative{
-				WavesDiffBalance:  0,
-				AssetDiffBalance:  0,
-				ErrGoMsg:          errMsg,
-				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Attempt to transfer unavailable funds: Transaction application leads to negative asset",
-			}),
-		"Transfer token when there are not enough funds on the sender balance": *NewTransferTestData(
+		"Transfer token when fee more than funds on the sender balance": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -409,11 +391,47 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Transaction application leads to negative waves balance",
 			}),
+		"Transfer of a bigger number of tokens than there are on the sender balance": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			&assetId,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(assetAmount+1),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Transaction application leads to negative asset",
+			}),
+		"Transfer all waves, not enough funds for fee": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			nil,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(wavesAmount),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Transaction application leads to negative waves balance",
+			}),
 	}
 	return t
 }
 
-func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
+func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
 		"Invalid chainID (value=0)": *NewTransferTestData(
@@ -453,6 +471,49 @@ func GetTransferChainIDNegativeData(suite *f.BaseSuite, assetId crypto.Digest) m
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "invalid address",
+			}),
+	}
+	return t
+}
+
+func GetTransferChainIDData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
+	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
+	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
+		"Invalid chainID (value=0),which ignored for v1 and v2": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			&assetId,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(assetAmount/4),
+			utl.GetCurrentTimestampInMs(),
+			0,
+			nil,
+			TransferExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
+			}),
+		"Custom chainID, which ignored for v1 and v2": *NewTransferTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
+			&assetId,
+			nil,
+			utl.MinTxFeeWaves,
+			uint64(assetAmount/4),
+			utl.GetCurrentTimestampInMs(),
+			'T',
+			nil,
+			TransferExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
 			}),
 	}
 	return t

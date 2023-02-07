@@ -116,6 +116,10 @@ func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Resp
 	}
 }
 
+func GetVersions() []byte {
+	return []byte{1, 2, 3}
+}
+
 func RandStringBytes(n int, symbolSet string) string {
 	b := make([]byte, n)
 	for j := range b {
@@ -360,8 +364,4 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
-}
-
-func GetVersions() []byte {
-	return []byte{1, 2, 3}
 }

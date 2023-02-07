@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer_utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"golang.org/x/exp/maps"
 )
 
 type TransferTxSuite struct {
@@ -140,8 +141,13 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
-		tdmatrix := testdata.GetTransferChainIDNegativeData(&suite.BaseSuite, itx.TxID)
+		tdmatrix := testdata.GetTransferChainIDChangedNegativeData(&suite.BaseSuite, itx.TxID)
+
 		txIds := make(map[string]*crypto.Digest)
+
+		if v > 2 {
+			maps.Copy(tdmatrix, testdata.GetTransferChainIDData(&suite.BaseSuite, itx.TxID))
+		}
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
@@ -171,6 +177,31 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 		}
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
+func (suite *TransferTxSuite) Test_TransferTxChainIDBinaryVersions() {
+	//TODO (ipereiaslavskaia) Need to change it when method for versions will be ready
+	versions := []byte{1, 2}
+	waitForTx := true
+	for _, v := range versions {
+		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		tdmatrix := testdata.GetTransferChainIDData(&suite.BaseSuite, itx.TxID)
+
+		txIds := make(map[string]*crypto.Digest)
+
+		for name, td := range tdmatrix {
+			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+				tx := transfer_utilities.TransferSendWithTestData(&suite.BaseSuite, td, v, waitForTx)
+				txIds[name] = &tx.TxID
+
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer: "+tx.TxID.String(),
+					utl.GetTestcaseNameWithVersion(name, v))
+			})
+		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 4, "IDs: %#v", actualTxIds)
 	}
 }
 
