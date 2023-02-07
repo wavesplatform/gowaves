@@ -67,7 +67,6 @@ type PeerManagerImpl struct {
 	peerStorage               PeerStorage
 	spawned                   map[proto.IpPort]struct{}
 	enableOutboundConnections bool
-	enableBlacklisting        bool
 	blackListDuration         time.Duration
 	limitConnections          int
 	newConnectionsLimit       int
@@ -77,7 +76,7 @@ type PeerManagerImpl struct {
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int, version proto.Version,
 	networkName string, enableOutboundConnections bool, newConnectionsLimit int,
-	enableBlackListing bool, blackListDuration time.Duration) *PeerManagerImpl {
+	blackListDuration time.Duration) *PeerManagerImpl {
 
 	return &PeerManagerImpl{
 		spawner:                   spawner,
@@ -85,7 +84,6 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 		peerStorage:               storage,
 		spawned:                   make(map[proto.IpPort]struct{}),
 		enableOutboundConnections: enableOutboundConnections,
-		enableBlacklisting:        enableBlackListing,
 		blackListDuration:         blackListDuration,
 		limitConnections:          limitConnections,
 		newConnectionsLimit:       newConnectionsLimit,
@@ -193,7 +191,7 @@ func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 }
 
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
-	if !a.enableBlacklisting {
+	if a.blackListDuration.Abs().Seconds() == 0 {
 		return
 	}
 
