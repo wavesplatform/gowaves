@@ -44,11 +44,11 @@
       "append": [
         {
           "name": "Buy",
-          "type": "OrderType"
+          "type": "Buy"
         },
         {
           "name": "Sell",
-          "type": "OrderType"
+          "type": "Sell"
         }
       ]
     },

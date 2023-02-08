@@ -41,7 +41,7 @@ func (st *VarStack) GetVariable(name string) (s.Variable, bool) {
 
 func (st *VarStack) GetLastMatchName() (string, bool) {
 	for i := len(st.vars) - 1; i >= 0; i-- {
-		if strings.HasPrefix("$match", st.vars[i].Name) {
+		if strings.HasPrefix(st.vars[i].Name, "$match") {
 			return st.vars[i].Name, true
 		}
 	}

@@ -419,7 +419,7 @@
             "arguments": [
             ],
             "return_type": "Unknown",
-            "id": "throw0"
+            "id": "throw"
           }
         ],
         "getElement": [

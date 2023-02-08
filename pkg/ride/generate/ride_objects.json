@@ -647,7 +647,6 @@
             {
               "name": "originCaller",
               "types": [
-                "rideUnit",
                 "rideAddress"
               ],
               "order": 0,

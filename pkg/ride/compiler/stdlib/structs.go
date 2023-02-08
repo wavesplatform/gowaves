@@ -123,6 +123,9 @@ var (
 func parseObjectFieldsTypes(rawTypes []string) Type {
 	var types []string
 	for _, rawT := range rawTypes {
+		if rawT == "rideAddressLike" {
+			continue
+		}
 		t := strings.ReplaceAll(rawT, "ride", "")
 		t = strings.ReplaceAll(t, "Bytes", "ByteVector")
 		types = append(types, t)
@@ -176,7 +179,32 @@ func changeName(name string) string {
 	if name == "transactionID" {
 		return "transactionId"
 	}
+	if name == "feeAssetID" {
+		return "feeAssetId"
+	}
 	return name
+}
+
+func changeRideTypeFields(name string, fields []actionField) []actionField {
+	switch name {
+	case "Order":
+		for i := range fields {
+			switch fields[i].Name {
+			case "assetPair":
+				fields[i].Types = []string{"AssetPair"}
+			case "orderType":
+				fields[i].Types = []string{"Buy", "Sell"}
+			}
+		}
+	case "ExchangeTransaction":
+		for i := range fields {
+			switch fields[i].Name {
+			case "sellOrder", "buyOrder":
+				fields[i].Types = []string{"Order"}
+			}
+		}
+	}
+	return fields
 }
 
 func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
@@ -201,24 +229,12 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 	}
 	appendRemainingStructs(s)
 	res := map[ast.LibraryVersion]ObjectsSignatures{
-		ast.LibV1: {
-			map[string]ObjectInfo{},
-		},
-		ast.LibV2: {
-			map[string]ObjectInfo{},
-		},
-		ast.LibV3: {
-			map[string]ObjectInfo{},
-		},
-		ast.LibV4: {
-			map[string]ObjectInfo{},
-		},
-		ast.LibV5: {
-			map[string]ObjectInfo{},
-		},
-		ast.LibV6: {
-			map[string]ObjectInfo{},
-		},
+		ast.LibV1: {map[string]ObjectInfo{}},
+		ast.LibV2: {map[string]ObjectInfo{}},
+		ast.LibV3: {map[string]ObjectInfo{}},
+		ast.LibV4: {map[string]ObjectInfo{}},
+		ast.LibV5: {map[string]ObjectInfo{}},
+		ast.LibV6: {map[string]ObjectInfo{}},
 	}
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
@@ -229,6 +245,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			sort.SliceStable(ver.Fields, func(i, j int) bool {
 				return ver.Fields[i].ConstructorOrder < ver.Fields[j].ConstructorOrder
 			})
+			ver.Fields = changeRideTypeFields(obj.Name, ver.Fields)
 			for _, f := range ver.Fields {
 				name := changeName(f.Name)
 				resInfo.Fields = append(resInfo.Fields, ObjectField{

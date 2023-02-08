@@ -369,10 +369,13 @@ func (p *ASTParser) ruleStrictVariableHandler(node *node32) ([]ast.Node, []s.Typ
 	}), nil, ast.NewFunctionCallNode(ast.NativeFunction("2"), []ast.Node{ast.NewStringNode("Strict value is not equal to itself.")}),
 	)
 	sep := ast.NewReferenceNode("$strict")
-	beforeStrict := exprs[1:]
-	exprs = append(exprs[0:1], []ast.Node{cond, sep}...)
-	exprs = append(exprs, beforeStrict...)
-	return exprs, varTypes
+	var afterStrict []ast.Node
+	for i := len(exprs) - 1; i >= 1; i-- {
+		afterStrict = append(afterStrict, exprs[i])
+	}
+	beforeStrict := []ast.Node{exprs[0]}
+	beforeStrict = append(beforeStrict, []ast.Node{cond, sep}...)
+	return append(beforeStrict, afterStrict...), varTypes
 }
 
 func (p *ASTParser) ruleVariableHandler(node *node32) ([]ast.Node, []s.Type) {
@@ -436,7 +439,7 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 		if tupleRefNode.pegRule == rule_ {
 			tupleRefNode = tupleRefNode.next
 		}
-		if tupleRefNode.pegRule == ruleIdentifier {
+		if tupleRefNode != nil && tupleRefNode.pegRule == ruleIdentifier {
 			name := string(p.buffer[tupleRefNode.begin:tupleRefNode.end])
 			if _, ok := p.currentStack.GetVariable(name); ok {
 				p.addError(fmt.Sprintf("variable \"%s\" is exist", name), tupleRefNode.token32)
@@ -460,12 +463,33 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 	if expr == nil {
 		return nil, nil
 	}
-	tuple, ok := varType.(s.TupleType)
+	tup, ok := varType.(s.TupleType)
+	tupleLength := s.MaxTupleLength
 	if !ok {
-		p.addError(fmt.Sprintf("Expression mast be \"Tuple\" but \"%s\"", varType), curNode.token32)
-		return nil, nil
+		if u, ok := varType.(s.UnionType); ok {
+			isTuple := true
+			for _, T := range u.Types {
+				if tuple, ok := T.(s.TupleType); ok {
+					if tupleLength > len(tuple.Types) {
+						tupleLength = len(tuple.Types)
+					}
+				} else {
+					isTuple = false
+					break
+				}
+			}
+			if !isTuple {
+				p.addError(fmt.Sprintf("Expression mast be \"Tuple\" but \"%s\"", varType), curNode.token32)
+				return nil, nil
+			}
+		} else {
+			p.addError(fmt.Sprintf("Expression mast be \"Tuple\" but \"%s\"", varType), curNode.token32)
+			return nil, nil
+		}
+	} else {
+		tupleLength = len(tup.Types)
 	}
-	if len(tuple.Types) < len(varNames) {
+	if tupleLength < len(varNames) {
 		p.addError("Number of Identifiers must be <= tuple length", node.token32)
 		return nil, nil
 	}
@@ -489,13 +513,30 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 				Object: &ast.ReferenceNode{Name: tupleName},
 			},
 		})
-		resTypes = append(resTypes, tuple.Types[i])
+		itemType := getTupleItemTypeByIndex(varType, i)
+		resTypes = append(resTypes, itemType)
 		p.currentStack.PushVariable(s.Variable{
 			Name: name,
-			Type: tuple.Types[i],
+			Type: itemType,
 		})
 	}
 	return resExpr, resTypes
+}
+
+func getTupleItemTypeByIndex(t s.Type, i int) s.Type {
+	if T, ok := t.(s.TupleType); ok {
+		return T.Types[i]
+	}
+	u, ok := t.(s.UnionType)
+	if !ok {
+		return nil
+	}
+	resType := s.UnionType{Types: []s.Type{}}
+	for _, T := range u.Types {
+		tuple := T.(s.TupleType)
+		resType.AppendType(tuple.Types[i])
+	}
+	return resType.Simplify()
 }
 
 func (p *ASTParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
@@ -708,7 +749,7 @@ func (p *ASTParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 			if varType.Equal(s.IntType) && nextExprVarType.Equal(s.IntType) {
 				funcId = "101"
 			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
-				funcId = "311"
+				funcId = "312"
 			} else {
 				p.addError(fmt.Sprintf("Unexpected types for - operator: %s, %s", varType.String(), nextExprVarType.String()), node.token32)
 			}
@@ -739,7 +780,6 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 	} else {
 		resListType = s.ListType{Type: varType}
 	}
-	anyList := s.ListType{Type: s.Any}
 	for {
 		if curNode.pegRule == rule_ {
 			curNode = curNode.next
@@ -764,7 +804,7 @@ func (p *ASTParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			resListType.AppendList(nextVarType)
 			resExprType = resListType
 		case ruleAppendOp:
-			if !anyList.Equal(varType) {
+			if _, ok := varType.(s.ListType); !ok {
 				p.addError(fmt.Sprintf("Unexpected types for +: operator: %s, %s", varType, nextVarType), curNode.token32)
 				return nil, nil
 			} else {
@@ -1055,6 +1095,9 @@ func (p *ASTParser) ruleListHandler(node *node32) (ast.Node, s.Type) {
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
+	if curNode == nil {
+		return ast.NewReferenceNode("nil"), s.ListType{}
+	}
 	return p.ruleListExprSeqHandler(curNode)
 }
 
@@ -1135,7 +1178,14 @@ func (p *ASTParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	thenExpr, thenType := p.ruleExprHandler(curNode)
+	var thenExpr ast.Node
+	var thenType s.Type
+	switch curNode.pegRule {
+	case ruleExpr:
+		thenExpr, thenType = p.ruleExprHandler(curNode)
+	case ruleBlockWithoutPar:
+		thenExpr, thenType = p.ruleBlockHandler(curNode)
+	}
 	curNode = curNode.next
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
@@ -1405,6 +1455,9 @@ func (p *ASTParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, fir
 				return nil, nil
 			}
 		}
+		if argsNodes == nil {
+			argsNodes = []ast.Node{}
+		}
 		return ast.NewFunctionCallNode(funcSign.ID, argsNodes), funcSign.ReturnType
 	}
 	if len(argsNodes) != len(funcSign.Arguments) {
@@ -1489,10 +1542,11 @@ func (p *ASTParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
 				cond.TrueExpression = block
 				block = cond
 			}
+		} else {
+			expr = decls[i]
+			expr.SetBlock(block)
+			block = expr
 		}
-		expr = decls[i]
-		expr.SetBlock(block)
-		block = expr
 	}
 	p.currentStack = p.currentStack.up
 	return expr, varType
@@ -1828,7 +1882,7 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		curNode = curNode.next
 	}
 	expr, retType, types := p.ruleFuncHandler(curNode)
-	if expr == nil {
+	if expr == nil || retType == nil {
 		return
 	}
 	f := expr.(*ast.FunctionDeclarationNode)
@@ -1935,7 +1989,7 @@ func (p *ASTParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 		if err != nil {
 			p.addError(fmt.Sprintf("Unexpected error in parse int: %s", err), token32{})
 		}
-		matchName = fmt.Sprintf("$match%d", matchNum)
+		matchName = fmt.Sprintf("$match%d", matchNum+1)
 	} else {
 		matchName = "$match0"
 	}
@@ -2085,7 +2139,31 @@ func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, poss
 	if u, ok := t.(s.UnionType); ok {
 		var checks []ast.Node
 		for _, unionType := range u.Types {
-			checks = append(checks, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(unionType.String())}))
+			if tuple, ok := unionType.(s.TupleType); ok {
+				combs := createAllCombinationsOfTuples(tuple)
+				for _, comb := range combs {
+					checks = append(checks, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(comb.String())}))
+				}
+			} else {
+				checks = append(checks, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(unionType.String())}))
+			}
+		}
+		var result ast.Node
+		for i := 0; i != len(checks); i++ {
+			if i == 0 {
+				result = checks[i]
+				continue
+			}
+			result = ast.NewConditionalNode(checks[i], ast.NewBooleanNode(true), result)
+		}
+		return result, decl
+	}
+
+	if tuple, ok := t.(s.TupleType); ok {
+		var checks []ast.Node
+		combs := createAllCombinationsOfTuples(tuple)
+		for _, comb := range combs {
+			checks = append(checks, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(comb.String())}))
 		}
 		var result ast.Node
 		for i := 0; i != len(checks); i++ {
@@ -2217,6 +2295,36 @@ func (p *ASTParser) ruleObjectFieldsPatternHandler(node *node32, matchName strin
 	return nil, nil, nil
 }
 
+func combinations(temp []s.Type, lists [][]s.Type, result *[][]s.Type) {
+	if len(lists) == 0 {
+		dst := make([]s.Type, len(temp))
+		copy(dst, temp)
+		*result = append(*result, dst)
+		return
+	}
+	for _, l := range lists[0] {
+		combinations(append(temp, l), lists[1:], result)
+	}
+}
+
+func createAllCombinationsOfTuples(tuple s.TupleType) []s.TupleType {
+	var lists [][]s.Type
+	for _, t := range tuple.Types {
+		if u, ok := t.(s.UnionType); ok {
+			lists = append(lists, u.Types)
+		} else {
+			lists = append(lists, []s.Type{t})
+		}
+	}
+	var result [][]s.Type
+	combinations([]s.Type{}, lists, &result)
+	var resultListOfTuple []s.TupleType
+	for _, l := range result {
+		resultListOfTuple = append(resultListOfTuple, s.TupleType{Types: l})
+	}
+	return resultListOfTuple
+}
+
 func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, possibleTypes s.UnionType) (ast.Node, []ast.Node) {
 	curNode := node.up
 	var exprs []ast.Node
@@ -2224,6 +2332,9 @@ func (p *ASTParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 	var shadowDeclarations []ast.Node
 	cnt := 0
 	for {
+		if curNode.pegRule == rule_ {
+			curNode = curNode.next
+		}
 		if curNode == nil || curNode.pegRule != ruleTupleValuesPattern {
 			break
 		}
@@ -2443,5 +2554,5 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		expr.SetBlock(block)
 		block = expr
 	}
-	return block, startVarType
+	return block, funcSign.ReturnType
 }

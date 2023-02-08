@@ -13,11 +13,12 @@ import (
 var DefaultTypes = mustLoadDefaultTypes()
 
 type Type interface {
-	//Comp(Type) bool
 	String() string
 	Equal(Type) bool
 	EqualWithEntry(Type) bool
 }
+
+var MaxTupleLength = 22
 
 var (
 	Any            = SimpleType{"Any"}
@@ -322,10 +323,7 @@ func JoinTypes(types ...Type) Type {
 	for _, t := range types {
 		union.AppendType(t)
 	}
-	if len(union.Types) == 1 {
-		return union.Types[0]
-	}
-	return union
+	return union.Simplify()
 }
 
 type ListType struct {
