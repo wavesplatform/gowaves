@@ -66,6 +66,7 @@ var (
 	enableMetaMaskAPI          = flag.Bool("enable-metamask", true, "Enables/disables metamask API.")
 	enableMetaMaskAPILog       = flag.Bool("enable-metamask-log", false, "Enables/disables metamask API logging.")
 	enableGrpcApi              = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API.")
+	blackListResidenceTime     = flag.Duration("blacklist-residence-time", 5*time.Minute, "Period of time for which the information about external peer stays in the blacklist. Default value is 5 min. To disable blacklisting pass zero value.")
 	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set.")
 	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point.")
 	buildStateHashes           = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
@@ -113,6 +114,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("api-key: %s", *apiKey)
 	zap.S().Debugf("grpc-address: %s", *grpcAddr)
 	zap.S().Debugf("enable-grpc-api: %t", *enableGrpcApi)
+	zap.S().Debugf("black-list-residence-time: %s", *blackListResidenceTime)
 	zap.S().Debugf("build-extended-api: %t", *buildExtendedApi)
 	zap.S().Debugf("serve-extended-api: %t", *serveExtendedApi)
 	zap.S().Debugf("build-state-hashes: %t", *buildStateHashes)
@@ -316,6 +318,7 @@ func main() {
 		conf.WavesNetwork,
 		!*disableOutgoingConnections,
 		*newConnectionsLimit,
+		*blackListResidenceTime,
 	)
 	go peerManager.Run(ctx)
 
