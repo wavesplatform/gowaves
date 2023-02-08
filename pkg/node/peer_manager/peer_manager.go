@@ -191,7 +191,7 @@ func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 }
 
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
-	if a.blackListDuration.Abs().Seconds() == 0 {
+	if a.blackListDuration.Seconds() == 0 {
 		return
 	}
 
