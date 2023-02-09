@@ -682,7 +682,7 @@ func keccak256(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256")
 	}
-	if l := len(data); env != nil && !env.checkMessageLength(l) {
+	if l := len(data); l > proto.MaxDataWithProofsBytes {
 		return nil, errors.Errorf("keccak256: invalid data size %d", l)
 	}
 	d, err := crypto.Keccak256(data)
@@ -697,7 +697,7 @@ func blake2b256(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256")
 	}
-	if l := len(data); env != nil && !env.checkMessageLength(l) {
+	if l := len(data); l > proto.MaxDataWithProofsBytes {
 		return nil, errors.Errorf("blake2b256: invalid data size %d", l)
 	}
 	d, err := crypto.FastHash(data)
@@ -712,7 +712,7 @@ func sha256(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256")
 	}
-	if l := len(data); env != nil && !env.checkMessageLength(l) {
+	if l := len(data); l > proto.MaxDataWithProofsBytes {
 		return nil, errors.Errorf("sha256: invalid data size %d", l)
 	}
 	h := sh256.New()
