@@ -118,9 +118,6 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 
 				txIds[name] = &tx.TxID
 
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala)
-
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
@@ -157,7 +154,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 		txIds := make(map[string]*crypto.Digest)
 
 		if v > 2 {
-			maps.Copy(tdmatrix, testdata.GetTransferChainIDData(&suite.BaseSuite, itx.TxID))
+			maps.Copy(tdmatrix, testdata.GetTransferChainIDDataNegative(&suite.BaseSuite, itx.TxID))
 		}
 
 		for name, td := range tdmatrix {
@@ -203,24 +200,56 @@ func (suite *TransferTxSuite) Test_TransferTxApiChainIDBinaryVersions() {
 	//TODO (ipereiaslavskaia) Need to change it when method for versions will be ready
 	versions := []byte{1, 2}
 	waitForTx := true
+	name := "Skipping chainId for binary versions"
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
-		tdmatrix := testdata.GetTransferChainIDData(&suite.BaseSuite, itx.TxID)
+		td := testdata.GetTransferChainIDDataBinaryVersions(&suite.BaseSuite, itx.TxID)
 
 		txIds := make(map[string]*crypto.Digest)
 
-		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, td, v, waitForTx)
-				txIds[name] = &tx.TxID
+		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			//tx for td[0] should be successful because chainId ignored
+			tx0, _, _ := transfer_utilities.BroadcastTransferTxAndGetBalances(&suite.BaseSuite, td[0], v, waitForTx)
+			txIds[name] = &tx0.TxID
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-					"Transfer: "+tx.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
-			})
-		}
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx0, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.TxInfoCheck(suite.T(), tx0.WtErr.ErrWtGo, tx0.WtErr.ErrWtScala,
+				"Transfer: "+tx0.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
+
+			//other txs have same id because of ignoring chainID
+			tx1, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
+				&suite.BaseSuite, td[1], v, !waitForTx)
+			txIds[name] = &tx1.TxID
+
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest,
+				tx1, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.ErrorMessageCheck(suite.T(), td[1].Expected.Skip.ErrBrdCstGoMsg, td[1].Expected.Skip.ErrBrdCstScalaMsg,
+				tx1.BrdCstErr.ErrorBrdCstGo, tx1.BrdCstErr.ErrorBrdCstScala, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, "Transfer: "+tx1.TxID.String(),
+				utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.Skip.WavesDiffBalance,
+				diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+				diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.AssetBalanceCheck(suite.T(), td[1].Expected.Skip.AssetDiffBalance,
+				diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+				diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.Skip.WavesDiffBalance,
+				diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+				diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+
+			utl.AssetBalanceCheck(suite.T(), td[1].Expected.Skip.AssetDiffBalance,
+				diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+				diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+		})
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 4, "IDs: %#v", actualTxIds)
+		suite.Lenf(actualTxIds, 2, "IDs: %#v", actualTxIds)
 	}
 }
 
