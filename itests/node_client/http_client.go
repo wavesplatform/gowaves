@@ -92,14 +92,6 @@ func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, asse
 	return balance
 }
 
-func (c *HttpClient) ClearBlackList(t *testing.T) *client.Response {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
-	defer cancel()
-	_, resp, err := c.cli.Peers.ClearBlacklist(ctx)
-	require.NoError(t, err)
-	return resp
-}
-
 func (c *HttpClient) ConnectedPeers(t *testing.T) ([]*client.PeersConnectedRow, *client.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
