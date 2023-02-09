@@ -11,8 +11,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const maxBytesLength = 65536
-
 func bytesArg(args []rideType) (rideBytes, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
@@ -96,6 +94,7 @@ func sizeBytes(_ environment, args ...rideType) (rideType, error) {
 
 func takeBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
+	//TODO: `takeBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "takeBytes")
 	}
@@ -104,20 +103,21 @@ func takeBytes(_ environment, args ...rideType) (rideType, error) {
 
 func dropBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
+	//TODO: `dropBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "dropBytes")
 	}
 	return dropRideBytes(b, n), nil
 }
 
-func concatBytes(_ environment, args ...rideType) (rideType, error) {
+func concatBytes(env environment, args ...rideType) (rideType, error) {
 	b1, b2, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatBytes")
 	}
 	l := len(b1) + len(b2)
-	if l > maxBytesLength {
-		return nil, errors.Errorf("concatBytes: length of result (%d) is greater than allowed (%d)", l, maxBytesLength)
+	if env != nil && !env.checkMessageLength(l) {
+		return nil, errors.Errorf("concatBytes: invalid result lenght %d", l)
 	}
 	out := make([]byte, l)
 	copy(out, b1)
@@ -126,6 +126,8 @@ func concatBytes(_ environment, args ...rideType) (rideType, error) {
 }
 
 func toBase58(_ environment, args ...rideType) (rideType, error) {
+	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
+	// after no more than 32768 bytes.
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
@@ -150,6 +152,8 @@ func fromBase58(_ environment, args ...rideType) (rideType, error) {
 }
 
 func toBase64(_ environment, args ...rideType) (rideType, error) {
+	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
+	// after no more than 32768 bytes.
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
@@ -197,6 +201,7 @@ func fromBase16(_ environment, args ...rideType) (rideType, error) {
 
 func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
+	//TODO: `dropRightBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightBytes")
 	}
@@ -205,6 +210,7 @@ func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
 
 func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
+	//TODO: `takeRightBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightBytes")
 	}
@@ -212,6 +218,8 @@ func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
 }
 
 func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
+	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
+	// after no more than 32768 bytes.
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")

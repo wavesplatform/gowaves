@@ -23,7 +23,7 @@ var (
 		return true
 	}
 	v3check = func(size int) bool {
-		return size <= maxMessageLength
+		return size <= proto.MaxDataWithProofsBytes
 	}
 	v5takeString = takeRideString
 	noRideV6     = func() bool {
@@ -580,7 +580,7 @@ func TestSigVerify(t *testing.T) {
 	require.NoError(t, err)
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -623,9 +623,9 @@ func TestKeccak256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("0b162a8c643d65caa5b7ad0cf9216062ab6253e186576ac01b101b7a0faef5b5")
+	digest3, err := hex.DecodeString("fe0a57a797d6cb60a92548f2b43bd5e425212f55e0b7adb772ddabd85d21943e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -658,9 +658,9 @@ func TestBlake2b256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("f5d67bae73b0e10d0dfd3043b3f4f100ada014c5c37bd5ce97813b13f5ab2bcf")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("701693995b117822e38724b0c01dcea7fc35395e6e66f6c88b4f7ce70fc1a9c2")
+	digest3, err := hex.DecodeString("336bccfd826a5bf6a5c2c07a289e39b05cb68447c379fb1acdaf9afd3b3d8c67")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -693,9 +693,9 @@ func TestSha256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("0ab08f26715dab648177681615cb813e5b3fefa0f8a3749e027a4238f08302c8")
+	digest3, err := hex.DecodeString("956731b38f852244d2d20f8ae618f1f916a6d0694062f90f7a2d9eec9c2ece4e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
