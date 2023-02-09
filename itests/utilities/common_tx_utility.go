@@ -271,8 +271,6 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	}
 	scala := !waitForTx
 
-	suite.Clients.ClearBlackList(suite.T())
-
 	connections, err := net.NewNodeConnections(suite.Ports)
 	suite.Require().NoError(err, "failed to create new node connections")
 	defer connections.Close(suite.T())

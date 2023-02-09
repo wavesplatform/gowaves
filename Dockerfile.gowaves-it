@@ -57,3 +57,4 @@ CMD /app/node \
     -reward=600000000 \
     -disable-ntp \
     -microblock-interval 2s \
+    -blacklist-residence-time 0 \
