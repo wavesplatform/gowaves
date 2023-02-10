@@ -116,6 +116,10 @@ func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Resp
 	}
 }
 
+func GetVersions() []byte {
+	return []byte{1, 2, 3}
+}
+
 func RandStringBytes(n int, symbolSet string) string {
 	b := make([]byte, n)
 	for j := range b {
@@ -219,19 +223,14 @@ func GetAddressWithNewSchema(suite *f.BaseSuite, chainId proto.Scheme, address p
 	return newAddr
 }
 
-func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) *proto.WavesAddress {
-	var err error
-	address := recipient.Address()
-	if address == nil {
-		if recipient.Alias() == nil {
-			err = errors.New("Address and Alias are nil")
-			require.NoError(suite.T(), err, "Address and Alias shouldn't be nil at the same time")
-		} else {
-			addr, err := proto.NewAddressFromBytes(GetAddressByAliasGo(suite, recipient.Alias().Alias))
-			require.NoError(suite.T(), err, "Can't get address from bytes")
-			address = &addr
-		}
+func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) proto.WavesAddress {
+	if addr := recipient.Address(); addr != nil {
+		return *addr
 	}
+	alias := recipient.Alias()
+	require.NotNil(suite.T(), alias, "Address and Alias shouldn't be nil at the same time")
+	address, err := proto.NewAddressFromBytes(GetAddressByAliasGo(suite, alias.Alias))
+	require.NoError(suite.T(), err, "Can't get address from bytes")
 	return address
 }
 
@@ -363,8 +362,4 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
-}
-
-func GetVersions() []byte {
-	return []byte{1, 2, 3}
 }

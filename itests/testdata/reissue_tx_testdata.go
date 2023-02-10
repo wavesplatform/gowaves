@@ -65,24 +65,24 @@ func ReissueDataChangedTimestamp[T any](td *ReissueTestData[T]) ReissueTestData[
 func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesPositive] {
 	var t = map[string]ReissueTestData[ReissueExpectedValuesPositive]{
 		"Min values for fee and quantity": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			1,
 			true,
 			ReissueExpectedValuesPositive{
-				WavesDiffBalance: 100000,
+				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 1,
 				Reissuable:       true,
 			}),
 		"Middle values for fee and quantity": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000000,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000000,
 			true,
 			ReissueExpectedValuesPositive{
@@ -95,19 +95,19 @@ func GetReissuePositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 }
 
 func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesPositive] {
-	var assetBalance = utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, 2).Address, assetID)
+	var assetBalance = utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetID)
 	var t = map[string]ReissueTestData[ReissueExpectedValuesPositive]{
 		"Max values for quantity": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
-			uint64(9223372036854775807-assetBalance),
+			utl.TestChainID,
+			uint64(utl.MaxAmount-assetBalance),
 			false,
 			ReissueExpectedValuesPositive{
-				WavesDiffBalance: 100000,
-				AssetDiffBalance: int64(9223372036854775807 - assetBalance),
+				WavesDiffBalance: utl.MinTxFeeWaves,
+				AssetDiffBalance: int64(utl.MaxAmount - assetBalance),
 				Reissuable:       false,
 			}),
 	}
@@ -117,11 +117,11 @@ func GetReissueMaxQuantityValue(suite *f.BaseSuite, assetID crypto.Digest) map[s
 func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
 	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
 		"Reissue NFT": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			1,
 			false,
 			ReissueExpectedValuesNegative{
@@ -140,16 +140,16 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative] {
 	var t = map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative]{
 		"Reissue not reissuable token": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			100000,
 			false,
 			ReissueNotReissuableExpectedValuesNegative{
 				Positive: ReissueExpectedValuesPositive{
-					WavesDiffBalance: 100000,
+					WavesDiffBalance: utl.MinTxFeeWaves,
 					AssetDiffBalance: 100000,
 				},
 				Negative: ReissueExpectedValuesNegative{
@@ -169,12 +169,12 @@ func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[str
 func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
 	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
 		"Invalid token quantity (quantity > max)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
-			9223372036854775808,
+			utl.TestChainID,
+			utl.MaxAmount+1,
 			true,
 			ReissueExpectedValuesNegative{
 				WavesDiffBalance:  0,
@@ -186,11 +186,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
 		"Invalid token quantity (quantity < min)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			0,
 			true,
 			ReissueExpectedValuesNegative{
@@ -203,11 +203,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "non-positive amount: 0 of assets",
 			}),
 		"Invalid fee (fee > max)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			9223372036854775808,
+			utl.MaxAmount+1,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -220,11 +220,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
 		"Invalid fee (0 < fee < min)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			10,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -237,11 +237,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value of 100000 WAVES",
 			}),
 		"Invalid fee (fee = 0)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			0,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -254,11 +254,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "insufficient fee",
 			}),
 		"Reissue token when there are not enough funds on the account balance": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, 2).Address)),
+			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)),
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -271,11 +271,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "Accounts balance error",
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs()-7260000,
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -284,15 +284,15 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs()+54160000,
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -301,15 +301,15 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				Reissuable:        true,
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
-				ErrBrdCstGoMsg:    "",
+				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
 		"Reissue by another account": *NewReissueTestData(
-			utl.GetAccount(suite, 3),
+			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -322,11 +322,11 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrBrdCstScalaMsg: "Asset was issued by other address",
 			}),
 		"Invalid asset ID": *NewReissueTestData(
-			utl.GetAccount(suite, 3),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
-			TestChainID,
+			utl.TestChainID,
 			10000000,
 			true,
 			ReissueExpectedValuesNegative{
@@ -345,9 +345,9 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 func GetReissueChainIDNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
 	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
 		"Custom chainID": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			'T',
 			10000000,
@@ -362,9 +362,9 @@ func GetReissueChainIDNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Dige
 				ErrBrdCstScalaMsg: "Proof doesn't validate as signature for",
 			}),
 		"Invalid chainID (value=0)": *NewReissueTestData(
-			utl.GetAccount(suite, 2),
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			100000,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			0,
 			10000000,
