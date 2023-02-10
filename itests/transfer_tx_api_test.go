@@ -218,7 +218,7 @@ func (suite *TransferTxSuite) Test_TransferTxApiChainIDBinaryVersions() {
 				"Transfer: "+tx0.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
 
 			tx1, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
-				&suite.BaseSuite, td[1], v, !waitForTx)
+				&suite.BaseSuite, td[1], v, waitForTx)
 			txIds[name] = &tx1.TxID
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, utl.GetTestcaseNameWithVersion(name, v))
