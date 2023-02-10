@@ -109,11 +109,6 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 	return errGo, errScala
 }
 
-func (c *NodesClients) ClearBlackList(t *testing.T) {
-	c.GoClients.HttpClient.ClearBlackList(t)
-	c.ScalaClients.HttpClient.ClearBlackList(t)
-}
-
 func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration) (error, error) {
 	errGo := Retry(timeout, func() error {
 		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
