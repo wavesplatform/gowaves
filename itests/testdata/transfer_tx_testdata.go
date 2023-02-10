@@ -519,10 +519,10 @@ func GetTransferChainIDDataNegative(suite *f.BaseSuite, assetId crypto.Digest) m
 	return t
 }
 
-func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Digest) []TransferTestData[TransferExpectedValuesPositive] {
+func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
-	return []TransferTestData[TransferExpectedValuesPositive]{
-		*NewTransferTestData(
+	return map[string]TransferTestData[TransferExpectedValuesPositive]{
+		"Invalid chainID (value=0),which ignored for v1 and v2": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -538,7 +538,7 @@ func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Dig
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		*NewTransferTestData(
+		"Custom chainID, which ignored for v1 and v2": *NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
