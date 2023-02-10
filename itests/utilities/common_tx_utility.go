@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -20,8 +22,15 @@ import (
 )
 
 const (
-	CommonSymbolSet  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
-	LettersAndDigits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	DefaultSenderNotMiner      = 2
+	DefaultRecipientNotMiner   = 3
+	DefaultAccountForLoanFunds = 9
+	MaxAmount                  = math.MaxInt64
+	MinIssueFeeWaves           = 100000000
+	MinTxFeeWaves              = 100000
+	TestChainID                = 'L'
+	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
+	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 type Response struct {
@@ -56,6 +65,11 @@ type ConsideredTransaction struct {
 	BrdCstErr BroadcastingError
 }
 
+type AccountDiffBalances struct {
+	DiffBalanceWaves BalanceInWaves
+	DiffBalanceAsset BalanceInAsset
+}
+
 func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
 	return &BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
@@ -67,6 +81,19 @@ func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
 	return &BalanceInAsset{
 		BalanceInAssetGo:    balanceGo,
 		BalanceInAssetScala: balanceScala,
+	}
+}
+
+func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAssetGo, diffBalanceAssetScala int64) *AccountDiffBalances {
+	return &AccountDiffBalances{
+		DiffBalanceWaves: BalanceInWaves{
+			BalanceInWavesGo:    diffBalanceWavesGo,
+			BalanceInWavesScala: diffBalanceWavesScala,
+		},
+		DiffBalanceAsset: BalanceInAsset{
+			BalanceInAssetGo:    diffBalanceAssetGo,
+			BalanceInAssetScala: diffBalanceAssetScala,
+		},
 	}
 }
 
@@ -87,6 +114,10 @@ func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Resp
 			ErrorBrdCstScala: errBrdCstScala,
 		},
 	}
+}
+
+func GetVersions() []byte {
+	return []byte{1, 2, 3}
 }
 
 func RandStringBytes(n int, symbolSet string) string {
@@ -118,12 +149,34 @@ func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
 }
 
+func GetTestcaseNameWithVersion(name string, v byte) string {
+	return fmt.Sprintf("%s (version %d)", name, v)
+}
+
 // Abs returns the absolute value of x.
 func Abs(x int64) int64 {
 	if x < 0 {
 		return -x
 	}
 	return x
+}
+
+func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
+	var from, to int
+	switch len(accountNumbers) {
+	case 0:
+		from = 2
+		to = 3
+	case 1:
+		from = accountNumbers[0]
+		to = 3
+	case 2:
+		from = accountNumbers[0]
+		to = accountNumbers[1]
+	default:
+		return 0, 0, errors.New("More than two parameters")
+	}
+	return from, to, nil
 }
 
 // AddNewAccount function creates and adds new AccountInfo to suite accounts list. Returns index of new account in
@@ -162,6 +215,23 @@ func GetAddressByAliasScala(suite *f.BaseSuite, alias string) []byte {
 
 func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
 	return GetAddressByAliasGo(suite, alias), GetAddressByAliasScala(suite, alias)
+}
+
+func GetAddressWithNewSchema(suite *f.BaseSuite, chainId proto.Scheme, address proto.WavesAddress) proto.WavesAddress {
+	newAddr, err := proto.RebuildAddress(chainId, address.Body())
+	require.NoError(suite.T(), err, "Can't rebuild address")
+	return newAddr
+}
+
+func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) proto.WavesAddress {
+	if addr := recipient.Address(); addr != nil {
+		return *addr
+	}
+	alias := recipient.Alias()
+	require.NotNil(suite.T(), alias, "Address and Alias shouldn't be nil at the same time")
+	address, err := proto.NewAddressFromBytes(GetAddressByAliasGo(suite, alias.Alias))
+	require.NoError(suite.T(), err, "Can't get address from bytes")
+	return address
 }
 
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
@@ -291,6 +361,5 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
-
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
