@@ -181,7 +181,6 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxChainIDBinaryVersions() {
-	//TODO (ipereiaslavskaia) Need to change it when method for versions will be ready
 	versions := []byte{1, 2}
 	waitForTx := true
 	name := "Skipping chainId for binary versions"
@@ -193,34 +192,33 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDBinaryVersions() {
 		txIds := make(map[string]*crypto.Digest)
 
 		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-			//tx for td[0] should be successful because chainId ignored
+			//txs should be successful because of ignoring chainID
 			tx0, _, _ := transfer_utilities.SendTransferTxAndGetBalances(&suite.BaseSuite, td[0], v, waitForTx)
 			txIds[name] = &tx0.TxID
 
 			utl.TxInfoCheck(suite.T(), tx0.WtErr.ErrWtGo, tx0.WtErr.ErrWtScala, "Transfer: "+tx0.TxID.String(),
 				utl.GetTestcaseNameWithVersion(name, v))
 
-			//other txs have same id because of ignoring chainID
 			tx1, diffBalancesSender, diffBalancesRecipient := transfer_utilities.SendTransferTxAndGetBalances(
-				&suite.BaseSuite, td[1], v, !waitForTx)
+				&suite.BaseSuite, td[1], v, waitForTx)
 			txIds[name] = &tx1.TxID
 
 			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, "Transfer: "+tx1.TxID.String(),
 				utl.GetTestcaseNameWithVersion(name, v))
 
-			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.Skip.WavesDiffBalance,
+			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.WavesDiffBalanceSender,
 				diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 				diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-			utl.AssetBalanceCheck(suite.T(), td[1].Expected.Skip.AssetDiffBalance,
+			utl.AssetBalanceCheck(suite.T(), td[1].Expected.AssetDiffBalance,
 				diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 				diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.Skip.WavesDiffBalance,
+			utl.WavesDiffBalanceCheck(suite.T(), td[1].Expected.WavesDiffBalanceRecipient,
 				diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 				diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-			utl.AssetBalanceCheck(suite.T(), td[1].Expected.Skip.AssetDiffBalance,
+			utl.AssetBalanceCheck(suite.T(), td[1].Expected.AssetDiffBalance,
 				diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 				diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 

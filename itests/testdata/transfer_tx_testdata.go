@@ -38,12 +38,6 @@ type TransferExpectedValuesNegative struct {
 	_                 struct{}
 }
 
-type TransferExpectedValuesBinary struct {
-	Positive TransferExpectedValuesPositive
-	Skip     TransferExpectedValuesNegative
-	_        struct{}
-}
-
 func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recipient, assetID *crypto.Digest,
 	feeAssetID *crypto.Digest, fee, amount, timestamp uint64, chainID proto.Scheme, attachment proto.Attachment,
 	expected T) *TransferTestData[T] {
@@ -70,11 +64,6 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 		Attachment: attachment,
 		Expected:   expected,
 	}
-}
-
-type TransferChainIdData struct {
-	Invalid TransferTestData[TransferExpectedValuesBinary]
-	Custom  TransferTestData[TransferExpectedValuesBinary]
 }
 
 type CommonTransferData struct {
@@ -530,9 +519,9 @@ func GetTransferChainIDDataNegative(suite *f.BaseSuite, assetId crypto.Digest) m
 	return t
 }
 
-func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Digest) []TransferTestData[TransferExpectedValuesBinary] {
+func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Digest) []TransferTestData[TransferExpectedValuesPositive] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
-	return []TransferTestData[TransferExpectedValuesBinary]{
+	return []TransferTestData[TransferExpectedValuesPositive]{
 		*NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
@@ -543,20 +532,10 @@ func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Dig
 			utl.GetCurrentTimestampInMs(),
 			0,
 			nil,
-			TransferExpectedValuesBinary{
-				Positive: TransferExpectedValuesPositive{
-					WavesDiffBalanceSender:    utl.MinTxFeeWaves,
-					AssetDiffBalance:          assetAmount / 8,
-					WavesDiffBalanceRecipient: 0,
-				},
-				Skip: TransferExpectedValuesNegative{
-					WavesDiffBalance:  0,
-					AssetDiffBalance:  0,
-					ErrGoMsg:          errMsg,
-					ErrScalaMsg:       errMsg,
-					ErrBrdCstGoMsg:    errBrdCstMsg,
-					ErrBrdCstScalaMsg: "is already in the state on a height of",
-				},
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
+				AssetDiffBalance:          assetAmount / 8,
+				WavesDiffBalanceRecipient: 0,
 			},
 		),
 		*NewTransferTestData(
@@ -568,21 +547,11 @@ func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Dig
 			uint64(assetAmount/8),
 			utl.GetCurrentTimestampInMs(),
 			'T',
-			nil,
-			TransferExpectedValuesBinary{
-				Positive: TransferExpectedValuesPositive{
-					WavesDiffBalanceSender:    utl.MinTxFeeWaves,
-					AssetDiffBalance:          assetAmount / 8,
-					WavesDiffBalanceRecipient: 0,
-				},
-				Skip: TransferExpectedValuesNegative{
-					WavesDiffBalance:  0,
-					AssetDiffBalance:  0,
-					ErrGoMsg:          errMsg,
-					ErrScalaMsg:       errMsg,
-					ErrBrdCstGoMsg:    errBrdCstMsg,
-					ErrBrdCstScalaMsg: "is already in the state on a height of",
-				},
+			proto.Attachment("This is valid attach string (69 bytes) (~!|#$%^&*()_+=\";:/?><|\\][{})."),
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
+				AssetDiffBalance:          assetAmount / 8,
+				WavesDiffBalanceRecipient: 0,
 			},
 		),
 	}
