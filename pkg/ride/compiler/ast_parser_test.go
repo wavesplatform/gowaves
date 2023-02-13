@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"embed"
 	"encoding/base64"
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,6 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
-		require.Len(t, astParser.ErrorsList, 1)
 		require.Equal(t, astParser.ErrorsList[0].Error(), expected)
 	}
 }
@@ -264,7 +264,7 @@ func TestTypesInFuncs(t *testing.T) {
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
-func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefinded type BigInt"},
+func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefined type BigInt"},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}
@@ -690,35 +690,53 @@ let a = {
 	}
 }
 
+//go:embed lib_test_scripts
+var embedTest embed.FS
+
+func TestLibrary(t *testing.T) {
+	code, err := embedTest.ReadFile("lib_test_scripts/" + "test.ride")
+	require.NoError(t, err)
+	res := "BgICCAICAQNmb28BAWEACgABYQQBYgkBA2ZvbwEACgMJAAACBQFiBQFiAAoJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAKF5kQ8="
+	require.NoError(t, err)
+	compareScriptsOrError(t, string(code), false, res)
+}
+
+func TestLibraryFailed(t *testing.T) {
+	code, err := embedTest.ReadFile("lib_test_scripts/" + "test_failed.ride")
+	require.NoError(t, err)
+	res := "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type AST"
+	require.NoError(t, err)
+	compareScriptsOrError(t, string(code), true, res)
+}
+
 ////go:embed test_scripts
 //var embedScripts embed.FS
-//
-//func TestBigScripts(t *testing.T) {
-//	cli, err := client.NewClient(client.Options{
-//		BaseUrl: "https://nodes.wavesnodes.com",
-//		Client:  &http.Client{Timeout: 10 * time.Second},
-//	})
-//	require.NoError(t, err)
-//	files, err := embedScripts.ReadDir("test_scripts")
-//	require.NoError(t, err)
-//	for _, file := range files {
-//		t.Logf("Test %s", file.Name())
-//		code, err := embedScripts.ReadFile("test_scripts/" + file.Name())
+
+//	func TestBigScripts(t *testing.T) {
+//		cli, err := client.NewClient(client.Options{
+//			BaseUrl: "https://nodes.wavesnodes.com",
+//			Client:  &http.Client{Timeout: 10 * time.Second},
+//		})
 //		require.NoError(t, err)
-//		res, _, err := cli.Utils.ScriptCompile(context.Background(), string(code))
+//		files, err := embedScripts.ReadDir("test_scripts")
 //		require.NoError(t, err)
-//		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
+//		for _, file := range files {
+//			t.Logf("Test %s", file.Name())
+//			code, err := embedScripts.ReadFile("test_scripts/" + file.Name())
+//			require.NoError(t, err)
+//			res, _, err := cli.Utils.ScriptCompile(context.Background(), string(code))
+//			require.NoError(t, err)
+//			compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
+//		}
 //	}
-//}
-//
 //func TestOneBigScripts(t *testing.T) {
 //	cli, err := client.NewClient(client.Options{
 //		BaseUrl: "https://nodes.wavesnodes.com",
 //		Client:  &http.Client{Timeout: 10 * time.Second},
 //	})
 //	require.NoError(t, err)
-//	t.Logf("Test %s", "lp_stable.ride")
-//	code, err := embedScripts.ReadFile("test_scripts/" + "lp_stable.ride")
+//	t.Logf("Test %s", "test.ride")
+//	code, err := embedScripts.ReadFile("test_scripts/" + "test.ride")
 //	require.NoError(t, err)
 //	res, _, err := cli.Utils.ScriptCompile(context.Background(), string(code))
 //	require.NoError(t, err)

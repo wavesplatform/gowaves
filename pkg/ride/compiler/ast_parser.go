@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	"io/fs"
+	"os"
 	"strconv"
 	"strings"
 
@@ -37,21 +39,22 @@ const (
 )
 
 type ASTError struct {
-	msg   string
-	begin textPosition
-	end   textPosition
+	msg    string
+	begin  textPosition
+	end    textPosition
+	prefix string
 }
 
-func NewASTError(msg string, token token32, buffer []rune) error {
+func NewASTError(msg string, token token32, buffer []rune, prefix string) error {
 	begin := int(token.begin)
 	end := int(token.end)
 	positions := []int{begin, end}
 	translations := translatePositions(buffer, positions)
-	return &ASTError{msg: msg, begin: translations[begin], end: translations[end]}
+	return &ASTError{msg: msg, begin: translations[begin], end: translations[end], prefix: prefix}
 }
 
 func (e *ASTError) Error() string {
-	return fmt.Sprintf("(%d:%d, %d:%d): %s", e.begin.line, e.begin.symbol, e.end.line, e.end.symbol, e.msg)
+	return fmt.Sprintf("%s(%d:%d, %d:%d): %s", e.prefix, e.begin.line, e.begin.symbol, e.end.line, e.end.symbol, e.msg)
 }
 
 type ASTParser struct {
@@ -67,7 +70,13 @@ type ASTParser struct {
 	stdObjects s.ObjectsSignatures
 	stdTypes   map[string]s.Type
 
-	scriptType ScriptType
+	scriptType  ScriptType
+	importPaths []struct {
+		path string
+		node *node32
+	}
+	isLibrary bool
+	fileName  string
 }
 
 func NewASTParser(node *node32, buffer []rune) ASTParser {
@@ -101,7 +110,7 @@ func (p *ASTParser) Parse() {
 
 func (p *ASTParser) addError(msg string, token token32) {
 	p.ErrorsList = append(p.ErrorsList,
-		NewASTError(msg, token, p.buffer))
+		NewASTError(msg, token, p.buffer, p.fileName))
 }
 
 func (p *ASTParser) loadBuildInVarsToStackByVersion() {
@@ -159,10 +168,13 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 		curNode = p.parseDirectives(curNode)
 		_ = curNode
 	}
-	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
-	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
-	p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
-	p.loadBuildInVarsToStackByVersion()
+	if !p.isLibrary {
+		p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
+		p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
+		p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
+		p.loadBuildInVarsToStackByVersion()
+	}
+	p.loadImport()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
@@ -172,8 +184,74 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
-	if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
-		p.parseAnnotatedFunc(curNode)
+	if !p.isLibrary {
+		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
+			p.parseAnnotatedFunc(curNode)
+		}
+	}
+}
+
+func (p *ASTParser) loadLib(lib *ASTParser) {
+	p.Tree.Declarations = append(p.Tree.Declarations, lib.Tree.Declarations...)
+	for _, v := range lib.currentStack.vars {
+		p.currentStack.PushVariable(v)
+	}
+	for _, f := range lib.currentStack.funcs {
+		p.currentStack.PushFunc(f)
+	}
+	p.ErrorsList = append(p.ErrorsList, lib.ErrorsList...)
+
+}
+
+func (p *ASTParser) loadImport() {
+	for _, path := range p.importPaths {
+		if _, err := os.Stat(path.path); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				p.addError(fmt.Sprintf("File %s doesn't exist", path.path), path.node.token32)
+				continue
+			}
+		}
+
+		buffer, err := os.ReadFile(path.path)
+		if err != nil {
+			p.addError(fmt.Sprintf("File %s not readable", path.path), path.node.token32)
+			continue
+		}
+		rawP := Parser{Buffer: string(buffer)}
+		err = rawP.Init()
+		if err != nil {
+			p.addError(fmt.Sprintf("File %s is not parsing", path.path), path.node.token32)
+			continue
+		}
+		err = rawP.Parse()
+		if err != nil {
+			p.addError(fmt.Sprintf("File %s is not parsing", path.path), path.node.token32)
+			continue
+		}
+		parser := ASTParser{
+			node: rawP.AST(),
+			Tree: &ast.Tree{
+				LibVersion:   p.Tree.LibVersion,
+				ContentType:  ast.ContentTypeApplication,
+				Declarations: []ast.Node{},
+				Functions:    []ast.Node{},
+				Meta: meta.DApp{
+					Version:       2,
+					Functions:     []meta.Function{},
+					Abbreviations: meta.Abbreviations{},
+				},
+			},
+			buffer:      rawP.buffer,
+			ErrorsList:  []error{},
+			globalStack: NewVarStack(nil),
+			stdFuncs:    p.stdFuncs,
+			stdObjects:  p.stdObjects,
+			stdTypes:    p.stdTypes,
+			isLibrary:   true,
+			fileName:    path.path,
+		}
+		parser.Parse()
+		p.loadLib(&parser)
 	}
 }
 
@@ -267,6 +345,9 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 
 	switch dirName {
 	case stdlibVersionDirectiveName:
+		if p.isLibrary {
+			break
+		}
 		version, err := strconv.ParseInt(dirValue, 10, 8)
 		if err != nil {
 			p.addError(fmt.Sprintf("failed to parse version \"%s\" : %s", dirValue, err), dirValueNode.token32)
@@ -279,31 +360,43 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 		p.Tree.LibVersion = ast.LibraryVersion(byte(version))
 		p.checkDirectiveCnt(node, stdlibVersionDirectiveName, directiveCnt)
 	case contentTypeDirectiveName:
+		if p.isLibrary {
+			break
+		}
 		switch dirValue {
 		case dappValueName:
 			p.Tree.ContentType = ast.ContentTypeApplication
 		case expressionValueName:
 			p.Tree.ContentType = ast.ContentTypeExpression
+		case libraryValueName:
+			break
 		default:
 			p.addError(fmt.Sprintf("Illegal directive value \"%s\" for key \"%s\"", dirValue, contentTypeDirectiveName), dirNameNode.token32)
 		}
 		p.checkDirectiveCnt(node, contentTypeDirectiveName, directiveCnt)
 
 	case scriptTypeDirectiveName:
+		if p.isLibrary {
+			break
+		}
 		switch dirValue {
 		case accountValueName:
 			p.scriptType = Account
 		case assetValueName:
 			p.scriptType = Asset
-		case libraryValueName:
-			break
 		default:
 			p.addError(fmt.Sprintf("Illegal directive value \"%s\" for key \"%s\"", dirValue, scriptTypeDirectiveName), dirNameNode.token32)
 		}
 		p.checkDirectiveCnt(node, scriptTypeDirectiveName, directiveCnt)
 	case importDirectiveName:
-		break
-		// TODO
+		dirValue = strings.ReplaceAll(dirValue, " ", "")
+		paths := strings.Split(dirValue, ",")
+		for _, path := range paths {
+			p.importPaths = append(p.importPaths, struct {
+				path string
+				node *node32
+			}{path, dirValueNode})
+		}
 	default:
 		p.addError(fmt.Sprintf("Illegal directive key \"%s\"", dirName), dirNameNode.token32)
 	}
@@ -1671,7 +1764,7 @@ func (p *ASTParser) ruleTypesHandler(node *node32) s.Type {
 	case ruleType:
 		name := string(p.buffer[curNode.begin:curNode.end])
 		if foundType, ok := p.stdTypes[name]; !ok {
-			p.addError(fmt.Sprintf("Undefinded type %s", name), curNode.token32)
+			p.addError(fmt.Sprintf("Undefined type %s", name), curNode.token32)
 		} else {
 			T = foundType
 		}

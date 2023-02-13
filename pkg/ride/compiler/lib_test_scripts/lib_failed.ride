@@ -1,0 +1,6 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE LIBRARY #-}
+
+func foo(a : AST) = {
+    10
+}
