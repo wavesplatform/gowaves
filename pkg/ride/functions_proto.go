@@ -145,7 +145,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, RuntimeError.Errorf(
 			"DApp %s invoked DApp %s that uses RIDE %d, but dApp-to-dApp invocation requires version 5 or higher",
 			proto.WavesAddress(callerAddress),
-			recipient.Address,
+			recipient.Address(),
 			tree.LibVersion,
 		)
 	}
@@ -257,7 +257,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	if env.invokeExpressionActivated() { // Check payments result balances here after invoke expression activation.
+	invokeExpressionActivated := env.invokeExpressionActivated()
+	if invokeExpressionActivated { // Check payments result balances here after invoke expression activation.
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -267,7 +268,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if err != nil {
 		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
 	}
-	env.setNewDAppAddress(*address)
+	recipientAddr := *address
+	env.setNewDAppAddress(recipientAddr)
 
 	if invocation.blocklist() {
 		// append a call to the stack to protect a user from the reentrancy attack
@@ -278,19 +280,19 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	if ws.invCount() > 1 {
-		if containsAddress(*recipient.Address, ws.blocklist) && proto.WavesAddress(callerAddress) != *recipient.Address {
+		if containsAddress(recipientAddr, ws.blocklist) && proto.WavesAddress(callerAddress) != recipientAddr {
 			return rideUnit{}, InternalInvocationError.Errorf(
 				"%s: function call of %s with dApp address %s is forbidden because it had already been called once by 'invoke'",
-				invocation.name(), fn, recipient.Address)
+				invocation.name(), fn, recipientAddr)
 		}
 	}
 
 	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
+		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
 	}
 
-	if !env.invokeExpressionActivated() { // Check payments result balances here before invoke expression activation.
+	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -332,18 +334,18 @@ func invoke(env environment, args ...rideType) (rideType, error) {
 }
 
 func ensureRecipientAddress(env environment, recipient proto.Recipient) (proto.Recipient, error) {
-	if recipient.Address == nil {
-		if recipient.Alias == nil {
-			return proto.Recipient{}, errors.New("empty recipient")
-		}
-		address, err := env.state().NewestAddrByAlias(*recipient.Alias)
-		if err != nil {
-			return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
-		}
-		recipient.Address = &address
+	if addr := recipient.Address(); addr != nil {
 		return recipient, nil
 	}
-	return recipient, nil
+	alias := recipient.Alias()
+	if alias == nil {
+		return proto.Recipient{}, errors.New("empty recipient")
+	}
+	address, err := env.state().NewestAddrByAlias(*alias)
+	if err != nil {
+		return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
+	}
+	return proto.NewRecipientFromAddress(address), nil
 }
 
 func recipientArg(args []rideType) (proto.Recipient, error) {
@@ -432,7 +434,7 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -860,7 +862,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	obj, err := transactionToObject(v, env.scheme(), env.invokeExpressionActivated(), tx)
+	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}

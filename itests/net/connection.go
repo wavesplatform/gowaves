@@ -9,7 +9,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -75,6 +74,16 @@ type NodeConnections struct {
 }
 
 func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
+	var connections NodeConnections
+	err := retry(1*time.Second, func() error {
+		var err error
+		connections, err = establishConnections(p)
+		return err
+	})
+	return connections, err
+}
+
+func establishConnections(p *d.Ports) (NodeConnections, error) {
 	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion, "wavesL")
 	if err != nil {
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
@@ -101,18 +110,6 @@ func retry(timeout time.Duration, f func() error) error {
 		return err
 	}
 	return nil
-}
-
-func (c *NodeConnections) Reconnect(t *testing.T, p *d.Ports) {
-	c.Close(t)
-	var newConns NodeConnections
-	err := retry(1*time.Second, func() error {
-		var err error
-		newConns, err = NewNodeConnections(p)
-		return err
-	})
-	require.NoError(t, err, "failed to create new connections")
-	*c = newConns
 }
 
 func (c *NodeConnections) SendToNodes(t *testing.T, m proto.Message, scala bool) {

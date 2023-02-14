@@ -18,7 +18,6 @@ import (
 
 const (
 	suspendDuration              = 5 * time.Minute
-	blackListDuration            = 5 * time.Minute
 	clearRestrictedPeersInterval = 1 * time.Minute
 )
 
@@ -68,6 +67,7 @@ type PeerManagerImpl struct {
 	peerStorage               PeerStorage
 	spawned                   map[proto.IpPort]struct{}
 	enableOutboundConnections bool
+	blackListDuration         time.Duration
 	limitConnections          int
 	newConnectionsLimit       int
 	version                   proto.Version
@@ -75,7 +75,8 @@ type PeerManagerImpl struct {
 }
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int, version proto.Version,
-	networkName string, enableOutboundConnections bool, newConnectionsLimit int) *PeerManagerImpl {
+	networkName string, enableOutboundConnections bool, newConnectionsLimit int,
+	blackListDuration time.Duration) *PeerManagerImpl {
 
 	return &PeerManagerImpl{
 		spawner:                   spawner,
@@ -83,6 +84,7 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 		peerStorage:               storage,
 		spawned:                   make(map[proto.IpPort]struct{}),
 		enableOutboundConnections: enableOutboundConnections,
+		blackListDuration:         blackListDuration,
 		limitConnections:          limitConnections,
 		newConnectionsLimit:       newConnectionsLimit,
 		version:                   version,
@@ -90,11 +92,11 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 	}
 }
 
-func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
+func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 	_, connected := a.connected(p)
 	if connected {
 		_ = p.Close()
-		return errors.New("already connected")
+		return errors.Errorf("already connected peer '%s'", p.ID())
 	}
 
 	now := time.Now()
@@ -109,9 +111,10 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
-			"versions are too different, current %s, connected %s",
+			"versions are too different, current %s, connected %s (peer '%s')",
 			a.version.String(),
 			p.Handshake().Version.String(),
+			p.ID(),
 		)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
@@ -129,7 +132,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	case peer.Incoming:
 		if in >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.New("exceed incoming connections limit"))
+			return proto.NewInfoMsg(errors.Errorf("exceed incoming connections limit, incoming peer '%s'", p.ID()))
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
@@ -139,11 +142,11 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.New("exceed outgoing connections limit"))
+			return proto.NewInfoMsg(errors.Errorf("exceed outgoing connections limit, outgoing peer '%s'", p.ID()))
 		}
 	default:
 		_ = p.Close()
-		return errors.New("unknown connection direction")
+		return errors.Errorf("unknown connection direction for peer '%s'", p.ID())
 	}
 	a.addConnected(p)
 	return nil
@@ -188,13 +191,17 @@ func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 }
 
 func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reason string) {
+	if a.blackListDuration <= 0 {
+		return
+	}
+
 	a.Disconnect(p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	blackListed := storage.NewBlackListedPeer(
 		storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
 		blockTime.UnixMilli(),
-		blackListDuration,
+		a.blackListDuration,
 		reason,
 	)
 	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
@@ -384,8 +391,13 @@ func (a *PeerManagerImpl) AskPeers() {
 func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.active.remove(p.ID())
-	_ = p.Close()
+	peerID := p.ID()
+	a.active.remove(peerID)
+	if err := p.Close(); err != nil {
+		zap.S().Debugf("Disconnection of peer '%s' faled with error: %v", peerID, err)
+	} else {
+		zap.S().Debugf("Disconnected peer '%s'", peerID)
+	}
 }
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {

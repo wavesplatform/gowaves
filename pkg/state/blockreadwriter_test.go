@@ -60,6 +60,8 @@ func testSingleBlock(t *testing.T, to *testStorageObjects, block *proto.Block) {
 }
 
 func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush, protobuf bool) error {
+	const scheme = proto.MainNetScheme
+
 	height := 1
 	offset := 0
 	for _, block := range blocks {
@@ -79,18 +81,18 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 		tasksBuf = append(tasksBuf, task)
 		for i := range block.Transactions {
 			tx := block.Transactions[i]
-			txID, err := tx.GetID(proto.MainNetScheme)
+			txID, err := tx.GetID(scheme)
 			if err != nil {
 				return err
 			}
 			var txBytes []byte
 			if protobuf {
-				txBytes, err = tx.MarshalSignedToProtobuf(proto.MainNetScheme)
+				txBytes, err = tx.MarshalSignedToProtobuf(scheme)
 				if err != nil {
 					return err
 				}
 			} else {
-				txBytes, err = tx.MarshalBinary()
+				txBytes, err = tx.MarshalBinary(scheme)
 				if err != nil {
 					return err
 				}

@@ -65,7 +65,7 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 		return nil, &BadRequestError{err}
 	}
 
-	err = json.Unmarshal(b, realType)
+	err = proto.UnmarshalTransactionFromJSON(b, a.services.Scheme, realType)
 	if err != nil {
 		return nil, &BadRequestError{err}
 	}
@@ -109,7 +109,7 @@ func (a *App) LoadKeys(apiKey string, password []byte) error {
 }
 
 func (a *App) Accounts() ([]account, error) {
-	seeds := a.services.Wallet.Seeds()
+	seeds := a.services.Wallet.AccountSeeds()
 
 	accounts := make([]account, 0, len(seeds))
 	for _, seed := range seeds {

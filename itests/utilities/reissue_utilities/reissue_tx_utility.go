@@ -33,8 +33,7 @@ func NewSignReissueTransaction[T any](suite *f.BaseSuite, version byte, testdata
 			testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Reissuable,
 			testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedReissueWithProofs(version, testdata.ChainID, testdata.Account.PublicKey,
-			testdata.AssetID, testdata.Quantity, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedReissueWithProofs(version, testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Reissuable, testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)

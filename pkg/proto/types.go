@@ -67,6 +67,7 @@ const (
 type Timestamp = uint64
 type Score = big.Int
 type Scheme = byte
+
 type Height = uint64
 
 var jsonNullBytes = []byte(jsonNull)
@@ -1739,7 +1740,7 @@ func (o *OrderV4) GenerateID(scheme Scheme) error {
 func (o *OrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	pbOrder := o.ToProtobuf(scheme)
 	pbOrder.Proofs = nil
-	return pbOrder.MarshalVTFlat()
+	return pbOrder.MarshalVTStrict()
 }
 
 // Sign adds a signature to the order.
@@ -1856,12 +1857,22 @@ func (o *EthereumOrderV4) GenerateSenderPK(scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to generate typed data hash for EthereumOrderV4.SenderPK")
 	}
-	pk, err := o.Eip712Signature.RecoverEthereumPublicKey(hash[:])
+	pk, err := recoverEthPubKeyForEthOrderV4(scheme, hash[:], o.Eip712Signature)
 	if err != nil {
 		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK")
 	}
 	o.SenderPK = ethereumPublicKeyBase58Wrapper{inner: pk}
 	return nil
+}
+
+func recoverEthPubKeyForEthOrderV4(scheme Scheme, digest []byte, sig EthereumSignature) (*EthereumPublicKey, error) {
+	v := sig.V()
+	if v <= 28 {
+		return sig.RecoverEthereumPublicKey(digest)
+	}
+	v = v - scheme*2 - 35 // according to the https://eips.ethereum.org/EIPS/eip-155
+	sig.setV(v)
+	return sig.RecoverEthereumPublicKey(digest)
 }
 
 func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
@@ -4170,21 +4181,7 @@ type stateHashJS struct {
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stateHashJS{
-		s.BlockID,
-		DigestWrapped(s.SumHash),
-		fieldsHashesJS{
-			DigestWrapped(s.DataEntryHash),
-			DigestWrapped(s.AccountScriptHash),
-			DigestWrapped(s.AssetScriptHash),
-			DigestWrapped(s.LeaseStatusHash),
-			DigestWrapped(s.SponsorshipHash),
-			DigestWrapped(s.AliasesHash),
-			DigestWrapped(s.WavesBalanceHash),
-			DigestWrapped(s.AssetBalanceHash),
-			DigestWrapped(s.LeaseBalanceHash),
-		},
-	})
+	return json.Marshal(s.toStateHashJS())
 }
 
 func (s *StateHash) UnmarshalJSON(value []byte) error {
@@ -4204,4 +4201,51 @@ func (s *StateHash) UnmarshalJSON(value []byte) error {
 	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	return nil
+}
+
+func (s *StateHash) toStateHashJS() stateHashJS {
+	return stateHashJS{
+		s.BlockID,
+		DigestWrapped(s.SumHash),
+		fieldsHashesJS{
+			DigestWrapped(s.DataEntryHash),
+			DigestWrapped(s.AccountScriptHash),
+			DigestWrapped(s.AssetScriptHash),
+			DigestWrapped(s.LeaseStatusHash),
+			DigestWrapped(s.SponsorshipHash),
+			DigestWrapped(s.AliasesHash),
+			DigestWrapped(s.WavesBalanceHash),
+			DigestWrapped(s.AssetBalanceHash),
+			DigestWrapped(s.LeaseBalanceHash),
+		},
+	}
+}
+
+type StateHashDebug struct {
+	stateHashJS
+	Height  uint64 `json:"height,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
+	return StateHashDebug{s.toStateHashJS(), h, v}
+}
+
+func (s StateHashDebug) GetStateHash() *StateHash {
+	sh := &StateHash{
+		BlockID: s.BlockID,
+		SumHash: crypto.Digest(s.SumHash),
+		FieldsHashes: FieldsHashes{
+			crypto.Digest(s.DataEntryHash),
+			crypto.Digest(s.AccountScriptHash),
+			crypto.Digest(s.AssetScriptHash),
+			crypto.Digest(s.LeaseStatusHash),
+			crypto.Digest(s.SponsorshipHash),
+			crypto.Digest(s.AliasesHash),
+			crypto.Digest(s.WavesBalanceHash),
+			crypto.Digest(s.AssetBalanceHash),
+			crypto.Digest(s.LeaseBalanceHash),
+		},
+	}
+	return sh
 }

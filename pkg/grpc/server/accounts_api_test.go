@@ -85,7 +85,7 @@ func TestGetActiveLeases(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expRecipient, res.Recipient)
 	expSender := proto.MustAddressFromPublicKey(sets.AddressSchemeCharacter, ltx.SenderPK)
-	assert.Equal(t, expSender.Body(), res.Sender)
+	assert.Equal(t, expSender.Bytes(), res.Sender)
 	expHeight, err := st.TransactionHeightByID(txId.Bytes())
 	require.NoError(t, err)
 	assert.Equal(t, int(expHeight), int(res.Height))

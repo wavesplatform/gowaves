@@ -20,7 +20,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 func TestGetTransactions(t *testing.T) {
@@ -44,7 +46,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	leaseTx, ok := tx.(*proto.LeaseWithSig)
 	assert.Equal(t, true, ok)
-	recipient := *leaseTx.Recipient.Address
+	recipient := *leaseTx.Recipient.Address()
 	sender, err := proto.NewAddressFromPublicKey(server.scheme, leaseTx.SenderPK)
 	require.NoError(t, err)
 
@@ -125,7 +127,7 @@ func TestGetStatuses(t *testing.T) {
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), proto.Attachment("attachment"))
 	err = tx.Sign(server.scheme, sk)
 	require.NoError(t, err)
-	txBytes, err := tx.MarshalBinary()
+	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)
@@ -180,7 +182,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), []byte("attachment"))
 	err = tx.Sign(server.scheme, sk)
 	require.NoError(t, err)
-	txBytes, err := tx.MarshalBinary()
+	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)
@@ -270,16 +272,12 @@ func TestSign(t *testing.T) {
 
 	cl := g.NewTransactionsApiClient(conn)
 	req := &g.SignRequest{Transaction: txProto, SignerPublicKey: pk.Bytes()}
-	res, err := cl.Sign(ctx, req)
-	require.NoError(t, err)
-	c := proto.ProtobufConverter{FallbackChainID: server.scheme}
-	resTx, err := c.SignedTransaction(res)
-	require.NoError(t, err)
-	transfer, ok := resTx.(*proto.TransferWithSig)
-	assert.Equal(t, true, ok)
-	ok, err = transfer.Verify(server.scheme, pk)
-	require.NoError(t, err)
-	assert.Equal(t, true, ok)
+	_, err = cl.Sign(ctx, req)
+	require.Error(t, err)
+	s, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.Unimplemented, s.Code())
+	require.Equal(t, "method Sign not implemented", s.Message())
 }
 
 func TestBroadcast(t *testing.T) {

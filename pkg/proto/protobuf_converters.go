@@ -23,7 +23,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTFlat()
+	return pbTx.MarshalVTStrict()
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -31,7 +31,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return pbTx.MarshalVTFlat()
+	return pbTx.MarshalVTStrict()
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -150,13 +150,17 @@ func (c *ProtobufConverter) optionalAsset(asset []byte) OptionalAsset {
 		return OptionalAsset{}
 	}
 	if len(asset) == 0 {
-		return OptionalAsset{}
+		return NewOptionalAssetWaves()
 	}
 	return *NewOptionalAssetFromDigest(c.digest(asset))
 }
 
 func (c *ProtobufConverter) convertAmount(amount *g.Amount) (OptionalAsset, uint64) {
 	if c.err != nil {
+		return OptionalAsset{}, 0
+	}
+	if amount == nil {
+		c.err = errors.New("empty asset amount")
 		return OptionalAsset{}, 0
 	}
 	return c.extractOptionalAsset(amount), c.amount(amount)
@@ -221,7 +225,7 @@ func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 		return Alias{}
 	}
 	a := NewAlias(scheme, alias)
-	_, err := a.Valid()
+	_, err := a.Valid(scheme)
 	if err != nil {
 		c.err = err
 		return Alias{}
@@ -251,6 +255,10 @@ func (c *ProtobufConverter) assetPair(pair *g.AssetPair) AssetPair {
 	if c.err != nil {
 		return AssetPair{}
 	}
+	if pair == nil {
+		c.err = errors.New("empty asset pair")
+		return AssetPair{}
+	}
 	return AssetPair{
 		AmountAsset: c.optionalAsset(pair.AmountAssetId),
 		PriceAsset:  c.optionalAsset(pair.PriceAssetId),
@@ -277,6 +285,7 @@ func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 		return nil
 	}
 	r := NewProofs()
+	r.Proofs = make([]B58Bytes, 0, len(proofs))
 	for _, proof := range proofs {
 		r.Proofs = append(r.Proofs, proof)
 	}
@@ -341,6 +350,10 @@ func (c *ProtobufConverter) ethSignature(data []byte) EthereumSignature {
 
 func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
+		return nil
+	}
+	if o == nil {
+		c.err = errors.New("empty order")
 		return nil
 	}
 	orderVersion := c.byte(o.Version)
@@ -508,7 +521,7 @@ func (c *ProtobufConverter) script(script []byte) Script {
 		return Script{}
 	}
 	res := Script{}
-	if script != nil {
+	if len(script) != 0 {
 		res = script
 	}
 	return res
@@ -531,8 +544,9 @@ func (c *ProtobufConverter) functionCall(data []byte) FunctionCall {
 	}
 	// FIXME: The following block fixes the bug introduced in Scala implementation of gRPC
 	// It should be removed after the release of fix.
+	// TODO: consider removing the block below
 	var d []byte
-	if data[0] == 1 && data[3] == 9 {
+	if len(data) > 3 && data[0] == 1 && data[3] == 9 {
 		d = make([]byte, len(data)-2)
 		d[0] = data[0]
 		copy(d[1:], data[3:])
@@ -568,9 +582,12 @@ func (c *ProtobufConverter) TransferScriptActions(scheme byte, payments []*g.Inv
 	res := make([]*TransferScriptAction, len(payments))
 	for i, p := range payments {
 		asset, amount := c.convertAmount(p.Amount)
+		if c.err != nil {
+			return nil, c.err
+		}
 		addr, err := c.Address(scheme, p.Address)
 		if err != nil {
-			return nil, c.err
+			return nil, err
 		}
 		res[i] = &TransferScriptAction{
 			Recipient: NewRecipientFromAddress(addr),
@@ -645,12 +662,13 @@ func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScr
 	}
 	res := make([]*SponsorshipScriptAction, len(sponsorships))
 	for i, x := range sponsorships {
-		res[i] = &SponsorshipScriptAction{
-			AssetID: c.digest(x.MinFee.AssetId),
-			MinFee:  x.MinFee.Amount,
-		}
+		assetID, amount := c.convertAssetAmount(x.MinFee)
 		if c.err != nil {
 			return nil, c.err
+		}
+		res[i] = &SponsorshipScriptAction{
+			AssetID: assetID,
+			MinFee:  int64(amount),
 		}
 	}
 	return res, nil
@@ -696,11 +714,14 @@ func (c *ProtobufConverter) LeaseCancelScriptActions(cancels []*g.InvokeScriptRe
 	return res, nil
 }
 
-func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
+func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (ScriptErrorMessage, error) {
 	if c.err != nil {
-		return nil, c.err
+		return ScriptErrorMessage{}, c.err
 	}
-	return &ScriptErrorMessage{
+	if msg == nil {
+		return ScriptErrorMessage{}, errors.New("empty invoke script result error message")
+	}
+	return ScriptErrorMessage{
 		Code: TxFailureReason(msg.Code),
 		Text: msg.Text,
 	}, nil
@@ -711,6 +732,9 @@ func (c *ProtobufConverter) reset() {
 }
 
 func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) {
+	if tx == nil {
+		return nil, errors.New("emtpy transaction")
+	}
 	ts := c.uint64(tx.Timestamp)
 	scheme := c.byte(tx.ChainId)
 	if scheme == 0 {
@@ -768,7 +792,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &IssueWithProofs{
 				Type:    IssueTransaction,
 				Version: v,
-				ChainID: scheme,
 				Script:  c.script(d.Issue.Script),
 				Issue:   pi,
 			}
@@ -826,7 +849,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &ReissueWithProofs{
 				Type:    ReissueTransaction,
 				Version: v,
-				ChainID: scheme,
 				Reissue: pr,
 			}
 		} else {
@@ -850,7 +872,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &BurnWithProofs{
 				Type:    BurnTransaction,
 				Version: v,
-				ChainID: scheme,
 				Burn:    pb,
 			}
 		} else {
@@ -951,7 +972,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			rtx = &LeaseCancelWithProofs{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
-				ChainID:     scheme,
 				LeaseCancel: plc,
 			}
 		} else {
@@ -1009,7 +1029,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &SetScriptWithProofs{
 			Type:      SetScriptTransaction,
 			Version:   v,
-			ChainID:   scheme,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
 			Script:    c.script(d.SetScript.Script),
 			Fee:       c.amount(tx.Fee),
@@ -1032,7 +1051,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &SetAssetScriptWithProofs{
 			Type:      SetAssetScriptTransaction,
 			Version:   v,
-			ChainID:   scheme,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
 			AssetID:   c.digest(d.SetAssetScript.AssetId),
 			Script:    c.script(d.SetAssetScript.Script),
@@ -1044,7 +1062,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &InvokeExpressionTransactionWithProofs{
 			Type:       InvokeExpressionTransaction,
 			Version:    v,
-			ChainID:    scheme,
 			SenderPK:   c.publicKey(tx.SenderPublicKey),
 			FeeAsset:   feeAsset,
 			Fee:        feeAmount,
@@ -1062,7 +1079,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &InvokeScriptWithProofs{
 			Type:            InvokeScriptTransaction,
 			Version:         v,
-			ChainID:         scheme,
 			SenderPK:        c.publicKey(tx.SenderPublicKey),
 			ScriptRecipient: rcp,
 			FunctionCall:    c.functionCall(d.InvokeScript.FunctionCall),
@@ -1076,7 +1092,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &UpdateAssetInfoWithProofs{
 			Type:        UpdateAssetInfoTransaction,
 			Version:     v,
-			ChainID:     scheme,
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AssetID:     c.digest(d.UpdateAssetInfo.AssetId),
 			Name:        d.UpdateAssetInfo.Name,
@@ -1121,6 +1136,9 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
+	if stx == nil {
+		return nil, errors.New("empty signed transaction")
+	}
 	switch wrappedTx := stx.Transaction.(type) {
 	case *g.SignedTransaction_WavesTransaction:
 		tx, err := c.Transaction(wrappedTx.WavesTransaction)
@@ -1262,6 +1280,12 @@ func (c *ProtobufConverter) ethereumTransaction(canonicalEthTx []byte) (Transact
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
+	if mb == nil {
+		return MicroBlock{}, errors.New("empty signed microblock")
+	}
+	if mb.MicroBlock == nil {
+		return MicroBlock{}, errors.New("empty microblock")
+	}
 	txs, err := c.SignedTransactions(mb.MicroBlock.Transactions)
 	if err != nil {
 		return MicroBlock{}, err
@@ -1286,11 +1310,14 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 }
 
 func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
+	if block == nil {
+		return Block{}, errors.New("empty block")
+	}
 	header, err := c.BlockHeader(block)
 	if err != nil {
 		return Block{}, err
 	}
-	txs, err := c.BlockTransactions(block)
+	txs, err := c.SignedTransactions(block.Transactions)
 	if err != nil {
 		return Block{}, err
 	}
@@ -1303,10 +1330,6 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 		BlockHeader:  header,
 		Transactions: txs,
 	}, nil
-}
-
-func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.SignedTransactions(block.Transactions)
 }
 
 func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
@@ -1340,6 +1363,12 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 }
 
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
+	if block == nil {
+		return BlockHeader{}, errors.New("empty block")
+	}
+	if block.Header == nil {
+		return BlockHeader{}, errors.New("empty block header")
+	}
 	features := c.features(block.Header.FeatureVotes)
 	consensus := c.consensus(block.Header)
 	v := BlockVersion(c.byte(block.Header.Version))

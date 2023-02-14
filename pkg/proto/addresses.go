@@ -2,7 +2,9 @@ package proto
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -49,7 +51,7 @@ func (a AddressID) Bytes() []byte {
 }
 
 func (a AddressID) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
-	return newAddressFromPublicKeyHash(scheme, a[:])
+	return newWavesAddress(scheme, a)
 }
 
 type Address interface {
@@ -142,7 +144,7 @@ func (ea EthereumAddress) Equal(address Address) bool {
 }
 
 func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
-	return newAddressFromPublicKeyHash(scheme, ea[:])
+	return newWavesAddress(scheme, ea)
 }
 
 func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
@@ -213,6 +215,10 @@ func (a WavesAddress) Body() []byte {
 	return a[wavesAddressHeaderSize : wavesAddressHeaderSize+wavesAddressBodySize]
 }
 
+func (a WavesAddress) Scheme() Scheme {
+	return a[1]
+}
+
 func (a WavesAddress) ID() AddressID {
 	var id AddressID
 	copy(id[:], a[wavesAddressHeaderSize:wavesAddressHeaderSize+wavesAddressBodySize])
@@ -269,39 +275,37 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (WavesAddr
 	if err != nil {
 		return WavesAddress{}, errors.Wrap(err, "failed to produce Digest from PublicKey")
 	}
-	return newAddressFromPublicKeyHash(scheme, h[:])
+	return newAddressFromPublicKeyHash(scheme, h)
 }
 
-// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash (AddressID).
-func newAddressFromPublicKeyHash(scheme byte, pubKeyHash []byte) (WavesAddress, error) {
+// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash.
+func newAddressFromPublicKeyHash(scheme Scheme, pubKeyHash crypto.Digest) (WavesAddress, error) {
+	var body [wavesAddressBodySize]byte
+	copy(body[:], pubKeyHash[:])
+	return newWavesAddress(scheme, body)
+}
+
+// newWavesAddress produces an WavesAddress from given body (AddressID).
+func newWavesAddress(scheme Scheme, body [wavesAddressBodySize]byte) (WavesAddress, error) {
 	var addr WavesAddress
 	addr[0] = wavesAddressVersion
 	addr[1] = scheme
-	copy(addr[wavesAddressHeaderSize:], pubKeyHash[:wavesAddressBodySize])
+	copy(addr[wavesAddressHeaderSize:], body[:])
 	checksum, err := addressChecksum(addr[:wavesAddressHeaderSize+wavesAddressBodySize])
 	if err != nil {
 		return addr, errors.Wrap(err, "failed to calculate WavesAddress checksum")
 	}
-	copy(addr[wavesAddressHeaderSize+wavesAddressBodySize:], checksum)
+	copy(addr[wavesAddressHeaderSize+wavesAddressBodySize:], checksum[:])
 	return addr, nil
 }
 
 // NewAddressLikeFromAnyBytes produces an WavesAddress from given scheme and bytes.
 func NewAddressLikeFromAnyBytes(scheme byte, b []byte) (WavesAddress, error) {
-	var a WavesAddress
-	a[0] = wavesAddressVersion
-	a[1] = scheme
 	h, err := crypto.SecureHash(b)
 	if err != nil {
-		return a, errors.Wrap(err, "failed to produce Digest from any bytes")
+		return WavesAddress{}, errors.Wrap(err, "failed to produce Digest from any bytes")
 	}
-	copy(a[wavesAddressHeaderSize:], h[:wavesAddressBodySize])
-	cs, err := addressChecksum(a[:wavesAddressHeaderSize+wavesAddressBodySize])
-	if err != nil {
-		return a, errors.Wrap(err, "failed to calculate WavesAddress checksum")
-	}
-	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
-	return a, nil
+	return newAddressFromPublicKeyHash(scheme, h)
 }
 
 func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) WavesAddress {
@@ -312,23 +316,16 @@ func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) WavesAddr
 	return rs
 }
 
-func RebuildAddress(scheme byte, body []byte) (WavesAddress, error) {
-	if len(body) == 26 {
-		return NewAddressFromBytes(body)
+func RebuildAddress(scheme Scheme, bodyBytes []byte) (WavesAddress, error) {
+	if len(bodyBytes) == WavesAddressSize {
+		return NewAddressFromBytesChecked(scheme, bodyBytes)
 	}
-	var a WavesAddress
-	a[0] = wavesAddressVersion
-	a[1] = scheme
-	if l := len(body); l != wavesAddressBodySize {
+	if l := len(bodyBytes); l != wavesAddressBodySize {
 		return WavesAddress{}, errors.Errorf("%d is unexpected address' body size", l)
 	}
-	copy(a[wavesAddressHeaderSize:], body[:wavesAddressBodySize])
-	cs, err := addressChecksum(a[:wavesAddressHeaderSize+wavesAddressBodySize])
-	if err != nil {
-		return a, errors.Wrap(err, "failed to calculate WavesAddress checksum")
-	}
-	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
-	return a, nil
+	var body [wavesAddressBodySize]byte
+	copy(body[:], bodyBytes[:wavesAddressBodySize])
+	return newWavesAddress(scheme, body)
 }
 
 // NewAddressFromString creates an WavesAddress from its string representation. This function checks that the address is valid.
@@ -353,21 +350,43 @@ func MustAddressFromString(s string) WavesAddress {
 	return addr
 }
 
-// NewAddressFromBytes creates an WavesAddress from the slice of bytes and checks that the result address is valid address.
+// NewAddressFromBytes creates an WavesAddress from the slice of bytes and checks that the result address is a valid address.
 func NewAddressFromBytes(b []byte) (WavesAddress, error) {
 	var a WavesAddress
 	if l := len(b); l < WavesAddressSize {
 		return a, errors.Errorf("insufficient array length %d, expected at least %d", l, WavesAddressSize)
 	}
 	copy(a[:], b[:WavesAddressSize])
-	if ok, err := a.Valid(); !ok {
+	if ok, err := a.validVersionAndChecksum(); !ok {
 		return a, errors.Wrap(err, "invalid address")
 	}
 	return a, nil
 }
 
-// Valid checks that version and checksum of the WavesAddress are correct.
-func (a *WavesAddress) Valid() (bool, error) {
+// NewAddressFromBytesChecked creates an WavesAddress from the slice of bytes and checks that the result address
+// is a valid address with valid scheme.
+func NewAddressFromBytesChecked(scheme Scheme, b []byte) (WavesAddress, error) {
+	var a WavesAddress
+	if l := len(b); l < WavesAddressSize {
+		return a, errors.Errorf("insufficient array length %d, expected at least %d", l, WavesAddressSize)
+	}
+	copy(a[:], b[:WavesAddressSize])
+	if ok, err := a.Valid(scheme); !ok {
+		return a, errors.Wrap(err, "invalid address")
+	}
+	return a, nil
+}
+
+// Valid checks that scheme, version and checksum of the WavesAddress are correct.
+func (a *WavesAddress) Valid(scheme Scheme) (bool, error) {
+	if s := a.Scheme(); s != scheme {
+		return false, errors.Errorf("invalid scheme %q, expected %q", s, scheme)
+	}
+	return a.validVersionAndChecksum()
+}
+
+// validVersionAndChecksum checks that version and checksum of the WavesAddress are correct.
+func (a *WavesAddress) validVersionAndChecksum() (bool, error) {
 	if a[0] != wavesAddressVersion {
 		return false, errors.Errorf("unsupported address version %d", a[0])
 	}
@@ -377,7 +396,7 @@ func (a *WavesAddress) Valid() (bool, error) {
 		return false, errors.Wrap(err, "failed to calculate WavesAddress checksum")
 	}
 	ac := a[wavesAddressHeaderSize+wavesAddressBodySize:]
-	if !bytes.Equal(ec, ac) {
+	if !bytes.Equal(ec[:], ac) {
 		return false, errors.New("invalid WavesAddress checksum")
 	}
 	return true, nil
@@ -388,14 +407,13 @@ func (a WavesAddress) Bytes() []byte {
 	return a[:]
 }
 
-func addressChecksum(b []byte) ([]byte, error) {
+func addressChecksum(b []byte) (cs [wavesAddressChecksumSize]byte, err error) {
 	h, err := crypto.SecureHash(b)
 	if err != nil {
-		return nil, err
+		return cs, err
 	}
-	c := make([]byte, wavesAddressChecksumSize)
-	copy(c, h[:wavesAddressChecksumSize])
-	return c, nil
+	copy(cs[:], h[:wavesAddressChecksumSize])
+	return cs, nil
 }
 
 // Alias represents the nickname tha could be attached to the WavesAddress.
@@ -537,9 +555,12 @@ func NewAlias(scheme byte, alias string) *Alias {
 }
 
 // Valid validates the Alias checking it length, version and symbols.
-func (a Alias) Valid() (bool, error) {
+func (a Alias) Valid(scheme Scheme) (bool, error) {
 	if v := a.Version; v != aliasVersion {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
+	}
+	if s := a.Scheme; s != scheme {
+		return false, errs.NewTxValidationError(fmt.Sprintf("invalid scheme %q, expected %q", s, scheme))
 	}
 	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
 		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
@@ -559,21 +580,150 @@ func correctAlphabet(s string) bool {
 	return true
 }
 
+type recipient interface {
+	Alias() *Alias
+	Address() *WavesAddress
+	BinarySize() int
+	Eq(r2 Recipient) bool
+	EqAddr(addr WavesAddress) (bool, error)
+	EqAlias(alias Alias) (bool, error)
+	Serialize(s *serializer.Serializer) error
+	Valid(scheme Scheme) (bool, error)
+	ToProtobuf() (*g.Recipient, error)
+	fmt.Stringer
+	json.Marshaler
+	encoding.BinaryMarshaler
+}
+
+type aliasRecipient struct {
+	al Alias
+}
+
+func (r *aliasRecipient) Alias() *Alias {
+	return &r.al
+}
+
+func (r *aliasRecipient) Address() *WavesAddress {
+	return nil
+}
+
+func (r *aliasRecipient) Eq(r2 Recipient) bool {
+	if al2 := r2.Alias(); al2 != nil {
+		return r.al == *al2
+	}
+	return false
+}
+
+func (r *aliasRecipient) EqAddr(addr WavesAddress) (bool, error) {
+	return false, errors.Errorf("failed to compare recipient '%s' with addr '%s'", r.String(), addr.String())
+}
+
+func (r *aliasRecipient) EqAlias(alias Alias) (bool, error) {
+	return r.al == alias, nil
+}
+
+func (r *aliasRecipient) Serialize(s *serializer.Serializer) error {
+	return r.al.Serialize(s)
+}
+
+func (r *aliasRecipient) BinarySize() int {
+	return r.al.BinarySize()
+}
+
+func (r *aliasRecipient) Valid(scheme Scheme) (bool, error) {
+	return r.al.Valid(scheme)
+}
+
+func (r *aliasRecipient) ToProtobuf() (*g.Recipient, error) {
+	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.al.Alias}}, nil
+}
+
+func (r *aliasRecipient) String() string {
+	return r.al.String()
+}
+
+func (r *aliasRecipient) MarshalJSON() ([]byte, error) {
+	return r.al.MarshalJSON()
+}
+
+func (r *aliasRecipient) MarshalBinary() (data []byte, err error) {
+	return r.al.MarshalBinary()
+}
+
+type wavesAddressRecipient struct {
+	addr WavesAddress
+}
+
+func (r *wavesAddressRecipient) Alias() *Alias {
+	return nil
+}
+
+func (r *wavesAddressRecipient) Address() *WavesAddress {
+	return &r.addr
+}
+
+func (r *wavesAddressRecipient) BinarySize() int {
+	return WavesAddressSize
+}
+
+func (r *wavesAddressRecipient) Eq(r2 Recipient) bool {
+	if addr2 := r2.Address(); addr2 != nil {
+		return bytes.Equal(r.addr[:], addr2[:])
+	}
+	return false
+}
+
+func (r *wavesAddressRecipient) EqAddr(addr WavesAddress) (bool, error) {
+	return bytes.Equal(r.addr[:], addr[:]), nil
+}
+
+func (r *wavesAddressRecipient) EqAlias(alias Alias) (bool, error) {
+	return false, errors.Errorf("failed to compare recipient '%s' with alias '%s'", r.String(), alias.String())
+}
+
+func (r *wavesAddressRecipient) Serialize(s *serializer.Serializer) error {
+	return s.Bytes(r.addr[:])
+}
+
+func (r *wavesAddressRecipient) Valid(scheme Scheme) (bool, error) {
+	return r.addr.Valid(scheme)
+}
+
+func (r *wavesAddressRecipient) String() string {
+	return r.addr.String()
+}
+
+func (r *wavesAddressRecipient) ToProtobuf() (*g.Recipient, error) {
+	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: r.addr.Body()}}, nil
+}
+
+func (r *wavesAddressRecipient) MarshalJSON() ([]byte, error) {
+	return r.addr.MarshalJSON()
+}
+
+func (r *wavesAddressRecipient) MarshalBinary() (data []byte, err error) {
+	return r.addr[:], nil
+}
+
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type incomparable [0]func()
+
 // Recipient could be an Alias or an WavesAddress.
 type Recipient struct {
-	Address *WavesAddress
-	Alias   *Alias
-	len     int
+	_     incomparable
+	inner recipient
 }
 
 // NewRecipientFromAddress creates the Recipient from given address.
 func NewRecipientFromAddress(a WavesAddress) Recipient {
-	return Recipient{Address: &a, len: WavesAddressSize}
+	return Recipient{inner: &wavesAddressRecipient{a}}
 }
 
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
-	return Recipient{Alias: &a, len: aliasFixedSize + len(a.Alias)}
+	return Recipient{inner: &aliasRecipient{a}}
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
@@ -591,49 +741,42 @@ func NewRecipientFromString(s string) (Recipient, error) {
 	return NewRecipientFromAddress(a), nil
 }
 
+func (r Recipient) Alias() *Alias {
+	return r.inner.Alias()
+}
+
+func (r Recipient) Address() *WavesAddress {
+	return r.inner.Address()
+}
+
+func (r *Recipient) BinarySize() int {
+	return r.inner.BinarySize()
+}
+
 func (r Recipient) Eq(r2 Recipient) bool {
-	res := r.len == r2.len
-	if r.Address != nil && r2.Address != nil {
-		res = res && (*r.Address == *r2.Address)
-	} else {
-		res = res && (r.Address == nil)
-		res = res && (r2.Address == nil)
-	}
-	if r.Alias != nil && r2.Alias != nil {
-		res = res && (*r.Alias == *r2.Alias)
-	} else {
-		res = res && (r.Alias == nil)
-		res = res && (r2.Alias == nil)
-	}
-	return res
+	return r.inner.Eq(r2)
+}
+
+func (r Recipient) EqAddr(addr WavesAddress) (bool, error) {
+	return r.inner.EqAddr(addr)
+}
+
+func (r Recipient) EqAlias(alias Alias) (bool, error) {
+	return r.inner.EqAlias(alias)
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
-	if r.Address == nil {
-		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
-	}
-	addrBody := r.Address.Body()
-	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
+	return r.inner.ToProtobuf()
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
-func (r Recipient) Valid() (bool, error) {
-	switch {
-	case r.Address != nil:
-		return r.Address.Valid()
-	case r.Alias != nil:
-		return r.Alias.Valid()
-	default:
-		return false, errors.New("empty recipient")
-	}
+func (r Recipient) Valid(scheme Scheme) (bool, error) {
+	return r.inner.Valid(scheme)
 }
 
 // MarshalJSON converts the Recipient to its JSON representation.
 func (r Recipient) MarshalJSON() ([]byte, error) {
-	if r.Alias != nil {
-		return r.Alias.MarshalJSON()
-	}
-	return r.Address.MarshalJSON()
+	return r.inner.MarshalJSON()
 }
 
 // UnmarshalJSON reads the Recipient from its JSON representation.
@@ -645,8 +788,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 		}
-		r.Alias = &a
-		r.len = aliasFixedSize + len(a.Alias)
+		*r = NewRecipientFromAlias(a)
 		return nil
 	}
 	var a WavesAddress
@@ -654,21 +796,13 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
-	r.Address = &a
-	r.len = WavesAddressSize
+	*r = NewRecipientFromAddress(a)
 	return nil
-}
-
-func (r *Recipient) BinarySize() int {
-	return r.len
 }
 
 // MarshalBinary makes bytes of the Recipient.
 func (r *Recipient) MarshalBinary() ([]byte, error) {
-	if r.Alias != nil {
-		return r.Alias.MarshalBinary()
-	}
-	return r.Address[:], nil
+	return r.inner.MarshalBinary()
 }
 
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
@@ -681,10 +815,7 @@ func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (r *Recipient) Serialize(s *serializer.Serializer) error {
-	if r.Alias != nil {
-		return r.Alias.Serialize(s)
-	}
-	return s.Bytes(r.Address[:])
+	return r.inner.Serialize(s)
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
@@ -695,8 +826,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.Address = &a
-		r.len = WavesAddressSize
+		*r = NewRecipientFromAddress(a)
 		return nil
 	case aliasVersion:
 		var a Alias
@@ -704,8 +834,7 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
 		}
-		r.Alias = &a
-		r.len = aliasFixedSize + len(a.Alias)
+		*r = NewRecipientFromAlias(a)
 		return nil
 	default:
 		return errors.Errorf("unsupported Recipient version %d", v)
@@ -714,8 +843,5 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 
 // String gives the string representation of the Recipient.
 func (r *Recipient) String() string {
-	if r.Alias != nil {
-		return r.Alias.String()
-	}
-	return r.Address.String()
+	return r.inner.String()
 }

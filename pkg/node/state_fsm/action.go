@@ -28,10 +28,15 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		zap.S().Errorf("Failed to get current score: %v", err)
 		return
 	}
-	bts := curScore.Bytes()
+	var (
+		msg = &proto.ScoreMessage{Score: curScore.Bytes()}
+		cnt int
+	)
 	a.services.Peers.EachConnected(func(peer peer.Peer, score *proto.Score) {
-		peer.SendMessage(&proto.ScoreMessage{Score: bts})
+		peer.SendMessage(msg)
+		cnt++
 	})
+	zap.S().Debugf("Network message '%T' sent to %d peers: currentScore=%s", msg, cnt, curScore)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
@@ -47,13 +52,18 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		return
 	}
 
+	var (
+		msg proto.Message
+		cnt int
+	)
 	if activated {
-		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-			p.SendMessage(&proto.PBBlockMessage{PBBlockBytes: bts})
-		})
+		msg = &proto.PBBlockMessage{PBBlockBytes: bts}
 	} else {
-		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-			p.SendMessage(&proto.BlockMessage{BlockBytes: bts})
-		})
+		msg = &proto.BlockMessage{BlockBytes: bts}
 	}
+	a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+		p.SendMessage(msg)
+		cnt++
+	})
+	zap.S().Debugf("Network message '%T' sent to %d peers: blockID='%s'", msg, cnt, block.BlockID())
 }

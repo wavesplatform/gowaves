@@ -71,14 +71,14 @@ func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
 	case *proto.MassTransferWithProofs:
 		return t.HasRecipient(f.recipient)
 	default:
-		if f.recipient.Address == nil {
+		if f.recipient.Address() == nil {
 			return false
 		}
 		senderAddr, err := tx.GetSender(f.scheme)
 		if err != nil {
 			return false
 		}
-		return f.recipient.Address.Equal(senderAddr)
+		return f.recipient.Address().Equal(senderAddr)
 	}
 }
 
@@ -104,7 +104,7 @@ func (f *txFilter) getSenderRecipient() (*proto.WavesAddress, *proto.WavesAddres
 		sender = &f.sender
 	}
 	if f.hasRecipient {
-		recipient = f.recipient.Address
+		recipient = f.recipient.Address()
 	}
 	return sender, recipient
 }

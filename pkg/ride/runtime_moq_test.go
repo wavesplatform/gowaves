@@ -32,6 +32,9 @@ var _ environment = &mockRideEnvironment{}
 //			complexityCalculatorFunc: func() complexityCalculator {
 //				panic("mock out the complexityCalculator method")
 //			},
+//			consensusImprovementsActivatedFunc: func() bool {
+//				panic("mock out the consensusImprovementsActivated method")
+//			},
 //			heightFunc: func() rideInt {
 //				panic("mock out the height method")
 //			},
@@ -108,6 +111,9 @@ type mockRideEnvironment struct {
 	// complexityCalculatorFunc mocks the complexityCalculator method.
 	complexityCalculatorFunc func() complexityCalculator
 
+	// consensusImprovementsActivatedFunc mocks the consensusImprovementsActivated method.
+	consensusImprovementsActivatedFunc func() bool
+
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
 
@@ -181,6 +187,9 @@ type mockRideEnvironment struct {
 		// complexityCalculator holds details about calls to the complexityCalculator method.
 		complexityCalculator []struct {
 		}
+		// consensusImprovementsActivated holds details about calls to the consensusImprovementsActivated method.
+		consensusImprovementsActivated []struct {
+		}
 		// height holds details about calls to the height method.
 		height []struct {
 		}
@@ -253,6 +262,7 @@ type mockRideEnvironment struct {
 	lockblockV5Activated                 sync.RWMutex
 	lockcheckMessageLength               sync.RWMutex
 	lockcomplexityCalculator             sync.RWMutex
+	lockconsensusImprovementsActivated   sync.RWMutex
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
@@ -384,6 +394,33 @@ func (mock *mockRideEnvironment) complexityCalculatorCalls() []struct {
 	mock.lockcomplexityCalculator.RLock()
 	calls = mock.calls.complexityCalculator
 	mock.lockcomplexityCalculator.RUnlock()
+	return calls
+}
+
+// consensusImprovementsActivated calls consensusImprovementsActivatedFunc.
+func (mock *mockRideEnvironment) consensusImprovementsActivated() bool {
+	if mock.consensusImprovementsActivatedFunc == nil {
+		panic("mockRideEnvironment.consensusImprovementsActivatedFunc: method is nil but environment.consensusImprovementsActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockconsensusImprovementsActivated.Lock()
+	mock.calls.consensusImprovementsActivated = append(mock.calls.consensusImprovementsActivated, callInfo)
+	mock.lockconsensusImprovementsActivated.Unlock()
+	return mock.consensusImprovementsActivatedFunc()
+}
+
+// consensusImprovementsActivatedCalls gets all the calls that were made to consensusImprovementsActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.consensusImprovementsActivatedCalls())
+func (mock *mockRideEnvironment) consensusImprovementsActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockconsensusImprovementsActivated.RLock()
+	calls = mock.calls.consensusImprovementsActivated
+	mock.lockconsensusImprovementsActivated.RUnlock()
 	return calls
 }
 

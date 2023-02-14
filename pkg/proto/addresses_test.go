@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
@@ -68,10 +69,61 @@ func TestRecipientJSONRoundTrip(t *testing.T) {
 			r2 := &Recipient{}
 			err := json.Unmarshal(js, r2)
 			assert.NoError(t, err)
-			assert.Equal(t, r.len, r2.len)
-			assert.Equal(t, r.Alias, r2.Alias)
-			assert.Equal(t, r.Address, r2.Address)
+			assert.Equal(t, r.BinarySize(), r2.BinarySize())
+			assert.Equal(t, r.Alias(), r2.Alias())
+			assert.Equal(t, r.Address(), r2.Address())
 		}
+	}
+}
+
+func TestRecipient_EqAddr(t *testing.T) {
+	tests := []struct {
+		rcp  Recipient
+		addr WavesAddress
+		res  bool
+		err  string
+	}{
+		{NewRecipientFromAddress(WavesAddress{1, 1, 1}), WavesAddress{1, 1, 1}, true, ""},
+		{NewRecipientFromAddress(WavesAddress{1, 1, 1}), WavesAddress{1, 2, 3}, false, ""},
+		{
+			NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), WavesAddress{1, 2, 3}, false,
+			"failed to compare recipient 'alias:T:blah' with addr '2npUV4bHHS5G9aTk5Wp5A2Exyh27UVz4GRm'",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			res, err := tc.rcp.EqAddr(tc.addr)
+			if err != nil {
+				assert.EqualError(t, err, tc.err)
+			}
+			assert.Equal(t, tc.res, res)
+		})
+	}
+}
+
+func TestRecipient_EqAlias(t *testing.T) {
+	tests := []struct {
+		rcp   Recipient
+		alias Alias
+		res   bool
+		err   string
+	}{
+
+		{NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), *NewAlias(TestNetScheme, "blah"), true, ""},
+		{NewRecipientFromAlias(*NewAlias(TestNetScheme, "blah")), *NewAlias(TestNetScheme, "foo"), false, ""},
+		{
+			NewRecipientFromAddress(WavesAddress{1, 1, 1}), *NewAlias(TestNetScheme, "blah"), false,
+			"failed to compare recipient '2nQxJj6jMtYKshwRWMgKDbXCXBw6Tji6sZZ' with alias 'alias:T:blah'",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			res, err := tc.rcp.EqAlias(tc.alias)
+			if err != nil {
+				assert.EqualError(t, err, tc.err)
+			}
+			assert.Equal(t, tc.res, res)
+		})
 	}
 }
 
@@ -94,14 +146,26 @@ func TestAddressFromBytes(t *testing.T) {
 }
 
 func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
+	var addr WavesAddress
 	seed := make([]byte, 32)
 	_, _ = rand.Read(seed)
 	_, pk, err := crypto.GenerateKeyPair(seed)
 	if err != nil {
 		b.Fatalf("crypto.GenerateKeyPair(): %v", err)
 	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _ = NewAddressFromPublicKey(TestNetScheme, pk)
+		addr, err = NewAddressFromPublicKey(TestNetScheme, pk)
+	}
+	b.StopTimer()
+
+	if err != nil {
+		b.Fatal(err.Error())
+	}
+	if MustAddressFromPublicKey(TestNetScheme, pk) != addr {
+		b.Fatal("different addresses")
 	}
 }
 
@@ -123,23 +187,31 @@ func TestAliasFromString(t *testing.T) {
 	}
 }
 
-func TestIncorrectAlias(t *testing.T) {
-	aliases := []string{"xxx", "xxxl-very-very-very-long-alias-that-is-incorrect", "asd=asd", "QazWsxEdc"}
-	for _, alias := range aliases {
-		a := NewAlias(TestNetScheme, alias)
-		v, err := a.Valid()
-		assert.False(t, v)
-		assert.Error(t, err)
-	}
-}
-
-func TestCorrectAlias(t *testing.T) {
-	aliases := []string{"alias", "qwerty", "correct"}
-	for _, alias := range aliases {
-		a := NewAlias(TestNetScheme, alias)
-		v, err := a.Valid()
-		assert.True(t, v)
-		assert.NoError(t, err)
+func TestAlias_Valid(t *testing.T) {
+	const okScheme = TestNetScheme
+	for _, test := range []struct {
+		alias  string
+		scheme Scheme
+		valid  bool
+	}{
+		{"alias", okScheme, true},
+		{"qwerty", okScheme, true},
+		{"correct", okScheme, true},
+		{"xxx", okScheme, false},
+		{"valid", 'I', false},
+		{"xxxl-very-very-very-long-alias-that-is-incorrect", okScheme, false},
+		{"asd=asd", okScheme, false},
+		{"QazWsxEdc", okScheme, false},
+	} {
+		a := NewAlias(okScheme, test.alias)
+		ok, err := a.Valid(test.scheme)
+		if test.valid {
+			assert.True(t, ok)
+			assert.NoError(t, err)
+		} else {
+			assert.False(t, ok)
+			assert.Error(t, err)
+		}
 	}
 }
 

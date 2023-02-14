@@ -234,14 +234,14 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 }
 
 func createIssueWithProofs(t *testing.T, feeUnits int) *proto.IssueWithProofs {
-	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	tx := proto.NewUnsignedIssueWithProofs(2, testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
 
 func createNFTIssueWithProofs(t *testing.T) *proto.IssueWithProofs {
-	tx := proto.NewUnsignedIssueWithProofs(2, 'W', testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
+	tx := proto.NewUnsignedIssueWithProofs(2, testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
@@ -294,7 +294,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 }
 
 func createReissueWithProofs(t *testing.T, feeUnits int) *proto.ReissueWithProofs {
-	tx := proto.NewUnsignedReissueWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	tx := proto.NewUnsignedReissueWithProofs(2, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -346,7 +346,7 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 }
 
 func createBurnWithProofs(t *testing.T) *proto.BurnWithProofs {
-	tx := proto.NewUnsignedBurnWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
+	tx := proto.NewUnsignedBurnWithProofs(2, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -886,7 +886,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 }
 
 func createLeaseCancelWithProofs(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelWithProofs {
-	tx := proto.NewUnsignedLeaseCancelWithProofs(2, 'W', testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedLeaseCancelWithProofs(2, testGlobal.senderInfo.pk, leaseID, defaultFee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1085,7 +1085,7 @@ func createSetScriptWithProofs(t *testing.T, customScriptBytes ...[]byte) *proto
 	}
 	feeConst, ok := feeConstants[proto.SetScriptTransaction]
 	assert.Equal(t, ok, true)
-	tx := proto.NewUnsignedSetScriptWithProofs(1, proto.TestNetScheme, testGlobal.senderInfo.pk, scriptBytes, FeeUnit*feeConst, defaultTimestamp)
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk, scriptBytes, FeeUnit*feeConst, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1112,7 +1112,7 @@ func TestCreateDiffSetScriptWithProofs(t *testing.T) {
 func createSetAssetScriptWithProofs(t *testing.T) *proto.SetAssetScriptWithProofs {
 	feeConst, ok := feeConstants[proto.SetAssetScriptTransaction]
 	assert.Equal(t, ok, true)
-	tx := proto.NewUnsignedSetAssetScriptWithProofs(1, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
+	tx := proto.NewUnsignedSetAssetScriptWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1137,16 +1137,7 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeScriptWithProofs {
-	tx := proto.NewUnsignedInvokeScriptWithProofs(1,
-		'W',
-		testGlobal.senderInfo.pk,
-		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr),
-		fc,
-		pmts,
-		feeAsset,
-		fee,
-		defaultTimestamp,
-	)
+	tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), fc, pmts, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1208,7 +1199,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 }
 
 func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithProofs {
-	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, 'W', testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1233,14 +1224,7 @@ func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 }
 
 func createInvokeExpressionWithProofs(t *testing.T, expression proto.B64Bytes, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeExpressionTransactionWithProofs {
-	tx := proto.NewUnsignedInvokeExpressionWithProofs(1,
-		'W',
-		testGlobal.senderInfo.pk,
-		expression,
-		feeAsset,
-		fee,
-		defaultTimestamp,
-	)
+	tx := proto.NewUnsignedInvokeExpressionWithProofs(1, testGlobal.senderInfo.pk, expression, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
