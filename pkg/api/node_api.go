@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -214,10 +215,15 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 }
 
 func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
+	length := len(key)
+	if decoded, err := base58.Decode(key); err == nil {
+		length = len(decoded)
+	}
+
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
 			key, // nickeskov: this part must be the last part of HTTP path
-			len(key),
+			length,
 			crypto.DigestSize,
 			crypto.SignatureSize,
 		),
@@ -324,6 +330,37 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 
 	if err := trySendJson(w, blockHeightResponse{Height: height}); err != nil {
 		return errors.Wrap(err, "BlockHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error {
+	type blockHeightByIDResponse struct {
+		Height uint64 `json:"height"`
+	}
+
+	s := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
+		}
+		return blockIDAtInvalidLenErr(s)
+	}
+
+	height, err := a.state.BlockIDToHeight(id)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err,
+			"BlockHeightByID: expected NotFound in state error, but received other error for blockID=%s", s,
+		)
+	}
+
+	if err := trySendJson(w, blockHeightByIDResponse{Height: height}); err != nil {
+		return errors.Wrap(err, "BlockHeightByID")
 	}
 	return nil
 }
