@@ -36,7 +36,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
 				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, utl.GetTestcaseNameWithVersion(name, v))
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,

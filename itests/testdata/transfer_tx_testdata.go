@@ -66,6 +66,11 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 	}
 }
 
+func TransferDataChangedTimestamp[T any](td *TransferTestData[T]) TransferTestData[T] {
+	return *NewTransferTestData(td.Sender, td.Recipient, td.Asset.ToDigest(), td.FeeAsset.ToDigest(), td.Fee, td.Amount,
+		utl.GetCurrentTimestampInMs(), td.ChainID, td.Attachment, td.Expected)
+}
+
 type CommonTransferData struct {
 	Asset TransferTestData[TransferExpectedValuesPositive]
 	NFT   TransferTestData[TransferExpectedValuesPositive]
