@@ -2601,7 +2601,9 @@ func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	buf := make([]byte, 1+2+len(e.Value))
 	buf[pos] = byte(DataBinary)
 	pos++
-	PutBytesWithUInt16Len(buf[pos:], e.Value)
+	if err := PutBytesWithUInt16Len(buf[pos:], e.Value); err != nil {
+		return nil, errors.Wrap(err, "failed to marshal BinaryDataEntry value")
+	}
 	return buf, nil
 }
 
@@ -3475,7 +3477,9 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	pos := 0
 	buf[pos] = byte(ArgumentBinary)
 	pos++
-	PutBytesWithUInt32Len(buf[pos:], a.Value)
+	if err := PutBytesWithUInt32Len(buf[pos:], a.Value); err != nil {
+		return nil, errors.Wrap(err, "failed to marshal BinaryArgument")
+	}
 	return buf, nil
 }
 

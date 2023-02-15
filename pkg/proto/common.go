@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -20,12 +21,12 @@ func PutStringWithUInt8Len(buf []byte, s string) {
 }
 
 // StringWithUInt8Len reads a string from given slice of bytes. The first byte of slice should contain the length of the following string.
-// Function fails then the length of slice is less then 1 byte or the length of remaining slice is less then the length value from first byte.
+// Function fails then the length of slice is less than 1 byte or the length of remaining slice is less than the length value from first byte.
 func StringWithUInt8Len(buf []byte) (string, error) {
 	if l := len(buf); l < 1 {
 		return "", fmt.Errorf("not enought data, expected not less then %d, received %d", 1, l)
 	}
-	s := uint8(buf[0])
+	s := buf[0]
 	buf = buf[1:]
 	if l := len(buf); l < int(s) {
 		return "", fmt.Errorf("not enough data to read sting of lenght %d, recieved only %d bytes", s, l)
@@ -76,11 +77,18 @@ func StringWithUInt32Len(buf []byte) (string, error) {
 	return r, nil
 }
 
-// PutBytesWithUInt16Len prepends given buf with 2 bytes of it's length.
-func PutBytesWithUInt16Len(buf []byte, data []byte) {
-	sl := uint16(len(data))
-	binary.BigEndian.PutUint16(buf, sl)
+// PutBytesWithUInt16Len prepends given buf with 2 bytes of its length.
+func PutBytesWithUInt16Len(buf []byte, data []byte) error {
+	l := len(data)
+	if l > math.MaxInt16 {
+		return errors.Errorf("invalid data length %d", l)
+	}
+	if bl, rl := len(buf), l+2; bl < rl {
+		return errors.Errorf("invalid buffer length %d, required %d", bl, rl)
+	}
+	binary.BigEndian.PutUint16(buf, uint16(l))
 	copy(buf[2:], data)
+	return nil
 }
 
 // BytesWithUInt16Len reads from buf an array of bytes of length encoded in first 2 bytes.
@@ -98,11 +106,18 @@ func BytesWithUInt16Len(buf []byte) ([]byte, error) {
 	return r, nil
 }
 
-// PutBytesWithUInt32Len prepends given buf with 4 bytes of it's length.
-func PutBytesWithUInt32Len(buf []byte, data []byte) {
-	sl := uint32(len(data))
-	binary.BigEndian.PutUint32(buf, sl)
+// PutBytesWithUInt32Len prepends given buf with 4 bytes of its length.
+func PutBytesWithUInt32Len(buf []byte, data []byte) error {
+	l := len(data)
+	if l > math.MaxInt32 {
+		return errors.Errorf("invalid data length %d", l)
+	}
+	if bl, rl := len(buf), l+4; bl < rl {
+		return errors.Errorf("invalid buffer length %d, required %d", bl, rl)
+	}
+	binary.BigEndian.PutUint32(buf, uint32(l))
 	copy(buf[4:], data)
+	return nil
 }
 
 // BytesWithUInt32Len reads from buf an array of bytes of length encoded in first 4 bytes.
@@ -148,10 +163,6 @@ func NewTimestampFromTime(t time.Time) uint64 {
 
 func NewTimestampFromUnixNano(nano int64) uint64 {
 	return uint64(nano / 1000000)
-}
-
-func NewTimestampFromUSeconds(seconds uint64) uint64 {
-	return seconds * 1000
 }
 
 func NetworkStrFromScheme(scheme Scheme) string {
