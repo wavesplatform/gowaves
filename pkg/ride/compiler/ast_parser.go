@@ -2571,6 +2571,7 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	var elemType s.Type
 	if l, ok := arrVarType.(s.ListType); !ok {
 		p.addError(fmt.Sprintf("first argument in fold mast be List, but found %s", arrVarType.String()), curNode.token32)
+		return nil, nil
 	} else {
 		elemType = l.Type
 	}
@@ -2598,8 +2599,10 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		return nil, nil
 	}
 	if len(funcSign.Arguments) != 2 {
+		p.addError(fmt.Sprintf("Function \"%s\" must have 2 arguments", funcName), curNode.token32)
+	} else {
 		if !funcSign.Arguments[0].EqualWithEntry(startVarType) || !funcSign.Arguments[1].EqualWithEntry(elemType) {
-			p.addError(fmt.Sprintf("Can't find suitable function %s(%s, %s)", funcName, s.ListType{}.String(), startVarType.String()), curNode.token32)
+			p.addError(fmt.Sprintf("Can't find suitable function %s(%s, %s)", funcName, elemType.String(), startVarType.String()), curNode.token32)
 		}
 	}
 
