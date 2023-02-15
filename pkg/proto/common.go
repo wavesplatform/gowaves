@@ -81,7 +81,10 @@ func StringWithUInt32Len(buf []byte) (string, error) {
 func PutBytesWithUInt16Len(buf []byte, data []byte) error {
 	l := len(data)
 	if l > math.MaxInt16 {
-		return errors.Errorf("invalid data size %d", l)
+		return errors.Errorf("invalid data length %d", l)
+	}
+	if bl, rl := len(buf), l+2; bl < rl {
+		return errors.Errorf("invalid buffer length %d, required %d", bl, rl)
 	}
 	binary.BigEndian.PutUint16(buf, uint16(l))
 	copy(buf[2:], data)
@@ -107,7 +110,10 @@ func BytesWithUInt16Len(buf []byte) ([]byte, error) {
 func PutBytesWithUInt32Len(buf []byte, data []byte) error {
 	l := len(data)
 	if l > math.MaxInt32 {
-		return errors.Errorf("invalid data size %d", l)
+		return errors.Errorf("invalid data length %d", l)
+	}
+	if bl, rl := len(buf), l+4; bl < rl {
+		return errors.Errorf("invalid buffer length %d, required %d", bl, rl)
 	}
 	binary.BigEndian.PutUint32(buf, uint32(l))
 	copy(buf[4:], data)
