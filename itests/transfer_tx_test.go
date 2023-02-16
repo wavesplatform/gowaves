@@ -35,7 +35,7 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
 				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer: "+tx.TxID.String(),
 					utl.GetTestcaseNameWithVersion(name, v))

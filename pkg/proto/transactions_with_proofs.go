@@ -241,7 +241,9 @@ func (tx *IssueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	PutBool(buf[p:], tx.NonEmptyScript())
 	p++
 	if tx.NonEmptyScript() {
-		PutBytesWithUInt16Len(buf[p:], tx.Script)
+		if err := PutBytesWithUInt16Len(buf[p:], tx.Script); err != nil {
+			return nil, errors.Wrap(err, "failed to marshal body of IssueWithProofs transaction")
+		}
 	}
 	return buf, nil
 }
@@ -607,7 +609,7 @@ func (tx *TransferWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) 
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes TransferWithProofs transaction to its bytes representation.
+// MarshalBinary writes TransferWithProofs transaction to its byte representation.
 func (tx *TransferWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -647,7 +649,7 @@ func (tx *TransferWithProofs) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-// UnmarshalBinary reads TransferWithProofs from its bytes representation.
+// UnmarshalBinary reads TransferWithProofs from its byte representation.
 func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < transferWithProofsMinLen {
 		return errors.Errorf("not enough data for TransferWithProofs transaction, expected not less then %d, received %d", transferWithProofsMinLen, l)
@@ -907,7 +909,7 @@ func (tx *ReissueWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes ReissueWithProofs transaction to its bytes representation.
+// MarshalBinary writes ReissueWithProofs transaction to its byte representation.
 func (tx *ReissueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -928,7 +930,7 @@ func (tx *ReissueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-// UnmarshalBinary reads ReissueWithProofs from its bytes representation.
+// UnmarshalBinary reads ReissueWithProofs from its byte representation.
 func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithProofsMinLen {
 		return errors.Errorf("not enough data for ReissueWithProofs transaction, expected not less then %d, received %d", reissueWithProofsMinLen, l)
@@ -1157,7 +1159,7 @@ func (tx *BurnWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (boo
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes BurnWithProofs transaction to its bytes representation.
+// MarshalBinary writes BurnWithProofs transaction to its byte representation.
 func (tx *BurnWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -1178,7 +1180,7 @@ func (tx *BurnWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-// UnmarshalBinary reads BurnWithProofs from its bytes representation.
+// UnmarshalBinary reads BurnWithProofs from its byte representation.
 func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithProofsLen {
 		return errors.Errorf("not enough data for BurnWithProofs transaction, expected not less then %d, received %d", burnWithProofsBodyLen, l)
@@ -2838,7 +2840,9 @@ func (tx *MassTransferWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
-	PutBytesWithUInt16Len(buf[p:], tx.Attachment)
+	if err := PutBytesWithUInt16Len(buf[p:], tx.Attachment); err != nil {
+		return nil, errors.Wrap(err, "failed to marshal MassTransferWithProofs transaction body to bytes")
+	}
 	return buf, nil
 }
 
@@ -3556,7 +3560,9 @@ func (tx *SetScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) 
 	PutBool(buf[p:], tx.NonEmptyScript())
 	p++
 	if tx.NonEmptyScript() {
-		PutBytesWithUInt16Len(buf[p:], tx.Script)
+		if err := PutBytesWithUInt16Len(buf[p:], tx.Script); err != nil {
+			return nil, errors.Wrap(err, "failed to marshal body of SetScriptWithProofs transaction")
+		}
 		p += sl
 	}
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
@@ -3629,7 +3635,7 @@ func (tx *SetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey)
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes SetScriptWithProofs transaction to its bytes representation.
+// MarshalBinary writes SetScriptWithProofs transaction to its byte representation.
 func (tx *SetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -3739,7 +3745,7 @@ func (tx *SetScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransac
 	}, nil
 }
 
-// SponsorshipWithProofs is a transaction to setup fee sponsorship for an asset.
+// SponsorshipWithProofs is a transaction to set up fee sponsorship for an asset.
 type SponsorshipWithProofs struct {
 	Type        TransactionType  `json:"type"`
 	Version     byte             `json:"version,omitempty"`
@@ -3905,7 +3911,7 @@ func (tx *SponsorshipWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKe
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes SponsorshipWithProofs transaction to its bytes representation.
+// MarshalBinary writes SponsorshipWithProofs transaction to its byte representation.
 func (tx *SponsorshipWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -3928,7 +3934,7 @@ func (tx *SponsorshipWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	return buf, nil
 }
 
-// UnmarshalBinary reads SponsorshipWithProofs from its bytes representation.
+// UnmarshalBinary reads SponsorshipWithProofs from its byte representation.
 func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < sponsorshipWithProofsMinLen {
 		return errors.Errorf("not enough data for SponsorshipWithProofs transaction, expected not less then %d, received %d", sponsorshipWithProofsMinLen, l)
@@ -4149,7 +4155,9 @@ func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, er
 	PutBool(buf[p:], tx.NonEmptyScript())
 	p++
 	if tx.NonEmptyScript() {
-		PutBytesWithUInt16Len(buf[p:], tx.Script)
+		if err := PutBytesWithUInt16Len(buf[p:], tx.Script); err != nil {
+			return nil, errors.Wrap(err, "failed to marshal body of SetAssetScriptWithProofs transaction")
+		}
 	}
 	return buf, nil
 }
@@ -4220,7 +4228,7 @@ func (tx *SetAssetScriptWithProofs) Verify(scheme Scheme, publicKey crypto.Publi
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes SetAssetScriptWithProofs transaction to its bytes representation.
+// MarshalBinary writes SetAssetScriptWithProofs transaction to its byte representation.
 func (tx *SetAssetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -4576,7 +4584,7 @@ func (tx *InvokeScriptWithProofs) Verify(scheme Scheme, publicKey crypto.PublicK
 	return tx.Proofs.Verify(publicKey, b)
 }
 
-// MarshalBinary writes InvokeScriptWithProofs transaction to its bytes representation.
+// MarshalBinary writes InvokeScriptWithProofs transaction to its byte representation.
 func (tx *InvokeScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 	bb, err := tx.BodyMarshalBinary(scheme)
 	if err != nil {
@@ -4992,7 +5000,7 @@ func (tx InvokeExpressionTransactionWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transaction, error) {
+func (tx *InvokeExpressionTransactionWithProofs) Validate(_ Scheme) (Transaction, error) {
 	//TODO: Check specification on size check of InvokeExpression transaction
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeExpressionWithProofs", tx.Version)
