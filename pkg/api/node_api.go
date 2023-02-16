@@ -249,13 +249,10 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return blockIDAtInvalidLenErr("at")
 	}
 
-	block, err := a.state.BlockByHeight(height)
+	block, err := a.app.BlockByHeight(height)
 	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) || state.IsInvalidInput(origErr) {
-			// nickeskov: it's strange, but scala node sends empty response...
-			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
-			return nil
+		if errors.Is(err, notFound) {
+			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
@@ -290,10 +287,9 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		}
 		return blockIDAtInvalidLenErr(s)
 	}
-	block, err := a.state.Block(id)
+	block, err := a.app.Block(id)
 	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if errors.Is(err, notFound) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err,
@@ -348,10 +344,9 @@ func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error 
 		return blockIDAtInvalidLenErr(s)
 	}
 
-	height, err := a.state.BlockIDToHeight(id)
+	height, err := a.app.BlockIDToHeight(id)
 	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if errors.Is(err, notFound) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err,
