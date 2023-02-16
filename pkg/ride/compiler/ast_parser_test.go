@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"embed"
 	"encoding/base64"
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
@@ -741,23 +740,39 @@ true
 	}
 }
 
-//go:embed lib_test_scripts
-var embedTest embed.FS
+func TestLib(t *testing.T) {
+	for _, test := range []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
 
-func TestLibrary(t *testing.T) {
-	code, err := embedTest.ReadFile("lib_test_scripts/" + "test.ride")
-	require.NoError(t, err)
-	res := "BgICCAICAQNmb28BAWEACgABYQQBYgkBA2ZvbwEACgMJAAACBQFiBQFiAAoJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAKF5kQ8="
-	require.NoError(t, err)
-	compareScriptsOrError(t, string(code), false, res)
+{-# IMPORT lib_test_scripts/lib.ride #-}
+
+let a = {
+  strict b = foo(10)
+  10
 }
+`, false, "BgICCAICAQNmb28BAWEACgABYQQBYgkBA2ZvbwEACgMJAAACBQFiBQFiAAoJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAKF5kQ8="},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
 
-func TestLibraryFailed(t *testing.T) {
-	code, err := embedTest.ReadFile("lib_test_scripts/" + "test_failed.ride")
-	require.NoError(t, err)
-	res := "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type AST"
-	require.NoError(t, err)
-	compareScriptsOrError(t, string(code), true, res)
+{-# IMPORT lib_test_scripts/lib_failed.ride #-}
+
+let a = {
+    strict b = foo(10)
+    10
+}
+`, true, "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type AST"},
+	} {
+		compareScriptsOrError(t, test.code, test.fail, test.expected)
+	}
 }
 
 ////go:embed test_scripts

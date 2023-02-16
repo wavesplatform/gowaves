@@ -2014,7 +2014,6 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		}
 	}
 	p.currentStack = p.currentStack.up
-	// TODO(anton): add callable with specific flag in stack
 }
 
 func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
