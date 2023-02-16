@@ -518,6 +518,24 @@ func publicKeyFromMontgomery(publicKey PublicKey, sb byte) []byte {
 	return pk
 }
 
+type IncorrectLengthError struct {
+	Name        string
+	Len         int
+	ExpectedLen int
+}
+
+func (e IncorrectLengthError) Error() string {
+	return fmt.Sprintf("incorrect %s length %d, expected %d", e.Name, e.Len, e.ExpectedLen)
+}
+
+func NewIncorrectLengthError(name string, len int, expectedLen int) IncorrectLengthError {
+	return IncorrectLengthError{
+		Name:        name,
+		Len:         len,
+		ExpectedLen: expectedLen,
+	}
+}
+
 func array32FromBase58(s, name string) ([32]byte, error) {
 	var r [32]byte
 	b, err := base58.Decode(s)
@@ -525,7 +543,7 @@ func array32FromBase58(s, name string) ([32]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 32 {
-		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 32)
+		return r, NewIncorrectLengthError(name, l, 32)
 	}
 	copy(r[:], b[:32])
 	return r, nil
@@ -538,7 +556,7 @@ func array64FromBase58(s, name string) ([64]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 64 {
-		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 64)
+		return r, NewIncorrectLengthError(name, l, 64)
 	}
 	copy(r[:], b[:64])
 	return r, nil

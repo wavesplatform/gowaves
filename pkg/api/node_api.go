@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -171,7 +170,7 @@ func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return blockIDAtInvalidLenErr(s, err)
 	}
 	header, err := a.app.BlocksHeadersByID(id)
 	if err != nil {
@@ -214,10 +213,11 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
+func blockIDAtInvalidLenErr(key string, err error) *apiErrs.InvalidBlockIdError {
 	length := len(key)
-	if decoded, err := base58.Decode(key); err == nil {
-		length = len(decoded)
+	var incorrectLenErr crypto.IncorrectLengthError
+	if err != nil && errors.As(err, &incorrectLenErr) {
+		length = incorrectLenErr.Len
 	}
 
 	return apiErrs.NewInvalidBlockIDError(
@@ -246,7 +246,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		// nickeskov: message taken from scala node
 		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
-		return blockIDAtInvalidLenErr("at")
+		return blockIDAtInvalidLenErr("at", err)
 	}
 
 	block, err := a.app.BlockByHeight(height)
@@ -285,7 +285,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return blockIDAtInvalidLenErr(s, err)
 	}
 	block, err := a.app.Block(id)
 	if err != nil {
@@ -341,7 +341,7 @@ func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error 
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return blockIDAtInvalidLenErr(s, err)
 	}
 
 	height, err := a.app.BlockIDToHeight(id)
