@@ -3,6 +3,7 @@ package sponsor_utilities
 import (
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
+	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -26,4 +27,47 @@ func SponsorshipSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, send
 	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
-//func NewSignSponsorshipTransactionWithTestData
+func NewSignSponsorshipTransactionWithTestData[T any](suite *f.BaseSuite, version byte, testdata testdata.SponsorshipTestData[T]) proto.Transaction {
+	return NewSignSponsorshipTransaction(suite, version, testdata.ChainID, testdata.Account.PublicKey, testdata.Account.SecretKey,
+		testdata.AssetID, testdata.MinSponsoredAssetFee, testdata.Fee, testdata.Timestamp)
+}
+
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitFor bool) utl.ConsideredTransaction
+
+func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
+	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
+	tx := makeTx(suite, testdata, version, waitForTx)
+	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
+	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
+		testdata.Account.Address, testdata.AssetID, initBalanceInAssetGo, initBalanceInAssetScala)
+	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
+			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
+		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
+		*utl.NewBalanceInAsset(actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
+}
+
+func SponsorshipSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
+	tx := NewSignSponsorshipTransactionWithTestData(suite, version, testdata)
+	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
+}
+
+func SponsorshipBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
+	tx := NewSignSponsorshipTransactionWithTestData(suite, version, testdata)
+	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
+}
+
+func SendSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SponsorshipSendWithTestData[T])
+}
+
+func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
+	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SponsorshipBroadcastWithTestData[T])
+}
