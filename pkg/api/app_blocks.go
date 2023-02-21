@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const blocksSequenceLimit = 100
@@ -152,4 +153,37 @@ func (a *App) BlocksGenerators() (Generators, error) {
 	}
 
 	return out, nil
+}
+
+func (a *App) BlockByHeight(height proto.Height) (*proto.Block, error) {
+	block, err := a.state.BlockByHeight(height)
+	if err != nil {
+		if origErr := errors.Cause(err); state.IsInvalidInput(origErr) || state.IsNotFound(origErr) {
+			return nil, notFound
+		}
+		return nil, errors.Wrapf(err, "failed to get block by height=%d", height)
+	}
+	return block, nil
+}
+
+func (a *App) Block(id proto.BlockID) (*proto.Block, error) {
+	block, err := a.state.Block(id)
+	if err != nil {
+		if origErr := errors.Cause(err); state.IsNotFound(origErr) {
+			return nil, notFound
+		}
+		return nil, errors.Wrapf(err, "failed to get block by id=%s", id.String())
+	}
+	return block, nil
+}
+
+func (a *App) BlockIDToHeight(id proto.BlockID) (proto.Height, error) {
+	height, err := a.state.BlockIDToHeight(id)
+	if err != nil {
+		if origErr := errors.Cause(err); state.IsNotFound(origErr) {
+			return 0, notFound
+		}
+		return 0, errors.Wrapf(err, "failed to get block height for id=%s", id.String())
+	}
+	return height, nil
 }
