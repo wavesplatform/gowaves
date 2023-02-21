@@ -170,7 +170,7 @@ func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return blockIDAtInvalidLenErr(s, err)
 	}
 	header, err := a.app.BlocksHeadersByID(id)
 	if err != nil {
@@ -213,11 +213,17 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-func blockIDAtInvalidLenErr(key string) *apiErrs.InvalidBlockIdError {
+func blockIDAtInvalidLenErr(key string, err error) *apiErrs.InvalidBlockIdError {
+	length := len(key)
+	var incorrectLenErr crypto.IncorrectLengthError
+	if err != nil && errors.As(err, &incorrectLenErr) {
+		length = incorrectLenErr.Len
+	}
+
 	return apiErrs.NewInvalidBlockIDError(
 		fmt.Sprintf("%s has invalid length %d. Length can either be %d or %d",
 			key, // nickeskov: this part must be the last part of HTTP path
-			len(key),
+			length,
 			crypto.DigestSize,
 			crypto.SignatureSize,
 		),
@@ -240,16 +246,13 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		// nickeskov: message taken from scala node
 		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
-		return blockIDAtInvalidLenErr("at")
+		return blockIDAtInvalidLenErr("at", err)
 	}
 
-	block, err := a.state.BlockByHeight(height)
+	block, err := a.app.BlockByHeight(height)
 	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) || state.IsInvalidInput(origErr) {
-			// nickeskov: it's strange, but scala node sends empty response...
-			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
-			return nil
+		if errors.Is(err, notFound) {
+			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
@@ -282,12 +285,11 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
 			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return blockIDAtInvalidLenErr(s, err)
 	}
-	block, err := a.state.Block(id)
+	block, err := a.app.Block(id)
 	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if errors.Is(err, notFound) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err,
@@ -324,6 +326,36 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 
 	if err := trySendJson(w, blockHeightResponse{Height: height}); err != nil {
 		return errors.Wrap(err, "BlockHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error {
+	type blockHeightByIDResponse struct {
+		Height uint64 `json:"height"`
+	}
+
+	s := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(s)
+	if err != nil {
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
+		}
+		return blockIDAtInvalidLenErr(s, err)
+	}
+
+	height, err := a.app.BlockIDToHeight(id)
+	if err != nil {
+		if errors.Is(err, notFound) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err,
+			"BlockHeightByID: expected NotFound in state error, but received other error for blockID=%s", s,
+		)
+	}
+
+	if err := trySendJson(w, blockHeightByIDResponse{Height: height}); err != nil {
+		return errors.Wrap(err, "BlockHeightByID")
 	}
 	return nil
 }
