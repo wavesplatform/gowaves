@@ -93,6 +93,7 @@ func TestDropBytes(t *testing.T) {
 }
 
 func TestConcatBytes(t *testing.T) {
+	te := &mockRideEnvironment{checkMessageLengthFunc: v2check}
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -110,7 +111,7 @@ func TestConcatBytes(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := concatBytes(nil, test.args...)
+		r, err := concatBytes(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
