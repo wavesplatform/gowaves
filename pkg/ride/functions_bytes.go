@@ -116,8 +116,11 @@ func concatBytes(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "concatBytes")
 	}
 	l := len(b1) + len(b2)
-	if env != nil && !env.checkMessageLength(l) {
-		return nil, errors.Errorf("concatBytes: invalid result lenght %d", l)
+	if env == nil {
+		return nil, errors.New("concatBytes: empty environment")
+	}
+	if !env.checkMessageLength(l) {
+		return nil, errors.Errorf("concatBytes: invalid result length %d", l)
 	}
 	out := make([]byte, l)
 	copy(out, b1)
