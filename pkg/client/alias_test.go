@@ -2,11 +2,12 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestNewAlias(t *testing.T) {
@@ -112,62 +113,4 @@ func TestAlias_Create(t *testing.T) {
 
 	assert.NotEmpty(t, resp.Request.Header.Get("X-API-Key"))
 	assert.Equal(t, "https://testnode1.wavesnodes.com/alias/create", resp.Request.URL.String())
-}
-
-var broadcastResp = `{
-  "type": 10,
-  "id": "5sXfATyK7xzfrG4AdFXnG3DMy6j3uEY3szZ21w5cGuNt",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 100000,
-  "timestamp": 1540301356669,
-  "signature": "4kHdmZpXkCdnquXgEaVXiDpiiibxgd5uPxzmGnFTeD8CZDeHdDik5HEwduNG6WYGLJakd7ZrDMehmKsP8MaMGyqE",
-  "proofs": [
-    "4kHdmZpXkCdnquXgEaVXiDpiiibxgd5uPxzmGnFTeD8CZDeHdDik5HEwduNG6WYGLJakd7ZrDMehmKsP8MaMGyqE"
-  ],
-  "version": 1,
-  "alias": "1234567"
-}`
-
-func TestAlias_Broadcast(t *testing.T) {
-	pubKey, err := crypto.NewPublicKeyFromBase58("CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw")
-	require.Nil(t, err)
-
-	signature, err := crypto.NewSignatureFromBase58("4kHdmZpXkCdnquXgEaVXiDpiiibxgd5uPxzmGnFTeD8CZDeHdDik5HEwduNG6WYGLJakd7ZrDMehmKsP8MaMGyqE")
-	require.Nil(t, err)
-
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		Client:  NewMockHttpRequestFromString(broadcastResp, 200),
-	})
-	require.NoError(t, err)
-
-	req := AliasBroadcastReq{
-		SenderPublicKey: pubKey,
-		Fee:             100000,
-		Timestamp:       1540301356669,
-		Signature:       signature,
-		Alias:           "12345678",
-	}
-
-	body, resp, err :=
-		client.Alias.Broadcast(context.Background(), req)
-	require.Nil(t, err)
-	assert.NotNil(t, resp)
-
-	// response
-	digest, err := crypto.NewDigestFromBase58("5sXfATyK7xzfrG4AdFXnG3DMy6j3uEY3szZ21w5cGuNt")
-	require.Nil(t, err)
-
-	assert.Equal(t, &CreateAliasWithSig{
-		Type:      10,
-		ID:        &digest,
-		SenderPK:  pubKey,
-		Timestamp: 1540301356669,
-		Fee:       100000,
-		Signature: &signature,
-		Alias:     "1234567",
-		Version:   1,
-	}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/alias/broadcast/create", resp.Request.URL.String())
 }

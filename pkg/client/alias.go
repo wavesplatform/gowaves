@@ -113,38 +113,3 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 
 	return out, response, nil
 }
-
-type AliasBroadcastReq struct {
-	SenderPublicKey crypto.PublicKey `json:"senderPublicKey"`
-	Fee             uint64           `json:"fee"`
-	Timestamp       uint64           `json:"timestamp"`
-	Signature       crypto.Signature `json:"signature"`
-	Alias           string           `json:"alias"`
-}
-
-func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (*CreateAliasWithSig, *Response, error) {
-	bts, err := json.Marshal(broadcastReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/alias/broadcast/create")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	out := new(CreateAliasWithSig)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
