@@ -48,6 +48,7 @@ func NewSponsorshipTestData[T any](account config.AccountInfo, assetID crypto.Di
 }
 
 func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive] {
+	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive]{
 		"Min values for fee and MinSponsoredAssetFee": *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -64,6 +65,41 @@ func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
+			uint64(wavesAmount/4),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			SponsorshipExpectedValuesPositive{
+				WavesDiffBalance: wavesAmount / 4,
+				AssetDiffBalance: 0,
+			}),
+	}
+	return t
+}
+
+func GetSponsorshipMaxValuesPositive(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive] {
+	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
+	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive]{
+		"Max values for fee and MinSponsoredAssetFee": *NewSponsorshipTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			assetID,
+			utl.MaxAmount,
+			uint64(wavesAmount),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			SponsorshipExpectedValuesPositive{
+				WavesDiffBalance: wavesAmount,
+				AssetDiffBalance: 0,
+			}),
+	}
+	return t
+}
+
+func GetSponsorshipOffData(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive] {
+	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive]{
+		"Switch off sponsorship": *NewSponsorshipTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			assetID,
+			0,
 			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -77,6 +113,21 @@ func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 
 func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesNegative] {
 	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesNegative]{
+		"MinSponsoredAssetFee > max value": *NewSponsorshipTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			assetID,
+			utl.MaxAmount+1,
+			utl.MinTxFeeWaves,
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			SponsorshipExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    "",
+				ErrBrdCstScalaMsg: "",
+			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
