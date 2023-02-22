@@ -120,9 +120,44 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 	return out, response, nil
 }
 
+type AssetsDistributionAtHeight struct {
+	HasNext  bool                          `json:"hasNext"`
+	LastItem proto.WavesAddress            `json:"lastItem"`
+	Items    map[proto.WavesAddress]uint64 `json:"items"`
+}
+
+// DistributionAtHeight gets asset balance distribution by an account at provided height.
+// Result records are limited by limit param. after param is optional and used for pagination.
+func (a *Assets) DistributionAtHeight(ctx context.Context, assetId crypto.Digest, height, limit uint64, after *proto.WavesAddress) (*AssetsDistributionAtHeight, *Response, error) {
+	var rawPath string
+	if after != nil {
+		rawPath = fmt.Sprintf("/assets/%s/distribution/%d/limit/%d?after=%s", assetId.String(), height, limit, after.String())
+	} else {
+		rawPath = fmt.Sprintf("/assets/%s/distribution/%d/limit/%d", assetId.String(), height, limit)
+	}
+	url, err := joinUrl(a.options.BaseUrl, rawPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(AssetsDistributionAtHeight)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
 type AssetsDistribution map[string]uint64
 
 // Distribution gets asset balance distribution by account.
+// Deprecated: use DistributionAtHeight method.
 func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (AssetsDistribution, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/%s/distribution", assetId.String()))
 	if err != nil {

@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestNewAssets(t *testing.T) {
@@ -139,6 +141,45 @@ func TestAssets_Distribution(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.EqualValues(t, map[string]uint64{address: 1906756655}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf/distribution", resp.Request.URL.String())
+}
+
+func TestAssets_DistributionAtHeight(t *testing.T) {
+	const assetDistributionAtHeight = `
+{
+  "hasNext": true,
+  "lastItem": "3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2",
+  "items": {
+    "3PJCh8EZ1toiXRM2schLUNG3Zy2L1fYvsGF": 172500,
+    "3P76TmRjfjhdN9KEmwSnzQHpLrMRuf1qV29": 29198943,
+    "3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2": 163275
+  }
+}`
+
+	assetId := crypto.MustDigestFromBase58("34N9YcEETLWn93qYQ64EsP1x89tSruJU44RrEMSXXEPJ")
+	addr := proto.MustAddressFromString("3PExCrMwdm9F7Cd2MW7vLAp2RQSYFSFqiUU")
+
+	expectedLastItem := proto.MustAddressFromString("3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2")
+	expectedItems := map[proto.WavesAddress]uint64{
+		proto.MustAddressFromString("3PJCh8EZ1toiXRM2schLUNG3Zy2L1fYvsGF"): 172500,
+		proto.MustAddressFromString("3P76TmRjfjhdN9KEmwSnzQHpLrMRuf1qV29"): 29198943,
+		proto.MustAddressFromString("3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2"): 163275,
+	}
+	for _, after := range []*proto.WavesAddress{&addr, nil} {
+		t.Run(fmt.Sprintf("after=%s", after), func(t *testing.T) {
+			client, err := NewClient(Options{
+				Client:  NewMockHttpRequestFromString(assetDistributionAtHeight, 200),
+				BaseUrl: "https://testnode1.wavesnodes.com",
+			})
+			require.NoError(t, err)
+
+			body, resp, err := client.Assets.DistributionAtHeight(context.Background(), assetId, 3533881, 3, after)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.True(t, body.HasNext)
+			require.Equal(t, expectedLastItem, body.LastItem)
+			require.Equal(t, expectedItems, body.Items)
+		})
+	}
 }
 
 var assetsIssueJson = `
