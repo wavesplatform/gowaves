@@ -525,7 +525,7 @@ func array32FromBase58(s, name string) ([32]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 32 {
-		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 32)
+		return r, NewIncorrectLengthError(name, l, 32)
 	}
 	copy(r[:], b[:32])
 	return r, nil
@@ -538,7 +538,7 @@ func array64FromBase58(s, name string) ([64]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 64 {
-		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 64)
+		return r, NewIncorrectLengthError(name, l, 64)
 	}
 	copy(r[:], b[:64])
 	return r, nil
