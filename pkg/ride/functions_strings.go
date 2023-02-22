@@ -185,7 +185,7 @@ func takeRightString(_ environment, args ...rideType) (rideType, error) {
 
 func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList, error) {
 	if sl := len(s); sl > stringLengthLimit {
-		return nil, errors.Errorf("string lenght %d exceeds string length limit %d", sl, stringLengthLimit)
+		return nil, errors.Errorf("string length %d exceeds string length limit %d", sl, stringLengthLimit)
 	}
 	res := strings.Split(s, sep)
 	rl := len(res)
