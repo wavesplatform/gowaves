@@ -43,6 +43,8 @@ func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
 	return out, response, nil
 }
 
+// HeightBySignature returns block height by the given id in base58 encoding. Does the same as HeightByID.
+// Deprecated: use HeightByID.
 func (a *Blocks) HeightBySignature(ctx context.Context, id string) (*BlocksHeight, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", id))
 	if err != nil {
@@ -62,23 +64,9 @@ func (a *Blocks) HeightBySignature(ctx context.Context, id string) (*BlocksHeigh
 	return out, response, nil
 }
 
+// HeightByID returns block height by the given id.
 func (a *Blocks) HeightByID(ctx context.Context, id proto.BlockID) (*BlocksHeight, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", id.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	out := new(BlocksHeight)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
+	return a.HeightBySignature(ctx, id.String())
 }
 
 type Headers struct {
