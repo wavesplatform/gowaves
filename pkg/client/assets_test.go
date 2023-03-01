@@ -182,43 +182,6 @@ func TestAssets_DistributionAtHeight(t *testing.T) {
 	}
 }
 
-var assetsIssueJson = `
-{
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "name": "00kk",
-  "description": "string",
-  "quantity": 100,
-  "decimals": 8,
-  "reissuable": false,
-  "fee": 100000000,
-  "timestamp": 1541669009107
-}`
-
-func TestAssets_Issue(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsIssueJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Issue(context.Background(), AssetsIssueReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, &AssetsIssue{
-		Sender:      address,
-		Name:        "00kk",
-		Description: "string",
-		Quantity:    100,
-		Decimals:    8,
-		Reissuable:  false,
-		Fee:         100000000,
-		Timestamp:   1541669009107,
-	}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/issue", resp.Request.URL.String())
-}
-
 var assetsMassTransferJson = `
 {
   "type": 11,
