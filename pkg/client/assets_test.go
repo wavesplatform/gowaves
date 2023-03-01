@@ -182,48 +182,6 @@ func TestAssets_DistributionAtHeight(t *testing.T) {
 	}
 }
 
-var assetsMassTransferJson = `
-{
-  "type": 11,
-  "id": "HaNfTNE6FHRZrpTFKkfYLfzq6jT3bD3KiAv6g7KMzKVn",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 200000,
-  "timestamp": 1541684282576,
-  "proofs": [
-    "5bEXskGGGoPg5wG8QREg8Vjop6pgm2mihZKgoos83cAC55z6JyRRbmwhRCEuFtdgBcQU6d7sEN1CEAPBTF5gUpFU"
-  ],
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "attachment": "t",
-  "transferCount": 1,
-  "totalAmount": 100,
-  "transfers": [
-    {
-      "recipient": "3N5yE73RZkcdBC9jL1An3FJWGfMahqQyaQN",
-      "amount": 100
-    }
-  ]
-}`
-
-func TestAssets_MassTransfer(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsMassTransferJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.MassTransfer(context.Background(), AssetsMassTransfersReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.MassTransferTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	att, _ := proto.NewAttachmentFromBase58("t")
-	assert.Equal(t, att, body.Attachment)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/masstransfer", resp.Request.URL.String())
-}
-
 var assetsSponsorJson = `
 {
   "type": 14,

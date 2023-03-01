@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"net/http"
 )
 
 type Assets struct {
@@ -171,62 +169,6 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 
 	out := make(AssetsDistribution)
 	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsMassTransfersReq struct {
-	Version    uint8                   `json:"version"`
-	AssetId    crypto.Digest           `json:"asset_id"`
-	Sender     proto.WavesAddress      `json:"sender"`
-	Transfers  []AssetsMassTransferReq `json:"transfers"`
-	Fee        uint64                  `json:"fee"`
-	Attachment []byte                  `json:"attachment"`
-	Timestamp  uint64                  `json:"timestamp"`
-}
-
-type AssetsMassTransferReq struct {
-	Recipient proto.WavesAddress `json:"recipient"`
-	Amount    uint64             `json:"amount"`
-}
-
-// MassTransfer creates a mass transfer of assets.
-func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransfersReq) (*proto.MassTransferWithProofs, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/masstransfer")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if transfersReq.Timestamp == 0 {
-		transfersReq.Timestamp = NewTimestampFromTime(time.Now())
-	}
-	if transfersReq.Version == 0 {
-		transfersReq.Version = 1
-	}
-
-	bts, err := json.Marshal(transfersReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.MassTransferWithProofs)
-	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
