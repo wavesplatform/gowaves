@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -169,48 +167,6 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 
 	out := make(AssetsDistribution)
 	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsBurnReq struct {
-	Sender    proto.WavesAddress `json:"sender"`
-	AssetId   crypto.Digest      `json:"assetId"`
-	Quantity  uint64             `json:"quantity"`
-	Fee       uint64             `json:"fee"`
-	Timestamp uint64             `json:"timestamp"`
-}
-
-// Burn some of your assets
-func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnWithSig, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	bts, err := json.Marshal(burnReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/burn")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.BurnWithSig)
-	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}

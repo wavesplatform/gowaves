@@ -181,37 +181,3 @@ func TestAssets_DistributionAtHeight(t *testing.T) {
 		})
 	}
 }
-
-var assetsBurnJson = `
-{
-  "type": 6,
-  "id": "C36WStdMDe4EYABXc2LruPCr7MEPketGJvmaiwMvM56G",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 100000,
-  "timestamp": 1541767435814,
-  "signature": "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE",
-  "proofs": [
-    "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE"
-  ],
-  "chainId": null,
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "amount": 1
-}`
-
-func TestAssets_Burn(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsBurnJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Burn(context.Background(), AssetsBurnReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.BurnTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/burn", resp.Request.URL.String())
-}
