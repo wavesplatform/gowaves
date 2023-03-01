@@ -176,48 +176,6 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 	return out, response, nil
 }
 
-type AssetsSponsorReq struct {
-	Sender               proto.WavesAddress `json:"sender"`
-	AssetId              crypto.Digest      `json:"assetId"`
-	MinSponsoredAssetFee uint64             `json:"minSponsoredAssetFee"`
-	Fee                  uint64             `json:"fee"`
-	Version              uint8              `json:"version"`
-}
-
-// Sponsor provided asset
-func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*proto.SponsorshipWithProofs, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/sponsor")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	bts, err := json.Marshal(sponsorReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.SponsorshipWithProofs)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 type AssetsBurnReq struct {
 	Sender    proto.WavesAddress `json:"sender"`
 	AssetId   crypto.Digest      `json:"assetId"`

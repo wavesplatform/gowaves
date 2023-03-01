@@ -182,39 +182,6 @@ func TestAssets_DistributionAtHeight(t *testing.T) {
 	}
 }
 
-var assetsSponsorJson = `
-{
-  "type": 14,
-  "id": "6EjgYrLhWyLtotiYZANA3BRuZHMpszb74Gp3BnXJLjcZ",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 100000000,
-  "timestamp": 1541691379136,
-  "proofs": [
-    "g6dcYFR6dVHNwCiKptxW3PWVFzA2GaYMGX8vtWEFXeYkEpSVq9aU1tQzoqtsj4rbbGqcW8Tt1eQxSVExLTsZ3Cg"
-  ],
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "minSponsoredAssetFee": 1
-}`
-
-func TestAssets_Sponsor(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsSponsorJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Sponsor(context.Background(), AssetsSponsorReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.SponsorshipTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	assert.Equal(t, 1, len(body.Proofs.Proofs))
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
-}
-
 var assetsBurnJson = `
 {
   "type": 6,
