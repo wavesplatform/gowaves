@@ -53,33 +53,6 @@ func TestDebug_Info(t *testing.T) {
 	assert.NotEmpty(t, resp.Request.Header.Get(ApiKeyHeader))
 }
 
-var debugBlocksJson = `
-[
-  {
-    "227": "5oXh7pXSmk57GkfehtxpUzuopb4BauSoaoecETgty1Kb"
-  },
-  {
-    "455": "GBeHktFQKnSoni1zgQwRzhPxDKeziUridSaaPpp7mKH"
-  }
-]`
-
-func TestDebug_Blocks(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(debugBlocksJson, 200),
-		ApiKey:  "ApiKey",
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Debug.Blocks(context.Background(), 1)
-	require.Nil(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, 2, len(body))
-	assert.EqualValues(t, "GBeHktFQKnSoni1zgQwRzhPxDKeziUridSaaPpp7mKH", body[1][455])
-	assert.Equal(t, "https://testnode1.wavesnodes.com/debug/blocks/1", resp.Request.URL.String())
-	assert.NotEmpty(t, resp.Request.Header.Get(ApiKeyHeader))
-}
-
 var debugMinerInfoJson = `
 [
   {

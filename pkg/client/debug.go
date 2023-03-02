@@ -76,33 +76,6 @@ func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 	return out, response, nil
 }
 
-// Blocks gets sizes and full hashes for last blocks.
-func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/blocks/%d", howMany))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	var out []map[uint64]string
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 type DebugMinerInfo struct {
 	Address       proto.WavesAddress `json:"address"`
 	MiningBalance uint64             `json:"miningBalance"`
