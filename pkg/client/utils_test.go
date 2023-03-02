@@ -59,7 +59,6 @@ func TestUtils_HashSecure(t *testing.T) {
 func TestUtils_HashFast(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(utilsHashSecureJson, 200),
-		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
 	require.NoError(t, err)
@@ -72,7 +71,6 @@ func TestUtils_HashFast(t *testing.T) {
 		Hash:    "FhRKMmvP4qq3ZSQVSpu7QRY9xruYUc9adsxTg56SZhFE",
 	}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/hash/fast", resp.Request.URL.String())
-	assert.Equal(t, "ApiKey", resp.Request.Header.Get("X-Api-Key"))
 }
 
 var utilsTimeJson = `

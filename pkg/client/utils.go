@@ -73,12 +73,8 @@ type UtilsHashFast struct {
 	Hash    string `json:"hash"`
 }
 
-// Return FastCryptographicHash of specified message
+// HashFast returns the BLAKE2b-256 hash of a given message.
 func (a *Utils) HashFast(ctx context.Context, message string) (*UtilsHashFast, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
 	url, err := joinUrl(a.options.BaseUrl, "/utils/hash/fast")
 	if err != nil {
 		return nil, nil, err
@@ -88,8 +84,6 @@ func (a *Utils) HashFast(ctx context.Context, message string) (*UtilsHashFast, *
 	if err != nil {
 		return nil, nil, err
 	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(UtilsHashFast)
 	response, err := doHttp(ctx, a.options, req, out)
