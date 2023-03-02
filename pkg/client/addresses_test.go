@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -188,67 +187,6 @@ func TestAddresses_PublicKey(t *testing.T) {
 	assert.Equal(t,
 		"https://testnode1.wavesnodes.com/addresses/publicKey/AF9HLq2Rsv2fVfLPtsWxT7Y3S9ZTv6Mw4ZTp8K8LNdEp",
 		resp.Request.URL.String())
-}
-
-var addressSignTextJson = `
-{
-  "message": "some-text",
-  "publicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "signature": "RP742bUjfrzWcXhnmkbim2dWk9mSUcPcmn77EcsD5t2TBUZqZGe8Vk211hAYbW4FNxWtWqcCmR1Trv8gUXKN6if"
-}`
-
-func TestAddresses_SignText(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
-	pubKey, _ := crypto.NewPublicKeyFromBase58("CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw")
-	sign, _ := crypto.NewSignatureFromBase58("RP742bUjfrzWcXhnmkbim2dWk9mSUcPcmn77EcsD5t2TBUZqZGe8Vk211hAYbW4FNxWtWqcCmR1Trv8gUXKN6if")
-	text := "some-text"
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		ApiKey:  "ApiKey",
-		Client:  NewMockHttpRequestFromString(addressSignTextJson, 200),
-	})
-	require.NoError(t, err)
-	body, resp, err :=
-		client.Addresses.SignText(context.Background(), address, text)
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, text, body.Message)
-	assert.Equal(t, &AddressesSignText{
-		Message:   text,
-		PublicKey: pubKey,
-		Signature: sign,
-	}, body)
-	assert.Equal(t,
-		"https://testnode1.wavesnodes.com/addresses/signText/3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp",
-		resp.Request.URL.String())
-}
-
-var addressVerifyTextJson = `
-{
-  "valid": true
-}`
-
-func TestAddresses_VerifyText(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
-	pubKey, _ := crypto.NewPublicKeyFromBase58("J26nL27BBmTgCRye1MdzkFduFDE2aA4agCcuJUyDR2sZ")
-	sign, _ := crypto.NewSignatureFromBase58("4Bh3vksvhe55Ej8bwt42HiPgU18MynnKg87Rr1ZhRQUhmJmFiWC7imgaorW5QJRXxXwbK38bvRmZH4dncPzA9grA")
-	data := VerifyTextReq{
-		Message:   "text",
-		PublicKey: pubKey,
-		Signature: sign,
-	}
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		ApiKey:  "apiKey",
-		Client:  NewMockHttpRequestFromString(addressVerifyTextJson, 200),
-	})
-	require.NoError(t, err)
-	body, resp, err :=
-		client.Addresses.VerifyText(context.Background(), address, data)
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.True(t, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/verifyText/3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", resp.Request.URL.String())
 }
 
 var addressBalanceAfterConfirmationsJson = `

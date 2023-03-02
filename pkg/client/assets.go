@@ -1,15 +1,11 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"net/http"
 )
 
 type Assets struct {
@@ -120,9 +116,44 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 	return out, response, nil
 }
 
+type AssetsDistributionAtHeight struct {
+	HasNext  bool                          `json:"hasNext"`
+	LastItem proto.WavesAddress            `json:"lastItem"`
+	Items    map[proto.WavesAddress]uint64 `json:"items"`
+}
+
+// DistributionAtHeight gets asset balance distribution by an account at provided height.
+// Result records are limited by limit param. after param is optional and used for pagination.
+func (a *Assets) DistributionAtHeight(ctx context.Context, assetId crypto.Digest, height, limit uint64, after *proto.WavesAddress) (*AssetsDistributionAtHeight, *Response, error) {
+	var rawPath string
+	if after != nil {
+		rawPath = fmt.Sprintf("/assets/%s/distribution/%d/limit/%d?after=%s", assetId.String(), height, limit, after.String())
+	} else {
+		rawPath = fmt.Sprintf("/assets/%s/distribution/%d/limit/%d", assetId.String(), height, limit)
+	}
+	url, err := joinUrl(a.options.BaseUrl, rawPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(AssetsDistributionAtHeight)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
 type AssetsDistribution map[string]uint64
 
 // Distribution gets asset balance distribution by account.
+// Deprecated: use DistributionAtHeight method.
 func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (AssetsDistribution, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/%s/distribution", assetId.String()))
 	if err != nil {
@@ -136,206 +167,6 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 
 	out := make(AssetsDistribution)
 	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsIssueReq struct {
-	Sender      proto.WavesAddress `json:"sender"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Quantity    uint64             `json:"quantity"`
-	Decimals    uint8              `json:"decimals"`
-	Reissuable  bool               `json:"reissuable"`
-	Fee         uint64             `json:"fee"`
-	Timestamp   uint64             `json:"timestamp"`
-}
-
-type AssetsIssue struct {
-	Sender      proto.WavesAddress `json:"sender"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Quantity    uint64             `json:"quantity"`
-	Decimals    uint8              `json:"decimals"`
-	Reissuable  bool               `json:"reissuable"`
-	Fee         uint64             `json:"fee"`
-	Timestamp   uint64             `json:"timestamp"`
-}
-
-// Issue new Asset
-func (a *Assets) Issue(ctx context.Context, issueReq AssetsIssueReq) (*AssetsIssue, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/issue")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if issueReq.Timestamp == 0 {
-		issueReq.Timestamp = NewTimestampFromTime(time.Now())
-	}
-
-	bts, err := json.Marshal(issueReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(AssetsIssue)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsMassTransfersReq struct {
-	Version    uint8                   `json:"version"`
-	AssetId    crypto.Digest           `json:"asset_id"`
-	Sender     proto.WavesAddress      `json:"sender"`
-	Transfers  []AssetsMassTransferReq `json:"transfers"`
-	Fee        uint64                  `json:"fee"`
-	Attachment []byte                  `json:"attachment"`
-	Timestamp  uint64                  `json:"timestamp"`
-}
-
-type AssetsMassTransferReq struct {
-	Recipient proto.WavesAddress `json:"recipient"`
-	Amount    uint64             `json:"amount"`
-}
-
-// MassTransfer creates a mass transfer of assets.
-func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransfersReq) (*proto.MassTransferWithProofs, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/masstransfer")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if transfersReq.Timestamp == 0 {
-		transfersReq.Timestamp = NewTimestampFromTime(time.Now())
-	}
-	if transfersReq.Version == 0 {
-		transfersReq.Version = 1
-	}
-
-	bts, err := json.Marshal(transfersReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.MassTransferWithProofs)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsSponsorReq struct {
-	Sender               proto.WavesAddress `json:"sender"`
-	AssetId              crypto.Digest      `json:"assetId"`
-	MinSponsoredAssetFee uint64             `json:"minSponsoredAssetFee"`
-	Fee                  uint64             `json:"fee"`
-	Version              uint8              `json:"version"`
-}
-
-// Sponsor provided asset
-func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*proto.SponsorshipWithProofs, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/sponsor")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	bts, err := json.Marshal(sponsorReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.SponsorshipWithProofs)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type AssetsBurnReq struct {
-	Sender    proto.WavesAddress `json:"sender"`
-	AssetId   crypto.Digest      `json:"assetId"`
-	Quantity  uint64             `json:"quantity"`
-	Fee       uint64             `json:"fee"`
-	Timestamp uint64             `json:"timestamp"`
-}
-
-// Burn some of your assets
-func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnWithSig, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	bts, err := json.Marshal(burnReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/burn")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.BurnWithSig)
-	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
