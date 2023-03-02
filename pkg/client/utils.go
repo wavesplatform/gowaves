@@ -119,12 +119,8 @@ func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
 	return out, response, nil
 }
 
-// Generate random seed of specified length
+// SeedByLength returns generated random seed of a given length in bytes. The returned value is base58 encoded
 func (a *Utils) SeedByLength(ctx context.Context, length uint16) (string, *Response, error) {
-	if a.options.ApiKey == "" {
-		return "", nil, NoApiKeyError
-	}
-
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/utils/seed/%d", length))
 	if err != nil {
 		return "", nil, err
@@ -135,15 +131,15 @@ func (a *Utils) SeedByLength(ctx context.Context, length uint16) (string, *Respo
 		return "", nil, err
 	}
 
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := make(map[string]string)
+	var out struct {
+		Seed string `json:"seed"`
+	}
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}
 
-	return out["seed"], response, nil
+	return out.Seed, response, nil
 }
 
 type UtilsScriptCompile struct {
