@@ -178,13 +178,15 @@ func (a *Utils) ScriptCompileCode(ctx context.Context, code string, compaction b
 }
 
 type UtilsScriptEstimate struct {
-	Script     string `json:"script"`
-	ScriptText string `json:"scriptText"`
-	Complexity uint64 `json:"complexity"`
-	ExtraFee   uint64 `json:"extraFee"`
+	Script               string            `json:"script"`
+	ScriptText           string            `json:"scriptText"`
+	Complexity           uint64            `json:"complexity"`
+	VerifierComplexity   uint64            `json:"verifierComplexity"`
+	ExtraFee             uint64            `json:"extraFee"`
+	CallableComplexities map[string]uint64 `json:"callableComplexities"`
 }
 
-// Estimates compiled code in Base64 representation
+// ScriptEstimate returns estimates of compiled code in base64 representation.
 func (a *Utils) ScriptEstimate(ctx context.Context, base64code string) (*UtilsScriptEstimate, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/utils/script/estimate")
 	if err != nil {
