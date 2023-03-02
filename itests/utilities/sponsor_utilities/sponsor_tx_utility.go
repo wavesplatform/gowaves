@@ -10,9 +10,9 @@ import (
 )
 
 func NewSignSponsorshipTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
-	senderSK crypto.SecretKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) proto.Transaction {
+	senderSK crypto.SecretKey, assetID crypto.Digest, minSponsoredAssetFee, fee, timestamp uint64) proto.Transaction {
 	var tx proto.Transaction
-	tx = proto.NewUnsignedSponsorshipWithProofs(version, senderPK, assetID, minAssetFee, fee, timestamp)
+	tx = proto.NewUnsignedSponsorshipWithProofs(version, senderPK, assetID, minSponsoredAssetFee, fee, timestamp)
 	err := tx.Sign(scheme, senderSK)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)
 	suite.T().Logf("Sponsorship Transaction JSON after sign: %s", txJson)
@@ -25,6 +25,13 @@ func SponsorshipSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, send
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignSponsorshipTransaction(suite, version, scheme, senderPK, senderSK, assetID, minAssetFee, fee, timestamp)
 	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
+}
+
+func SponsorshipBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
+	senderSK crypto.SecretKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64,
+	waitForTx bool) utl.ConsideredTransaction {
+	tx := NewSignSponsorshipTransaction(suite, version, scheme, senderPK, senderSK, assetID, minAssetFee, fee, timestamp)
+	return utl.BroadcastAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
 func NewSignSponsorshipTransactionWithTestData[T any](suite *f.BaseSuite, version byte, testdata testdata.SponsorshipTestData[T]) proto.Transaction {
@@ -70,4 +77,31 @@ func SendSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdat
 func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
 	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SponsorshipBroadcastWithTestData[T])
+}
+
+func IsSponsorshipOn(suite *f.BaseSuite, assetId crypto.Digest) bool {
+	result := false
+	assetDetails := utl.GetAssetInfo(suite, assetId)
+	if assetDetails.MinSponsoredAssetFee > 0 {
+		result = true
+	}
+	return result
+}
+
+func SponsorshipOffSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest) {
+	if IsSponsorshipOn(suite, assetId) {
+		assetDetails := utl.GetAssetInfo(suite, assetId)
+		issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+		SponsorshipSend(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, 0,
+			utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
+	}
+}
+
+func SponsorshipOffBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest) {
+	if IsSponsorshipOn(suite, assetId) {
+		assetDetails := utl.GetAssetInfo(suite, assetId)
+		issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+		SponsorshipBroadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, 0,
+			utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
+	}
 }

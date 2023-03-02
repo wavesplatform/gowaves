@@ -205,6 +205,18 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
 }
 
+func GetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
+	var result config.AccountInfo
+	accounts := suite.Cfg.Accounts
+	for _, account := range accounts {
+		if account.Address.Equal(address) {
+			result = account
+			break
+		}
+	}
+	return result
+}
+
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
 	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
 }
@@ -244,6 +256,12 @@ func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddr
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
 	return GetAvailableBalanceInWavesGo(suite, address), GetAvailableBalanceInWavesScala(suite, address)
+}
+
+func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetail {
+	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
+	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
+	return assetInfo
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
