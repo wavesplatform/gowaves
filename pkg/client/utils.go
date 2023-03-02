@@ -99,12 +99,8 @@ type UtilsTime struct {
 	NTP    uint64 `json:"NTP"`
 }
 
-// Current Node time (UTC)
+// Time returns the current node time (UTC).
 func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
 	url, err := joinUrl(a.options.BaseUrl, "/utils/time")
 	if err != nil {
 		return nil, nil, err
@@ -114,8 +110,6 @@ func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(UtilsTime)
 	response, err := doHttp(ctx, a.options, req, &out)

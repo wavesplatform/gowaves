@@ -83,7 +83,6 @@ var utilsTimeJson = `
 func TestUtils_Time(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(utilsTimeJson, 200),
-		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
 	require.NoError(t, err)
@@ -96,7 +95,6 @@ func TestUtils_Time(t *testing.T) {
 		NTP:    1540980020055,
 	}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/time", resp.Request.URL.String())
-	assert.Equal(t, "ApiKey", resp.Request.Header.Get("X-Api-Key"))
 }
 
 var utilsSignJson = `
