@@ -79,45 +79,6 @@ func TestDebug_MinerInfo(t *testing.T) {
 	assert.NotEmpty(t, resp.Request.Header.Get(ApiKeyHeader))
 }
 
-var debugHistoryInfoJson = `
-{
-  "lastBlockIds": [
-    "4sanYTRdcQC2UqWUj8JVQoR8S6vv2QnfDrqbg7zLHij8uSzkurNqxxeEFUfUr42VkeZo5ogQABNZj1tCbHvbkLL",
-    "2WCvaAYE6rzpcoTi8YMT1BkH6shcXSfBE7hzhVJSHuTMdeAemLJCwmhjtN65XwSAW9skoDMpzWs7nb8dYnSXcY37",
-    "2H5tfhuKTu7JUgcQYHVjBuD4zh5FGxWdnQN9vdNtQeFkcRg1qgfajozLN2jnCy2mYGq4VYx2TboHXSCMdkUGURsB",
-    "3iu2ZSWMif6G3vJxzUwFAYEJYgJXh4q3gTDCp1kCFHHRzAVpCCjKrrFQ6FbWjUSvprHsWg4gYQd1AjTBLbKwdWy2",
-    "5zsJ7Wt6rvuvLPRH77gG1kQswSXNQtJk2odBxE7HNE7dWs5FnGNhuoaWQNPsmwk1Ny2wfecUAyEnXkH44gu2dHXD",
-    "34Q93KETbv5nzDAmEWqnv4B4MXEecYYASynRNxyHtLN3VrSRceBGRu1cSzKXz2mMbxyeMYGqY9Qwo5DCE1cn3EKa",
-    "vZRqsPqHpup1Y1QDGQgFkmfE8h3NjYRqX1mkUU8D3c4Vdv6foqYhxpuaaR4bzuNq9bTP3RY3RBn8r3XRKW7hViF",
-    "2jRJRiL6hTKNbk7XK1JBTwgLHCaFYh4XbW1xkuznVhN3EqRyXyc7PTFSirJCVtRhurze48d69fjmxkowxJaAFggF",
-    "r9hCtXeKKbsRK1USAAuRTJ7qrhQvxXnPv2Zt7nrKciDuiLrv2REVjcjgZGxRsnf9xq6Ps9bzgyLnGiKzfURCbp1",
-    "24uG1maWHQpL9piyEFNDx6pyN97NSPAax448GcE7ubxmPWk3ZofUgBoJqg86WRPXKuVSWUahRPPyFb6WawdAGLkr"
-  ],
-  "microBlockIds": [
-    "NtNEPWoaTHkB4Y5qNeLLjZP5EfVfFYpn1iZrC4pK4Kgib5xworBZYG4sRWtq6J3dpTWyjNb9W88Q2WmZRXT2P2v",
-    "4m4uGWb2op9TNTjLjRReJH7LzTGPd29fgRKGuVNLgVUhz4ue2mRxYW4R3LHihv1a7ZEaLyB9hLGP4A6cNEDTc6Xk"
-  ]
-}`
-
-func TestDebug_HistoryInfo(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(debugHistoryInfoJson, 200),
-		ApiKey:  "ApiKey",
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Debug.HistoryInfo(context.Background())
-	require.Nil(t, err)
-	require.NotNil(t, resp)
-	require.Equal(
-		t,
-		"4sanYTRdcQC2UqWUj8JVQoR8S6vv2QnfDrqbg7zLHij8uSzkurNqxxeEFUfUr42VkeZo5ogQABNZj1tCbHvbkLL",
-		body.LastBlockIds[0].String())
-	assert.Equal(t, "https://testnode1.wavesnodes.com/debug/historyInfo", resp.Request.URL.String())
-	assert.NotEmpty(t, resp.Request.Header.Get(ApiKeyHeader))
-}
-
 func TestDebug_ConfigInfo(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(`{}`, 200),

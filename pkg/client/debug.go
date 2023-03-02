@@ -109,38 +109,6 @@ func (a *Debug) MinerInfo(ctx context.Context) ([]*DebugMinerInfo, *Response, er
 	return out, response, nil
 }
 
-type DebugHistoryInfo struct {
-	LastBlockIds  []proto.BlockID `json:"lastBlockIds"`
-	MicroBlockIds []proto.BlockID `json:"microBlockIds"`
-}
-
-// HistoryInfo gets all history info you need to debug.
-func (a *Debug) HistoryInfo(ctx context.Context) (*DebugHistoryInfo, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/debug/historyInfo")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set(ApiKeyHeader, a.options.ApiKey)
-
-	out := new(DebugHistoryInfo)
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 // ConfigInfo currently running node config.
 func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, error) {
 	if a.options.ApiKey == "" {
