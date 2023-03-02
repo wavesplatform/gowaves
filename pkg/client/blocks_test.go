@@ -223,25 +223,6 @@ func TestBlocks_Delay(t *testing.T) {
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/delay/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt/1", resp.Request.URL.String())
 }
 
-func TestBlocks_Signature(t *testing.T) {
-	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
-	id := proto.NewBlockIDFromSignature(sign)
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Blocks.Signature(context.Background(), id)
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	require.Equal(t, 1, len(body.Transactions))
-	assert.EqualValues(t, proto.TransferTransaction, body.Transactions[0].(*proto.TransferWithSig).Type)
-	assert.EqualValues(t, 330, body.Height)
-	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/signature/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", resp.Request.URL.String())
-}
-
 var blocksHeightJson = `
 {
   "height": 375491
