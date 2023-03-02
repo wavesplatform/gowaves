@@ -143,14 +143,22 @@ func (a *Utils) SeedByLength(ctx context.Context, length uint16) (string, *Respo
 }
 
 type UtilsScriptCompile struct {
-	Script     string `json:"script"`
-	Complexity uint64 `json:"complexity"`
-	ExtraFee   uint64 `json:"extraFee"`
+	Script               string            `json:"script"`
+	Complexity           uint64            `json:"complexity"`
+	VerifierComplexity   uint64            `json:"verifierComplexity"`
+	ExtraFee             uint64            `json:"extraFee"`
+	CallableComplexities map[string]uint64 `json:"callableComplexities"`
 }
 
-// Compiles string code to base64 script representation
+// ScriptCompile returns compiled base64 script representation without compaction from a given code.
+// Deprecated: use ScriptCompileCode.
 func (a *Utils) ScriptCompile(ctx context.Context, code string) (*UtilsScriptCompile, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, "/utils/script/compile")
+	return a.ScriptCompileCode(ctx, code, false)
+}
+
+// ScriptCompileCode returns compiled base64 script representation from a given code.
+func (a *Utils) ScriptCompileCode(ctx context.Context, code string, compaction bool) (*UtilsScriptCompile, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/utils/script/compileCode?compact=%t", compaction))
 	if err != nil {
 		return nil, nil, err
 	}
