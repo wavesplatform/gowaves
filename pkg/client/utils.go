@@ -47,12 +47,8 @@ type UtilsHashSecure struct {
 	Hash    string `json:"hash"`
 }
 
-// Return SecureCryptographicHash of specified message
+// HashSecure returns the Keccak-256 hash of the BLAKE2b-256 hash of a given message.
 func (a *Utils) HashSecure(ctx context.Context, message string) (*UtilsHashSecure, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
 	url, err := joinUrl(a.options.BaseUrl, "/utils/hash/secure")
 	if err != nil {
 		return nil, nil, err
@@ -62,8 +58,6 @@ func (a *Utils) HashSecure(ctx context.Context, message string) (*UtilsHashSecur
 	if err != nil {
 		return nil, nil, err
 	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(UtilsHashSecure)
 	response, err := doHttp(ctx, a.options, req, out)
