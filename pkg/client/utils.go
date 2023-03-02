@@ -19,12 +19,8 @@ func NewUtils(options Options) *Utils {
 	}
 }
 
-// Generate random seed
+// Seed returns generated random seed. The returned value is base58 encoded.
 func (a *Utils) Seed(ctx context.Context) (string, *Response, error) {
-	if a.options.ApiKey == "" {
-		return "", nil, NoApiKeyError
-	}
-
 	url, err := joinUrl(a.options.BaseUrl, "/utils/seed")
 	if err != nil {
 		return "", nil, err
@@ -35,15 +31,15 @@ func (a *Utils) Seed(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := make(map[string]string)
+	var out struct {
+		Seed string `json:"seed"`
+	}
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}
 
-	return out["seed"], response, nil
+	return out.Seed, response, nil
 }
 
 type UtilsHashSecure struct {

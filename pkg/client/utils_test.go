@@ -21,7 +21,6 @@ var utilsSeedJson = `
 func TestUtils_Seed(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(utilsSeedJson, 200),
-		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
 	require.NoError(t, err)
@@ -31,7 +30,6 @@ func TestUtils_Seed(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "33sJ3mEWyeZ3w004CPChfJvgapbPr88e6XV01Wd2cjyy", body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/seed", resp.Request.URL.String())
-	assert.Equal(t, "ApiKey", resp.Request.Header.Get("X-Api-Key"))
 }
 
 var utilsHashSecureJson = `
