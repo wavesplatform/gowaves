@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 )
 
@@ -95,32 +94,6 @@ func TestUtils_Time(t *testing.T) {
 		NTP:    1540980020055,
 	}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/time", resp.Request.URL.String())
-}
-
-var utilsSignJson = `
-{
-  "message": "123124122421",
-  "signature": "4yGyW7bQzAHnwxCCv5jLmJakJ9c2ypeU1vvwTEDib5XXCfsU5dmbzEihf2KmAHEC3ULfJzwji7f9vmDPbESDgfzM"
-}`
-
-func TestUtils_Sign(t *testing.T) {
-	secretKey, _ := crypto.NewSecretKeyFromBase58("YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK")
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(utilsSignJson, 200),
-		ApiKey:  "ApiKey",
-		BaseUrl: "https://testnode1.wavesnodes.com",
-	})
-	require.NoError(t, err)
-	body, resp, err :=
-		client.Utils.Sign(context.Background(), secretKey, "123124122421")
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, &UtilsSign{
-		Message:   "123124122421",
-		Signature: "4yGyW7bQzAHnwxCCv5jLmJakJ9c2ypeU1vvwTEDib5XXCfsU5dmbzEihf2KmAHEC3ULfJzwji7f9vmDPbESDgfzM",
-	}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/sign/YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK", resp.Request.URL.String())
-	assert.Equal(t, "ApiKey", resp.Request.Header.Get("X-Api-Key"))
 }
 
 func TestUtils_SeedByLength(t *testing.T) {

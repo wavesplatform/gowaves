@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net/http"
 	"strings"
 )
@@ -113,38 +112,6 @@ func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
 
 	out := new(UtilsTime)
 	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type UtilsSign struct {
-	Message   string `json:"message"`
-	Signature string `json:"signature"`
-}
-
-// Return FastCryptographicHash of specified message
-func (a *Utils) Sign(ctx context.Context, secretKey crypto.SecretKey, message string) (*UtilsSign, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/utils/sign/%s", secretKey.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("POST", url.String(), strings.NewReader(message))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(UtilsSign)
-	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
