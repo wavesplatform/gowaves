@@ -1004,6 +1004,14 @@ type EvaluationEnvironment struct {
 	cc                               complexityCalculator
 }
 
+func bytesSizeCheckV1V2(l int) bool {
+	return l <= math.MaxInt32
+}
+
+func bytesSizeCheckV3V6(l int) bool {
+	return l <= proto.MaxDataWithProofsBytes
+}
+
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
 	blockV5, rideV6, consensusImprovements, invokeExpression bool,
 ) (*EvaluationEnvironment, error) {
@@ -1015,7 +1023,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		sch:                              scheme,
 		st:                               state,
 		h:                                rideInt(height),
-		check:                            func(l int) bool { return l > math.MaxInt32 }, // By default almost unlimited
+		check:                            bytesSizeCheckV1V2, // By default almost unlimited
 		takeStr:                          func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter:            internalPaymentsValidationHeight,
 		isBlockV5Activated:               blockV5,
@@ -1106,9 +1114,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 func (e *EvaluationEnvironment) ChooseSizeCheck(v ast.LibraryVersion) {
 	e.setLibVersion(v)
 	if v > ast.LibV2 {
-		e.check = func(l int) bool {
-			return l <= proto.MaxDataWithProofsBytes
-		}
+		e.check = bytesSizeCheckV3V6
 	}
 }
 
