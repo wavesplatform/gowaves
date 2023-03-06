@@ -1989,15 +1989,15 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		}
 		switch p.Tree.LibVersion {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
-			if !s.CallableRetV3.EqualWithEntry(retType) {
+			if !s.CallableRetV3.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s, but return %s", s.CallableRetV3.String(), retType.String()), curNode.token32)
 			}
 		case ast.LibV4:
-			if !s.CallableRetV4.EqualWithEntry(retType) {
+			if !s.CallableRetV4.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s,but return %s", s.CallableRetV4.String(), retType.String()), curNode.token32)
 			}
 		case ast.LibV5, ast.LibV6:
-			if !s.CallableRetV5.EqualWithEntry(retType) {
+			if !s.CallableRetV5.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(fmt.Sprintf("CallableFunc must return %s, but return %s", s.CallableRetV5.String(), retType.String()), curNode.token32)
 			}
 		}

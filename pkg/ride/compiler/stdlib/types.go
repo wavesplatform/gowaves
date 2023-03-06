@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -573,11 +574,11 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 		},
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
+	_, filename, _, ok := runtime.Caller(1)
+	if !ok {
+		panic("No current file info")
 	}
-	filePath := filepath.Clean(filepath.Join(pwd, structJsonPath))
+	filePath := filepath.Clean(filepath.Join(filepath.Dir(filename), structJsonPath))
 	f, err := os.Open(filePath)
 	if err != nil {
 		panic(err)

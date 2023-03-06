@@ -26,6 +26,7 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 	astParser := NewASTParser(rawAST, buf)
 	astParser.Parse()
 	if !fail {
+		require.Empty(t, astParser.ErrorsList)
 		tree := parseBase64Script(t, expected)
 		if diff := deep.Equal(tree.Declarations, astParser.Tree.Declarations); diff != nil {
 			t.Errorf("Declaration mismatch:\n%s", strings.Join(diff, "\n"))
@@ -246,7 +247,7 @@ let b = FOLD<5>([1], 0, sum)
 		{`
 func sum(a:Int) = a
 let b = FOLD<5>([1], 0, sum)
-`, true, "(6:25, 6:28): function \"sum\" must have 2 arguments"},
+`, true, "(6:25, 6:28): Function \"sum\" must have 2 arguments"},
 	} {
 		code := DappV6Directive + test.code
 		compareScriptsOrError(t, code, test.fail, test.expected)
