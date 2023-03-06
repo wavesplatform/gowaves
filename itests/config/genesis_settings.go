@@ -1,9 +1,9 @@
 package config
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -24,6 +24,10 @@ const (
 	configFolder            = "config"
 
 	maxBaseTarget = 1000000
+)
+
+var (
+	averageHit = big.NewInt(math.MaxUint64 / 2)
 )
 
 type GenesisConfig struct {
@@ -158,12 +162,12 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 	return r, accounts, nil
 }
 
-func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
+func calculateBaseTarget(pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
 	if maxBT-minBT <= 1 {
 		return maxBT, nil
 	}
 	newBT := (maxBT + minBT) / 2
-	delay, err := pos.CalculateDelay(hit, newBT, balance)
+	delay, err := pos.CalculateDelay(averageHit, newBT, balance)
 	if err != nil {
 		return 0, err
 	}
@@ -178,7 +182,7 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 	} else {
 		min, max = minBT, newBT
 	}
-	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
+	return calculateBaseTarget(pos, min, max, balance, averageDelay)
 }
 
 func isFeaturePreactivated(features []FeatureInfo, feature int16) bool {
@@ -205,12 +209,11 @@ func getPosCalculator(genSettings *GenesisSettings) consensus.PosCalculator {
 func calcInitialBaseTarget(genSettings *GenesisSettings) (types.BaseTarget, error) {
 	maxBT := uint64(0)
 	pos := getPosCalculator(genSettings)
-	hit := getHit()
 	for _, acc := range genSettings.Distributions {
 		if !acc.IsMiner {
 			continue
 		}
-		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, maxBaseTarget, acc.Amount, genSettings.AverageBlockDelay)
+		bt, err := calculateBaseTarget(pos, consensus.MinBaseTarget, maxBaseTarget, acc.Amount, genSettings.AverageBlockDelay)
 		if err != nil {
 			return 0, err
 		}
@@ -219,12 +222,4 @@ func calcInitialBaseTarget(genSettings *GenesisSettings) (types.BaseTarget, erro
 		}
 	}
 	return maxBT, nil
-}
-
-func getHit() *consensus.Hit {
-	s := bytes.Repeat([]byte{0xff}, 8)
-	var hit big.Int
-	hit.SetBytes(s[:])
-	hit.Div(&hit, big.NewInt(2))
-	return &hit
 }

@@ -22,6 +22,7 @@ func TestCalculateBaseTarget(t *testing.T) {
 		baseTarget types.BaseTarget
 	}{
 		{balance: 10000000000000, baseTarget: 468754},
+		{balance: 15000000000000, baseTarget: 312505},
 		{balance: 25000000000000, baseTarget: 187506},
 		{balance: 25000000000000, baseTarget: 187506},
 		{balance: 40000000000000, baseTarget: 117194},
@@ -32,7 +33,7 @@ func TestCalculateBaseTarget(t *testing.T) {
 		{balance: 6000000000000000, baseTarget: 771},
 	}
 	for _, tc := range tests {
-		bt, err := calculateBaseTarget(getHit(), pos, consensus.MinBaseTarget, maxBaseTarget, tc.balance, settings.AverageBlockDelay)
+		bt, err := calculateBaseTarget(pos, consensus.MinBaseTarget, maxBaseTarget, tc.balance, settings.AverageBlockDelay)
 		assert.NoError(t, err)
 		assert.Equal(t, bt, tc.baseTarget)
 	}
