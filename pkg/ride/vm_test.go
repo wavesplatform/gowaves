@@ -125,7 +125,7 @@ func TestFunctions(t *testing.T) {
 	data := newDataTransaction()
 	require.NoError(t, err)
 	env := &mockRideEnvironment{
-		checkMessageLengthFunc: v3check,
+		checkMessageLengthFunc: bytesSizeCheckV3V6,
 		schemeFunc: func() byte {
 			return 'W'
 		},

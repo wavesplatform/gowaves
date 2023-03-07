@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -76,33 +75,6 @@ func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 	return out, response, nil
 }
 
-// Blocks gets sizes and full hashes for last blocks.
-func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/blocks/%d", howMany))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	var out []map[uint64]string
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 type DebugMinerInfo struct {
 	Address       proto.WavesAddress `json:"address"`
 	MiningBalance uint64             `json:"miningBalance"`
@@ -128,38 +100,6 @@ func (a *Debug) MinerInfo(ctx context.Context) ([]*DebugMinerInfo, *Response, er
 	req.Header.Set(ApiKeyHeader, a.options.ApiKey)
 
 	var out []*DebugMinerInfo
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
-type DebugHistoryInfo struct {
-	LastBlockIds  []proto.BlockID `json:"lastBlockIds"`
-	MicroBlockIds []proto.BlockID `json:"microBlockIds"`
-}
-
-// HistoryInfo gets all history info you need to debug.
-func (a *Debug) HistoryInfo(ctx context.Context) (*DebugHistoryInfo, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/debug/historyInfo")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set(ApiKeyHeader, a.options.ApiKey)
-
-	out := new(DebugHistoryInfo)
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
@@ -262,39 +202,6 @@ func (a *Debug) BalancesHistory(ctx context.Context, address proto.WavesAddress)
 	}
 
 	return out, response, nil
-}
-
-type StateChangesResponse struct {
-	Id           string `json:"id"`
-	Height       uint64 `json:"height"`
-	StateChanges struct {
-		Data      proto.DataEntries `json:"data"`
-		Transfers []*struct {
-			Address proto.WavesAddress `json:"address"`
-			Asset   crypto.Digest      `json:"asset"`
-			Amount  uint64             `json:"amount"`
-		} `json:"transfers"`
-	} `json:"stateChanges"`
-}
-
-func (a *Debug) StateChanges(ctx context.Context, id crypto.Digest) (*StateChangesResponse, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/stateChanges/info/%s", id.String()))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var out StateChangesResponse
-	response, err := doHttp(ctx, a.options, req, &out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return &out, response, nil
 }
 
 func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {

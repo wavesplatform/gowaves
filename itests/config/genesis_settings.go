@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
+	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,6 +26,10 @@ const (
 	maxBaseTarget = 1000000
 )
 
+var (
+	averageHit = big.NewInt(math.MaxUint64 / 2)
+)
+
 type GenesisConfig struct {
 	GenesisTimestamp  int64
 	GenesisSignature  crypto.Signature
@@ -35,6 +41,7 @@ type GenesisConfig struct {
 type DistributionItem struct {
 	SeedText string `json:"seed_text"`
 	Amount   uint64 `json:"amount"`
+	IsMiner  bool   `json:"is_miner"`
 }
 
 type FeatureInfo struct {
@@ -91,7 +98,7 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	bt, err := calcInitialBaseTarget(acc, genSettings)
+	bt, err := calcInitialBaseTarget(genSettings)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -155,12 +162,12 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 	return r, accounts, nil
 }
 
-func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
+func calculateBaseTarget(pos consensus.PosCalculator, minBT types.BaseTarget, maxBT types.BaseTarget, balance uint64, averageDelay uint64) (types.BaseTarget, error) {
 	if maxBT-minBT <= 1 {
 		return maxBT, nil
 	}
 	newBT := (maxBT + minBT) / 2
-	delay, err := pos.CalculateDelay(hit, newBT, balance)
+	delay, err := pos.CalculateDelay(averageHit, newBT, balance)
 	if err != nil {
 		return 0, err
 	}
@@ -175,7 +182,7 @@ func calculateBaseTarget(hit *consensus.Hit, pos consensus.PosCalculator, minBT 
 	} else {
 		min, max = minBT, newBT
 	}
-	return calculateBaseTarget(hit, pos, min, max, balance, averageDelay)
+	return calculateBaseTarget(pos, min, max, balance, averageDelay)
 }
 
 func isFeaturePreactivated(features []FeatureInfo, feature int16) bool {
@@ -199,15 +206,14 @@ func getPosCalculator(genSettings *GenesisSettings) consensus.PosCalculator {
 	return consensus.NXTPosCalculator
 }
 
-func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings) (types.BaseTarget, error) {
+func calcInitialBaseTarget(genSettings *GenesisSettings) (types.BaseTarget, error) {
 	maxBT := uint64(0)
 	pos := getPosCalculator(genSettings)
-	for _, info := range accounts {
-		hit, err := getHit(info, genSettings)
-		if err != nil {
-			return 0, err
+	for _, acc := range genSettings.Distributions {
+		if !acc.IsMiner {
+			continue
 		}
-		bt, err := calculateBaseTarget(hit, pos, consensus.MinBaseTarget, maxBaseTarget, info.Amount, genSettings.AverageBlockDelay)
+		bt, err := calculateBaseTarget(pos, consensus.MinBaseTarget, maxBaseTarget, acc.Amount, genSettings.AverageBlockDelay)
 		if err != nil {
 			return 0, err
 		}
@@ -216,35 +222,4 @@ func calcInitialBaseTarget(accounts []AccountInfo, genSettings *GenesisSettings)
 		}
 	}
 	return maxBT, nil
-}
-
-func getHit(acc AccountInfo, genSettings *GenesisSettings) (*consensus.Hit, error) {
-	hitSource := make([]byte, crypto.DigestSize)
-	var gs []byte
-	var err error
-	if isFeaturePreactivated(genSettings.PreactivatedFeatures, int16(settings.BlockV5)) {
-		proof, err := crypto.SignVRF(acc.SecretKey, hitSource)
-		if err != nil {
-			return nil, err
-		}
-		ok, hs, err := crypto.VerifyVRF(acc.PublicKey, hitSource, proof)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, err
-		}
-		gs = hs
-	} else {
-		genSigProvider := consensus.NXTGenerationSignatureProvider
-		gs, err = genSigProvider.GenerationSignature(acc.PublicKey, hitSource)
-		if err != nil {
-			return nil, err
-		}
-	}
-	hit, err := consensus.GenHit(gs)
-	if err != nil {
-		return nil, err
-	}
-	return hit, nil
 }

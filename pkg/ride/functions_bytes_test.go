@@ -93,7 +93,7 @@ func TestDropBytes(t *testing.T) {
 }
 
 func TestConcatBytes(t *testing.T) {
-	te := &mockRideEnvironment{checkMessageLengthFunc: v2check}
+	te := &mockRideEnvironment{checkMessageLengthFunc: bytesSizeCheckV1V2}
 	for _, test := range []struct {
 		args []rideType
 		fail bool
