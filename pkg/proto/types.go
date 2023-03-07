@@ -3047,7 +3047,6 @@ var scriptPrefixBytes = []byte(scriptPrefix)
 type ScriptInfo struct {
 	Version    int32
 	Bytes      []byte
-	Base64     string
 	Complexity uint64
 }
 
@@ -3057,7 +3056,7 @@ func (s *ScriptInfo) ToProtobuf() *pb.ScriptData {
 	}
 	return &pb.ScriptData{
 		ScriptBytes: s.Bytes,
-		ScriptText:  s.Base64,
+		ScriptText:  base64.StdEncoding.EncodeToString(s.Bytes),
 		Complexity:  int64(s.Complexity),
 	}
 }

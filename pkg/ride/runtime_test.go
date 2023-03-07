@@ -420,7 +420,6 @@ func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.
 		ScriptInfo: proto.ScriptInfo{
 			Version:    3,
 			Bytes:      script,
-			Base64:     base64.StdEncoding.EncodeToString(script),
 			Complexity: 4,
 		},
 		SponsorshipCost:  5,

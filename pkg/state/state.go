@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -2170,7 +2169,6 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	ev, err := s.EstimatorVersion()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -2186,7 +2184,6 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2196,7 +2193,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2208,7 +2204,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2218,7 +2213,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2230,7 +2224,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
