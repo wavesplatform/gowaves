@@ -211,6 +211,19 @@ func (ea *EthereumAddress) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value
 // WavesAddress is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
 type WavesAddress [WavesAddressSize]byte
 
+func (a WavesAddress) MarshalText() (text []byte, err error) {
+	return []byte(a.String()), nil
+}
+
+func (a *WavesAddress) UnmarshalText(text []byte) error {
+	addr, err := NewAddressFromString(string(text))
+	if err != nil {
+		return err
+	}
+	*a = addr
+	return nil
+}
+
 func (a WavesAddress) Body() []byte {
 	return a[wavesAddressHeaderSize : wavesAddressHeaderSize+wavesAddressBodySize]
 }

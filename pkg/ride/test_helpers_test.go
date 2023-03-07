@@ -129,9 +129,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV1 // V1 by default
 		},
-		checkMessageLengthFunc: func(n int) bool {
-			return true // V2 by default
-		},
+		checkMessageLengthFunc: bytesSizeCheckV1V2,
 		validateInternalPaymentsFunc: func() bool {
 			return false
 		},
@@ -402,9 +400,7 @@ func (e *testEnv) withDataEntriesSizeV2() *testEnv {
 }
 
 func (e *testEnv) withMessageLengthV3() *testEnv {
-	e.me.checkMessageLengthFunc = func(n int) bool {
-		return n <= maxMessageLength
-	}
+	e.me.checkMessageLengthFunc = bytesSizeCheckV3V6
 	return e
 }
 

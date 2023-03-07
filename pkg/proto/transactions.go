@@ -1235,7 +1235,9 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
-	PutBytesWithUInt16Len(buf[p:], attBytes)
+	if err := PutBytesWithUInt16Len(buf[p:], attBytes); err != nil {
+		return nil, errors.Wrap(err, "failed to marshal Transfer body")
+	}
 	return buf, nil
 }
 

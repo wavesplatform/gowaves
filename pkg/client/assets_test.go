@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestNewAssets(t *testing.T) {
@@ -141,148 +143,41 @@ func TestAssets_Distribution(t *testing.T) {
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf/distribution", resp.Request.URL.String())
 }
 
-var assetsIssueJson = `
+func TestAssets_DistributionAtHeight(t *testing.T) {
+	const assetDistributionAtHeight = `
 {
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "name": "00kk",
-  "description": "string",
-  "quantity": 100,
-  "decimals": 8,
-  "reissuable": false,
-  "fee": 100000000,
-  "timestamp": 1541669009107
+  "hasNext": true,
+  "lastItem": "3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2",
+  "items": {
+    "3PJCh8EZ1toiXRM2schLUNG3Zy2L1fYvsGF": 172500,
+    "3P76TmRjfjhdN9KEmwSnzQHpLrMRuf1qV29": 29198943,
+    "3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2": 163275
+  }
 }`
 
-func TestAssets_Issue(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsIssueJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Issue(context.Background(), AssetsIssueReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, &AssetsIssue{
-		Sender:      address,
-		Name:        "00kk",
-		Description: "string",
-		Quantity:    100,
-		Decimals:    8,
-		Reissuable:  false,
-		Fee:         100000000,
-		Timestamp:   1541669009107,
-	}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/issue", resp.Request.URL.String())
-}
+	assetId := crypto.MustDigestFromBase58("34N9YcEETLWn93qYQ64EsP1x89tSruJU44RrEMSXXEPJ")
+	addr := proto.MustAddressFromString("3PExCrMwdm9F7Cd2MW7vLAp2RQSYFSFqiUU")
 
-var assetsMassTransferJson = `
-{
-  "type": 11,
-  "id": "HaNfTNE6FHRZrpTFKkfYLfzq6jT3bD3KiAv6g7KMzKVn",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 200000,
-  "timestamp": 1541684282576,
-  "proofs": [
-    "5bEXskGGGoPg5wG8QREg8Vjop6pgm2mihZKgoos83cAC55z6JyRRbmwhRCEuFtdgBcQU6d7sEN1CEAPBTF5gUpFU"
-  ],
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "attachment": "t",
-  "transferCount": 1,
-  "totalAmount": 100,
-  "transfers": [
-    {
-      "recipient": "3N5yE73RZkcdBC9jL1An3FJWGfMahqQyaQN",
-      "amount": 100
-    }
-  ]
-}`
+	expectedLastItem := proto.MustAddressFromString("3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2")
+	expectedItems := map[proto.WavesAddress]uint64{
+		proto.MustAddressFromString("3PJCh8EZ1toiXRM2schLUNG3Zy2L1fYvsGF"): 172500,
+		proto.MustAddressFromString("3P76TmRjfjhdN9KEmwSnzQHpLrMRuf1qV29"): 29198943,
+		proto.MustAddressFromString("3PQL81CriMZu5tXjdbS5HqBVnrVpy9eRzp2"): 163275,
+	}
+	for _, after := range []*proto.WavesAddress{&addr, nil} {
+		t.Run(fmt.Sprintf("after=%s", after), func(t *testing.T) {
+			client, err := NewClient(Options{
+				Client:  NewMockHttpRequestFromString(assetDistributionAtHeight, 200),
+				BaseUrl: "https://testnode1.wavesnodes.com",
+			})
+			require.NoError(t, err)
 
-func TestAssets_MassTransfer(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsMassTransferJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.MassTransfer(context.Background(), AssetsMassTransfersReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.MassTransferTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	att, _ := proto.NewAttachmentFromBase58("t")
-	assert.Equal(t, att, body.Attachment)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/masstransfer", resp.Request.URL.String())
-}
-
-var assetsSponsorJson = `
-{
-  "type": 14,
-  "id": "6EjgYrLhWyLtotiYZANA3BRuZHMpszb74Gp3BnXJLjcZ",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 100000000,
-  "timestamp": 1541691379136,
-  "proofs": [
-    "g6dcYFR6dVHNwCiKptxW3PWVFzA2GaYMGX8vtWEFXeYkEpSVq9aU1tQzoqtsj4rbbGqcW8Tt1eQxSVExLTsZ3Cg"
-  ],
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "minSponsoredAssetFee": 1
-}`
-
-func TestAssets_Sponsor(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsSponsorJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Sponsor(context.Background(), AssetsSponsorReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.SponsorshipTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	assert.Equal(t, 1, len(body.Proofs.Proofs))
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
-}
-
-var assetsBurnJson = `
-{
-  "type": 6,
-  "id": "C36WStdMDe4EYABXc2LruPCr7MEPketGJvmaiwMvM56G",
-  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
-  "fee": 100000,
-  "timestamp": 1541767435814,
-  "signature": "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE",
-  "proofs": [
-    "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE"
-  ],
-  "chainId": null,
-  "version": 1,
-  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-  "amount": 1
-}`
-
-func TestAssets_Burn(t *testing.T) {
-	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(assetsBurnJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		ApiKey:  "apiKey",
-	})
-	require.Nil(t, err)
-	body, resp, err :=
-		client.Assets.Burn(context.Background(), AssetsBurnReq{})
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.EqualValues(t, proto.BurnTransaction, body.Type)
-	assert.EqualValues(t, 1, body.Version)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/burn", resp.Request.URL.String())
+			body, resp, err := client.Assets.DistributionAtHeight(context.Background(), assetId, 3533881, 3, after)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.True(t, body.HasNext)
+			require.Equal(t, expectedLastItem, body.LastItem)
+			require.Equal(t, expectedItems, body.Items)
+		})
+	}
 }

@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.18
+go 1.19
 
 require (
 	filippo.io/edwards25519 v1.0.0
@@ -20,8 +20,6 @@ require (
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/jinzhu/copier v0.3.5
-	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
-	github.com/kilic/bn254 v0.0.0-20201116081810-790649bc68fe
 	github.com/mr-tron/base58 v1.2.0
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
@@ -29,11 +27,11 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/afero v1.9.3
+	github.com/spf13/afero v1.9.4
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.9.1
 	github.com/tyler-smith/go-bip39 v1.1.0
@@ -42,19 +40,16 @@ require (
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
+	golang.org/x/crypto v0.7.0
 	golang.org/x/exp v0.0.0-20220321173239-a90fa8a75705
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.4.0
-	google.golang.org/grpc v1.52.3
+	golang.org/x/sys v0.6.0
+	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
-require (
-	github.com/consensys/gnark-crypto v0.7.0
-	github.com/ulule/deepcopier v0.0.0-20200430083143-45decc6639b6
-)
+require github.com/consensys/gnark-crypto v0.7.0
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -97,9 +92,9 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/term v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/term v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

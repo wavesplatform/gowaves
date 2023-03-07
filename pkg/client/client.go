@@ -38,7 +38,6 @@ type Client struct {
 	Alias        *Alias
 	NodeInfo     *NodeInfo
 	Peers        *Peers
-	Consensus    *Consensus
 	Transactions *Transactions
 	Assets       *Assets
 	Utils        *Utils
@@ -86,7 +85,6 @@ func NewClient(options ...Options) (*Client, error) {
 		Alias:        NewAlias(opts),
 		Peers:        NewPeers(opts),
 		NodeInfo:     NewNodeInfo(opts),
-		Consensus:    NewConsensus(opts),
 		Transactions: NewTransactions(opts),
 		Assets:       NewAssets(opts),
 		Utils:        NewUtils(opts),
