@@ -112,6 +112,10 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			})
 		})
 
+		r.Route("/assets", func(r chi.Router) {
+			r.Get("/details/{id}", wrapper(a.AssetsDetailsByID))
+		})
+
 		r.Route("/addresses", func(r chi.Router) {
 			r.Get("/", wrapper(a.Addresses))
 		})

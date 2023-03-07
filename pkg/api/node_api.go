@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -707,6 +708,33 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	}
 	if err := trySendJson(w, methods); err != nil {
 		return errors.Wrap(err, "EthereumDAppABI")
+	}
+	return nil
+}
+
+func (a *NodeApi) AssetsDetailsByID(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "id")
+	fullAssetID, err := crypto.NewDigestFromBase58(s)
+	if err != nil {
+		return apiErrs.InvalidAssetId
+	}
+
+	var full bool
+	if f := r.URL.Query().Get("full"); f != "" {
+		if full, err = strconv.ParseBool(f); err != nil {
+			return apiErrs.InvalidAssetId
+		}
+	}
+
+	assetDetails, err := a.app.AssetsDetailsByID(fullAssetID, full)
+	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return apiErrs.NewAssetDoesNotExistError(fullAssetID)
+		}
+		return errors.Wrapf(err, "failed to get asset details by assetID=%q", fullAssetID)
+	}
+	if err := trySendJson(w, assetDetails); err != nil {
+		return errors.Wrap(err, "AssetsDetailsByID")
 	}
 	return nil
 }

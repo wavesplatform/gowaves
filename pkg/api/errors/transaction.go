@@ -1,7 +1,10 @@
 package errors
 
 import (
+	"fmt"
 	"net/http"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -77,6 +80,16 @@ func NewInvalidTransactionIDError(message string) *InvalidTransactionIdError {
 			ID:       InvalidTransactionIdErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  message,
+		},
+	}
+}
+
+func NewAssetDoesNotExistError(digest crypto.Digest) *AssetDoesNotExistError {
+	return &AssetDoesNotExistError{
+		genericError: genericError{
+			ID:       AssetDoesNotExistErrorID,
+			HttpCode: http.StatusNotFound,
+			Message:  fmt.Sprintf("Asset does not exist: %s", digest.String()),
 		},
 	}
 }
