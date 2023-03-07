@@ -145,3 +145,7 @@ func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, 
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 }
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.TransferTransaction, testdata.TransferMaxVersion).Sum
+}

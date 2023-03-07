@@ -18,7 +18,7 @@ type SponsorshipTxSuite struct {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
-	versions := utl.GetVersions()
+	versions := sponsor_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
-	versions := utl.GetVersions()
+	versions := sponsor_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -67,7 +67,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
-	versions := utl.GetVersions()
+	versions := sponsor_utilities.GetVersions()
 	name := "Sponsorship On/Off"
 	waitForTx := true
 	for _, v := range versions {
@@ -101,7 +101,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
-	versions := utl.GetVersions()
+	versions := sponsor_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

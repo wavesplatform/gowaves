@@ -8,6 +8,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	TransferMaxVersion = 3
+)
+
 type TransferTestData[T any] struct {
 	Sender     config.AccountInfo
 	Recipient  proto.Recipient

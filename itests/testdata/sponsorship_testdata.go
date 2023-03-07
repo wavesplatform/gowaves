@@ -8,6 +8,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	SponsorshipMaxVersion = 3
+)
+
 type SponsorshipTestData[T any] struct {
 	Account              config.AccountInfo
 	AssetID              crypto.Digest

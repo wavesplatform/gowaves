@@ -81,8 +81,13 @@ func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata te
 
 func IsSponsorshipOn(suite *f.BaseSuite, assetId crypto.Digest) bool {
 	result := false
-	assetDetails := utl.GetAssetInfo(suite, assetId)
+	/*assetDetails := utl.GetAssetInfo(suite, assetId)
 	if assetDetails.MinSponsoredAssetFee > 0 {
+		result = true
+	}
+	*/
+	assetDetails := utl.GetAssetInfoGrpc(suite, assetId)
+	if assetDetails.GetSponsorship() > 0 {
 		result = true
 	}
 	return result
@@ -104,4 +109,8 @@ func SponsorshipOffBroadcast(suite *f.BaseSuite, version byte, scheme proto.Sche
 		SponsorshipBroadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, 0,
 			utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 	}
+}
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.SponsorshipTransaction, testdata.SponsorshipMaxVersion).Sum
 }

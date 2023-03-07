@@ -20,7 +20,7 @@ type TransferTxApiSuite struct {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -63,7 +63,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -103,7 +103,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -149,7 +149,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

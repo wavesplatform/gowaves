@@ -19,7 +19,7 @@ type BurnTxSuite struct {
 }
 
 func (suite *BurnTxSuite) Test_BurnTxPositive() {
-	versions := utl.GetVersions()
+	versions := burn_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -42,7 +42,7 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 }
 
 func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
-	versions := utl.GetVersions()
+	versions := burn_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -67,7 +67,7 @@ func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 }
 
 func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
-	versions := utl.GetVersions()
+	versions := burn_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -100,7 +100,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 }
 
 func (suite *BurnTxSuite) Test_BurnTxNegative() {
-	versions := utl.GetVersions()
+	versions := burn_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

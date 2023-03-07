@@ -90,3 +90,7 @@ func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, acc
 		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, 4, true, true)
 	return tx.TxID
 }
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.IssueTransaction, testdata.IssueMaxVersion).Sum
+}

@@ -63,3 +63,11 @@ func (c *GrpcClient) GetAddressByAlias(t *testing.T, alias string) []byte {
 	assert.NoError(t, err)
 	return addr.GetValue()
 }
+
+func (c *GrpcClient) GetAssetsInfo(t *testing.T, id []byte) *g.AssetInfoResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	assetInfo, err := g.NewAssetsApiClient(c.conn).GetInfo(ctx, &g.AssetRequest{AssetId: id})
+	assert.NoError(t, err)
+	return assetInfo
+}

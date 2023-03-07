@@ -18,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -116,8 +117,31 @@ func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Resp
 	}
 }
 
-func GetVersions() []byte {
-	return []byte{1, 2, 3}
+type AvailableVersions struct {
+	Binary   []byte
+	Protobuf []byte
+	Sum      []byte
+}
+
+func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
+	sum := append(binary, protobuf...)
+	return AvailableVersions{
+		Binary:   binary,
+		Protobuf: protobuf,
+		Sum:      sum,
+	}
+}
+
+func GetAvailableVersions(txType proto.TransactionType, maxVersion byte) AvailableVersions {
+	var binary, protobuf []byte
+	minPBVersion := proto.ProtobufTransactionsVersions[txType]
+	for i := 1; i < int(minPBVersion); i++ {
+		binary = append(binary, byte(i))
+	}
+	for i := int(minPBVersion); i < int(maxVersion+1); i++ {
+		protobuf = append(protobuf, byte(i))
+	}
+	return NewAvailableVersions(binary, protobuf)
 }
 
 func RandStringBytes(n int, symbolSet string) string {
@@ -262,6 +286,10 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
+}
+
+func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
