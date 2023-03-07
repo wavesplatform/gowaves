@@ -28,7 +28,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/afero v1.9.4
+	github.com/spf13/afero v1.9.5
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
