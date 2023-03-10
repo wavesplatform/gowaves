@@ -14,7 +14,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/gorilla/mux v1.8.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
@@ -46,7 +46,7 @@ require (
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.6.0
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.29.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
