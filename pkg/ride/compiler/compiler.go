@@ -19,7 +19,6 @@ func CompileToTree(code string) (*ast.Tree, []error) {
 	}
 	astParser := NewASTParser(p.AST(), p.buffer)
 	astParser.Parse()
-	astParser.Tree.Meta.Version = 2
 	if len(astParser.ErrorsList) > 0 {
 		return nil, astParser.ErrorsList
 	}
