@@ -19,12 +19,6 @@ import (
 )
 
 var (
-	v2check = func(int) bool {
-		return true
-	}
-	v3check = func(size int) bool {
-		return size <= maxMessageLength
-	}
 	v5takeString = takeRideString
 	noRideV6     = func() bool {
 		return false
@@ -580,25 +574,25 @@ func TestSigVerify(t *testing.T) {
 	require.NoError(t, err)
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk)}, v2check, false, rideBoolean(true)},
-		{[]rideType{rideBytes(msg), rideBytes(bad), rideBytes(pk)}, v2check, false, rideBoolean(false)},
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk[:10])}, v2check, false, rideBoolean(false)},
-		{[]rideType{rideString("MESSAGE"), rideBytes(sig), rideBytes(pk)}, v2check, true, nil},
-		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, v2check, false, rideBoolean(false)},
-		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, v3check, true, nil},
-		{[]rideType{rideBytes(msg), rideString("SIGNATURE"), rideBytes(pk)}, v2check, true, nil},
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideString("PUBLIC KEY")}, v2check, true, nil},
-		{[]rideType{rideUnit{}}, v2check, true, nil},
-		{[]rideType{}, v2check, true, nil},
-		{[]rideType{rideInt(12345)}, v2check, true, nil},
-		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
+		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(true)},
+		{[]rideType{rideBytes(msg), rideBytes(bad), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk[:10])}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideString("MESSAGE"), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideBytes(msg), rideString("SIGNATURE"), rideBytes(pk)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideBytes(msg), rideBytes(sig), rideString("PUBLIC KEY")}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
 		te := &mockRideEnvironment{
 			checkMessageLengthFunc: test.check,
@@ -623,23 +617,23 @@ func TestKeccak256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("64e604787cbf194841e7b68d7cd28786f6c9a0a3ab9f8b0a0e87cb4387ab0107")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("0b162a8c643d65caa5b7ad0cf9216062ab6253e186576ac01b101b7a0faef5b5")
+	digest3, err := hex.DecodeString("fe0a57a797d6cb60a92548f2b43bd5e425212f55e0b7adb772ddabd85d21943e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data)}, v2check, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, v2check, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, v2check, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, v3check, true, nil},
-		{[]rideType{rideUnit{}}, v2check, true, nil},
-		{[]rideType{}, v2check, true, nil},
-		{[]rideType{rideInt(12345)}, v2check, true, nil},
-		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
+		{[]rideType{rideBytes(data)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
 		r, err := keccak256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
@@ -658,23 +652,23 @@ func TestBlake2b256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("f5d67bae73b0e10d0dfd3043b3f4f100ada014c5c37bd5ce97813b13f5ab2bcf")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("701693995b117822e38724b0c01dcea7fc35395e6e66f6c88b4f7ce70fc1a9c2")
+	digest3, err := hex.DecodeString("336bccfd826a5bf6a5c2c07a289e39b05cb68447c379fb1acdaf9afd3b3d8c67")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data)}, v2check, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, v2check, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, v2check, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, v3check, true, nil},
-		{[]rideType{rideUnit{}}, v2check, true, nil},
-		{[]rideType{}, v2check, true, nil},
-		{[]rideType{rideInt(12345)}, v2check, true, nil},
-		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
+		{[]rideType{rideBytes(data)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
 		r, err := blake2b256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
@@ -693,23 +687,23 @@ func TestSha256(t *testing.T) {
 	require.NoError(t, err)
 	digest2, err := hex.DecodeString("A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3")
 	require.NoError(t, err)
-	digest3, err := hex.DecodeString("0ab08f26715dab648177681615cb813e5b3fefa0f8a3749e027a4238f08302c8")
+	digest3, err := hex.DecodeString("956731b38f852244d2d20f8ae618f1f916a6d0694062f90f7a2d9eec9c2ece4e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data1)}, v2check, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, v2check, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, v2check, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, v3check, true, nil},
-		{[]rideType{rideUnit{}}, v2check, true, nil},
-		{[]rideType{}, v2check, true, nil},
-		{[]rideType{rideInt(12345)}, v2check, true, nil},
-		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
+		{[]rideType{rideBytes(data1)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
+		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
 		r, err := sha256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {

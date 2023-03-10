@@ -32,11 +32,13 @@ func (a *Wallet) Seed(ctx context.Context) (string, *Response, error) {
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := make(map[string]string)
+	var out struct {
+		Seed string `json:"seed"`
+	}
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}
 
-	return out["seed"], response, nil
+	return out.Seed, response, nil
 }
