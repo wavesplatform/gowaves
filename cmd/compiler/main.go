@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -43,13 +44,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	base64res, errors := compiler.Compile(string(b))
+	treeBytes, errors := compiler.Compile(string(b))
 	if errors != nil {
-		fmt.Printf("Failed to compile script\n")
+		fmt.Println("Failed to compile script")
 		for _, err := range errors {
-			fmt.Printf("\t%s", err)
+			fmt.Printf("\t%s\n", err)
 		}
 		os.Exit(0)
 	}
-	fmt.Println(base64res)
+	fmt.Println(base64.StdEncoding.EncodeToString(treeBytes))
 }

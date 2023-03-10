@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"io/fs"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -1966,7 +1967,7 @@ func (p *ASTParser) loadMetaBeforeV6(name string, argsTypes []s.Type) error {
 func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 	p.currentStack = NewVarStack(p.currentStack)
 	curNode := node
-	annotation, annotationParametr := p.ruleAnnotationSeqHandler(curNode)
+	annotation, annotationParameter := p.ruleAnnotationSeqHandler(curNode)
 	if annotation == "" {
 		return
 	}
@@ -1979,7 +1980,7 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 		return
 	}
 	f := expr.(*ast.FunctionDeclarationNode)
-	f.InvocationParameter = annotationParametr
+	f.InvocationParameter = annotationParameter
 	switch annotation {
 	case "Callable":
 		p.Tree.Functions = append(p.Tree.Functions, expr)
