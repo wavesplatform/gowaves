@@ -200,9 +200,6 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse 'to' url param")
 	}
-	if from > to || to-from >= blocksSequenceLimit {
-		return apiErrs.TooBigArrayAllocation
-	}
 	seq, err := a.app.BlocksHeadersFromTo(from, to)
 	if err != nil {
 		return errors.Wrapf(err, "BlocksHeadersSeqFromTo: failed to get block sequence from %d to %d", from, to)
