@@ -58,6 +58,11 @@ func (e *ASTError) Error() string {
 	return fmt.Sprintf("%s(%d:%d, %d:%d): %s", e.prefix, e.begin.line, e.begin.symbol, e.end.line, e.end.symbol, e.msg)
 }
 
+type importPath struct {
+	path string
+	node *node32
+}
+
 type ASTParser struct {
 	node   *node32
 	Tree   *ast.Tree
@@ -72,12 +77,9 @@ type ASTParser struct {
 	stdTypes   map[string]s.Type
 
 	scriptType  ScriptType
-	importPaths []struct {
-		path string
-		node *node32
-	}
-	isLibrary bool
-	fileName  string
+	importPaths []importPath
+	isLibrary   bool
+	fileName    string
 }
 
 func NewASTParser(node *node32, buffer []rune) ASTParser {
@@ -393,10 +395,7 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 		dirValue = strings.ReplaceAll(dirValue, " ", "")
 		paths := strings.Split(dirValue, ",")
 		for _, path := range paths {
-			p.importPaths = append(p.importPaths, struct {
-				path string
-				node *node32
-			}{path, dirValueNode})
+			p.importPaths = append(p.importPaths, importPath{path: path, node: dirValueNode})
 		}
 	default:
 		p.addError(fmt.Sprintf("Illegal directive key \"%s\"", dirName), dirNameNode.token32)
