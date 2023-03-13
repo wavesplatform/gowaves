@@ -30,7 +30,7 @@ func Compile(code string) ([]byte, []error) {
 	if len(errs) > 0 {
 		return nil, errs
 	}
-	res, err := serialization.SerializeTreeV2(tree)
+	res, err := serialization.SerializeTree(tree)
 	if err != nil {
 		return nil, []error{err}
 	}
