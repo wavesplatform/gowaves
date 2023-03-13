@@ -2,12 +2,13 @@ package stdlib
 
 import (
 	"encoding/json"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 var structJsonPath = "../../generate/ride_objects.json"

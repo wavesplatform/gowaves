@@ -3,8 +3,9 @@ package stdlib
 import (
 	"embed"
 	"encoding/json"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"strconv"
+
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 //go:embed funcs.json

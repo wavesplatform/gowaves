@@ -2,13 +2,14 @@ package compiler
 
 import (
 	"encoding/base64"
+	"strings"
+	"testing"
+
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
-	"strings"
-	"testing"
 )
 
 func parseBase64Script(t *testing.T, src string) *ast.Tree {

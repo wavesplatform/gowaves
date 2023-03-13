@@ -1,8 +1,9 @@
 package compiler
 
 import (
-	s "github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 	"strings"
+
+	s "github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 )
 
 type VarStack struct {

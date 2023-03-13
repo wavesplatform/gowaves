@@ -2,13 +2,14 @@ package stdlib
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 var DefaultTypes = mustLoadDefaultTypes()
