@@ -736,6 +736,60 @@ func (a *NodeApi) AssetsDetailsByID(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
+func (a *NodeApi) AssetsDetailsByIDsGet(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	return a.assetsDetailsByIDs(w, query.Get("full"), query["id"])
+
+}
+
+func (a *NodeApi) AssetsDetailsByIDsPost(w http.ResponseWriter, r *http.Request) error {
+	var data struct {
+		IDs []string `json:"ids"`
+	}
+	if err := tryParseJson(r.Body, &data); err != nil {
+		return err
+	}
+	query := r.URL.Query()
+	return a.assetsDetailsByIDs(w, query.Get("full"), data.IDs)
+}
+
+func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam string, ids []string) error {
+	full, err := strconv.ParseBool(fullQueryParam)
+	if err != nil {
+		return apiErrs.InvalidAssetId
+	}
+	if len(ids) == 0 {
+		return apiErrs.AssetIdNotSpecified
+	}
+	if limit := a.app.settings.AssetDetailsLimit; len(ids) > limit {
+		return apiErrs.NewTooBigArrayAllocationError(limit)
+	}
+	var (
+		fullAssetsIDs = make([]crypto.Digest, 0, len(ids))
+		invalidIDs    []string
+	)
+	for _, id := range ids {
+		d, err := crypto.NewDigestFromBase58(id)
+		if err != nil {
+			invalidIDs = append(invalidIDs, id)
+		} else {
+			fullAssetsIDs = append(fullAssetsIDs, d)
+		}
+	}
+	if len(invalidIDs) != 0 {
+		return apiErrs.NewInvalidIDsError(invalidIDs)
+	}
+
+	assetsDetails, err := a.app.AssetsDetails(fullAssetsIDs, full)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get asset details by list of assets")
+	}
+	if err := trySendJson(w, assetsDetails); err != nil {
+		return errors.Wrap(err, "AssetsDetails")
+	}
+	return nil
+}
+
 func (a *NodeApi) version(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.version()
 	if err := trySendJson(w, rs); err != nil {

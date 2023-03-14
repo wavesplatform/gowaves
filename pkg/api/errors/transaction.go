@@ -3,6 +3,7 @@ package errors
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 
@@ -20,12 +21,16 @@ type (
 	TransactionDoesNotExistError    transactionError
 	UnsupportedTransactionTypeError transactionError
 	AssetDoesNotExistError          transactionError
-	NegativeAmount                  transactionError
-	InsufficientFeeError            transactionError
-	NegativeMinFeeError             transactionError
-	NonPositiveAmountError          transactionError
-	AlreadyInStateError             transactionError
-	AccountBalanceErrorsError       struct {
+	AssetsDoesNotExistError         struct {
+		transactionError
+		IDs []string `json:"ids"`
+	}
+	NegativeAmount            transactionError
+	InsufficientFeeError      transactionError
+	NegativeMinFeeError       transactionError
+	NonPositiveAmountError    transactionError
+	AlreadyInStateError       transactionError
+	AccountBalanceErrorsError struct {
 		transactionError
 		Details map[proto.WavesAddress]string `json:"details"`
 	}
@@ -38,6 +43,7 @@ type (
 	InvalidTransactionIdError transactionError
 	InvalidBlockIdError       transactionError
 	InvalidAssetIdError       transactionError
+	AssetIdNotSpecifiedError  transactionError
 )
 
 var (
@@ -60,6 +66,13 @@ var (
 			ID:       InvalidAssetIdErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "Invalid asset id",
+		},
+	}
+	AssetIdNotSpecified = &AssetIdNotSpecifiedError{
+		genericError: genericError{
+			ID:       AssetIdNotSpecifiedErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  "Asset ID was not specified",
 		},
 	}
 )
@@ -91,5 +104,18 @@ func NewAssetDoesNotExistError(digest crypto.Digest) *AssetDoesNotExistError {
 			HttpCode: http.StatusNotFound,
 			Message:  fmt.Sprintf("Asset does not exist: %s", digest.String()),
 		},
+	}
+}
+
+func NewAssetsDoesNotExistError(ids []string) *AssetsDoesNotExistError {
+	return &AssetsDoesNotExistError{
+		transactionError: transactionError{
+			genericError: genericError{
+				ID:       AssetsDoesNotExistErrorID,
+				HttpCode: http.StatusNotFound,
+				Message:  fmt.Sprintf("Asset does not exist. %s", strings.Join(ids, ", ")),
+			},
+		},
+		IDs: ids,
 	}
 }

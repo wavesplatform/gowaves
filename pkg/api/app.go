@@ -28,15 +28,18 @@ type SchedulerEmits interface {
 // default app settings
 const (
 	defaultBlockRequestLimit = 100
+	defaultAssetDetailsLimit = 100
 )
 
 type appSettings struct {
 	BlockRequestLimit uint64
+	AssetDetailsLimit int
 }
 
 func defaultAppSettings() *appSettings {
 	return &appSettings{
 		BlockRequestLimit: defaultBlockRequestLimit,
+		AssetDetailsLimit: defaultAssetDetailsLimit,
 	}
 }
 

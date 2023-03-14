@@ -114,6 +114,8 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/assets", func(r chi.Router) {
 			r.Get("/details/{id}", wrapper(a.AssetsDetailsByID))
+			r.Get("/details", wrapper(a.AssetsDetailsByIDsGet))
+			r.Post("/details", wrapper(a.AssetsDetailsByIDsPost))
 		})
 
 		r.Route("/addresses", func(r chi.Router) {

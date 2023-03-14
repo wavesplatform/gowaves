@@ -2,7 +2,9 @@ package errors
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -37,7 +39,7 @@ type (
 	MissingSenderPrivateKeyError validationError
 	InvalidIdsError              struct {
 		validationError
-		Ids []string `json:"ids"`
+		IDs []string `json:"ids"`
 	}
 	CustomValidationError                     validationError
 	BlockDoesNotExistError                    validationError
@@ -166,5 +168,18 @@ func NewCustomValidationError(message string) *CustomValidationError {
 			HttpCode: http.StatusBadRequest,
 			Message:  message,
 		},
+	}
+}
+
+func NewInvalidIDsError(ids []string) *InvalidIdsError {
+	return &InvalidIdsError{
+		validationError: validationError{
+			genericError: genericError{
+				ID:       InvalidIdsErrorID,
+				HttpCode: http.StatusBadRequest,
+				Message:  fmt.Sprintf("Request contains invalid IDs. %s", strings.Join(ids, ", ")),
+			},
+		},
+		IDs: ids,
 	}
 }
