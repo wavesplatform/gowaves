@@ -1629,6 +1629,14 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 	return *addr, nil
 }
 
+func (s *stateManager) AliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+	aliases, err := s.stor.aliases.aliasesByAddr(addr)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return aliases, nil
+}
+
 func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
 	votesNum, err := s.stor.features.featureVotesAtHeight(featureID, height)
 	if err != nil {

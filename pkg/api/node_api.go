@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 )
@@ -474,6 +476,126 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) error {
 
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "PeersConnect")
+	}
+	return nil
+}
+
+func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
+	type addrResponse struct {
+		Address string `json:"address"`
+	}
+
+	aliasShort := chi.URLParam(r, "alias")
+
+	alias := proto.NewAlias(a.app.scheme(), aliasShort)
+	if _, err := alias.Valid(a.app.scheme()); err != nil {
+		msg := err.Error()
+		return apiErrs.NewCustomValidationError(msg)
+	}
+
+	addr, err := a.app.AddrByAlias(*alias)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.NewAliasDoesNotExistError(alias.String())
+		}
+		return errors.Wrapf(err, "failed to find addr by short alias %q", aliasShort)
+	}
+
+	resp := addrResponse{Address: addr.String()}
+	if err := trySendJson(w, resp); err != nil {
+		return errors.Wrap(err, "AddrByAlias")
+	}
+	return nil
+}
+
+func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
+	addrBase58 := chi.URLParam(r, "address")
+
+	addr, err := proto.NewAddressFromString(addrBase58)
+	if err != nil {
+		return &apiErrs.InvalidAddressError{}
+	}
+
+	aliases, err := a.app.AliasesByAddr(addr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find aliases by addr")
+	}
+
+	if err := trySendJson(w, aliases); err != nil {
+		return errors.Wrap(err, "AliasesByAddr")
+	}
+	return nil
+}
+
+func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
+	type resp struct {
+		BlockchainHeight uint64 `json:"blockchainHeight"`
+		StateHeight      uint64 `json:"stateHeight"`
+		UpdatedTimestamp int64  `json:"updatedTimestamp"`
+		UpdatedDate      string `json:"updatedDate"`
+	}
+
+	stateHeight, err := a.app.state.Height()
+	if err != nil {
+		return errors.Wrap(err, "failed to get state height in NodeStatus HTTP endpoint")
+	}
+
+	blockHeader := a.state.TopBlock()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get block header from state by height %d", stateHeight)
+	}
+	updatedTimestampMillis := int64(blockHeader.Timestamp)
+
+	out := resp{
+		BlockchainHeight: stateHeight,
+		StateHeight:      stateHeight,
+		UpdatedTimestamp: updatedTimestampMillis,
+		UpdatedDate:      common.UnixMillisToTime(updatedTimestampMillis).Format(time.RFC3339Nano),
+	}
+	if err := trySendJson(w, out); err != nil {
+		return errors.Wrap(err, "NodeStatus")
+	}
+	return nil
+}
+
+func (a *NodeApi) sendSelfInterrupt(w http.ResponseWriter, _ *http.Request) error {
+	type resp struct {
+		Stopped bool `json:"stopped"`
+	}
+
+	selfPid := os.Getpid()
+	p, err := os.FindProcess(selfPid)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find process (self) with pid %d", selfPid)
+	}
+
+	interrupt := os.Interrupt
+	if err := p.Signal(interrupt); err != nil {
+		return errors.Wrapf(err,
+			"failed to send signal %q to self process with pid %d", interrupt, selfPid)
+	}
+
+	if err := trySendJson(w, resp{Stopped: true}); err != nil {
+		return errors.Wrap(err, "sendSelfInterrupt")
+	}
+	zap.S().Infof("Sent by node HTTP API to self process %q signal", interrupt)
+	return nil
+}
+
+func (a *NodeApi) walletSeed(w http.ResponseWriter, _ *http.Request) error {
+	type seed struct {
+		Seed string `json:"seed"`
+	}
+
+	seeds58 := a.app.WalletSeeds()
+	seeds := make([]seed, 0, len(seeds58))
+	for _, seed58 := range seeds58 {
+		seeds = append(seeds, seed{Seed: seed58})
+	}
+
+	if err := trySendJson(w, seeds); err != nil {
+		return errors.Wrap(err, "walletSeed")
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package errors
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -165,6 +166,16 @@ func NewCustomValidationError(message string) *CustomValidationError {
 			ID:       CustomValidationErrorErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  message,
+		},
+	}
+}
+
+func NewAliasDoesNotExistError(aliasFull string) *AliasDoesNotExistError {
+	return &AliasDoesNotExistError{
+		genericError: genericError{
+			ID:       AliasDoesNotExistErrorID,
+			HttpCode: http.StatusNotFound,
+			Message:  fmt.Sprintf("alias '%s' doesn't exist", aliasFull),
 		},
 	}
 }

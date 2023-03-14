@@ -258,3 +258,35 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 	}
 	return als, nil
 }
+
+func (a *aliases) aliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+	iter, err := a.hs.newNewestTopEntryIterator(alias)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	aliases := []string{}
+	for iter.Next() {
+		keyBytes := iter.Key()
+		recordBytes := iter.Value()
+		var record aliasRecord
+		if err := record.unmarshalBinary(recordBytes); err != nil {
+			return nil, errors.Errorf("failed to unmarshal record: %v", err)
+		}
+		var key aliasKey
+		if err := key.unmarshal(keyBytes); err != nil {
+			return nil, err
+		}
+		if !record.info.stolen && record.info.addr.Equal(addr) {
+			aliases = append(aliases, key.alias)
+		}
+	}
+	return aliases, nil
+}

@@ -77,6 +77,7 @@ type StateInfo interface {
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
+	AliasesByAddr(addr *proto.WavesAddress) ([]string, error)
 
 	// Accounts data storage.
 	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)

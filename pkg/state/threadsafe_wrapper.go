@@ -188,6 +188,12 @@ func (a *ThreadSafeReadWrapper) AddrByAlias(alias proto.Alias) (proto.WavesAddre
 	return a.s.AddrByAlias(alias)
 }
 
+func (a *ThreadSafeReadWrapper) AliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.AliasesByAddr(addr)
+}
+
 func (a *ThreadSafeReadWrapper) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
