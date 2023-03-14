@@ -2030,6 +2030,18 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 	return res, nil
 }
 
+func (s *stateManager) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	// this is the fastest way to understand whether asset exist or not
+	switch _, err := s.stor.assets.constInfo(assetID); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, errs.UnknownAsset{}):
+		return false, nil
+	default:
+		return false, wrapErr(RetrievalError, err)
+	}
+}
+
 // AssetInfo returns stable (stored in DB) information about an asset by given ID.
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.

@@ -97,6 +97,7 @@ type StateInfo interface {
 
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID proto.AssetID) (bool, error)
+	IsAssetExist(assetID proto.AssetID) (bool, error)
 	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
 	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
 	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)

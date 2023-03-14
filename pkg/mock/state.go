@@ -523,6 +523,21 @@ func (mr *MockStateInfoMockRecorder) IsApprovedAtHeight(featureID, height interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsApprovedAtHeight), featureID, height)
 }
 
+// IsAssetExist mocks base method.
+func (m *MockStateInfo) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAssetExist", assetID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsAssetExist indicates an expected call of IsAssetExist.
+func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockStateInfo)(nil).IsAssetExist), assetID)
+}
+
 // MapR mocks base method.
 func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
 	m.ctrl.T.Helper()
@@ -1670,6 +1685,21 @@ func (m *MockState) IsApprovedAtHeight(featureID int16, height proto.Height) (bo
 func (mr *MockStateMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockState)(nil).IsApprovedAtHeight), featureID, height)
+}
+
+// IsAssetExist mocks base method.
+func (m *MockState) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAssetExist", assetID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsAssetExist indicates an expected call of IsAssetExist.
+func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockState)(nil).IsAssetExist), assetID)
 }
 
 // Map mocks base method.
