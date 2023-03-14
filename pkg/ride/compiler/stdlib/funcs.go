@@ -1,15 +1,11 @@
 package stdlib
 
 import (
-	"embed"
 	"encoding/json"
 	"strconv"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
-
-//go:embed funcs.json
-var embedFunc embed.FS
 
 var (
 	FuncsByVersion = mustLoadFuncs()
@@ -75,7 +71,7 @@ type FunctionParamsJson struct {
 }
 
 func mustLoadFuncs() map[ast.LibraryVersion]FunctionsSignatures {
-	f, err := embedFunc.ReadFile("funcs.json")
+	f, err := embedFS.ReadFile("funcs.json")
 	if err != nil {
 		panic(err)
 	}

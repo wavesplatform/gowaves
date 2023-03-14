@@ -2,9 +2,6 @@ package stdlib
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -575,23 +572,12 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 		},
 	}
 
-	_, filename, _, ok := runtime.Caller(1)
-	if !ok {
-		panic("No current file info")
-	}
-	filePath := filepath.Clean(filepath.Join(filepath.Dir(filename), structJsonPath))
-	f, err := os.Open(filePath)
+	f, err := embedFS.ReadFile("ride_objects.json")
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			panic(err)
-		}
-	}()
-	jsonParser := json.NewDecoder(f)
 	s := &rideObjects{}
-	if err = jsonParser.Decode(s); err != nil {
+	if err = json.Unmarshal(f, s); err != nil {
 		panic(err)
 	}
 	appendRemainingStructs(s)

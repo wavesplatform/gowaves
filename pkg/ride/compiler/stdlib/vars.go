@@ -1,12 +1,8 @@
 package stdlib
 
 import (
-	"embed"
 	"encoding/json"
 )
-
-//go:embed vars.json
-var embedVars embed.FS
 
 type variableJson struct {
 	Name string `json:"name"`
@@ -31,7 +27,7 @@ type VarsInVersion struct {
 var Vars = MustLoadVars()
 
 func MustLoadVars() *StdVars {
-	f, err := embedVars.ReadFile("vars.json")
+	f, err := embedFS.ReadFile("vars.json")
 	if err != nil {
 		panic(err)
 	}
