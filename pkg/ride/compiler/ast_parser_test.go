@@ -42,7 +42,7 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
-		require.Equal(t, astParser.ErrorsList[0].Error(), expected)
+		require.Equal(t, expected, astParser.ErrorsList[0].Error())
 	}
 }
 
@@ -61,32 +61,32 @@ func TestDirectivesCompileFail(t *testing.T) {
 		{`
 {-# STDLIB_VERSION 7 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): invalid STDLIB_VERSION \"7\""}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '7'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): invalid STDLIB_VERSION \"0\""}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '0'"}},
 		{`
 {-# STDLIB_VERSION XXX #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:23): failed to parse version \"XXX\" : strconv.ParseInt: parsing \"XXX\": invalid syntax"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:23): Failed to parse version 'XXX': strconv.ParseInt: parsing \"XXX\": invalid syntax"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE XXX #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:17): Illegal directive value \"XXX\" for key \"CONTENT_TYPE\""}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:17): Illegal value 'XXX' of directive 'CONTENT_TYPE'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# XXX XXX #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:8): Illegal directive key \"XXX\""}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:8): Illegal directive 'XXX'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE XXX #-}`, []string{"(4:5, 4:16): Illegal directive value \"XXX\" for key \"SCRIPT_TYPE\""}},
+{-# SCRIPT_TYPE XXX #-}`, []string{"(4:5, 4:16): Illegal value 'XXX' of directive 'SCRIPT_TYPE'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:1, 4:0): Directive key STDLIB_VERSION is used more than once"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:1, 4:0): Directive 'STDLIB_VERSION' is used more than once"}},
 	} {
 		code := test.code
 		rawAST, buf, err := buildAST(t, code, false)
@@ -95,7 +95,7 @@ func TestDirectivesCompileFail(t *testing.T) {
 		astParser.Parse()
 		assert.Equal(t, len(astParser.ErrorsList), len(test.errorMsg))
 		for i, err := range astParser.ErrorsList {
-			assert.Equal(t, err.Error(), test.errorMsg[i])
+			assert.Equal(t, test.errorMsg[i], err.Error())
 		}
 	}
 }
@@ -155,7 +155,7 @@ func TestStringDeclaration(t *testing.T) {
 		{`let a = "test"`, false, "BgICCAIBAAFhAgR0ZXN0AABM5UxM"},
 		{`let a = ""`, false, "BgICCAIBAAFhAgAAALkZwZw="},
 		{`let a = "\t\f\b\r\n"`, false, "BgICCAIBAAFhAgUJDAgNCgAAlYWq5w=="},
-		{`let a = "\a"`, true, "(4:10, 4:12): unknown escaped symbol: '\\a'. The valid are \\b, \\f, \\n, \\r, \\t, \\\""},
+		{`let a = "\a"`, true, "(4:10, 4:12): Unknown escaped symbol: '\\a'. The valid are \\b, \\f, \\n, \\r, \\t, \\\""},
 		{`let a = "\u1234"`, false, "BgICCAIBAAFhAgPhiLQAAKUbIjo="},
 		{`let a = "\u1234a\t"`, false, "BgICCAIBAAFhAgXhiLRhCQAADF+pNw=="},
 	} {
@@ -172,12 +172,12 @@ func TestTupleDeclaration(t *testing.T) {
 	}{
 		{`let a = (1, 2, 3)`, false, "BgICCAIBAAFhCQCVCgMAAQACAAMAAI6t9SE="},
 		{`let a = (1, "2", true)`, false, "BgICCAIBAAFhCQCVCgMAAQIBMgYAAIERlqw="},
-		{`let a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)`, true, "(4:9, 4:92): invalid tuple len \"23\"(allowed 2 to 22)"},
+		{`let a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)`, true, "(4:9, 4:92): Invalid Tuple length 23 (allowed 2 to 22)"},
 		{`let (a, b, c) = (1, 2, 3)`, false, "BgICCAIEAAgkdDA3OTEwNAkAlQoDAAEAAgADAAFhCAUIJHQwNzkxMDQCXzEAAWIIBQgkdDA3OTEwNAJfMgABYwgFCCR0MDc5MTA0Al8zAAB8+W2s"},
 		{`let a = (1, 2, 3)
 let (b, c, d) = a`, false, "BgICCAIFAAFhCQCVCgMAAQACAAMACCR0MDk3MTE0BQFhAAFiCAUIJHQwOTcxMTQCXzEAAWMIBQgkdDA5NzExNAJfMgABZAgFCCR0MDk3MTE0Al8zAAAU7y0b"},
 		{`let (a, b) = (1, "2", true)`, false, "BgICCAIDAAgkdDA3OTEwNgkAlQoDAAECATIGAAFhCAUIJHQwNzkxMDYCXzEAAWIIBQgkdDA3OTEwNgJfMgAAdj+WZg=="},
-		{`let (a, b, c, d) = (1, "2", true)`, true, "(4:1, 4:34): Number of Identifiers must be <= tuple length"},
+		{`let (a, b, c, d) = (1, "2", true)`, true, "(4:1, 4:34): Number of Identifiers should be less or equal than Tuple length"},
 		{`
 let a = if true then (1, 2, "a") else ("a", 1, 3)
 let (b, c, d) = a
@@ -196,13 +196,13 @@ func TestOperators(t *testing.T) {
 	}{
 		{`let a = 1 + 2 + 3 + 4`, false, "BgICCAIBAAFhCQBkAgkAZAIJAGQCAAEAAgADAAQAADk9Pyk="},
 		{`let a = "a" + "b"`, false, "BgICCAIBAAFhCQCsAgICAWECAWIAABJCapY="},
-		{`let a = "a" + 1`, true, "(4:9, 4:16): Unexpected types for + operator: String, Int"},
+		{`let a = "a" + 1`, true, "(4:9, 4:16): Unexpected types for '+' operator 'String' and 'Int'"},
 		{`let a = 1 > 2`, false, "BgICCAIBAAFhCQBmAgABAAIAAKf+6ug="},
 		{`let a = 1 < 2`, false, "BgICCAIBAAFhCQBmAgACAAEAAAO8zuo="},
 		{`let a = 1 <= 2`, false, "BgICCAIBAAFhCQBnAgACAAEAAJShBI8="},
 		{`let a = 1 >= 2`, false, "BgICCAIBAAFhCQBnAgABAAIAAPdIIeU="},
-		{`let a = 1 >= "a"`, true, "(4:14, 4:17): Unexpected type, required: Int, but String found"},
-		{`let a = 1 == "a"`, true, "(4:14, 4:17): Unexpected type, required: Int, but String found"},
+		{`let a = 1 >= "a"`, true, "(4:14, 4:17): Unexpected type, required 'Int', but 'String' found"},
+		{`let a = 1 == "a"`, true, "(4:14, 4:17): Unexpected type, required 'Int', but 'String' found"},
 		{`
 let a = if true then 1 else unit
 let b = a == 10`,
@@ -210,7 +210,7 @@ let b = a == 10`,
 		{`
 let a = if true then 1 else unit
 let b = a >= 10`,
-			true, "(6:9, 6:10): Unexpected type, required: BigInt or Int, but Int|Unit found"},
+			true, "(6:9, 6:10): Unexpected type, required 'BigInt' or 'Int', but 'Int|Unit' found"},
 		{`let a = [1, 2] :+ "a"`, false, "BgICCAIBAAFhCQDNCAIJAMwIAgABCQDMCAIAAgUDbmlsAgFhAAAmqjlN"},
 		{`let a = [1, 2] ++ nil`, false, "BgICCAIBAAFhCQDOCAIJAMwIAgABCQDMCAIAAgUDbmlsBQNuaWwAAOmqp9I="},
 		{`let a = "a" :: [1, 2]`, false, "BgICCAIBAAFhCQDMCAICAWEJAMwIAgABCQDMCAIAAgUDbmlsAADcsh9u"},
@@ -240,15 +240,15 @@ let a = FOLD<5>(arr, [], filterEven)
 		{`
 func sum(a:Int, b:Int) = a + b
 let a = FOLD<5>(1, 9, sum)
-`, true, "(6:17, 6:18): first argument in fold mast be List, but found Int"},
+`, true, "(6:17, 6:18): First argument of fold must be List, but 'Int' found"},
 		{`
 func sum(a:Int, b:String) = a
 let b = FOLD<5>([1], 0, sum)
-`, true, "(6:25, 6:28): Can't find suitable function sum(Int, Int)"},
+`, true, "(6:25, 6:28): Can't find suitable function 'sum(Int, Int)'"},
 		{`
 func sum(a:Int) = a
 let b = FOLD<5>([1], 0, sum)
-`, true, "(6:25, 6:28): Function \"sum\" must have 2 arguments"},
+`, true, "(6:25, 6:28): Function 'sum' must have 2 arguments"},
 	} {
 		code := DappV6Directive + test.code
 		compareScriptsOrError(t, code, test.fail, test.expected)
@@ -297,7 +297,7 @@ func TestTypesInFuncs(t *testing.T) {
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
-func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefined type BigInt"},
+func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefined type 'BigInt'"},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -366,7 +366,7 @@ let b = match a {
 	case x: Boolean => true
 	case _ => false
 }`,
-			true, "(9:10, 9:17): Matching not exhaustive: possibleTypes are \"Int|String\", while matched are \"Boolean\""},
+			true, "(9:10, 9:17): Matching not exhaustive: possible Types are 'Int|String', while matched are 'Boolean'"},
 		{`
 let a = if true then "" else 10
 
@@ -384,7 +384,7 @@ let b = match a {
 	case x: String => true
 	case _ => false
 }`,
-			true, "(8:17, 9:0): Variable \"y\" doesnt't exist"},
+			true, "(8:17, 9:0): Variable 'y' doesn't exist"},
 		{`
 let a = if true then "" else 10
 
@@ -400,7 +400,7 @@ let b = match a {
 case x: Int|Boolean => true
 case _ => false
 }`,
-			true, "(8:9, 8:20): Matching not exhaustive: possibleTypes are \"Int|String\", while matched are \"Boolean|Int\""},
+			true, "(8:9, 8:20): Matching not exhaustive: possible Types are 'Int|String', while matched are 'Boolean|Int'"},
 		{`
 let a = if true then "" else 10
 
@@ -450,7 +450,7 @@ let b = match a {
 	case (10, base16'') => true
 	case _ => false
 }`,
-			true, "(8:12, 8:20): Matching not exhaustive: possibleTypes are \"(Int, String)\", while matched are \"(Int, ByteVector)\""},
+			true, "(8:12, 8:20): Matching not exhaustive: possible Types are '(Int, String)', while matched are '(Int, ByteVector)'"},
 		{`
 let a = if true then AssetPair(base58'', base58'') else 10
 
@@ -600,7 +600,7 @@ func test(a: Int|String) = {
 	([StringEntry("a", "a")], unit)
 }
 `,
-			true, "(7:1, 10:0): Unexpected type in callable args : Int|String"},
+			true, "(7:1, 10:0): Unexpected type in callable args 'Int|String'"},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -611,7 +611,7 @@ func test(a: List[Int|String]) = {
 	([StringEntry("a", "a")], unit)
 }
 `,
-			true, "(7:1, 10:0): Unexpected type in callable args : List[Int|String]"},
+			true, "(7:1, 10:0): Unexpected type in callable args 'List[Int|String]'"},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -655,7 +655,7 @@ func test(a: Int|List[Int]) = {
 	([StringEntry("a", "a")], unit)
 }
 `,
-			true, "(7:1, 10:0): Unexpected type in callable args : List[Int]"},
+			true, "(7:1, 10:0): Unexpected type in callable args 'List[Int]'"},
 		{`
 {-# STDLIB_VERSION 5 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -771,7 +771,7 @@ let a = {
     strict b = foo(10)
     10
 }
-`, true, "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type AST"},
+`, true, "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type 'AST'"},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}
