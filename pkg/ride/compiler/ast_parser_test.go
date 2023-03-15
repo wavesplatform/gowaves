@@ -29,6 +29,8 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 	if !fail {
 		require.Empty(t, astParser.ErrorsList)
 		tree := parseBase64Script(t, expected)
+		assert.Equal(t, tree.ContentType, astParser.Tree.ContentType)
+		assert.Equal(t, tree.LibVersion, astParser.Tree.LibVersion)
 		if diff := deep.Equal(tree.Declarations, astParser.Tree.Declarations); diff != nil {
 			t.Errorf("Declaration mismatch:\n%s", strings.Join(diff, "\n"))
 		}
@@ -265,9 +267,16 @@ func TestExprSimple(t *testing.T) {
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ASSET #-}
-
+		
 1 == 1
 `, false, "BgEJAAACAAEAAb+26yY="},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+func x() = true
+x()
+`, false, "BgEKAQF4AAYJAQF4AIghWZw="},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}
@@ -318,7 +327,7 @@ func TestFuncCalls(t *testing.T) {
 		{`let a = 1.toBytes()`, false, "BgICCAIBAAFhCQCaAwEAAQAAWQ+cBQ=="},
 		{`let a = addressFromPublicKey(base58'')`, false, "BgICCAIBAAFhCQCnCAEBAAAAG+9EKQ=="},
 		{`let a = AssetPair(base58'', base58'')
-		let b = a.amountAsset`, false, "AAIEAAAAAAAAAAIIAgAAAAIAAAAAAWEJAQAAAAlBc3NldFBhaXIAAAACAQAAAAABAAAAAAAAAAABYggFAAAAAWEAAAALYW1vdW50QXNzZXQAAAAAAAAAAIKGPR8="},
+		let b = a.amountAsset`, false, "BgICCAICAAFhCQEJQXNzZXRQYWlyAgEAAQAAAWIIBQFhC2Ftb3VudEFzc2V0AADmGKl+"},
 	} {
 
 		code := DappV6Directive + test.code
@@ -760,6 +769,15 @@ let a = {
   10
 }
 `, false, "BgICCAICAQNmb28BAWEACgABYQQBYgkBA2ZvbwEACgMJAAACBQFiBQFiAAoJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAKF5kQ8="},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT lib_test_scripts/lib.ride #-}
+
+func bar() = foo(10)
+bar() == 10
+`, false, "BgEKAQNiYXIACQEDZm9vAQAKCQAAAgkBA2JhcgAACpAHkqA="},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}

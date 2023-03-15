@@ -267,10 +267,13 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		curNode = p.parseDirectives(curNode)
 		_ = curNode
 	}
-	p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
-	p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
-	p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
-	p.loadBuildInVarsToStackByVersion()
+	if !p.isLibrary {
+		p.stdFuncs = s.FuncsByVersion[p.Tree.LibVersion]
+		p.stdObjects = s.ObjectsByVersion[p.Tree.LibVersion]
+		p.stdTypes = s.DefaultTypes[p.Tree.LibVersion]
+		p.loadBuildInVarsToStackByVersion()
+	}
+	p.loadImport()
 	if curNode != nil && curNode.pegRule == rule_ {
 		curNode = node.next
 	}
@@ -289,8 +292,12 @@ func (p *ASTParser) ruleScriptRootHandler(node *node32) {
 		}
 	}
 	block, varType := p.ruleExprHandler(curNode)
+	if block == nil {
+		p.addError(curNode.token32, "No expression defined")
+		return
+	}
 	if !s.BooleanType.Equal(varType) {
-		p.addError(curNode.token32, "Script should return 'Boolean', but '%s' returned", varType.String())
+		p.addError(curNode.token32, "Script should return 'Boolean', but '%s' returned", varType)
 		return
 	}
 	expr := block
