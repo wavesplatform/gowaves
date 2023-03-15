@@ -11,8 +11,7 @@ import (
 
 func NewSignSponsorshipTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
 	senderSK crypto.SecretKey, assetID crypto.Digest, minSponsoredAssetFee, fee, timestamp uint64) proto.Transaction {
-	var tx proto.Transaction
-	tx = proto.NewUnsignedSponsorshipWithProofs(version, senderPK, assetID, minSponsoredAssetFee, fee, timestamp)
+	tx := proto.NewUnsignedSponsorshipWithProofs(version, senderPK, assetID, minSponsoredAssetFee, fee, timestamp)
 	err := tx.Sign(scheme, senderSK)
 	txJson := utl.GetTransactionJsonOrErrMsg(tx)
 	suite.T().Logf("Sponsorship Transaction JSON after sign: %s", txJson)
