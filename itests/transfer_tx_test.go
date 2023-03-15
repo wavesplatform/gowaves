@@ -34,7 +34,7 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.SendTransferTxAndGetBalances(
+				tx, diffBalancesSender, diffBalancesRecipient, _ := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer: "+tx.TxID.String(),
@@ -73,7 +73,7 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 		tdmatrix := testdata.GetTransferMaxAmountPositive(&suite.BaseSuite, itxID, n)
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.SendTransferTxAndGetBalances(
+				tx, diffBalancesSender, diffBalancesRecipient, _ := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer: "+tx.TxID.String(),
@@ -110,7 +110,7 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.SendTransferTxAndGetBalances(
+				tx, diffBalancesSender, diffBalancesRecipient, _ := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, !waitForTx)
 				txIds[name] = &tx.TxID
 

@@ -25,6 +25,8 @@ import (
 const (
 	DefaultSenderNotMiner      = 2
 	DefaultRecipientNotMiner   = 3
+	FirstRecipientNotMiner     = 4
+	SecondRecipientNotMiner    = 5
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
@@ -71,6 +73,12 @@ type AccountDiffBalances struct {
 	DiffBalanceAsset BalanceInAsset
 }
 
+type AccountDiffBalancesSponsorshipSender struct {
+	DiffBalanceWaves    BalanceInWaves
+	DiffBalanceAsset    BalanceInAsset
+	DiffBalanceFeeAsset BalanceInAsset
+}
+
 func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
 	return &BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
@@ -94,6 +102,24 @@ func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAsset
 		DiffBalanceAsset: BalanceInAsset{
 			BalanceInAssetGo:    diffBalanceAssetGo,
 			BalanceInAssetScala: diffBalanceAssetScala,
+		},
+	}
+}
+
+func NewDiffBalancesSponsorshipSender(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAssetGo, diffBalanceAssetScala,
+	diffBalanceFeeAssetGo, diffBalanceFeeAssetScala int64) *AccountDiffBalancesSponsorshipSender {
+	return &AccountDiffBalancesSponsorshipSender{
+		DiffBalanceWaves: BalanceInWaves{
+			BalanceInWavesGo:    diffBalanceWavesGo,
+			BalanceInWavesScala: diffBalanceWavesScala,
+		},
+		DiffBalanceAsset: BalanceInAsset{
+			BalanceInAssetGo:    diffBalanceAssetGo,
+			BalanceInAssetScala: diffBalanceAssetScala,
+		},
+		DiffBalanceFeeAsset: BalanceInAsset{
+			BalanceInAssetGo:    diffBalanceFeeAssetGo,
+			BalanceInAssetScala: diffBalanceFeeAssetScala,
 		},
 	}
 }

@@ -81,16 +81,33 @@ func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata te
 
 func IsSponsorshipOn(suite *f.BaseSuite, assetId crypto.Digest) bool {
 	result := false
-	/*assetDetails := utl.GetAssetInfo(suite, assetId)
+	assetDetails := utl.GetAssetInfo(suite, assetId)
 	if assetDetails.MinSponsoredAssetFee > 0 {
 		result = true
 	}
-	*/
-	assetDetails := utl.GetAssetInfoGrpc(suite, assetId)
+	/*assetDetails := utl.GetAssetInfoGrpc(suite, assetId)
 	if assetDetails.GetSponsorship() > 0 {
 		result = true
-	}
+	}*/
 	return result
+}
+
+func SponsorshipOnSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
+	if !IsSponsorshipOn(suite, assetId) {
+		assetDetails := utl.GetAssetInfo(suite, assetId)
+		issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+		SponsorshipSend(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
+			utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
+	}
+}
+
+func SponsorshipOnBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
+	if !IsSponsorshipOn(suite, assetId) {
+		assetDetails := utl.GetAssetInfo(suite, assetId)
+		issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+		SponsorshipBroadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
+			utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
+	}
 }
 
 func SponsorshipOffSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest) {

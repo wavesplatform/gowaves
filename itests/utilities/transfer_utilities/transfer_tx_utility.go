@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/node_client"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -50,34 +51,61 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T
 	waitForTx bool) utl.ConsideredTransaction
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T],
-	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.AccountDiffBalances, utl.AccountDiffBalances) {
+	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.AccountDiffBalancesSponsorshipSender,
+	utl.AccountDiffBalances, utl.AccountDiffBalances) {
+	var assetDetails *client.AssetsDetail
+	var initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor, initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor,
+		actualDiffBalanceWavesGoSponsor, actualDiffBalanceWavesScalaSponsor, actualDiffBalanceAssetGoSponsor,
+		actualDiffBalanceAssetScalaSponsor int64
+
+	if testdata.FeeAsset.ToDigest() != nil {
+		assetDetails = utl.GetAssetInfo(suite, testdata.FeeAsset.ID)
+	}
+
 	address := utl.GetAddressFromRecipient(suite, testdata.Recipient)
 
 	initBalanceWavesGoSender, initBalanceWavesScalaSender := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
 	initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.Asset.ID)
+	initBalanceFeeAssetGoSender, initBalanceFeeAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.FeeAsset.ID)
 
 	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient := utl.GetAvailableBalanceInWaves(suite, address)
 	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient := utl.GetAssetBalance(suite, address, testdata.Asset.ID)
+
+	if assetDetails != nil {
+		initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor = utl.GetAvailableBalanceInWaves(suite, assetDetails.Issuer)
+		initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor = utl.GetAssetBalance(suite, assetDetails.Issuer, testdata.FeeAsset.ID)
+	}
 
 	tx := makeTx(suite, testdata, version, waitForTx)
 
 	actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Sender.Address, initBalanceWavesGoSender, initBalanceWavesScalaSender)
-
 	actualDiffBalanceAssetGoSender, actualDiffBalanceAssetScalaSender := utl.GetActualDiffBalanceInAssets(suite,
 		testdata.Sender.Address, testdata.Asset.ID, initBalanceAssetGoSender, initBalanceAssetScalaSender)
+	actualDiffBalanceFeeAssetGoSender, actualDiffBalanceFeeAssetScalaSender := utl.GetActualDiffBalanceInAssets(suite,
+		testdata.Sender.Address, testdata.FeeAsset.ID, initBalanceFeeAssetGoSender, initBalanceFeeAssetScalaSender)
 
 	actualDiffBalanceWavesGoRecipient, actualDiffBalanceWavesScalaRecipient := utl.GetActualDiffBalanceInWaves(
 		suite, address, initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient)
-
 	actualDiffBalanceAssetGoRecipient, actualDiffBalanceAssetScalaRecipient := utl.GetActualDiffBalanceInAssets(suite,
 		address, testdata.Asset.ID, initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient)
+
+	if assetDetails != nil {
+		actualDiffBalanceWavesGoSponsor, actualDiffBalanceWavesScalaSponsor = utl.GetActualDiffBalanceInWaves(suite,
+			assetDetails.Issuer, initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor)
+		actualDiffBalanceAssetGoSponsor, actualDiffBalanceAssetScalaSponsor = utl.GetActualDiffBalanceInAssets(suite,
+			assetDetails.Issuer, testdata.FeeAsset.ID, initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor)
+	}
+
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
 			tx.WtErr.ErrWtScala, tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
-		*utl.NewDiffBalances(actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender,
-			actualDiffBalanceAssetGoSender, actualDiffBalanceAssetScalaSender),
+		*utl.NewDiffBalancesSponsorshipSender(actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender,
+			actualDiffBalanceAssetGoSender, actualDiffBalanceAssetScalaSender,
+			actualDiffBalanceFeeAssetGoSender, actualDiffBalanceFeeAssetScalaSender),
 		*utl.NewDiffBalances(actualDiffBalanceWavesGoRecipient, actualDiffBalanceWavesScalaRecipient,
-			actualDiffBalanceAssetGoRecipient, actualDiffBalanceAssetScalaRecipient)
+			actualDiffBalanceAssetGoRecipient, actualDiffBalanceAssetScalaRecipient),
+		*utl.NewDiffBalances(actualDiffBalanceWavesGoSponsor, actualDiffBalanceWavesScalaSponsor,
+			actualDiffBalanceAssetGoSponsor, actualDiffBalanceAssetScalaSponsor)
 }
 
 func TransferSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
@@ -93,12 +121,14 @@ func TransferBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.
 }
 
 func SendTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
-	waitForTx bool) (utl.ConsideredTransaction, utl.AccountDiffBalances, utl.AccountDiffBalances) {
+	waitForTx bool) (utl.ConsideredTransaction, utl.AccountDiffBalancesSponsorshipSender, utl.AccountDiffBalances,
+	utl.AccountDiffBalances) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, TransferSendWithTestData[T])
 }
 
 func BroadcastTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
-	waitForTx bool) (utl.ConsideredTransaction, utl.AccountDiffBalances, utl.AccountDiffBalances) {
+	waitForTx bool) (utl.ConsideredTransaction, utl.AccountDiffBalancesSponsorshipSender, utl.AccountDiffBalances,
+	utl.AccountDiffBalances) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, TransferBroadcastWithTestData[T])
 }
 

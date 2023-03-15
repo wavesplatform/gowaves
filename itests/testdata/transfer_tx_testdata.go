@@ -54,7 +54,7 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 	if feeAssetID == nil {
 		feeAsset = proto.NewOptionalAssetWaves()
 	} else {
-		feeAsset = *proto.NewOptionalAssetFromDigest(*assetID)
+		feeAsset = *proto.NewOptionalAssetFromDigest(*feeAssetID)
 	}
 	return &TransferTestData[T]{
 		Sender:     sender,
