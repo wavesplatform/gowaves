@@ -44,6 +44,7 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
+		require.NotEmpty(t, astParser.ErrorsList, "Expected error, but errors list is empty")
 		require.Equal(t, expected, astParser.ErrorsList[0].Error())
 	}
 }
@@ -761,8 +762,7 @@ func TestLib(t *testing.T) {
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
-
-{-# IMPORT lib_test_scripts/lib.ride #-}
+{-# IMPORT lib_test_scripts/lib-foo-1.ride #-}
 
 let a = {
   strict b = foo(10)
@@ -773,7 +773,7 @@ let a = {
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
-{-# IMPORT lib_test_scripts/lib.ride #-}
+{-# IMPORT lib_test_scripts/lib-foo-1.ride #-}
 
 func bar() = foo(10)
 bar() == 10
@@ -782,7 +782,6 @@ bar() == 10
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
-
 {-# IMPORT lib_test_scripts/lib_failed.ride #-}
 
 let a = {
@@ -790,6 +789,14 @@ let a = {
     10
 }
 `, true, "lib_test_scripts/lib_failed.ride(4:14, 4:17): Undefined type 'AST'"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT lib_test_scripts/lib-foo-1.ride, lib_test_scripts/lib-foo-2.ride #-}
+
+foo(10) == 10
+`, true, "lib_test_scripts/lib-foo-2.ride(4:6, 4:9): Function 'foo' already exists"},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}

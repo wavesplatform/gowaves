@@ -196,14 +196,7 @@ func (p *ASTParser) ruleDAppRootHandler(node *node32) {
 
 func (p *ASTParser) loadLib(lib *ASTParser) {
 	p.Tree.Declarations = append(p.Tree.Declarations, lib.Tree.Declarations...)
-	for _, v := range lib.currentStack.vars {
-		p.currentStack.PushVariable(v)
-	}
-	for _, f := range lib.currentStack.funcs {
-		p.currentStack.PushFunc(f)
-	}
 	p.ErrorsList = append(p.ErrorsList, lib.ErrorsList...)
-
 }
 
 func (p *ASTParser) loadImport() {
@@ -244,14 +237,15 @@ func (p *ASTParser) loadImport() {
 					Abbreviations: meta.Abbreviations{},
 				},
 			},
-			buffer:      rawP.buffer,
-			ErrorsList:  []error{},
-			globalStack: NewVarStack(nil),
-			stdFuncs:    p.stdFuncs,
-			stdObjects:  p.stdObjects,
-			stdTypes:    p.stdTypes,
-			isLibrary:   true,
-			fileName:    path.path,
+			buffer:       rawP.buffer,
+			ErrorsList:   []error{},
+			globalStack:  p.globalStack,
+			currentStack: p.currentStack,
+			stdFuncs:     p.stdFuncs,
+			stdObjects:   p.stdObjects,
+			stdTypes:     p.stdTypes,
+			isLibrary:    true,
+			fileName:     path.path,
 		}
 		parser.Parse()
 		p.loadLib(&parser)
@@ -345,35 +339,35 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 	curNode = curNode.next
 	// get Directive name
 	dirNameNode := curNode
-	dirName := string(p.buffer[curNode.begin:curNode.end])
+	dirName := p.nodeValue(curNode)
 	curNode = curNode.next
 	// skip WS
 	curNode = curNode.next
-	// get Directive value
-	dirValueNode := curNode
-	dirValue := string(p.buffer[dirValueNode.begin:dirValueNode.end])
 
 	switch dirName {
 	case stdlibVersionDirectiveName:
 		if p.isLibrary {
 			break
 		}
+		dirValue := p.nodeValue(curNode)
 		version, err := strconv.ParseInt(dirValue, 10, 8)
 		if err != nil {
-			p.addError(dirValueNode.token32, "Failed to parse version '%s': %v", dirValue, err)
+			p.addError(curNode.token32, "Failed to parse version '%s': %v", dirValue, err)
 			break
 		}
 		lv, err := ast.NewLibraryVersion(byte(version))
 		if err != nil {
-			p.addError(dirValueNode.token32, "Invalid directive '%s': %v", stdlibVersionDirectiveName, err)
+			p.addError(curNode.token32, "Invalid directive '%s': %v", stdlibVersionDirectiveName, err)
 			lv = ast.LibV1
 		}
 		p.Tree.LibVersion = lv
 		p.checkDirectiveCnt(node, stdlibVersionDirectiveName, directiveCnt)
+
 	case contentTypeDirectiveName:
 		if p.isLibrary {
 			break
 		}
+		dirValue := p.nodeValue(curNode)
 		switch dirValue {
 		case dappValueName:
 			p.Tree.ContentType = ast.ContentTypeApplication
@@ -390,6 +384,7 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 		if p.isLibrary {
 			break
 		}
+		dirValue := p.nodeValue(curNode)
 		switch dirValue {
 		case accountValueName:
 			p.scriptType = Account
@@ -399,16 +394,36 @@ func (p *ASTParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 			p.addError(dirNameNode.token32, "Illegal value '%s' of directive '%s'", dirValue, scriptTypeDirectiveName)
 		}
 		p.checkDirectiveCnt(node, scriptTypeDirectiveName, directiveCnt)
+
 	case importDirectiveName:
-		dirValue = strings.ReplaceAll(dirValue, " ", "")
-		paths := strings.Split(dirValue, ",")
-		for _, path := range paths {
-			p.importPaths = append(p.importPaths, importPath{path: path, node: dirValueNode})
+		if curNode != nil && curNode.pegRule == rulePaths {
+			curNode = curNode.up
+			for {
+				if curNode == nil {
+					break
+				}
+				switch curNode.pegRule {
+				case rulePathString:
+					p.importPaths = append(p.importPaths, importPath{path: p.nodeValue(curNode), node: curNode})
+					curNode = curNode.next
+				case ruleWS:
+					curNode = curNode.next
+				}
+			}
+			p.checkDirectiveCnt(node, importDirectiveName, directiveCnt)
 		}
+
 	default:
 		p.addError(dirNameNode.token32, "Illegal directive '%s'", dirName)
 	}
 
+}
+
+func (p *ASTParser) nodeValue(node *node32) string {
+	if node != nil {
+		return string(p.buffer[node.begin:node.end])
+	}
+	return ""
 }
 
 func (p *ASTParser) checkDirectiveCnt(node *node32, name string, directiveCnt map[string]int) {
@@ -504,7 +519,7 @@ func (p *ASTParser) simpleVariableDeclaration(node *node32) (ast.Node, s.Type) {
 		curNode = curNode.next
 	}
 	// get Variable Name
-	varName := string(p.buffer[curNode.begin:curNode.end])
+	varName := p.nodeValue(curNode)
 	curNode = curNode.next
 
 	if curNode.pegRule == rule_ {
@@ -541,7 +556,7 @@ func (p *ASTParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 			tupleRefNode = tupleRefNode.next
 		}
 		if tupleRefNode != nil && tupleRefNode.pegRule == ruleIdentifier {
-			name := string(p.buffer[tupleRefNode.begin:tupleRefNode.end])
+			name := p.nodeValue(tupleRefNode)
 			if _, ok := p.currentStack.GetVariable(name); ok {
 				p.addError(tupleRefNode.token32, "Variable '%s' already declared", name)
 				return nil, nil
@@ -1111,7 +1126,7 @@ func (p *ASTParser) ruleConstHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *ASTParser) ruleIntegerHandler(node *node32) (ast.Node, s.Type) {
-	value := string(p.buffer[node.begin:node.end])
+	value := p.nodeValue(node)
 	if strings.Contains(value, "_") {
 		value = strings.ReplaceAll(value, "_", "")
 	}
@@ -1131,9 +1146,9 @@ func (p *ASTParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 		}
 		switch curNode.pegRule {
 		case ruleChar:
-			res += string(p.buffer[curNode.begin:curNode.end])
+			res += p.nodeValue(curNode)
 		case ruleEscapedChar:
-			escapedChar := string(p.buffer[curNode.begin:curNode.end])
+			escapedChar := p.nodeValue(curNode)
 			switch escapedChar {
 			case "\\b":
 				res += "\b"
@@ -1151,7 +1166,7 @@ func (p *ASTParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 				p.addError(curNode.token32, "Unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t, \\\"", escapedChar)
 			}
 		case ruleUnicodeChar:
-			unicodeChar := string(p.buffer[curNode.begin:curNode.end])
+			unicodeChar := p.nodeValue(curNode)
 			char, err := strconv.Unquote(`"` + unicodeChar + `"`)
 			if err != nil {
 				p.addError(curNode.token32, "Unknown UTF-8 symbol '\\u%s'", unicodeChar)
@@ -1168,7 +1183,7 @@ func (p *ASTParser) ruleByteVectorHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	var err error
 	var value []byte
-	valueWithBase := string(p.buffer[curNode.begin:curNode.end])
+	valueWithBase := p.nodeValue(curNode)
 	// get value from baseXX'VALUE'
 	valueInBase := valueWithBase[len("baseXX'") : len(valueWithBase)-1]
 	if len(valueInBase) == 0 {
@@ -1219,7 +1234,7 @@ func (p *ASTParser) ruleListExprSeqHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *ASTParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
-	value := string(p.buffer[node.begin:node.end])
+	value := p.nodeValue(node)
 	var boolValue bool
 	switch value {
 	case "true":
@@ -1462,7 +1477,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 				p.addError(curNode.token32, "Type must be 'Tuple' but got '%s'", varType.String())
 				break
 			}
-			tupleIndexStr := string(p.buffer[curNode.begin:curNode.end])
+			tupleIndexStr := p.nodeValue(curNode)
 			indexStr := strings.TrimPrefix(tupleIndexStr, "_")
 			index, err := strconv.ParseInt(indexStr, 10, 64)
 			if err != nil {
@@ -1494,7 +1509,7 @@ func (p *ASTParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *ASTParser) ruleIdentifierHandler(node *node32) (ast.Node, s.Type) {
-	name := string(p.buffer[node.begin:node.end])
+	name := p.nodeValue(node)
 	v, ok := p.currentStack.GetVariable(name)
 	if !ok {
 		p.addError(node.token32, "Variable '%s' doesn't exist", name)
@@ -1528,7 +1543,7 @@ func listArgsToString(l []s.Type) string {
 
 func (p *ASTParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, firstArgType s.Type) (ast.Node, s.Type) {
 	curNode := node.up
-	funcName := string(p.buffer[curNode.begin:curNode.end])
+	funcName := p.nodeValue(curNode)
 	nameNode := curNode
 	curNode = curNode.next
 
@@ -1605,7 +1620,7 @@ func (p *ASTParser) ruleArgSeqHandler(node *node32) ([]ast.Node, []s.Type, []*no
 
 func (p *ASTParser) ruleIdentifierAccessHandler(node *node32, obj ast.Node, objType s.Type) (ast.Node, s.Type) {
 	curNode := node
-	fieldName := string(p.buffer[curNode.begin:curNode.end])
+	fieldName := p.nodeValue(curNode)
 
 	fieldType, ok := p.stdObjects.GetField(objType, fieldName)
 	if !ok {
@@ -1659,7 +1674,7 @@ func (p *ASTParser) ruleFuncHandler(node *node32) (ast.Node, s.Type, []s.Type) {
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	funcName := string(p.buffer[curNode.begin:curNode.end])
+	funcName := p.nodeValue(curNode)
 	if _, ok := p.currentStack.GetFunc(funcName); ok {
 		p.addError(curNode.token32, "Function '%s' already exists", funcName)
 	}
@@ -1742,7 +1757,7 @@ func (p *ASTParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
 
 func (p *ASTParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 	curNode := node.up
-	argName := string(p.buffer[curNode.begin:curNode.end])
+	argName := p.nodeValue(curNode)
 	curNode = curNode.next
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
@@ -1770,7 +1785,7 @@ func (p *ASTParser) ruleTypesHandler(node *node32) s.Type {
 	case ruleTupleType:
 		T = p.ruleTupleTypeHandler(curNode)
 	case ruleType:
-		name := string(p.buffer[curNode.begin:curNode.end])
+		name := p.nodeValue(curNode)
 		if foundType, ok := p.stdTypes[name]; !ok {
 			p.addError(curNode.token32, "Undefined type '%s'", name)
 		} else {
@@ -1825,7 +1840,7 @@ func (p *ASTParser) ruleTupleTypeHandler(node *node32) s.Type {
 
 func (p *ASTParser) ruleGenericTypeHandler(node *node32) s.Type {
 	curNode := node.up
-	name := string(p.buffer[curNode.begin:curNode.end])
+	name := p.nodeValue(curNode)
 	if name != "List" {
 		p.addError(curNode.token32, "Generic type should be 'List', but '%s' found", name)
 		return nil
@@ -2027,7 +2042,7 @@ func (p *ASTParser) ruleAnnotatedFunc(node *node32) {
 func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 	curNode := node.up
 	annotationNode := curNode.up
-	name := string(p.buffer[annotationNode.begin:annotationNode.end])
+	name := p.nodeValue(annotationNode)
 	if name != "Callable" && name != "Verifier" {
 		p.addError(annotationNode.token32, "Undefined annotation '%s'", name)
 		return "", ""
@@ -2039,7 +2054,7 @@ func (p *ASTParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 		annotationNode = annotationNode.next
 	}
 	annotationNode = annotationNode.next.up
-	varName := string(p.buffer[annotationNode.begin:annotationNode.end])
+	varName := p.nodeValue(annotationNode)
 	annotationNode = annotationNode.next
 	if annotationNode != nil {
 		p.addError(annotationNode.token32, "More then one variable in annotation '%s'", name)
@@ -2225,7 +2240,7 @@ func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, poss
 	var decl ast.Node = nil
 
 	if nameNode.pegRule != rulePlaceholder {
-		name := string(p.buffer[nameNode.begin:nameNode.end])
+		name := p.nodeValue(nameNode)
 		if _, ok := p.currentStack.GetVariable(name); ok {
 			p.addError(nameNode.token32, "Variable '%s' already exists", name)
 		}
@@ -2282,7 +2297,7 @@ func (p *ASTParser) ruleValuePatternHandler(node *node32, matchName string, poss
 
 func (p *ASTParser) ruleObjectPatternHandler(node *node32, matchName string, possibleTypes s.UnionType) (ast.Node, []ast.Node) {
 	curNode := node.up
-	structName := string(p.buffer[curNode.begin:curNode.end])
+	structName := p.nodeValue(curNode)
 	if !p.stdObjects.IsExist(structName) {
 		p.addError(curNode.token32, "Object with this name '%s' doesn't exist", structName)
 		return nil, nil
@@ -2352,7 +2367,7 @@ func (p *ASTParser) ruleObjectPatternHandler(node *node32, matchName string, pos
 
 func (p *ASTParser) ruleObjectFieldsPatternHandler(node *node32, matchName string, structName string) (ast.Node, ast.Node, *node32) {
 	curNode := node.up
-	fieldName := string(p.buffer[curNode.begin:curNode.end])
+	fieldName := p.nodeValue(curNode)
 	t, ok := p.stdObjects.GetField(s.SimpleType{Type: structName}, fieldName)
 	if !ok {
 		p.addError(curNode.token32, "Object '%s' doesn't have field '%s'", structName, fieldName)
@@ -2367,7 +2382,7 @@ func (p *ASTParser) ruleObjectFieldsPatternHandler(node *node32, matchName strin
 	}
 	switch curNode.pegRule {
 	case ruleIdentifier:
-		name := string(p.buffer[curNode.begin:curNode.end])
+		name := p.nodeValue(curNode)
 		if _, ok := p.currentStack.GetVariable(name); ok {
 			p.addError(curNode.token32, "Variable '%s' already exists", name)
 			return nil, nil, curNode
@@ -2509,7 +2524,7 @@ func (p *ASTParser) ruleTupleValuesPatternHandler(node *node32, matchName string
 
 		expr = ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName)), ast.NewStringNode(varType.String())})
 		if nameNode.pegRule != rulePlaceholder {
-			name := string(p.buffer[nameNode.begin:nameNode.end])
+			name := p.nodeValue(nameNode)
 			p.currentStack.PushVariable(s.Variable{
 				Name: name,
 				Type: varType,
@@ -2517,7 +2532,7 @@ func (p *ASTParser) ruleTupleValuesPatternHandler(node *node32, matchName string
 			shadowDeclarations = append(shadowDeclarations, ast.NewAssignmentNode(name, ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName)), nil))
 		}
 	case ruleIdentifier:
-		name := string(p.buffer[curNode.begin:curNode.end])
+		name := p.nodeValue(curNode)
 
 		for _, t := range possibleTypes.Types {
 			if tuple, ok := t.(s.TupleType); ok {
@@ -2555,7 +2570,7 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		curNode = curNode.next
 	}
 	// parse num in fold macro
-	value := string(p.buffer[curNode.begin:curNode.end])
+	value := p.nodeValue(curNode)
 	if strings.Contains(value, "_") {
 		value = strings.ReplaceAll(value, "_", "")
 	}
@@ -2599,7 +2614,7 @@ func (p *ASTParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		curNode = curNode.next
 	}
 
-	funcName := string(p.buffer[curNode.begin:curNode.end])
+	funcName := p.nodeValue(curNode)
 	funcSign, ok := p.currentStack.GetFunc(funcName)
 	if !ok {
 		p.addError(curNode.token32, "Undefined function '%s'", funcName)

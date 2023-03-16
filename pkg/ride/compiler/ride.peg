@@ -24,8 +24,9 @@ EOF <- !.
 DirectiveName <- [A-Z]+[_A-Z]*
 UpperCaseString <- [A-Z]+
 IntString <- [0-9]+
-PathString <- [_a-zA-Z0-9-/,.]+
-Directive <- '{-#' WS+ DirectiveName WS+ (IntString / UpperCaseString / PathString) WS+ '#-}'
+PathString <- [_a-zA-Z0-9-/.]+
+Paths <- PathString (',' WS* PathString)*
+Directive <- '{-#' WS+ DirectiveName WS+ (IntString / UpperCaseString / Paths) WS+ '#-}'
 
 # Declarations
 
