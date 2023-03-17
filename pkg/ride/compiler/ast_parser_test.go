@@ -797,6 +797,14 @@ let a = {
 
 foo(10) == 10
 `, true, "lib_test_scripts/lib-foo-2.ride(4:6, 4:9): Function 'foo' already exists"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# IMPORT lib_test_scripts/lib-baz-1.ride, lib_test_scripts/lib-baz-2.ride #-}
+
+baz != 10
+`, true, "lib_test_scripts/lib-baz-2.ride(4:11, 4:12): Variable 'baz' already declared"},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}

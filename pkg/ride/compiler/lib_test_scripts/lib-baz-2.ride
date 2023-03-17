@@ -1,0 +1,4 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE LIBRARY #-}
+
+let baz = 6
