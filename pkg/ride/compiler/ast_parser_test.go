@@ -24,28 +24,28 @@ func parseBase64Script(t *testing.T, src string) *ast.Tree {
 func compareScriptsOrError(t *testing.T, code string, fail bool, expected string) {
 	rawAST, buf, err := buildAST(t, code, false)
 	require.NoError(t, err)
-	astParser := NewASTParser(rawAST, buf)
-	astParser.Parse()
+	ap := newASTParser(rawAST, buf)
+	ap.parse()
 	if !fail {
-		require.Empty(t, astParser.ErrorsList)
+		require.Empty(t, ap.errorsList)
 		tree := parseBase64Script(t, expected)
-		assert.Equal(t, tree.ContentType, astParser.Tree.ContentType)
-		assert.Equal(t, tree.LibVersion, astParser.Tree.LibVersion)
-		if diff := deep.Equal(tree.Declarations, astParser.Tree.Declarations); diff != nil {
+		assert.Equal(t, tree.ContentType, ap.tree.ContentType)
+		assert.Equal(t, tree.LibVersion, ap.tree.LibVersion)
+		if diff := deep.Equal(tree.Declarations, ap.tree.Declarations); diff != nil {
 			t.Errorf("Declaration mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Functions, astParser.Tree.Functions); diff != nil {
+		if diff := deep.Equal(tree.Functions, ap.tree.Functions); diff != nil {
 			t.Errorf("Functions mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Verifier, astParser.Tree.Verifier); diff != nil {
+		if diff := deep.Equal(tree.Verifier, ap.tree.Verifier); diff != nil {
 			t.Errorf("Verifier mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Meta, astParser.Tree.Meta); diff != nil {
+		if diff := deep.Equal(tree.Meta, ap.tree.Meta); diff != nil {
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
-		require.NotEmpty(t, astParser.ErrorsList, "Expected error, but errors list is empty")
-		require.Equal(t, expected, astParser.ErrorsList[0].Error())
+		require.NotEmpty(t, ap.errorsList, "Expected error, but errors list is empty")
+		require.Equal(t, expected, ap.errorsList[0].Error())
 	}
 }
 
@@ -94,10 +94,10 @@ func TestDirectivesCompileFail(t *testing.T) {
 		code := test.code
 		rawAST, buf, err := buildAST(t, code, false)
 		assert.NoError(t, err)
-		astParser := NewASTParser(rawAST, buf)
-		astParser.Parse()
-		assert.Equal(t, len(astParser.ErrorsList), len(test.errorMsg))
-		for i, err := range astParser.ErrorsList {
+		ap := newASTParser(rawAST, buf)
+		ap.parse()
+		assert.Equal(t, len(ap.errorsList), len(test.errorMsg))
+		for i, err := range ap.errorsList {
 			assert.Equal(t, test.errorMsg[i], err.Error())
 		}
 	}
@@ -123,10 +123,10 @@ func TestDirectivesCompile(t *testing.T) {
 		code := test.code
 		rawAST, buf, err := buildAST(t, code, false)
 		assert.NoError(t, err)
-		astParser := NewASTParser(rawAST, buf)
-		astParser.Parse()
-		assert.Equal(t, astParser.Tree.LibVersion, test.expected.LibVersion)
-		assert.Equal(t, astParser.Tree.ContentType, test.expected.ContentType)
+		ap := newASTParser(rawAST, buf)
+		ap.parse()
+		assert.Equal(t, ap.tree.LibVersion, test.expected.LibVersion)
+		assert.Equal(t, ap.tree.ContentType, test.expected.ContentType)
 	}
 }
 

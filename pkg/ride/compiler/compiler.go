@@ -8,21 +8,21 @@ import (
 //go:generate peg -output=parser.peg.go ride.peg
 
 func CompileToTree(code string) (*ast.Tree, []error) {
-	p := Parser{Buffer: code}
-	err := p.Init()
+	pp := Parser{Buffer: code}
+	err := pp.Init()
 	if err != nil {
 		return nil, []error{err}
 	}
-	err = p.Parse()
+	err = pp.Parse()
 	if err != nil {
 		return nil, []error{err}
 	}
-	astParser := NewASTParser(p.AST(), p.buffer)
-	astParser.Parse()
-	if len(astParser.ErrorsList) > 0 {
-		return nil, astParser.ErrorsList
+	ap := newASTParser(pp.AST(), pp.buffer)
+	ap.parse()
+	if len(ap.errorsList) > 0 {
+		return nil, ap.errorsList
 	}
-	return astParser.Tree, nil
+	return ap.tree, nil
 }
 
 func Compile(code string) ([]byte, []error) {
