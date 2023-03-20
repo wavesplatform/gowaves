@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -10,9 +11,24 @@ import (
 const (
 	Sponsor         = utl.DefaultSenderNotMiner
 	RecipientSender = utl.DefaultRecipientNotMiner
-	Recipient1      = utl.FirstRecipientNotMiner
-	Recipient2      = utl.SecondRecipientNotMiner
+	Recipient       = utl.FirstRecipientNotMiner
 )
+
+type TransferSponsoredTestData[T any] struct {
+	MinSponsoredAssetFee uint64
+	TransferTestData     TransferTestData[T]
+	_                    struct{}
+}
+
+func NewTransferSponsoredTestData[T any](minSponsoredAssetFee uint64, sender config.AccountInfo,
+	recipient proto.Recipient, assetID *crypto.Digest, feeAssetID *crypto.Digest, fee, amount, timestamp uint64,
+	chainID proto.Scheme, attachment proto.Attachment, expected T) *TransferSponsoredTestData[T] {
+	return &TransferSponsoredTestData[T]{
+		MinSponsoredAssetFee: minSponsoredAssetFee,
+		TransferTestData: *NewTransferTestData(sender, recipient, assetID, feeAssetID, fee, amount,
+			timestamp, chainID, attachment, expected),
+	}
+}
 
 type TransferSponsoredExpectedValuesPositive struct {
 	WavesDiffBalanceSender    int64
@@ -48,7 +64,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 	var t = map[string]TransferTestData[TransferSponsoredExpectedValuesPositive]{
 		"Transfer Assets, fee in the same Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, RecipientSender),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient1).Address),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
 			&sponsoredAssetId,
 			&sponsoredAssetId,
 			sponsoredAssetDetails.MinSponsoredAssetFee,
@@ -88,7 +104,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 		),
 		"Transfer Waves, fee in the Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, RecipientSender),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient1).Address),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
 			nil,
 			&sponsoredAssetId,
 			sponsoredAssetDetails.MinSponsoredAssetFee,
@@ -128,7 +144,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 		),
 		"Transfer Assets, fee in the different Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, RecipientSender),
-			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient1).Address),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
 			&assetId,
 			&sponsoredAssetId,
 			sponsoredAssetDetails.MinSponsoredAssetFee,
@@ -236,5 +252,154 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
+	}
+}
+
+func GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(suite *f.BaseSuite,
+	sponsoredAssetId, assetId crypto.Digest) map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesPositive] {
+	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
+	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesPositive]{
+		"Min values for minSponsoredAssetFee and fee": *NewTransferSponsoredTestData(
+			1,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			1,
+			uint64(assetAmountRecipientSender/4),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesPositive{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    assetAmountRecipientSender / 4,
+				FeeAssetDiffBalanceSender: 1,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: assetAmountRecipientSender / 4,
+				WavesDiffBalanceSponsor:   100000,
+				AssetDiffBalanceSponsor:   1,
+			}),
+		"Valid value for minSponsoredAssetFee": *NewTransferSponsoredTestData(
+			1,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			1111222,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesPositive{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    assetAmountRecipientSender / 16,
+				FeeAssetDiffBalanceSender: 1111222,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: assetAmountRecipientSender / 16,
+				WavesDiffBalanceSponsor:   111122200000,
+				AssetDiffBalanceSponsor:   1111222,
+			}),
+		"Check fee in Waves, integer part ": *NewTransferSponsoredTestData(
+			3,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			5,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesPositive{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    assetAmountRecipientSender / 16,
+				FeeAssetDiffBalanceSender: 5,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: assetAmountRecipientSender / 16,
+				WavesDiffBalanceSponsor:   166666,
+				AssetDiffBalanceSponsor:   5,
+			}),
+	}
+}
+
+func GetTransferWithSponsorshipMaxAmountPositive(suite *f.BaseSuite, sponsoredAssetId,
+	assetId crypto.Digest) map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesPositive] {
+	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
+	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesPositive]{
+		"Max value for minSponsoredFee": *NewTransferSponsoredTestData(
+			utl.MaxAmount,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			utl.MaxAmount,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesPositive{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    assetAmountRecipientSender / 16,
+				FeeAssetDiffBalanceSender: utl.MaxAmount,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: assetAmountRecipientSender / 16,
+				WavesDiffBalanceSponsor:   100000,
+				AssetDiffBalanceSponsor:   utl.MaxAmount,
+			}),
+	}
+}
+
+func GetTransferWithSponsorshipDataNegative(suite *f.BaseSuite, sponsoredAssetId,
+	assetId crypto.Digest) map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative] {
+	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
+	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative]{
+		"Fee more than funds on the sponsor balance": *NewTransferSponsoredTestData(
+			1,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			utl.MaxAmount/100000,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         "negative waves balance",
+			}),
+		"Fee in Waves from sponsor balance that out of long range": *NewTransferSponsoredTestData(
+			1,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			1+utl.MaxAmount/100000,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         "BigInteger out of long range",
+			}),
 	}
 }

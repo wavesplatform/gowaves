@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	SponsorshipMaxVersion = 3
+	SponsorshipMaxVersion       = 3
+	DefaultMinSponsoredAssetFee = 100000
 )
 
 type SponsorshipTestData[T any] struct {
