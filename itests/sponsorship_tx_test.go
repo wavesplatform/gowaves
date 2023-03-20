@@ -33,7 +33,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 					utl.GetTestcaseNameWithVersion(name, v))
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
@@ -59,7 +59,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 					utl.GetTestcaseNameWithVersion(name, v))
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
@@ -83,7 +83,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
 				utl.GetTestcaseNameWithVersion(name, v))
 			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.On.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-			utl.AssetBalanceCheck(suite.T(), sponsorship.On.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.On.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
 			//switch off sponsorship
@@ -94,7 +94,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
 				utl.GetTestcaseNameWithVersion(name, v))
 			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Off.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-			utl.AssetBalanceCheck(suite.T(), sponsorship.Off.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Off.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 		})
 	}
@@ -119,7 +119,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}

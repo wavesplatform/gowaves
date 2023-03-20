@@ -57,11 +57,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -71,7 +71,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -81,7 +81,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -121,11 +121,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -133,7 +133,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -143,7 +143,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
@@ -192,11 +192,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -206,7 +206,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -216,7 +216,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
@@ -265,11 +265,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -279,7 +279,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -289,7 +289,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
@@ -339,11 +339,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -353,7 +353,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
@@ -363,7 +363,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
