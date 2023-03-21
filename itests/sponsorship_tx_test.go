@@ -68,33 +68,33 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 
 func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
 	versions := sponsor_utilities.GetVersions()
-	name := "Sponsorship On/Off"
+	name := "Sponsorship Enabled/Disabled"
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
-		sponsorship := testdata.GetSponsorshipOnOffData(&suite.BaseSuite, itx.TxID)
+		sponsorship := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
 			//switch on sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.SendSponsorshipTxAndGetBalances(
-				&suite.BaseSuite, sponsorship.On, v, waitForTx)
+				&suite.BaseSuite, sponsorship.Enabled, v, waitForTx)
 
 			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String(),
 				utl.GetTestcaseNameWithVersion(name, v))
-			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.On.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Enabled.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.On.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Enabled.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
 			//switch off sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset = sponsor_utilities.SendSponsorshipTxAndGetBalances(
-				&suite.BaseSuite, sponsorship.Off, v, waitForTx)
+				&suite.BaseSuite, sponsorship.Disabled, v, waitForTx)
 
-			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship Off: "+tx.TxID.String(),
+			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship Disabled: "+tx.TxID.String(),
 				utl.GetTestcaseNameWithVersion(name, v))
-			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Off.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Disabled.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
 				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Off.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Disabled.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 		})
 	}
@@ -123,6 +123,8 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
 }
 

@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	Sponsor         = utl.DefaultSenderNotMiner
-	RecipientSender = utl.DefaultRecipientNotMiner
-	Recipient       = utl.FirstRecipientNotMiner
+	Sponsor                     = utl.DefaultSenderNotMiner
+	RecipientSender             = utl.DefaultRecipientNotMiner
+	Recipient                   = utl.FirstRecipientNotMiner
+	MinSponsoredAssetFeeInWaves = 100000
 )
 
 type TransferSponsoredTestData[T any] struct {
@@ -78,7 +79,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: sponsoredAssetAmountRecipientSender/4 + int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: sponsoredAssetAmountRecipientSender / 4,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -98,7 +99,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -118,7 +119,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: wavesAmountRecipientSender / 8,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -138,7 +139,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -158,7 +159,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: assetAmountRecipientSender / 4,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -178,7 +179,7 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 				FeeAssetDiffBalanceSender: int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   int64(sponsoredAssetDetails.MinSponsoredAssetFee),
 			},
 		),
@@ -203,12 +204,12 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 			utl.TestChainID,
 			nil,
 			TransferSponsoredExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSender:    0,
 				FeeAssetDiffBalanceSender: 0,
-				WavesDiffBalanceRecipient: 100000,
+				WavesDiffBalanceRecipient: MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
@@ -223,12 +224,12 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 			utl.TestChainID,
 			nil,
 			TransferSponsoredExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSender:    0,
 				FeeAssetDiffBalanceSender: 0,
-				WavesDiffBalanceRecipient: 100000,
+				WavesDiffBalanceRecipient: MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
@@ -243,12 +244,12 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 			utl.TestChainID,
 			nil,
 			TransferSponsoredExpectedValuesPositive{
-				WavesDiffBalanceSender:    100000,
+				WavesDiffBalanceSender:    MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSender:    0,
 				FeeAssetDiffBalanceSender: 0,
-				WavesDiffBalanceRecipient: 100000,
+				WavesDiffBalanceRecipient: MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceRecipient: 0,
-				WavesDiffBalanceSponsor:   100000, //=minSponsoredAssetFee
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
@@ -276,7 +277,7 @@ func GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(suite *f.BaseSui
 				FeeAssetDiffBalanceSender: 1,
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: assetAmountRecipientSender / 4,
-				WavesDiffBalanceSponsor:   100000,
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   1,
 			}),
 		"Valid value for minSponsoredAssetFee": *NewTransferSponsoredTestData(
@@ -296,7 +297,7 @@ func GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(suite *f.BaseSui
 				FeeAssetDiffBalanceSender: 1111222,
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: assetAmountRecipientSender / 16,
-				WavesDiffBalanceSponsor:   111122200000,
+				WavesDiffBalanceSponsor:   1111222 * MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   1111222,
 			}),
 		"Check fee in Waves, integer part ": *NewTransferSponsoredTestData(
@@ -343,7 +344,7 @@ func GetTransferWithSponsorshipMaxAmountPositive(suite *f.BaseSuite, sponsoredAs
 				FeeAssetDiffBalanceSender: utl.MaxAmount,
 				WavesDiffBalanceRecipient: 0,
 				AssetDiffBalanceRecipient: assetAmountRecipientSender / 16,
-				WavesDiffBalanceSponsor:   100000,
+				WavesDiffBalanceSponsor:   MinSponsoredAssetFeeInWaves,
 				AssetDiffBalanceSponsor:   utl.MaxAmount,
 			}),
 	}

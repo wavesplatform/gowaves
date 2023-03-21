@@ -21,67 +21,73 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive
 	waitForTx := true
 	versions := transfer_utilities.GetVersions()
 	for _, v := range versions {
-		//предусловия
-		//Аккаунт Sponsor выпускает токен
+		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor делает выпущенный токен спонсорским (нужны ли тестовые данные для спонсорства? разные minAssetFee)
-		sponsor_utilities.SponsorshipOnSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
+		//Sponsor set up sponsorship for this token
+		sponsor_utilities.SponsorshipEnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
-		//Аккаунт Sponsor переводит все выпущенные спонсорские на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued sponsored tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
-		//Аккаунт Sponsor выпускает еще один токен
+		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor переводит все выпущенные токены на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			assetId, testdata.Sponsor, testdata.RecipientSender)
 
 		tdmatrix := testdata.GetTransferSponsoredPositiveData(&suite.BaseSuite, assetId, sponsoredAssetId)
+
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				//Аккаунт RecipientSender переводит ассеты на Аккаунт Recipient, указывая в транзакции в качестве fee спонсорский ассет
-				tx, diffBalancesSender, diffBalancesRecipient, diffBalancesSponsor := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
+				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer with Sponsorship: "+tx.TxID.String(),
 					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта RecipientSender баланс Waves не изменяется на комиссию, так как комиссия в спонсорском ассете
-				//У Аккаунта RecipientSender уменьшается баланс токенов (waves), которые он переводит Аккаунту Recipient, на переводимое количество
-				//У Аккаунта RecipientSender уменьшается баланс токенов, указанных в качестве комиссии, на величину комиссии
+				//RecipientSender balance in Waves does not change because of fee in sponsored asset
+				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
+				//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Recipient баланс Waves меняется только если ему переводят Waves
-				//у Аккаунта Recipient баланс токенов увеличивается на переводимое количество
+				//Recipient balance in Waves changes if Waves were transferred
+				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Sponsor списывается со счета количество waves, равное feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-				//У Аккаунта Sponsor увеличивается баланс токенов на комиссию за транзакцию перевода Аккаунта RecipientSender
+				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
+				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 			})
 		}
@@ -89,132 +95,144 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOneselfPositive() {
-	//предусловия
 	waitForTx := true
 	versions := transfer_utilities.GetVersions()
 	for _, v := range versions {
-		//предусловия
-		//Аккаунт Sponsor выпускает токен
+		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor делает выпущенный токен спонсорским (нужны ли тестовые данные для спонсорства? разные minAssetFee)
-		sponsor_utilities.SponsorshipOnSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
+		//Sponsor set up sponsorship for this token
+		sponsor_utilities.SponsorshipEnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
-		//Аккаунт Sponsor выпускает еще один токен
+		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 
 		tdmatrix := testdata.GetTransferWithSponsorshipToOneselfData(&suite.BaseSuite, sponsoredAssetId, assetId)
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				//Аккаунт Sponsor переводит ассеты себе, указывая в транзакции в качестве fee спонсорский ассет
-				tx, diffBalancesSender, diffBalancesRecipient, diffBalancesSponsor := transfer_utilities.SendTransferTxAndGetBalances(
+				//Sponsor transfers assets to himself, sponsored asset is used as fee asset
+				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer with Sponsorship: "+tx.TxID.String(),
 					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Sponsor списывается со счета количество waves, равное feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-				//У Аккаунта Sponsor не меняется баланс токенов
+				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
+				//Sponsor asset balance does not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
 	}
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsoredAssetPositive() {
-	//предусловия
 	waitForTx := true
 	versions := transfer_utilities.GetVersions()
 	for _, v := range versions {
-		//предусловия
-		//Аккаунт Sponsor выпускает токен
+		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor выпускает еще один токен
+		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor переводит все выпущенные спонсорские на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
-		//Аккаунт Sponsor переводит все выпущенные токены на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			assetId, testdata.Sponsor, testdata.RecipientSender)
+
 		tdmatrix := testdata.GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(&suite.BaseSuite,
 			sponsoredAssetId, assetId)
+
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				//Аккаунт Sponsor делает выпущенный токен спонсорским
-				sponsor_utilities.SponsorshipOnSend(&suite.BaseSuite, v,
+				//Sponsor set up sponsorship for the token
+				sponsor_utilities.SponsorshipEnableSend(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
 
-				//Аккаунт RecipientSender переводит ассеты на Аккаунт Recipient, указывая в транзакции в качестве fee спонсорский ассет
-				tx, diffBalancesSender, diffBalancesRecipient, diffBalancesSponsor := transfer_utilities.SendTransferTxAndGetBalances(
+				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
+				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer with Sponsorship: "+tx.TxID.String(),
 					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта RecipientSender баланс Waves не изменяется на комиссию, так как комиссия в спонсорском ассете
-				//У Аккаунта RecipientSender уменьшается баланс токенов (waves), которые он переводит Аккаунту Recipient, на переводимое количество
-				//У Аккаунта RecipientSender уменьшается баланс токенов, указанных в качестве комиссии, на величину комиссии
+				//RecipientSender balance in Waves does not change because of fee in sponsored asset
+				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
+				//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Recipient баланс Waves меняется только если ему переводят Waves
-				//у Аккаунта Recipient баланс токенов увеличивается на переводимое количество
+				//Recipient balance in Waves changes if Waves were transferred
+				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Sponsor списывается со счета количество waves, равное feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-				//У Аккаунта Sponsor увеличивается баланс токенов на комиссию за транзакцию перевода Аккаунта RecipientSender
+				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
+				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
 	}
@@ -224,69 +242,78 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
-		//пополняем баланс спонсора
+		//Fill Sponsor's Waves balance
 		transfer_utilities.TransferFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, testdata.Sponsor, 100000000000000)
-		//Аккаунт Sponsor выпускает токен
+		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor выпускает еще один токен
+		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor переводит все выпущенные спонсорские на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
-		//Аккаунт Sponsor переводит все выпущенные токены на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			assetId, testdata.Sponsor, testdata.RecipientSender)
+
 		tdmatrix := testdata.GetTransferWithSponsorshipMaxAmountPositive(&suite.BaseSuite, sponsoredAssetId, assetId)
+
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				//Аккаунт Sponsor делает выпущенный токен спонсорским
-				sponsor_utilities.SponsorshipOnSend(&suite.BaseSuite, v,
+				//Sponsor set up sponsorship for the token
+				sponsor_utilities.SponsorshipEnableSend(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
 
-				//Аккаунт RecipientSender переводит ассеты на Аккаунт Recipient, указывая в транзакции в качестве fee спонсорский ассет
-				tx, diffBalancesSender, diffBalancesRecipient, diffBalancesSponsor := transfer_utilities.SendTransferTxAndGetBalances(
+				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
+				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Transfer with Sponsorship: "+tx.TxID.String(),
 					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта RecipientSender баланс Waves не изменяется на комиссию, так как комиссия в спонсорском ассете
-				//У Аккаунта RecipientSender уменьшается баланс токенов (waves), которые он переводит Аккаунту Recipient, на переводимое количество
-				//У Аккаунта RecipientSender уменьшается баланс токенов, указанных в качестве комиссии, на величину комиссии
+				///RecipientSender balance in Waves does not change because of fee in sponsored asset
+				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
+				//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Recipient баланс Waves меняется только если ему переводят Waves
-				//у Аккаунта Recipient баланс токенов увеличивается на переводимое количество
+				//Recipient balance in Waves changes if Waves were transferred
+				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				//У Аккаунта Sponsor списывается со счета количество waves, равное feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-				//У Аккаунта Sponsor увеличивается баланс токенов на комиссию за транзакцию перевода Аккаунта RecipientSender
+				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
+				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
 	}
@@ -296,70 +323,77 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
-		//Аккаунт Sponsor выпускает токен
+		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor выпускает еще один токен
+		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
-		//Аккаунт Sponsor переводит все выпущенные спонсорские на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
-		//Аккаунт Sponsor переводит все выпущенные токены на счет Аккаунта RecipientSender
+		//Sponsor transfers all issued tokens to RecipientSender
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			assetId, testdata.Sponsor, testdata.RecipientSender)
+
 		tdmatrix := testdata.GetTransferWithSponsorshipDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
 		txIds := make(map[string]*crypto.Digest)
+
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				//Аккаунт Sponsor делает выпущенный токен спонсорским
-				sponsor_utilities.SponsorshipOnSend(&suite.BaseSuite, v,
+				//Sponsor set up sponsorship for the token
+				sponsor_utilities.SponsorshipEnableSend(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
 
-				//Аккаунт RecipientSender переводит ассеты на Аккаунт Recipient, указывая в транзакции в качестве fee спонсорский ассет
-				tx, diffBalancesSender, diffBalancesRecipient, diffBalancesSponsor := transfer_utilities.SendTransferTxAndGetBalances(
+				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
+				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, !waitForTx)
 				txIds[name] = &tx.TxID
 
-				//У Аккаунта RecipientSender баланс Waves не изменяется на комиссию, так как комиссия в спонсорском ассете
-				//У Аккаунта RecipientSender уменьшается баланс токенов (waves), которые он переводит Аккаунту Recipient, на переводимое количество
-				//У Аккаунта RecipientSender уменьшается баланс токенов, указанных в качестве комиссии, на величину комиссии
-				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				//У Аккаунта Recipient баланс Waves меняется только если ему переводят Waves
-				//у Аккаунта Recipient баланс токенов увеличивается на переводимое количество
-				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				//У Аккаунта Sponsor списывается со счета количество waves, равное feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-				//У Аккаунта Sponsor увеличивается баланс токенов на комиссию за транзакцию перевода Аккаунта RecipientSender
-				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
-
-				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
-
 				utl.ErrorMessageCheck(suite.T(), td.TransferTestData.Expected.ErrGoMsg, td.TransferTestData.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
 					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+
+				//Balances of RecipientSender do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				//Balances of Recipient do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				//Balances of Sponsor do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
 			})
 		}
+		//actualTxIds should be empty
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}

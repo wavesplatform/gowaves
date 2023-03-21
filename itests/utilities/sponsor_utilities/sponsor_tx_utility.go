@@ -43,13 +43,17 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.SponsorshipTestDat
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
+
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
 	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
+
 	tx := makeTx(suite, testdata, version, waitForTx)
+
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
 	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
 		testdata.Account.Address, testdata.AssetID, initBalanceInAssetGo, initBalanceInAssetScala)
+
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
 			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
 		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
@@ -78,14 +82,14 @@ func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata te
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SponsorshipBroadcastWithTestData[T])
 }
 
-func SponsorshipOnSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
+func SponsorshipEnableSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
 	assetDetails := utl.GetAssetInfo(suite, assetId)
 	issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
 	SponsorshipSend(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 
-func SponsorshipOnBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
+func SponsorshipEnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
 	assetDetails := utl.GetAssetInfo(suite, assetId)
 	issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
 	SponsorshipBroadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
