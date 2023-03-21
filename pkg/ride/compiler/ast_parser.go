@@ -118,10 +118,10 @@ func (p *astParser) loadBuildInVarsToStackByVersion() {
 	resVars := make(map[string]s.Variable, 0)
 	ver := int(p.tree.LibVersion)
 	for i := 0; i < ver; i++ {
-		for _, v := range s.Vars.Vars[i].Append {
+		for _, v := range s.Vars().Vars[i].Append {
 			resVars[v.Name] = v
 		}
-		for _, v := range s.Vars.Vars[i].Remove {
+		for _, v := range s.Vars().Vars[i].Remove {
 			delete(resVars, v)
 		}
 	}

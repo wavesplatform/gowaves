@@ -24,9 +24,13 @@ type VarsInVersion struct {
 	Append     []Variable
 }
 
-var Vars = MustLoadVars()
+var vars = mustLoadVars()
 
-func MustLoadVars() *StdVars {
+func Vars() *StdVars {
+	return vars
+}
+
+func mustLoadVars() *StdVars {
 	f, err := embedFS.ReadFile("vars.json")
 	if err != nil {
 		panic(err)
