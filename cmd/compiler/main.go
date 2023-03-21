@@ -45,10 +45,10 @@ func main() {
 	}
 
 	treeBytes, errors := compiler.Compile(string(b))
-	if errors != nil {
+	if len(errors) > 0 {
 		fmt.Println("Failed to compile script")
 		for _, err := range errors {
-			fmt.Printf("\t%s\n", err)
+			fmt.Printf("\t%v\n", err)
 		}
 		os.Exit(0)
 	}
