@@ -11,7 +11,7 @@ type variableJson struct {
 
 type Variable struct {
 	Name string `json:"name"`
-	Type Type
+	Type Type   `json:"-"`
 }
 
 type StdVars struct {
@@ -21,7 +21,7 @@ type StdVars struct {
 type VarsInVersion struct {
 	AppendJson []variableJson `json:"append"`
 	Remove     []string       `json:"remove"`
-	Append     []Variable
+	Append     []Variable     `json:"-"`
 }
 
 var vars = mustLoadVars()
