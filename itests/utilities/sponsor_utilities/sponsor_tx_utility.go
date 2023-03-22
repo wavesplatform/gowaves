@@ -84,14 +84,14 @@ func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata te
 
 func SponsorshipEnableSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
 	assetDetails := utl.GetAssetInfo(suite, assetId)
-	issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+	issuer := utl.MustGetAccountByAddress(suite, assetDetails.Issuer)
 	SponsorshipSend(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 
 func SponsorshipEnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest, minAssetFee uint64) {
 	assetDetails := utl.GetAssetInfo(suite, assetId)
-	issuer := utl.GetAccountByAddress(suite, assetDetails.Issuer)
+	issuer := utl.MustGetAccountByAddress(suite, assetDetails.Issuer)
 	SponsorshipBroadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }

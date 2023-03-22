@@ -66,7 +66,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 	}
 }
 
-func (suite *SponsorshipTxSuite) TestSponsorshipOffTx() {
+func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
 	versions := sponsor_utilities.GetVersions()
 	name := "Sponsorship Enabled/Disabled"
 	waitForTx := true

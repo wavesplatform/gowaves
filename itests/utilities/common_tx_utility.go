@@ -284,18 +284,14 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
 }
 
-func GetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
-	var result config.AccountInfo
+func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
 	for _, account := range suite.Cfg.Accounts {
 		if account.Address.Equal(address) {
-			result = account
-			break
+			return account
 		}
 	}
-	if result == (config.AccountInfo{}) {
-		require.FailNow(suite.T(), "Account not found")
-	}
-	return result
+	require.FailNow(suite.T(), "Account with address %q wasn't found", address.String())
+	panic("unreachable point reached")
 }
 
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
