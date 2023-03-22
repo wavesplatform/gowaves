@@ -167,7 +167,6 @@ func (p *astParser) ruleDAppRootHandler(node *node32) {
 	}
 	if curNode != nil && curNode.pegRule == ruleDirective {
 		curNode = p.parseDirectives(curNode)
-		_ = curNode
 	}
 	if !p.isLibrary {
 		p.stdFuncs = s.FuncsByVersion()[p.tree.LibVersion]
@@ -256,7 +255,6 @@ func (p *astParser) ruleScriptRootHandler(node *node32) {
 	}
 	if curNode != nil && curNode.pegRule == ruleDirective {
 		curNode = p.parseDirectives(curNode)
-		_ = curNode
 	}
 	if !p.isLibrary {
 		p.stdFuncs = s.FuncsByVersion()[p.tree.LibVersion]
