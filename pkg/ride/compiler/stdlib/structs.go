@@ -113,9 +113,11 @@ func (s *ObjectsSignatures) IsExist(name string) bool {
 	return ok
 }
 
-var (
-	ObjectsByVersion = mustLoadObjects()
-)
+var objectsByVersion = mustLoadObjects()
+
+func ObjectsByVersion() map[ast.LibraryVersion]ObjectsSignatures {
+	return objectsByVersion
+}
 
 func parseObjectFieldsTypes(rawTypes []string) Type {
 	var types []string
