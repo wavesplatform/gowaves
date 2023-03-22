@@ -7,9 +7,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-var (
-	FuncsByVersion = mustLoadFuncs()
-)
+var funcsByVersion = mustLoadFuncs()
+
+func FuncsByVersion() map[ast.LibraryVersion]FunctionsSignatures {
+	return funcsByVersion
+}
 
 type FunctionsSignatures struct {
 	Funcs map[string][]FunctionParams
