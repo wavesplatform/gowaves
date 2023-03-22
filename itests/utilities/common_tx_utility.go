@@ -286,10 +286,9 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 
 func GetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
 	var result config.AccountInfo
-	accounts := suite.Cfg.Accounts
-	for i := range accounts {
-		if accounts[i].Address.Equal(address) {
-			result = accounts[i]
+	for _, account := range suite.Cfg.Accounts {
+		if account.Address.Equal(address) {
+			result = account
 			break
 		}
 	}
