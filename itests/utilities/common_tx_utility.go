@@ -286,15 +286,15 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 
 func GetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
 	var result *config.AccountInfo
-	for _, account := range suite.Cfg.Accounts {
-		if account.Address.Equal(address) {
-			result = &account
+	accounts := suite.Cfg.Accounts
+	for i := range accounts {
+		if accounts[i].Address.Equal(address) {
+			result = &accounts[i]
 			break
 		}
 	}
 	if result == nil {
-		require.FailNow(suite.T(),
-			fmt.Sprintf("Account not found"))
+		require.FailNow(suite.T(), "Account not found")
 	}
 	return *result
 }
