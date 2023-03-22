@@ -9,7 +9,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-var DefaultTypes = mustLoadDefaultTypes()
+var defaultTypes = mustLoadDefaultTypes()
+
+func DefaultTypes() map[ast.LibraryVersion]map[string]Type {
+	return defaultTypes
+}
 
 type Type interface {
 	String() string

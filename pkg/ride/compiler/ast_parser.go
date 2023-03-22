@@ -172,7 +172,7 @@ func (p *astParser) ruleDAppRootHandler(node *node32) {
 	if !p.isLibrary {
 		p.stdFuncs = s.FuncsByVersion()[p.tree.LibVersion]
 		p.stdObjects = s.ObjectsByVersion[p.tree.LibVersion]
-		p.stdTypes = s.DefaultTypes[p.tree.LibVersion]
+		p.stdTypes = s.DefaultTypes()[p.tree.LibVersion]
 		p.loadBuildInVarsToStackByVersion()
 	}
 	p.loadImport()
@@ -261,7 +261,7 @@ func (p *astParser) ruleScriptRootHandler(node *node32) {
 	if !p.isLibrary {
 		p.stdFuncs = s.FuncsByVersion()[p.tree.LibVersion]
 		p.stdObjects = s.ObjectsByVersion[p.tree.LibVersion]
-		p.stdTypes = s.DefaultTypes[p.tree.LibVersion]
+		p.stdTypes = s.DefaultTypes()[p.tree.LibVersion]
 		p.loadBuildInVarsToStackByVersion()
 	}
 	p.loadImport()
