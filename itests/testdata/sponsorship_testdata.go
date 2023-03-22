@@ -99,13 +99,13 @@ func GetSponsorshipMaxValuesPositive(suite *f.BaseSuite, assetID crypto.Digest, 
 	return t
 }
 
-type SponsorshipOnOffData struct {
+type SponsorshipEnabledDisabledData struct {
 	Enabled  SponsorshipTestData[SponsorshipExpectedValuesPositive]
 	Disabled SponsorshipTestData[SponsorshipExpectedValuesPositive]
 }
 
-func GetSponsorshipEnabledDisabledData(suite *f.BaseSuite, assetID crypto.Digest) SponsorshipOnOffData {
-	return SponsorshipOnOffData{
+func GetSponsorshipEnabledDisabledData(suite *f.BaseSuite, assetID crypto.Digest) SponsorshipEnabledDisabledData {
+	return SponsorshipEnabledDisabledData{
 		Enabled: *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
