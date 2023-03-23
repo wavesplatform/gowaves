@@ -171,6 +171,7 @@ func appendRemainingStructs(s *rideObjects) {
 	s.Objects = append(s.Objects, remainingObjects...)
 }
 
+// TODO: these strings also should be changed "assetID", "feeAssetID", "leaseID", "matcherFeeAssetID", "transactionID"
 func changeName(name string) string {
 	if name == "assetID" {
 		return "assetId"
