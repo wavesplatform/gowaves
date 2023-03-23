@@ -21,7 +21,7 @@ type Type interface {
 	EqualWithEntry(Type) bool
 }
 
-var MaxTupleLength = 22
+const MaxTupleLength = 22
 
 var (
 	Any            = SimpleType{"Any"}
