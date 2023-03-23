@@ -588,15 +588,15 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 	loadNonConfigTypes(res)
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
-			return int(obj.Actions[i].LibVersion) < int(obj.Actions[j].LibVersion)
+			return obj.Actions[i].LibVersion < obj.Actions[j].LibVersion
 		})
 		for _, ver := range obj.Actions {
-			maxVer := int(ast.CurrentMaxLibraryVersion())
+			maxVer := ast.CurrentMaxLibraryVersion()
 			if ver.Deleted != nil {
-				maxVer = int(*ver.Deleted)
+				maxVer = *ver.Deleted
 			}
-			for i := int(ver.LibVersion); i <= maxVer; i++ {
-				res[ast.LibraryVersion(byte(i))][obj.Name] = SimpleType{Type: obj.Name}
+			for v := ver.LibVersion; v <= maxVer; v++ {
+				res[v][obj.Name] = SimpleType{Type: obj.Name}
 			}
 		}
 	}
