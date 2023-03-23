@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"encoding/base64"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -524,6 +525,17 @@ func TestListOp(t *testing.T) {
 let a = if true then ["string"] else [1]
 let b = a :+ "a"
 `, false, "BgICCAICAAFhAwYJAMwIAgIGc3RyaW5nBQNuaWwJAMwIAgABBQNuaWwAAWIJAM0IAgUBYQIBYQAAmbXS3g=="},
+		{
+			`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = if true then ["string"] else [1]
+let b = a :+ "a" 
+let c = b :+ nil
+let d = c :+ true
+`, false, "AAIFAAAAAAAAAAIIAgAAAAQAAAAAAWEDBgkABEwAAAACAgAAAAZzdHJpbmcFAAAAA25pbAkABEwAAAACAAAAAAAAAAABBQAAAANuaWwAAAAAAWIJAARNAAAAAgUAAAABYQIAAAABYQAAAAABYwkABE0AAAACBQAAAAFiBQAAAANuaWwAAAAAAWQJAARNAAAAAgUAAAABYwYAAAAAAAAAAMlcQqo="},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}
@@ -699,6 +711,15 @@ func test(a: List[Int|String]) = {
 }
 `,
 			false, "AAIEAAAAAAAAAAcIAhIDCgEZAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAEAAAABYQkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAAFhAgAAAAFhBQAAAANuaWwAAAAAFGRLyg=="},
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func fn() = nil
+`,
+			false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAACZm4AAAAABQAAAANuaWwAAAAA4fhNCw=="},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
 	}
@@ -807,6 +828,43 @@ baz != 10
 `, true, "lib_test_scripts/lib-baz-2.ride(4:11, 4:12): Variable 'baz' already declared"},
 	} {
 		compareScriptsOrError(t, test.code, test.fail, test.expected)
+	}
+}
+
+// TODO: should be fixed later
+func TestShouldBeFixed(t *testing.T) {
+	t.Skip("TODO: should be fixed later")
+
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = if (true) then this.invoke("", [], []) else throw()
+func f(b: Any) = b
+
+@Callable(i)
+func g() = f(a)
+`,
+			true, "why did it not fail?"}, // https://waves-ide.com/s/641c6268c4784c002a8e8408
+		{`
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func cursed() = [][0]
+`, false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAKY3Vyc2VkRnVuYwAAAAAJAAGRAAAAAgUAAAADbmlsAAAAAAAAAAAAAAAAAE/2QrI="}, // https://waves-ide.com/s/641c670fc4784c002a8e840a
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected)
+		})
 	}
 }
 
