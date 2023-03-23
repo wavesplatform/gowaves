@@ -464,7 +464,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[ast.LibraryVersion(byte(i))]["HalfEven"] = SimpleType{Type: "HalfEven"}
 		res[ast.LibraryVersion(byte(i))]["Down"] = SimpleType{Type: "Down"}
 		res[ast.LibraryVersion(byte(i))]["Floor"] = SimpleType{Type: "Floor"}
-		res[ast.LibraryVersion(byte(i))]["Any"] = SimpleType{Type: "Any"}
+		res[ast.LibraryVersion(byte(i))]["Any"] = Any
 	}
 	for i := int(ast.LibV1); i <= int(ast.LibV4); i++ {
 		res[ast.LibraryVersion(byte(i))]["HalfDown"] = SimpleType{Type: "HalfDown"}
