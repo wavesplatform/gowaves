@@ -453,34 +453,34 @@ func (t TupleType) String() string {
 }
 
 func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
-	for i := int(ast.LibV1); i <= int(ast.LibV6); i++ {
-		res[ast.LibraryVersion(byte(i))]["Int"] = IntType
-		res[ast.LibraryVersion(byte(i))]["String"] = StringType
-		res[ast.LibraryVersion(byte(i))]["Boolean"] = BooleanType
-		res[ast.LibraryVersion(byte(i))]["ByteVector"] = ByteVectorType
-		res[ast.LibraryVersion(byte(i))]["Unit"] = SimpleType{Type: "Unit"}
-		res[ast.LibraryVersion(byte(i))]["Ceiling"] = SimpleType{Type: "Ceiling"}
-		res[ast.LibraryVersion(byte(i))]["HalfUp"] = SimpleType{Type: "HalfUp"}
-		res[ast.LibraryVersion(byte(i))]["HalfEven"] = SimpleType{Type: "HalfEven"}
-		res[ast.LibraryVersion(byte(i))]["Down"] = SimpleType{Type: "Down"}
-		res[ast.LibraryVersion(byte(i))]["Floor"] = SimpleType{Type: "Floor"}
-		res[ast.LibraryVersion(byte(i))]["Any"] = Any
+	for v := ast.LibV1; v <= ast.LibV6; v++ {
+		res[v]["Int"] = IntType
+		res[v]["String"] = StringType
+		res[v]["Boolean"] = BooleanType
+		res[v]["ByteVector"] = ByteVectorType
+		res[v]["Unit"] = SimpleType{Type: "Unit"}
+		res[v]["Ceiling"] = SimpleType{Type: "Ceiling"}
+		res[v]["HalfUp"] = SimpleType{Type: "HalfUp"}
+		res[v]["HalfEven"] = SimpleType{Type: "HalfEven"}
+		res[v]["Down"] = SimpleType{Type: "Down"}
+		res[v]["Floor"] = SimpleType{Type: "Floor"}
+		res[v]["Any"] = Any
 	}
-	for i := int(ast.LibV1); i <= int(ast.LibV4); i++ {
-		res[ast.LibraryVersion(byte(i))]["HalfDown"] = SimpleType{Type: "HalfDown"}
-		res[ast.LibraryVersion(byte(i))]["Up"] = SimpleType{Type: "Up"}
+	for v := ast.LibV1; v <= ast.LibV4; v++ {
+		res[v]["HalfDown"] = SimpleType{Type: "HalfDown"}
+		res[v]["Up"] = SimpleType{Type: "Up"}
 	}
-	for i := int(ast.LibV2); i <= int(ast.LibV6); i++ {
-		res[ast.LibraryVersion(byte(i))]["OrderType"] = SimpleType{Type: "OrderType"}
+	for v := ast.LibV2; v <= ast.LibV6; v++ {
+		res[v]["OrderType"] = SimpleType{Type: "OrderType"}
 	}
-	for i := int(ast.LibV3); i <= int(ast.LibV6); i++ {
-		res[ast.LibraryVersion(byte(i))]["DigestAlgorithmType"] = SimpleType{Type: "DigestAlgorithmType"}
+	for v := ast.LibV3; v <= ast.LibV6; v++ {
+		res[v]["DigestAlgorithmType"] = SimpleType{Type: "DigestAlgorithmType"}
 	}
-	for i := int(ast.LibV4); i <= int(ast.LibV6); i++ {
-		res[ast.LibraryVersion(byte(i))]["BlockInfo"] = SimpleType{Type: "BlockInfo"}
+	for v := ast.LibV4; v <= ast.LibV6; v++ {
+		res[v]["BlockInfo"] = SimpleType{Type: "BlockInfo"}
 	}
-	for i := int(ast.LibV5); i <= int(ast.LibV6); i++ {
-		res[ast.LibraryVersion(byte(i))]["BigInt"] = BigIntType
+	for v := ast.LibV5; v <= ast.LibV6; v++ {
+		res[v]["BigInt"] = BigIntType
 
 	}
 	// This is necessary for an exact match with scala compiler
