@@ -226,7 +226,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 	}
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
-			return int(obj.Actions[i].LibVersion) < int(obj.Actions[j].LibVersion)
+			return obj.Actions[i].LibVersion < obj.Actions[j].LibVersion
 		})
 		for _, ver := range obj.Actions {
 			var resInfo ObjectInfo
@@ -244,12 +244,12 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			if strings.HasSuffix(obj.Name, "Transaction") {
 				resInfo.NotConstruct = true
 			}
-			maxVer := int(ast.CurrentMaxLibraryVersion())
+			maxVer := ast.CurrentMaxLibraryVersion()
 			if ver.Deleted != nil {
-				maxVer = int(*ver.Deleted)
+				maxVer = *ver.Deleted
 			}
-			for i := int(ver.LibVersion); i <= maxVer; i++ {
-				res[ast.LibraryVersion(byte(i))].Obj[obj.Name] = resInfo
+			for v := ver.LibVersion; v <= maxVer; v++ {
+				res[v].Obj[obj.Name] = resInfo
 			}
 		}
 	}
