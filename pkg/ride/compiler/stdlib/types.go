@@ -162,6 +162,8 @@ func (t SimpleType) EqualWithEntry(rideType Type) bool {
 }
 
 func (t SimpleType) Equal(rideType Type) bool {
+	// TODO: if t is 'Any' and rideType is 'ThrowType' (or 'Nothing') (and vice versa) this method returns false,
+	//  but it should return true because Any is an extension of any type, even 'Nothing'
 	if t.Type == "Any" {
 		if T, ok := rideType.(SimpleType); ok {
 			if T.Type != "Unknown" {
