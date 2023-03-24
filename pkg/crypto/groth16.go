@@ -3,13 +3,13 @@ package crypto
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	gnark "github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256"
 )
 
@@ -25,19 +25,17 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 
 	switch curve {
 	case ecc.BLS12_381:
-		var bvk bls12_381.BellmanVerifyingKeyBl12381
-		_, err := bvk.ReadFrom(bytes.NewReader(vkBytes))
+		bls12381vk, err := bls12_381.FromBytesToVerifyingKey(vkBytes)
 		if err != nil {
 			return false, err
 		}
-		vk = bls12_381.FromBellmanVerifyingKey(&bvk)
+		vk = bls12381vk
 	case ecc.BN254:
-		var bvk bn256.BellmanVerifyingKeyBn256
-		_, err := bvk.ReadFrom(bytes.NewReader(vkBytes))
+		bn256vk, err := bn256.FromBytesToVerifyingKey(vkBytes)
 		if err != nil {
 			return false, err
 		}
-		vk = bn256.FromBellmanVerifyingKey(&bvk)
+		vk = bn256vk
 	default:
 		return false, errors.Errorf("unknown eliptic curve")
 	}

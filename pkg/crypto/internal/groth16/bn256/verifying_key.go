@@ -1,13 +1,12 @@
 package bn256
 
 import (
-	"io"
-	"reflect"
-	"unsafe"
-
+	"bufio"
+	"bytes"
 	"github.com/consensys/gnark-crypto/ecc"
 	curveBn254 "github.com/consensys/gnark-crypto/ecc/bn254"
 	gnark "github.com/consensys/gnark/backend/groth16"
+	"io"
 )
 
 type BellmanVerifyingKeyBn256 struct {
@@ -22,7 +21,7 @@ type BellmanVerifyingKeyBn256 struct {
 
 func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 	{
-		dec := curveBn254.NewDecoder(r)
+		dec := curveBn254.NewDecoder(r, curveBn254.NoSubgroupChecks())
 		toDecode := []interface{}{
 			&vk.G1.Alpha,
 			// &vk.G1.Beta,
@@ -40,7 +39,7 @@ func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 
 	{
-		dec := curveBn254.NewDecoder(r)
+		dec := curveBn254.NewDecoder(r, curveBn254.NoSubgroupChecks())
 		var p curveBn254.G1Affine
 		for {
 			err := dec.Decode(&p)
@@ -57,53 +56,58 @@ func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 	return
 }
 
-// FromBellmanVerifyingKey Gnark Groth16 only needs vk.e, vk.G2.gammaNeg, vk.G2.deltaNeg and vk.G1.K
-func FromBellmanVerifyingKey(bvk *BellmanVerifyingKeyBn256) gnark.VerifyingKey {
-	vk := gnark.NewVerifyingKey(ecc.BLS12_381)
+func (vk *BellmanVerifyingKeyBn256) WriteTo(w io.Writer) (n int64, err error) {
+	enc := curveBn254.NewEncoder(w)
+	var emptyG1Field curveBn254.G1Affine
+	// [α]1,[β]1,[β]2,[γ]2,[δ]1,[δ]2
+	if err := enc.Encode(&vk.G1.Alpha); err != nil {
+		return enc.BytesWritten(), err
+	}
+	if err := enc.Encode(&emptyG1Field); err != nil {
+		return enc.BytesWritten(), err
+	}
+	if err := enc.Encode(&vk.G2.Beta); err != nil {
+		return enc.BytesWritten(), err
+	}
+	if err := enc.Encode(&vk.G2.Gamma); err != nil {
+		return enc.BytesWritten(), err
+	}
+	if err := enc.Encode(&emptyG1Field); err != nil {
+		return enc.BytesWritten(), err
+	}
+	if err := enc.Encode(&vk.G2.Delta); err != nil {
+		return enc.BytesWritten(), err
+	}
 
-	/* set unexported vk.e */
-	gt, _ := curveBn254.Pair([]curveBn254.G1Affine{bvk.G1.Alpha}, []curveBn254.G2Affine{bvk.G2.Beta})
+	// uint32(len(Kvk)),[Kvk]1
+	if err := enc.Encode(vk.G1.Ic); err != nil {
+		return enc.BytesWritten(), err
+	}
+	return enc.BytesWritten(), nil
+}
 
-	pointerVal := reflect.ValueOf(vk)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("e")
-	ptrToY := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToGT := (*curveBn254.GT)(ptrToY)
-	*realPtrToGT = gt
-	/* */
+func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
+	var bvk BellmanVerifyingKeyBn256
+	_, err := bvk.ReadFrom(bytes.NewReader(vkBytes))
+	if err != nil {
+		return nil, err
+	}
 
-	/* set unexported G2.gammaNeg and G2.deltaNeg */
-	gammaNeg := curveBn254.G2Affine{}
-	gammaNeg.Neg(&bvk.G2.Gamma)
-	deltaNeg := curveBn254.G2Affine{}
-	deltaNeg.Neg(&bvk.G2.Delta)
+	var b bytes.Buffer
+	buf := bufio.NewWriter(&b)
+	_, err = bvk.WriteTo(&b)
+	if err != nil {
+		return nil, err
+	}
+	err = buf.Flush()
+	if err != nil {
+		return nil, err
+	}
 
-	pointerVal = reflect.ValueOf(vk)
-	val = reflect.Indirect(pointerVal)
-	member = val.FieldByIndex([]int{1, 4}) // G2.gammaNeg
-	ptrToY = unsafe.Pointer(member.UnsafeAddr())
-	realPtrToGammaNeg := (*curveBn254.G2Affine)(ptrToY)
-	*realPtrToGammaNeg = gammaNeg
-
-	pointerVal = reflect.ValueOf(vk)
-	val = reflect.Indirect(pointerVal)
-	member = val.FieldByIndex([]int{1, 3}) // G2.deltaNeg
-	ptrToY = unsafe.Pointer(member.UnsafeAddr())
-	realPtrToDeltaNeg := (*curveBn254.G2Affine)(ptrToY)
-	*realPtrToDeltaNeg = deltaNeg
-
-	/* */
-
-	/* set unexported G1.K */
-	K := make([]curveBn254.G1Affine, len(bvk.G1.Ic))
-	copy(K, bvk.G1.Ic)
-	pointerVal = reflect.ValueOf(vk)
-	val = reflect.Indirect(pointerVal)
-	member = val.FieldByIndex([]int{0, 3}) // G1.K
-	ptrToY = unsafe.Pointer(member.UnsafeAddr())
-	realPtrToK := (*[]curveBn254.G1Affine)(ptrToY)
-	*realPtrToK = K
-
-	/* */
-	return vk
+	vk := gnark.NewVerifyingKey(ecc.BN254)
+	_, err = vk.ReadFrom(bytes.NewReader(b.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+	return vk, nil
 }
