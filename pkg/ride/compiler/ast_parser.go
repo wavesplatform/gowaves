@@ -1489,11 +1489,7 @@ func (p *astParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 				for _, unionType := range u.Types {
 					resType.AppendType(unionType.(s.TupleType).Types[index-1])
 				}
-				if len(resType.Types) == 1 {
-					varType = resType.Types[0]
-				} else {
-					varType = resType
-				}
+				varType = resType.Simplify()
 			} else if t, okT := varType.(s.TupleType); okT {
 				varType = t.Types[index-1]
 			}
