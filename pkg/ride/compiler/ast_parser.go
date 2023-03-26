@@ -916,7 +916,7 @@ func (p *astParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			resExprType = resListType
 		case ruleAppendOp:
 			if _, ok := varType.(s.ListType); !ok {
-				p.addError(curNode.token32, "Unexpected types for '+:' operator '%s' and '%s'", varType, nextVarType)
+				p.addError(curNode.token32, "Unexpected types for ':+' operator '%s' and '%s'", varType, nextVarType)
 				return nil, nil
 			} else {
 				funcId = ast.NativeFunction("1101")
@@ -1038,7 +1038,7 @@ func (p *astParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 			} else if varType.Equal(s.BigIntType) && nextExprVarType.Equal(s.BigIntType) {
 				funcId = "315"
 			} else {
-				p.addError(node.token32, "Unexpected types for '*' operator '%s' and '%s'", varType.String(), nextExprVarType.String())
+				p.addError(node.token32, "Unexpected types for '%%' operator '%s' and '%s'", varType.String(), nextExprVarType.String())
 			}
 		}
 		expr = ast.NewFunctionCallNode(ast.NativeFunction(funcId), []ast.Node{expr, nextExpr})
