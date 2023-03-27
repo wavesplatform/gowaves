@@ -35,7 +35,7 @@ require (
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stretchr/testify v1.8.2
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/throttled/throttled/v2 v2.9.1
+	github.com/throttled/throttled/v2 v2.10.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
