@@ -38,7 +38,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 			assetId, testdata.Sponsor, testdata.RecipientSender)
 
-		tdmatrix := testdata.GetTransferSponsoredPositiveData(&suite.BaseSuite, assetId, sponsoredAssetId)
+		tdmatrix := testdata.GetSponsoredTransferPositiveData(&suite.BaseSuite, assetId, sponsoredAssetId)
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
@@ -112,7 +112,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 
-		tdmatrix := testdata.GetTransferWithSponsorshipToOneselfData(&suite.BaseSuite, sponsoredAssetId, assetId)
+		tdmatrix := testdata.GetSposoredTransferBySponsorAsSender(&suite.BaseSuite, sponsoredAssetId, assetId)
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
@@ -335,6 +335,86 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
+		//Sponsor issues one more token
+		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+			testdata.Sponsor, utl.MaxAmount)
+		//Sponsor transfers all issued tokens to RecipientSender
+		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		//Sponsor transfers all issued tokens to RecipientSender
+		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetId, testdata.Sponsor, testdata.RecipientSender)
+		tdmatrix := testdata.GetTransferWithSponsorshipMaxValuesDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
+		txIds := make(map[string]*crypto.Digest)
+		for name, td := range tdmatrix {
+			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+				//Sponsor set up sponsorship for the token
+				sponsor_utilities.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
+					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+
+				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
+				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
+					&suite.BaseSuite, td.TransferTestData, v, !waitForTx)
+				txIds[name] = &tx.TxID
+
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.ErrorMessageCheck(suite.T(), td.TransferTestData.Expected.ErrBrdCstGoMsg,
+					td.TransferTestData.Expected.ErrBrdCstScalaMsg, tx.BrdCstErr.ErrorBrdCstGo,
+					tx.BrdCstErr.ErrorBrdCstScala, utl.GetTestcaseNameWithVersion(name, v))
+				//Balances of RecipientSender do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				//Balances of Recipient do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				//Balances of Sponsor do not change
+				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+
+				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
+			})
+		}
+		//actualTxIds should be empty
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
+func (suite *TransferWithSponsorshipApiTxSuite) TestSponsoredTransferFeeApiNegative() {
+	versions := transfer_utilities.GetVersions()
+	waitForTx := true
+	for _, v := range versions {
+		//Sponsor creates a new token
+		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+			testdata.Sponsor, 10000000000)
 		//Sponsor issues one more token
 		assetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)

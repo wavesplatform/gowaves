@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"fmt"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -57,7 +59,7 @@ type TransferSponsoredExpectedValuesNegative struct {
 	_                         struct{}
 }
 
-func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAssetId crypto.Digest) map[string]TransferTestData[TransferSponsoredExpectedValuesPositive] {
+func GetSponsoredTransferPositiveData(suite *f.BaseSuite, assetId, sponsoredAssetId crypto.Digest) map[string]TransferTestData[TransferSponsoredExpectedValuesPositive] {
 	sponsoredAssetDetails := utl.GetAssetInfo(suite, sponsoredAssetId)
 	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
 	sponsoredAssetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, sponsoredAssetId)
@@ -187,13 +189,13 @@ func GetTransferSponsoredPositiveData(suite *f.BaseSuite, assetId, sponsoredAsse
 	return t
 }
 
-func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetId, assetId crypto.Digest) map[string]TransferTestData[TransferSponsoredExpectedValuesPositive] {
+func GetSposoredTransferBySponsorAsSender(suite *f.BaseSuite, sponsoredAssetId, assetId crypto.Digest) map[string]TransferTestData[TransferSponsoredExpectedValuesPositive] {
 	sponsoredAssetDetails := utl.GetAssetInfo(suite, sponsoredAssetId)
 	sponsoredAssetAmountSponsor := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, Sponsor).Address, sponsoredAssetId)
 	assetAmountSponsor := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, Sponsor).Address, assetId)
 	wavesAmountSponsor := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, Sponsor).Address)
 	return map[string]TransferTestData[TransferSponsoredExpectedValuesPositive]{
-		"Transfer Assets to oneself, fee in the same Sponsored Asset": *NewTransferTestData(
+		"Sponsor transfer Assets to himself, fee in the same Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, Sponsor),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, Sponsor).Address),
 			&sponsoredAssetId,
@@ -213,7 +215,7 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
-		"Transfer Waves to oneself, fee in the Sponsored Asset": *NewTransferTestData(
+		"Sponsor transfer Waves to himself, fee in the Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, Sponsor),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, Sponsor).Address),
 			nil,
@@ -233,7 +235,7 @@ func GetTransferWithSponsorshipToOneselfData(suite *f.BaseSuite, sponsoredAssetI
 				AssetDiffBalanceSponsor:   0,
 			},
 		),
-		"Transfer Assets to oneself, fee in the different Sponsored Asset": *NewTransferTestData(
+		"Sponsor transfer Assets to himself, fee in the different Sponsored Asset": *NewTransferTestData(
 			utl.GetAccount(suite, Sponsor),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, Sponsor).Address),
 			&assetId,
@@ -350,9 +352,10 @@ func GetTransferWithSponsorshipMaxAmountPositive(suite *f.BaseSuite, sponsoredAs
 	}
 }
 
-func GetTransferWithSponsorshipDataNegative(suite *f.BaseSuite, sponsoredAssetId,
+func GetTransferWithSponsorshipMaxValuesDataNegative(suite *f.BaseSuite, sponsoredAssetId,
 	assetId crypto.Digest) map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative] {
 	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
+	sponsoredAssetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, sponsoredAssetId)
 	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative]{
 		"Fee more than funds on the sponsor balance": *NewTransferSponsoredTestData(
 			1,
@@ -401,6 +404,110 @@ func GetTransferWithSponsorshipDataNegative(suite *f.BaseSuite, sponsoredAssetId
 				ErrScalaMsg:               errMsg,
 				ErrBrdCstGoMsg:            errBrdCstMsg,
 				ErrBrdCstScalaMsg:         "BigInteger out of long range",
+			}),
+		"Overflow by fee and transferred amount in Sponsored Asset": *NewTransferSponsoredTestData(
+			100000,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&sponsoredAssetId,
+			&sponsoredAssetId,
+			100000,
+			uint64(sponsoredAssetAmountRecipientSender),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         fmt.Sprintf("asset %s overflow", sponsoredAssetId),
+			}),
+	}
+}
+
+func GetTransferWithSponsorshipDataNegative(suite *f.BaseSuite, sponsoredAssetId,
+	assetId crypto.Digest) map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative] {
+	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
+	sponsoredAssetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, sponsoredAssetId)
+	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative]{
+		"Fee in Sponsored Asset more that amount of sponsored asset on sender balance": *NewTransferSponsoredTestData(
+			100000,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			uint64(sponsoredAssetAmountRecipientSender+1),
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         "Transaction application leads to negative asset",
+			}),
+		"Invalid fee in sponsored asset (0 < fee < min)": *NewTransferSponsoredTestData(
+			100000,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			10,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         fmt.Sprintf("Fee for TransferTransaction (10 in %s) does not exceed minimal value", sponsoredAssetId),
+			}),
+		"Invalid fee in sponsored asset (fee = 0)": *NewTransferSponsoredTestData(
+			100000,
+			utl.GetAccount(suite, RecipientSender),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
+			&assetId,
+			&sponsoredAssetId,
+			0,
+			uint64(assetAmountRecipientSender/16),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferSponsoredExpectedValuesNegative{
+				WavesDiffBalanceSender:    0,
+				AssetDiffBalanceSender:    0,
+				FeeAssetDiffBalanceSender: 0,
+				WavesDiffBalanceRecipient: 0,
+				AssetDiffBalanceRecipient: 0,
+				WavesDiffBalanceSponsor:   0,
+				AssetDiffBalanceSponsor:   0,
+				ErrGoMsg:                  errMsg,
+				ErrScalaMsg:               errMsg,
+				ErrBrdCstGoMsg:            errBrdCstMsg,
+				ErrBrdCstScalaMsg:         "insufficient fee",
 			}),
 	}
 }
