@@ -1,0 +1,123 @@
+{
+  "vars": [
+    {
+      "append": [
+        {
+          "name": "CEILING",
+          "type": "Ceiling"
+        },
+        {
+          "name": "HALFUP",
+          "type": "HalfUp"
+        },
+        {
+          "name": "HALFDOWN",
+          "type": "HalfDown"
+        },
+        {
+          "name": "HALFEVEN",
+          "type": "HalfEven"
+        },
+        {
+          "name": "DOWN",
+          "type": "Down"
+        },
+        {
+          "name": "UP",
+          "type": "Up"
+        },
+        {
+          "name": "FLOOR",
+          "type": "Floor"
+        },
+        {
+          "name": "height",
+          "type": "Int"
+        },
+        {
+          "name": "unit",
+          "type": "Unit"
+        }
+      ]
+    },
+    {
+      "append": [
+        {
+          "name": "Buy",
+          "type": "Buy"
+        },
+        {
+          "name": "Sell",
+          "type": "Sell"
+        }
+      ]
+    },
+    {
+      "append": [
+        {
+          "name": "NOALG",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "MD5",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA1",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA224",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA256",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA384",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA512",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA3224",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA3256",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA3384",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "SHA3512",
+          "type": "DigestAlgorithmType"
+        },
+        {
+          "name": "nil",
+          "type": "List[]"
+        }
+      ]
+    },
+    {
+      "append": [
+        {
+          "name": "lastBlock",
+          "type": "BlockInfo"
+        }
+      ]
+    },
+    {
+      "remove": [
+        "HALFDOWN",
+        "UP"
+      ]
+    },
+    {}
+  ]
+}
