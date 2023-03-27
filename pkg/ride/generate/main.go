@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	rideObjectsPath = flag.String("ride-objects-path", "generate/ride_objects.json", "Path to ride objects JSON file.")
+	rideObjectsPath = flag.String("ride-objects-path", "compiler/stdlib/ride_objects.json", "Path to ride objects JSON file.")
 	outputDir       = flag.String("output-dir", ".", "Directory where generated files will be placed.")
 )
 

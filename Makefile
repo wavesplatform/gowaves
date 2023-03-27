@@ -190,7 +190,22 @@ build-rollback-windows:
 
 release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
 
-dist: clean dist-chaincmp dist-wmd dist-importer dist-node dist-wallet
+build-compiler-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/compiler ./cmd/compiler
+build-compiler-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/compiler ./cmd/compiler
+build-compiler-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/compiler.exe ./cmd/compiler
+
+release-compiler: ver build-compiler-linux build-compiler-darwin build-compiler-windows
+
+dist-compiler: release-compiler
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/compiler_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/compiler*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_Linux-64bit.tar.gz ./compiler*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-64bit.tar.gz ./compiler*
+
+dist: clean dist-chaincmp dist-wmd dist-importer dist-node dist-wallet dist-compiler
 
 
 build-genconfig:
