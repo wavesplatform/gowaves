@@ -1149,7 +1149,7 @@ func (o rideInvocationV4) String() string {
 }
 
 type rideInvocationV5 struct {
-	originCaller          rideType
+	originCaller          rideAddress
 	payments              rideList
 	callerPublicKey       rideBytes
 	feeAssetID            rideType
@@ -1159,7 +1159,7 @@ type rideInvocationV5 struct {
 	fee                   rideInt
 }
 
-func newRideInvocationV5(originCaller rideType, payments rideList, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV5 {
+func newRideInvocationV5(originCaller rideAddress, payments rideList, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV5 {
 	return rideInvocationV5{
 		originCaller:          originCaller,
 		payments:              payments,
@@ -2109,7 +2109,7 @@ func (o rideWriteSet) String() string {
 }
 
 type rideBurnTransaction struct {
-	bodyBytes       rideType
+	bodyBytes       rideBytes
 	proofs          rideList
 	senderPublicKey rideBytes
 	assetID         rideBytes
@@ -2121,7 +2121,7 @@ type rideBurnTransaction struct {
 	sender          rideAddress
 }
 
-func newRideBurnTransaction(bodyBytes rideType, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
+func newRideBurnTransaction(bodyBytes rideBytes, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
 	return rideBurnTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
@@ -3896,7 +3896,7 @@ func (o ridePaymentTransaction) getProofs() rideList {
 }
 
 type rideReissueTransaction struct {
-	bodyBytes       rideType
+	bodyBytes       rideBytes
 	proofs          rideList
 	senderPublicKey rideBytes
 	assetID         rideBytes
@@ -3909,7 +3909,7 @@ type rideReissueTransaction struct {
 	reissuable      rideBoolean
 }
 
-func newRideReissueTransaction(bodyBytes rideType, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
+func newRideReissueTransaction(bodyBytes rideBytes, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
 	return rideReissueTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
@@ -4425,7 +4425,7 @@ func (o rideSponsorFeeTransaction) getProofs() rideList {
 
 type rideTransferTransaction struct {
 	assetID         rideType
-	bodyBytes       rideType
+	bodyBytes       rideBytes
 	feeAssetID      rideType
 	version         rideType
 	attachment      rideType
@@ -4439,7 +4439,7 @@ type rideTransferTransaction struct {
 	sender          rideAddress
 }
 
-func newRideTransferTransaction(assetID rideType, bodyBytes rideType, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideType, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
+func newRideTransferTransaction(assetID rideType, bodyBytes rideBytes, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideType, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
 	return rideTransferTransaction{
 		assetID:         assetID,
 		bodyBytes:       bodyBytes,
