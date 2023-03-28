@@ -87,6 +87,10 @@ func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, acc
 	}
 	tx := IssueSend(suite, version, scheme, utl.GetAccount(suite, accountNumber).PublicKey,
 		utl.GetAccount(suite, accountNumber).SecretKey, "Asset", "Common Asset for testing", amount,
-		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, 4, true, true)
+		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, 8, true, true)
 	return tx.TxID
+}
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.IssueTransaction, testdata.IssueMaxVersion).Sum
 }

@@ -24,6 +24,7 @@ import (
 const (
 	DefaultSenderNotMiner      = 2
 	DefaultRecipientNotMiner   = 3
+	FirstRecipientNotMiner     = 4
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
@@ -70,6 +71,12 @@ type AccountDiffBalances struct {
 	DiffBalanceAsset BalanceInAsset
 }
 
+type AccountDiffBalancesSponsorshipSender struct {
+	DiffBalanceWaves    BalanceInWaves
+	DiffBalanceAsset    BalanceInAsset
+	DiffBalanceFeeAsset BalanceInAsset
+}
+
 func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
 	return &BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
@@ -97,6 +104,55 @@ func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAsset
 	}
 }
 
+type AccountsDiffBalancesTxWithSponsorship struct {
+	DiffBalancesSender    AccountDiffBalancesSponsorshipSender
+	DiffBalancesRecipient AccountDiffBalances
+	DiffBalancesSponsor   AccountDiffBalances
+}
+
+func NewDiffBalancesTxWithSponsorship(diffBalanceWavesGoSender, diffBalanceWavesScalaSender, diffBalanceAssetGoSender,
+	diffBalanceAssetScalaSender, diffBalanceFeeAssetGoSender, diffBalanceFeeAssetScalaSender, diffBalanceWavesGoRecipient,
+	diffBalanceWavesScalaRecipient, diffBalanceAssetGoRecipient, diffBalanceAssetScalaRecipient, diffBalanceWavesGoSponsor,
+	diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor, diffBalanceAssetScalaSponsor int64) *AccountsDiffBalancesTxWithSponsorship {
+
+	return &AccountsDiffBalancesTxWithSponsorship{
+		DiffBalancesSender: AccountDiffBalancesSponsorshipSender{
+			DiffBalanceWaves: BalanceInWaves{
+				BalanceInWavesGo:    diffBalanceWavesGoSender,
+				BalanceInWavesScala: diffBalanceWavesScalaSender,
+			},
+			DiffBalanceAsset: BalanceInAsset{
+				BalanceInAssetGo:    diffBalanceAssetGoSender,
+				BalanceInAssetScala: diffBalanceAssetScalaSender,
+			},
+			DiffBalanceFeeAsset: BalanceInAsset{
+				BalanceInAssetGo:    diffBalanceFeeAssetGoSender,
+				BalanceInAssetScala: diffBalanceFeeAssetScalaSender,
+			},
+		},
+		DiffBalancesRecipient: AccountDiffBalances{
+			DiffBalanceWaves: BalanceInWaves{
+				BalanceInWavesGo:    diffBalanceWavesGoRecipient,
+				BalanceInWavesScala: diffBalanceWavesScalaRecipient,
+			},
+			DiffBalanceAsset: BalanceInAsset{
+				BalanceInAssetGo:    diffBalanceAssetGoRecipient,
+				BalanceInAssetScala: diffBalanceAssetScalaRecipient,
+			},
+		},
+		DiffBalancesSponsor: AccountDiffBalances{
+			DiffBalanceWaves: BalanceInWaves{
+				BalanceInWavesGo:    diffBalanceWavesGoSponsor,
+				BalanceInWavesScala: diffBalanceWavesScalaSponsor,
+			},
+			DiffBalanceAsset: BalanceInAsset{
+				BalanceInAssetGo:    diffBalanceAssetGoSponsor,
+				BalanceInAssetScala: diffBalanceAssetScalaSponsor,
+			},
+		},
+	}
+}
+
 func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,
 	errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
 	return &ConsideredTransaction{
@@ -116,8 +172,31 @@ func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Resp
 	}
 }
 
-func GetVersions() []byte {
-	return []byte{1, 2, 3}
+type AvailableVersions struct {
+	Binary   []byte
+	Protobuf []byte
+	Sum      []byte
+}
+
+func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
+	sum := append(binary, protobuf...)
+	return AvailableVersions{
+		Binary:   binary,
+		Protobuf: protobuf,
+		Sum:      sum,
+	}
+}
+
+func GetAvailableVersions(txType proto.TransactionType, maxVersion byte) AvailableVersions {
+	var binary, protobuf []byte
+	minPBVersion := proto.ProtobufTransactionsVersions[txType]
+	for i := 1; i < int(minPBVersion); i++ {
+		binary = append(binary, byte(i))
+	}
+	for i := int(minPBVersion); i < int(maxVersion+1); i++ {
+		protobuf = append(protobuf, byte(i))
+	}
+	return NewAvailableVersions(binary, protobuf)
 }
 
 func RandStringBytes(n int, symbolSet string) string {
@@ -205,6 +284,16 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
 }
 
+func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
+	for _, account := range suite.Cfg.Accounts {
+		if account.Address.Equal(address) {
+			return account
+		}
+	}
+	require.FailNow(suite.T(), "Account with address %q wasn't found", address.String())
+	panic("unreachable point reached")
+}
+
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
 	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
 }
@@ -244,6 +333,12 @@ func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddr
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
 	return GetAvailableBalanceInWavesGo(suite, address), GetAvailableBalanceInWavesScala(suite, address)
+}
+
+func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetail {
+	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
+	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
+	return assetInfo
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {

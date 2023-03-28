@@ -8,6 +8,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	TransferMaxVersion = 3
+)
+
 type TransferTestData[T any] struct {
 	Sender     config.AccountInfo
 	Recipient  proto.Recipient
@@ -50,7 +54,7 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 	if feeAssetID == nil {
 		feeAsset = proto.NewOptionalAssetWaves()
 	} else {
-		feeAsset = *proto.NewOptionalAssetFromDigest(*assetID)
+		feeAsset = *proto.NewOptionalAssetFromDigest(*feeAssetID)
 	}
 	return &TransferTestData[T]{
 		Sender:     sender,

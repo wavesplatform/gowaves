@@ -62,3 +62,7 @@ func BroadcastReissueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testda
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, ReissueBroadcast[T])
 }
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.ReissueTransaction, testdata.ReissueMaxVersion).Sum
+}
