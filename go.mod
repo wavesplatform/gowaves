@@ -9,6 +9,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/consensys/gnark v0.7.1
+	github.com/consensys/gnark-crypto v0.7.0
 	github.com/coocood/freecache v1.2.3
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
@@ -49,8 +50,6 @@ require (
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
-
-require github.com/consensys/gnark-crypto v0.7.0
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
