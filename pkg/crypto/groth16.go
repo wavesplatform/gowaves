@@ -8,6 +8,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	gnark "github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/witness"
+	gnarkLog "github.com/consensys/gnark/logger"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
@@ -17,6 +18,10 @@ import (
 const (
 	sizeUint64 = 8
 )
+
+func init() {
+	gnarkLog.Disable()
+}
 
 func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve ecc.ID) (bool, error) {
 
