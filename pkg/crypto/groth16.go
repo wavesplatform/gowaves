@@ -19,6 +19,7 @@ const (
 	sizeUint64 = 8
 )
 
+// Disable gnark logger because this lib use global logger and write to stdout
 func init() {
 	gnarkLog.Disable()
 }
