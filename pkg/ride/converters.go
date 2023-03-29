@@ -1198,13 +1198,6 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		return rideInvocationV5{}, err
 	}
 	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
-	var oca rideType = rideUnit{}
-	var ock rideType = rideUnit{}
-	if rideVersion >= ast.LibV5 {
-		oca = rideAddress(sender)
-		ock = callerPK
-	}
-
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideInvocationV3(
@@ -1226,11 +1219,11 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 		), nil
 	default:
 		return newRideInvocationV5(
-			oca,
+			rideAddress(sender),
 			payments,
 			callerPK,
 			optionalAsset(feeAsset),
-			ock,
+			callerPK,
 			id.Bytes(),
 			rideAddress(sender),
 			rideInt(fee),
@@ -1248,12 +1241,6 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 		return rideInvocationV5{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
 	}
 	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
-	var ocf1 rideType = rideUnit{}
-	var ocf2 rideType = rideUnit{}
-	if rideVersion >= ast.LibV5 {
-		ocf1 = rideAddress(sender)
-		ocf2 = callerPK
-	}
 	wavesAsset := proto.NewOptionalAssetWaves()
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -1288,11 +1275,11 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 			payments[i] = attachedPaymentToObject(p)
 		}
 		return newRideInvocationV5(
-			ocf1,
+			rideAddress(sender),
 			payments,
 			callerPK,
 			optionalAsset(wavesAsset),
-			ocf2,
+			callerPK,
 			tx.ID.Bytes(),
 			rideAddress(sender),
 			rideInt(int64(tx.GetFee())),
@@ -1321,7 +1308,7 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
 func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rideType {
 	return newRideTransferTransaction(
 		optionalAsset(st.Asset),
-		rideUnit{},
+		rideBytes{},
 		rideUnit{},
 		rideUnit{},
 		rideUnit{},
@@ -1664,7 +1651,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	switch a := action.(type) {
 	case *proto.ReissueScriptAction:
 		return newRideReissueTransaction(
-			rideUnit{},
+			rideBytes{},
 			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),
@@ -1678,7 +1665,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 		), nil
 	case *proto.BurnScriptAction:
 		return newRideBurnTransaction(
-			rideUnit{},
+			rideBytes{},
 			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),

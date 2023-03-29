@@ -8,6 +8,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	BurnMaxVersion = 3
+)
+
 type BurnTestData[T any] struct {
 	Account   config.AccountInfo
 	AssetID   crypto.Digest

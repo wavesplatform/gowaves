@@ -517,11 +517,8 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
 	}
 
-	var originCaller rideType
-	switch v := args_[6].(type) {
-	case rideUnit, rideAddress:
-		originCaller = v
-	default:
+	originCaller, ok := args_[6].(rideAddress)
+	if !ok {
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for originCaller", args_[6].instanceOf())
 	}
 
@@ -924,11 +921,8 @@ func burnTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	var bodyBytes rideType
-	switch v := args_[8].(type) {
-	case rideBytes, rideUnit:
-		bodyBytes = v
-	default:
+	bodyBytes, ok := args_[8].(rideBytes)
+	if !ok {
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
 
@@ -1921,11 +1915,8 @@ func reissueTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[8].instanceOf())
 	}
 
-	var bodyBytes rideType
-	switch v := args_[9].(type) {
-	case rideBytes, rideUnit:
-		bodyBytes = v
-	default:
+	bodyBytes, ok := args_[9].(rideBytes)
+	if !ok {
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for bodyBytes", args_[9].instanceOf())
 	}
 
@@ -2225,11 +2216,8 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[10].instanceOf())
 	}
 
-	var bodyBytes rideType
-	switch v := args_[11].(type) {
-	case rideBytes, rideUnit:
-		bodyBytes = v
-	default:
+	bodyBytes, ok := args_[11].(rideBytes)
+	if !ok {
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for bodyBytes", args_[11].instanceOf())
 	}
 
