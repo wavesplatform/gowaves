@@ -1,7 +1,6 @@
 package bls12_381
 
 import (
-	"bufio"
 	"bytes"
 	"io"
 
@@ -93,12 +92,7 @@ func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
 		return nil, err
 	}
 	var b bytes.Buffer
-	buf := bufio.NewWriter(&b)
 	_, err = bvk.WriteTo(&b)
-	if err != nil {
-		return nil, err
-	}
-	err = buf.Flush()
 	if err != nil {
 		return nil, err
 	}

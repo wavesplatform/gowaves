@@ -1,7 +1,6 @@
 package bn256
 
 import (
-	"bufio"
 	"bytes"
 	"io"
 
@@ -22,7 +21,7 @@ type BellmanVerifyingKeyBn256 struct {
 
 func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 	{
-		dec := curveBn254.NewDecoder(r, curveBn254.NoSubgroupChecks())
+		dec := curveBn254.NewDecoder(r)
 		toDecode := []interface{}{
 			&vk.G1.Alpha,
 			// &vk.G1.Beta,
@@ -40,7 +39,7 @@ func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 	}
 
 	{
-		dec := curveBn254.NewDecoder(r, curveBn254.NoSubgroupChecks())
+		dec := curveBn254.NewDecoder(r)
 		var p curveBn254.G1Affine
 		for {
 			err := dec.Decode(&p)
@@ -99,12 +98,7 @@ func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
 	}
 
 	var b bytes.Buffer
-	buf := bufio.NewWriter(&b)
 	_, err = bvk.WriteTo(&b)
-	if err != nil {
-		return nil, err
-	}
-	err = buf.Flush()
 	if err != nil {
 		return nil, err
 	}
