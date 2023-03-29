@@ -8,6 +8,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	ReissueMaxVersion = 3
+)
+
 type ReissueTestData[T any] struct {
 	Account    config.AccountInfo
 	AssetID    crypto.Digest

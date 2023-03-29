@@ -56,6 +56,13 @@ func (c *HttpClient) PrintMsg(t *testing.T, msg string) {
 	require.NoError(t, err, "failed to send Msg to node")
 }
 
+func (c *HttpClient) GetAssetDetails(assetID crypto.Digest) (*client.AssetsDetail, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	details, _, err := c.cli.Assets.Details(ctx, assetID)
+	return details, err
+}
+
 func (c *HttpClient) TransactionInfo(t *testing.T, ID crypto.Digest) proto.Transaction {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()

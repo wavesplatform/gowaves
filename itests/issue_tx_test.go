@@ -16,7 +16,7 @@ type IssueTxSuite struct {
 }
 
 func (suite *IssueTxSuite) Test_IssueTxPositive() {
-	versions := utl.GetVersions()
+	versions := issue_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -41,7 +41,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 }
 
 func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
-	versions := utl.GetVersions()
+	versions := issue_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -67,7 +67,7 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 }
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
-	versions := utl.GetVersions()
+	versions := issue_utilities.GetVersions()
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

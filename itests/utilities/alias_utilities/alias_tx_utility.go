@@ -87,3 +87,7 @@ func BroadcastAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata tes
 	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, AliasBroadcastWithTestData[T])
 }
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.CreateAliasTransaction, testdata.SponsorshipMaxVersion).Sum
+}
