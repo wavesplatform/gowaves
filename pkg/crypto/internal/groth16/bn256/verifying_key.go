@@ -3,10 +3,11 @@ package bn256
 import (
 	"bufio"
 	"bytes"
+	"io"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	curveBn254 "github.com/consensys/gnark-crypto/ecc/bn254"
 	gnark "github.com/consensys/gnark/backend/groth16"
-	"io"
 )
 
 type BellmanVerifyingKeyBn256 struct {
@@ -88,7 +89,11 @@ func (vk *BellmanVerifyingKeyBn256) WriteTo(w io.Writer) (n int64, err error) {
 
 func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
 	var bvk BellmanVerifyingKeyBn256
-	_, err := bvk.ReadFrom(bytes.NewReader(vkBytes))
+	vkBytes, err := changeFlagsInVKToGnarkType(vkBytes)
+	if err != nil {
+		return nil, err
+	}
+	_, err = bvk.ReadFrom(bytes.NewReader(vkBytes))
 	if err != nil {
 		return nil, err
 	}

@@ -3,10 +3,11 @@ package bls12_381
 import (
 	"bufio"
 	"bytes"
+	"io"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	curveBls12 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	gnark "github.com/consensys/gnark/backend/groth16"
-	"io"
 )
 
 type BellmanVerifyingKeyBl12381 struct {

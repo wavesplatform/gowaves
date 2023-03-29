@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
@@ -30,7 +31,7 @@ func bls12Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*1 {
 		return nil, errors.Errorf("bls12Groth16Verify_1: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
@@ -56,7 +57,7 @@ func bls12Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*2 {
 		return nil, errors.Errorf("bls12Groth16Verify_2: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
@@ -82,7 +83,7 @@ func bls12Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*3 {
 		return nil, errors.Errorf("bls12Groth16Verify_3: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
@@ -108,7 +109,7 @@ func bls12Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*4 {
 		return nil, errors.Errorf("bls12Groth16Verify_4: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
@@ -134,7 +135,7 @@ func bls12Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*5 {
 		return nil, errors.Errorf("bls12Groth16Verify_5: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
@@ -160,7 +161,7 @@ func bls12Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*6 {
 		return nil, errors.Errorf("bls12Groth16Verify_6: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
@@ -186,7 +187,7 @@ func bls12Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*7 {
 		return nil, errors.Errorf("bls12Groth16Verify_7: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
@@ -212,7 +213,7 @@ func bls12Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*8 {
 		return nil, errors.Errorf("bls12Groth16Verify_8: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
@@ -238,7 +239,7 @@ func bls12Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*9 {
 		return nil, errors.Errorf("bls12Groth16Verify_9: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
@@ -264,7 +265,7 @@ func bls12Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*10 {
 		return nil, errors.Errorf("bls12Groth16Verify_10: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
@@ -290,7 +291,7 @@ func bls12Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*11 {
 		return nil, errors.Errorf("bls12Groth16Verify_11: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
@@ -316,7 +317,7 @@ func bls12Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*12 {
 		return nil, errors.Errorf("bls12Groth16Verify_12: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
@@ -342,7 +343,7 @@ func bls12Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*13 {
 		return nil, errors.Errorf("bls12Groth16Verify_13: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
@@ -368,7 +369,7 @@ func bls12Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*14 {
 		return nil, errors.Errorf("bls12Groth16Verify_14: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
@@ -394,7 +395,7 @@ func bls12Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*15 {
 		return nil, errors.Errorf("bls12Groth16Verify_15: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
@@ -420,7 +421,7 @@ func bn256Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*1 {
 		return nil, errors.Errorf("bn256Groth16Verify_1: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
@@ -446,7 +447,7 @@ func bn256Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*2 {
 		return nil, errors.Errorf("bn256Groth16Verify_2: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
@@ -472,7 +473,7 @@ func bn256Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*3 {
 		return nil, errors.Errorf("bn256Groth16Verify_3: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
@@ -498,7 +499,7 @@ func bn256Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*4 {
 		return nil, errors.Errorf("bn256Groth16Verify_4: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
@@ -524,7 +525,7 @@ func bn256Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*5 {
 		return nil, errors.Errorf("bn256Groth16Verify_5: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
@@ -550,7 +551,7 @@ func bn256Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*6 {
 		return nil, errors.Errorf("bn256Groth16Verify_6: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
@@ -576,7 +577,7 @@ func bn256Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*7 {
 		return nil, errors.Errorf("bn256Groth16Verify_7: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
@@ -602,7 +603,7 @@ func bn256Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*8 {
 		return nil, errors.Errorf("bn256Groth16Verify_8: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
@@ -628,7 +629,7 @@ func bn256Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	if l := len(inputs); l > 32*9 {
 		return nil, errors.Errorf("bn256Groth16Verify_9: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
@@ -654,7 +655,7 @@ func bn256Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*10 {
 		return nil, errors.Errorf("bn256Groth16Verify_10: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
@@ -680,7 +681,7 @@ func bn256Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*11 {
 		return nil, errors.Errorf("bn256Groth16Verify_11: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
@@ -706,7 +707,7 @@ func bn256Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*12 {
 		return nil, errors.Errorf("bn256Groth16Verify_12: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
@@ -732,7 +733,7 @@ func bn256Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*13 {
 		return nil, errors.Errorf("bn256Groth16Verify_13: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
@@ -758,7 +759,7 @@ func bn256Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*14 {
 		return nil, errors.Errorf("bn256Groth16Verify_14: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
@@ -784,7 +785,7 @@ func bn256Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	if l := len(inputs); l > 32*15 {
 		return nil, errors.Errorf("bn256Groth16Verify_15: invalid inputs size %d", l)
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}

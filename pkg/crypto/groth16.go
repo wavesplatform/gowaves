@@ -3,20 +3,19 @@ package crypto
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	gnark "github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256"
 )
 
 const (
-	sizeUint64      = 8
-	lenOneFrElement = 4
-	frReprSize      = sizeUint64 * lenOneFrElement
+	sizeUint64 = 8
 )
 
 func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve ecc.ID) (bool, error) {
@@ -36,6 +35,12 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 			return false, err
 		}
 		vk = bn256vk
+
+		// fix proof
+		proofBytes, err = bn256.ChangeFlagsInProofToGnarkType(proofBytes)
+		if err != nil {
+			return false, err
+		}
 	default:
 		return false, errors.Errorf("unknown eliptic curve")
 	}
