@@ -4,11 +4,9 @@ import (
 	b64 "encoding/base64"
 	"testing"
 
-	"github.com/mr-tron/base58"
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254"
 )
 
 func TestGroth16VerifyBLS(t *testing.T) {
@@ -85,8 +83,7 @@ func TestGroth16VerifyBLS(t *testing.T) {
 		require.NoError(t, err)
 		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
 		require.NoError(t, err)
-		bls := Bls12381{}
-		ok, err := bls.Groth16Verify(vk, proof, inputs)
+		ok, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if test.ok {
 			require.NoError(t, err)
 			assert.True(t, ok)
@@ -104,10 +101,9 @@ func BenchmarkGroth16Verify0inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := bls.Groth16Verify(vk, proof, inputs)
+		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
 		}
@@ -124,10 +120,9 @@ func BenchmarkGroth16Verify1inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := bls.Groth16Verify(vk, proof, inputs)
+		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
 		}
@@ -145,10 +140,9 @@ func BenchmarkGroth16Verify15inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := bls.Groth16Verify(vk, proof, inputs)
+		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
 		}
@@ -166,10 +160,9 @@ func BenchmarkGroth16Verify16inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		result, err := bls.Groth16Verify(vk, proof, inputs)
+		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
 		}
@@ -228,143 +221,14 @@ func TestGroth16VerifyOKBn256(t *testing.T) {
 		require.NoError(t, err)
 		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
 		require.NoError(t, err)
-		bn256 := Bn256{}
-		ok, err := bn256.Groth16Verify(vk, proof, inputs)
+		result, err := Groth16Verify(vk, proof, inputs, ecc.BN254)
 		if test.ok {
 			require.NoError(t, err)
-			assert.True(t, ok)
+			assert.True(t, result)
 		} else {
-			assert.NoError(t, err)
-			assert.False(t, ok)
+			assert.Error(t, err)
+			assert.False(t, result)
 		}
-	}
-}
-
-func TestGroth16G1ComressBn256(t *testing.T) {
-	base58G1Compressed := []string{
-		"2geWr4Qa599a4maEK2BYJaXn7mvTHAQoZQsCHzrQQLUH",
-		"2r7X3D7zdDd6REx4b2mfRbr8QjejegDsG5YUcLKCRkHg",
-		"2geWr4Qa599a4maEK2BYJaXn7mvTHAQoZQsCHzrQQLUH",
-		"C4N3m8k5zrRsXhi2EfkmTE67hjmFFLC1awi8mJ95oYJ5",
-		"BRNX2fFJ8MaipAQXD53fJPcyQnf6qVGf7tw6a86ZcTZH",
-		"2yHE1dVhVamwPKBdpKjQ9HkBFzMnDza5AePVqAqp7ERo",
-		"foxKEL13LCzDQv227Nf9pqhYd51xSDRHDgqQbrqqRso",
-	}
-	for i, g1Base58 := range base58G1Compressed {
-		tcNum := i + 1
-		expectedBts, err := base58.Decode(g1Base58)
-		require.NoError(t, err)
-		g1 := bn254.NewG1()
-		p, err := g1.FromCompressed(expectedBts)
-		require.NoError(t, err)
-		actualBts := g1.ToCompressed(p)
-		require.Equal(t, expectedBts, actualBts, "test case #%d", tcNum)
-		p2, err := g1.FromCompressed(actualBts)
-		require.NoError(t, err)
-		assert.Equal(t, p, p2, "test case #%d", tcNum)
-	}
-}
-
-func TestGroth16G2ComressBn256(t *testing.T) {
-	base58G2Compressed := []string{
-		"3b44h56wxRUuBdboxa55DmqStxCqTS32sTqhGuUn4VaSsSp491FbJnwc6UwyEqsysevdZXeUjTxtv6NWaH9ked5D",
-		"ZpiHPEYopuvXY7d5cPPNtcNBAZ6tMPgtbR2osJiMCzqvtjFVSx6t1fvEmCgXbHD5cMY38ShEF7kyDWktx67GcLJ",
-		"3b44h56wxRUuBdboxa55DmqStxCqTS32sTqhGuUn4VaSsSp491FbJnwc6UwyEqsysevdZXeUjTxtv6NWaH9ked5D",
-		"nCbsFpcyG7YSY4jT61dGpKuLRHve56ikH3dHRDvz75NUBwdtPVLpkFoY77Jh6bctAHF6ttoiymF67rgaPHtitfi",
-		"44QntwfDrWeCme2EfxuCfaMswrq9Cn6aNCoetY9T7DLZoZRc45bTSUYXZ8JkPiTMQpU8p2xWQ896XEYkrajUNsx5",
-		"3sCPtpoWvbpUsoh458pYr9Lak6MeKo7S1aThUNqaCAXiaciYYJnvKsRhJ5x4bYZM5FQYyWkFq3JaP6WmTXFsg6sv",
-		"NznwN8tGGaJeToVK5U2y9CPok2t5MkfGbYv7aZQc2nuQ6cZzJ7iEPQmaMJEWJscK5y89PkWYwCkpomqW4fsJYm5",
-	}
-	for i, g2Base58 := range base58G2Compressed {
-		tcNum := i + 1
-		expectedBts, err := base58.Decode(g2Base58)
-		require.NoError(t, err)
-		g2 := bn254.NewG2()
-		p, err := g2.FromCompressed(expectedBts)
-		require.NoError(t, err)
-		actualBts := g2.ToCompressed(p)
-		require.Equal(t, expectedBts, actualBts, "test case #%d", tcNum)
-		p2, err := g2.FromCompressed(actualBts)
-		require.NoError(t, err)
-		assert.Equal(t, p, p2, "test case #%d", tcNum)
-	}
-}
-
-func TestGroth16G2ProofBn256(t *testing.T) {
-	base58ProofsCompressed := []string{
-		"3ZU3EsbiphkSjJLqRJw8vaPx3PVbmB4AS66vwgz84KkzUjTXRwQHTcESqk9U27bNX5PeJ6VYzH2tiNpgLFCKDTGjnsUE6CevjSWPdhVUdHFG1a94eecsJTTgnzouYtnCrQ9CdxrzAx87H6qS8Z6WfYfMKwfRxCeAfcCv9NXGRKMNjXe",
-		"3ormQctTdqTkpvxmJ859GWb4P4hUgDboLb9eZBePhFkKVhGMrdQPNUAAa5CafJLhMG3F6MUFQxtYU2hn5TMrnh1rQQs7ZdXxeVNF14WbLmxKeLKCMA9K1cLEehXsK6x2GpQ2s2cHadpC5C8LDQJhDTeFSfBk6eSpmjbk3MrzjgEiWoX",
-		"3ZU3EsbiphkSjJLqRJw8vaPx3PVbmB4AS66vwgz84KkzUjTXRwQHTcESqk9U27bNX5PeJ6VYzH2tiNpgLFCKDTGjnsUE6CevjSWPdhVUdHFG1a94eecsJTTgnzouYtnCrQ9CdxrzAx87H6qS8Z6WfYfMKwfRxCeAfcCv9NXGRKMNjXe",
-		"Hp9x4wrx5Bwbr38a9vJi3enz4ERqQzYE7RpmcFnfty8NRLSiT3yuNzmjeJDA3Ppo9cuFafXRz8Uy1Ur5dyGfo4fhR4PFtLiEAXXRhPWB27YGQAPCgWrZwiUnJxRcs6UGeMuZrqy3ftAyEbS3wVPGeqYCuHYxGFQaoP2kwNV2ALMM1gQ",
-		"GquoJXqFyVj3xDMBcXSDSNUXH8ZJMe19fghqCqXr2m437CMYwjGjwiMcXN2mdQx8t6H3cfGnqQyg7iDa3N4dW7ebngQZqeR5Ux9YRqxFdtTQX4qiV9xEsitbffhozShB931ChoVRyRXAXHkuZo9e8zUVTSXVTyzic5nRkkZh7Hjq8Fo",
-		"3zkpiQ9KCskwnBHShQuyeh8q25LhyvGkjDfejAHxsxv4xgHpRxb4158zsTm2quJqH3WT8VQqV447ecFvcNG4nDJqUyNnrDwvtkRLtp8Auw56n6UsCNiGdx96mnYiCGWuaFUriy9U9kgvycSR83V2totmSnm5FyW11rMFfLF3tQxeZjX",
-		"221SdHjRnZakRe4P9gQEGjyxhWKVxnHWo2WzTtAnQA7Kf4s4XsZMyYnM4WSssa7M5JrNXJ8misVNLG71qbTPf7nzF4undsNRPx7Ej4SS3iqAEvQw726TVLCpPhgXw4F3Lat1SiRbJ7e6ioLy7UvFDaHAnM8mhZai84vYSw9huWokAPb",
-	}
-	for i, proofBase58 := range base58ProofsCompressed {
-		tcNum := i + 1
-		expectedBts, err := base58.Decode(proofBase58)
-		require.NoError(t, err)
-		proof, err := bn256.GetProofFromCompressed(expectedBts)
-		require.NoError(t, err)
-		actualBts := proof.ToCompressed()
-		require.Equal(t, expectedBts, actualBts, "test case #%d", tcNum)
-		proof2, err := bn256.GetProofFromCompressed(expectedBts)
-		require.NoError(t, err)
-		assert.Equal(t, proof, proof2, "test case #%d", tcNum)
-	}
-}
-
-func TestGroth16G2VKBn256(t *testing.T) {
-	base58VKsCompressed := []string{
-		"cC1T9g3eKeQyXyBi5rYcKwn5Yh6Tzop36Y4stbBhepSa6xNebhpYUk7vJaGuaJks7ofGgMpMYoPaSooVUTLBhgwDwr2jVXeXM3i9rZbWzh82eGpTYyBr9if1rZf7fKiy1sdootfJYmSSVzYC12eLbYHyJukrCDe1X5wA5jf7zjVxQvL2x451UsExYfen6YLqSoJqDfS2PhnGRfUnLYqNvAny5TpKqsuhvGYrb7a6WERp4mzb3f3GkmeGEkmFjoS7f6Tv2vK9UTN3cG9FtfR243eiRhgGKHUDQK7v9DnKHYEiQm5Bc35VgU4AKn2JG2MG6tgZMXu7vARAZnzWDRzFaWq8uQ4NodLQWNXhPyZ4GKB8kbVu9MAxJ4d2WZk3iw2bC82J6kbrc",
-		"8SC8q6UjQaU2QCUCY8W7oyYyZzEQ2izz5YrMwJKCqH4iTy1QByxQqvA5v1FYhpfgs6UcxqPK2p7i5kKECoRaWgUns4GzpWxP4BaoeiPqDWaFuv7FsjWzyUbyBurDKUsLLUkEkJitFDNP8mQFmW2hFgoZKXFjgJyWH7Jk3Wt1Xk7HTU17AxWu6BTQaf6inGJ8AvA6211Jr5GBbdna8z1H4P2sb52a6yC2JVEBP1YQFwrWdwRUcecaP2UodjN13o2Ki9GjoYCR27yq5pfeCyzbnD4jkwxXq65LGxGYw5QuFkoPCRnaNCWeMjHeTfqakkQUxSgHvx5TPR7A1QsN9Gy5rMow3ncUF7",
-		"cC1T9g3eKeQyXyBi5rYcKwn5Yh6Tzop36Y4stbBhepSa6xNebhpYUk7vJaGuaJks7ofGgMpMYoPaSooVUTLBhgwDwr2jVXeXM3i9rZbWzh82eGpTYyBr9if1rZf7fKiy1sdootfJYmSSVzYC12eLbYHyJukrCDe1X5wA5jf7zjVxQvL2x451UsExYfen6YLqSoJqDfS2PhnGRfUnLYqNvAny5TpKqsuhvGYrb7a6WERp4mzb3f3GkmeGEkmFjoS7f6Tv2vK9UTN3cG9FtfR243eiRhgGKHUDQK7v9DnKHYEiQm5Bc35VgU4AKn2JG2MG6tgZMXu7vARAZnzWDRzFaWq8uQ4NodLQWNXhPyZ4GKB8kbVu9MAxJ4d2WZk3iw2bC82J6kbrc",
-		"eEAVMD5aNspbsCH5WCp6Y7SoY5TyT7GjvnMc8VCv62udD5TAd19ifUWPXhLCLkBoGJkELPNAJWihZzdoxZ1GdLQcVFzjWYt6m29f8Kki3YvgD2RV62NXa5TavQpUHFxV3CLM3jHykZMBzMj2SYgaZ7trR859TDfk54aWMGWhFZZQHjG8dSinrcR6nzsC1DvogaNYjVsTgSRdKUuAMx1XWJGgwVALKpKFzgHUCqNUwuro618ohM739xUVznuWTnpZRMyVt5xo5H92VrQZEfUFdZwKfB8RTNmtsurnZXKDFPxJLqAR7KvsFJUiQ9wnJMk4SvWNStk75GJ9pvGQu99TdZVYpYu7EJ5XTQLL75ubSM9CM27EHyrd2onHoWSX5i1YXJrEez4tmbrPCnx6vSTSGmy8kK83btRre8tCcaUoXxeTKg6XEaWUS",
-		"4aSvKH4MXbssoYDxDNFmqshJnDSnTcAawoZeA7N5v1gGRQZaNHG59GkYoHQeMqAu8g9bPkErxFMLoX1i72fFJYfs3LJaFMz3sUj5gkwp4w8QVgbmrWFWRGn5sLf8fyFAeAw6Mu8fmQjoqJx699yFrd1gts8EQnsoncUTK7jBMxJwpU1DQ4S6Jt8enHupRc1VmkBy2pkw78JTq5Ndb4GkER4fVALEk3Dgy42BtvjAfLV7QsxYNNBD7CVsSBDA3tHqtNUxuNp7BJqje5UgYePjKjtfeHeq7rQuhQVcXoGXbyuJguddZSm2K3cJ7kzE3YmRqyeqtG7oQ74BhhU3JYbyjzg5MhNc4Mk1QEycred3aEBT4fEAfsAeQYtLb23gPryj6ebUCbsDJ81MNn1f85S1e9rywB5R8sM9p9nkgGj2BWMZo8NprYo9gVwvcLd5UQMdMhrH9dW51VBwXqEByMzDwLbGLgSmtxYZc8tBayoR5hbcUgpH5FXoth9ZHsesZNDnLE7mGiPUwoQP2",
-		"2NvyakP9p9Ndd3xwXMSJ4GWzeYuV5PpJWVFGd8ooUV7WMwSpecCn8D5BXJP6vyt7ixU5CRFiQcgMam6nEaPACxjgbUo8c359ZfTYKm2FDrZVd3qUL4xYuKxWhoW4dQ7FMGGySfnHCoKzhFgc6pm6qJcuSVDd5n2v2HKAy3ojJX1XWWJrLgzS58EZgHGqWxSzYFi9nAGZH72n7Rj8bQNMrTLgX4JzuPzsejNooik5TMN5BSkiU6qBKK1b6L4CQ7pCD3Kr297DG4qwRa9xgfmoAS6iabFFC6Z4xVFUfJc5w429iXE4tQwicKeK17vgtLZdbpfGA7XXyVozoS5Z1h8PrJviU916kJKZ6k3cJoqhcqLUCQeGjRoDjVEc36Wf9Q1L7pZ6Hp5zohoCDmTctsTUts4V27AdKzmmMYmhu5z7Dyixw5aEAp5H9iXC6HmAHR3KxGY9rheqk5UxAxS7mTNqY1T928jBWvY6LZW1dZtcm74QGAnkP2KjtCQmhtk3is1YwgedAjrY6N12EvMFTVpVbacSbd82YL67MgNGRtghyEDtZtdm8HatpDRi39tSN2rHo8sGcWtegibnMEjwJx86vH712u8h7SBhBK6mS8YdKGcgcAmD9WpPgkx4qjvLQjTPAmMSZR5MfSw6PCzUYtaPYQdAzhAbk32rrduK4PryE3z36uzgnJDUw4w6zFey",
-		"L1C2tG6e8qVvNSVc4Q9aCyqvbGe3DKUxCCtWtS9Ri6zyXVFmCGC5L72FhgUCEZv6rfFEiqrWkzvzFE8csXR1EjY4ZJjGqsxpbKvuRgfDJUYdcAoxumtf43TZY3NB2fAQhURwSod4HCBVPauGkrAPdczEdauTcStP1akvZp5Zg9f13fGbhedr4KEKn5ru8rW2fLCH1NMbtiB9Vn1gePASMPB8QSQGZxWX6HgqsFFvixKC53XGM55BLwzkJxd2LU9dPttCmt3Lwbeqq2TL6gh3qkJm6vbobt4kkETuqFkweGehk3xjDneyGR55JpEo6UVFjfT4TXz7kUb9gFkwAg7SYRzHAKrE2esGDdQmpESsYBDQv3zsLx8PnPSDZSdyuZaWy5o4RQvHBc6JDZroUdAnJ9anNBRQ3oGapLB4owt5cLM59Wc3EKAAF9DF6xiZ35DbiKp4xbh45gXQ5UKVRGixu5SmNtnnktgWEq6SKCgoDFuddidVZeHHEB735aohderrs8AyEaaJeUb8StBdTV5DuXyxEiBtoEuDc77bYrg49gPhSqYQZvUzbjpmoXY2ASuV2232pw5YY8WR9Y3iL6592cUXBVtdwtwPpqbJQMkcrvjym9vbpGTu9r8qKavQXWHJ4mhmjBJxkZdLxLxWUwRdzy6Cvd8ZNM7Hp9s2PoW2zSvyPwaqBWmApeefPvLYMWzfs5o2PhJiPP7xA2nWHp6ccAcafUFR1ZVHkxzNBQkcj627qNabFagL469fcNB62sGCJtVv34SpCeCsJtV77Uwt2vpjhGet23j4dPBVgtrQxgJmwUomACYjcwGj7oWUbhBRGhvWJNSq7HahY9Uq3Kj3AbnDzQfW99LxyPm7w4q2Vrks4dNSKe3VNBm8GxBtMp8PDGj8ZXxB2bZVCwfQ3cBZCjE4YiwDYAZmzvZk3ch8r3wsgnZEMtUKwhdzbFaqGZ7ZdwXiuANWNwV9V1gntfGeuN1rccyurHEoxbPtyKDZhgz8AAexBMbioBVZ9nhJzHdTNqp57g1M8r2SPFwRR5SR7rnP7",
-	}
-	for i, vkBase58 := range base58VKsCompressed {
-		tcNum := i + 1
-		expectedBts, err := base58.Decode(vkBase58)
-		require.NoError(t, err)
-		vk, err := bn256.GetVerificationKeyFromCompressed(expectedBts)
-		require.NoError(t, err)
-		actualBts := vk.ToCompressed()
-		require.Equal(t, expectedBts, actualBts, "test case #%d", tcNum)
-		vk2, err := bn256.GetVerificationKeyFromCompressed(expectedBts)
-		require.NoError(t, err)
-		assert.Equal(t, vk, vk2, "test case #%d", tcNum)
-	}
-}
-
-func TestGroth16G2InputsBn256(t *testing.T) {
-	base58InputsSliceCompressed := []string{
-		"3HaMTtuahrqJpGeiYn44xq3xQGa2nEvMGoCLHNYaeSY9",
-		"",
-		"3HaMTtuahrqJpGeiYn44xq3xQGa2nEvMGoCLHNYaeSY9",
-		"gPDTxUUvmAWmEc7sf3Vva9UQVFU5zQjqXvGEzAehA98dN3nXHuRC4d2cVWakqPGgVSvqpaJDVjzdXZRGfamx2SD",
-		"4UaCvzhvh1vMEZNNPJddRASTRTkSkn27wGoYRz4B4LVfHEcHCXSGU4zjdmr4B7oD98nC6ZS2NYpVR7sTVskJ4aLCChmGPPWrAEd4Jmirj6pirDcX3YsQixg2XwLQHNg9G1Skb9s4LWPAhvyFDvNvZLHs4yxJy7hu1SRoM1mepwQfyTR",
-		"2a3WfWKzuCpbyTJaRm65RTCLsNkbAtrGh6fVQ25scHmLYP2dMcmGc6P4Sajgs3vKMAySt2TK8V5NZWXj72a8M3RbJusPVxDzLNraf5CKn1wqiRWVLTkzN1dRKxxMDogk2zQv9yc7guCxzD3VXZszEizwaSEhhSqv9a3ZE5MjNKiibnHLYoL8MFZzPV6UU1owTa75STY5WizxL9oHnCghErysDY7Nh7bcAsekDLtbnqS1ARjceQVzPommfpsrUn6R2JCqGGMxavgnUyDK32MfkYmajCsaHoGg2PNxuKmV9pZKKaVsDWFPwNYK5kFBd5LBMUKH6DobaE6mhNbGxxq8ptvC2ud2BC",
-		"KaEUQjQ94n7Xhx14D7aWhXk9VsaMoswVMWavspKb18HhgNmv7Br2sK5pWGkB1xNEQZXPeB8Xrx4ySoSvvNXgeqEseGzceJa4e1sfrksBQaTZAU54i49zSELjULjHcB2AhWV5VsrZ68qrnFbZc21X3cQoM1AhPbH6DedCN4xGRford7oaXHQZQ5XrHmX5QVtrzZjAT2Y4VoAGHwqfDZK656rmztxvaduKBne8qLkL7WdWrWxVoSK3Vgc2XuvGPKJ7astUFkQEhCbztVxq37JWqYTDhqWnHf4Dw767giFBR3vJecPNfZxcSi2kGMEJdfsbxpHbxHevSRkbKrBWdpjACcEvYN2D6QPRsQ2xX8wj8aLqfHzeGxvpGPgDgSJ8Txua1UzQwq92uzoSLdku4cLFt25pUL2DmW4jkENxahqemQLxW7HxQfakssQdwFAqk5yh5WDot9tSXzDzBPjzKDU35yKmrGETJNKqa6bfEJJe4qRXTdmhwJuApXCQWZuD4wMUhKcJapBM2eAhfd1WKPEyUNXeSaxxcPAhgTo7o8SYSHKpHxAxz75HDakQjAdKATM6RsqAkHhYkvutbEGXRCPQMQiqLUphYK2RqQkcwTVFSaAzGvn1iytbBo8SBhL268xX51grxc8cqJdq2BxVSWV4PcbL7tavDBWF8M3Zie8Mt9pWbLeTRusHb4XyfNV",
-	}
-	for i, inputsBase58 := range base58InputsSliceCompressed {
-		var (
-			tcNum       = i + 1
-			expectedBts []byte
-			err         error
-		)
-		if inputsBase58 != "" {
-			expectedBts, err = base58.Decode(inputsBase58)
-			require.NoError(t, err)
-		}
-		inputs, err := ReadInputs(expectedBts)
-		require.NoError(t, err)
-		actualBts := SerializeInputs(inputs)
-		require.Equal(t, expectedBts, actualBts, "test case #%d", tcNum)
-		inputs2, err := ReadInputs(expectedBts)
-		require.NoError(t, err)
-		assert.Equal(t, inputs, inputs2, "test case #%d", tcNum)
 	}
 }
 
@@ -422,13 +286,12 @@ func TestGroth16VerifyFailBn256(t *testing.T) {
 		require.NoError(t, err)
 		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
 		require.NoError(t, err)
-		bn256 := Bn256{}
-		ok, err := bn256.Groth16Verify(vk, proof, inputs)
+		ok, err := Groth16Verify(vk, proof, inputs, ecc.BN254)
 		if test.ok {
 			require.NoError(t, err)
 			assert.True(t, ok)
 		} else {
-			//assert.NoError(t, err)
+			assert.Error(t, err)
 			assert.False(t, ok)
 		}
 	}

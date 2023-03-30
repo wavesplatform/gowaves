@@ -7,6 +7,7 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1149,7 +1150,7 @@ func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
 	}
@@ -1172,7 +1173,7 @@ func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify")
 	}
