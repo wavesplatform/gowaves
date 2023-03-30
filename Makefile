@@ -67,7 +67,7 @@ vendor:
 
 vetcheck:
 	go vet ./...
-	golangci-lint run
+	golangci-lint run --timeout 5m
 
 build-chaincmp-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
