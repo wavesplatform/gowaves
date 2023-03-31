@@ -8,8 +8,8 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/consensys/gnark v0.7.1
-	github.com/consensys/gnark-crypto v0.7.0
+	github.com/consensys/gnark v0.8.0
+	github.com/consensys/gnark-crypto v0.9.1
 	github.com/coocood/freecache v1.2.3
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
@@ -43,7 +43,7 @@ require (
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.7.0
-	golang.org/x/exp v0.0.0-20220321173239-a90fa8a75705
+	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.6.0
 	google.golang.org/grpc v1.54.0
@@ -56,6 +56,8 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
@@ -68,10 +70,13 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
@@ -84,7 +89,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	github.com/rs/zerolog v1.26.1 // indirect
+	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -98,4 +103,5 @@ require (
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
 )
