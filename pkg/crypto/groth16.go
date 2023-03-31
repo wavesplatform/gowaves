@@ -58,6 +58,7 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 	}
 
 	var buf bytes.Buffer
+	buf.Grow(8 + 4 + len(inputsBytes))
 	// Add 8 bytes for correct reading
 	// Gnark witness has two addition number in the start
 	// These numbers aren't used for verification
