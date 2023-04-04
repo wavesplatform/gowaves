@@ -17,15 +17,10 @@ func (a *App) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	return addr, nil
 }
 
-func (a *App) AliasesByAddr(addr proto.Address) ([]string, error) {
-	wavesAddr, err := addr.ToWavesAddress(a.services.Scheme)
+func (a *App) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	aliases, err := a.state.AliasesByAddr(&addr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid waves address %s", addr.String())
-	}
-
-	aliases, err := a.state.AliasesByAddr(&wavesAddr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to find aliases  by addr %s", addr.String())
+		return nil, errors.Wrapf(err, "failed to find aliases by addr %q", addr.String())
 	}
 	return aliases, err
 }
