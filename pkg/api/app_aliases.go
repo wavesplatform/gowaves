@@ -18,7 +18,7 @@ func (a *App) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 }
 
 func (a *App) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
-	aliases, err := a.state.AliasesByAddr(&addr)
+	aliases, err := a.state.AliasesByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find aliases by addr %q", addr.String())
 	}

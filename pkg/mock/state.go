@@ -149,7 +149,7 @@ func (mr *MockStateInfoMockRecorder) AddrByAlias(alias interface{}) *gomock.Call
 }
 
 // AliasesByAddr mocks base method.
-func (m *MockStateInfo) AliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+func (m *MockStateInfo) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
 	ret0, _ := ret[0].([]string)
@@ -1299,7 +1299,7 @@ func (mr *MockStateMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
 }
 
 // AliasesByAddr mocks base method.
-func (m *MockState) AliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+func (m *MockState) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
 	ret0, _ := ret[0].([]string)

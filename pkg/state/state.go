@@ -1629,7 +1629,7 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 	return *addr, nil
 }
 
-func (s *stateManager) AliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	aliases, err := s.stor.aliases.aliasesByAddr(addr)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)

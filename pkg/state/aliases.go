@@ -259,7 +259,7 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 	return als, nil
 }
 
-func (a *aliases) aliasesByAddr(addr *proto.WavesAddress) ([]string, error) {
+func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	iter, err := a.hs.newNewestTopEntryIterator(alias)
 	if err != nil {
 		return nil, err
