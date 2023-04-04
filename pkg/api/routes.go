@@ -118,7 +118,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/alias", func(r chi.Router) {
 			r.Get("/by-alias/{alias}", wrapper(a.AddrByAlias))
-			r.Get("/by-address/{alias}", wrapper(nil)) // TODO(artemreyt)
+			r.Get("/by-address/{address}", wrapper(a.AliasesByAddr))
 		})
 
 		r.Route("/transactions", func(r chi.Router) {
