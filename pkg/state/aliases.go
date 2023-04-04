@@ -278,11 +278,11 @@ func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 		recordBytes := iter.Value()
 		var record aliasRecord
 		if err := record.unmarshalBinary(recordBytes); err != nil {
-			return nil, errors.Errorf("failed to unmarshal record: %v", err)
+			return nil, errors.Wrap(err, "failed to unmarshal alias record")
 		}
 		var key aliasKey
 		if err := key.unmarshal(keyBytes); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to unmarshal alias key record")
 		}
 		if !record.info.stolen && record.info.addr.Equal(addr) {
 			aliases = append(aliases, key.alias)
