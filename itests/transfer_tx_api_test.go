@@ -20,7 +20,7 @@ type TransferTxApiSuite struct {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -35,35 +35,40 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
+				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, utl.GetTestcaseNameWithVersion(name, v))
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx,
+					utl.GetTestcaseNameWithVersion(name, v))
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-					"Transfer: "+tx.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
+					"Broadcast Transfer: "+tx.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
 	}
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -75,35 +80,41 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
+				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, utl.GetTestcaseNameWithVersion(name, v))
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx,
+					utl.GetTestcaseNameWithVersion(name, v))
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-					"Transfer: "+tx.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
+					"Broadcast Transfer: "+tx.TxID.String(),
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
 	}
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -112,31 +123,36 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
-				tx, diffBalancesSender, diffBalancesRecipient := transfer_utilities.BroadcastTransferTxAndGetBalances(
+				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, !waitForTx)
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
 					utl.GetTestcaseNameWithVersion(name, v))
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, utl.GetTestcaseNameWithVersion(name, v))
+					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				txIds[name] = &tx.TxID
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesSender.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesSender.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
-					diffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
-					diffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
+					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
+					utl.GetTestcaseNameWithVersion(name, v))
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
 					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
@@ -149,7 +165,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
-	versions := utl.GetVersions()
+	versions := transfer_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -187,7 +203,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 					actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender,
 					utl.GetTestcaseNameWithVersion(name, v))
 
-				utl.AssetBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
+				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance,
 					actuallDiffBalanceAssetGoSender, actualDiffBalanceAssetScalaSender,
 					utl.GetTestcaseNameWithVersion(name, v))
 

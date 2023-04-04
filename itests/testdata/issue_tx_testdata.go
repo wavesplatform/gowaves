@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	errMsg       = "transactions does not exist"
-	errBrdCstMsg = "Error is unknown"
-	errName      = "invalid name"
+	IssueMaxVersion = 3
+	errMsg          = "transactions does not exist"
+	errBrdCstMsg    = "Error is unknown"
+	errName         = "invalid name"
 )
 
 type IssueTestData[T any] struct {

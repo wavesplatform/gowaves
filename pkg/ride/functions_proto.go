@@ -7,6 +7,7 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -130,7 +131,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "%s: failed to extract first argument", invocation.name())
+		return nil, RuntimeError.Wrapf(err, "%s: failed to extract recipient", invocation.name())
 	}
 	recipient, err = ensureRecipientAddress(env, recipient)
 	if err != nil {
@@ -161,17 +162,21 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	fn, err := extractFunctionName(args[1])
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", invocation.name())
+		return nil, RuntimeError.Wrapf(err, "%s: failed to extract function name", invocation.name())
 	}
 	arguments, ok := args[2].(rideList)
 	if !ok {
-		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of third argument", invocation.name(), args[2].instanceOf())
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of arguments", invocation.name(), args[2].instanceOf())
 	}
 
 	oldInvocationParam := env.invocation()
-	originCaller, err := oldInvocationParam.get(originCallerField)
+	originCallerRaw, err := oldInvocationParam.get(originCallerField)
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
+	}
+	originCaller, ok := originCallerRaw.(rideAddress)
+	if !ok {
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of originCaller", invocation.name(), originCallerRaw.instanceOf())
 	}
 	feeAssetID, err := oldInvocationParam.get(feeAssetIDField)
 	if err != nil {
@@ -195,7 +200,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 	fee, ok := feeRaw.(rideInt)
 	if !ok {
-		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), feeRaw.instanceOf())
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of fee", invocation.name(), feeRaw.instanceOf())
 	}
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
 	if err != nil {
@@ -203,7 +208,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 	payments, ok := args[3].(rideList)
 	if !ok {
-		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of forth argument", invocation.name(), args[3].instanceOf())
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of payments", invocation.name(), args[3].instanceOf())
 	}
 	env.setInvocation(newRideInvocationV5(
 		originCaller,
@@ -1145,7 +1150,7 @@ func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
 	}
@@ -1168,7 +1173,7 @@ func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify")
 	}

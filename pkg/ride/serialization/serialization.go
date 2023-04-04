@@ -36,6 +36,13 @@ func SerializeTreeV2(tree *ast.Tree) ([]byte, error) {
 	return s.serialize(tree)
 }
 
+func SerializeTree(tree *ast.Tree) ([]byte, error) {
+	if tree.LibVersion < ast.LibV6 {
+		return SerializeTreeV1(tree)
+	}
+	return SerializeTreeV2(tree)
+}
+
 type serializer struct {
 	buf             *bytes.Buffer
 	serializeDApp   func(*serializer, *ast.Tree) error

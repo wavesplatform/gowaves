@@ -20,17 +20,18 @@ import (
 )
 
 type GrpcClient struct {
-	conn *grpc.ClientConn
+	conn    *grpc.ClientConn
+	timeout time.Duration
 }
 
 func NewGrpcClient(t *testing.T, port string) *GrpcClient {
 	conn, err := grpc.Dial(d.Localhost+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NoError(t, err, "failed to dial grpc")
-	return &GrpcClient{conn: conn}
+	return &GrpcClient{conn: conn, timeout: 30 * time.Second}
 }
 
 func (c *GrpcClient) GetHeight(t *testing.T) *client.BlocksHeight {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	h, err := g.NewBlocksApiClient(c.conn).GetCurrentHeight(ctx, &emptypb.Empty{}, grpc.EmptyCallOption{})
 	assert.NoError(t, err, "(grpc) failed to get height from node")
@@ -38,16 +39,16 @@ func (c *GrpcClient) GetHeight(t *testing.T) *client.BlocksHeight {
 }
 
 func (c *GrpcClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *g.BalanceResponse_WavesBalances {
-	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{nil}}).GetWaves()
+	return getBalance(t, c.conn, c.timeout, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{nil}}).GetWaves()
 }
 
 func (c *GrpcClient) GetAssetBalance(t *testing.T, address proto.WavesAddress, id []byte) *waves.Amount {
 	require.NotEmpty(t, id, "asset bytes must not be empty")
-	return getBalance(t, c.conn, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{id}}).GetAsset()
+	return getBalance(t, c.conn, c.timeout, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{id}}).GetAsset()
 }
 
-func getBalance(t *testing.T, conn *grpc.ClientConn, req *g.BalancesRequest) *g.BalanceResponse {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+func getBalance(t *testing.T, conn *grpc.ClientConn, timeout time.Duration, req *g.BalancesRequest) *g.BalanceResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	stream, err := g.NewAccountsApiClient(conn).GetBalances(ctx, req, grpc.EmptyCallOption{})
 	assert.NoError(t, err, "(grpc) failed to get stream")
@@ -57,9 +58,17 @@ func getBalance(t *testing.T, conn *grpc.ClientConn, req *g.BalancesRequest) *g.
 }
 
 func (c *GrpcClient) GetAddressByAlias(t *testing.T, alias string) []byte {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	addr, err := g.NewAccountsApiClient(c.conn).ResolveAlias(ctx, &wrapperspb.StringValue{Value: alias})
 	assert.NoError(t, err)
 	return addr.GetValue()
+}
+
+func (c *GrpcClient) GetAssetsInfo(t *testing.T, id []byte) *g.AssetInfoResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	assetInfo, err := g.NewAssetsApiClient(c.conn).GetInfo(ctx, &g.AssetRequest{AssetId: id})
+	assert.NoError(t, err)
+	return assetInfo
 }

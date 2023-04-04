@@ -6,10 +6,10 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func createRateLimiter(opts *RateLimiterOptions) (throttled.HTTPRateLimiter, error) {
+func createRateLimiter(opts *RateLimiterOptions) (throttled.HTTPRateLimiterCtx, error) {
 	store, err := memstore.New(opts.MemoryCacheSize)
 	if err != nil {
-		return throttled.HTTPRateLimiter{},
+		return throttled.HTTPRateLimiterCtx{},
 			errors.Wrapf(
 				err,
 				"createRateLimiter: failed to create memstore with capacity %d",
@@ -22,13 +22,13 @@ func createRateLimiter(opts *RateLimiterOptions) (throttled.HTTPRateLimiter, err
 		MaxBurst: opts.MaxBurst,
 	}
 
-	rateLimiter, err := throttled.NewGCRARateLimiter(store, quota)
+	rateLimiter, err := throttled.NewGCRARateLimiterCtx(throttled.WrapStoreWithContext(store), quota)
 	if err != nil {
-		return throttled.HTTPRateLimiter{},
+		return throttled.HTTPRateLimiterCtx{},
 			errors.Wrap(err, "createRateLimiter: can't create rate limiter")
 	}
 
-	httpRateLimiter := throttled.HTTPRateLimiter{
+	httpRateLimiter := throttled.HTTPRateLimiterCtx{
 		RateLimiter: rateLimiter,
 		VaryBy: &throttled.VaryBy{
 			RemoteAddr: true,

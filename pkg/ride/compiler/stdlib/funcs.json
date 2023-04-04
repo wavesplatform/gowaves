@@ -1,0 +1,2612 @@
+{
+  "versions": [
+    {
+      "new": {
+        "keccak256": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "501"
+          }
+        ],
+        "blake2b256": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "502"
+          }
+        ],
+        "sha256": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "503"
+          }
+        ],
+        "sigVerify": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "500"
+          }
+        ],
+        "toBase58String": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "600"
+          }
+        ],
+        "fromBase58String": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "601"
+          }
+        ],
+        "toBase64String": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "602"
+          }
+        ],
+        "fromBase64String": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "603"
+          }
+        ],
+        "transactionHeightById": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1001"
+          }
+        ],
+        "getInteger": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1050"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1040"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "getInteger"
+          }
+        ],
+        "getBoolean": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1051"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1041"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "getBoolean"
+          }
+        ],
+        "getBinary": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1052"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1042"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "getBinary"
+          }
+        ],
+        "getString": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1053"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1043"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "String|Unit",
+            "id": "getString"
+          }
+        ],
+        "addressFromPublicKey": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Address",
+            "id": "addressFromPublicKey"
+          }
+        ],
+        "addressFromString": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Address|Unit",
+            "id": "addressFromString"
+          }
+        ],
+        "addressFromRecipient": [
+          {
+            "arguments": [
+              "Address|Alias"
+            ],
+            "return_type": "Address",
+            "id": "1060"
+          }
+        ],
+        "assetBalance": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "ByteVector|Unit"
+            ],
+            "return_type": "Int",
+            "id": "1003"
+          }
+        ],
+        "wavesBalance": [
+          {
+            "arguments": [
+              "Address|Alias"
+            ],
+            "return_type": "Int",
+            "id": "wavesBalance"
+          }
+        ],
+        "transactionById": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "TransferTransaction|Unit",
+            "id": "1000"
+          }
+        ],
+        "fraction": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "107"
+          }
+        ],
+        "size": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Int",
+            "id": "200"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "305"
+          },
+          {
+            "arguments": [
+              "List[Any]"
+            ],
+            "return_type": "Int",
+            "id": "400"
+          }
+        ],
+        "toBytes": [
+          {
+            "arguments": [
+              "Boolean"
+            ],
+            "return_type": "ByteVector",
+            "id": "412"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "411"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "410"
+          }
+        ],
+        "take": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "201"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "303"
+          }
+        ],
+        "drop": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "202"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "304"
+          }
+        ],
+        "takeRight": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "takeRightBytes"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "takeRight"
+          }
+        ],
+        "dropRight": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "dropRightBytes"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "dropRight"
+          }
+        ],
+        "toString": [
+          {
+            "arguments": [
+              "Boolean"
+            ],
+            "return_type": "String",
+            "id": "421"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "420"
+          }
+        ],
+        "isDefined": [
+          {
+            "arguments": [
+              "Any|Unit"
+            ],
+            "return_type": "Boolean",
+            "id": "isDefined"
+          }
+        ],
+        "extract": [
+          {
+            "arguments": [
+              "Any|Unit"
+            ],
+            "return_type": "Any",
+            "id": "extract"
+          }
+        ],
+        "throw": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Unknown",
+            "id": "2"
+          },
+          {
+            "arguments": [
+            ],
+            "return_type": "Unknown",
+            "id": "throw"
+          }
+        ],
+        "getElement": [
+          {
+            "arguments": [
+              "List[Any]",
+              "Int"
+            ],
+            "return_type": "Any",
+            "id": "401"
+          }
+        ]
+      },
+      "remove": []
+    },
+    {
+      "new": {},
+      "remove": []
+    },
+    {
+      "new": {
+        "getIntegerValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1050)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1040)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "@extrUser(getInteger)"
+          }
+        ],
+        "getBooleanValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1051)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1041)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrUser(getBoolean)"
+          }
+        ],
+        "getBinaryValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1052)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1042)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrUser(getBinary)"
+          }
+        ],
+        "getStringValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1053)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1043)"
+          },
+          {
+            "arguments": [
+              "List[DataEntry]",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "@extrUser(getString)"
+          }
+        ],
+        "assetInfo": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Asset|Unit",
+            "id": "1004"
+          }
+        ],
+        "blockInfoByHeight": [
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "BlockInfo|Unit",
+            "id": "1005"
+          }
+        ],
+        "transferTransactionById": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "TransferTransaction|Unit",
+            "id": "1006"
+          }
+        ],
+        "parseInt": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1206"
+          }
+        ],
+        "parseIntValue": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "parseIntValue"
+          }
+        ],
+        "toInt": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Int",
+            "id": "1201"
+          },
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "1202"
+          }
+        ],
+        "toString": [
+          {
+            "arguments": [
+              "Boolean"
+            ],
+            "return_type": "String",
+            "id": "421"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "420"
+          },
+          {
+            "arguments": [
+              "Address"
+            ],
+            "return_type": "String",
+            "id": "1061"
+          }
+        ],
+        "toUtf8String": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "1200"
+          }
+        ],
+        "toBase16String": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "604"
+          }
+        ],
+        "fromBase16String": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "605"
+          }
+        ],
+        "addressFromStringValue": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Address",
+            "id": "@extrUser(addressFromString)"
+          }
+        ],
+        "cons": [
+          {
+            "arguments": [
+              "Any",
+              "List[Any]"
+            ],
+            "return_type": "List[Any]",
+            "id": "cons"
+          }
+        ],
+        "pow": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfDown|HalfEven|HalfUp|Up"
+            ],
+            "return_type": "Int",
+            "id": "108"
+          }
+        ],
+        "log": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfDown|HalfEven|HalfUp|Up"
+            ],
+            "return_type": "Int",
+            "id": "109"
+          }
+        ],
+        "value": [
+          {
+            "arguments": [
+              "Any|Unit"
+            ],
+            "return_type": "Any",
+            "id": "value"
+          }
+        ],
+        "valueOrErrorMessage": [
+          {
+            "arguments": [
+              "Any|Unit",
+              "String"
+            ],
+            "return_type": "Any",
+            "id": "valueOrErrorMessage"
+          }
+        ],
+        "indexOf": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1203"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1204"
+          }
+        ],
+        "lastIndexOf": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1207"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1208"
+          }
+        ],
+        "split": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "List[String]",
+            "id": "1205"
+          }
+        ],
+        "checkMerkleProof": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "700"
+          }
+        ],
+        "rsaVerify": [
+          {
+            "arguments": [
+              "DigestAlgorithmType",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "504"
+          }
+        ]
+      },
+      "remove": [
+        "transactionById"
+      ]
+    },
+    {
+      "new": {
+        "assetBalance": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "ByteVector"
+            ],
+            "return_type": "Int",
+            "id": "1008"
+          }
+        ],
+        "wavesBalance": [
+          {
+            "arguments": [
+              "Address|Alias"
+            ],
+            "return_type": "BalanceDetails",
+            "id": "1007"
+          }
+        ],
+        "assetInfo": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Asset|Unit",
+            "id": "1004"
+          }
+        ],
+        "calculateAssetId": [
+          {
+            "arguments": [
+              "Issue"
+            ],
+            "return_type": "ByteVector",
+            "id": "1080"
+          }
+        ],
+        "transferTransactionFromProto": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "TransferTransaction|Unit",
+            "id": "1070"
+          }
+        ],
+        "keccak256_16Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2700"
+          }
+        ],
+        "keccak256_32Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2701"
+          }
+        ],
+        "keccak256_64Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2702"
+          }
+        ],
+        "keccak256_128Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2703"
+          }
+        ],
+        "blake2b256_16Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2800"
+          }
+        ],
+        "blake2b256_32Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2801"
+          }
+        ],
+        "blake2b256_64Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2802"
+          }
+        ],
+        "blake2b256_128Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2803"
+          }
+        ],
+        "sha256_16Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2900"
+          }
+        ],
+        "sha256_32Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2901"
+          }
+        ],
+        "sha256_64Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2902"
+          }
+        ],
+        "sha256_128Kb": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "2903"
+          }
+        ],
+        "ecrecover": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "ByteVector",
+            "id": "900"
+          }
+        ],
+        "getInteger": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1050"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1040"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "getInteger"
+          }
+        ],
+        "getBoolean": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1051"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1041"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "getBoolean"
+          }
+        ],
+        "getBinary": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1052"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1042"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "getBinary"
+          }
+        ],
+        "getString": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1053"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1043"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "String|Unit",
+            "id": "getString"
+          }
+        ],
+        "getIntegerValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1050)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1040)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "@extrUser(getInteger)"
+          }
+        ],
+        "getBooleanValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1051)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1041)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrUser(getBoolean)"
+          }
+        ],
+        "getBinaryValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1052)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1042)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrUser(getBinary)"
+          }
+        ],
+        "getStringValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1053)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1043)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "@extrUser(getString)"
+          }
+        ],
+        "median": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "405"
+          }
+        ],
+        "min": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "407"
+          }
+        ],
+        "max": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "406"
+          }
+        ],
+        "indexOf": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1203"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1204"
+          },
+          {
+            "arguments": [
+              "List[Any]",
+              "Any"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1103"
+          }
+        ],
+        "lastIndexOf": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1207"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1208"
+          },
+          {
+            "arguments": [
+              "List[Any]",
+              "Any"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1104"
+          }
+        ],
+        "containsElement": [
+          {
+            "arguments": [
+              "List[Any]",
+              "Any"
+            ],
+            "return_type": "Boolean",
+            "id": "containsElement"
+          }
+        ],
+        "makeString": [
+          {
+            "arguments": [
+              "List[String]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1209"
+          }
+        ],
+        "removeByIndex": [
+          {
+            "arguments": [
+              "List[Any]",
+              "Int"
+            ],
+            "return_type": "List[Any]",
+            "id": "1105"
+          }
+        ],
+        "valueOrElse": [
+          {
+            "arguments": [
+              "Any|Unit",
+              "Any"
+            ],
+            "return_type": "Any",
+            "id": "valueOrElse"
+          }
+        ],
+        "contains": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "contains"
+          }
+        ],
+        "sigVerify_8Kb": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2500"
+          }
+        ],
+        "sigVerify_16Kb": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2501"
+          }
+        ],
+        "sigVerify_32Kb": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2502"
+          }
+        ],
+        "sigVerify_64Kb": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2503"
+          }
+        ],
+        "sigVerify_128Kb": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2504"
+          }
+        ],
+        "rsaVerify_16Kb": [
+          {
+            "arguments": [
+              "DigestAlgorithmType",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2600"
+          }
+        ],
+        "rsaVerify_32Kb": [
+          {
+            "arguments": [
+              "DigestAlgorithmType",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2601"
+          }
+        ],
+        "rsaVerify_64Kb": [
+          {
+            "arguments": [
+              "DigestAlgorithmType",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2602"
+          }
+        ],
+        "rsaVerify_128Kb": [
+          {
+            "arguments": [
+              "DigestAlgorithmType",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2603"
+          }
+        ],
+        "groth16Verify": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "800"
+          }
+        ],
+        "groth16Verify_1inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2400"
+          }
+        ],
+        "groth16Verify_2inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2401"
+          }
+        ],
+        "groth16Verify_3inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2402"
+          }
+        ],
+        "groth16Verify_4inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2403"
+          }
+        ],
+        "groth16Verify_5inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2404"
+          }
+        ],
+        "groth16Verify_6inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2405"
+          }
+        ],
+        "groth16Verify_7inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2406"
+          }
+        ],
+        "groth16Verify_8inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2407"
+          }
+        ],
+        "groth16Verify_9inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2408"
+          }
+        ],
+        "groth16Verify_10inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2409"
+          }
+        ],
+        "groth16Verify_11inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2410"
+          }
+        ],
+        "groth16Verify_12inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2411"
+          }
+        ],
+        "groth16Verify_13inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2412"
+          }
+        ],
+        "groth16Verify_14inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2413"
+          }
+        ],
+        "groth16Verify_15inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2414"
+          }
+        ],
+        "bn256Groth16Verify": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "801"
+          }
+        ],
+        "bn256Groth16Verify_1inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2450"
+          }
+        ],
+        "bn256Groth16Verify_2inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2451"
+          }
+        ],
+        "bn256Groth16Verify_3inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2452"
+          }
+        ],
+        "bn256Groth16Verify_4inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2453"
+          }
+        ],
+        "bn256Groth16Verify_5inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2454"
+          }
+        ],
+        "bn256Groth16Verify_6inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2455"
+          }
+        ],
+        "bn256Groth16Verify_7inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2456"
+          }
+        ],
+        "bn256Groth16Verify_8inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2457"
+          }
+        ],
+        "bn256Groth16Verify_9inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2458"
+          }
+        ],
+        "bn256Groth16Verify_10inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2459"
+          }
+        ],
+        "bn256Groth16Verify_11inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2460"
+          }
+        ],
+        "bn256Groth16Verify_12inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2461"
+          }
+        ],
+        "bn256Groth16Verify_13inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2462"
+          }
+        ],
+        "bn256Groth16Verify_14inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2463"
+          }
+        ],
+        "bn256Groth16Verify_15inputs": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "2464"
+          }
+        ],
+        "createMerkleRoot": [
+          {
+            "arguments": [
+              "List[ByteVector]",
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "701"
+          }
+        ],
+        "addressFromString": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Address|Unit",
+            "id": "1062"
+          }
+        ],
+        "addressFromStringValue": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Address",
+            "id": "@extrNative(1062)"
+          }
+        ],
+        "Issue": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int",
+              "Int",
+              "Boolean",
+              "Script|Unit",
+              "Int"
+            ],
+            "return_type": "Issue",
+            "id": "1091"
+          },
+          {
+            "arguments": [
+              "String",
+              "String",
+              "Int",
+              "Int",
+              "Boolean"
+            ],
+            "return_type": "Issue",
+            "id": "1090"
+          }
+        ]
+      },
+      "remove": [
+        "extract",
+        "checkMerkleProof"
+      ]
+    },
+    {
+      "new": {
+        "isDataStorageUntouched": [
+          {
+            "arguments": [
+              "Address|Alias"
+            ],
+            "return_type": "Boolean",
+            "id": "1054"
+          }
+        ],
+        "getInteger": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1050"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1040"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Int|Unit",
+            "id": "getInteger"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int|Unit",
+            "id": "1055"
+          }
+        ],
+        "getBoolean": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1051"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1041"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "getBoolean"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Boolean|Unit",
+            "id": "1056"
+          }
+        ],
+        "getBinary": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1052"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1042"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "getBinary"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1057"
+          }
+        ],
+        "getString": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1053"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1043"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "String|Unit",
+            "id": "getString"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "String|Unit",
+            "id": "1058"
+          }
+        ],
+        "getIntegerValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1050)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1040)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "@extrUser(getInteger)"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "@extrNative(1055)"
+          }
+        ],
+        "getBooleanValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1051)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1041)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrUser(getBoolean)"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Boolean",
+            "id": "@extrNative(1056)"
+          }
+        ],
+        "getBinaryValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1052)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1042)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrUser(getBinary)"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "@extrNative(1057)"
+          }
+        ],
+        "getStringValue": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1053)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1043)"
+          },
+          {
+            "arguments": [
+              "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "@extrUser(getString)"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "String",
+            "id": "@extrNative(1058)"
+          }
+        ],
+        "scriptHash": [
+          {
+            "arguments": [
+              "Address|Alias"
+            ],
+            "return_type": "ByteVector|Unit",
+            "id": "1009"
+          }
+        ],
+        "invoke": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String|Unit",
+              "List[Any]",
+              "List[AttachedPayment]"
+            ],
+            "return_type": "Any",
+            "id": "1020"
+          }
+        ],
+        "reentrantInvoke": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "String|Unit",
+              "List[Any]",
+              "List[AttachedPayment]"
+            ],
+            "return_type": "Any",
+            "id": "1021"
+          }
+        ],
+        "calculateLeaseId": [
+          {
+            "arguments": [
+              "Lease"
+            ],
+            "return_type": "ByteVector",
+            "id": "1081"
+          }
+        ],
+        "toBytes": [
+          {
+            "arguments": [
+              "Boolean"
+            ],
+            "return_type": "ByteVector",
+            "id": "412"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "411"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "410"
+          },
+          {
+            "arguments": [
+              "BigInt"
+            ],
+            "return_type": "ByteVector",
+            "id": "413"
+          }
+        ],
+        "parseBigInt": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "BigInt|Unit",
+            "id": "424"
+          }
+        ],
+        "parseBigIntValue": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "BigInt",
+            "id": "423"
+          }
+        ],
+        "toBigInt": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "BigInt",
+            "id": "414"
+          },
+          {
+            "arguments": [
+              "ByteVector",
+              "Int",
+              "Int"
+            ],
+            "return_type": "BigInt",
+            "id": "415"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "BigInt",
+            "id": "310"
+          }
+        ],
+        "toInt": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Int",
+            "id": "1201"
+          },
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "1202"
+          },
+          {
+            "arguments": [
+              "BigInt"
+            ],
+            "return_type": "Int",
+            "id": "416"
+          }
+        ],
+        "toString": [
+          {
+            "arguments": [
+              "Boolean"
+            ],
+            "return_type": "String",
+            "id": "421"
+          },
+          {
+            "arguments": [
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "420"
+          },
+          {
+            "arguments": [
+              "Address"
+            ],
+            "return_type": "String",
+            "id": "1061"
+          },
+          {
+            "arguments": [
+              "BigInt"
+            ],
+            "return_type": "String",
+            "id": "422"
+          }
+        ],
+        "median": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "405"
+          },
+          {
+            "arguments": [
+              "List[BigInt]"
+            ],
+            "return_type": "BigInt",
+            "id": "425"
+          }
+        ],
+        "min": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "407"
+          },
+          {
+            "arguments": [
+              "List[BigInt]"
+            ],
+            "return_type": "BigInt",
+            "id": "409"
+          }
+        ],
+        "max": [
+          {
+            "arguments": [
+              "List[Int]"
+            ],
+            "return_type": "Int",
+            "id": "406"
+          },
+          {
+            "arguments": [
+              "List[BigInt]"
+            ],
+            "return_type": "BigInt",
+            "id": "408"
+          }
+        ],
+        "pow": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "108"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "Int",
+              "BigInt",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "BigInt",
+            "id": "118"
+          }
+        ],
+        "log": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "109"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "Int",
+              "BigInt",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "BigInt",
+            "id": "119"
+          }
+        ],
+        "fraction": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "107"
+          },
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "fraction"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "BigInt",
+              "BigInt"
+            ],
+            "return_type": "BigInt",
+            "id": "316"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "BigInt",
+              "BigInt",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "317"
+          }
+        ],
+        "Lease": [
+          {
+            "arguments": [
+              "Address|Alias",
+              "Int",
+              "Int"
+            ],
+            "return_type": "Lease",
+            "id": "1093"
+          },
+          {
+            "arguments": [
+              "Address|Alias",
+              "Int"
+            ],
+            "return_type": "Lease",
+            "id": "1092"
+          }
+        ]
+      },
+      "remove": []
+    },
+    {
+      "new": {
+        "fraction": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "107"
+          },
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "110"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "BigInt",
+              "BigInt"
+            ],
+            "return_type": "BigInt",
+            "id": "316"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "BigInt",
+              "BigInt",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "317"
+          }
+        ],
+        "size": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Int",
+            "id": "200"
+          },
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "Int",
+            "id": "305"
+          },
+          {
+            "arguments": [
+              "List[Any]"
+            ],
+            "return_type": "Int",
+            "id": "400"
+          },
+          {
+            "arguments": [
+              "(Any, Any)|(Any, Any, Any)|(Any, Any, Any, Any)|(Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)|(Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any)"
+            ],
+            "return_type": "Int",
+            "id": "1350"
+          }
+        ],
+        "makeString_2C": [
+          {
+            "arguments": [
+              "List[String]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1210"
+          }
+        ],
+        "makeString_11C": [
+          {
+            "arguments": [
+              "List[String]",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1211"
+          }
+        ],
+        "sqrt": [
+          {
+            "arguments": [
+              "Int",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "Int",
+            "id": "sqrt"
+          },
+          {
+            "arguments": [
+              "BigInt",
+              "Int",
+              "Int",
+              "Ceiling|Down|Floor|HalfEven|HalfUp"
+            ],
+            "return_type": "BigInt",
+            "id": "sqrtBigInt"
+          }
+        ],
+        "split_4C": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "List[String]",
+            "id": "1212"
+          }
+        ],
+        "split_51C": [
+          {
+            "arguments": [
+              "String",
+              "String"
+            ],
+            "return_type": "List[String]",
+            "id": "1213"
+          }
+        ],
+        "takeRight": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "204"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "306"
+          }
+        ],
+        "dropRight": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "205"
+          },
+          {
+            "arguments": [
+              "String",
+              "Int"
+            ],
+            "return_type": "String",
+            "id": "307"
+          }
+        ],
+        "addressFromPublicKey": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "Address",
+            "id": "1063"
+          }
+        ]
+      },
+      "remove": []
+    }
+  ]
+}

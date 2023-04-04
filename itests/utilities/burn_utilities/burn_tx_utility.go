@@ -58,3 +58,7 @@ func BroadcastBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BurnBroadcast[T])
 }
+
+func GetVersions() []byte {
+	return utl.GetAvailableVersions(proto.BurnTransaction, testdata.BurnMaxVersion).Sum
+}
