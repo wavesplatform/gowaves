@@ -19,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 )
@@ -551,7 +550,7 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 		BlockchainHeight: stateHeight,
 		StateHeight:      stateHeight,
 		UpdatedTimestamp: updatedTimestampMillis,
-		UpdatedDate:      common.UnixMillisToTime(updatedTimestampMillis).Format(time.RFC3339Nano),
+		UpdatedDate:      time.UnixMilli(updatedTimestampMillis).UTC().Format(time.RFC3339Nano),
 	}
 	if err := trySendJson(w, out); err != nil {
 		return errors.Wrap(err, "NodeStatus")
