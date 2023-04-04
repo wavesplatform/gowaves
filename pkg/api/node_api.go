@@ -546,6 +546,7 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 	}
 	updatedTimestampMillis := int64(blockHeader.Timestamp)
 
+	// TODO: meaning of 'UpdatedDate' in scala node  differs from ours
 	out := resp{
 		BlockchainHeight: stateHeight,
 		StateHeight:      stateHeight,
