@@ -521,6 +521,9 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err, "failed to find aliases by addr")
 	}
 
+	if aliases == nil {
+		aliases = []string{} // ensure that empty array will be return instead of nil
+	}
 	if err := trySendJson(w, aliases); err != nil {
 		return errors.Wrap(err, "AliasesByAddr")
 	}
