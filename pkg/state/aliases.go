@@ -12,10 +12,10 @@ import (
 
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
-const aliasRecordSize = 1 + proto.WavesAddressSize
+const aliasRecordSize = 1 + proto.AddressIDSize
 
 type aliasRecordForStateHashes struct {
-	addr  *proto.WavesAddress
+	addr  proto.WavesAddress
 	alias []byte
 }
 
@@ -41,8 +41,8 @@ func (ar *aliasRecordForStateHashes) less(other stateComponent) bool {
 }
 
 type aliasInfo struct {
-	stolen bool
-	addr   proto.WavesAddress
+	stolen    bool
+	addressID proto.AddressID
 }
 
 type aliasRecord struct {
@@ -52,7 +52,7 @@ type aliasRecord struct {
 func (r *aliasRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, aliasRecordSize)
 	proto.PutBool(res[:1], r.info.stolen)
-	copy(res[1:1+proto.WavesAddressSize], r.info.addr[:])
+	copy(res[1:1+proto.AddressIDSize], r.info.addressID[:])
 	return res, nil
 }
 
@@ -65,7 +65,7 @@ func (r *aliasRecord) unmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	copy(r.info.addr[:], data[1:1+proto.WavesAddressSize])
+	copy(r.info.addressID[:], data[1:1+proto.AddressIDSize])
 	return nil
 }
 
@@ -76,33 +76,40 @@ type aliases struct {
 
 	disabled map[string]bool
 
+	scheme          proto.Scheme
 	calculateHashes bool
 	hasher          *stateHasher
 }
 
-func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *aliases {
+func newAliases(hs *historyStorage, scheme proto.Scheme, calcHashes bool) *aliases {
 	return &aliases{
-		db:              db,
-		dbBatch:         dbBatch,
+		db:              hs.db,
+		dbBatch:         hs.dbBatch,
 		hs:              hs,
 		disabled:        make(map[string]bool),
+		scheme:          scheme,
 		calculateHashes: calcHashes,
 		hasher:          newStateHasher(),
 	}
 }
 
-func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.BlockID) error {
+func (a *aliases) createAlias(aliasStr string, addr proto.WavesAddress, blockID proto.BlockID) error {
 	key := aliasKey{aliasStr}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
-	r := aliasRecord{*info}
+	r := aliasRecord{
+		info: aliasInfo{
+			stolen:    a.exists(aliasStr),
+			addressID: addr.ID(),
+		},
+	}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return err
 	}
 	if a.calculateHashes {
 		ar := &aliasRecordForStateHashes{
-			addr:  &info.addr,
+			addr:  addr,
 			alias: []byte(aliasStr),
 		}
 		if err := a.hasher.push(keyStr, ar, blockID); err != nil {
@@ -132,60 +139,60 @@ func (a *aliases) isDisabled(aliasStr string) (bool, error) {
 	return a.db.Has(key.bytes())
 }
 
-func (a *aliases) newestAddrByAlias(aliasStr string) (*proto.WavesAddress, error) {
+func (a *aliases) newestAddrByAlias(aliasStr string) (proto.WavesAddress, error) {
 	disabled, err := a.newestIsDisabled(aliasStr)
 	if err != nil {
-		return nil, err
+		return proto.WavesAddress{}, err
 	}
 	if disabled {
-		return nil, errAliasDisabled
+		return proto.WavesAddress{}, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
 	record, err := a.newestRecordByAlias(key.bytes())
 	if err != nil {
-		return nil, err
+		return proto.WavesAddress{}, err
 	}
-	return &record.info.addr, nil
+	return record.info.addressID.ToWavesAddress(a.scheme)
 }
 
-func (a *aliases) newestRecordByAlias(key []byte) (*aliasRecord, error) {
+func (a *aliases) newestRecordByAlias(key []byte) (aliasRecord, error) {
 	recordBytes, err := a.hs.newestTopEntryData(key)
 	if err != nil {
-		return nil, err
+		return aliasRecord{}, err
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v", err)
+		return aliasRecord{}, errors.Errorf("failed to unmarshal record: %v", err)
 	}
-	return &record, nil
+	return record, nil
 }
 
-func (a *aliases) recordByAlias(key []byte) (*aliasRecord, error) {
+func (a *aliases) recordByAlias(key []byte) (aliasRecord, error) {
 	recordBytes, err := a.hs.topEntryData(key)
 	if err != nil {
-		return nil, err
+		return aliasRecord{}, err
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v", err)
+		return aliasRecord{}, errors.Errorf("failed to unmarshal record: %v", err)
 	}
-	return &record, nil
+	return record, nil
 }
 
-func (a *aliases) addrByAlias(aliasStr string) (*proto.WavesAddress, error) {
+func (a *aliases) addrByAlias(aliasStr string) (proto.WavesAddress, error) {
 	disabled, err := a.isDisabled(aliasStr)
 	if err != nil {
-		return nil, err
+		return proto.WavesAddress{}, err
 	}
 	if disabled {
-		return nil, errAliasDisabled
+		return proto.WavesAddress{}, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
 	record, err := a.recordByAlias(key.bytes())
 	if err != nil {
-		return nil, err
+		return proto.WavesAddress{}, err
 	}
-	return &record.info.addr, nil
+	return record.info.addressID.ToWavesAddress(a.scheme)
 }
 
 func (a *aliases) disableStolenAliases() error {
@@ -272,6 +279,7 @@ func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 		}
 	}()
 
+	addrID := addr.ID()
 	aliases := []string{}
 	for iter.Next() {
 		keyBytes := iter.Key()
@@ -284,7 +292,7 @@ func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 		if err := key.unmarshal(keyBytes); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal alias key record")
 		}
-		if !record.info.stolen && record.info.addr.Equal(addr) {
+		if !record.info.stolen && record.info.addressID.Equal(addrID) {
 			aliases = append(aliases, key.alias)
 		}
 	}

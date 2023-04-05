@@ -200,14 +200,14 @@ func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction) error {
 			if err != nil {
 				return err
 			}
-			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			ta.Recipient = proto.NewRecipientFromAddress(addr)
 			actions[i] = ta
 		case *proto.LeaseScriptAction:
 			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases)
 			if err != nil {
 				return err
 			}
-			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			ta.Recipient = proto.NewRecipientFromAddress(addr)
 			actions[i] = ta
 		}
 	}
@@ -287,7 +287,7 @@ func errorForSmartAsset(msg string, asset crypto.Digest) error {
 type addlInvokeInfo struct {
 	*fallibleValidationParams
 
-	scriptAddr           *proto.WavesAddress
+	scriptAddr           proto.WavesAddress
 	scriptPK             crypto.PublicKey
 	scriptRuns           uint64
 	failedChanges        txBalanceChanges
@@ -299,7 +299,7 @@ type addlInvokeInfo struct {
 
 func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.WavesAddress, error) {
 	senderPK := info.scriptPK
-	senderAddress := *info.scriptAddr
+	senderAddress := info.scriptAddr
 	if a.SenderPK() != nil {
 		var err error
 		senderPK = *a.SenderPK()
@@ -339,7 +339,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		IsProtobufTransaction: proto.IsProtobufTx(tx),
 		MaxDataEntriesSize:    maxDataEntriesSize,
 		Scheme:                ia.settings.AddressSchemeCharacter,
-		ScriptAddress:         *info.scriptAddr,
+		ScriptAddress:         info.scriptAddr,
 	}
 	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
 	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, info.libVersion, validatePayments); err != nil {
@@ -736,7 +736,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 
 	var (
 		paymentsLength int
-		scriptAddr     *proto.WavesAddress
+		scriptAddr     proto.WavesAddress
 		txID           crypto.Digest
 		sender         proto.Address
 		tree           *ast.Tree
@@ -755,7 +755,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
 		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
@@ -771,7 +771,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			return nil, errors.Wrap(err, "recipientToAddress() failed")
 		}
 		sender = addr
-		scriptAddr = &addr
+		scriptAddr = addr
 		tree, err = serialization.Parse(transaction.Expression)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
@@ -792,7 +792,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
 		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
@@ -829,7 +829,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == *scriptAddr {
+		if sender == scriptAddr {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}
@@ -841,7 +841,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
+	r, err := ia.sc.invokeFunction(tree, tx, info, scriptAddr)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.

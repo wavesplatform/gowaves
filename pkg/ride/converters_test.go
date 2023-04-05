@@ -3201,7 +3201,7 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideAddress(sender), senderF)
 	recipientF, err := rideObj.get(recipientField)
 	assert.NoError(t, err)
-	assert.Equal(t, recipientToObject(proto.NewRecipientFromAddress(*recipient)), recipientF)
+	assert.Equal(t, recipientToObject(proto.NewRecipientFromAddress(recipient)), recipientF)
 	amount, err := rideObj.get(amountField)
 	assert.NoError(t, err)
 	assert.Equal(t, rideInt(100000), amount)

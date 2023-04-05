@@ -273,7 +273,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if err != nil {
 		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
 	}
-	recipientAddr := *address
+	recipientAddr := address
 	env.setNewDAppAddress(recipientAddr)
 
 	if invocation.blocklist() {

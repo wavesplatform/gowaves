@@ -304,7 +304,7 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
-	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithSig transaction")
+	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithSig transaction")
 
 	// Test stealing aliases.
 	err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo())
@@ -327,7 +327,7 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
-	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
+	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
 
 	// Test stealing aliases.
 	err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo())

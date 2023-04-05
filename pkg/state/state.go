@@ -77,7 +77,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
 	return &blockchainEntitiesStorage{
 		hs,
-		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
+		newAliases(hs, sets.AddressSchemeCharacter, calcHashes),
 		assets,
 		newLeases(hs, calcHashes),
 		newScores(hs),
@@ -517,7 +517,7 @@ func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
-	tree, err := s.stor.scriptsStorage.newestScriptByAddr(*addr)
+	tree, err := s.stor.scriptsStorage.newestScriptByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
@@ -529,7 +529,7 @@ func (s *stateManager) NewestScriptBytesByAccount(account proto.Recipient) (prot
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
-	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(*addr)
+	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
@@ -1555,16 +1555,16 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return score, nil
 }
 
-func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
-		return addr, nil
+		return *addr, nil
 	}
 	return s.stor.aliases.newestAddrByAlias(recipient.Alias().Alias)
 }
 
-func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (s *stateManager) recipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
-		return addr, nil
+		return *addr, nil
 	}
 	return s.stor.aliases.addrByAlias(recipient.Alias().Alias)
 }
@@ -1618,7 +1618,7 @@ func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress,
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
-	return *addr, nil
+	return addr, nil
 }
 
 func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
@@ -1626,7 +1626,7 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
-	return *addr, nil
+	return addr, nil
 }
 
 func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
@@ -2149,7 +2149,7 @@ func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	hasScript, err := s.stor.scriptsStorage.accountHasScript(*addr)
+	hasScript, err := s.stor.scriptsStorage.accountHasScript(addr)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2174,7 +2174,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*addr)
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(addr)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2183,7 +2183,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, ev)
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(addr, ev)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

@@ -355,13 +355,13 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	return changes, nil
 }
 
-func recipientToAddress(recipient proto.Recipient, aliases *aliases) (*proto.WavesAddress, error) {
+func recipientToAddress(recipient proto.Recipient, aliases *aliases) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
-		return addr, nil
+		return *addr, nil
 	}
 	addr, err := aliases.newestAddrByAlias(recipient.Alias().Alias)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid alias")
+		return proto.WavesAddress{}, errors.Wrap(err, "invalid alias")
 	}
 	return addr, nil
 }
@@ -457,7 +457,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.WavesAddress{senderAddr, *recipientAddr}
+	addrs := []proto.WavesAddress{senderAddr, recipientAddr}
 	changes := newTxBalanceChanges(addrs, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
@@ -1117,7 +1117,7 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
 		}
 	}
-	addresses := []proto.WavesAddress{senderAddr, *recipientAddr}
+	addresses := []proto.WavesAddress{senderAddr, recipientAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }
@@ -1270,7 +1270,7 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 		if err := diff.appendBalanceDiff(recipientKey, newBalanceDiff(recipientBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
-		addresses[i+1] = *recipientAddr
+		addresses[i+1] = recipientAddr
 	}
 	if info.hasMiner() {
 		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
@@ -1414,7 +1414,7 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	}
 	scriptAddrID := scriptAddr.ID()
 
-	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
@@ -1458,7 +1458,7 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 		return txBalanceChanges{}, err
 	}
 
-	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
@@ -1497,7 +1497,7 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 	scriptAddrID := scriptAddr.ID()
 
-	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 
 	for _, p := range payments {
@@ -1565,7 +1565,7 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err

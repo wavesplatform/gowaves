@@ -54,7 +54,7 @@ type SmartState interface {
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
 	NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error)
-	NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error)
+	NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)

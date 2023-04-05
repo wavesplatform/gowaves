@@ -184,19 +184,19 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	if err != nil {
 		return err
 	}
-	var recipientAddr *proto.WavesAddress
+	var recipientAddr proto.WavesAddress
 	if addr := tx.Recipient.Address(); addr == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
 			return errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
-		recipientAddr = addr
+		recipientAddr = *addr
 	}
 	// Add leasing to lease state.
 	l := &leasing{
 		Sender:         senderAddr,
-		Recipient:      *recipientAddr,
+		Recipient:      recipientAddr,
 		Amount:         tx.Amount,
 		Height:         info.height,
 		Status:         LeaseActive,
@@ -253,11 +253,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 		return err
 	}
 	// Save alias to aliases storage.
-	inf := &aliasInfo{
-		stolen: tp.stor.aliases.exists(tx.Alias.Alias),
-		addr:   senderAddr,
-	}
-	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf, info.blockID); err != nil {
+	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, senderAddr, info.blockID); err != nil {
 		return err
 	}
 	return nil
