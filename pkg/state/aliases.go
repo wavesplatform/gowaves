@@ -162,7 +162,7 @@ func (a *aliases) newestRecordByAlias(key []byte) (aliasRecord, error) {
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return aliasRecord{}, errors.Errorf("failed to unmarshal record: %v", err)
+		return aliasRecord{}, errors.Wrap(err, "failed to unmarshal record")
 	}
 	return record, nil
 }
@@ -174,7 +174,7 @@ func (a *aliases) recordByAlias(key []byte) (aliasRecord, error) {
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return aliasRecord{}, errors.Errorf("failed to unmarshal record: %v", err)
+		return aliasRecord{}, errors.Wrap(err, "failed to unmarshal record")
 	}
 	return record, nil
 }
@@ -212,7 +212,7 @@ func (a *aliases) disableStolenAliases() error {
 		recordBytes := iter.Value()
 		var record aliasRecord
 		if err := record.unmarshalBinary(recordBytes); err != nil {
-			return errors.Errorf("failed to unmarshal record: %v", err)
+			return errors.Wrap(err, "failed to unmarshal record")
 		}
 		var key aliasKey
 		if err := key.unmarshal(keyBytes); err != nil {
