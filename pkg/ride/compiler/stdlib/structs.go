@@ -121,12 +121,11 @@ func ObjectsByVersion() map[ast.LibraryVersion]ObjectsSignatures {
 
 func parseObjectFieldsTypes(rawTypes []string) Type {
 	var types []string
-	for _, rawT := range rawTypes {
-		if rawT == "rideAddressLike" {
+	for _, t := range rawTypes {
+		// AddressLike Type doesn't exist in ride, it only uses in evaluator
+		if t == "AddressLike" {
 			continue
 		}
-		t := strings.ReplaceAll(rawT, "ride", "")
-		t = strings.ReplaceAll(t, "Bytes", "ByteVector")
 		types = append(types, t)
 	}
 
@@ -171,20 +170,7 @@ func appendRemainingStructs(s *rideObjects) {
 	s.Objects = append(s.Objects, remainingObjects...)
 }
 
-// TODO: these strings also should be changed "assetID", "feeAssetID", "leaseID", "matcherFeeAssetID", "transactionID"
-func changeName(name string) string {
-	if name == "assetID" {
-		return "assetId"
-	}
-	if name == "transactionID" {
-		return "transactionId"
-	}
-	if name == "feeAssetID" {
-		return "feeAssetId"
-	}
-	return name
-}
-
+// This is need because in ride_object in some cases exist rideType(interface) in types
 func changeRideTypeFields(name string, fields []actionField) []actionField {
 	switch name {
 	case "Order":
@@ -236,9 +222,8 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			})
 			ver.Fields = changeRideTypeFields(obj.Name, ver.Fields)
 			for _, f := range ver.Fields {
-				name := changeName(f.Name)
 				resInfo.Fields = append(resInfo.Fields, ObjectField{
-					Name: name,
+					Name: f.Name,
 					Type: parseObjectFieldsTypes(f.Types),
 				})
 			}

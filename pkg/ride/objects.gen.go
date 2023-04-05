@@ -8,8 +8,8 @@ import (
 )
 
 type rideAssetV3 struct {
-	issuePublicKey rideBytes
-	id             rideBytes
+	issuePublicKey rideByteVector
+	id             rideByteVector
 	quantity       rideInt
 	decimals       rideInt
 	issuer         rideAddress
@@ -18,7 +18,7 @@ type rideAssetV3 struct {
 	reissuable     rideBoolean
 }
 
-func newRideAssetV3(issuePublicKey rideBytes, id rideBytes, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAssetV3 {
+func newRideAssetV3(issuePublicKey rideByteVector, id rideByteVector, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAssetV3 {
 	return rideAssetV3{
 		issuePublicKey: issuePublicKey,
 		id:             id,
@@ -117,8 +117,8 @@ func (o rideAssetV3) String() string {
 type rideAssetV4 struct {
 	description     rideString
 	name            rideString
-	issuePublicKey  rideBytes
-	id              rideBytes
+	issuePublicKey  rideByteVector
+	id              rideByteVector
 	minSponsoredFee rideType
 	decimals        rideInt
 	quantity        rideInt
@@ -127,7 +127,7 @@ type rideAssetV4 struct {
 	scripted        rideBoolean
 }
 
-func newRideAssetV4(description rideString, name rideString, issuePublicKey rideBytes, id rideBytes, minSponsoredFee rideType, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean) rideAssetV4 {
+func newRideAssetV4(description rideString, name rideString, issuePublicKey rideByteVector, id rideByteVector, minSponsoredFee rideType, decimals rideInt, quantity rideInt, issuer rideAddress, reissuable rideBoolean, scripted rideBoolean) rideAssetV4 {
 	return rideAssetV4{
 		description:     description,
 		name:            name,
@@ -297,13 +297,13 @@ func (o rideAssetPair) String() string {
 }
 
 type rideAttachedPayment struct {
-	assetID rideType
+	assetId rideType
 	amount  rideInt
 }
 
-func newRideAttachedPayment(assetID rideType, amount rideInt) rideAttachedPayment {
+func newRideAttachedPayment(assetId rideType, amount rideInt) rideAttachedPayment {
 	return rideAttachedPayment{
-		assetID: assetID,
+		assetId: assetId,
 		amount:  amount,
 	}
 }
@@ -314,7 +314,7 @@ func (o rideAttachedPayment) instanceOf() string {
 
 func (o rideAttachedPayment) eq(other rideType) bool {
 	if oo, ok := other.(rideAttachedPayment); ok {
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.amount.eq(oo.amount) {
@@ -329,8 +329,8 @@ func (o rideAttachedPayment) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(attachedPaymentTypeName), nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case amountField:
 		return o.amount, nil
 	default:
@@ -339,13 +339,13 @@ func (o rideAttachedPayment) get(prop string) (rideType, error) {
 }
 
 func (o rideAttachedPayment) copy() rideType {
-	return newRideAttachedPayment(o.assetID, o.amount)
+	return newRideAttachedPayment(o.assetId, o.amount)
 }
 
 func (o rideAttachedPayment) lines() []string {
 	r := make([]string, 0, 4)
 	r = append(r, attachedPaymentTypeName+"(")
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, ")")
 	return r
@@ -432,10 +432,10 @@ func (o rideBalanceDetails) String() string {
 
 type rideBinaryEntry struct {
 	key   rideString
-	value rideBytes
+	value rideByteVector
 }
 
-func newRideBinaryEntry(key rideString, value rideBytes) rideBinaryEntry {
+func newRideBinaryEntry(key rideString, value rideByteVector) rideBinaryEntry {
 	return rideBinaryEntry{
 		key:   key,
 		value: value,
@@ -490,15 +490,15 @@ func (o rideBinaryEntry) String() string {
 }
 
 type rideBlockInfoV3 struct {
-	generationSignature rideBytes
-	generatorPublicKey  rideBytes
+	generationSignature rideByteVector
+	generatorPublicKey  rideByteVector
 	baseTarget          rideInt
 	timestamp           rideInt
 	height              rideInt
 	generator           rideAddress
 }
 
-func newRideBlockInfoV3(generationSignature rideBytes, generatorPublicKey rideBytes, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV3 {
+func newRideBlockInfoV3(generationSignature rideByteVector, generatorPublicKey rideByteVector, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV3 {
 	return rideBlockInfoV3{
 		generationSignature: generationSignature,
 		generatorPublicKey:  generatorPublicKey,
@@ -582,15 +582,15 @@ func (o rideBlockInfoV3) String() string {
 
 type rideBlockInfoV4 struct {
 	vrf                 rideType
-	generationSignature rideBytes
-	generatorPublicKey  rideBytes
+	generationSignature rideByteVector
+	generatorPublicKey  rideByteVector
 	baseTarget          rideInt
 	timestamp           rideInt
 	height              rideInt
 	generator           rideAddress
 }
 
-func newRideBlockInfoV4(vrf rideType, generationSignature rideBytes, generatorPublicKey rideBytes, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV4 {
+func newRideBlockInfoV4(vrf rideType, generationSignature rideByteVector, generatorPublicKey rideByteVector, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress) rideBlockInfoV4 {
 	return rideBlockInfoV4{
 		vrf:                 vrf,
 		generationSignature: generationSignature,
@@ -739,13 +739,13 @@ func (o rideBooleanEntry) String() string {
 }
 
 type rideBurn struct {
-	assetID  rideBytes
+	assetId  rideByteVector
 	quantity rideInt
 }
 
-func newRideBurn(assetID rideBytes, quantity rideInt) rideBurn {
+func newRideBurn(assetId rideByteVector, quantity rideInt) rideBurn {
 	return rideBurn{
-		assetID:  assetID,
+		assetId:  assetId,
 		quantity: quantity,
 	}
 }
@@ -756,7 +756,7 @@ func (o rideBurn) instanceOf() string {
 
 func (o rideBurn) eq(other rideType) bool {
 	if oo, ok := other.(rideBurn); ok {
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.quantity.eq(oo.quantity) {
@@ -771,8 +771,8 @@ func (o rideBurn) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(burnTypeName), nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case quantityField:
 		return o.quantity, nil
 	default:
@@ -781,13 +781,13 @@ func (o rideBurn) get(prop string) (rideType, error) {
 }
 
 func (o rideBurn) copy() rideType {
-	return newRideBurn(o.assetID, o.quantity)
+	return newRideBurn(o.assetId, o.quantity)
 }
 
 func (o rideBurn) lines() []string {
 	r := make([]string, 0, 4)
 	r = append(r, burnTypeName+"(")
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, ")")
 	return r
@@ -968,19 +968,19 @@ func (o rideIntegerEntry) String() string {
 
 type rideInvocationV3 struct {
 	payment         rideType
-	callerPublicKey rideBytes
-	feeAssetID      rideType
-	transactionID   rideBytes
+	callerPublicKey rideByteVector
+	feeAssetId      rideType
+	transactionId   rideByteVector
 	caller          rideAddress
 	fee             rideInt
 }
 
-func newRideInvocationV3(payment rideType, callerPublicKey rideBytes, feeAssetID rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV3 {
+func newRideInvocationV3(payment rideType, callerPublicKey rideByteVector, feeAssetId rideType, transactionId rideByteVector, caller rideAddress, fee rideInt) rideInvocationV3 {
 	return rideInvocationV3{
 		payment:         payment,
 		callerPublicKey: callerPublicKey,
-		feeAssetID:      feeAssetID,
-		transactionID:   transactionID,
+		feeAssetId:      feeAssetId,
+		transactionId:   transactionId,
 		caller:          caller,
 		fee:             fee,
 	}
@@ -998,10 +998,10 @@ func (o rideInvocationV3) eq(other rideType) bool {
 		if !o.callerPublicKey.eq(oo.callerPublicKey) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
-		if !o.transactionID.eq(oo.transactionID) {
+		if !o.transactionId.eq(oo.transactionId) {
 			return false
 		}
 		if !o.caller.eq(oo.caller) {
@@ -1023,10 +1023,10 @@ func (o rideInvocationV3) get(prop string) (rideType, error) {
 		return o.payment, nil
 	case callerPublicKeyField:
 		return o.callerPublicKey, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
-	case transactionIDField:
-		return o.transactionID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
+	case transactionIdField:
+		return o.transactionId, nil
 	case callerField:
 		return o.caller, nil
 	case feeField:
@@ -1037,7 +1037,7 @@ func (o rideInvocationV3) get(prop string) (rideType, error) {
 }
 
 func (o rideInvocationV3) copy() rideType {
-	return newRideInvocationV3(o.payment, o.callerPublicKey, o.feeAssetID, o.transactionID, o.caller, o.fee)
+	return newRideInvocationV3(o.payment, o.callerPublicKey, o.feeAssetId, o.transactionId, o.caller, o.fee)
 }
 
 func (o rideInvocationV3) lines() []string {
@@ -1045,8 +1045,8 @@ func (o rideInvocationV3) lines() []string {
 	r = append(r, invocationTypeName+"(")
 	r = append(r, fieldLines(paymentField, o.payment.lines())...)
 	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
-	r = append(r, fieldLines(transactionIDField, o.transactionID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
+	r = append(r, fieldLines(transactionIdField, o.transactionId.lines())...)
 	r = append(r, fieldLines(callerField, o.caller.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
 	r = append(r, ")")
@@ -1059,19 +1059,19 @@ func (o rideInvocationV3) String() string {
 
 type rideInvocationV4 struct {
 	payments        rideList
-	callerPublicKey rideBytes
-	feeAssetID      rideType
-	transactionID   rideBytes
+	callerPublicKey rideByteVector
+	feeAssetId      rideType
+	transactionId   rideByteVector
 	caller          rideAddress
 	fee             rideInt
 }
 
-func newRideInvocationV4(payments rideList, callerPublicKey rideBytes, feeAssetID rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV4 {
+func newRideInvocationV4(payments rideList, callerPublicKey rideByteVector, feeAssetId rideType, transactionId rideByteVector, caller rideAddress, fee rideInt) rideInvocationV4 {
 	return rideInvocationV4{
 		payments:        payments,
 		callerPublicKey: callerPublicKey,
-		feeAssetID:      feeAssetID,
-		transactionID:   transactionID,
+		feeAssetId:      feeAssetId,
+		transactionId:   transactionId,
 		caller:          caller,
 		fee:             fee,
 	}
@@ -1089,10 +1089,10 @@ func (o rideInvocationV4) eq(other rideType) bool {
 		if !o.callerPublicKey.eq(oo.callerPublicKey) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
-		if !o.transactionID.eq(oo.transactionID) {
+		if !o.transactionId.eq(oo.transactionId) {
 			return false
 		}
 		if !o.caller.eq(oo.caller) {
@@ -1114,10 +1114,10 @@ func (o rideInvocationV4) get(prop string) (rideType, error) {
 		return o.payments, nil
 	case callerPublicKeyField:
 		return o.callerPublicKey, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
-	case transactionIDField:
-		return o.transactionID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
+	case transactionIdField:
+		return o.transactionId, nil
 	case callerField:
 		return o.caller, nil
 	case feeField:
@@ -1128,7 +1128,7 @@ func (o rideInvocationV4) get(prop string) (rideType, error) {
 }
 
 func (o rideInvocationV4) copy() rideType {
-	return newRideInvocationV4(o.payments, o.callerPublicKey, o.feeAssetID, o.transactionID, o.caller, o.fee)
+	return newRideInvocationV4(o.payments, o.callerPublicKey, o.feeAssetId, o.transactionId, o.caller, o.fee)
 }
 
 func (o rideInvocationV4) lines() []string {
@@ -1136,8 +1136,8 @@ func (o rideInvocationV4) lines() []string {
 	r = append(r, invocationTypeName+"(")
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
 	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
-	r = append(r, fieldLines(transactionIDField, o.transactionID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
+	r = append(r, fieldLines(transactionIdField, o.transactionId.lines())...)
 	r = append(r, fieldLines(callerField, o.caller.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
 	r = append(r, ")")
@@ -1151,22 +1151,22 @@ func (o rideInvocationV4) String() string {
 type rideInvocationV5 struct {
 	originCaller          rideAddress
 	payments              rideList
-	callerPublicKey       rideBytes
-	feeAssetID            rideType
+	callerPublicKey       rideByteVector
+	feeAssetId            rideType
 	originCallerPublicKey rideType
-	transactionID         rideBytes
+	transactionId         rideByteVector
 	caller                rideAddress
 	fee                   rideInt
 }
 
-func newRideInvocationV5(originCaller rideAddress, payments rideList, callerPublicKey rideBytes, feeAssetID rideType, originCallerPublicKey rideType, transactionID rideBytes, caller rideAddress, fee rideInt) rideInvocationV5 {
+func newRideInvocationV5(originCaller rideAddress, payments rideList, callerPublicKey rideByteVector, feeAssetId rideType, originCallerPublicKey rideType, transactionId rideByteVector, caller rideAddress, fee rideInt) rideInvocationV5 {
 	return rideInvocationV5{
 		originCaller:          originCaller,
 		payments:              payments,
 		callerPublicKey:       callerPublicKey,
-		feeAssetID:            feeAssetID,
+		feeAssetId:            feeAssetId,
 		originCallerPublicKey: originCallerPublicKey,
-		transactionID:         transactionID,
+		transactionId:         transactionId,
 		caller:                caller,
 		fee:                   fee,
 	}
@@ -1187,13 +1187,13 @@ func (o rideInvocationV5) eq(other rideType) bool {
 		if !o.callerPublicKey.eq(oo.callerPublicKey) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
 		if !o.originCallerPublicKey.eq(oo.originCallerPublicKey) {
 			return false
 		}
-		if !o.transactionID.eq(oo.transactionID) {
+		if !o.transactionId.eq(oo.transactionId) {
 			return false
 		}
 		if !o.caller.eq(oo.caller) {
@@ -1217,12 +1217,12 @@ func (o rideInvocationV5) get(prop string) (rideType, error) {
 		return o.payments, nil
 	case callerPublicKeyField:
 		return o.callerPublicKey, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
 	case originCallerPublicKeyField:
 		return o.originCallerPublicKey, nil
-	case transactionIDField:
-		return o.transactionID, nil
+	case transactionIdField:
+		return o.transactionId, nil
 	case callerField:
 		return o.caller, nil
 	case feeField:
@@ -1233,7 +1233,7 @@ func (o rideInvocationV5) get(prop string) (rideType, error) {
 }
 
 func (o rideInvocationV5) copy() rideType {
-	return newRideInvocationV5(o.originCaller, o.payments, o.callerPublicKey, o.feeAssetID, o.originCallerPublicKey, o.transactionID, o.caller, o.fee)
+	return newRideInvocationV5(o.originCaller, o.payments, o.callerPublicKey, o.feeAssetId, o.originCallerPublicKey, o.transactionId, o.caller, o.fee)
 }
 
 func (o rideInvocationV5) lines() []string {
@@ -1242,9 +1242,9 @@ func (o rideInvocationV5) lines() []string {
 	r = append(r, fieldLines(originCallerField, o.originCaller.lines())...)
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
 	r = append(r, fieldLines(callerPublicKeyField, o.callerPublicKey.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
 	r = append(r, fieldLines(originCallerPublicKeyField, o.originCallerPublicKey.lines())...)
-	r = append(r, fieldLines(transactionIDField, o.transactionID.lines())...)
+	r = append(r, fieldLines(transactionIdField, o.transactionId.lines())...)
 	r = append(r, fieldLines(callerField, o.caller.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
 	r = append(r, ")")
@@ -1355,12 +1355,12 @@ func (o rideIssue) String() string {
 }
 
 type rideLeaseCancel struct {
-	leaseID rideBytes
+	leaseId rideByteVector
 }
 
-func newRideLeaseCancel(leaseID rideBytes) rideLeaseCancel {
+func newRideLeaseCancel(leaseId rideByteVector) rideLeaseCancel {
 	return rideLeaseCancel{
-		leaseID: leaseID,
+		leaseId: leaseId,
 	}
 }
 
@@ -1370,7 +1370,7 @@ func (o rideLeaseCancel) instanceOf() string {
 
 func (o rideLeaseCancel) eq(other rideType) bool {
 	if oo, ok := other.(rideLeaseCancel); ok {
-		if !o.leaseID.eq(oo.leaseID) {
+		if !o.leaseId.eq(oo.leaseId) {
 			return false
 		}
 		return true
@@ -1382,21 +1382,21 @@ func (o rideLeaseCancel) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(leaseCancelTypeName), nil
-	case leaseIDField:
-		return o.leaseID, nil
+	case leaseIdField:
+		return o.leaseId, nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
 	}
 }
 
 func (o rideLeaseCancel) copy() rideType {
-	return newRideLeaseCancel(o.leaseID)
+	return newRideLeaseCancel(o.leaseId)
 }
 
 func (o rideLeaseCancel) lines() []string {
 	r := make([]string, 0, 3)
 	r = append(r, leaseCancelTypeName+"(")
-	r = append(r, fieldLines(leaseIDField, o.leaseID.lines())...)
+	r = append(r, fieldLines(leaseIdField, o.leaseId.lines())...)
 	r = append(r, ")")
 	return r
 }
@@ -1475,12 +1475,12 @@ func (o rideLease) String() string {
 type rideOrder struct {
 	assetPair         rideType
 	orderType         rideType
-	matcherFeeAssetID rideType
+	matcherFeeAssetId rideType
 	proofs            rideList
-	bodyBytes         rideBytes
-	id                rideBytes
-	senderPublicKey   rideBytes
-	matcherPublicKey  rideBytes
+	bodyBytes         rideByteVector
+	id                rideByteVector
+	senderPublicKey   rideByteVector
+	matcherPublicKey  rideByteVector
 	amount            rideInt
 	timestamp         rideInt
 	expiration        rideInt
@@ -1489,11 +1489,11 @@ type rideOrder struct {
 	sender            rideAddress
 }
 
-func newRideOrder(assetPair rideType, orderType rideType, matcherFeeAssetID rideType, proofs rideList, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, matcherPublicKey rideBytes, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrder {
+func newRideOrder(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrder {
 	return rideOrder{
 		assetPair:         assetPair,
 		orderType:         orderType,
-		matcherFeeAssetID: matcherFeeAssetID,
+		matcherFeeAssetId: matcherFeeAssetId,
 		proofs:            proofs,
 		bodyBytes:         bodyBytes,
 		id:                id,
@@ -1520,7 +1520,7 @@ func (o rideOrder) eq(other rideType) bool {
 		if !o.orderType.eq(oo.orderType) {
 			return false
 		}
-		if !o.matcherFeeAssetID.eq(oo.matcherFeeAssetID) {
+		if !o.matcherFeeAssetId.eq(oo.matcherFeeAssetId) {
 			return false
 		}
 		if !o.proofs.eq(oo.proofs) {
@@ -1569,8 +1569,8 @@ func (o rideOrder) get(prop string) (rideType, error) {
 		return o.assetPair, nil
 	case orderTypeField:
 		return o.orderType, nil
-	case matcherFeeAssetIDField:
-		return o.matcherFeeAssetID, nil
+	case matcherFeeAssetIdField:
+		return o.matcherFeeAssetId, nil
 	case proofsField:
 		return o.proofs, nil
 	case bodyBytesField:
@@ -1599,7 +1599,7 @@ func (o rideOrder) get(prop string) (rideType, error) {
 }
 
 func (o rideOrder) copy() rideType {
-	return newRideOrder(o.assetPair, o.orderType, o.matcherFeeAssetID, o.proofs, o.bodyBytes, o.id, o.senderPublicKey, o.matcherPublicKey, o.amount, o.timestamp, o.expiration, o.matcherFee, o.price, o.sender)
+	return newRideOrder(o.assetPair, o.orderType, o.matcherFeeAssetId, o.proofs, o.bodyBytes, o.id, o.senderPublicKey, o.matcherPublicKey, o.amount, o.timestamp, o.expiration, o.matcherFee, o.price, o.sender)
 }
 
 func (o rideOrder) lines() []string {
@@ -1609,7 +1609,7 @@ func (o rideOrder) lines() []string {
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
-	r = append(r, fieldLines(matcherFeeAssetIDField, o.matcherFeeAssetID.lines())...)
+	r = append(r, fieldLines(matcherFeeAssetIdField, o.matcherFeeAssetId.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
 	r = append(r, fieldLines(matcherPublicKeyField, o.matcherPublicKey.lines())...)
@@ -1637,14 +1637,14 @@ func (o rideOrder) getProofs() rideList {
 }
 
 type rideReissue struct {
-	assetID      rideBytes
+	assetId      rideByteVector
 	quantity     rideInt
 	isReissuable rideBoolean
 }
 
-func newRideReissue(assetID rideBytes, quantity rideInt, isReissuable rideBoolean) rideReissue {
+func newRideReissue(assetId rideByteVector, quantity rideInt, isReissuable rideBoolean) rideReissue {
 	return rideReissue{
-		assetID:      assetID,
+		assetId:      assetId,
 		quantity:     quantity,
 		isReissuable: isReissuable,
 	}
@@ -1656,7 +1656,7 @@ func (o rideReissue) instanceOf() string {
 
 func (o rideReissue) eq(other rideType) bool {
 	if oo, ok := other.(rideReissue); ok {
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.quantity.eq(oo.quantity) {
@@ -1674,8 +1674,8 @@ func (o rideReissue) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(reissueTypeName), nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case quantityField:
 		return o.quantity, nil
 	case isReissuableField:
@@ -1686,13 +1686,13 @@ func (o rideReissue) get(prop string) (rideType, error) {
 }
 
 func (o rideReissue) copy() rideType {
-	return newRideReissue(o.assetID, o.quantity, o.isReissuable)
+	return newRideReissue(o.assetId, o.quantity, o.isReissuable)
 }
 
 func (o rideReissue) lines() []string {
 	r := make([]string, 0, 5)
 	r = append(r, reissueTypeName+"(")
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(isReissuableField, o.isReissuable.lines())...)
 	r = append(r, ")")
@@ -1830,13 +1830,13 @@ func (o rideScriptTransfer) String() string {
 }
 
 type rideSponsorFee struct {
-	assetID              rideBytes
+	assetId              rideByteVector
 	minSponsoredAssetFee rideInt
 }
 
-func newRideSponsorFee(assetID rideBytes, minSponsoredAssetFee rideInt) rideSponsorFee {
+func newRideSponsorFee(assetId rideByteVector, minSponsoredAssetFee rideInt) rideSponsorFee {
 	return rideSponsorFee{
-		assetID:              assetID,
+		assetId:              assetId,
 		minSponsoredAssetFee: minSponsoredAssetFee,
 	}
 }
@@ -1847,7 +1847,7 @@ func (o rideSponsorFee) instanceOf() string {
 
 func (o rideSponsorFee) eq(other rideType) bool {
 	if oo, ok := other.(rideSponsorFee); ok {
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.minSponsoredAssetFee.eq(oo.minSponsoredAssetFee) {
@@ -1862,8 +1862,8 @@ func (o rideSponsorFee) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(sponsorFeeTypeName), nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case minSponsoredAssetFeeField:
 		return o.minSponsoredAssetFee, nil
 	default:
@@ -1872,13 +1872,13 @@ func (o rideSponsorFee) get(prop string) (rideType, error) {
 }
 
 func (o rideSponsorFee) copy() rideType {
-	return newRideSponsorFee(o.assetID, o.minSponsoredAssetFee)
+	return newRideSponsorFee(o.assetId, o.minSponsoredAssetFee)
 }
 
 func (o rideSponsorFee) lines() []string {
 	r := make([]string, 0, 4)
 	r = append(r, sponsorFeeTypeName+"(")
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(minSponsoredAssetFeeField, o.minSponsoredAssetFee.lines())...)
 	r = append(r, ")")
 	return r
@@ -2109,11 +2109,11 @@ func (o rideWriteSet) String() string {
 }
 
 type rideBurnTransaction struct {
-	bodyBytes       rideBytes
+	bodyBytes       rideByteVector
 	proofs          rideList
-	senderPublicKey rideBytes
-	assetID         rideBytes
-	id              rideBytes
+	senderPublicKey rideByteVector
+	assetId         rideByteVector
+	id              rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	quantity        rideInt
@@ -2121,12 +2121,12 @@ type rideBurnTransaction struct {
 	sender          rideAddress
 }
 
-func newRideBurnTransaction(bodyBytes rideBytes, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
+func newRideBurnTransaction(bodyBytes rideByteVector, proofs rideList, senderPublicKey rideByteVector, assetId rideByteVector, id rideByteVector, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress) rideBurnTransaction {
 	return rideBurnTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
 		senderPublicKey: senderPublicKey,
-		assetID:         assetID,
+		assetId:         assetId,
 		id:              id,
 		timestamp:       timestamp,
 		version:         version,
@@ -2151,7 +2151,7 @@ func (o rideBurnTransaction) eq(other rideType) bool {
 		if !o.senderPublicKey.eq(oo.senderPublicKey) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.id.eq(oo.id) {
@@ -2187,8 +2187,8 @@ func (o rideBurnTransaction) get(prop string) (rideType, error) {
 		return o.proofs, nil
 	case senderPublicKeyField:
 		return o.senderPublicKey, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case idField:
 		return o.id, nil
 	case timestampField:
@@ -2207,7 +2207,7 @@ func (o rideBurnTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideBurnTransaction) copy() rideType {
-	return newRideBurnTransaction(o.bodyBytes, o.proofs, o.senderPublicKey, o.assetID, o.id, o.timestamp, o.version, o.quantity, o.fee, o.sender)
+	return newRideBurnTransaction(o.bodyBytes, o.proofs, o.senderPublicKey, o.assetId, o.id, o.timestamp, o.version, o.quantity, o.fee, o.sender)
 }
 
 func (o rideBurnTransaction) lines() []string {
@@ -2216,7 +2216,7 @@ func (o rideBurnTransaction) lines() []string {
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
@@ -2243,16 +2243,16 @@ func (o rideBurnTransaction) getProofs() rideList {
 type rideCreateAliasTransaction struct {
 	proofs          rideList
 	alias           rideString
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	fee             rideInt
 	version         rideInt
 	sender          rideAddress
 }
 
-func newRideCreateAliasTransaction(proofs rideList, alias rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideCreateAliasTransaction {
+func newRideCreateAliasTransaction(proofs rideList, alias rideString, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideCreateAliasTransaction {
 	return rideCreateAliasTransaction{
 		proofs:          proofs,
 		alias:           alias,
@@ -2366,9 +2366,9 @@ func (o rideCreateAliasTransaction) getProofs() rideList {
 
 type rideDataTransaction struct {
 	proofs          rideList
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	data            rideList
 	timestamp       rideInt
 	version         rideInt
@@ -2376,7 +2376,7 @@ type rideDataTransaction struct {
 	sender          rideAddress
 }
 
-func newRideDataTransaction(proofs rideList, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, data rideList, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideDataTransaction {
+func newRideDataTransaction(proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, data rideList, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideDataTransaction {
 	return rideDataTransaction{
 		proofs:          proofs,
 		bodyBytes:       bodyBytes,
@@ -2492,9 +2492,9 @@ type rideExchangeTransaction struct {
 	proofs          rideList
 	buyOrder        rideType
 	sellOrder       rideType
-	id              rideBytes
-	bodyBytes       rideBytes
-	senderPublicKey rideBytes
+	id              rideByteVector
+	bodyBytes       rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	price           rideInt
 	amount          rideInt
@@ -2505,7 +2505,7 @@ type rideExchangeTransaction struct {
 	sender          rideAddress
 }
 
-func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder rideType, id rideBytes, bodyBytes rideBytes, senderPublicKey rideBytes, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
+func newRideExchangeTransaction(proofs rideList, buyOrder rideType, sellOrder rideType, id rideByteVector, bodyBytes rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, price rideInt, amount rideInt, version rideInt, buyMatcherFee rideInt, fee rideInt, sellMatcherFee rideInt, sender rideAddress) rideExchangeTransaction {
 	return rideExchangeTransaction{
 		proofs:          proofs,
 		buyOrder:        buyOrder,
@@ -2654,14 +2654,14 @@ func (o rideExchangeTransaction) getProofs() rideList {
 
 type rideGenesisTransaction struct {
 	recipient rideType
-	id        rideBytes
+	id        rideByteVector
 	timestamp rideInt
 	amount    rideInt
 	version   rideInt
 	fee       rideInt
 }
 
-func newRideGenesisTransaction(recipient rideType, id rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt) rideGenesisTransaction {
+func newRideGenesisTransaction(recipient rideType, id rideByteVector, timestamp rideInt, amount rideInt, version rideInt, fee rideInt) rideGenesisTransaction {
 	return rideGenesisTransaction{
 		recipient: recipient,
 		id:        id,
@@ -2745,21 +2745,21 @@ func (o rideGenesisTransaction) String() string {
 
 type rideInvokeExpressionTransaction struct {
 	proofs          rideList
-	feeAssetID      rideType
-	bodyBytes       rideBytes
-	id              rideBytes
-	expression      rideBytes
-	senderPublicKey rideBytes
+	feeAssetId      rideType
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	expression      rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
 	sender          rideAddress
 }
 
-func newRideInvokeExpressionTransaction(proofs rideList, feeAssetID rideType, bodyBytes rideBytes, id rideBytes, expression rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideInvokeExpressionTransaction {
+func newRideInvokeExpressionTransaction(proofs rideList, feeAssetId rideType, bodyBytes rideByteVector, id rideByteVector, expression rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideInvokeExpressionTransaction {
 	return rideInvokeExpressionTransaction{
 		proofs:          proofs,
-		feeAssetID:      feeAssetID,
+		feeAssetId:      feeAssetId,
 		bodyBytes:       bodyBytes,
 		id:              id,
 		expression:      expression,
@@ -2780,7 +2780,7 @@ func (o rideInvokeExpressionTransaction) eq(other rideType) bool {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
 		if !o.bodyBytes.eq(oo.bodyBytes) {
@@ -2818,8 +2818,8 @@ func (o rideInvokeExpressionTransaction) get(prop string) (rideType, error) {
 		return rideString(invokeExpressionTransactionTypeName), nil
 	case proofsField:
 		return o.proofs, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
 	case idField:
@@ -2842,7 +2842,7 @@ func (o rideInvokeExpressionTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideInvokeExpressionTransaction) copy() rideType {
-	return newRideInvokeExpressionTransaction(o.proofs, o.feeAssetID, o.bodyBytes, o.id, o.expression, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
+	return newRideInvokeExpressionTransaction(o.proofs, o.feeAssetId, o.bodyBytes, o.id, o.expression, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
 }
 
 func (o rideInvokeExpressionTransaction) lines() []string {
@@ -2850,7 +2850,7 @@ func (o rideInvokeExpressionTransaction) lines() []string {
 	r = append(r, invokeExpressionTransactionTypeName+"(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(expressionField, o.expression.lines())...)
@@ -2877,12 +2877,12 @@ func (o rideInvokeExpressionTransaction) getProofs() rideList {
 
 type rideInvokeScriptTransactionV3 struct {
 	proofs          rideList
-	feeAssetID      rideType
+	feeAssetId      rideType
 	dApp            rideType
 	function        rideString
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	payment         rideType
 	args            rideList
 	timestamp       rideInt
@@ -2891,10 +2891,10 @@ type rideInvokeScriptTransactionV3 struct {
 	sender          rideAddress
 }
 
-func newRideInvokeScriptTransactionV3(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payment rideType, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV3 {
+func newRideInvokeScriptTransactionV3(proofs rideList, feeAssetId rideType, dApp rideType, function rideString, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, payment rideType, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV3 {
 	return rideInvokeScriptTransactionV3{
 		proofs:          proofs,
-		feeAssetID:      feeAssetID,
+		feeAssetId:      feeAssetId,
 		dApp:            dApp,
 		function:        function,
 		bodyBytes:       bodyBytes,
@@ -2918,7 +2918,7 @@ func (o rideInvokeScriptTransactionV3) eq(other rideType) bool {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
 		if !o.dApp.eq(oo.dApp) {
@@ -2965,8 +2965,8 @@ func (o rideInvokeScriptTransactionV3) get(prop string) (rideType, error) {
 		return rideString(invokeScriptTransactionTypeName), nil
 	case proofsField:
 		return o.proofs, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
 	case dAppField:
 		return o.dApp, nil
 	case functionField:
@@ -2995,7 +2995,7 @@ func (o rideInvokeScriptTransactionV3) get(prop string) (rideType, error) {
 }
 
 func (o rideInvokeScriptTransactionV3) copy() rideType {
-	return newRideInvokeScriptTransactionV3(o.proofs, o.feeAssetID, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payment, o.args, o.timestamp, o.fee, o.version, o.sender)
+	return newRideInvokeScriptTransactionV3(o.proofs, o.feeAssetId, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payment, o.args, o.timestamp, o.fee, o.version, o.sender)
 }
 
 func (o rideInvokeScriptTransactionV3) lines() []string {
@@ -3004,7 +3004,7 @@ func (o rideInvokeScriptTransactionV3) lines() []string {
 	r = append(r, fieldLines(paymentField, o.payment.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(proofsField, o.proofs.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
@@ -3033,12 +3033,12 @@ func (o rideInvokeScriptTransactionV3) getProofs() rideList {
 
 type rideInvokeScriptTransactionV4 struct {
 	proofs          rideList
-	feeAssetID      rideType
+	feeAssetId      rideType
 	dApp            rideType
 	function        rideString
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	payments        rideList
 	args            rideList
 	timestamp       rideInt
@@ -3047,10 +3047,10 @@ type rideInvokeScriptTransactionV4 struct {
 	sender          rideAddress
 }
 
-func newRideInvokeScriptTransactionV4(proofs rideList, feeAssetID rideType, dApp rideType, function rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV4 {
+func newRideInvokeScriptTransactionV4(proofs rideList, feeAssetId rideType, dApp rideType, function rideString, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, payments rideList, args rideList, timestamp rideInt, fee rideInt, version rideInt, sender rideAddress) rideInvokeScriptTransactionV4 {
 	return rideInvokeScriptTransactionV4{
 		proofs:          proofs,
-		feeAssetID:      feeAssetID,
+		feeAssetId:      feeAssetId,
 		dApp:            dApp,
 		function:        function,
 		bodyBytes:       bodyBytes,
@@ -3074,7 +3074,7 @@ func (o rideInvokeScriptTransactionV4) eq(other rideType) bool {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
 		if !o.dApp.eq(oo.dApp) {
@@ -3121,8 +3121,8 @@ func (o rideInvokeScriptTransactionV4) get(prop string) (rideType, error) {
 		return rideString(invokeScriptTransactionTypeName), nil
 	case proofsField:
 		return o.proofs, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
 	case dAppField:
 		return o.dApp, nil
 	case functionField:
@@ -3151,7 +3151,7 @@ func (o rideInvokeScriptTransactionV4) get(prop string) (rideType, error) {
 }
 
 func (o rideInvokeScriptTransactionV4) copy() rideType {
-	return newRideInvokeScriptTransactionV4(o.proofs, o.feeAssetID, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payments, o.args, o.timestamp, o.fee, o.version, o.sender)
+	return newRideInvokeScriptTransactionV4(o.proofs, o.feeAssetId, o.dApp, o.function, o.bodyBytes, o.id, o.senderPublicKey, o.payments, o.args, o.timestamp, o.fee, o.version, o.sender)
 }
 
 func (o rideInvokeScriptTransactionV4) lines() []string {
@@ -3160,7 +3160,7 @@ func (o rideInvokeScriptTransactionV4) lines() []string {
 	r = append(r, fieldLines(paymentsField, o.payments.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(proofsField, o.proofs.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
@@ -3192,9 +3192,9 @@ type rideIssueTransaction struct {
 	script          rideType
 	description     rideString
 	name            rideString
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
@@ -3204,7 +3204,7 @@ type rideIssueTransaction struct {
 	sender          rideAddress
 }
 
-func newRideIssueTransaction(proofs rideList, script rideType, description rideString, name rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, quantity rideInt, decimals rideInt, reissuable rideBoolean, sender rideAddress) rideIssueTransaction {
+func newRideIssueTransaction(proofs rideList, script rideType, description rideString, name rideString, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, quantity rideInt, decimals rideInt, reissuable rideBoolean, sender rideAddress) rideIssueTransaction {
 	return rideIssueTransaction{
 		proofs:          proofs,
 		script:          script,
@@ -3353,23 +3353,23 @@ func (o rideIssueTransaction) getProofs() rideList {
 
 type rideLeaseCancelTransaction struct {
 	proofs          rideList
-	bodyBytes       rideBytes
-	senderPublicKey rideBytes
-	id              rideBytes
-	leaseID         rideBytes
+	bodyBytes       rideByteVector
+	senderPublicKey rideByteVector
+	id              rideByteVector
+	leaseId         rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
 	sender          rideAddress
 }
 
-func newRideLeaseCancelTransaction(proofs rideList, bodyBytes rideBytes, senderPublicKey rideBytes, id rideBytes, leaseID rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseCancelTransaction {
+func newRideLeaseCancelTransaction(proofs rideList, bodyBytes rideByteVector, senderPublicKey rideByteVector, id rideByteVector, leaseId rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseCancelTransaction {
 	return rideLeaseCancelTransaction{
 		proofs:          proofs,
 		bodyBytes:       bodyBytes,
 		senderPublicKey: senderPublicKey,
 		id:              id,
-		leaseID:         leaseID,
+		leaseId:         leaseId,
 		timestamp:       timestamp,
 		version:         version,
 		fee:             fee,
@@ -3395,7 +3395,7 @@ func (o rideLeaseCancelTransaction) eq(other rideType) bool {
 		if !o.id.eq(oo.id) {
 			return false
 		}
-		if !o.leaseID.eq(oo.leaseID) {
+		if !o.leaseId.eq(oo.leaseId) {
 			return false
 		}
 		if !o.timestamp.eq(oo.timestamp) {
@@ -3427,8 +3427,8 @@ func (o rideLeaseCancelTransaction) get(prop string) (rideType, error) {
 		return o.senderPublicKey, nil
 	case idField:
 		return o.id, nil
-	case leaseIDField:
-		return o.leaseID, nil
+	case leaseIdField:
+		return o.leaseId, nil
 	case timestampField:
 		return o.timestamp, nil
 	case versionField:
@@ -3443,7 +3443,7 @@ func (o rideLeaseCancelTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideLeaseCancelTransaction) copy() rideType {
-	return newRideLeaseCancelTransaction(o.proofs, o.bodyBytes, o.senderPublicKey, o.id, o.leaseID, o.timestamp, o.version, o.fee, o.sender)
+	return newRideLeaseCancelTransaction(o.proofs, o.bodyBytes, o.senderPublicKey, o.id, o.leaseId, o.timestamp, o.version, o.fee, o.sender)
 }
 
 func (o rideLeaseCancelTransaction) lines() []string {
@@ -3454,7 +3454,7 @@ func (o rideLeaseCancelTransaction) lines() []string {
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
-	r = append(r, fieldLines(leaseIDField, o.leaseID.lines())...)
+	r = append(r, fieldLines(leaseIdField, o.leaseId.lines())...)
 	r = append(r, fieldLines(senderField, o.sender.lines())...)
 	r = append(r, fieldLines(proofsField, o.proofs.lines())...)
 	r = append(r, fieldLines(feeField, o.fee.lines())...)
@@ -3478,9 +3478,9 @@ func (o rideLeaseCancelTransaction) getProofs() rideList {
 type rideLeaseTransaction struct {
 	proofs          rideList
 	recipient       rideType
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	amount          rideInt
 	version         rideInt
@@ -3488,7 +3488,7 @@ type rideLeaseTransaction struct {
 	sender          rideAddress
 }
 
-func newRideLeaseTransaction(proofs rideList, recipient rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
+func newRideLeaseTransaction(proofs rideList, recipient rideType, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) rideLeaseTransaction {
 	return rideLeaseTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -3609,11 +3609,11 @@ func (o rideLeaseTransaction) getProofs() rideList {
 
 type rideMassTransferTransaction struct {
 	proofs          rideList
-	assetID         rideType
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
-	attachment      rideBytes
+	assetId         rideType
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
+	attachment      rideByteVector
 	transfers       rideList
 	transfersCount  rideInt
 	timestamp       rideInt
@@ -3623,10 +3623,10 @@ type rideMassTransferTransaction struct {
 	sender          rideAddress
 }
 
-func newRideMassTransferTransaction(proofs rideList, assetID rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, attachment rideBytes, transfers rideList, transfersCount rideInt, timestamp rideInt, fee rideInt, totalAmount rideInt, version rideInt, sender rideAddress) rideMassTransferTransaction {
+func newRideMassTransferTransaction(proofs rideList, assetId rideType, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, attachment rideByteVector, transfers rideList, transfersCount rideInt, timestamp rideInt, fee rideInt, totalAmount rideInt, version rideInt, sender rideAddress) rideMassTransferTransaction {
 	return rideMassTransferTransaction{
 		proofs:          proofs,
-		assetID:         assetID,
+		assetId:         assetId,
 		bodyBytes:       bodyBytes,
 		id:              id,
 		senderPublicKey: senderPublicKey,
@@ -3650,7 +3650,7 @@ func (o rideMassTransferTransaction) eq(other rideType) bool {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.bodyBytes.eq(oo.bodyBytes) {
@@ -3697,8 +3697,8 @@ func (o rideMassTransferTransaction) get(prop string) (rideType, error) {
 		return rideString(massTransferTransactionTypeName), nil
 	case proofsField:
 		return o.proofs, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
 	case idField:
@@ -3727,7 +3727,7 @@ func (o rideMassTransferTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideMassTransferTransaction) copy() rideType {
-	return newRideMassTransferTransaction(o.proofs, o.assetID, o.bodyBytes, o.id, o.senderPublicKey, o.attachment, o.transfers, o.transfersCount, o.timestamp, o.fee, o.totalAmount, o.version, o.sender)
+	return newRideMassTransferTransaction(o.proofs, o.assetId, o.bodyBytes, o.id, o.senderPublicKey, o.attachment, o.transfers, o.transfersCount, o.timestamp, o.fee, o.totalAmount, o.version, o.sender)
 }
 
 func (o rideMassTransferTransaction) lines() []string {
@@ -3736,7 +3736,7 @@ func (o rideMassTransferTransaction) lines() []string {
 	r = append(r, fieldLines(transfersCountField, o.transfersCount.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
 	r = append(r, fieldLines(attachmentField, o.attachment.lines())...)
@@ -3766,9 +3766,9 @@ func (o rideMassTransferTransaction) getProofs() rideList {
 type ridePaymentTransaction struct {
 	proofs          rideList
 	recipient       rideType
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	amount          rideInt
 	version         rideInt
@@ -3776,7 +3776,7 @@ type ridePaymentTransaction struct {
 	sender          rideAddress
 }
 
-func newRidePaymentTransaction(proofs rideList, recipient rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
+func newRidePaymentTransaction(proofs rideList, recipient rideType, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, amount rideInt, version rideInt, fee rideInt, sender rideAddress) ridePaymentTransaction {
 	return ridePaymentTransaction{
 		proofs:          proofs,
 		recipient:       recipient,
@@ -3896,11 +3896,11 @@ func (o ridePaymentTransaction) getProofs() rideList {
 }
 
 type rideReissueTransaction struct {
-	bodyBytes       rideBytes
+	bodyBytes       rideByteVector
 	proofs          rideList
-	senderPublicKey rideBytes
-	assetID         rideBytes
-	id              rideBytes
+	senderPublicKey rideByteVector
+	assetId         rideByteVector
+	id              rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	quantity        rideInt
@@ -3909,12 +3909,12 @@ type rideReissueTransaction struct {
 	reissuable      rideBoolean
 }
 
-func newRideReissueTransaction(bodyBytes rideBytes, proofs rideList, senderPublicKey rideBytes, assetID rideBytes, id rideBytes, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
+func newRideReissueTransaction(bodyBytes rideByteVector, proofs rideList, senderPublicKey rideByteVector, assetId rideByteVector, id rideByteVector, timestamp rideInt, version rideInt, quantity rideInt, fee rideInt, sender rideAddress, reissuable rideBoolean) rideReissueTransaction {
 	return rideReissueTransaction{
 		bodyBytes:       bodyBytes,
 		proofs:          proofs,
 		senderPublicKey: senderPublicKey,
-		assetID:         assetID,
+		assetId:         assetId,
 		id:              id,
 		timestamp:       timestamp,
 		version:         version,
@@ -3940,7 +3940,7 @@ func (o rideReissueTransaction) eq(other rideType) bool {
 		if !o.senderPublicKey.eq(oo.senderPublicKey) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.id.eq(oo.id) {
@@ -3979,8 +3979,8 @@ func (o rideReissueTransaction) get(prop string) (rideType, error) {
 		return o.proofs, nil
 	case senderPublicKeyField:
 		return o.senderPublicKey, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case idField:
 		return o.id, nil
 	case timestampField:
@@ -4001,7 +4001,7 @@ func (o rideReissueTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideReissueTransaction) copy() rideType {
-	return newRideReissueTransaction(o.bodyBytes, o.proofs, o.senderPublicKey, o.assetID, o.id, o.timestamp, o.version, o.quantity, o.fee, o.sender, o.reissuable)
+	return newRideReissueTransaction(o.bodyBytes, o.proofs, o.senderPublicKey, o.assetId, o.id, o.timestamp, o.version, o.quantity, o.fee, o.sender, o.reissuable)
 }
 
 func (o rideReissueTransaction) lines() []string {
@@ -4010,7 +4010,7 @@ func (o rideReissueTransaction) lines() []string {
 	r = append(r, fieldLines(quantityField, o.quantity.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
@@ -4038,22 +4038,22 @@ func (o rideReissueTransaction) getProofs() rideList {
 type rideSetAssetScriptTransaction struct {
 	proofs          rideList
 	script          rideType
-	bodyBytes       rideBytes
-	assetID         rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	assetId         rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
 	sender          rideAddress
 }
 
-func newRideSetAssetScriptTransaction(proofs rideList, script rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetAssetScriptTransaction {
+func newRideSetAssetScriptTransaction(proofs rideList, script rideType, bodyBytes rideByteVector, assetId rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetAssetScriptTransaction {
 	return rideSetAssetScriptTransaction{
 		proofs:          proofs,
 		script:          script,
 		bodyBytes:       bodyBytes,
-		assetID:         assetID,
+		assetId:         assetId,
 		id:              id,
 		senderPublicKey: senderPublicKey,
 		timestamp:       timestamp,
@@ -4078,7 +4078,7 @@ func (o rideSetAssetScriptTransaction) eq(other rideType) bool {
 		if !o.bodyBytes.eq(oo.bodyBytes) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.id.eq(oo.id) {
@@ -4114,8 +4114,8 @@ func (o rideSetAssetScriptTransaction) get(prop string) (rideType, error) {
 		return o.script, nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case idField:
 		return o.id, nil
 	case senderPublicKeyField:
@@ -4134,7 +4134,7 @@ func (o rideSetAssetScriptTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideSetAssetScriptTransaction) copy() rideType {
-	return newRideSetAssetScriptTransaction(o.proofs, o.script, o.bodyBytes, o.assetID, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
+	return newRideSetAssetScriptTransaction(o.proofs, o.script, o.bodyBytes, o.assetId, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
 }
 
 func (o rideSetAssetScriptTransaction) lines() []string {
@@ -4142,7 +4142,7 @@ func (o rideSetAssetScriptTransaction) lines() []string {
 	r = append(r, setAssetScriptTransactionTypeName+"(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
@@ -4170,16 +4170,16 @@ func (o rideSetAssetScriptTransaction) getProofs() rideList {
 type rideSetScriptTransaction struct {
 	proofs          rideList
 	script          rideType
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
 	sender          rideAddress
 }
 
-func newRideSetScriptTransaction(proofs rideList, script rideType, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetScriptTransaction {
+func newRideSetScriptTransaction(proofs rideList, script rideType, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSetScriptTransaction {
 	return rideSetScriptTransaction{
 		proofs:          proofs,
 		script:          script,
@@ -4294,22 +4294,22 @@ func (o rideSetScriptTransaction) getProofs() rideList {
 type rideSponsorFeeTransaction struct {
 	proofs               rideList
 	minSponsoredAssetFee rideType
-	bodyBytes            rideBytes
-	assetID              rideBytes
-	id                   rideBytes
-	senderPublicKey      rideBytes
+	bodyBytes            rideByteVector
+	assetId              rideByteVector
+	id                   rideByteVector
+	senderPublicKey      rideByteVector
 	timestamp            rideInt
 	version              rideInt
 	fee                  rideInt
 	sender               rideAddress
 }
 
-func newRideSponsorFeeTransaction(proofs rideList, minSponsoredAssetFee rideType, bodyBytes rideBytes, assetID rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSponsorFeeTransaction {
+func newRideSponsorFeeTransaction(proofs rideList, minSponsoredAssetFee rideType, bodyBytes rideByteVector, assetId rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideSponsorFeeTransaction {
 	return rideSponsorFeeTransaction{
 		proofs:               proofs,
 		minSponsoredAssetFee: minSponsoredAssetFee,
 		bodyBytes:            bodyBytes,
-		assetID:              assetID,
+		assetId:              assetId,
 		id:                   id,
 		senderPublicKey:      senderPublicKey,
 		timestamp:            timestamp,
@@ -4334,7 +4334,7 @@ func (o rideSponsorFeeTransaction) eq(other rideType) bool {
 		if !o.bodyBytes.eq(oo.bodyBytes) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.id.eq(oo.id) {
@@ -4370,8 +4370,8 @@ func (o rideSponsorFeeTransaction) get(prop string) (rideType, error) {
 		return o.minSponsoredAssetFee, nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case idField:
 		return o.id, nil
 	case senderPublicKeyField:
@@ -4390,7 +4390,7 @@ func (o rideSponsorFeeTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideSponsorFeeTransaction) copy() rideType {
-	return newRideSponsorFeeTransaction(o.proofs, o.minSponsoredAssetFee, o.bodyBytes, o.assetID, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
+	return newRideSponsorFeeTransaction(o.proofs, o.minSponsoredAssetFee, o.bodyBytes, o.assetId, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
 }
 
 func (o rideSponsorFeeTransaction) lines() []string {
@@ -4398,7 +4398,7 @@ func (o rideSponsorFeeTransaction) lines() []string {
 	r = append(r, sponsorFeeTransactionTypeName+"(")
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
 	r = append(r, fieldLines(senderPublicKeyField, o.senderPublicKey.lines())...)
@@ -4424,26 +4424,26 @@ func (o rideSponsorFeeTransaction) getProofs() rideList {
 }
 
 type rideTransferTransaction struct {
-	assetID         rideType
-	bodyBytes       rideBytes
-	feeAssetID      rideType
+	assetId         rideType
+	bodyBytes       rideByteVector
+	feeAssetId      rideType
 	version         rideType
 	attachment      rideType
 	proofs          rideList
 	fee             rideType
 	recipient       rideType
-	id              rideBytes
-	senderPublicKey rideBytes
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	amount          rideInt
 	sender          rideAddress
 }
 
-func newRideTransferTransaction(assetID rideType, bodyBytes rideBytes, feeAssetID rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideType, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
+func newRideTransferTransaction(assetId rideType, bodyBytes rideByteVector, feeAssetId rideType, version rideType, attachment rideType, proofs rideList, fee rideType, recipient rideType, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, amount rideInt, sender rideAddress) rideTransferTransaction {
 	return rideTransferTransaction{
-		assetID:         assetID,
+		assetId:         assetId,
 		bodyBytes:       bodyBytes,
-		feeAssetID:      feeAssetID,
+		feeAssetId:      feeAssetId,
 		version:         version,
 		attachment:      attachment,
 		proofs:          proofs,
@@ -4463,13 +4463,13 @@ func (o rideTransferTransaction) instanceOf() string {
 
 func (o rideTransferTransaction) eq(other rideType) bool {
 	if oo, ok := other.(rideTransferTransaction); ok {
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.bodyBytes.eq(oo.bodyBytes) {
 			return false
 		}
-		if !o.feeAssetID.eq(oo.feeAssetID) {
+		if !o.feeAssetId.eq(oo.feeAssetId) {
 			return false
 		}
 		if !o.version.eq(oo.version) {
@@ -4511,12 +4511,12 @@ func (o rideTransferTransaction) get(prop string) (rideType, error) {
 	switch prop {
 	case instanceField:
 		return rideString(transferTransactionTypeName), nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case bodyBytesField:
 		return o.bodyBytes, nil
-	case feeAssetIDField:
-		return o.feeAssetID, nil
+	case feeAssetIdField:
+		return o.feeAssetId, nil
 	case versionField:
 		return o.version, nil
 	case attachmentField:
@@ -4543,7 +4543,7 @@ func (o rideTransferTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideTransferTransaction) copy() rideType {
-	return newRideTransferTransaction(o.assetID, o.bodyBytes, o.feeAssetID, o.version, o.attachment, o.proofs, o.fee, o.recipient, o.id, o.senderPublicKey, o.timestamp, o.amount, o.sender)
+	return newRideTransferTransaction(o.assetId, o.bodyBytes, o.feeAssetId, o.version, o.attachment, o.proofs, o.fee, o.recipient, o.id, o.senderPublicKey, o.timestamp, o.amount, o.sender)
 }
 
 func (o rideTransferTransaction) lines() []string {
@@ -4552,8 +4552,8 @@ func (o rideTransferTransaction) lines() []string {
 	r = append(r, fieldLines(recipientField, o.recipient.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
-	r = append(r, fieldLines(feeAssetIDField, o.feeAssetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
+	r = append(r, fieldLines(feeAssetIdField, o.feeAssetId.lines())...)
 	r = append(r, fieldLines(amountField, o.amount.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
@@ -4581,22 +4581,22 @@ func (o rideTransferTransaction) getProofs() rideList {
 
 type rideUpdateAssetInfoTransaction struct {
 	proofs          rideList
-	assetID         rideType
+	assetId         rideType
 	name            rideString
 	description     rideString
-	bodyBytes       rideBytes
-	id              rideBytes
-	senderPublicKey rideBytes
+	bodyBytes       rideByteVector
+	id              rideByteVector
+	senderPublicKey rideByteVector
 	timestamp       rideInt
 	version         rideInt
 	fee             rideInt
 	sender          rideAddress
 }
 
-func newRideUpdateAssetInfoTransaction(proofs rideList, assetID rideType, name rideString, description rideString, bodyBytes rideBytes, id rideBytes, senderPublicKey rideBytes, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideUpdateAssetInfoTransaction {
+func newRideUpdateAssetInfoTransaction(proofs rideList, assetId rideType, name rideString, description rideString, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, timestamp rideInt, version rideInt, fee rideInt, sender rideAddress) rideUpdateAssetInfoTransaction {
 	return rideUpdateAssetInfoTransaction{
 		proofs:          proofs,
-		assetID:         assetID,
+		assetId:         assetId,
 		name:            name,
 		description:     description,
 		bodyBytes:       bodyBytes,
@@ -4618,7 +4618,7 @@ func (o rideUpdateAssetInfoTransaction) eq(other rideType) bool {
 		if !o.proofs.eq(oo.proofs) {
 			return false
 		}
-		if !o.assetID.eq(oo.assetID) {
+		if !o.assetId.eq(oo.assetId) {
 			return false
 		}
 		if !o.name.eq(oo.name) {
@@ -4659,8 +4659,8 @@ func (o rideUpdateAssetInfoTransaction) get(prop string) (rideType, error) {
 		return rideString(updateAssetInfoTransactionTypeName), nil
 	case proofsField:
 		return o.proofs, nil
-	case assetIDField:
-		return o.assetID, nil
+	case assetIdField:
+		return o.assetId, nil
 	case nameField:
 		return o.name, nil
 	case descriptionField:
@@ -4685,7 +4685,7 @@ func (o rideUpdateAssetInfoTransaction) get(prop string) (rideType, error) {
 }
 
 func (o rideUpdateAssetInfoTransaction) copy() rideType {
-	return newRideUpdateAssetInfoTransaction(o.proofs, o.assetID, o.name, o.description, o.bodyBytes, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
+	return newRideUpdateAssetInfoTransaction(o.proofs, o.assetId, o.name, o.description, o.bodyBytes, o.id, o.senderPublicKey, o.timestamp, o.version, o.fee, o.sender)
 }
 
 func (o rideUpdateAssetInfoTransaction) lines() []string {
@@ -4694,7 +4694,7 @@ func (o rideUpdateAssetInfoTransaction) lines() []string {
 	r = append(r, fieldLines(nameField, o.name.lines())...)
 	r = append(r, fieldLines(timestampField, o.timestamp.lines())...)
 	r = append(r, fieldLines(bodyBytesField, o.bodyBytes.lines())...)
-	r = append(r, fieldLines(assetIDField, o.assetID.lines())...)
+	r = append(r, fieldLines(assetIdField, o.assetId.lines())...)
 	r = append(r, fieldLines(descriptionField, o.description.lines())...)
 	r = append(r, fieldLines(versionField, o.version.lines())...)
 	r = append(r, fieldLines(idField, o.id.lines())...)
