@@ -15,7 +15,7 @@ var errEmptyHist = errors.New("empty history for this record")
 type blockchainEntity byte
 
 const (
-	alias blockchainEntity = iota
+	alias blockchainEntity = iota + 1
 	asset
 	lease
 	wavesBalance
