@@ -149,9 +149,6 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))
 			r.Get("/status", wrapper(a.NodeStatus))
-
-			rAuth := r.With(checkAuthMiddleware)
-			rAuth.Post("/stop", wrapper(a.sendSelfInterrupt))
 		})
 
 		r.Route("/wallet", func(r chi.Router) {

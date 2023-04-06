@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -559,30 +558,6 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 	if err := trySendJson(w, out); err != nil {
 		return errors.Wrap(err, "NodeStatus")
 	}
-	return nil
-}
-
-func (a *NodeApi) sendSelfInterrupt(w http.ResponseWriter, _ *http.Request) error {
-	type resp struct {
-		Stopped bool `json:"stopped"`
-	}
-
-	selfPid := os.Getpid()
-	p, err := os.FindProcess(selfPid)
-	if err != nil {
-		return errors.Wrapf(err, "failed to find process (self) with pid %d", selfPid)
-	}
-
-	interrupt := os.Interrupt
-	if err := p.Signal(interrupt); err != nil {
-		return errors.Wrapf(err,
-			"failed to send signal %q to self process with pid %d", interrupt, selfPid)
-	}
-
-	if err := trySendJson(w, resp{Stopped: true}); err != nil {
-		return errors.Wrap(err, "sendSelfInterrupt")
-	}
-	zap.S().Infof("Sent by node HTTP API to self process %q signal", interrupt)
 	return nil
 }
 
