@@ -28,8 +28,9 @@ const (
 
 // Primary prefixes for storage keys
 const (
+	_ byte = iota // this is a placeholder for a zero value
 	// Balances.
-	wavesBalanceKeyPrefix byte = iota + 1
+	wavesBalanceKeyPrefix
 	assetBalanceKeyPrefix
 
 	// Unique block num of the last block.
