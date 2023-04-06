@@ -517,7 +517,11 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 
 	aliases, err := a.app.AliasesByAddr(addr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to find aliases by addr")
+		if state.IsNotFound(err) {
+			aliases = nil
+		} else {
+			return errors.Wrapf(err, "failed to find aliases by addr")
+		}
 	}
 
 	if aliases == nil {
