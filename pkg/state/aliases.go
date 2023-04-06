@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"io"
+	"math"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -10,6 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO: should be wrapped as 'not found' error on state API level
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
 const aliasRecordSize = 1 + proto.AddressIDSize
@@ -69,6 +71,74 @@ func (r *aliasRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+type addressToAliasesRecord struct {
+	aliases []string
+}
+
+func (r *addressToAliasesRecord) marshalBinary() ([]byte, error) {
+	var (
+		b   []byte
+		err error
+	)
+	for _, a := range r.aliases {
+		b, err = appendStringWithUInt8Len(b, a)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return b, nil
+}
+
+func appendStringWithUInt8Len(b []byte, s string) ([]byte, error) {
+	l := len(s)
+	if l > math.MaxUint8 {
+		return nil, errors.New("length of the string is bigger than uint8")
+	}
+	b = append(b, uint8(l))
+	return append(b, s...), nil
+}
+
+func (r *addressToAliasesRecord) unmarshalBinary(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	rdr := bytes.NewReader(data)
+	for {
+		al, err := readStringWithUInt8Len(rdr)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				return err
+			}
+			break
+		}
+		r.aliases = append(r.aliases, al)
+	}
+	return nil
+}
+
+func readStringWithUInt8Len(r io.Reader) (string, error) {
+	var l [1]uint8
+	if _, err := io.ReadFull(r, l[:]); err != nil {
+		return "", err
+	}
+	b := make([]byte, l[0])
+	if _, err := io.ReadFull(r, b); err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func (r *addressToAliasesRecord) removeIfExists(s string) bool {
+	for i, al := range r.aliases {
+		if al == s {
+			r.aliases[i] = r.aliases[len(r.aliases)-1] // replace with the last item
+			r.aliases = r.aliases[:len(r.aliases)-1]   // cut duplicate of the last item
+			return true
+		}
+	}
+	return false
+}
+
 type aliases struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
@@ -116,7 +186,35 @@ func (a *aliases) createAlias(aliasStr string, addr proto.WavesAddress, blockID 
 			return err
 		}
 	}
-	return a.hs.addNewEntry(alias, keyBytes, recordBytes, blockID)
+	if err := a.hs.addNewEntry(alias, keyBytes, recordBytes, blockID); err != nil {
+		return errors.Wrapf(err, "failed to add alias record %q for addr %q", aliasStr, addr.String())
+	}
+	return a.addOrUpdateAddressToAliasesRecord(aliasStr, addr, blockID)
+}
+
+func (a *aliases) addOrUpdateAddressToAliasesRecord(aliasStr string, addr proto.WavesAddress, blockID proto.BlockID) error {
+	var (
+		key         = addressToAliasesKey{addressID: addr.ID()}
+		recordBytes []byte
+		err         error
+	)
+	keyBytes := key.bytes()
+	// TODO: is it ok to use newestTopEntryData instead of topEntryData?
+	if recordBytes, err = a.hs.newestTopEntryData(keyBytes); err != nil { // TODO: determine type of error
+		record := addressToAliasesRecord{aliases: []string{aliasStr}}
+		recordBytes, err = record.marshalBinary()
+	} else {
+		recordBytes, err = appendStringWithUInt8Len(recordBytes, aliasStr)
+	}
+	if err != nil {
+		return err
+	}
+	if err := a.hs.addNewEntry(addressToAliasesKeySize, keyBytes, recordBytes, blockID); err != nil {
+		return errors.Wrapf(err, "failed to add address to aliases record with new alias %q for addr %q",
+			aliasStr, addr.String(),
+		)
+	}
+	return nil
 }
 
 func (a *aliases) exists(aliasStr string) bool {
@@ -195,7 +293,7 @@ func (a *aliases) addrByAlias(aliasStr string) (proto.WavesAddress, error) {
 	return record.info.addressID.ToWavesAddress(a.scheme)
 }
 
-func (a *aliases) disableStolenAliases() error {
+func (a *aliases) disableStolenAliases(blockID proto.BlockID) error {
 	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := a.hs.newNewestTopEntryIterator(alias)
 	if err != nil {
@@ -212,16 +310,53 @@ func (a *aliases) disableStolenAliases() error {
 		recordBytes := iter.Value()
 		var record aliasRecord
 		if err := record.unmarshalBinary(recordBytes); err != nil {
-			return errors.Wrap(err, "failed to unmarshal record")
+			return errors.Wrap(err, "failed to unmarshal alias record")
 		}
 		var key aliasKey
 		if err := key.unmarshal(keyBytes); err != nil {
-			return err
+			return errors.Wrap(err, "failed to unmarshal alias key")
 		}
-		if record.info.stolen {
-			zap.S().Debugf("Forbidding stolen alias %s", key.alias)
-			a.disabled[key.alias] = true
+		if !record.info.stolen { // skip if alias is not stolen
+			continue
 		}
+		zap.S().Debugf("Forbidding stolen alias %s", key.alias)
+		a.disabled[key.alias] = true
+		if err := a.removeAliasByAddressID(record.info.addressID, key.alias, blockID); err != nil {
+			return errors.Wrap(err, "failed to disable aliases")
+		}
+	}
+	return nil
+}
+
+func (a *aliases) removeAliasByAddressID(id proto.AddressID, aliasStr string, blockID proto.BlockID) (err error) {
+	defer func() {
+		if err != nil {
+			addr, addrErr := id.ToWavesAddress(a.scheme)
+			if addrErr != nil {
+				err = errors.Wrapf(err, "failed to rebuild address: %v", addrErr)
+			}
+			err = errors.Wrapf(err, "failed to remove alias %q for address %q", aliasStr, addr)
+		}
+	}()
+	key := addressToAliasesKey{addressID: id}
+	keyBytes := key.bytes()
+	recordBytes, err := a.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		addr, addrErr := id.ToWavesAddress(a.scheme)
+		if addrErr != nil {
+			return errors.Wrapf(err, "failed to rebuild address: %v", addrErr)
+		}
+		return errors.Wrapf(err, "failed to remove alias %q for address %q", aliasStr, addr.String())
+	}
+	var record addressToAliasesRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return errors.Wrap(err, "failed to unmarshal address to aliases record")
+	}
+	if ok := record.removeIfExists(aliasStr); !ok {
+		return errors.Errorf("alias %q is not found for the given address", aliasStr)
+	}
+	if err := a.hs.addNewEntry(addressToAliasesKeySize, keyBytes, recordBytes, blockID); err != nil {
+		return errors.Wrap(err, "failed to update address to aliases record")
 	}
 	return nil
 }
@@ -267,34 +402,14 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 }
 
 func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
-	iter, err := a.hs.newNewestTopEntryIterator(alias)
-	if err != nil {
-		return nil, err
+	key := addressToAliasesKey{addressID: addr.ID()}
+	recordBytes, err := a.hs.topEntryData(key.bytes())
+	if err != nil { // TODO: determine type of the error
+		return nil, nil // means that there's no aliases for the given address
 	}
-
-	defer func() {
-		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-
-	addrID := addr.ID()
-	aliases := []string{}
-	for iter.Next() {
-		keyBytes := iter.Key()
-		recordBytes := iter.Value()
-		var record aliasRecord
-		if err := record.unmarshalBinary(recordBytes); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal alias record")
-		}
-		var key aliasKey
-		if err := key.unmarshal(keyBytes); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal alias key record")
-		}
-		if !record.info.stolen && record.info.addressID.Equal(addrID) {
-			aliases = append(aliases, key.alias)
-		}
+	var record addressToAliasesRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal address to aliases record for address %q", addr.String())
 	}
-	return aliases, nil
+	return record.aliases, nil
 }

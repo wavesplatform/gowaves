@@ -1219,7 +1219,8 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if resetStolenAliases {
-		if err := s.stor.aliases.disableStolenAliases(); err != nil {
+		// we're using nextBlock because it's a current block which we're going to apply
+		if err := s.stor.aliases.disableStolenAliases(nextBlock); err != nil {
 			return err
 		}
 	}

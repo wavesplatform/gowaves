@@ -16,6 +16,7 @@ type blockchainEntity byte
 
 const (
 	alias blockchainEntity = iota + 1
+	addressToAliases
 	asset
 	lease
 	wavesBalance
@@ -61,6 +62,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    true,
 		recordSize:   aliasRecordSize + 4,
+	},
+	addressToAliases: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
 	},
 	asset: {
 		needToFilter: true,

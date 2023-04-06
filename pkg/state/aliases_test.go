@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -37,7 +38,7 @@ func TestDisableStolenAliases(t *testing.T) {
 	to.flush(t)
 
 	// no aliases have been stolen
-	err = to.entities.aliases.disableStolenAliases()
+	err = to.entities.aliases.disableStolenAliases(blockID0)
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.flush(t)
 	disabled, err := to.entities.aliases.isDisabled(aliasStr)
@@ -62,7 +63,7 @@ func TestDisableStolenAliases(t *testing.T) {
 	to.flush(t)
 
 	// disable stolen alias
-	err = to.entities.aliases.disableStolenAliases()
+	err = to.entities.aliases.disableStolenAliases(blockID0)
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	// compare behaviour between newestIsDisabled and isDisabled
 	newestDisabled, err = to.entities.aliases.newestIsDisabled(aliasStr)
@@ -87,4 +88,39 @@ func TestDisableStolenAliases(t *testing.T) {
 	assert.Equal(t, errAliasDisabled, err)
 	_, err = to.entities.aliases.newestAddrByAlias(aliasStr)
 	assert.Equal(t, errAliasDisabled, err)
+}
+
+func TestAddressToAliasesRecordRoundTrip(t *testing.T) {
+	r := addressToAliasesRecord{aliases: []string{
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+		"lole", "keke", "fuuuf", "maha", "paha", "saha", "meha", "lole", "keke", "fuuuf", "maha", "paha", "saha", "meha",
+	}}
+
+	data, err := r.marshalBinary()
+	require.NoError(t, err)
+
+	var rr addressToAliasesRecord
+	err = rr.unmarshalBinary(data)
+	require.NoError(t, err)
+
+	require.Equal(t, r, rr)
+}
+
+func TestAddressToAliasesRecord_removeIfExists(t *testing.T) {
+	r := addressToAliasesRecord{aliases: []string{"lole", "keke", "fuuuf"}}
+
+	ok := r.removeIfExists("keke")
+	require.True(t, ok)
+	require.Equal(t, []string{"lole", "fuuuf"}, r.aliases)
+
+	ok = r.removeIfExists("keke")
+	require.False(t, ok)
 }
