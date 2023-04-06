@@ -387,19 +387,6 @@ func (k *addressToAliasesKey) bytes() []byte {
 	return buf
 }
 
-func (k *addressToAliasesKey) unmarshal(data []byte) error {
-	if len(data) != addressToAliasesKeySize {
-		return errInvalidDataSize
-	}
-	if data[0] != addressToAliasesPrefix {
-		return errInvalidPrefix
-	}
-	var addressID proto.AddressID
-	copy(addressID[:], data[1:])
-	k.addressID = addressID
-	return nil
-}
-
 type disabledAliasKey struct {
 	alias string
 }
