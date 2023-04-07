@@ -1413,7 +1413,7 @@ func getKeyProperty(v rideType) (string, error) {
 func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case burnTypeName:
-		id, err := digestProperty(obj, assetIdField)
+		id, err := digestProperty(obj, assetIDField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Burn to ScriptAction")
 		}
@@ -1537,7 +1537,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 			Nonce:       int64(nonce),
 		}, nil
 	case reissueTypeName:
-		id, err := digestProperty(obj, assetIdField)
+		id, err := digestProperty(obj, assetIDField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Reissue to ScriptAction")
 		}
@@ -1584,7 +1584,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 			Asset:     asset,
 		}, nil
 	case sponsorFeeTypeName:
-		id, err := digestProperty(obj, assetIdField)
+		id, err := digestProperty(obj, assetIDField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert SponsorFee to ScriptAction")
 		}
@@ -1630,7 +1630,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		}, nil
 
 	case leaseCancelTypeName:
-		id, err := digestProperty(obj, leaseIdField)
+		id, err := digestProperty(obj, leaseIDField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert LeaseCancel to LeaseCancelScriptAction")
 		}

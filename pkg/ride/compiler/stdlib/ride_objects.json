@@ -23,7 +23,7 @@
               "constructorOrder": 8
             },
             {
-              "name": "issuePublicKey",
+              "name": "issuerPublicKey",
               "types": [
                 "ByteVector"
               ],
@@ -2303,7 +2303,7 @@
               "constructorOrder": 2
             },
             {
-              "name": "transfersCount",
+              "name": "transferCount",
               "types": [
                 "Int"
               ],

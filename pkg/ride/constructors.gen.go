@@ -79,9 +79,9 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuer", args_[3].instanceOf())
 	}
 
-	issuePublicKey, ok := args_[4].(rideByteVector)
+	issuerPublicKey, ok := args_[4].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuePublicKey", args_[4].instanceOf())
+		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuerPublicKey", args_[4].instanceOf())
 	}
 
 	reissuable, ok := args_[5].(rideBoolean)
@@ -112,7 +112,7 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for description", args_[9].instanceOf())
 	}
 
-	return newRideAssetV4(description, name, issuePublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted), nil
+	return newRideAssetV4(description, name, issuerPublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted), nil
 }
 
 func assetPairConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1735,9 +1735,9 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		}
 	}
 
-	transfersCount, ok := args_[3].(rideInt)
+	transferCount, ok := args_[3].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for transfersCount", args_[3].instanceOf())
+		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for transferCount", args_[3].instanceOf())
 	}
 
 	attachment, ok := args_[4].(rideByteVector)
@@ -1793,7 +1793,7 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		}
 	}
 
-	return newRideMassTransferTransaction(proofs, assetId, bodyBytes, id, senderPublicKey, attachment, transfers, transfersCount, timestamp, fee, totalAmount, version, sender), nil
+	return newRideMassTransferTransaction(proofs, assetId, bodyBytes, id, senderPublicKey, attachment, transfers, transferCount, timestamp, fee, totalAmount, version, sender), nil
 }
 
 func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {

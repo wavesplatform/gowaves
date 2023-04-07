@@ -46,7 +46,7 @@ func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = _asset
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	feeAssetID, err := rs.get(feeAssetIdField)
+	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), feeAssetID)
 }
@@ -54,7 +54,7 @@ func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Absence() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	feeAssetID, err := rs.get(feeAssetIdField)
+	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, feeAssetID)
 }
@@ -71,7 +71,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = _asset
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetID, err := rs.get(assetIdField)
+	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), assetID)
 }
@@ -79,7 +79,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 func (a *TransferWithSigTestSuite) Test_assetId_absence() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetID, err := rs.get(assetIdField)
+	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, assetID)
 }
@@ -195,7 +195,7 @@ func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = _asset
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	feeAssetID, err := rs.get(feeAssetIdField)
+	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), feeAssetID)
 }
@@ -203,7 +203,7 @@ func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 func (a *TransferWithProofsTestSuite) Test_feeAssetId_Absence() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	feeAssetID, err := rs.get(feeAssetIdField)
+	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, feeAssetID)
 }
@@ -220,7 +220,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = _asset
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetID, err := rs.get(assetIdField)
+	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), assetID)
 }
@@ -228,7 +228,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetID, err := rs.get(assetIdField)
+	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, assetID)
 }
@@ -532,7 +532,7 @@ func (a *ReissueWithSigTestSuite) Test_quantity() {
 func (a *ReissueWithSigTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
@@ -651,7 +651,7 @@ func (a *ReissueWithProofsTestSuite) Test_quantity() {
 func (a *ReissueWithProofsTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
@@ -767,7 +767,7 @@ func (a *BurnWithSigTestSuite) Test_quantity() {
 func (a *BurnWithSigTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
@@ -877,7 +877,7 @@ func (a *BurnWithProofsTestSuite) Test_quantity() {
 func (a *BurnWithProofsTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
@@ -977,7 +977,7 @@ func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Asset = _asset
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), assetId)
 }
@@ -986,7 +986,7 @@ func (a *MassTransferWithProofsTestSuite) Test_assetId_absence() {
 	a.tx.Asset = proto.OptionalAsset{}
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, assetId)
 }
@@ -1015,7 +1015,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	transfersCount, err := rs.get(transfersCountField)
+	transfersCount, err := rs.get(transferCountField)
 	a.NoError(err)
 	a.Equal(rideInt(1), transfersCount)
 }
@@ -1489,7 +1489,7 @@ func (a *OrderTestSuite) Test_matcherFee() {
 
 func (a *OrderTestSuite) Test_matcherFeeAssetId() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
-	matcherFeeAssetId, err := rs.get(matcherFeeAssetIdField)
+	matcherFeeAssetId, err := rs.get(matcherFeeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, matcherFeeAssetId)
 }
@@ -1598,7 +1598,7 @@ func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
 
 func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
-	matcherFeeAssetId, err := rs.get(matcherFeeAssetIdField)
+	matcherFeeAssetId, err := rs.get(matcherFeeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.matcherFeeAssetID.ID.Bytes()), matcherFeeAssetId)
 }
@@ -1634,7 +1634,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
 func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
@@ -1780,7 +1780,7 @@ func (a *InvocationTestSuite) Test_callerPublicKey() {
 
 func (a *InvocationTestSuite) Test_feeAssetID() {
 	a.presenceChecks(
-		feeAssetIdField,
+		feeAssetIDField,
 		[]presenceCase{
 			{v: ast.LibV3, presence: true},
 			{v: ast.LibV4, presence: true},
@@ -1792,7 +1792,7 @@ func (a *InvocationTestSuite) Test_feeAssetID() {
 
 func (a *InvocationTestSuite) Test_transactionID() {
 	a.presenceChecks(
-		transactionIdField,
+		transactionIDField,
 		[]presenceCase{
 			{v: ast.LibV3, presence: true},
 			{v: ast.LibV4, presence: true},
@@ -1910,7 +1910,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
 	a.NoError(err)
 	payment, err := rs.get(paymentField)
 	a.NoError(err)
-	asset, err := payment.get(assetIdField)
+	asset, err := payment.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(byte_helpers.Digest.Bytes()), asset)
 	amount, err := payment.get(amountField)
@@ -1948,7 +1948,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payments_absence() {
 func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	feeAssetId, err := rs.get(feeAssetIdField)
+	feeAssetId, err := rs.get(feeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(byte_helpers.Digest.Bytes()), feeAssetId)
 }
@@ -2557,7 +2557,7 @@ func (a *LeaseCancelWithSigTestSuite) SetupTest() {
 func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	leaseId, err := rs.get(leaseIdField)
+	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), leaseId)
 }
@@ -2659,7 +2659,7 @@ func (a *LeaseCancelWithProofsTestSuite) SetupTest() {
 func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	leaseId, err := rs.get(leaseIdField)
+	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.tx.LeaseID.Bytes()), leaseId)
 }
@@ -2861,7 +2861,7 @@ func (a *SponsorshipWithProofsTestSuite) SetupTest() {
 func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	assetId, err := rs.get(assetIdField)
+	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(_digest.Bytes()), assetId)
 }

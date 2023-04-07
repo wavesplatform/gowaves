@@ -58,7 +58,7 @@ func convertAttachedPayments(payments rideList) (proto.ScriptPayments, error) {
 			return nil, RuntimeError.Errorf("property 'amount' of attached payment %d has an invalid type '%s'",
 				i, amount.instanceOf())
 		}
-		assetID, err := value.get(assetIdField)
+		assetID, err := value.get(assetIDField)
 		if err != nil {
 			return nil, RuntimeError.Wrap(err, "attached payment")
 		}
@@ -178,11 +178,11 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if !ok {
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of originCaller", invocation.name(), originCallerRaw.instanceOf())
 	}
-	feeAssetID, err := oldInvocationParam.get(feeAssetIdField)
+	feeAssetID, err := oldInvocationParam.get(feeAssetIDField)
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
-	transactionIDRaw, err := oldInvocationParam.get(transactionIdField)
+	transactionIDRaw, err := oldInvocationParam.get(transactionIDField)
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
