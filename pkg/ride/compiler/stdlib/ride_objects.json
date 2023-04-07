@@ -93,7 +93,7 @@
           "version": 3,
           "fields": [
             {
-              "name": "issuePublicKey",
+              "name": "issuerPublicKey",
               "types": [
                 "ByteVector"
               ],

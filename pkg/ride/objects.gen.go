@@ -8,148 +8,147 @@ import (
 )
 
 const (
-	integerEntryTypeName                = "IntegerEntry"
-	reissueTypeName                     = "Reissue"
-	scriptResultTypeName                = "ScriptResult"
-	paymentTransactionTypeName          = "PaymentTransaction"
-	setAssetScriptTransactionTypeName   = "SetAssetScriptTransaction"
-	balanceDetailsTypeName              = "BalanceDetails"
-	blockInfoTypeName                   = "BlockInfo"
-	writeSetTypeName                    = "WriteSet"
-	issueTransactionTypeName            = "IssueTransaction"
-	invokeExpressionTransactionTypeName = "InvokeExpressionTransaction"
-	booleanEntryTypeName                = "BooleanEntry"
-	invocationTypeName                  = "Invocation"
-	createAliasTransactionTypeName      = "CreateAliasTransaction"
-	dataTransactionTypeName             = "DataTransaction"
-	massTransferTransactionTypeName     = "MassTransferTransaction"
-	transferTransactionTypeName         = "TransferTransaction"
 	assetTypeName                       = "Asset"
-	leaseCancelTypeName                 = "LeaseCancel"
-	scriptTransferTypeName              = "ScriptTransfer"
-	genesisTransactionTypeName          = "GenesisTransaction"
+	assetPairTypeName                   = "AssetPair"
+	attachedPaymentTypeName             = "AttachedPayment"
+	balanceDetailsTypeName              = "BalanceDetails"
+	binaryEntryTypeName                 = "BinaryEntry"
+	blockInfoTypeName                   = "BlockInfo"
+	booleanEntryTypeName                = "BooleanEntry"
+	burnTypeName                        = "Burn"
 	burnTransactionTypeName             = "BurnTransaction"
+	createAliasTransactionTypeName      = "CreateAliasTransaction"
+	dataEntryTypeName                   = "DataEntry"
+	dataTransactionTypeName             = "DataTransaction"
+	deleteEntryTypeName                 = "DeleteEntry"
+	exchangeTransactionTypeName         = "ExchangeTransaction"
+	genesisTransactionTypeName          = "GenesisTransaction"
+	integerEntryTypeName                = "IntegerEntry"
+	invocationTypeName                  = "Invocation"
+	invokeExpressionTransactionTypeName = "InvokeExpressionTransaction"
 	invokeScriptTransactionTypeName     = "InvokeScriptTransaction"
+	issueTypeName                       = "Issue"
+	issueTransactionTypeName            = "IssueTransaction"
+	leaseTypeName                       = "Lease"
+	leaseCancelTypeName                 = "LeaseCancel"
 	leaseCancelTransactionTypeName      = "LeaseCancelTransaction"
 	leaseTransactionTypeName            = "LeaseTransaction"
-	assetPairTypeName                   = "AssetPair"
-	burnTypeName                        = "Burn"
-	dataEntryTypeName                   = "DataEntry"
-	transferTypeName                    = "Transfer"
-	setScriptTransactionTypeName        = "SetScriptTransaction"
-	updateAssetInfoTransactionTypeName  = "UpdateAssetInfoTransaction"
-	binaryEntryTypeName                 = "BinaryEntry"
-	leaseTypeName                       = "Lease"
+	massTransferTransactionTypeName     = "MassTransferTransaction"
 	orderTypeName                       = "Order"
+	paymentTransactionTypeName          = "PaymentTransaction"
+	reissueTypeName                     = "Reissue"
 	reissueTransactionTypeName          = "ReissueTransaction"
-	attachedPaymentTypeName             = "AttachedPayment"
-	transferSetTypeName                 = "TransferSet"
-	exchangeTransactionTypeName         = "ExchangeTransaction"
-	sponsorFeeTransactionTypeName       = "SponsorFeeTransaction"
-	deleteEntryTypeName                 = "DeleteEntry"
-	issueTypeName                       = "Issue"
+	scriptResultTypeName                = "ScriptResult"
+	scriptTransferTypeName              = "ScriptTransfer"
+	setAssetScriptTransactionTypeName   = "SetAssetScriptTransaction"
+	setScriptTransactionTypeName        = "SetScriptTransaction"
 	sponsorFeeTypeName                  = "SponsorFee"
+	sponsorFeeTransactionTypeName       = "SponsorFeeTransaction"
 	stringEntryTypeName                 = "StringEntry"
+	transferTypeName                    = "Transfer"
+	transferSetTypeName                 = "TransferSet"
+	transferTransactionTypeName         = "TransferTransaction"
+	updateAssetInfoTransactionTypeName  = "UpdateAssetInfoTransaction"
+	writeSetTypeName                    = "WriteSet"
 )
 
 const (
-	orderTypeField             = "orderType"
-	generationSignatureField   = "generationSignature"
-	baseTargetField            = "baseTarget"
-	callerPublicKeyField       = "callerPublicKey"
-	feeAssetIDField            = "feeAssetId"
-	nonceField                 = "nonce"
-	leaseIDField               = "leaseId"
-	priceField                 = "price"
-	effectiveField             = "effective"
-	callerField                = "caller"
-	matcherPublicKeyField      = "matcherPublicKey"
-	dataField                  = "data"
-	argsField                  = "args"
 	aliasField                 = "alias"
-	nameField                  = "name"
-	originCallerPublicKeyField = "originCallerPublicKey"
-	proofsField                = "proofs"
-	bodyBytesField             = "bodyBytes"
-	matcherFeeField            = "matcherFee"
-	assetField                 = "asset"
-	scriptedField              = "scripted"
-	generatingField            = "generating"
-	isReissuableField          = "isReissuable"
-	buyMatcherFeeField         = "buyMatcherFee"
-	expressionField            = "expression"
-	priceAssetField            = "priceAsset"
-	matcherFeeAssetIDField     = "matcherFeeAssetId"
-	buyOrderField              = "buyOrder"
-	sellMatcherFeeField        = "sellMatcherFee"
-	issuerField                = "issuer"
-	regularField               = "regular"
-	valueField                 = "value"
-	compiledScriptField        = "compiledScript"
-	senderField                = "sender"
-	keyField                   = "key"
-	sellOrderField             = "sellOrder"
-	transferCountField         = "transferCount"
-	issuePublicKeyField        = "issuePublicKey"
-	quantityField              = "quantity"
 	amountField                = "amount"
-	vrfField                   = "vrf"
-	transactionIDField         = "transactionId"
-	versionField               = "version"
-	idField                    = "id"
-	reissuableField            = "reissuable"
-	availableField             = "available"
-	timestampField             = "timestamp"
-	paymentsField              = "payments"
-	descriptionField           = "description"
-	assetIDField               = "assetId"
-	writeSetField              = "writeSet"
-	functionField              = "function"
 	amountAssetField           = "amountAsset"
-	paymentField               = "payment"
-	originCallerField          = "originCaller"
-	minSponsoredAssetFeeField  = "minSponsoredAssetFee"
-	dAppField                  = "dApp"
-	totalAmountField           = "totalAmount"
-	generatorPublicKeyField    = "generatorPublicKey"
-	senderPublicKeyField       = "senderPublicKey"
-	transfersField             = "transfers"
-	attachmentField            = "attachment"
-	sponsoredField             = "sponsored"
-	issuerPublicKeyField       = "issuerPublicKey"
-	minSponsoredFeeField       = "minSponsoredFee"
-	generatorField             = "generator"
+	argsField                  = "args"
+	assetField                 = "asset"
+	assetIDField               = "assetId"
 	assetPairField             = "assetPair"
-	expirationField            = "expiration"
+	attachmentField            = "attachment"
+	availableField             = "available"
+	baseTargetField            = "baseTarget"
+	bodyBytesField             = "bodyBytes"
+	buyMatcherFeeField         = "buyMatcherFee"
+	buyOrderField              = "buyOrder"
+	callerField                = "caller"
+	callerPublicKeyField       = "callerPublicKey"
+	compiledScriptField        = "compiledScript"
+	dAppField                  = "dApp"
+	dataField                  = "data"
 	decimalsField              = "decimals"
-	heightField                = "height"
+	descriptionField           = "description"
+	effectiveField             = "effective"
+	expirationField            = "expiration"
+	expressionField            = "expression"
 	feeField                   = "fee"
+	feeAssetIDField            = "feeAssetId"
+	functionField              = "function"
+	generatingField            = "generating"
+	generationSignatureField   = "generationSignature"
+	generatorField             = "generator"
+	generatorPublicKeyField    = "generatorPublicKey"
+	heightField                = "height"
+	idField                    = "id"
+	isReissuableField          = "isReissuable"
+	issuerField                = "issuer"
+	issuerPublicKeyField       = "issuerPublicKey"
+	keyField                   = "key"
+	leaseIDField               = "leaseId"
+	matcherFeeField            = "matcherFee"
+	matcherFeeAssetIDField     = "matcherFeeAssetId"
+	matcherPublicKeyField      = "matcherPublicKey"
+	minSponsoredAssetFeeField  = "minSponsoredAssetFee"
+	minSponsoredFeeField       = "minSponsoredFee"
+	nameField                  = "name"
+	nonceField                 = "nonce"
+	orderTypeField             = "orderType"
+	originCallerField          = "originCaller"
+	originCallerPublicKeyField = "originCallerPublicKey"
+	paymentField               = "payment"
+	paymentsField              = "payments"
+	priceField                 = "price"
+	priceAssetField            = "priceAsset"
+	proofsField                = "proofs"
+	quantityField              = "quantity"
 	recipientField             = "recipient"
-	transferSetField           = "transferSet"
+	regularField               = "regular"
+	reissuableField            = "reissuable"
 	scriptField                = "script"
+	scriptedField              = "scripted"
+	sellMatcherFeeField        = "sellMatcherFee"
+	sellOrderField             = "sellOrder"
+	senderField                = "sender"
+	senderPublicKeyField       = "senderPublicKey"
+	sponsoredField             = "sponsored"
+	timestampField             = "timestamp"
+	totalAmountField           = "totalAmount"
+	transactionIDField         = "transactionId"
+	transferCountField         = "transferCount"
+	transferSetField           = "transferSet"
+	transfersField             = "transfers"
+	valueField                 = "value"
+	versionField               = "version"
+	vrfField                   = "vrf"
+	writeSetField              = "writeSet"
 )
 
 type rideAssetV3 struct {
-	issuePublicKey rideByteVector
-	id             rideByteVector
-	quantity       rideInt
-	decimals       rideInt
-	issuer         rideAddress
-	scripted       rideBoolean
-	sponsored      rideBoolean
-	reissuable     rideBoolean
+	issuerPublicKey rideByteVector
+	id              rideByteVector
+	quantity        rideInt
+	decimals        rideInt
+	issuer          rideAddress
+	scripted        rideBoolean
+	sponsored       rideBoolean
+	reissuable      rideBoolean
 }
 
-func newRideAssetV3(issuePublicKey rideByteVector, id rideByteVector, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAssetV3 {
+func newRideAssetV3(issuerPublicKey rideByteVector, id rideByteVector, quantity rideInt, decimals rideInt, issuer rideAddress, scripted rideBoolean, sponsored rideBoolean, reissuable rideBoolean) rideAssetV3 {
 	return rideAssetV3{
-		issuePublicKey: issuePublicKey,
-		id:             id,
-		quantity:       quantity,
-		decimals:       decimals,
-		issuer:         issuer,
-		scripted:       scripted,
-		sponsored:      sponsored,
-		reissuable:     reissuable,
+		issuerPublicKey: issuerPublicKey,
+		id:              id,
+		quantity:        quantity,
+		decimals:        decimals,
+		issuer:          issuer,
+		scripted:        scripted,
+		sponsored:       sponsored,
+		reissuable:      reissuable,
 	}
 }
 
@@ -159,7 +158,7 @@ func (o rideAssetV3) instanceOf() string {
 
 func (o rideAssetV3) eq(other rideType) bool {
 	if oo, ok := other.(rideAssetV3); ok {
-		if !o.issuePublicKey.eq(oo.issuePublicKey) {
+		if !o.issuerPublicKey.eq(oo.issuerPublicKey) {
 			return false
 		}
 		if !o.id.eq(oo.id) {
@@ -192,8 +191,8 @@ func (o rideAssetV3) get(prop string) (rideType, error) {
 	switch prop {
 	case "$instance":
 		return rideString("Asset"), nil
-	case "issuePublicKey":
-		return o.issuePublicKey, nil
+	case "issuerPublicKey":
+		return o.issuerPublicKey, nil
 	case "id":
 		return o.id, nil
 	case "quantity":
@@ -214,7 +213,7 @@ func (o rideAssetV3) get(prop string) (rideType, error) {
 }
 
 func (o rideAssetV3) copy() rideType {
-	return newRideAssetV3(o.issuePublicKey, o.id, o.quantity, o.decimals, o.issuer, o.scripted, o.sponsored, o.reissuable)
+	return newRideAssetV3(o.issuerPublicKey, o.id, o.quantity, o.decimals, o.issuer, o.scripted, o.sponsored, o.reissuable)
 }
 
 func (o rideAssetV3) lines() []string {
@@ -222,7 +221,7 @@ func (o rideAssetV3) lines() []string {
 	r = append(r, "Asset(")
 	r = append(r, fieldLines("issuer", o.issuer.lines())...)
 	r = append(r, fieldLines("scripted", o.scripted.lines())...)
-	r = append(r, fieldLines("issuePublicKey", o.issuePublicKey.lines())...)
+	r = append(r, fieldLines("issuerPublicKey", o.issuerPublicKey.lines())...)
 	r = append(r, fieldLines("id", o.id.lines())...)
 	r = append(r, fieldLines("decimals", o.decimals.lines())...)
 	r = append(r, fieldLines("reissuable", o.reissuable.lines())...)

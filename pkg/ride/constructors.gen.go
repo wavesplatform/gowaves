@@ -31,9 +31,9 @@ func assetV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuer", args_[3].instanceOf())
 	}
 
-	issuePublicKey, ok := args_[4].(rideByteVector)
+	issuerPublicKey, ok := args_[4].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuePublicKey", args_[4].instanceOf())
+		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuerPublicKey", args_[4].instanceOf())
 	}
 
 	reissuable, ok := args_[5].(rideBoolean)
@@ -51,7 +51,7 @@ func assetV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for sponsored", args_[7].instanceOf())
 	}
 
-	return newRideAssetV3(issuePublicKey, id, quantity, decimals, issuer, scripted, sponsored, reissuable), nil
+	return newRideAssetV3(issuerPublicKey, id, quantity, decimals, issuer, scripted, sponsored, reissuable), nil
 }
 
 func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {

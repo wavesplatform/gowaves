@@ -28,6 +28,15 @@ func rideActionConstructorName(act actionsObject) string {
 	return "newRide" + act.StructName
 }
 
+func stringMapToSortedList(m map[string]struct{}) []string {
+	list := make([]string, 0, len(m))
+	for k := range m {
+		list = append(list, k)
+	}
+	sort.Strings(list)
+	return list
+}
+
 func GenerateObjects(configPath, fn string) {
 	s, err := parseConfig(configPath)
 	if err != nil {
@@ -48,8 +57,12 @@ func GenerateObjects(configPath, fn string) {
 			}
 		}
 	}
+
+	fieldsList := stringMapToSortedList(fields)
+	namesList := stringMapToSortedList(names)
+
 	cd.Line("const (")
-	for n := range names {
+	for _, n := range namesList {
 		firstLetter := string(n[0])
 		firstLetter = strings.ToLower(firstLetter)
 		str := firstLetter + n[1:]
@@ -58,7 +71,7 @@ func GenerateObjects(configPath, fn string) {
 	cd.Line(")")
 	cd.Line("")
 	cd.Line("const (")
-	for f := range fields {
+	for _, f := range fieldsList {
 		str := strings.ReplaceAll(f, "Id", "ID")
 		cd.Line("%sField = \"%s\"", str, f)
 	}
