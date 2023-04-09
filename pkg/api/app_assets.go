@@ -27,6 +27,7 @@ type AssetDetails struct {
 	Scripted             bool               `json:"scripted"`
 	MinSponsoredAssetFee *uint64            `json:"minSponsoredAssetFee"`
 	OriginTransactionId  proto.B58Bytes     `json:"originTransactionId"`
+	SequenceInBlock      uint64             `json:"sequenceInBlock"`
 	ScriptDetails        *ScriptDetails     `json:"scriptDetails,omitempty"`
 }
 
@@ -67,6 +68,7 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 		Scripted:             assetInfo.Scripted,
 		MinSponsoredAssetFee: minSponsoredAssetFee,
 		OriginTransactionId:  txID,
+		SequenceInBlock:      0, // TODO(nickeskov): add sequence in block to asset info
 		ScriptDetails:        nil,
 	}
 	if assetInfo.Scripted && full {
