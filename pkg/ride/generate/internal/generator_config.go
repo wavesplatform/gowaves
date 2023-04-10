@@ -46,7 +46,7 @@ func (infos *typeInfos) UnmarshalJSON(data []byte) error {
 }
 
 func guessInfoType(typeName string) typeInfo {
-	if strings.HasPrefix(typeName, "rideList") {
+	if strings.HasPrefix(typeName, "List") {
 		return &listTypeInfo{}
 	}
 	return &simpleTypeInfo{}
@@ -57,7 +57,7 @@ type simpleTypeInfo struct {
 }
 
 func (info *simpleTypeInfo) String() string {
-	return info.name
+	return "ride" + info.name
 }
 
 func (info *simpleTypeInfo) UnmarshalJSON(data []byte) error {
@@ -81,7 +81,7 @@ func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
 		return errors.Wrap(err, "listTypeInfo unmarshal raw string")
 	}
 
-	if !strings.HasPrefix(source, info.String()) {
+	if !strings.HasPrefix(source, "List") {
 		return errors.Errorf("'%s' is missing: %s", info.String(), source)
 	}
 	source = strings.ReplaceAll(string(data), " ", "")

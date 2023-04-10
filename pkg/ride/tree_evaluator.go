@@ -322,7 +322,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return rideInt(n.Value), nil
 
 	case *ast.BytesNode:
-		return rideBytes(n.Value), nil
+		return rideByteVector(n.Value), nil
 
 	case *ast.BooleanNode:
 		return rideBoolean(n.Value), nil

@@ -107,7 +107,7 @@ func bytesFromArray(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArray")
 	}
-	return findFirstEntry(list, key, bytesTypeName), nil
+	return findFirstEntry(list, key, byteVectorTypeName), nil
 }
 
 func stringFromArray(_ environment, args ...rideType) (rideType, error) {
@@ -161,7 +161,7 @@ func bytesFromArrayByIndex(_ environment, args ...rideType) (rideType, error) {
 	}
 	switch te := list[i].(type) {
 	case rideDataEntry:
-		if v, err := te.get(valueField); err == nil && v.instanceOf() == bytesTypeName {
+		if v, err := te.get(valueField); err == nil && v.instanceOf() == byteVectorTypeName {
 			return v, nil
 		}
 		return nil, errors.Errorf("bytesFromArrayByIndex: unexpected value type %q of data entry", te.value.instanceOf())
@@ -479,7 +479,7 @@ func findFirstEntry(list rideList, key rideString, expectedValueType string) rid
 				return ti.value
 			}
 		case rideBinaryEntry:
-			if ti.key == key && expectedValueType == bytesTypeName {
+			if ti.key == key && expectedValueType == byteVectorTypeName {
 				return ti.value
 			}
 		case rideStringEntry:
