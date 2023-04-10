@@ -22,7 +22,7 @@ import (
 var (
 	_digest                             = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
 	_asset                              = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
-	_empty                              = rideBytes(nil)
+	_empty                              = rideByteVector(nil)
 	transactionToObjectWithSchemeTestFn = func(ver ast.LibraryVersion, scheme proto.Scheme, tx proto.Transaction) (rideType, error) {
 		return transactionToObject(ver, scheme, false, tx)
 	}
@@ -48,7 +48,7 @@ func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), feeAssetID)
+	a.Equal(rideByteVector(_digest.Bytes()), feeAssetID)
 }
 
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Absence() {
@@ -73,7 +73,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), assetID)
+	a.Equal(rideByteVector(_digest.Bytes()), assetID)
 }
 
 func (a *TransferWithSigTestSuite) Test_assetId_absence() {
@@ -99,7 +99,7 @@ func (a *TransferWithSigTestSuite) Test_attachment() {
 	a.NoError(err)
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
-	a.Equal(rideBytes(attachmentBytes), attachment)
+	a.Equal(rideByteVector(attachmentBytes), attachment)
 }
 
 func (a *TransferWithSigTestSuite) Test_id() {
@@ -107,7 +107,7 @@ func (a *TransferWithSigTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *TransferWithSigTestSuite) Test_fee() {
@@ -149,7 +149,7 @@ func (a *TransferWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *TransferWithSigTestSuite) Test_bodyBytes() {
@@ -158,8 +158,8 @@ func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *TransferWithSigTestSuite) Test_proofs() {
@@ -167,7 +167,7 @@ func (a *TransferWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *TransferWithSigTestSuite) Test_instanceFieldName() {
@@ -197,7 +197,7 @@ func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), feeAssetID)
+	a.Equal(rideByteVector(_digest.Bytes()), feeAssetID)
 }
 
 func (a *TransferWithProofsTestSuite) Test_feeAssetId_Absence() {
@@ -222,7 +222,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), assetID)
+	a.Equal(rideByteVector(_digest.Bytes()), assetID)
 }
 
 func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
@@ -248,7 +248,7 @@ func (a *TransferWithProofsTestSuite) Test_attachment() {
 	a.NoError(err)
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
-	a.Equal(rideBytes(attachmentBytes), attachment)
+	a.Equal(rideByteVector(attachmentBytes), attachment)
 }
 
 func (a *TransferWithProofsTestSuite) Test_id() {
@@ -256,7 +256,7 @@ func (a *TransferWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *TransferWithProofsTestSuite) Test_fee() {
@@ -298,7 +298,7 @@ func (a *TransferWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
@@ -307,9 +307,9 @@ func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0].Bytes())
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *TransferWithProofsTestSuite) Test_proofs() {
@@ -317,7 +317,7 @@ func (a *TransferWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *TransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -368,7 +368,7 @@ func (a *GenesisTestSuite) Test_id() {
 	a.NoError(err)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *GenesisTestSuite) Test_fee() {
@@ -437,7 +437,7 @@ func (a *PaymentTestSuite) Test_id() {
 	a.NoError(err)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *PaymentTestSuite) Test_fee() {
@@ -479,7 +479,7 @@ func (a *PaymentTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *PaymentTestSuite) Test_bodyBytes() {
@@ -488,8 +488,8 @@ func (a *PaymentTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *PaymentTestSuite) Test_proofs() {
@@ -497,7 +497,7 @@ func (a *PaymentTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *PaymentTestSuite) Test_instanceFieldName() {
@@ -534,7 +534,7 @@ func (a *ReissueWithSigTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.AssetID.Bytes()), assetId)
+	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
 
 func (a *ReissueWithSigTestSuite) Test_reissuable() {
@@ -551,7 +551,7 @@ func (a *ReissueWithSigTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *ReissueWithSigTestSuite) Test_fee() {
@@ -593,7 +593,7 @@ func (a *ReissueWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
@@ -602,8 +602,8 @@ func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *ReissueWithSigTestSuite) Test_proofs() {
@@ -611,7 +611,7 @@ func (a *ReissueWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
@@ -653,7 +653,7 @@ func (a *ReissueWithProofsTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.AssetID.Bytes()), assetId)
+	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
 
 func (a *ReissueWithProofsTestSuite) Test_reissuable() {
@@ -670,7 +670,7 @@ func (a *ReissueWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *ReissueWithProofsTestSuite) Test_fee() {
@@ -712,7 +712,7 @@ func (a *ReissueWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
@@ -721,9 +721,9 @@ func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *ReissueWithProofsTestSuite) Test_proofs() {
@@ -731,7 +731,7 @@ func (a *ReissueWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
@@ -769,7 +769,7 @@ func (a *BurnWithSigTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.AssetID.Bytes()), assetId)
+	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
 
 func (a *BurnWithSigTestSuite) Test_id() {
@@ -777,7 +777,7 @@ func (a *BurnWithSigTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *BurnWithSigTestSuite) Test_fee() {
@@ -819,7 +819,7 @@ func (a *BurnWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *BurnWithSigTestSuite) Test_bodyBytes() {
@@ -828,8 +828,8 @@ func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *BurnWithSigTestSuite) Test_proofs() {
@@ -837,7 +837,7 @@ func (a *BurnWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
@@ -879,7 +879,7 @@ func (a *BurnWithProofsTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.AssetID.Bytes()), assetId)
+	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
 
 func (a *BurnWithProofsTestSuite) Test_id() {
@@ -887,7 +887,7 @@ func (a *BurnWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *BurnWithProofsTestSuite) Test_fee() {
@@ -929,7 +929,7 @@ func (a *BurnWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
@@ -938,9 +938,9 @@ func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *BurnWithProofsTestSuite) Test_proofs() {
@@ -948,7 +948,7 @@ func (a *BurnWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
@@ -979,7 +979,7 @@ func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), assetId)
+	a.Equal(rideByteVector(_digest.Bytes()), assetId)
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_assetId_absence() {
@@ -1015,7 +1015,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 	rs, err := a.f(ast.LibV1, a.tx)
 	a.NoError(err)
-	transfersCount, err := rs.get(transfersCountField)
+	transfersCount, err := rs.get(transferCountField)
 	a.NoError(err)
 	a.Equal(rideInt(1), transfersCount)
 }
@@ -1027,7 +1027,7 @@ func (a *MassTransferWithProofsTestSuite) Test_attachment() {
 	a.NoError(err)
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
-	a.Equal(rideBytes(attachmentBytes), attachment)
+	a.Equal(rideByteVector(attachmentBytes), attachment)
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_id() {
@@ -1035,7 +1035,7 @@ func (a *MassTransferWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_fee() {
@@ -1077,7 +1077,7 @@ func (a *MassTransferWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
@@ -1086,9 +1086,9 @@ func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_proofs() {
@@ -1096,7 +1096,7 @@ func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -1174,7 +1174,7 @@ func (a *ExchangeWithSigTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *ExchangeWithSigTestSuite) Test_fee() {
@@ -1215,7 +1215,7 @@ func (a *ExchangeWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
@@ -1224,8 +1224,8 @@ func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *ExchangeWithSigTestSuite) Test_proofs() {
@@ -1233,7 +1233,7 @@ func (a *ExchangeWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
@@ -1311,7 +1311,7 @@ func (a *ExchangeWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_fee() {
@@ -1353,7 +1353,7 @@ func (a *ExchangeWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
@@ -1362,9 +1362,9 @@ func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_proofs() {
@@ -1372,7 +1372,7 @@ func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
@@ -1427,7 +1427,7 @@ func (a *OrderTestSuite) Test_id() {
 	a.NoError(err)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *OrderTestSuite) Test_matcherPublicKey() {
@@ -1435,7 +1435,7 @@ func (a *OrderTestSuite) Test_matcherPublicKey() {
 	tmp := a.tx.GetMatcherPK()
 	matcherPublicKey, err := rs.get(matcherPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(tmp.Bytes()), matcherPublicKey)
+	a.Equal(rideByteVector(tmp.Bytes()), matcherPublicKey)
 }
 
 func (a *OrderTestSuite) Test_assetPair() {
@@ -1510,7 +1510,7 @@ func (a *OrderTestSuite) Test_senderPublicKey() {
 	pkBytes := a.tx.GetSenderPKBytes()
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(pkBytes), senderPublicKey)
+	a.Equal(rideByteVector(pkBytes), senderPublicKey)
 }
 
 func (a *OrderTestSuite) Test_bodyBytes() {
@@ -1520,8 +1520,8 @@ func (a *OrderTestSuite) Test_bodyBytes() {
 	sig, _ := crypto.NewSignatureFromBytes(proofs.Proofs[0])
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *OrderTestSuite) Test_proofs() {
@@ -1529,7 +1529,7 @@ func (a *OrderTestSuite) Test_proofs() {
 	p, _ := a.tx.GetProofs()
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *OrderTestSuite) Test_instanceFieldName() {
@@ -1592,7 +1592,7 @@ func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	a.Nil(bodyBytes)
 }
 
@@ -1600,7 +1600,7 @@ func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
 	rs, _ := a.f(proto.TestNetScheme, a.tx)
 	matcherFeeAssetId, err := rs.get(matcherFeeAssetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.matcherFeeAssetID.ID.Bytes()), matcherFeeAssetId)
+	a.Equal(rideByteVector(a.matcherFeeAssetID.ID.Bytes()), matcherFeeAssetId)
 }
 
 // EthereumOrderV4
@@ -1628,7 +1628,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
 	a.NoError(err)
 	script, err := rs.get(scriptField)
 	a.NoError(err)
-	a.Equal(rideBytes("hello"), script)
+	a.Equal(rideByteVector("hello"), script)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
@@ -1636,7 +1636,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.AssetID.Bytes()), assetId)
+	a.Equal(rideByteVector(a.tx.AssetID.Bytes()), assetId)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
@@ -1646,7 +1646,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_fee() {
@@ -1688,7 +1688,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
@@ -1697,9 +1697,9 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
@@ -1707,7 +1707,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -1774,7 +1774,7 @@ func (a *InvocationTestSuite) Test_callerPublicKey() {
 			{v: ast.LibV4, presence: true},
 			{v: ast.LibV5, presence: true},
 		},
-		rideBytes(a.tx.SenderPK.Bytes()),
+		rideByteVector(a.tx.SenderPK.Bytes()),
 	)
 }
 
@@ -1786,7 +1786,7 @@ func (a *InvocationTestSuite) Test_feeAssetID() {
 			{v: ast.LibV4, presence: true},
 			{v: ast.LibV5, presence: true},
 		},
-		rideBytes(a.tx.FeeAsset.ID.Bytes()),
+		rideByteVector(a.tx.FeeAsset.ID.Bytes()),
 	)
 }
 
@@ -1798,7 +1798,7 @@ func (a *InvocationTestSuite) Test_transactionID() {
 			{v: ast.LibV4, presence: true},
 			{v: ast.LibV5, presence: true},
 		},
-		rideBytes(a.tx.ID.Bytes()),
+		rideByteVector(a.tx.ID.Bytes()),
 	)
 }
 
@@ -1873,7 +1873,7 @@ func (a *InvocationTestSuite) Test_originCallerPublicKey() {
 			{v: ast.LibV4, presence: false},
 			{v: ast.LibV5, presence: true},
 		},
-		rideBytes(a.tx.SenderPK.Bytes()),
+		rideByteVector(a.tx.SenderPK.Bytes()),
 	)
 }
 
@@ -1912,7 +1912,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
 	a.NoError(err)
 	asset, err := payment.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(byte_helpers.Digest.Bytes()), asset)
+	a.Equal(rideByteVector(byte_helpers.Digest.Bytes()), asset)
 	amount, err := payment.get(amountField)
 	a.NoError(err)
 	a.Equal(rideInt(100000), amount)
@@ -1950,7 +1950,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
 	a.NoError(err)
 	feeAssetId, err := rs.get(feeAssetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(byte_helpers.Digest.Bytes()), feeAssetId)
+	a.Equal(rideByteVector(byte_helpers.Digest.Bytes()), feeAssetId)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_function() {
@@ -1974,7 +1974,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_id() {
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.ID.Bytes()), id)
+	a.Equal(rideByteVector(a.tx.ID.Bytes()), id)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_fee() {
@@ -2016,7 +2016,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPK)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPK)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
@@ -2025,9 +2025,9 @@ func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
@@ -2035,7 +2035,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -2114,7 +2114,7 @@ func (a *IssueWithSigTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *IssueWithSigTestSuite) Test_fee() {
@@ -2156,7 +2156,7 @@ func (a *IssueWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *IssueWithSigTestSuite) Test_bodyBytes() {
@@ -2165,8 +2165,8 @@ func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *IssueWithSigTestSuite) Test_proofs() {
@@ -2174,7 +2174,7 @@ func (a *IssueWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *IssueWithSigTestSuite) Test_instanceFieldName() {
@@ -2247,7 +2247,7 @@ func (a *IssueWithProofsTestSuite) Test_script() {
 	a.NoError(err)
 	script, err := rs.get(scriptField)
 	a.NoError(err)
-	a.Equal(rideBytes("script"), script)
+	a.Equal(rideByteVector("script"), script)
 }
 
 func (a *IssueWithProofsTestSuite) Test_id() {
@@ -2256,7 +2256,7 @@ func (a *IssueWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *IssueWithProofsTestSuite) Test_fee() {
@@ -2298,7 +2298,7 @@ func (a *IssueWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
@@ -2307,9 +2307,9 @@ func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *IssueWithProofsTestSuite) Test_proofs() {
@@ -2317,7 +2317,7 @@ func (a *IssueWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *IssueWithProofsTestSuite) Test_instanceFieldName() {
@@ -2363,7 +2363,7 @@ func (a *LeaseWithSigTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *LeaseWithSigTestSuite) Test_fee() {
@@ -2405,7 +2405,7 @@ func (a *LeaseWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
@@ -2414,8 +2414,8 @@ func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *LeaseWithSigTestSuite) Test_proofs() {
@@ -2423,7 +2423,7 @@ func (a *LeaseWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *LeaseWithSigTestSuite) Test_instanceFieldName() {
@@ -2469,7 +2469,7 @@ func (a *LeaseWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *LeaseWithProofsTestSuite) Test_fee() {
@@ -2511,7 +2511,7 @@ func (a *LeaseWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
@@ -2520,9 +2520,9 @@ func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *LeaseWithProofsTestSuite) Test_proofs() {
@@ -2530,7 +2530,7 @@ func (a *LeaseWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *LeaseWithProofsTestSuite) Test_instanceFieldName() {
@@ -2559,7 +2559,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
 	a.NoError(err)
 	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), leaseId)
+	a.Equal(rideByteVector(_digest.Bytes()), leaseId)
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_id() {
@@ -2568,7 +2568,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_fee() {
@@ -2610,7 +2610,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
@@ -2619,8 +2619,8 @@ func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
@@ -2628,7 +2628,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_instanceFieldName() {
@@ -2661,7 +2661,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 	a.NoError(err)
 	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.LeaseID.Bytes()), leaseId)
+	a.Equal(rideByteVector(a.tx.LeaseID.Bytes()), leaseId)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_id() {
@@ -2670,7 +2670,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_fee() {
@@ -2712,7 +2712,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
@@ -2721,9 +2721,9 @@ func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
@@ -2731,7 +2731,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_instanceFieldName() {
@@ -2764,7 +2764,7 @@ func (a *DataWithProofsTestSuite) Test_data() {
 	a.Assert().True(ok)
 	v, err := list[0].get(valueField)
 	a.NoError(err)
-	a.Equal(rideBytes("hello"), v)
+	a.Equal(rideByteVector("hello"), v)
 }
 
 func (a *DataWithProofsTestSuite) Test_id() {
@@ -2773,7 +2773,7 @@ func (a *DataWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *DataWithProofsTestSuite) Test_fee() {
@@ -2815,7 +2815,7 @@ func (a *DataWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *DataWithProofsTestSuite) Test_bodyBytes() {
@@ -2824,9 +2824,9 @@ func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *DataWithProofsTestSuite) Test_proofs() {
@@ -2834,7 +2834,7 @@ func (a *DataWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *DataWithProofsTestSuite) Test_instanceFieldName() {
@@ -2863,7 +2863,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
-	a.Equal(rideBytes(_digest.Bytes()), assetId)
+	a.Equal(rideByteVector(_digest.Bytes()), assetId)
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_presence() {
@@ -2889,7 +2889,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_fee() {
@@ -2931,7 +2931,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
@@ -2940,9 +2940,9 @@ func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
@@ -2950,7 +2950,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_instanceFieldName() {
@@ -2988,7 +2988,7 @@ func (a *CreateAliasWithSigTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_fee() {
@@ -3030,7 +3030,7 @@ func (a *CreateAliasWithSigTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
@@ -3039,8 +3039,8 @@ func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
-	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideBytes)))
+	a.IsType(rideByteVector{}, bodyBytes)
+	a.True(crypto.Verify(pub, *a.tx.Signature, bodyBytes.(rideByteVector)))
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_proofs() {
@@ -3048,7 +3048,7 @@ func (a *CreateAliasWithSigTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_instanceFieldName() {
@@ -3086,7 +3086,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_id() {
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
 	a.NoError(err)
-	a.Equal(rideBytes(id), ID)
+	a.Equal(rideByteVector(id), ID)
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_fee() {
@@ -3128,7 +3128,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_senderPublicKey() {
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
-	a.Equal(rideBytes(a.tx.SenderPK.Bytes()), senderPublicKey)
+	a.Equal(rideByteVector(a.tx.SenderPK.Bytes()), senderPublicKey)
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
@@ -3137,9 +3137,9 @@ func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
-	a.IsType(rideBytes{}, bodyBytes)
+	a.IsType(rideByteVector{}, bodyBytes)
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
-	a.True(crypto.Verify(pub, sig, bodyBytes.(rideBytes)))
+	a.True(crypto.Verify(pub, sig, bodyBytes.(rideByteVector)))
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
@@ -3147,7 +3147,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
-	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
+	a.Equal(rideList{rideByteVector(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, proofs)
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {
@@ -3195,7 +3195,7 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.NoError(t, err)
 	senderPublicKey, err := rideObj.get(senderPublicKeyField)
 	assert.NoError(t, err)
-	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), senderPublicKey)
+	assert.Equal(t, rideByteVector(senderPK.SerializeXYCoordinates()), senderPublicKey)
 	senderF, err := rideObj.get(senderField)
 	assert.NoError(t, err)
 	assert.Equal(t, rideAddress(sender), senderF)
@@ -3260,7 +3260,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 
 	senderPublicKey, err := rideObj.get(senderPublicKeyField)
 	assert.NoError(t, err)
-	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), senderPublicKey)
+	assert.Equal(t, rideByteVector(senderPK.SerializeXYCoordinates()), senderPublicKey)
 	senderF, err := rideObj.get(senderField)
 	assert.NoError(t, err)
 	assert.Equal(t, rideAddress(sender), senderF)
@@ -3283,7 +3283,7 @@ func TestArgumentsConversion(t *testing.T) {
 	ri := rideInt(12345)
 	rs := rideString("xxx")
 	rt := rideBoolean(true)
-	rb := rideBytes([]byte{0xca, 0xfe, 0xbe, 0xbe, 0xde, 0xad, 0xbe, 0xef})
+	rb := rideByteVector([]byte{0xca, 0xfe, 0xbe, 0xbe, 0xde, 0xad, 0xbe, 0xef})
 	rl := rideList([]rideType{ri, rs, rt, rb})
 	ru := rideUnit{}
 	ra := rideAddress(proto.MustAddressFromString("3N9b3KejqpXFkbvZBKobythymXM4d3m2oRD"))
@@ -3335,10 +3335,10 @@ func TestSetScriptRideObjectScriptField(t *testing.T) {
 		consensusImprovementsActivated bool
 	}{
 		{rideUnit{}, "", false},
-		{rideBytes(mustDecodeBase58(dig)), dig, false},
-		{rideBytes(mustDecodeBase58(bigString)), bigString, false},
+		{rideByteVector(mustDecodeBase58(dig)), dig, false},
+		{rideByteVector(mustDecodeBase58(bigString)), bigString, false},
 		{rideUnit{}, bigPlusString, false},
-		{rideBytes(mustDecodeBase58(bigPlusString)), bigPlusString, true},
+		{rideByteVector(mustDecodeBase58(bigPlusString)), bigPlusString, true},
 	}
 	for _, tc := range tests {
 		testSetScriptTransaction := makeSetScriptTransactionObject(t, sig, dig, tc.scriptBytes, 1, 2, tc.consensusImprovementsActivated)

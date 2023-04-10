@@ -674,7 +674,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		{Sender: dApp2.publicKeyRef(), Recipient: dApp1.recipient(), Amount: 10, Nonce: 0},
 	}
 
-	pid, ok := env.me.txID().(rideBytes)
+	pid, ok := env.me.txID().(rideByteVector)
 	require.True(t, ok)
 	d, err := crypto.NewDigestFromBytes(pid)
 	require.NoError(t, err)

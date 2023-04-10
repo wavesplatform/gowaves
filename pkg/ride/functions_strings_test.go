@@ -229,10 +229,10 @@ func TestStringToBytes(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideString("Hello")}, false, rideBytes("Hello")},
-		{[]rideType{rideString("Привет")}, false, rideBytes("Привет")},
-		{[]rideType{rideString("世界")}, false, rideBytes("世界")},
-		{[]rideType{rideString("")}, false, rideBytes{}},
+		{[]rideType{rideString("Hello")}, false, rideByteVector("Hello")},
+		{[]rideType{rideString("Привет")}, false, rideByteVector("Привет")},
+		{[]rideType{rideString("世界")}, false, rideByteVector("世界")},
+		{[]rideType{rideString("")}, false, rideByteVector{}},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},

@@ -349,9 +349,9 @@ func TestIntToBytes(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideInt(0)}, false, rideBytes{0, 0, 0, 0, 0, 0, 0, 0}},
-		{[]rideType{rideInt(1)}, false, rideBytes{0, 0, 0, 0, 0, 0, 0, 1}},
-		{[]rideType{rideInt(math.MaxInt64)}, false, rideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+		{[]rideType{rideInt(0)}, false, rideByteVector{0, 0, 0, 0, 0, 0, 0, 0}},
+		{[]rideType{rideInt(1)}, false, rideByteVector{0, 0, 0, 0, 0, 0, 0, 1}},
+		{[]rideType{rideInt(math.MaxInt64)}, false, rideByteVector{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
 		{[]rideType{rideInt(math.MaxInt64), rideInt(4)}, true, nil},
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},

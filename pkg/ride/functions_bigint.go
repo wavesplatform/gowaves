@@ -438,7 +438,7 @@ func bigIntToBytes(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "bigIntToBytes")
 	}
 	i := new(big.Int).Set(v.v)
-	return rideBytes(encode2CBigInt(i)), nil
+	return rideByteVector(encode2CBigInt(i)), nil
 }
 
 func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
@@ -460,7 +460,7 @@ func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bytesToBigIntLim")
 	}
-	bts, ok := args[0].(rideBytes)
+	bts, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}

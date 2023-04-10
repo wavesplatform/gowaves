@@ -802,7 +802,7 @@ func toRideBigInt(i int) rideBigInt {
 	return rideBigInt{v: v}
 }
 
-func toRideBytes(s string) rideBytes {
+func toRideBytes(s string) rideByteVector {
 	r, _ := hex.DecodeString(s)
 	return r
 }

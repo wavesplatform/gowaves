@@ -533,14 +533,14 @@ func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
 	id, err := tx.GetID(e.me.scheme())
 	require.NoError(e.t, err)
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id)
+		return rideByteVector(id)
 	}
 	return e
 }
 
 func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id.Bytes())
+		return rideByteVector(id.Bytes())
 	}
 	return e
 }
@@ -761,7 +761,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 		e.inv = inv
 	}
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(tx.ID.Bytes())
+		return rideByteVector(tx.ID.Bytes())
 	}
 	return e
 }

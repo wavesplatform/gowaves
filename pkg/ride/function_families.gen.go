@@ -16,15 +16,15 @@ func bls12Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -42,15 +42,15 @@ func bls12Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -68,15 +68,15 @@ func bls12Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -94,15 +94,15 @@ func bls12Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -120,15 +120,15 @@ func bls12Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -146,15 +146,15 @@ func bls12Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -172,15 +172,15 @@ func bls12Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -198,15 +198,15 @@ func bls12Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -224,15 +224,15 @@ func bls12Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -250,15 +250,15 @@ func bls12Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -276,15 +276,15 @@ func bls12Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -302,15 +302,15 @@ func bls12Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -328,15 +328,15 @@ func bls12Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -354,15 +354,15 @@ func bls12Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -380,15 +380,15 @@ func bls12Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -406,15 +406,15 @@ func bn256Groth16Verify_1(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -432,15 +432,15 @@ func bn256Groth16Verify_2(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -458,15 +458,15 @@ func bn256Groth16Verify_3(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -484,15 +484,15 @@ func bn256Groth16Verify_4(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -510,15 +510,15 @@ func bn256Groth16Verify_5(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -536,15 +536,15 @@ func bn256Groth16Verify_6(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -562,15 +562,15 @@ func bn256Groth16Verify_7(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -588,15 +588,15 @@ func bn256Groth16Verify_8(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -614,15 +614,15 @@ func bn256Groth16Verify_9(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -640,15 +640,15 @@ func bn256Groth16Verify_10(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -666,15 +666,15 @@ func bn256Groth16Verify_11(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -692,15 +692,15 @@ func bn256Groth16Verify_12(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -718,15 +718,15 @@ func bn256Groth16Verify_13(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -744,15 +744,15 @@ func bn256Groth16Verify_14(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -770,15 +770,15 @@ func bn256Groth16Verify_15(env environment, args ...rideType) (rideType, error) 
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -796,18 +796,18 @@ func sigVerify_8(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_8")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_8: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); l > 8*1024 {
 		return nil, errors.Errorf("sigVerify_8: invalid message size %d", l)
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_8: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_8: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -827,18 +827,18 @@ func sigVerify_16(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_16")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_16: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); l > 16*1024 {
 		return nil, errors.Errorf("sigVerify_16: invalid message size %d", l)
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_16: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_16: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -858,18 +858,18 @@ func sigVerify_32(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_32")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_32: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); l > 32*1024 {
 		return nil, errors.Errorf("sigVerify_32: invalid message size %d", l)
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_32: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_32: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -889,18 +889,18 @@ func sigVerify_64(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_64")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_64: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); l > 64*1024 {
 		return nil, errors.Errorf("sigVerify_64: invalid message size %d", l)
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_64: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_64: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -920,18 +920,18 @@ func sigVerify_128(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_128")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_128: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); l > 128*1024 {
 		return nil, errors.Errorf("sigVerify_128: invalid message size %d", l)
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_128: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify_128: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -955,18 +955,18 @@ func rsaVerify_16(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_16")
 	}
-	message, ok := args[1].(rideBytes)
+	message, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_16: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if l := len(message); l > 16*1024 {
 		return nil, errors.Errorf("rsaVerify_16: invalid message size %d", l)
 	}
-	sig, ok := args[2].(rideBytes)
+	sig, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_16: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	pk, ok := args[3].(rideBytes)
+	pk, ok := args[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_16: unexpected argument type '%s'", args[3].instanceOf())
 	}
@@ -999,18 +999,18 @@ func rsaVerify_32(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_32")
 	}
-	message, ok := args[1].(rideBytes)
+	message, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_32: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if l := len(message); l > 32*1024 {
 		return nil, errors.Errorf("rsaVerify_32: invalid message size %d", l)
 	}
-	sig, ok := args[2].(rideBytes)
+	sig, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_32: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	pk, ok := args[3].(rideBytes)
+	pk, ok := args[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_32: unexpected argument type '%s'", args[3].instanceOf())
 	}
@@ -1043,18 +1043,18 @@ func rsaVerify_64(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_64")
 	}
-	message, ok := args[1].(rideBytes)
+	message, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_64: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if l := len(message); l > 64*1024 {
 		return nil, errors.Errorf("rsaVerify_64: invalid message size %d", l)
 	}
-	sig, ok := args[2].(rideBytes)
+	sig, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_64: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	pk, ok := args[3].(rideBytes)
+	pk, ok := args[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_64: unexpected argument type '%s'", args[3].instanceOf())
 	}
@@ -1087,18 +1087,18 @@ func rsaVerify_128(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_128")
 	}
-	message, ok := args[1].(rideBytes)
+	message, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_128: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if l := len(message); l > 128*1024 {
 		return nil, errors.Errorf("rsaVerify_128: invalid message size %d", l)
 	}
-	sig, ok := args[2].(rideBytes)
+	sig, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_128: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	pk, ok := args[3].(rideBytes)
+	pk, ok := args[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify_128: unexpected argument type '%s'", args[3].instanceOf())
 	}
@@ -1135,7 +1135,7 @@ func keccak256_16(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_16")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func keccak256_32(env environment, args ...rideType) (rideType, error) {
@@ -1150,7 +1150,7 @@ func keccak256_32(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_32")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func keccak256_64(env environment, args ...rideType) (rideType, error) {
@@ -1165,7 +1165,7 @@ func keccak256_64(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_64")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func keccak256_128(env environment, args ...rideType) (rideType, error) {
@@ -1180,7 +1180,7 @@ func keccak256_128(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_128")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func blake2b256_16(_ environment, args ...rideType) (rideType, error) {
@@ -1195,7 +1195,7 @@ func blake2b256_16(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_16")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func blake2b256_32(_ environment, args ...rideType) (rideType, error) {
@@ -1210,7 +1210,7 @@ func blake2b256_32(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_32")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func blake2b256_64(_ environment, args ...rideType) (rideType, error) {
@@ -1225,7 +1225,7 @@ func blake2b256_64(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_64")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func blake2b256_128(_ environment, args ...rideType) (rideType, error) {
@@ -1240,7 +1240,7 @@ func blake2b256_128(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_128")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func sha256_16(_ environment, args ...rideType) (rideType, error) {
@@ -1256,7 +1256,7 @@ func sha256_16(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sha256_16")
 	}
 	d := h.Sum(nil)
-	return rideBytes(d), nil
+	return rideByteVector(d), nil
 }
 
 func sha256_32(_ environment, args ...rideType) (rideType, error) {
@@ -1272,7 +1272,7 @@ func sha256_32(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sha256_32")
 	}
 	d := h.Sum(nil)
-	return rideBytes(d), nil
+	return rideByteVector(d), nil
 }
 
 func sha256_64(_ environment, args ...rideType) (rideType, error) {
@@ -1288,7 +1288,7 @@ func sha256_64(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sha256_64")
 	}
 	d := h.Sum(nil)
-	return rideBytes(d), nil
+	return rideByteVector(d), nil
 }
 
 func sha256_128(_ environment, args ...rideType) (rideType, error) {
@@ -1304,5 +1304,5 @@ func sha256_128(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sha256_128")
 	}
 	d := h.Sum(nil)
-	return rideBytes(d), nil
+	return rideByteVector(d), nil
 }
