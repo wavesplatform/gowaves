@@ -371,7 +371,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	if !assetInfo.Scripted {
 		return true, nil
 	}
-	txID, err := crypto.NewDigestFromBytes(env.txID().(rideBytes))
+	txID, err := crypto.NewDigestFromBytes(env.txID().(rideByteVector))
 	if err != nil {
 		return false, err
 	}
@@ -1146,7 +1146,7 @@ func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
-	e.id = rideBytes(transfer.ID.Bytes())
+	e.id = rideByteVector(transfer.ID.Bytes())
 	e.tx = scriptTransferToTransferTransactionObject(transfer)
 }
 
@@ -1174,7 +1174,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	e.id = rideBytes(id)
+	e.id = rideByteVector(id)
 
 	ver, err := e.libVersion()
 	if err != nil {

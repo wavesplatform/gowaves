@@ -29,7 +29,7 @@ func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 
 func extractOptionalAsset(v rideType) (proto.OptionalAsset, error) {
 	switch tv := v.(type) {
-	case rideBytes:
+	case rideByteVector:
 		asset, err := proto.NewOptionalAssetFromBytes(tv)
 		if err != nil {
 			return proto.OptionalAsset{}, err
@@ -186,7 +186,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to get field from oldInvocation", invocation.name())
 	}
-	transactionID, ok := transactionIDRaw.(rideBytes)
+	transactionID, ok := transactionIDRaw.(rideByteVector)
 	if !ok {
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of transactionID", invocation.name(), transactionIDRaw.instanceOf())
 	}
@@ -380,7 +380,7 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 		if err != nil {
 			return nil, errors.Errorf("hashScriptAtAddress: failed to get hash of script, %v", err)
 		}
-		return rideBytes(hash.Bytes()), nil
+		return rideByteVector(hash.Bytes()), nil
 	}
 	return rideUnit{}, nil
 }
@@ -473,7 +473,7 @@ func assetBalanceV3(env environment, args ...rideType) (rideType, error) {
 	switch assetBytes := args[1].(type) {
 	case rideUnit:
 		balance, err = env.state().NewestWavesBalance(recipient)
-	case rideBytes:
+	case rideByteVector:
 		asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
 		if digestErr != nil {
 			return rideInt(0), nil // according to the scala node implementation
@@ -496,7 +496,7 @@ func assetBalanceV4(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	assetBytes, ok := args[1].(rideBytes)
+	assetBytes, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
@@ -549,7 +549,7 @@ func bytesFromState(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	return rideBytes(entry.Value), nil
+	return rideByteVector(entry.Value), nil
 }
 
 func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
@@ -566,7 +566,7 @@ func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	return rideBytes(entry.Value), nil
+	return rideByteVector(entry.Value), nil
 }
 
 func stringFromState(env environment, args ...rideType) (rideType, error) {
@@ -649,7 +649,7 @@ func sigVerify(env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify")
 	}
-	message, ok := args[0].(rideBytes)
+	message, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
@@ -662,11 +662,11 @@ func sigVerify(env environment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 		}
 	}
-	signature, ok := args[1].(rideBytes)
+	signature, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	pkb, ok := args[2].(rideBytes)
+	pkb, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -694,7 +694,7 @@ func keccak256(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func blake2b256(env environment, args ...rideType) (rideType, error) {
@@ -709,7 +709,7 @@ func blake2b256(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256")
 	}
-	return rideBytes(d.Bytes()), nil
+	return rideByteVector(d.Bytes()), nil
 }
 
 func sha256(env environment, args ...rideType) (rideType, error) {
@@ -725,7 +725,7 @@ func sha256(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sha256")
 	}
 	d := h.Sum(nil)
-	return rideBytes(d), nil
+	return rideByteVector(d), nil
 }
 
 func addressFromPublicKey(env environment, args ...rideType) (rideType, error) {
@@ -896,7 +896,7 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rsaVerify")
 	}
-	message, ok := args[1].(rideBytes)
+	message, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
@@ -909,11 +909,11 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf("rsaVerify: invalid message size %d", l)
 		}
 	}
-	sig, ok := args[2].(rideBytes)
+	sig, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	pk, ok := args[3].(rideBytes)
+	pk, ok := args[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify unexpected argument type '%s'", args[3].instanceOf())
 	}
@@ -942,15 +942,15 @@ func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "checkMerkleProof")
 	}
-	root, ok := args[0].(rideBytes)
+	root, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("checkMerkleProof: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("checkMerkleProof: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	leaf, ok := args[2].(rideBytes)
+	leaf, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("checkMerkleProof: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -1047,8 +1047,8 @@ func transferFromProtobuf(env environment, args ...rideType) (rideType, error) {
 	return obj, nil
 }
 
-func calcAssetID(env environment, name, description rideString, decimals, quantity rideInt, reissuable rideBoolean, nonce rideInt) (rideBytes, error) {
-	pid, ok := env.txID().(rideBytes)
+func calcAssetID(env environment, name, description rideString, decimals, quantity rideInt, reissuable rideBoolean, nonce rideInt) (rideByteVector, error) {
+	pid, ok := env.txID().(rideByteVector)
 	if !ok {
 		return nil, errors.New("calculateAssetID: no parent transaction ID found")
 	}
@@ -1103,7 +1103,7 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	}
 	pfs := make([]crypto.Digest, len(proofs))
 	for i, x := range proofs {
-		b, ok := x.(rideBytes)
+		b, ok := x.(rideByteVector)
 		if !ok {
 			return nil, errors.Errorf("rebuildMerkleRoot: unexpected proof type '%s' at position %d", x.instanceOf(), i)
 		}
@@ -1113,7 +1113,7 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 		}
 		pfs[i] = d
 	}
-	leaf, ok := args[1].(rideBytes)
+	leaf, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("rebuildMerkleRoot: unexpected argument type '%s'", args[1].instanceOf())
 	}
@@ -1131,22 +1131,22 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
 	root := tree.RebuildRoot(lf, pfs, idx)
-	return rideBytes(root[:]), nil
+	return rideByteVector(root[:]), nil
 }
 
 func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -1161,15 +1161,15 @@ func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify")
 	}
-	key, ok := args[0].(rideBytes)
+	key, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	proof, ok := args[1].(rideBytes)
+	proof, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	inputs, ok := args[2].(rideBytes)
+	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -1197,7 +1197,7 @@ func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	}
 	pkb := pk.SerializeUncompressed()
 	//We have to drop first byte because in bitcoin library where is a length.
-	return rideBytes(pkb[1:]), nil
+	return rideByteVector(pkb[1:]), nil
 }
 
 // Constructors
@@ -1266,7 +1266,7 @@ func keyArg(args []rideType) (string, error) {
 	return string(key), nil
 }
 
-func bytesOrStringArg(args []rideType) (rideBytes, error) {
+func bytesOrStringArg(args []rideType) (rideByteVector, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -1274,7 +1274,7 @@ func bytesOrStringArg(args []rideType) (rideBytes, error) {
 		return nil, errors.Errorf("argument is empty")
 	}
 	switch a := args[0].(type) {
-	case rideBytes:
+	case rideByteVector:
 		return a, nil
 	case rideString:
 		return []byte(a), nil
@@ -1312,8 +1312,8 @@ func digest(v rideType) (c1.Hash, error) {
 	}
 }
 
-func calcLeaseID(env environment, recipient proto.Recipient, amount, nonce rideInt) (rideBytes, error) {
-	pid, ok := env.txID().(rideBytes)
+func calcLeaseID(env environment, recipient proto.Recipient, amount, nonce rideInt) (rideByteVector, error) {
+	pid, ok := env.txID().(rideByteVector)
 	if !ok {
 		return nil, errors.New("calcLeaseID: no parent transaction ID found")
 	}
