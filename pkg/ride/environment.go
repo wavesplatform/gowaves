@@ -21,6 +21,7 @@ type WrappedState struct {
 	cle                       rideAddress
 	scheme                    proto.Scheme
 	height                    proto.Height
+	txPosInBlock              uint64
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -29,12 +30,13 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, txPosInBlock uint64) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
 		height:                    proto.Height(env.height()),
+		txPosInBlock:              txPosInBlock, // we can pass this param because we each time create new instance of wrapped state for a new tx
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
@@ -257,15 +259,16 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 	return &proto.AssetInfo{
-		ID:              asset,
-		Quantity:        uint64(searchNewAsset.quantity),
-		Decimals:        uint8(searchNewAsset.decimals),
-		Issuer:          searchNewAsset.dAppIssuer,
-		IssuerPublicKey: issuerPK,
-		Reissuable:      searchNewAsset.reissuable,
-		Scripted:        scripted,
-		Sponsored:       sponsored,
-		IssueHeight:     ws.height,
+		ID:                asset,
+		Quantity:          uint64(searchNewAsset.quantity),
+		Decimals:          uint8(searchNewAsset.decimals),
+		Issuer:            searchNewAsset.dAppIssuer,
+		IssuerPublicKey:   issuerPK,
+		Reissuable:        searchNewAsset.reissuable,
+		Scripted:          scripted,
+		Sponsored:         sponsored,
+		IssueHeight:       ws.height,
+		IssueTxPosInBlock: ws.txPosInBlock,
 	}, nil
 }
 
@@ -306,15 +309,16 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}
 
 	assetInfo := proto.AssetInfo{
-		ID:              asset,
-		Quantity:        uint64(searchNewAsset.quantity),
-		Decimals:        uint8(searchNewAsset.decimals),
-		Issuer:          searchNewAsset.dAppIssuer,
-		IssuerPublicKey: issuerPK,
-		Reissuable:      searchNewAsset.reissuable,
-		Scripted:        scripted,
-		Sponsored:       sponsored,
-		IssueHeight:     ws.height,
+		ID:                asset,
+		Quantity:          uint64(searchNewAsset.quantity),
+		Decimals:          uint8(searchNewAsset.decimals),
+		Issuer:            searchNewAsset.dAppIssuer,
+		IssuerPublicKey:   issuerPK,
+		Reissuable:        searchNewAsset.reissuable,
+		Scripted:          scripted,
+		Sponsored:         sponsored,
+		IssueHeight:       ws.height,
+		IssueTxPosInBlock: ws.txPosInBlock,
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,
@@ -1047,9 +1051,10 @@ func NewEnvironmentWithWrappedState(
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 	checkSenderBalance bool,
+	txPosInBlock uint64,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
-	st := newWrappedState(env, rootScriptLibVersion)
+	st := newWrappedState(env, rootScriptLibVersion, txPosInBlock)
 	for i, payment := range payments {
 		var (
 			senderBalance uint64

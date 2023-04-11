@@ -141,6 +141,7 @@ func defaultAppendTxParams() *appendTxParams {
 		block:         defaultBlock(),
 		acceptFailed:  false,
 		validatingUtx: false,
+		txPosInBlock:  1,
 	}
 }
 

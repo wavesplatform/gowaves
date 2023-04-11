@@ -345,8 +345,9 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	if res.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
-			height:  params.checkerInfo.height,
-			blockID: params.checkerInfo.blockID,
+			height:       params.checkerInfo.height,
+			txPosInBlock: uint64(params.txPosInBlock),
+			blockID:      params.checkerInfo.blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
@@ -409,6 +410,8 @@ type appendTxParams struct {
 	consensusImprovementsActivated bool
 	invokeExpressionActivated      bool // TODO: check feature naming
 	validatingUtx                  bool // if validatingUtx == false then chans MUST be initialized with non nil value
+	// TODO: size in bits for txPosInBlock can be reduced
+	txPosInBlock uint64 // if validatingUtx == true then txPosInBlock == 0, otherwise it means position of tx in a block starting with 1
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -615,7 +618,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// Check and append transactions.
-	for _, tx := range params.transactions {
+	for i, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
 			chans:                          params.chans,
 			checkerInfo:                    checkerInfo,
@@ -628,6 +631,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			consensusImprovementsActivated: consensusImprovementsActivated,
 			invokeExpressionActivated:      invokeExpressionActivated,
 			validatingUtx:                  false,
+			txPosInBlock:                   uint64(i + 1),
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -862,6 +866,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		consensusImprovementsActivated: consensusImprovementsActivated,
 		invokeExpressionActivated:      invokeExpressionActivated,
 		validatingUtx:                  true,
+		txPosInBlock:                   0, // 0 because there's no block, hence no position
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {

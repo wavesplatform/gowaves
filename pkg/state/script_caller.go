@@ -304,7 +304,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true, info.txPosInBlock)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -330,7 +330,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true, info.txPosInBlock)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -377,7 +377,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		if tree.LibVersion >= ast.LibV5 {
 			//TODO: Update last argument of the followinxg call with new feature activation flag or
 			// something else depending on NODE-2531 issue resolution in scala implementation.
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, false)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, false, info.txPosInBlock)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}

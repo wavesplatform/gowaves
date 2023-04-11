@@ -10,8 +10,9 @@ import (
 )
 
 type performerInfo struct {
-	height  uint64
-	blockID proto.BlockID
+	height       uint64
+	txPosInBlock uint64 // TODO: size in bits can be reduced
+	blockID      proto.BlockID
 }
 
 type transactionPerformer struct {
@@ -28,10 +29,11 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:        proto.DigestTail(assetID),
-			issuer:      tx.SenderPK,
-			decimals:    tx.Decimals,
-			issueHeight: blockHeight,
+			tail:              proto.DigestTail(assetID),
+			issuer:            tx.SenderPK,
+			decimals:          tx.Decimals,
+			issueHeight:       blockHeight,
+			issueTxPosInBlock: info.txPosInBlock,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
