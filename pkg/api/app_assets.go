@@ -56,7 +56,7 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 	}
 	assetDetails := AssetDetails{
 		AssetId:              assetInfo.ID,
-		IssueHeight:          0, // TODO(nickeskov): add issue height to asset info
+		IssueHeight:          assetInfo.IssueHeight,
 		IssueTimestamp:       assetInfo.IssueTransaction.GetTimestamp(),
 		Issuer:               assetInfo.Issuer,
 		IssuerPublicKey:      assetInfo.IssuerPublicKey,
