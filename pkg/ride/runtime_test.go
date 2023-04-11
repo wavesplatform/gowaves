@@ -414,6 +414,7 @@ func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.
 			Reissuable:      true,
 			Scripted:        true,
 			Sponsored:       true,
+			IssueHeight:     100500,
 		},
 		Name:        "name",
 		Description: "description",

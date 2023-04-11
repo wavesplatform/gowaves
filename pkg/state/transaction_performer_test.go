@@ -36,11 +36,12 @@ func TestPerformIssueWithSig(t *testing.T) {
 	err := to.tp.performIssueWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performIssueWithSig() failed")
 	to.stor.flush(t)
-	assetInfo := assetInfo{
+	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(*tx.ID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:        proto.DigestTail(*tx.ID),
+			issuer:      tx.SenderPK,
+			decimals:    int8(tx.Decimals),
+			issueHeight: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -54,7 +55,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
+	assert.Equal(t, expectedAssetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
@@ -66,11 +67,12 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	err := to.tp.performIssueWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
-	assetInfo := assetInfo{
+	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(*tx.ID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:        proto.DigestTail(*tx.ID),
+			issuer:      tx.SenderPK,
+			decimals:    int8(tx.Decimals),
+			issueHeight: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -84,7 +86,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
+	assert.Equal(t, expectedAssetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformReissueWithSig(t *testing.T) {

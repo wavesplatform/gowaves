@@ -28,9 +28,10 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(assetID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:        proto.DigestTail(assetID),
+			issuer:      tx.SenderPK,
+			decimals:    int8(tx.Decimals),
+			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),

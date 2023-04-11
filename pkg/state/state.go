@@ -1979,6 +1979,7 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 
@@ -2077,6 +2078,7 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 

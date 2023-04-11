@@ -71,6 +71,7 @@ type AssetInfo struct {
 	Reissuable      bool
 	Scripted        bool
 	Sponsored       bool
+	IssueHeight     Height
 }
 
 func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {
