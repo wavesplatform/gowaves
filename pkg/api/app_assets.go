@@ -68,7 +68,7 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 		Scripted:             assetInfo.Scripted,
 		MinSponsoredAssetFee: minSponsoredAssetFee,
 		OriginTransactionId:  txID,
-		SequenceInBlock:      0, // TODO(nickeskov): add sequence in block to asset info
+		SequenceInBlock:      assetInfo.IssueTxPosInBlock,
 		ScriptDetails:        nil,
 	}
 	if assetInfo.Scripted && full {
