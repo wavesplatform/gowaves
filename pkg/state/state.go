@@ -1973,7 +1973,7 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,
@@ -2072,7 +2072,7 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,

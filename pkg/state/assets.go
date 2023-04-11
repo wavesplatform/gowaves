@@ -37,7 +37,7 @@ const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1 + 8
 type assetConstInfo struct {
 	tail        [proto.AssetIDTailSize]byte
 	issuer      crypto.PublicKey
-	decimals    int8
+	decimals    uint8
 	issueHeight proto.Height
 }
 
@@ -53,7 +53,7 @@ func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
 	}
 	res = res[crypto.PublicKeySize:]
 	// write info about decimals
-	res[0] = byte(ai.decimals)
+	res[0] = ai.decimals
 	res = res[1:]
 	//write issue height
 	binary.BigEndian.PutUint64(res, ai.issueHeight)
@@ -75,7 +75,7 @@ func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
 	}
 	data = data[crypto.PublicKeySize:]
 	// read asset decimals
-	ai.decimals = int8(data[0])
+	ai.decimals = data[0]
 	data = data[1:]
 	// read issue height
 	ai.issueHeight = binary.BigEndian.Uint64(data)

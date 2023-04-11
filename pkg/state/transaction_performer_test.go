@@ -40,7 +40,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 		assetConstInfo: assetConstInfo{
 			tail:        proto.DigestTail(*tx.ID),
 			issuer:      tx.SenderPK,
-			decimals:    int8(tx.Decimals),
+			decimals:    tx.Decimals,
 			issueHeight: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
@@ -71,7 +71,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 		assetConstInfo: assetConstInfo{
 			tail:        proto.DigestTail(*tx.ID),
 			issuer:      tx.SenderPK,
-			decimals:    int8(tx.Decimals),
+			decimals:    tx.Decimals,
 			issueHeight: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{

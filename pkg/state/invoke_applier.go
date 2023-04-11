@@ -486,7 +486,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				assetConstInfo: assetConstInfo{
 					tail:     proto.DigestTail(a.ID),
 					issuer:   senderPK,
-					decimals: int8(a.Decimals),
+					decimals: uint8(a.Decimals),
 				},
 				assetChangeableInfo: assetChangeableInfo{
 					quantity:    *big.NewInt(a.Quantity),

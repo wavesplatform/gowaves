@@ -30,7 +30,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 		assetConstInfo: assetConstInfo{
 			tail:        proto.DigestTail(assetID),
 			issuer:      tx.SenderPK,
-			decimals:    int8(tx.Decimals),
+			decimals:    tx.Decimals,
 			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
