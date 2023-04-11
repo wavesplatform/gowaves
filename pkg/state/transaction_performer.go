@@ -11,7 +11,7 @@ import (
 
 type performerInfo struct {
 	height       uint64
-	txPosInBlock uint64 // TODO: size in bits can be reduced
+	txPosInBlock uint32
 	blockID      proto.BlockID
 }
 

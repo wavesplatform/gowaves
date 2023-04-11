@@ -39,7 +39,7 @@ type assetConstInfo struct {
 	issuer            crypto.PublicKey
 	decimals          uint8
 	issueHeight       proto.Height
-	issueTxPosInBlock uint64 // TODO: size in bits can be reduced
+	issueTxPosInBlock uint32
 }
 
 func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
@@ -60,7 +60,7 @@ func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
 	binary.BigEndian.PutUint64(res, ai.issueHeight)
 	res = res[8:]
 	// write issue tx position in block
-	binary.BigEndian.PutUint64(res, ai.issueTxPosInBlock) // TODO: size in bits can be reduced
+	binary.BigEndian.PutUint32(res, ai.issueTxPosInBlock)
 	// return full data slice
 	return data, nil
 }
@@ -85,7 +85,7 @@ func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
 	ai.issueHeight = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	// read issue tx position in block
-	ai.issueTxPosInBlock = binary.BigEndian.Uint64(data) // TODO: size in bits can be reduced
+	ai.issueTxPosInBlock = binary.BigEndian.Uint32(data)
 	return nil
 }
 

@@ -346,7 +346,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
 			height:       params.checkerInfo.height,
-			txPosInBlock: uint64(params.txPosInBlock),
+			txPosInBlock: params.txPosInBlock,
 			blockID:      params.checkerInfo.blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
@@ -408,10 +408,9 @@ type appendTxParams struct {
 	rideV5Activated                bool
 	rideV6Activated                bool
 	consensusImprovementsActivated bool
-	invokeExpressionActivated      bool // TODO: check feature naming
-	validatingUtx                  bool // if validatingUtx == false then chans MUST be initialized with non nil value
-	// TODO: size in bits for txPosInBlock can be reduced
-	txPosInBlock uint64 // if validatingUtx == true then txPosInBlock == 0, otherwise it means position of tx in a block starting with 1
+	invokeExpressionActivated      bool   // TODO: check feature naming
+	validatingUtx                  bool   // if validatingUtx == false then chans MUST be initialized with non nil value
+	txPosInBlock                   uint32 // if validatingUtx == true then txPosInBlock == 0, otherwise it means position of tx in a block starting with 1
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -631,7 +630,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			consensusImprovementsActivated: consensusImprovementsActivated,
 			invokeExpressionActivated:      invokeExpressionActivated,
 			validatingUtx:                  false,
-			txPosInBlock:                   uint64(i + 1),
+			txPosInBlock:                   uint32(i + 1),
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err

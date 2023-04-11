@@ -27,7 +27,7 @@ type AssetDetails struct {
 	Scripted             bool               `json:"scripted"`
 	MinSponsoredAssetFee *uint64            `json:"minSponsoredAssetFee"`
 	OriginTransactionId  proto.B58Bytes     `json:"originTransactionId"`
-	SequenceInBlock      uint64             `json:"sequenceInBlock"`
+	SequenceInBlock      uint32             `json:"sequenceInBlock"`
 	ScriptDetails        *ScriptDetails     `json:"scriptDetails,omitempty"`
 }
 

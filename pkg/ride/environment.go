@@ -21,7 +21,7 @@ type WrappedState struct {
 	cle                       rideAddress
 	scheme                    proto.Scheme
 	height                    proto.Height
-	txPosInBlock              uint64
+	txPosInBlock              uint32
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -30,7 +30,7 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, txPosInBlock uint64) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, txPosInBlock uint32) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
@@ -1051,7 +1051,7 @@ func NewEnvironmentWithWrappedState(
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 	checkSenderBalance bool,
-	txPosInBlock uint64,
+	txPosInBlock uint32,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
 	st := newWrappedState(env, rootScriptLibVersion, txPosInBlock)

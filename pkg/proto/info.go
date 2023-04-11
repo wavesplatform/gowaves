@@ -72,7 +72,7 @@ type AssetInfo struct {
 	Scripted          bool
 	Sponsored         bool
 	IssueHeight       Height
-	IssueTxPosInBlock uint64 // TODO: size in bits can be reduced
+	IssueTxPosInBlock uint32
 }
 
 func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {
