@@ -37,6 +37,9 @@ gotest:
 gotest-race-coverage:
 	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
 
+gotest-real-node:
+	@REAL_NODE=true go test -cover $$(go list ./... | grep -v "/itests")
+
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs

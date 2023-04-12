@@ -4,8 +4,8 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
-	"flag"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,13 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
-
-var compilationWithScalaNode bool
-
-func TestMain(t *testing.M) {
-	flag.BoolVar(&compilationWithScalaNode, "compilation-with-scala-node", false, "Testing the compilation of scripts with comparison compilation from scala node")
-	t.Run()
-}
 
 func parseBase64Script(t *testing.T, src string) *ast.Tree {
 	script, err := base64.StdEncoding.DecodeString(src)
@@ -881,7 +874,7 @@ func cursed() = [][0]`,
 var embedScripts embed.FS
 
 func TestCompilationWithScalaNode(t *testing.T) {
-	if !compilationWithScalaNode {
+	if ok, err := strconv.ParseBool(os.Getenv("REAL_NODE")); err != nil || !ok {
 		t.Skip("Skipping testing the compilation of scripts with comparison compilation from scala node")
 	}
 	cli, err := client.NewClient(client.Options{
