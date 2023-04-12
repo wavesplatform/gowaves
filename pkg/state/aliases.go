@@ -199,7 +199,6 @@ func (a *aliases) addOrUpdateAddressToAliasesRecord(aliasStr string, addr proto.
 		err         error
 	)
 	keyBytes := key.bytes()
-	// TODO: is it ok to use newestTopEntryData instead of topEntryData?
 	if recordBytes, err = a.hs.newestTopEntryData(keyBytes); err != nil { // TODO: determine type of error
 		record := addressToAliasesRecord{aliases: []string{aliasStr}}
 		recordBytes, err = record.marshalBinary()
