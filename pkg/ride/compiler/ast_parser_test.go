@@ -877,7 +877,7 @@ func cursed() = [][0]`,
 	}
 }
 
-//go:embed test_scripts
+//go:embed testdata
 var embedScripts embed.FS
 
 func TestCompilationWithScalaNode(t *testing.T) {
@@ -889,11 +889,11 @@ func TestCompilationWithScalaNode(t *testing.T) {
 		Client:  &http.Client{Timeout: 10 * time.Second},
 	})
 	require.NoError(t, err)
-	files, err := embedScripts.ReadDir("test_scripts")
+	files, err := embedScripts.ReadDir("testdata")
 	require.NoError(t, err)
 	for _, file := range files {
 		t.Logf("Test %s", file.Name())
-		code, err := embedScripts.ReadFile("test_scripts/" + file.Name())
+		code, err := embedScripts.ReadFile("testdata/" + file.Name())
 		require.NoError(t, err)
 		res, _, err := cli.Utils.ScriptCompileCode(context.Background(), string(code), false)
 		require.NoError(t, err)

@@ -182,8 +182,9 @@ func (t anyType) String() string {
 	return "Any"
 }
 
-func (t anyType) Equal(_ Type) bool {
-	return false
+func (t anyType) Equal(rideType Type) bool {
+	_, ok := rideType.(anyType)
+	return ok
 }
 
 func (t anyType) EqualWithEntry(_ Type) bool {
@@ -199,14 +200,10 @@ func (t SimpleType) EqualWithEntry(rideType Type) bool {
 }
 
 func (t SimpleType) Equal(rideType Type) bool {
-	switch T := rideType.(type) {
-	case anyType:
-		return false
-	case SimpleType:
+	if T, ok := rideType.(SimpleType); ok {
 		return t.Type == T.Type
-	default:
-		return false
 	}
+	return false
 }
 
 func (t SimpleType) String() string {
@@ -218,10 +215,7 @@ type UnionType struct {
 }
 
 func (t UnionType) Equal(rideType Type) bool {
-	switch T := rideType.(type) {
-	case anyType:
-		return false
-	case UnionType:
+	if T, ok := rideType.(UnionType); ok {
 		for _, typeName := range T.Types {
 			for _, checkTypeName := range t.Types {
 				if !checkTypeName.Equal(typeName) {
@@ -230,9 +224,8 @@ func (t UnionType) Equal(rideType Type) bool {
 			}
 		}
 		return true
-	default:
-		return false
 	}
+	return false
 }
 
 func (t UnionType) EqualWithEntry(rideType Type) bool {
