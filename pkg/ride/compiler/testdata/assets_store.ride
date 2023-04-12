@@ -1,0 +1,335 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let EMPTY = ""
+let statusVerified = 2
+let statusUnverified = 0
+let labelCommunityVerified = "COMMUNITY_VERIFIED"
+let labelPoolsLp = "POOLS_LP"
+let defaultLabels = [labelCommunityVerified, labelPoolsLp]
+
+func throwPD() = "Permission denied".throw()
+func throwNoAsset() = "Asset doesn't exists".throw()
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+func keyAdminPubKeys() = "%s__adminPubKeys"
+func keyUserPoolsContract() = "%s__userPoolsContract"
+func keyFactoryContract() = "%s__factoryContract"
+func keyCreated(assetId: String) = "created_<"+assetId+">"
+func keyLogo(assetId: String) = "logo_<"+assetId+">"
+func keyTicker(assetId: String) = "ticker_<"+assetId+">"
+# 2 = verified, 0 = no
+func keyStatus(assetId: String) = "status_<"+assetId+">"
+func keyAssetPoolsNumber(assetId: String) = ["%s%s", "pools", assetId].makeString(SEP)
+func keyTickerToAssetId(ticker: String) = ["%s%s", "ticker2assetId", ticker].makeString(SEP)
+func keyAssetIdToTicker(assetId: String) = ["%s%s", "assetId2ticker", assetId].makeString(SEP)
+func keyAmountAndPriceAssetsToLpAsset(amountAsset: String, priceAsset: String) = ["%s%s%s", "amountAndPriceAssetsToLpAsset", amountAsset, priceAsset].makeString(SEP)
+func keyLpAssetToAmountAndPriceAssets(lpAsset: String) = ["%s%s", "lpAssetToAmountAndPriceAssets", lpAsset].makeString(SEP)
+func keyAssetLabels(assetId: String) = ["%s%s", "labels", assetId].makeString(SEP)
+func keyLabels() = ["%s", "labels"].makeString(SEP)
+
+func getValueOrFail(address: Address, key: String, type: String|Int) = {
+  let error = ["mandatory ", address.toString(), ".", key, " is not defined"].makeString("")
+
+  {
+    match type {
+      case str: String => address.getString(key)
+      case int: Int => address.getInteger(key)
+      case _ => "invalid entry type".throw()
+    }
+  }.valueOrErrorMessage(error)
+}
+func getStrOrFail(address: Address, key: String) = address.getValueOrFail(key, "").exactAs[String]
+func getIntOrFail(address: Address, key: String) = address.getValueOrFail(key, 0).exactAs[Int]
+
+func isVerified(assetId: String) = {
+  assetId.keyStatus().getInteger().valueOrElse(statusUnverified) == statusVerified
+}
+
+func getLabels() = {
+  match keyLabels().getString() {
+    case s: String => if (s.size() == 0) then nil else s.split(SEP)
+    case _ => nil
+  }
+}
+
+func getAssetLabels(assetId: String) = {
+  match assetId.keyAssetLabels().getString() {
+    case s: String => if (s.size() == 0) then nil else s.split(SEP)
+    case _ => nil
+  }
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || throwPD()
+    case _: Unit => i.caller == this || throwPD()
+  }
+}
+
+func mustAdmin(i: Invocation) = {
+  let adminPKs = keyAdminPubKeys().getString().valueOrElse(EMPTY).split(SEP)
+  if (adminPKs.containsElement(i.callerPublicKey.toBase58String())) then {
+    true
+  } else {
+    strict isManager = i.mustManager()
+    true
+  }
+}
+
+func isCreated(assetId: String) = {
+  keyCreated(assetId).getBoolean().valueOrElse(false) 
+}
+
+func verifiedToStatus(verified: Boolean) = {
+  if (verified) then statusVerified else statusUnverified
+}
+
+func addLabelActions(assetId: String, label: String, throwOnError: Boolean) = {
+  let labels = getLabels()
+  let assetLabels = assetId.getAssetLabels()
+  strict checkLabel = labels.containsElement(label) || "Label doesn't exist".throw()
+
+  let newAssetLabels = if (assetLabels.containsElement(label)) then {
+    if (throwOnError) then "Label has already been added".throw() else assetLabels
+  } else {
+    assetLabels :+ label
+  }
+
+  [StringEntry(assetId.keyAssetLabels(), newAssetLabels.makeString(SEP))]
+}
+
+func deleteLabelActions(assetId: String, label: String, throwOnError: Boolean) = {
+  let assetLabels = assetId.getAssetLabels()
+  let newAssetLabels = if (assetLabels.containsElement(label)) then {
+    assetLabels.removeByIndex(assetLabels.indexOf(label).value())
+  } else {
+    if (throwOnError) then "Label wasn't added".throw() else assetLabels
+  }
+
+  [StringEntry(assetId.keyAssetLabels(), newAssetLabels.makeString(SEP))]
+}
+
+func setVerifiedActions(assetId: String, verified: Boolean) = {
+  let labelCommunityVerifiedActions = if (verified) then {
+    assetId.addLabelActions(labelCommunityVerified, false)
+  } else {
+    assetId.deleteLabelActions(labelCommunityVerified, false)
+  }
+
+  [IntegerEntry(assetId.keyStatus(), verified.verifiedToStatus())] ++ labelCommunityVerifiedActions
+}
+
+func updateTickerActions(assetId: String, ticker: String) = {
+  strict checkTicker = {
+    let linkedAssetIdOrUnit = ticker.keyTickerToAssetId().getString()
+    let tickerIsValid = ticker != "" && (linkedAssetIdOrUnit == unit || linkedAssetIdOrUnit.value() == assetId)
+    tickerIsValid || "Invalid ticker".throw()
+  }
+
+  [
+    StringEntry(assetId.keyAssetIdToTicker(), ticker),
+    StringEntry(ticker.keyTickerToAssetId(), assetId)
+  ]
+}
+
+@Callable(i)
+func constructor(userPoolsContract: String, labels: List[String]) = {
+  strict checkCaller = i.mustManager()
+  strict checksAddress = userPoolsContract.addressFromString().valueOrErrorMessage("Invalid address")
+
+  [
+    StringEntry(keyUserPoolsContract(), userPoolsContract),
+    StringEntry(keyLabels(), (defaultLabels ++ labels).makeString(SEP))
+  ]
+}
+
+@Callable(i)
+func constructorV2(factoryContract: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkAddress = factoryContract.addressFromString().valueOrErrorMessage("invalid factory contract address")
+
+  [
+    StringEntry(keyFactoryContract(), factoryContract)
+  ]
+}
+
+# add amount, price and lp assets link
+@Callable(i)
+func addAssetsLink(amountAsset: String, priceAsset: String, lpAsset: String) = {
+  strict checkCaller = i.mustAdmin()
+  # TODO: amountAsset должен быть создан?
+  [
+    StringEntry(amountAsset.keyAmountAndPriceAssetsToLpAsset(priceAsset), lpAsset),
+    StringEntry(lpAsset.keyLpAssetToAmountAndPriceAssets(), [amountAsset, priceAsset].makeString(SEP))
+  ]
+}
+
+@Callable(i)
+func increaseAssetPoolsNumber(assetId: String) = {
+  strict checkCaller = i.mustAdmin()
+  let assetPoolsNumberKey = assetId.keyAssetPoolsNumber()
+  let assetPoolsNumber = assetPoolsNumberKey.getInteger().valueOrElse(0)
+
+  [IntegerEntry(assetPoolsNumberKey, assetPoolsNumber + 1)]
+}
+
+@Callable(i)
+func createLabel(label: String) = {
+  let labels = getLabels()
+  strict checkCaller = i.mustAdmin()
+  strict checkLabel = [
+    !label.contains(SEP) || "Invalid label name".throw(),
+    !labels.containsElement(label) || "Label exists".throw()
+  ]
+
+  [StringEntry(keyLabels(), (labels :+ label).makeString(SEP))]
+}
+
+@Callable(i)
+func dropLabel(label: String) = {
+  let labels = getLabels()
+  strict checkCaller = i.mustManager()
+  strict checkLabel = labels.containsElement(label) || "Label doesn't exist".throw()
+
+  [StringEntry(keyLabels(), labels.removeByIndex(labels.indexOf(label).value()).makeString(SEP))]
+}
+
+@Callable(i)
+func addLabel(assetId: String, label: String) = {
+  strict checkCaller = i.mustAdmin()
+
+  assetId.addLabelActions(label, true)
+}
+
+@Callable(i)
+func deleteLabel(assetId: String, label: String) = {
+  strict checkCaller = i.mustAdmin()
+
+  assetId.deleteLabelActions(label, true)
+}
+
+# нужна проверка на уникальность тикера
+@Callable(i)
+func updateTicker(assetId: String, ticker: String) = {
+  strict checkCaller = i.mustAdmin()
+  strict checkAsset = assetId.isCreated() || throwNoAsset()
+
+  assetId.updateTickerActions(ticker)
+}
+
+@Callable(i)
+func deleteTicker(assetId: String) = {
+  strict checkCaller = i.mustAdmin()
+  let ticker = assetId.keyAssetIdToTicker().getString().valueOrErrorMessage("Invalid asset")
+
+  [
+    DeleteEntry(assetId.keyAssetIdToTicker()),
+    DeleteEntry(ticker.keyTickerToAssetId())
+  ]
+}
+
+@Callable(i)
+func createOrUpdate(assetId: String, logo: String, verified: Boolean) = {
+  strict checkCaller = i.mustAdmin()
+
+  # causes an error in factory_v2.activateNewPool
+  # strict checkAssetId = assetId.fromBase58String().assetInfo().valueOrErrorMessage("Invalid asset ID")
+  strict isCreatedNow = !assetId.isCreated()
+
+  let setLogoActions = if (logo == "") then [] else [StringEntry(keyLogo(assetId), logo)]
+
+  (
+    [
+      BooleanEntry(keyCreated(assetId), true)
+    ] ++ setLogoActions ++ assetId.setVerifiedActions(verified),
+    isCreatedNow
+  )
+}
+
+@Callable(i)
+func setLogo(assetId: String, logo: String) = {
+  strict checks = [
+    i.mustAdmin(),
+    assetId.isCreated() || throwNoAsset()
+  ]
+
+  let action = if (logo == "") then DeleteEntry(keyLogo(assetId)) else StringEntry(keyLogo(assetId), logo)
+
+  [action]
+}
+
+@Callable(i)
+func setVerified(assetId: String, verified: Boolean) = {
+  strict checks = [
+    i.mustAdmin(),
+    assetId.isCreated() || throwNoAsset()
+  ]
+  strict onVerificationLossInv = if (!verified) then {
+    let factoryContract = this.getStrOrFail(keyFactoryContract()).addressFromString().valueOrErrorMessage("invalid factory contract address")
+    factoryContract.invoke("onVerificationLoss", [assetId], [])
+  } else unit
+
+  (assetId.setVerifiedActions(verified), unit)
+}
+
+@Callable(i)
+func onEliminate(assetId: String) = {
+  let poolsNumber = assetId.keyAssetPoolsNumber().getInteger().valueOrElse(0)
+  let actions = if (poolsNumber > 0) then [] else [DeleteEntry(assetId.keyLogo())]
+
+  (actions, unit)
+}
+
+@Callable(i)
+func setAdmins(adminPubKeys: List[String]) = {
+  strict checkCaller = i.mustManager()
+  [StringEntry(keyAdminPubKeys(), adminPubKeys.makeString(SEP))]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || "No pending manager".throw()
+  strict checkPM = i.callerPublicKey == pm.value() || "You are not pending manager".throw()
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Callable(i)
+func isVerifiedREADONLY(assetId: String) = {
+  (nil, assetId.isVerified())
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

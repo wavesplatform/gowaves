@@ -1,0 +1,320 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+
+func keyManagerPublicKey() = "%s__managerPublicpKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+
+func blockHeightError() = "The block's height is too big for this proposal".throw()
+func alreadyVoteError() = "You have already voted".throw()
+func noVoteError() = "You have not already voted".throw()
+
+func gwxContractAddress() = ["%s", "gwxContractAddress"].makeString(SEP)
+
+func keyCurrentIndex() = ["%s", "currentIndex"].makeString(SEP)
+
+func keyProposalInfo(number: Int) = ["%s%d", "proposalInfo", number.toString()].makeString(SEP)
+func keyUserVoteOnProposal(number: Int, user: String) = ["%s%d%s", "userVoteOnProposal", number.toString(), user].makeString(SEP)
+
+func getCurrentIndex() = this.getIntegerValue(keyCurrentIndex())
+
+func formatProposalInfo(name: String, description: String, end: String, quorumNumber: String, positiveVotes: String, negativeVotes: String) = {
+  makeString([
+      "%d%d%d%d%d%d",       # 0
+      name,                 # 1
+      description,          # 2
+      end,                  # 3
+      quorumNumber,         # 4
+      positiveVotes,        # 5
+      negativeVotes         # 6
+      ],
+  SEP)
+}
+
+func formatUserVoteOnProposal(vote: String, gwxNumber: String) = {
+  makeString([
+      "%d%d",   # 0
+      vote,                 # 1
+      gwxNumber             # 2
+      ],
+  SEP)
+}
+
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func isManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk
+    case _: Unit => i.caller == this
+  }
+}
+
+func mustManager(i: Invocation) = {
+  i.isManager() || "permission denied".throw()
+}
+
+@Callable(i)
+func startNewVote(name: String, description: String, expirationHeight: Int, quorumNumber: Int) = {
+  strict checks = [
+    i.mustManager()
+  ]
+  let theIndex = getCurrentIndex()
+  
+  [
+    IntegerEntry(keyCurrentIndex(), theIndex + 1),
+
+    StringEntry(
+      keyProposalInfo(theIndex),
+      formatProposalInfo(
+        name,
+        description,
+        (lastBlock.height + expirationHeight).toString(),
+        quorumNumber.toString(),
+        "0",
+        "0"
+      )
+    )
+  ]
+}
+
+@Callable(i)
+func voteFor(proposalIndex: Int, choice: Boolean) = {
+  let EMPTY = "EMPTY"
+  let voteInfo = this.getString(keyProposalInfo(proposalIndex)).valueOrElse(EMPTY)
+  let voteInfoArray = voteInfo.split(SEP)
+  let userVoteInfo = this.getString(keyUserVoteOnProposal(proposalIndex, toString(i.caller))).valueOrElse(EMPTY)
+  strict checks = [
+    voteInfo != EMPTY || "No such vote".throw(),
+    lastBlock.height < voteInfoArray[3].parseInt().value() || blockHeightError(),
+    userVoteInfo == EMPTY || alreadyVoteError()
+  ]
+  let gwxNumber = invoke(
+    addressFromStringValue(getStringValue(gwxContractAddress())),
+    "getUserGwxAmountAtHeightREADONLY",
+    [i.caller.toString(), voteInfoArray[3].parseInt().value()],
+    []
+  ).asInt()
+
+  let (action1, action2) = if (choice) then {
+    let action1 = StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        (voteInfoArray[5].parseInt().value() + gwxNumber).toString(),
+        voteInfoArray[6]
+      )
+    )
+    let action2 = StringEntry(
+      keyUserVoteOnProposal(proposalIndex, i.caller.toString()),
+      formatUserVoteOnProposal(
+        "1",
+        gwxNumber.toString()
+      )
+    )
+    (action1, action2)
+  } else {
+    let action1 = StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        voteInfoArray[5],
+        (voteInfoArray[6].parseInt().value() + gwxNumber).toString()
+      )
+    )
+    let action2 = StringEntry(
+      keyUserVoteOnProposal(proposalIndex, i.caller.toString()),
+      formatUserVoteOnProposal(
+        "0",
+        gwxNumber.toString()
+      )
+    )
+    (action1, action2)
+  }
+  
+  [
+    action1,
+    action2
+  ]
+}
+
+@Callable(i)
+func deleteVote(proposalIndex: Int) = {
+  let EMPTY = "EMPTY"
+  let voteInfo = this.getString(keyProposalInfo(proposalIndex)).valueOrElse(EMPTY)
+  let voteInfoArray = voteInfo.split(SEP)
+  let userVoteInfo = this.getString(keyUserVoteOnProposal(proposalIndex, i.caller.toString())).valueOrElse(EMPTY)
+  let userVoteInfoArray = userVoteInfo.split(SEP)
+  strict checks = [
+    voteInfo != EMPTY || "No such vote".throw(),
+    lastBlock.height < voteInfoArray[3].parseInt().value() || blockHeightError(),
+    userVoteInfo != EMPTY ||  noVoteError()
+  ]
+  let action = if (userVoteInfoArray[1] == "1") 
+  then {
+    StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        (voteInfoArray[5].parseInt().value() - userVoteInfoArray[2].parseInt().value()).toString(),
+        voteInfoArray[6]
+      )
+    )
+  } else {
+    StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        voteInfoArray[5],
+        (voteInfoArray[6].parseInt().value() - userVoteInfoArray[2].parseInt().value()).toString()
+      )
+    )
+  }
+  [
+    action,
+    DeleteEntry(keyUserVoteOnProposal(proposalIndex, i.caller.toString()))
+  ]
+}
+
+@Callable(i)
+func changeVote(proposalIndex: Int, choice: Boolean) = {
+  let EMPTY = "EMPTY"
+  let voteInfo = this.getString(keyProposalInfo(proposalIndex)).valueOrElse(EMPTY)
+  let voteInfoArray = voteInfo.split(SEP)
+  let userVoteInfo = this.getString(keyUserVoteOnProposal(proposalIndex, i.caller.toString())).valueOrElse(EMPTY)
+  let userVoteInfoArray = userVoteInfo.split(SEP)
+  strict checks = [
+    voteInfo != EMPTY || "No such vote".throw(),
+    lastBlock.height < voteInfoArray[3].parseInt().value() || blockHeightError(),
+    userVoteInfo != EMPTY ||  noVoteError()
+  ]
+  let gwxNumber = invoke(
+    addressFromStringValue(getStringValue(gwxContractAddress())),
+    "getUserGwxAmountAtHeightREADONLY",
+    [i.caller.toString(), voteInfoArray[3].parseInt().value()],
+    []
+  ).asInt()
+
+  let (userPowerFor, userPowerAgainst, choiceInt) = if (choice) then {
+    let forNumber = gwxNumber
+    let againstNumber = 0
+    let choiceInteger = 1
+    (forNumber, againstNumber, choiceInteger)
+  } else {
+    let forNumber = 0
+    let againstNumber = gwxNumber
+    let choiceInteger = 0
+    (forNumber, againstNumber, choiceInteger)
+  }
+
+  let action = if (userVoteInfoArray[1] == "1") 
+  then {
+    StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        (voteInfoArray[5].parseInt().value() - userVoteInfoArray[2].parseInt().value() + userPowerFor).toString(),
+        (voteInfoArray[6].parseInt().value() + userPowerAgainst).toString()
+      )
+    )
+  } else {
+    StringEntry(
+      keyProposalInfo(proposalIndex),
+      formatProposalInfo(
+        voteInfoArray[1],
+        voteInfoArray[2],
+        voteInfoArray[3],
+        voteInfoArray[4],
+        (voteInfoArray[5].parseInt().value() + userPowerFor).toString(),
+        (voteInfoArray[6].parseInt().value() - userVoteInfoArray[2].parseInt().value() + userPowerAgainst).toString()
+      )
+    )
+  }
+  [
+    action,
+    StringEntry(
+      keyUserVoteOnProposal(proposalIndex, i.caller.toString()),
+      formatUserVoteOnProposal(
+        choiceInt.toString(),
+        gwxNumber.toString()
+      )
+    )
+  ]
+}
+
+@Callable(i)
+func getResultREADONLY(proposalIndex: Int) = {
+  let EMPTY = "EMPTY"
+  let voteInfo = this.getString(keyProposalInfo(proposalIndex)).valueOrElse(EMPTY)
+  let voteInfoArray = voteInfo.split(SEP)
+  strict checks = [
+    voteInfo != EMPTY || "No such vote".throw()
+  ]
+
+  let positiveVotes = voteInfoArray[5]
+  let negativeVotes = voteInfoArray[6]
+  let quorumNumber = voteInfoArray[4]
+
+  ([], [positiveVotes, negativeVotes, quorumNumber])
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("no pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("you are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

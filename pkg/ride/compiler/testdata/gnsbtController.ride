@@ -1,0 +1,169 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let revisionNum = ""
+
+#-------------------Constants---------------------------
+let EULER8     = 271828182      # 10ˆ8
+let MULT6      = 1_000_000
+let MULTX6     = 1_000_000.toBigInt()
+let MULT8      = 1_0000_0000
+let MULTX8     = 1_0000_0000.toBigInt()
+let MULT12     = 1_000_000_000_000
+let MULT18     = 1_000_000_000_000_000_000.toBigInt()
+let SEP        = "__"
+
+# synthetic WAVES assetId
+let WAVESID = fromBase58String("WAVES")
+
+#-------this keys---------
+
+#-------------------Base functions----------------------
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getIntOrFail(address: Address, key: String) = address.getInteger(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getBoolOrFail(address: Address, key: String) = address.getBoolean(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+
+func convertNeutrinoToWaves(amount: Int, price: Int) = fraction(amount, MULT8, price)
+func convertWavesToNeutrino(amount: Int, price: Int) = fraction(amount, price, MULT8)
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyList: List[Any] => valAnyList
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+
+func asTuple2Ints(val: Any) = {
+  match val {
+    case v: (Int, Int) => v
+    case _ => throw("fail to cast into Tuple2 ints")
+  }
+}
+
+func asSwapParamsSTRUCT(val: Any) = {
+  match val {
+    case struct: (Int,Int,Int,Int,Int,Int,Int) => struct
+    case _ => throw("fail to cast into SwapParamsSTRUCT")
+  }
+}
+
+func toTimestamp(start: Int) = {
+  if start < 0 then -1 else
+  match blockInfoByHeight(start) {
+    case block: BlockInfo => block.timestamp
+    case _ => -1
+  }
+}
+
+func toX18(origVal: Int, origScaleMult: Int)    = fraction(origVal.toBigInt(), MULT18, origScaleMult.toBigInt())
+func fromX18(val: BigInt, resultScaleMult: Int) = fraction(val, resultScaleMult.toBigInt(), MULT18).toInt()
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp  = 11
+
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg()     = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = split_4C(control.getStringOrFail(keyControlCfg()), SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+
+let mathContract = controlCfg.getContractAddressOrFail(IdxControlCfgMathDapp)
+let neutrinoContract = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let auctionContract = controlCfg.getContractAddressOrFail(IdxControlCfgAuctionDapp)
+let liquidationContract = controlCfg.getContractAddressOrFail(IdxControlCfgLiquidationDapp)
+let rpdContract = controlCfg.getContractAddressOrFail(IdxControlCfgRpdDapp)
+let nsbtStakingContract = controlCfg.getContractAddressOrFail(IdxControlCfgNsbtStakingDapp)
+let surfStakingContract = controlCfg.getContractAddressOrFail(IdxControlCfgSurfStakingDapp)
+
+# surfStaking indices
+let IdxSurfUser        = 0
+let IdxSurfTotal       = 1
+let IdxSurfGnsbtUser   = 2
+let IdxSurfGnsbtTotal  = 3
+let IdxSurfVpCurr      = 4
+let IdxSurfVpNew       = 5
+let IdxSurfTotalMature = 6
+let IdxSurfTotalTeen   = 7
+let IdxSurfTotalKid    = 8
+let IdxSurfUserMature  = 9
+let IdxSurfUserTeen    = 10
+let IdxSurfUserKid     = 11
+
+@Callable(i)
+func gnsbtInfoSYSREADONLY(userAddressStrOrEmpty: String, nsbtDiff: Int, surfDiff: Int) = {
+  let nsbtData = nsbtStakingContract.invoke("nsbtStakingSYSREADONLY", [userAddressStrOrEmpty, nsbtDiff], []).asAnyList()
+  let nsbtUser            = nsbtData[0].asInt()
+  let nsbtTotal           = nsbtData[1].asInt()
+  let gNsbtFromNsbtUser   = nsbtUser
+  let gNsbtFromNsbtTotal  = nsbtTotal
+
+  let surfData = surfStakingContract.invoke("surfStakingSYSREADONLY", [userAddressStrOrEmpty, surfDiff], []).asAnyList()
+  let surfUser              = surfData[IdxSurfUser].asInt()
+  let surfTotal             = surfData[IdxSurfTotal].asInt()
+  let gNsbtFromSurfUser     = surfData[IdxSurfGnsbtUser].asInt()
+  let gNsbtFromSurfTotal    = surfData[IdxSurfGnsbtTotal].asInt()
+
+  let gNsbtUser = gNsbtFromNsbtUser + gNsbtFromSurfUser
+  let gNsbtTotal = gNsbtFromNsbtTotal + gNsbtFromSurfTotal
+
+  ([], [gNsbtUser,                                                      # 0
+        gNsbtTotal,                                                     # 1
+        [nsbtUser, nsbtTotal, gNsbtFromNsbtUser, gNsbtFromNsbtTotal],   # 2
+        [surfUser, surfTotal, gNsbtFromSurfUser, gNsbtFromSurfTotal],   # 3
+        surfData[IdxSurfVpCurr].asInt(),                                # 4 legacy voting power height
+        surfData[IdxSurfVpNew].asInt(),                                 # 5 legacy voting power height
+        surfData[IdxSurfTotalMature].asInt(),                           # 6  totalMature gNsbt
+        surfData[IdxSurfTotalTeen].asInt(),                             # 7  totalTeen gNsbt
+        surfData[IdxSurfTotalKid].asInt(),                              # 8  totalKid gNsbt
+        surfData[IdxSurfUserMature].asInt(),                            # 9  userMature gNsbt
+        surfData[IdxSurfUserTeen].asInt(),                              # 10 userTeen gNsbt
+        surfData[IdxSurfUserKid].asInt()                                # 11 userKid gNsbt
+    ])
+}
+
+@Callable(i)
+func claimRewards() = {
+  let nsbtInv = nsbtStakingContract.invoke("claimRewardsByOriginCaller", [], []).asInt()
+  let surfInv = surfStakingContract.invoke("claimRewardsByOriginCaller", [], []).asInt()
+  if ((nsbtInv + surfInv) == 0) then throw("Nothing to claim") else
+  []
+}
+
+@Callable(i)
+func gnsbtRewardsSYSREADONLY(userAddressStrOrEmpty: String) = {
+  let nsbtRewardStr = nsbtStakingContract.invoke("unclaimedRewardsREADONLY", [userAddressStrOrEmpty], []).asString()
+  let surfRewardStr = surfStakingContract.invoke("unclaimedRewardsREADONLY", [userAddressStrOrEmpty], []).asString()
+
+  ([], [nsbtRewardStr, surfRewardStr])
+}

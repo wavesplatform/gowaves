@@ -1,14 +1,20 @@
 package compiler
 
 import (
+	"context"
+	"embed"
 	"encoding/base64"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
@@ -831,10 +837,7 @@ baz != 10
 	}
 }
 
-// TODO: should be fixed later
-func TestShouldBeFixed(t *testing.T) {
-	t.Skip("TODO: should be fixed later")
-
+func TestAnyAndThrowTypes(t *testing.T) {
 	tests := []struct {
 		code     string
 		fail     bool
@@ -849,17 +852,16 @@ let a = if (true) then this.invoke("", [], []) else throw()
 func f(b: Any) = b
 
 @Callable(i)
-func g() = f(a)
-`,
-			true, "why did it not fail?"}, // https://waves-ide.com/s/641c6268c4784c002a8e8408
+func g() = f(a)`,
+			true, "(10:1, 10:16): CallableFunc must return (List[BinaryEntry|BooleanEntry|Burn|DeleteEntry|IntegerEntry|Issue|Lease|LeaseCancel|Reissue|ScriptTransfer|SponsorFee|StringEntry], Any)|List[BinaryEntry|BooleanEntry|Burn|DeleteEntry|IntegerEntry|Issue|Lease|LeaseCancel|Reissue|ScriptTransfer|SponsorFee|StringEntry], but return Any"}, // https://waves-ide.com/s/641c6268c4784c002a8e8408
 		{`
 {-# STDLIB_VERSION 5 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
 @Callable(i)
-func cursed() = [][0]
-`, false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAKY3Vyc2VkRnVuYwAAAAAJAAGRAAAAAgUAAAADbmlsAAAAAAAAAAAAAAAAAE/2QrI="}, // https://waves-ide.com/s/641c670fc4784c002a8e840a
+func cursed() = [][0]`,
+			false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAGY3Vyc2VkAAAAAAkAAZEAAAACBQAAAANuaWwAAAAAAAAAAAAAAAAAGWOB3Q=="}, // https://waves-ide.com/s/641c670fc4784c002a8e840a
 	}
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
@@ -868,23 +870,26 @@ func cursed() = [][0]
 	}
 }
 
-////go:embed test_scripts
-//var embedScripts embed.FS
+//go:embed testdata
+var embedScripts embed.FS
 
-//	func TestBigScripts(t *testing.T) {
-//		cli, err := client.NewClient(client.Options{
-//			BaseUrl: "https://nodes.wavesnodes.com",
-//			Client:  &http.Client{Timeout: 10 * time.Second},
-//		})
-//		require.NoError(t, err)
-//		files, err := embedScripts.ReadDir("test_scripts")
-//		require.NoError(t, err)
-//		for _, file := range files {
-//			t.Logf("Test %s", file.Name())
-//			code, err := embedScripts.ReadFile("test_scripts/" + file.Name())
-//			require.NoError(t, err)
-//			res, _, err := cli.Utils.ScriptCompile(context.Background(), string(code))
-//			require.NoError(t, err)
-//			compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
-//		}
-//	}
+func TestCompilationWithScalaNode(t *testing.T) {
+	if ok, err := strconv.ParseBool(os.Getenv("REAL_NODE")); err != nil || !ok {
+		t.Skip("Skipping testing the compilation of scripts with comparison compilation from scala node")
+	}
+	cli, err := client.NewClient(client.Options{
+		BaseUrl: "https://nodes.wavesnodes.com",
+		Client:  &http.Client{Timeout: 10 * time.Second},
+	})
+	require.NoError(t, err)
+	files, err := embedScripts.ReadDir("testdata")
+	require.NoError(t, err)
+	for _, file := range files {
+		t.Logf("Test %s", file.Name())
+		code, err := embedScripts.ReadFile("testdata/" + file.Name())
+		require.NoError(t, err)
+		res, _, err := cli.Utils.ScriptCompileCode(context.Background(), string(code), false)
+		require.NoError(t, err)
+		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
+	}
+}
