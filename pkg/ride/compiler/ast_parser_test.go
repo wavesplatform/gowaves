@@ -19,10 +19,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
-var bigScripts bool
+var compilationWithScalaNode bool
 
-func init() {
-	flag.BoolVar(&bigScripts, "big-scripts", false, "Testing the compilation of big scripts")
+func TestMain(t *testing.M) {
+	flag.BoolVar(&compilationWithScalaNode, "compilation-with-scala-node", false, "Testing the compilation of scripts with comparison compilation from scala node")
+	t.Run()
 }
 
 func parseBase64Script(t *testing.T, src string) *ast.Tree {
@@ -879,9 +880,9 @@ func cursed() = [][0]`,
 //go:embed test_scripts
 var embedScripts embed.FS
 
-func TestBigScripts(t *testing.T) {
-	if !bigScripts {
-		t.Skip("Skipping testing the compilation of big scripts")
+func TestCompilationWithScalaNode(t *testing.T) {
+	if !compilationWithScalaNode {
+		t.Skip("Skipping testing the compilation of scripts with comparison compilation from scala node")
 	}
 	cli, err := client.NewClient(client.Options{
 		BaseUrl: "https://nodes.wavesnodes.com",
