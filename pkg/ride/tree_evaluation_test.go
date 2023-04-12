@@ -3093,28 +3093,28 @@ func TestLigaDApp1(t *testing.T) {
 	}
 
 	team1AssetInfo := proto.AssetInfo{
-		ID:                team1,
-		Quantity:          1000,
-		Decimals:          0,
-		Issuer:            dapp,
-		IssuerPublicKey:   pk,
-		Reissuable:        false,
-		Scripted:          false,
-		Sponsored:         false,
-		IssueHeight:       100500,
-		IssueTxPosInBlock: 1,
+		ID:              team1,
+		Quantity:        1000,
+		Decimals:        0,
+		Issuer:          dapp,
+		IssuerPublicKey: pk,
+		Reissuable:      false,
+		Scripted:        false,
+		Sponsored:       false,
+		IssueHeight:     100500,
+		SequenceInBlock: 1,
 	}
 	team2AssetInfo := proto.AssetInfo{
-		ID:                team2,
-		Quantity:          1000,
-		Decimals:          0,
-		Issuer:            dapp,
-		IssuerPublicKey:   pk,
-		Reissuable:        false,
-		Scripted:          false,
-		Sponsored:         false,
-		IssueHeight:       100501,
-		IssueTxPosInBlock: 1,
+		ID:              team2,
+		Quantity:        1000,
+		Decimals:        0,
+		Issuer:          dapp,
+		IssuerPublicKey: pk,
+		Reissuable:      false,
+		Scripted:        false,
+		Sponsored:       false,
+		IssueHeight:     100501,
+		SequenceInBlock: 1,
 	}
 	te2 := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000).
 		withInvokeTransaction(tx2).withThis(acc).
@@ -3418,7 +3418,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env := newTestEnv(t).withComplexityLimit(ast.LibV3, 2000).withTree(issuer, treeV3).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo:   proto.AssetInfo{ID: assetID1, Quantity: 1000, Issuer: issuer.address(), IssuerPublicKey: issuer.publicKey(), IssueHeight: 100500, IssueTxPosInBlock: 1},
+				AssetInfo:   proto.AssetInfo{ID: assetID1, Quantity: 1000, Issuer: issuer.address(), IssuerPublicKey: issuer.publicKey(), IssueHeight: 100500, SequenceInBlock: 1},
 				Name:        "ASSET1",
 				Description: "DESCRIPTION1",
 			}).
@@ -3961,13 +3961,13 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:                asset,
-			Quantity:          1000000,
-			Decimals:          2,
-			Issuer:            issuer.address(),
-			IssuerPublicKey:   issuer.publicKey(),
-			IssueHeight:       100500,
-			IssueTxPosInBlock: 1,
+			ID:              asset,
+			Quantity:        1000000,
+			Decimals:        2,
+			Issuer:          issuer.address(),
+			IssuerPublicKey: issuer.publicKey(),
+			IssueHeight:     100500,
+			SequenceInBlock: 1,
 		}}).withAssetBalance(sender, asset, 0).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
@@ -4247,14 +4247,14 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(sender, 0).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:                asset,
-			Quantity:          10,
-			Decimals:          2,
-			Issuer:            dApp1.address(),
-			IssuerPublicKey:   dApp1.publicKey(),
-			Reissuable:        true,
-			IssueHeight:       100500,
-			IssueTxPosInBlock: 1,
+			ID:              asset,
+			Quantity:        10,
+			Decimals:        2,
+			Issuer:          dApp1.address(),
+			IssuerPublicKey: dApp1.publicKey(),
+			Reissuable:      true,
+			IssueHeight:     100500,
+			SequenceInBlock: 1,
 		}}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
@@ -4310,13 +4310,13 @@ func TestReissueInInvoke(t *testing.T) {
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:                asset,
-			Quantity:          10,
-			Issuer:            dApp2.address(),
-			IssuerPublicKey:   dApp2.publicKey(),
-			Reissuable:        true,
-			IssueHeight:       100500,
-			IssueTxPosInBlock: 1,
+			ID:              asset,
+			Quantity:        10,
+			Issuer:          dApp2.address(),
+			IssuerPublicKey: dApp2.publicKey(),
+			Reissuable:      true,
+			IssueHeight:     100500,
+			SequenceInBlock: 1,
 		}}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 

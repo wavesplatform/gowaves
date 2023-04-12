@@ -25,7 +25,7 @@ func createPerformerTestObjects(t *testing.T) *performerTestObjects {
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return &performerInfo{0, 1, blockID0}
+	return &performerInfo{0, new(proto.StateActionsCounter), blockID0}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
@@ -38,11 +38,11 @@ func TestPerformIssueWithSig(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:              proto.DigestTail(*tx.ID),
-			issuer:            tx.SenderPK,
-			decimals:          tx.Decimals,
-			issueHeight:       1,
-			issueTxPosInBlock: 1,
+			tail:                 proto.DigestTail(*tx.ID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          1,
+			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -70,11 +70,11 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:              proto.DigestTail(*tx.ID),
-			issuer:            tx.SenderPK,
-			decimals:          tx.Decimals,
-			issueHeight:       1,
-			issueTxPosInBlock: 1,
+			tail:                 proto.DigestTail(*tx.ID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          1,
+			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),

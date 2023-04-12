@@ -63,16 +63,16 @@ func (i *FullAssetInfo) ToProtobuf(scheme Scheme) (*g.AssetInfoResponse, error) 
 }
 
 type AssetInfo struct {
-	ID                crypto.Digest
-	Quantity          uint64
-	Decimals          byte
-	Issuer            WavesAddress
-	IssuerPublicKey   crypto.PublicKey
-	Reissuable        bool
-	Scripted          bool
-	Sponsored         bool
-	IssueHeight       Height
-	IssueTxPosInBlock uint32
+	ID              crypto.Digest
+	Quantity        uint64
+	Decimals        byte
+	Issuer          WavesAddress
+	IssuerPublicKey crypto.PublicKey
+	Reissuable      bool
+	Scripted        bool
+	Sponsored       bool
+	IssueHeight     Height
+	SequenceInBlock uint32
 }
 
 func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {

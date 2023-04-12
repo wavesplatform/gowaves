@@ -1971,16 +1971,16 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 		return nil, wrapErr(Other, err)
 	}
 	return &proto.AssetInfo{
-		ID:                proto.ReconstructDigest(assetID, info.tail),
-		Quantity:          info.quantity.Uint64(),
-		Decimals:          info.decimals,
-		Issuer:            issuer,
-		IssuerPublicKey:   info.issuer,
-		Reissuable:        info.reissuable,
-		Scripted:          scripted,
-		Sponsored:         sponsored,
-		IssueHeight:       info.issueHeight,
-		IssueTxPosInBlock: info.issueTxPosInBlock,
+		ID:              proto.ReconstructDigest(assetID, info.tail),
+		Quantity:        info.quantity.Uint64(),
+		Decimals:        info.decimals,
+		Issuer:          issuer,
+		IssuerPublicKey: info.issuer,
+		Reissuable:      info.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
+		SequenceInBlock: info.issueSequenceInBlock,
 	}, nil
 }
 
@@ -2071,16 +2071,16 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.AssetInfo{
-		ID:                proto.ReconstructDigest(assetID, info.tail),
-		Quantity:          info.quantity.Uint64(),
-		Decimals:          info.decimals,
-		Issuer:            issuer,
-		IssuerPublicKey:   info.issuer,
-		Reissuable:        info.reissuable,
-		Scripted:          scripted,
-		Sponsored:         sponsored,
-		IssueHeight:       info.issueHeight,
-		IssueTxPosInBlock: info.issueTxPosInBlock,
+		ID:              proto.ReconstructDigest(assetID, info.tail),
+		Quantity:        info.quantity.Uint64(),
+		Decimals:        info.decimals,
+		Issuer:          issuer,
+		IssuerPublicKey: info.issuer,
+		Reissuable:      info.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
+		SequenceInBlock: info.issueSequenceInBlock,
 	}, nil
 }
 

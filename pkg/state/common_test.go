@@ -136,12 +136,12 @@ func defaultDifferInfo() *differInfo {
 
 func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:   defaultCheckerInfo(),
-		blockInfo:     defaultBlockInfo(),
-		block:         defaultBlock(),
-		acceptFailed:  false,
-		validatingUtx: false,
-		txPosInBlock:  1,
+		checkerInfo:                defaultCheckerInfo(),
+		blockInfo:                  defaultBlockInfo(),
+		block:                      defaultBlock(),
+		acceptFailed:               false,
+		validatingUtx:              false,
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 }
 
