@@ -1,0 +1,159 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let EMPTY = ""
+# data indexes from pool config stored in factory
+let idxPoolAddress                           = 1
+let idxLPAsId                                = 3
+let idxAmAsId                                = 4
+let idxPrAsId                                = 5
+# data indexes from factory config
+let idxFactStakCntr      = 1
+
+#-------------------------
+# KEYS ON CURRENT CONTRACT
+#-------------------------
+func keyFactCntr() = {"%s__factoryContract"}
+func keyManagerPublicKey() = {"%s__managerPublicKey"}
+func keyPendingManagerPublicKey() = {"%s__pendingManagerPublicKey"}
+func keyPoolAddr() = {"%s__poolAddress"}
+func keyAmtAsset() = {"%s__amountAsset"}
+func keyPriceAsset() = {"%s__priceAsset"}
+func keyAdminPubKeys() = "%s__adminPubKeys"
+
+func keyAmp() = "%s__amp"
+func keyAmpHistory(height: Int) = "%s%d__amp__" + height.toString()
+
+#------------------------
+# KEYS ON OTHER CONTRACTS
+#------------------------
+# from factory
+func keyFactoryConfig() = {"%s__factoryConfig"}
+func keyPoolConfig(iAmtAs: String, iPrAs: String) = {"%d%d%s__" + iAmtAs + "__" + iPrAs + "__config"}
+func keyMappingsBaseAsset2internalId(bAStr: String) = {"%s%s%s__mappings__baseAsset2internalId__" + bAStr}
+func keyAllowedLpStableAddonScriptHash() = "%s__allowedLpStableAddonScriptHash"
+
+#------------------------
+# GLOBAL FUNCTIONS
+#------------------------
+func getStringOrFail(addr: Address, key: String) = addr.getString(key).valueOrErrorMessage(makeString(["mandatory ", addr.toString(), ".", key, " not defined"], ""))
+func getIntOrFail(addr: Address, key: String) = addr.getInteger(key).valueOrErrorMessage(makeString(["mandatory ", addr.toString(), ".", key, " not defined"], ""))
+
+let poolContract = addressFromStringValue(getStringOrFail(this, keyPoolAddr()))
+let factoryContract = addressFromStringValue(getStringOrFail(poolContract, keyFactCntr()))
+
+# function used to gather all pool data from factory
+func getPoolConfig() = {
+  let amtAs = getStringOrFail(poolContract, keyAmtAsset())
+  let priceAs = getStringOrFail(poolContract, keyPriceAsset())
+  let iPriceAs = getIntOrFail(factoryContract, keyMappingsBaseAsset2internalId(priceAs))
+  let iAmtAs = getIntOrFail(factoryContract, keyMappingsBaseAsset2internalId(amtAs))
+  getStringOrFail(factoryContract, keyPoolConfig(iAmtAs.toString(), iPriceAs.toString())).split(SEP)
+}
+
+func getFactoryConfig() = {
+  getStringOrFail(factoryContract, keyFactoryConfig()).split(SEP)
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "Permission denied".throw()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+func getAdmins() = {
+  match keyAdminPubKeys().getString() {
+    case s: String => if (s.size() == 0) then nil else s.split(SEP)
+    case _ => nil
+  }
+}
+
+func mustAdmin(i: Invocation) = {
+  getAdmins().containsElement(i.callerPublicKey.toBase58String()) || i.mustManager()
+}
+
+func mustPool(i: Invocation) = {
+  i.caller == poolContract || "caller must be the pool".throw()
+}
+
+@Callable(i)
+func constructor(poolAddress: String) = {
+  strict checkCaller = i.mustManager()
+
+  [StringEntry(keyPoolAddr(), poolAddress)]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Callable(i)
+func setAdmins(adminPubKeys: List[String]) = {
+  strict checkCaller = i.mustManager()
+
+  [StringEntry(keyAdminPubKeys(), adminPubKeys.makeString(SEP))]
+}
+
+@Callable(i)
+func setAmp(amp: String) = {
+  strict checkCaller = i.mustAdmin()
+
+  let res1 = poolContract.invoke("setS", [keyAmp(), amp], [])
+  let res2 = poolContract.invoke("setS", [height.keyAmpHistory(), amp], [])
+
+  ([], (res1, res2))
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+
+  match tx {
+    case s: SetScriptTransaction =>
+      let newHash = s.script.value().blake2b256()
+      let allowedHash = factoryContract.getString(keyAllowedLpStableAddonScriptHash()).value().fromBase64String()
+      let currentHash = this.scriptHash()
+      if (allowedHash == newHash && currentHash != newHash) then {
+        true
+      } else {
+        sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+      }
+    case _ => {
+      sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+    }
+  }
+}

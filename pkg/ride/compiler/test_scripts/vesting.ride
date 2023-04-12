@@ -1,0 +1,281 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+
+func keyUser(address: String) = ["%s", address].makeString(SEP)
+func keyRevoked(address: String) = ["%s%s", "revoked", address].makeString(SEP)
+func keyRevokedTotal() = ["%s", "revokedTotal"].makeString(SEP)
+func keyUserVestingStart(address: String) = ["%s%s", "vestingStart", address].makeString(SEP)
+func keyUserVestingEnd(address: String) = ["%s%s", "vestingEnd", address].makeString(SEP)
+func keyUserAmountPerBlock(address: String) = ["%s%s", "amountPerBlock", address].makeString(SEP)
+
+func keyWxAssetId() = ["%s", "wxAssetId"].makeString(SEP)
+
+func throwErr(msg: String) = ["vesting.ride:", msg].makeString(" ").throw()
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "permission denied".throwErr()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+func valueUserS(totalAmount: String, remainingAmount: String, claimedWXAmount: String, lastClaimedHeight: String) = {
+  makeString([
+      "%d%d%d%d%d",
+      totalAmount,
+      remainingAmount,
+      "0", # backward compatibility with IDO contract
+      claimedWXAmount,
+      lastClaimedHeight
+      ],
+  SEP)
+}
+
+func valueUser(totalAmount: Int, remainingAmount: Int, claimedWXAmount: Int, lastClaimedHeight: Int) = {
+  valueUserS(
+    totalAmount.toString(),
+    remainingAmount.toString(),
+    claimedWXAmount.toString(),
+    lastClaimedHeight.toString()
+  )
+}
+
+func getUserTotalAmount(address: String) = {
+  keyUser(address).getString().value().split(SEP)[1].parseIntValue()
+}
+
+func getUserRemainingAmount(address: String) = {
+  keyUser(address).getString().value().split(SEP)[2].parseIntValue()
+}
+
+func getUserClaimedAmount(address: String) = {
+  keyUser(address).getString().value().split(SEP)[3].parseIntValue()
+}
+
+func getUserLastClaimedHeight(address: String) = {
+  keyUser(address).getString().value().split(SEP)[5].parseIntValue()
+}
+
+func availableToClaimNow(address: String) = {
+  let isRevokedUser = keyRevoked(address).getBoolean().valueOrElse(false)
+  if (isRevokedUser) then {
+    getUserRemainingAmount(address)
+  } else {
+    let lastHeight = getUserLastClaimedHeight(address)
+    if (lastHeight >= height) then {
+      0
+    } else {
+      let end = keyUserVestingEnd(address).getInteger().value()
+      if (height > end) then {
+        getUserRemainingAmount(address)
+      } else {
+        let unclaimedPeriod = height - lastHeight
+        keyUserAmountPerBlock(address).getInteger().value() * unclaimedPeriod
+      }
+    }
+  }
+}
+
+func claimInternal(address: String) = {
+  let addr = address.addressFromStringValue()
+  let wx = keyWxAssetId().getString().value().fromBase58String()
+
+  let amount = availableToClaimNow(address)
+  strict ensureAmount = amount != 0 || "nothing to claim".throwErr()
+
+  let totalAmount = getUserTotalAmount(address)
+  let remainingAmount = getUserRemainingAmount(address)
+  let claimedWXAmount = getUserClaimedAmount(address)
+
+  let isRevokedUser = keyRevoked(address).getBoolean().valueOrElse(false)
+  if (isRevokedUser) then {
+    [
+      ScriptTransfer(addr, remainingAmount, wx),
+      StringEntry(keyUser(address), valueUser(totalAmount, 0, claimedWXAmount+remainingAmount, height))
+    ]
+  } else {
+    [
+      ScriptTransfer(addr, amount, wx),
+      StringEntry(keyUser(address), valueUser(totalAmount, remainingAmount-amount, claimedWXAmount+amount, height))
+    ]
+  }
+}
+
+@Callable(i)
+func constructor(wxAssetId: String) = {
+  strict check = i.mustManager()
+
+  [StringEntry(keyWxAssetId(), wxAssetId)]
+}
+
+@Callable(i)
+func withdrawRevoked() = {
+  let amount = keyRevokedTotal().getInteger().valueOrElse(0)
+  let wx = keyWxAssetId().getString().value().fromBase58String()
+
+  strict checks = [
+    i.mustManager(),
+    amount > 0 || "revoked amount is zero, nothing to withdraw".throwErr()
+  ]
+
+  [
+    ScriptTransfer(i.caller, amount, wx),
+    IntegerEntry(keyRevokedTotal(), 0)
+  ]
+}
+
+# Create vesting to address for attached amount of WX
+@Callable(i)
+func createDepositFor(address: String, blocksDuration: Int) = {
+  let amount = i.payments[0].amount
+
+  let endHeight = height + blocksDuration
+  let vestingLen = endHeight-height
+
+  let amountPerBlock = amount/vestingLen
+
+  strict checks = [
+    endHeight > height || "endHeight must be more than height".throwErr(),
+    keyUser(address).getString() == unit || "deposit for user already exists".throwErr(),
+    i.payments[0].assetId.value().toBase58String() == keyWxAssetId().getString().value() || "attached payment is not WX".throwErr(),
+    amountPerBlock != 0 || "attached amount too small or blocksDuration too large — will claimed zero per block".throwErr()
+  ]
+
+  [
+    StringEntry(keyUser(address), valueUser(amount, amount, 0, height)),
+    IntegerEntry(keyUserVestingStart(address), height),
+    IntegerEntry(keyUserVestingEnd(address), endHeight),
+    IntegerEntry(keyUserAmountPerBlock(address), amountPerBlock)
+  ]
+}
+
+@Callable(i)
+func increaseDepositFor(address: String) = {
+  let availableToClaim = availableToClaimNow(address)
+  strict forceClaim = if (availableToClaim > 0) then {
+    claimInternal(address)
+  } else {
+    unit
+  }
+
+  let amount = i.payments[0].amount
+
+  let endHeight = keyUserVestingEnd(address).getInteger().value()
+  let vestingLen = endHeight-height
+
+  let amountPerBlock = keyUserAmountPerBlock(address).getInteger().value()
+  let incAmountPerBlock = amount/vestingLen
+
+  let userTotalAmount = getUserTotalAmount(address)
+  let userRemainingAmount = getUserRemainingAmount(address)
+  let userClaimedAmount = getUserClaimedAmount(address)
+  let userLastClaimedHeight = getUserLastClaimedHeight(address)
+
+  strict checks = [
+    keyRevoked(address).getBoolean().valueOrElse(false) == false || "deposit for user is revoked".throwErr(),
+    keyUser(address).getString() != unit || "deposit for user doesn't exists".throwErr(),
+    i.payments[0].assetId.value().toBase58String() == keyWxAssetId().getString().value() || "attached payment is not WX".throwErr(),
+    incAmountPerBlock != 0 || "attached amount too small — increase is zero per block".throwErr()
+  ]
+
+  [
+    StringEntry(keyUser(address), valueUser(userTotalAmount+amount, userRemainingAmount+amount, userClaimedAmount, userLastClaimedHeight)),
+    IntegerEntry(keyUserAmountPerBlock(address), amountPerBlock+incAmountPerBlock)
+  ]
+}
+
+@Callable(i)
+func revokeDepositFor(address: String) = {
+  let totalAmount = getUserTotalAmount(address)
+  let remainingAmount = getUserRemainingAmount(address)
+  let claimedWXAmount = getUserClaimedAmount(address)
+  let lastClaimedHeight = getUserLastClaimedHeight(address)
+
+  let unclaimedAmountNow = availableToClaimNow(address)
+
+  let revokedTotal = keyRevokedTotal().getInteger().valueOrElse(0)
+  let amountToRevoke = remainingAmount-unclaimedAmountNow
+  let newRevokedTotal = revokedTotal+amountToRevoke
+
+  strict checks = [
+    i.mustManager(),
+    keyUser(address).getString() != unit || "deposit for user is not exists".throwErr(),
+    newRevokedTotal > revokedTotal || "newRevokedTotal can't be less or equal than revokedTotal".throwErr()
+  ]
+
+  [
+    BooleanEntry(keyRevoked(address), true),
+    IntegerEntry(keyRevokedTotal(), newRevokedTotal),
+    StringEntry(keyUser(address), valueUser(totalAmount, unclaimedAmountNow, claimedWXAmount, lastClaimedHeight))
+  ]
+}
+
+@Callable(i)
+func claim() = {
+  claimInternal(i.caller.bytes.toBase58String())
+}
+
+@Callable(i)
+func claimREADONLY(address: String) = {
+ let amount = availableToClaimNow(address)
+ ([], amount)
+}
+
+@Callable(i)
+func stats(address: String) = {
+  ([], [
+    keyUserVestingStart(address).getInteger().value(),
+    keyUserVestingEnd(address).getInteger().value(),
+    getUserTotalAmount(address),
+    getUserClaimedAmount(address),
+    getUserRemainingAmount(address),
+    availableToClaimNow(address)
+  ])
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || "no pending manager".throwErr()
+  strict checkPM = i.callerPublicKey == pm.value() || "you are not pending manager".throwErr()
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

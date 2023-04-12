@@ -1,0 +1,182 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let scale8 = 100_000_000
+let poolStatsPriceKey = 4
+# data indexes from pool config stored in factory
+  let idxPoolAddress                              = 1
+  let idxPoolStatus                               = 2
+  let idxPoolLPAssetId                            = 3
+  let idxAmtAssetId                               = 4
+  let idxPriceAssetId                             = 5
+  let idxAmtAssetDcm                              = 6
+  let idxPriceAssetDcm                            = 7
+  let idxIAmtAssetId                              = 8
+  let idxIPriceAssetId                            = 9
+  let idxLPAssetDcm                               = 10
+  let idxMatcherPublicKey                         = 11
+
+#------------------------
+# KEYS HERE
+#------------------------
+func keyRegisterPut(poolAddress: String, txId: String) = "%s%s%s__P__" + poolAddress + "__" + txId
+func keyRegisterInvest(poolAddress: String, txId: String) = "%s%s%s__invest__" + poolAddress + "__" + txId
+func keyPoolTotalAmtByAsset(poolAddress: String, assetId: String) = "%s%s%s__total__" + poolAddress + "__" + assetId
+func keyFactoryContract() = {"%s__factoryContract"}
+func keySlippageAmtPerAssetCumulative(poolAddress: String, assetId: String) = {"%s%s%s__" + poolAddress + "__" + assetId + "__slippageCumulative"}
+
+#------------------------
+# KEYS ON OTHER CONTRACTS
+#-----------------------
+func keyFactoryConfig() = {"%s__factoryConfig"}
+func keyMappingPoolContractAddressToPoolAssets(poolContractAddress: String) = {"%s%s%s__" + poolContractAddress + "__mappings__poolContract2PoolAssets"}
+func keyMappingsInternal2baseAssetId(internalBaseAsset: Int)
+      = {"%s%s%d__mappings__internal2baseAssetId__" + internalBaseAsset.toString()}
+func keyPoolConfig(iAmtAsset: String, iPriceAsset: String) = {"%d%d%s__" + iAmtAsset + "__" + iPriceAsset + "__config"}
+
+func keyAllPoolsShutdown() = {"%s__shutdown"}
+func keyPoolWeight(contractAddress: String) = {"%s%s__poolWeight__"+contractAddress}
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = {"%s__pendingManagerPublicKey"}
+
+#------------------------
+# GLOBAL FUNCTIONS
+#------------------------
+let factoryContract = addressFromStringValue(this.getString(keyFactoryContract()).valueOrErrorMessage("No Factory Acc found."))
+
+func convertAssetId(assetId: String) = {
+  if(!isDefined(assetId)) then "WAVES" else assetId
+}
+
+func dataPutActionInfo(inAssetId: String, inAssetAmt: Int, txHeight: Int, txTimestamp: Int) = {
+  makeString(["%s%d%d%d", inAssetId, inAssetAmt.toString(), txHeight.toString(), txTimestamp.toString()], SEP)
+}
+
+func dataInvestActionInfo(outAmountAssetAmt: Int,  outPriceAssetAmt: Int, txHeight: Int, txTimestamp: Int) = {
+  makeString(["%d%d%d%d", outAmountAssetAmt.toString(), outPriceAssetAmt.toString(), txHeight.toString(), txTimestamp.toString()], SEP)
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+
+func toScale(amt: Int, resScale: Int, curScale: Int) = {
+      fraction(amt, resScale, curScale)
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "Permission denied".throw()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+@Callable(i)
+func constructor(factoryContract: String) = {
+  strict checkCaller = i.mustManager()
+    [StringEntry(keyFactoryContract(), factoryContract)]
+}
+
+@Callable(i)
+# put slipage from LP contract here
+func put() = {
+  let pool = i.caller.toString()
+  let pmtAmtAsset = i.payments[0].value()
+
+  let pmtAssetId = if (!isDefined(pmtAmtAsset.assetId)) then "WAVES" else pmtAmtAsset.assetId.value().toBase58String()
+  let pmtAssetAmt = pmtAmtAsset.amount
+
+  let poolAssets = factoryContract.getString(keyMappingPoolContractAddressToPoolAssets(pool)).valueOrErrorMessage("Invalid caller").split(SEP)
+
+  let amountAssetId = poolAssets[1].parseIntValue()
+  let priceAssetId = poolAssets[2].parseIntValue()
+  let amountAsset = factoryContract.getString(keyMappingsInternal2baseAssetId(amountAssetId)).valueOrErrorMessage("Cannot find asset")
+  let priceAsset = factoryContract.getString(keyMappingsInternal2baseAssetId(priceAssetId)).valueOrErrorMessage("Cannot find asset")
+  #if(pmtAssetId != amountAsset || amountAsset != priceAsset) then throw("Invalid attached payment asset") else
+
+  let totalAmt = this.getInteger(keyPoolTotalAmtByAsset(pool, pmtAssetId)).valueOrElse(0)
+  let cumulativeSlippageAmt = this.getInteger(keySlippageAmtPerAssetCumulative(pool, pmtAssetId)).valueOrElse(0)
+
+  [StringEntry(keyRegisterPut(pool, i.transactionId.toBase58String()), dataPutActionInfo(pmtAssetId, pmtAssetAmt, height, lastBlock.timestamp)),
+    IntegerEntry(keyPoolTotalAmtByAsset(pool, pmtAssetId), totalAmt + pmtAssetAmt),
+    IntegerEntry(keySlippageAmtPerAssetCumulative(pool, pmtAssetId), cumulativeSlippageAmt + pmtAssetAmt)]
+}
+
+@Callable(i)
+func invest(poolAddressStr: String) = {
+  let poolAddress = poolAddressStr.addressFromString().valueOrErrorMessage("invalid pool address")
+  let poolAssets = factoryContract.getString(keyMappingPoolContractAddressToPoolAssets(poolAddressStr)).valueOrErrorMessage("Invalid pool passed.").split(SEP)
+  let amId = factoryContract.getString(keyMappingsInternal2baseAssetId(poolAssets[1].parseIntValue())).valueOrErrorMessage("No asset mapping found")
+  let prId = factoryContract.getString(keyMappingsInternal2baseAssetId(poolAssets[2].parseIntValue())).valueOrErrorMessage("No asset mapping found")
+
+  let amBalance = this.getInteger(keyPoolTotalAmtByAsset(poolAddressStr,amId)).valueOrElse(0)
+  let prBalance = this.getInteger(keyPoolTotalAmtByAsset(poolAddressStr,prId)).valueOrElse(0)
+
+  let estByPrResult = poolAddress.invoke("evaluatePutByPriceAssetREADONLY",  [prBalance], [])
+  let estByAmResult = poolAddress.invoke("evaluatePutByAmountAssetREADONLY", [amBalance], [])
+
+  let IdxEstAmAmount  = 7
+  let IdxEstPrAmount  = 8
+  let estAmAmt = estByPrResult.asString().split(SEP)[IdxEstAmAmount].parseIntValue().valueOrErrorMessage("fail to parse estimated amAsset amount")
+  let estPrAmt = estByAmResult.asString().split(SEP)[IdxEstPrAmount].parseIntValue().valueOrErrorMessage("fail to parse estimated prAsset amount")
+
+  let (amAmt, prAmt) = if (estAmAmt <= amBalance) then (estAmAmt, prBalance) else (amBalance, estPrAmt)
+
+  let amAssetId = if( amId == "WAVES") then unit else amId.fromBase58String()
+  let prAssetId = if (prId == "WAVES") then unit else prId.fromBase58String()
+
+  strict lpPut = poolAddress.invoke("putForFree",
+                      [1000],
+                      [AttachedPayment(amAssetId, amAmt), AttachedPayment(prAssetId, prAmt)])
+
+  [StringEntry(keyRegisterInvest(poolAddressStr, i.transactionId.toBase58String()), dataInvestActionInfo(amAmt, prAmt, height, lastBlock.timestamp)),
+   IntegerEntry(keyPoolTotalAmtByAsset(poolAddressStr, amId), amBalance - amAmt),
+   IntegerEntry(keyPoolTotalAmtByAsset(poolAddressStr, prId), prBalance - prAmt)]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}
