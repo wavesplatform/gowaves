@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
+	"flag"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
+
+var bigScripts bool
+
+func init() {
+	flag.BoolVar(&bigScripts, "big-scripts", false, "Testing the compilation of big scripts")
+}
 
 func parseBase64Script(t *testing.T, src string) *ast.Tree {
 	script, err := base64.StdEncoding.DecodeString(src)
@@ -33,7 +40,7 @@ func compareScriptsOrError(t *testing.T, code string, fail bool, expected string
 	ap := newASTParser(rawAST, buf)
 	ap.parse()
 	if !fail {
-		//require.Empty(t, ap.errorsList)
+		require.Empty(t, ap.errorsList)
 		tree := parseBase64Script(t, expected)
 		assert.Equal(t, tree.ContentType, ap.tree.ContentType)
 		assert.Equal(t, tree.LibVersion, ap.tree.LibVersion)
@@ -873,6 +880,9 @@ func cursed() = [][0]`,
 var embedScripts embed.FS
 
 func TestBigScripts(t *testing.T) {
+	if !bigScripts {
+		t.Skip("Skipping testing the compilation of big scripts")
+	}
 	cli, err := client.NewClient(client.Options{
 		BaseUrl: "https://nodes.wavesnodes.com",
 		Client:  &http.Client{Timeout: 10 * time.Second},
