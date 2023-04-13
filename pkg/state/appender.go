@@ -408,9 +408,9 @@ type appendTxParams struct {
 	rideV5Activated                bool
 	rideV6Activated                bool
 	consensusImprovementsActivated bool
-	invokeExpressionActivated      bool                       // TODO: check feature naming
-	validatingUtx                  bool                       // if validatingUtx == false then chans MUST be initialized with non nil value
-	stateActionsCounterInBlock     *proto.StateActionsCounter // if validatingUtx == true then stateActionsCounterInBlock == nil because there's no block exists
+	invokeExpressionActivated      bool // TODO: check feature naming
+	validatingUtx                  bool // if validatingUtx == false then chans MUST be initialized with non nil value
+	stateActionsCounterInBlock     *proto.StateActionsCounter
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -866,7 +866,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		consensusImprovementsActivated: consensusImprovementsActivated,
 		invokeExpressionActivated:      invokeExpressionActivated,
 		validatingUtx:                  true,
-		stateActionsCounterInBlock:     nil, // nil because there's no block, hence no position
+		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {
