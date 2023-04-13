@@ -187,19 +187,19 @@ func (a *aliases) createAlias(aliasStr string, addr proto.WavesAddress, blockID 
 		}
 	}
 	if err := a.hs.addNewEntry(alias, keyBytes, recordBytes, blockID); err != nil {
-		return errors.Wrapf(err, "failed to add alias record %q for addr %q", aliasStr, addr.String())
+		return errors.Wrapf(err, "failed to add alias record %q for addr %q, blockID %q", aliasStr, addr.String(), blockID.String())
 	}
 	return a.addOrUpdateAddressToAliasesRecord(aliasStr, addr, blockID)
 }
 
 func (a *aliases) addOrUpdateAddressToAliasesRecord(aliasStr string, addr proto.WavesAddress, blockID proto.BlockID) error {
-	var (
-		key         = addressToAliasesKey{addressID: addr.ID()}
-		recordBytes []byte
-		err         error
-	)
+	key := addressToAliasesKey{addressID: addr.ID()}
 	keyBytes := key.bytes()
-	if recordBytes, err = a.hs.newestTopEntryData(keyBytes); err != nil { // TODO: determine type of error
+	recordBytes, err := a.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		if !isNotFoundInHistoryOrDBErr(err) { // unexpected error
+			return errors.Wrapf(err, "failed to add alias record %q for addr %q, blockID %q", aliasStr, addr.String(), blockID.String())
+		}
 		record := addressToAliasesRecord{aliases: []string{aliasStr}}
 		recordBytes, err = record.marshalBinary()
 	} else {
@@ -209,8 +209,8 @@ func (a *aliases) addOrUpdateAddressToAliasesRecord(aliasStr string, addr proto.
 		return err
 	}
 	if err := a.hs.addNewEntry(addressToAliasesKeySize, keyBytes, recordBytes, blockID); err != nil {
-		return errors.Wrapf(err, "failed to add address to aliases record with new alias %q for addr %q",
-			aliasStr, addr.String(),
+		return errors.Wrapf(err, "failed to add address to aliases record with new alias %q for addr %q, blockID %q",
+			aliasStr, addr.String(), blockID.String(),
 		)
 	}
 	return nil
@@ -403,8 +403,11 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	key := addressToAliasesKey{addressID: addr.ID()}
 	recordBytes, err := a.hs.topEntryData(key.bytes())
-	if err != nil { // TODO: determine type of the error
-		return nil, nil // means that there's no aliases for the given address
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil // means that there's no aliases for the given address
+		}
+		return nil, errors.Wrapf(err, "failed to get address to aliases record from history by addr %q", addr.String())
 	}
 	var record addressToAliasesRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {

@@ -798,3 +798,7 @@ func (hs *historyStorage) flush() error {
 	hs.stor.reset()
 	return nil
 }
+
+func isNotFoundInHistoryOrDBErr(err error) bool {
+	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
+}
