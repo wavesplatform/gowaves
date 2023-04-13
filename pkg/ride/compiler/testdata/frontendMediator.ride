@@ -1,0 +1,164 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg()     = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = control.getStringOrFail(keyControlCfg()).split(SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+let restAcc = controlCfg.getContractAddressOrFail(IdxControlCfgRestDapp)
+
+func keyRestAddress() = "%s%s__config__restAddress" # ignored
+
+func getStrOrFail(key: String) = {
+  this.getString(key).valueOrErrorMessage("Mandatory this." + key + " is not defined")
+}
+
+func getAddressOrFail(key: String) = {
+  key.getStrOrFail().addressFromString().valueOrErrorMessage("fail to parse address for this." + key)
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+
+func produceJson(strMap: List[String]) = {
+  let indexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+
+  let length = strMap.size()
+  if (length % 2 != 0) then throw("only even args size is accepeted") else
+  if (length > indexes.size()) then throw("strMap length is greater then " + indexes.size().toString()) else
+
+  func produceJson(jsonAccum: String, nextIdx: Int) = {
+   if (nextIdx % 2 == 0 && (nextIdx + 1) <= length) then jsonAccum + "\n\"" + strMap[nextIdx] + "\": \"" + strMap[nextIdx + 1] + "\"," else jsonAccum
+  }
+
+  let preJsonResult = FOLD<20>(indexes, "", produceJson)
+  "{" + preJsonResult.dropRight(1) + "}"
+}
+
+# Restrictions:
+#  * MAX 10 functions
+#  * function can have any number of any params, and return value of any type
+# E.g.:
+# curl -X 'POST' 'https://nodes-testnet.wavesnodes.com/utils/script/evaluate/3MyBtJnMg6n7m1sDczbrijVyosLnRh4FFbc' \
+# -H 'accept: application/json' -H 'Content-Type: application/json' \
+# -d '{"expr": "genericV2READONLY([(\"3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi\", \"unstakeComissionAmountByHeightREADONLY\", [100000000, 1906325]), (\"3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi\", \"buyNsbtREADONLY\", [10000000000])])"}'
+#
+#                                 dApp    func     args
+func genericV2READONLY(x: List[(String, String, List[Any])]) = {
+
+  func call(a: List[Any], e: (String, String, List[Any])) = {
+    a :+ Address(fromBase58String(e._1)).invoke(e._2, e._3, [])
+  }
+
+  FOLD<10>(x, [], call)
+}
+
+@Callable(i)
+func constructor(controlAddress58: String, restAddress58: String) = {
+  if (i.caller != this) then throw("not authorized") else
+  [
+      StringEntry(keyControlAddress(), controlAddress58),
+      StringEntry(keyRestAddress(),    restAddress58)
+  ]
+}
+
+@Callable(i)
+func stakeNsbtPageREADONLY(userAddressStrOpt: String, nsbtAmtDiff: Int) = {
+  let gnsbtInfo = restAcc.invoke("gnsbtInfoREADONLY", [userAddressStrOpt, nsbtAmtDiff], []).asString()
+  let swapInfo = restAcc.invoke("swapInfoREADONLY", [userAddressStrOpt], []).asString()
+
+  ([], produceJson(["gnsbtInfoREADONLY", gnsbtInfo, "swapInfoREADONLY", swapInfo]))
+}
+
+@Callable(i)
+func buyNsbtPageREADONLY(userAddressStrOpt: String) = {
+  let gnsbtInfo = restAcc.invoke("gnsbtInfoREADONLY", [userAddressStrOpt, 0], []).asString()
+  let neutrinoStats = restAcc.invoke("neutrinoStatsREADONLY", [], []).asString()
+
+  ([], produceJson(["gnsbtInfoREADONLY", gnsbtInfo, "neutrinoStatsREADONLY", neutrinoStats]))
+}
+
+@Callable(i)
+func buySurfPageREADONLY(userAddressStrOpt: String, amount: Int, assetIdStr: String) = {
+  let neutrinoStats = restAcc.invoke("neutrinoStatsREADONLY", [], []).asString()
+  let surfBuy = restAcc.invoke("buySurfREADONLY", [userAddressStrOpt, amount, assetIdStr], []).asString()
+  let neutrinoCfg = restAcc.invoke("neutrinoConfigREADONLY", [], []).asString()
+
+  ([], produceJson([
+    "neutrinoStatsREADONLY", neutrinoStats,
+    "buySurfREADONLY", surfBuy,
+    "neutrinoConfigREADONLY", neutrinoCfg]))
+}
+
+@Callable(i)
+func walletPageREADONLY(userAddressStr: String) = {
+  let walletInfo = restAcc.invoke("walletInfoREADONLY", [userAddressStr], []).asString()
+
+  ([], produceJson(["walletInfoREADONLY", walletInfo]))
+}
+
+# Restrictions:
+#   * MAX 10 functions
+#   * MAX 6 params for function
+#   * fuction MUST return String value
+# address1+funcName1+p11:p12:p13__address2+funcName2+p21:p22:p23...
+# 3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi+unstakeComissionAmountByHeightREADONLY+i:100000000:i:1906325__3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi+buyNsbtREADONLY+i:10000000000
+@Callable(i)
+func genericREADONLY(payload: String) = {
+  let funcsIndexes  = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  let paramIndexes  = [1, 3, 5, 7, 9, 11]
+  let payloadArr    = payload.split(SEP)
+  let payloadSize   = payloadArr.size()
+
+
+  func invokesAgregator(accum: List[String], funcIdx: Int) = {
+    if (funcIdx >= payloadSize) then accum else
+
+    let call = payloadArr[funcIdx]
+    let callArr   = call.split("+")
+    let address   = callArr[0].addressFromStringValue()
+    let funcName  = callArr[1]
+    let paramsArr = callArr[2].split(":")
+    let paramsSize = paramsArr.size()
+
+    func paramsAgregator(paramsAcc: List[Any], paramIdx: Int) = {
+      if (paramIdx >= paramsSize) then paramsAcc else
+      let p = if (paramsArr[paramIdx - 1] == "s") then paramsArr[paramIdx] else paramsArr[paramIdx].parseIntValue()
+      paramsAcc :+ p
+    }
+
+    let params = FOLD<6>(paramIndexes, [], paramsAgregator)
+
+    let result = address.invoke(funcName, params, []).asString()
+    accum ++ [funcName, result]
+  }
+
+  let invokesResults = FOLD<10>(funcsIndexes, [], invokesAgregator)
+  ([], produceJson(invokesResults))
+}

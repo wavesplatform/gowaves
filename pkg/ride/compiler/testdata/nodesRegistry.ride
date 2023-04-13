@@ -1,0 +1,365 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let MULT6 = 1_000_000
+let MULT8 = 1_0000_0000
+
+let WAVESIDSTR = "WAVES"
+let WAVESID    = fromBase58String(WAVESIDSTR)
+
+func getIntOrFail(key: String) = {
+  this.getInteger(key).valueOrErrorMessage("Mandatory this." + key + " is not defined")
+}
+
+func getStrOrElse(address: Address, key: String, defaultVal: String) = {
+  address.getString(key).valueOrElse(defaultVal)
+}
+
+func getStringOrFail(address: Address, key: String) = {
+  address.getString(key).valueOrErrorMessage("Mandatory this." + key + " is not defined")
+}
+
+func getAddressOrFail(key: String) = {
+  this.getStringOrFail(key).addressFromString().valueOrErrorMessage("Fail to convert this." + key + " value into Address")
+}
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyList: List[Any] => valAnyList
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(v: Any) = {
+  match v {
+    case i: Int => i
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asByteVecot(v: Any) = {
+  match v {
+    case i: ByteVector => i
+    case _ => throw("fail to cast into ByteVector")
+  }
+}
+
+func validateAddressOrFail(addressStr: String) = {
+  let address = addressStr.addressFromString().valueOrErrorMessage("fail to convert into address " + addressStr)
+  if (wavesBalance(address).available < 0) then throw() else addressStr
+}
+
+func keyNodeRegistry(address: String)       = "%s__" + address
+func keyNodeRewardsTotals(address: String)  = "%s%s__totals__" + address
+func keyApprovedNodeList()                  = "%s__approvedNodeList"
+func keyDepositAmount()                     = "%s%s__cfg__depositAmount"
+func keyNeutrinoAddressStr()                = "%s%s__cfg__neutrinoAddress"
+func keyMasterNodeAddressStr()              = "%s%s__cfg__mainNeutrinoNodeAddress"
+func keyProtocolPartX6()                    = "%s%s__cfg__protocolPartX6"
+func keyBenificaryPartX6()                  = "%s%s__cfg__benificaryPartX6"
+func keyMinDistributeAmount()               = "%s%s__cfg__minDistributeAmount"
+func keySwopfiUsdtUsdnPoolAddress()         = "%s%s__cfg__swopfiUsdtUsdnPoolAddress"
+func keySavingsAddress()                    = "%s%s__cfg__savingsAddress"
+
+# miningNode KEYs
+func keyBeneficiaryAddress()  = "%s%s__cfg__beneficiaryAddress"
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp = 11
+let IdxControlCfgRestV2Dapp       = 12
+let IdxControlCfgGovernanceDapp   = 13
+
+func keyControlAddress()  = "%s%s__config__controlAddress"
+func keyControlCfg()      = "%s__controlConfig"
+func keyUsdnAssetId()     = "neutrino_asset_id"
+
+func readControlCfgOrFail(control: Address) = split_4C(control.getStringOrFail(keyControlCfg()), SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+    .addressFromStringValue()
+let controlCfg            = controlContract.readControlCfgOrFail()
+let neutrinoContract      = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let usdnAssetIdStr        = neutrinoContract.getStrOrElse(keyUsdnAssetId(), "DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p")
+let usdnAssetId           = usdnAssetIdStr.fromBase58String()
+
+
+# indices to access nodes' data
+let nRegIdxTxAdd              = 1
+let nRegIdxHeightAdd          = 2
+let nRegIdxTimeAdd            = 3
+let nRegIdxDepoAmt            = 4
+let nRegIdxDepoAmtLeft        = 5
+let nRegIdxStatus             = 6
+let nRegIdxStatusChangeHeight = 7
+let nRegIdxStatusChangeTime   = 8
+
+func formatDepositAdd(txIdStr: String, depositAmount: Int, remainingDepositAmount: Int, status: String) = {
+  ["%s%d%d%d%d%s%d%d",
+      txIdStr,
+      lastBlock.height.toString(),
+      lastBlock.timestamp.toString(),
+      depositAmount.toString(),
+      remainingDepositAmount.toString(),
+      status,
+      "0", # status changed block
+      "0"  # status changed timestamp
+  ].makeString(SEP)
+}
+
+func formatDepositChangeStatus(origS: String, newStatus: String) = {
+  let orig = origS.split(SEP)
+  ["%s%d%d%d%d%s%d%d",
+      orig[nRegIdxTxAdd],
+      orig[nRegIdxHeightAdd],
+      orig[nRegIdxTimeAdd],
+      orig[nRegIdxDepoAmt],
+      orig[nRegIdxDepoAmtLeft],
+      newStatus,
+      lastBlock.height.toString(),    # status changed block
+      lastBlock.timestamp.toString()  # status changed timestamp
+  ].makeString(SEP)
+}
+
+func keyRewardHistory(nodeAddress: Address, txId: ByteVector) = {
+  ["%s%s%s",
+      "history",
+      nodeAddress.toString(),
+      txId.toBase58String()
+  ].makeString(SEP)
+}
+
+func dataRewardHistory(wavesAmountTotal: Int, beneficiaryAmt: Int, protocolAmt: Int, protocolAmtPart1: Int, protocolAmtPart2: Int) = {
+  ["%d%d%d%d%d%d%d",
+      lastBlock.height.toString(),
+      lastBlock.timestamp.toString(),
+      wavesAmountTotal.toString(),
+      beneficiaryAmt.toString(),
+      protocolAmt.toString(),
+      protocolAmtPart1.toString(),
+      protocolAmtPart2.toString()
+  ].makeString(SEP)
+}
+
+func RewardHistoryEntry(nodeAddress: Address, txId: ByteVector, minedAmt: Int, beneficiaryAmt: Int, protocolAmt: Int, protocolAmt1: Int, protocolAmt2: Int) = {
+  StringEntry(
+      keyRewardHistory(nodeAddress, txId),
+      dataRewardHistory(minedAmt, beneficiaryAmt, protocolAmt, protocolAmt1, protocolAmt2))
+}
+
+func dataRewardTotals(minedAmt: Int, beneficiaryAmt: Int, protocolAmt: Int, protocolAmtPart1: Int, protocolAmtPart2: Int) = {
+  ["%d%d%d%d%d",
+      minedAmt.toString(),
+      beneficiaryAmt.toString(),
+      protocolAmt.toString(),
+      protocolAmtPart1.toString(),
+      protocolAmtPart2.toString()
+  ].makeString(SEP)
+}
+
+func RewardTotalsEntry(miner: Address, minedAmt: Int, beneficiaryAmt: Int, protocolAmt: Int, protocolAmtPart1: Int, protocolAmtPart2: Int) = {
+  let nodeRewardsTotalsKEY = keyNodeRewardsTotals(miner.toString())
+  let nodeRewardsArray = this.getStrOrElse(nodeRewardsTotalsKEY, dataRewardTotals(0, 0, 0, 0, 0)).split(SEP)
+
+  let newMinedAmt         = nodeRewardsArray[1].parseIntValue() + minedAmt
+  let newBeneficiaryAmt   = nodeRewardsArray[2].parseIntValue() + beneficiaryAmt
+  let newProtocolAmt      = nodeRewardsArray[3].parseIntValue() + protocolAmt
+  let newProtocolAmtPart1 = nodeRewardsArray[4].parseIntValue() + protocolAmtPart1
+  let newProtocolAmtPart2 = nodeRewardsArray[5].parseIntValue() + protocolAmtPart2
+
+  StringEntry(
+      nodeRewardsTotalsKEY,
+      dataRewardTotals(newMinedAmt, newBeneficiaryAmt, newProtocolAmt, newProtocolAmtPart1, newProtocolAmtPart2)
+  )
+}
+
+func resolveBeneficiaries(minerAddress: Address, beneficiaryFromParam: Address) = {
+  let beneficiaryFromMinerState = minerAddress.getStringOrFail(keyBeneficiaryAddress()).addressFromStringValue()
+
+  if (scriptHash(minerAddress) == unit) then beneficiaryFromParam else beneficiaryFromMinerState
+}
+
+func readNodeDataAndValidateStatus(nodeAddr: String, expectedStatus: String) = {
+  let nodeDataOpt = getString(keyNodeRegistry(nodeAddr))
+  if (!nodeDataOpt.isDefined()) then throw("Unknown Node " + nodeAddr) else
+  let nodeDataStr = nodeDataOpt.value()
+  let nodeData = nodeDataStr.split(SEP)
+  let nodeStatus = if (nodeData.size() >= 9) then nodeData[nRegIdxStatus] else "PENDING"
+  if (nodeStatus != expectedStatus) then throw("Node " + nodeAddr + " status should be " + expectedStatus + ", but actually " + nodeStatus) else
+  nodeDataStr
+}
+
+@Callable(i)
+func constructor(depositAmount: Int, neutrinoAddressStr: String, masterNodeAddressStr: String, protocolPartX6: Int, benificaryPartX6: Int) = {
+  if (i.caller != this) then throw("permissions denied") else
+  if (depositAmount < 0) then throw("depositAmount less then zero") else
+  if (protocolPartX6 < 0) then throw("protocolPartX6 less then zero") else
+  if (benificaryPartX6 < 0) then throw("benificaryPartX6 less then zero") else
+  if ((protocolPartX6 + benificaryPartX6) != MULT6) then throw("parts sum must be 1") else
+
+  [IntegerEntry(keyDepositAmount(), depositAmount),
+    StringEntry(keyNeutrinoAddressStr(), neutrinoAddressStr.validateAddressOrFail()),
+    StringEntry(keyMasterNodeAddressStr(), masterNodeAddressStr.validateAddressOrFail()),
+    IntegerEntry(keyProtocolPartX6(), protocolPartX6),
+    IntegerEntry(keyBenificaryPartX6(), benificaryPartX6)
+  ]
+}
+
+@Callable(i)
+func constructorV2(swopfiAddressStr: String, controlAddressStr: String, savingsAddressStr: String) = {
+  if (i.caller != this) then throw("permissions denied") else
+  [StringEntry(keySwopfiUsdtUsdnPoolAddress(), swopfiAddressStr.validateAddressOrFail()),
+  StringEntry(keyControlAddress(), controlAddressStr.validateAddressOrFail()),
+  StringEntry(keySavingsAddress(), savingsAddressStr.validateAddressOrFail())
+  ]
+}
+
+@Callable(i)
+func sumbitApplication() = {
+  if (i.payments.size() != 1) then throw("exact 1 payment must be attached") else
+  if (i.caller != i.originCaller) then throw("dapp to dapp calls are not allowed") else
+  let pmt = i.payments[0]
+  let deposit = pmt.amount
+  let pmtAssetId = pmt.assetId.valueOrElse(WAVESID)
+
+  let expectedDepositAmount = keyDepositAmount().getIntOrFail()
+  let txId = i.transactionId.toBase58String()
+  let nodeAddress = i.caller.toString()
+  let nodeRegistryKEY = keyNodeRegistry(nodeAddress)
+
+  if (pmtAssetId != WAVESID) then throw("only Waves can be used for deposit") else
+  if (deposit != expectedDepositAmount) then throw("exactly " + expectedDepositAmount.toString() + " Wavelets are expected") else
+  if (this.getStrOrElse(nodeRegistryKEY, "") != "") then throw("your node already registered") else
+
+  [StringEntry(nodeRegistryKEY, formatDepositAdd(txId, deposit, deposit, "PENDING"))]
+}
+
+@Callable(i)
+func distributeMinerReward(beneficiaryAddressStr: String) = {
+  let minDistributeAmount = this.getInteger(keyMinDistributeAmount()).valueOrElse(24 * MULT8)
+  if (i.payments.size() != 1) then throw("exact 1 payment must be attached") else
+  if (i.caller != i.originCaller) then throw("dapp to dapp calls are not allowed") else
+  let pmt = i.payments[0]
+  let pmtAssetId = pmt.assetId.valueOrElse(WAVESID)
+  let feeAmt = i.fee
+  let feeAssetId = i.feeAssetId.valueOrElse(WAVESID)
+
+  let callReward = feeAmt * 3
+  let minedAmt = pmt.amount - callReward
+
+  if (pmt.amount != minDistributeAmount) then throw("attached payment must be exact " + minDistributeAmount.toString() + " Wavelets") else
+  if (pmtAssetId != WAVESID) then throw("only Waves can be used in payment") else
+  if (feeAssetId != WAVESID) then throw("only Waves can be used in fees") else
+  if (feeAmt != 5 * MULT8 / 1000) then throw("fee amount couldn't exceed 0.005") else
+  let neutrinoAddress = keyNeutrinoAddressStr().getAddressOrFail()
+  let masterNodeAddress = keyMasterNodeAddressStr().getAddressOrFail()
+
+  let minerAddress = i.caller
+  let beneficiaryFromParam = beneficiaryAddressStr.addressFromStringValue()
+
+  let beneficiaryAddress = resolveBeneficiaries(minerAddress, beneficiaryFromParam)
+  let txRewardReceiver   = beneficiaryFromParam
+
+  let protocolPart    = keyProtocolPartX6().getIntOrFail()
+  let beneficiaryPart  = keyBenificaryPartX6().getIntOrFail()
+
+  #let availableBalance = wavesBalance(minerAddress).available - feeAmt
+  #if (availableBalance != 0) then throw("all " + availableBalance.toString() + " Wavelets from the Node balance must be attached into the payment") else
+
+  let beneficiaryAmt = fraction(minedAmt, beneficiaryPart, MULT6)
+  let protocolAmt = minedAmt - beneficiaryAmt
+
+  [ScriptTransfer(beneficiaryAddress,    beneficiaryAmt, unit),
+    ScriptTransfer(neutrinoContract,   protocolAmt,  unit),
+    ScriptTransfer(txRewardReceiver,  callReward,    unit),
+    RewardHistoryEntry(minerAddress, i.transactionId, minedAmt, beneficiaryAmt, protocolAmt, protocolAmt, 0),
+    RewardTotalsEntry(minerAddress, minedAmt, beneficiaryAmt, protocolAmt, protocolAmt, 0)
+  ]
+}
+
+@Callable(i)
+func validateAndApproveLeasings(nListS: String) = {
+  let nIdxs = [0, 1, 2, 3, 4, 5, 6, 7]
+
+  let nList = nListS.split(SEP)
+  let expectedCount = nIdxs.size()
+
+  let neutrinoAddress = keyNeutrinoAddressStr().getAddressOrFail()
+
+  if (i.caller != neutrinoAddress) then throw("validateAndApproveLeasings not authorized") else
+  if (nList.size() % 2 != 0) then throw("Only even number of nodes is allowed") else
+  if (nList.size() != expectedCount) then throw("Only " + expectedCount.toString() + " of nodes' addresses can be passed") else
+
+  func forEachNodeChangeStatus(acc: List[StringEntry], i: Int) = {
+    let nodeAddr = nList[i]
+    let nodeDataStr = readNodeDataAndValidateStatus(nodeAddr, "PENDING")
+    acc :+ StringEntry(keyNodeRegistry(nodeAddr), formatDepositChangeStatus(nodeDataStr, "APPROVED"))
+  }
+
+  let approvedNodesData = FOLD<8>(nIdxs, [], forEachNodeChangeStatus)
+  (approvedNodesData, nil)
+}
+
+@Callable(i)
+func replaceApprovedNode(oldNodeAddrStr: String, newNodeAddrStr: String, groupNum: Int, penaltyAmount: Int) = {
+  if (i.caller != neutrinoContract) then throw("permissions denied") else
+
+  let oldDataStr = readNodeDataAndValidateStatus(oldNodeAddrStr, "APPROVED")
+  let newDataStr = readNodeDataAndValidateStatus(newNodeAddrStr, "PENDING")
+
+  let approvedNodeListS = this.getStringOrFail(keyApprovedNodeList())
+  if (!approvedNodeListS.contains(oldNodeAddrStr)) then throw("approvedNodeList does not contain " + oldNodeAddrStr) else
+  let updatedNodeListS = approvedNodeListS.split_4C(oldNodeAddrStr).makeString_2C(newNodeAddrStr)
+
+  let oldNodeAddr = oldNodeAddrStr.addressFromStringValue()
+  let beneficiaryAddress = resolveBeneficiaries(oldNodeAddr, oldNodeAddr)
+  let depoAmount = oldDataStr.split(SEP)[nRegIdxDepoAmt].parseIntValue()
+
+  let actions = [
+    StringEntry(keyApprovedNodeList(), updatedNodeListS),
+    DeleteEntry(keyNodeRegistry(oldNodeAddrStr)),
+    StringEntry(keyNodeRegistry(newNodeAddrStr), formatDepositChangeStatus(newDataStr, "APPROVED"))
+  ]
+
+  (if (depoAmount > penaltyAmount) then actions :+ ScriptTransfer(beneficiaryAddress, depoAmount - penaltyAmount,  unit) else actions, unit)
+}
+
+@Callable(i)
+func returnDeposit(nodeAddressStr: String) = {
+  if (i.payments.size() != 0) then throw("No payments allowed") else
+  let callerAddress = i.caller
+  let nodeRegistryKEY = keyNodeRegistry(nodeAddressStr) # "%s__" + address
+  let nodeDataOpt = this.getString(nodeRegistryKEY)
+  if (!nodeDataOpt.isDefined()) then throw("Address is not applied as neutrino node: " + nodeAddressStr) else
+  let approvedNodeList = this.getStringOrFail(keyApprovedNodeList())
+  if (approvedNodeList.contains(nodeAddressStr)) then throw("Impossible to return deposit from approved Node, please contact support team") else
+
+  let nodeData = nodeDataOpt.value().split(SEP)
+  let status = if (nodeData.size() >= 9) then nodeData[nRegIdxStatus] else "PENDING"
+  if (status != "PENDING") then throw("Application status is not PENDING!") else
+
+  let depoAmount = nodeData[nRegIdxDepoAmt].parseIntValue()
+
+  let nodeAddress = nodeAddressStr.addressFromStringValue()
+  let beneficiaryAddress = resolveBeneficiaries(nodeAddress, nodeAddress)
+  if (!(callerAddress == this # admin allowed
+    || beneficiaryAddress != nodeAddress && callerAddress == beneficiaryAddress # beneficiary of scripted allowed
+    || beneficiaryAddress == nodeAddress && callerAddress == nodeAddress) # non-scripted allowed
+  ) then throw("returnDeposit permissions denied") else
+
+  [DeleteEntry(nodeRegistryKEY), ScriptTransfer(beneficiaryAddress, depoAmount,  unit)]
+}

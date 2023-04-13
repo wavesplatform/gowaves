@@ -145,7 +145,7 @@ func appendRemainingStructs(s *rideObjects) {
 					Fields: []actionField{
 						{
 							Name:  "bytes",
-							Types: []string{"rideBytes"},
+							Types: []string{"ByteVector"},
 						},
 					},
 				},
@@ -160,7 +160,7 @@ func appendRemainingStructs(s *rideObjects) {
 					Fields: []actionField{
 						{
 							Name:  "alias",
-							Types: []string{"rideString"},
+							Types: []string{"String"},
 						},
 					},
 				},

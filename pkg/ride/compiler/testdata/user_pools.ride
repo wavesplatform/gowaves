@@ -1,0 +1,286 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let wavesAssetId = "WAVES"
+
+let invalidPriceAsset = "Invalid price asset"
+
+func throwErr(msg: String) = ["user_pools.ride:", msg].makeString(" ").throw()
+
+func throwPD() = "Permission denied".throwErr()
+func throwCreateNotCalled() = "Create is not called for assets pair".throwErr()
+func throwYouNotIssuer() = "You are not amountAsset issuer".throwErr()
+func throwPoolExists() = "Pool with such assets already exists".throwErr()
+func throwAssetNotVerified() = "Asset is not verified".throwErr()
+func throwInvalidPriceAsset() = invalidPriceAsset.throwErr()
+func throwInvalidFeeAsset() = "Invalid fee asset".throwErr()
+func throwInvalidAmountAsset() = "Invalid amount asset attached".throwErr()
+func throwInvalidStatus() = "Invalid status".throwErr()
+func throwCanActivateOnlyPendingPool() = "Can activate pool only in 'pending' status".throwErr()
+func throwFactoryReturnedNotString() = "FactoryV2 returned not string".throwErr()
+func throwInvalidPriceAssetAmount() = "invalid price asset amount".throwErr()
+func throwInvalidFee() = "invalid fee".throwErr()
+
+func keyManagerPublicKey() = ["%s", "managerPublicKey"].makeString(SEP)
+func keyPendingManagerPublicKey() = ["%s", "pendingManagerPublicKey"].makeString(SEP)
+func keyAdminPubKeys() = ["%s", "adminPubKeys"].makeString(SEP)
+
+func keyStatus(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "status", amountAssetId, priceAssetId].makeString(SEP)
+
+func keyFactoryContract() = ["%s", "factoryContract"].makeString(SEP)
+func keyAssetsStoreContract() = ["%s", "assetsStoreContract"].makeString(SEP)
+func keyEmissionContract() = ["%s", "emissionContract"].makeString(SEP)
+
+func keySuffix(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "suffix", amountAssetId, priceAssetId].makeString(SEP)
+func keyLastIndex() = ["%s", "lastIndex"].makeString(SEP)
+let indexSuffix = "u"
+let statusPending = "pending" # 'create' func called and pool waiting for lp.ride setScript+constructor and 'activate' func call
+let statusDeclined = "declined" # pool will never created by any reason
+let statusActive = "active" # 'activate' func called and pool waiting while matcher bot starts
+let statuses = [statusPending, statusDeclined, statusActive]
+
+func keyCreateCalled(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "createCalled", amountAssetId, priceAssetId].makeString(SEP)
+func keyCreateCaller(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "createCaller", amountAssetId, priceAssetId].makeString(SEP)
+func keyAmountAssetAmount(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "amountAssetAmount", amountAssetId, priceAssetId].makeString(SEP)
+func keyPriceAssetAmount(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "priceAssetAmount", amountAssetId, priceAssetId].makeString(SEP)
+func keyHeight(amountAssetId: String, priceAssetId: String) = ["%s%s%s", "height", amountAssetId, priceAssetId].makeString(SEP)
+
+func keyFeeAssetId() = ["%s", "feeAssetId"].makeString(SEP)
+func keyFeeAmount() = ["%s", "feeAmount"].makeString(SEP)
+func keyAmountAssetMinAmount() = ["%s", "amountAssetMinAmount"].makeString(SEP)
+func keyPriceAssetsMinAmount() = ["%s", "priceAssetsMinAmount"].makeString(SEP)
+func keyPriceAssets() = ["%s", "priceAssets"].makeString(SEP)
+
+func getStringOrFail(key: String) = this.getString(key).valueOrErrorMessage(key + " is not defined")
+func stringOptionToList(stringOrUnit: String|Unit) = match stringOrUnit {
+  case s: String => if (s.size() == 0) then nil else s.split(SEP)
+  case _: Unit => nil
+}
+
+let factoryContract = keyFactoryContract().getStringOrFail().addressFromStringValue()
+
+func isCreateCalled(amountAssetId: String, priceAssetId: String) = {
+  keyCreateCalled(amountAssetId, priceAssetId).getBoolean().valueOrElse(false)
+}
+
+func mustCreateCalled(amountAssetId: String, priceAssetId: String) = {
+  isCreateCalled(amountAssetId, priceAssetId) || throwCreateNotCalled()
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func isManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk
+    case _: Unit => i.caller == this
+  }
+}
+
+func mustManager(i: Invocation) = {
+  i.isManager() || throwPD()
+}
+
+func mustAdmin(i: Invocation) = {
+  let adminPKs = keyAdminPubKeys().getString().stringOptionToList()
+  if (adminPKs.containsElement(i.callerPublicKey.toBase58String())) then {
+    true
+  } else {
+    i.mustManager()
+  }
+}
+
+func isVerified(assetId: String) = {
+  keyAssetsStoreContract().getStringOrFail().addressFromStringValue().getInteger("status_<"+assetId+">").valueOrElse(0) == 2
+}
+
+func getIdAndInfo(payment: AttachedPayment) = {
+  match payment.assetId {
+    case id: ByteVector => {
+      let info = id.assetInfo().value()
+      (id.toBase58String(), info)
+    }
+    case _: Unit => (wavesAssetId, unit)
+  }
+}
+
+func validStatus(status: String) = {
+  statuses.containsElement(status)
+}
+
+@Callable(i)
+func constructor(factoryV2Address: String, assetsStoreAddress: String, emissionAddress: String, priceAssetsMinAmount: List[String], amountAssetMinAmount: Int, feeAssetId: String, feeAmount: Int) = {
+  strict checkCaller = i.mustManager()
+
+  [
+    StringEntry(keyFactoryContract(), factoryV2Address),
+    StringEntry(keyAssetsStoreContract(), assetsStoreAddress),
+    StringEntry(keyEmissionContract(), emissionAddress),
+    StringEntry(keyPriceAssetsMinAmount(), priceAssetsMinAmount.makeString(SEP)),
+    IntegerEntry(keyAmountAssetMinAmount(), amountAssetMinAmount),
+    StringEntry(keyFeeAssetId(), feeAssetId),
+    IntegerEntry(keyFeeAmount(), feeAmount)
+  ]
+}
+
+# Принимает три payment 1) Токен юзера; 2) >= minAmount of priceAsset; 3)feeAmount of feeAsset;
+# Токен обязан быть верифицированным (инвок на контракт assets_store)
+# Создает заявку на пул в статусе pending
+# Вызвать может любой
+# Если уже создан пул на такой ассет, возвращает ошибку - "Pool with such assets already exists"
+# Если токен не верифицирован, возвращает ошибку - "Asset is not verified"
+# Если юзер не issuer токена, возвращает ошибку - "You are not amountAsset issuer"
+# Если юзер прикрепил некорректный amount токенов или не прикрепил вовсе - "Invalid payment"
+@Callable(i)
+func create() = {
+  let amountAssetPayment = i.payments[0].value()
+  let priceAssetPayment = i.payments[1].value()
+  let feeAssetPayment = i.payments[2].value()
+
+  let (amountAssetId, amountAssetInfo) = amountAssetPayment.getIdAndInfo()
+  let (priceAssetId, priceAssetInfo) = priceAssetPayment.getIdAndInfo()
+  let (feeAssetId, feeAssetInfo) = feeAssetPayment.getIdAndInfo()
+
+  let priceAssetsList = factoryContract.getString(keyPriceAssets()).stringOptionToList()
+
+  let managerPriceAssetMinAmount = 1
+  let priceAssetMinAmount = {
+    if (i.isManager()) then {
+      managerPriceAssetMinAmount
+    } else {
+      let priceAssetsIndex = priceAssetsList.indexOf(priceAssetId).valueOrErrorMessage(invalidPriceAsset)
+      keyPriceAssetsMinAmount().getString().stringOptionToList()[priceAssetsIndex].parseInt().value()
+    }
+  }
+
+  let lastIndex = keyLastIndex().getInteger().valueOrElse(0)
+  let curIndex = lastIndex + 1
+
+  let emissionContract = keyEmissionContract().getStringOrFail().addressFromStringValue()
+
+  strict checks = [
+    !isCreateCalled(amountAssetId, priceAssetId) || throwPoolExists(),
+    i.isManager() || amountAssetId.isVerified() || throwAssetNotVerified(),
+    keyFeeAssetId().getString() == feeAssetId || throwInvalidFeeAsset(),
+    i.isManager() || amountAssetPayment.amount >= keyAmountAssetMinAmount().getIntegerValue() || throwInvalidAmountAsset(),
+    i.isManager() || priceAssetPayment.amount >= priceAssetMinAmount || throwInvalidPriceAssetAmount(),
+    feeAssetPayment.amount == keyFeeAmount().getInteger() || throwInvalidFee()
+  ]
+
+  strict burnEmissionInv = emissionContract.invoke("burn", [], [AttachedPayment(feeAssetId.fromBase58String(), feeAssetPayment.amount)])
+
+  [
+    BooleanEntry(keyCreateCalled(amountAssetId, priceAssetId), true),
+    StringEntry(keyCreateCaller(amountAssetId, priceAssetId), i.caller.toString()),
+    IntegerEntry(keyLastIndex(), curIndex),
+    StringEntry(keySuffix(amountAssetId, priceAssetId), curIndex.toString()+indexSuffix),
+    IntegerEntry(keyHeight(amountAssetId, priceAssetId), height),
+    StringEntry(keyStatus(amountAssetId, priceAssetId), statusPending),
+    IntegerEntry(keyAmountAssetAmount(amountAssetId, priceAssetId), amountAssetPayment.amount),
+    IntegerEntry(keyPriceAssetAmount(amountAssetId, priceAssetId), priceAssetPayment.amount)
+  ]
+}
+
+@Callable(i)
+func activate(poolAddress: String, amountAssetId: String, amountAssetTicker: String, priceAssetId: String, priceAssetTicker: String, logo: String) = {
+  strict checks = [
+    i.mustAdmin(),
+    isCreateCalled(amountAssetId, priceAssetId) || throwCreateNotCalled(),
+    keyStatus(amountAssetId, priceAssetId).getString().value() == statusPending || throwCanActivateOnlyPendingPool()
+  ]
+
+  strict activateNewPoolInv = factoryContract.invoke(
+    "activateNewPool", [
+      poolAddress,
+      amountAssetId,
+      priceAssetId,
+      amountAssetTicker+priceAssetTicker+"LP",
+      amountAssetTicker+"/"+priceAssetTicker+" pool liquidity provider token",
+      0,
+      "VLTPOOL",
+      logo
+    ], []
+  )
+  strict lpAssetId = match (activateNewPoolInv) {
+    case id: String => id
+    case _ => throwFactoryReturnedNotString()
+  }
+
+  strict beforePut = this.assetBalance(lpAssetId.fromBase58String())
+  strict put = poolAddress.addressFromStringValue().invoke(
+    "put", [
+      0,
+      false
+    ], [
+      AttachedPayment(if (amountAssetId == "WAVES") then unit else amountAssetId.fromBase58String(), keyAmountAssetAmount(amountAssetId, priceAssetId).getInteger().value()),
+      AttachedPayment(if (priceAssetId == "WAVES") then unit else priceAssetId.fromBase58String(), keyPriceAssetAmount(amountAssetId, priceAssetId).getInteger().value())
+    ]
+  )
+  strict afterPut = this.assetBalance(lpAssetId.fromBase58String())
+
+  let user = keyCreateCaller(amountAssetId, priceAssetId).getString().value().addressFromString().value()
+
+  [
+    StringEntry(keyStatus(amountAssetId, priceAssetId), statusActive),
+    ScriptTransfer(user, afterPut-beforePut, lpAssetId.fromBase58String())
+  ]
+}
+
+@Callable(i)
+func setAdmins(adminPubKeys: List[String]) = {
+  strict checkCaller = i.mustManager()
+  [StringEntry(keyAdminPubKeys(), adminPubKeys.makeString(SEP))]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || "No pending manager".throw()
+  strict checkPM = i.callerPublicKey == pm.value() || "You are not pending manager".throw()
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Callable(i)
+func priceAssetsREADONLY() = {
+  (nil, keyPriceAssets().getString().stringOptionToList())
+}
+
+@Callable(i)
+func statusREADONLY(amountAssetId: String, priceAssetId: String) = {
+  let status = match keyStatus(amountAssetId, priceAssetId).getString() {
+    case s: String => s
+    case _ => unit
+  }
+
+  (nil, status)
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

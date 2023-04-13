@@ -1434,7 +1434,11 @@ func (p *astParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 					p.addError(listNode.token32, "Index type must be 'Int' but got '%s'", indexType.String())
 				}
 				expr = ast.NewFunctionCallNode(ast.NativeFunction("401"), []ast.Node{expr, index})
-				varType = l.Type
+				if l.Type == nil {
+					varType = l
+				} else {
+					varType = l.Type
+				}
 			}
 		case ruleFunctionCallAccess:
 			newExpr, newExprType := p.ruleFunctionCallHandler(curNode.up, expr, varType)
