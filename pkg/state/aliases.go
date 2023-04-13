@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: should be wrapped as 'not found' error on state API level
-var errAliasDisabled = errors.New("alias was stolen and is now disabled")
+// errAliasDisabled is wrapped keyvalue.ErrNotFound which should be used for disabled aliases.
+var errAliasDisabled = errors.Wrap(keyvalue.ErrNotFound, "alias was stolen and is now disabled")
 
 const aliasRecordSize = 1 + proto.AddressIDSize
 
