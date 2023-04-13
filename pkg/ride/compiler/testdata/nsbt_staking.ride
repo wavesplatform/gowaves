@@ -1,0 +1,578 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# NSBT Staking Smart Contract
+let revisionNum = ""
+
+let separator = "__"
+let SEP = "__"
+
+let MULT6 = 1_000_000
+let MULT8 = 1_0000_0000
+
+let MULTX6 = MULT6.toBigInt()
+let MULTX8 = MULT8.toBigInt()
+let MULTX18 = 1_000_000_000_000_000_000.toBigInt()
+let WAVESIDSTR = "WAVES"
+let WAVESID = fromBase58String(WAVESIDSTR)
+let DAYMILLIS = 86_400_000  #24 * 60 * 60 * 1000
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+# 10..12 are unused
+let IdxControlCfgGovernanceDapp   = 13
+
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg()     = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = control.getStringOrFail(keyControlCfg()).split(SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+let mathContract = controlCfg.getContractAddressOrFail(IdxControlCfgMathDapp)
+let neutrinoContract = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let auctionContract = controlCfg.getContractAddressOrFail(IdxControlCfgAuctionDapp)
+let govContract = controlCfg.getContractAddressOrFail(IdxControlCfgGovernanceDapp)
+
+# Neutrino Contract Keys
+func keyBondAsset() = "bond_asset_id"
+
+# Governance contract key
+func keyUserGnsbtReleaseTime(userAddr: String) = "%s%s_userGnsbtReleaseTime__" + userAddr
+
+# NSBT Lock Contract Keys
+func keyNeutrinoContractAddress() = "%s__neutrinoContractAddress"
+func keyMathContractAddress() = "%s__mathContract"
+func keyMinLockAmount() = "%s__minLockAmount"
+func keyHalfLife() = "%s__halfLife"
+# Lock Params
+func keyLockParamUserAmount(userAddress: Address) = ["%s%s%s", "paramByUser", userAddress.toString(), "amount"].makeString(separator)
+func keyLockParamStartBlock(userAddress: Address) = ["%s%s%s", "paramByUser", userAddress.toString(), "start"].makeString(separator)
+# History
+func keyHistoryRecord(type: String, userAddress: Address, txId: ByteVector) = ["%s%s%s%s", "history", type, userAddress.toString(), txId.toBase58String()].makeString(separator)
+# Stats
+func keyLockParamTotalAmount() = ["%s%s", "stats", "activeTotalLocked"].makeString(separator)
+func keyStatsLocksCount() = ["%s%s", "stats", "locksCount"].makeString(separator)
+func keyStatsUsersCount() = ["%s%s", "stats", "activeUsersCount"].makeString(separator)
+func keyStatsDepositAmtByDay(timestamp: Int) = ["%s%s%d", "stats", "depositAmtByDay", timestamp.toString()].makeString(separator)
+func keyStatsDepositAmtTotals() = ["%s%s%d", "stats", "depositAmtTotals"].makeString(separator)
+# Reward Payouts Distribution Keys
+func keyNextPeriod() = "%s__nextPeriod"
+
+# REWARDS DISTRIBUTION
+func keySupportedRewardAssets() = "supportedRewardAssets"
+func keyDepositNumLast() = ["%s%s%s", "dep", "lastNum"].makeString(separator)
+func keyUserRewardFromDepositNum(userAddress: String) = ["%s%s%s", "userRwdFromDepNum", userAddress].makeString(separator)
+func keyRewardPerNsbtSumAt(depositNum: Int, tkn: String) = ["%s%d", "rwdPerNsbtSumByDepNum", depositNum.toString(), tkn].makeString(separator)
+func keyReward(userAddress: String, tkn: String) = ["%s%s%s", "rwd", userAddress, tkn].makeString(separator)
+func keyClaimed(userAddress: String, tkn: String) = ["%s%s%s", "clm", userAddress, tkn].makeString(separator)
+# accumulated reward if nobody stakes NSBT int this key
+func keyNotDistributedReward(tkn: String) = ["%s%s", "notDistributed", tkn].makeString(separator)
+
+func toX18(origVal: Int, origMult: BigInt)          = fraction(origVal.toBigInt(), MULTX18, origMult)
+
+func getIntOrZero(key: String) = {
+  this.getInteger(key).valueOrElse(0)
+}
+
+func getIntOrElse(key: String, defaultVal: Int) = {
+  this.getInteger(key).valueOrElse(defaultVal)
+}
+
+func getIntOrFail(key: String) = {
+  this.getInteger(key).valueOrErrorMessage("Mandatory this." + key + " is not defined")
+}
+
+func getStrOrElse(key: String, defaultVal: String) = {
+  this.getString(key).valueOrElse(defaultVal)
+}
+
+func toAddressOrFail(addressStr: String) = {
+  addressStr.addressFromString().valueOrErrorMessage("couldn't parse passed addressStr=" + addressStr)
+}
+
+func toAssetVect(assetStr: String) = {
+  if (assetStr == WAVESIDSTR) then unit else assetStr.fromBase58String()
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func formatHistoryRecord(oldAmount: Int, oldStart: Int, newAmount: Int, newStart: Int) = {
+  [
+    "%d%d%d%d%d%d",
+    lastBlock.height.toString(),
+    lastBlock.timestamp.toString(),
+    oldAmount.toString(),
+    oldStart.toString(),
+    newAmount.toString(),
+    newStart.toString()
+  ].makeString(separator)
+}
+
+func formatClaimHistoryRecord(user: String, claimedRewards: String) = {
+  [
+    "%s%d%d%s",
+    user,
+    lastBlock.height.toString(),
+    lastBlock.timestamp.toString(),
+    claimedRewards
+  ].makeString(separator)
+}
+
+func HistoryRecordEntry(type: String, userAddress: Address, txId: ByteVector,
+    oldAmount: Int, oldStart: Int, newAmount: Int, newStart: Int) = {
+  StringEntry(
+    keyHistoryRecord(type, userAddress, txId),
+    formatHistoryRecord(oldAmount, oldStart, newAmount, newStart)
+  )
+}
+
+func ClaimHistoryEntry(userAddress: Address, txId: ByteVector, claimedRewards: String) = {
+  StringEntry(
+    keyHistoryRecord("claim", userAddress, txId),
+    formatClaimHistoryRecord(userAddress.toString(), claimedRewards)
+  )
+}
+
+func StatsResult(totalLockedInc: Int, lockCountInc: Int, usersCountInc: Int) = {
+  let locksCount = keyStatsLocksCount().getIntOrZero()
+  let usersCount = keyStatsUsersCount().getIntOrZero()
+  let totalAmount = keyLockParamTotalAmount().getIntOrZero()
+  let totalAmountNew = totalAmount + totalLockedInc
+  ([IntegerEntry(keyStatsLocksCount(), locksCount + lockCountInc),
+      IntegerEntry(keyStatsUsersCount(), usersCount + usersCountInc),
+      IntegerEntry(keyLockParamTotalAmount(), totalAmountNew)],
+    totalAmount, totalAmountNew)
+}
+
+func LockParamsEntry(userAddress: Address, amount: Int, start: Int) = {
+  [
+    IntegerEntry(userAddress.keyLockParamUserAmount(), amount),
+    IntegerEntry(userAddress.keyLockParamStartBlock(), start)
+  ]
+}
+
+func getParamsOrFail() = {
+  (
+    neutrinoContract.getStringValue(keyBondAsset()).fromBase58String(),
+    keyMinLockAmount().getIntOrFail(),
+    keyHalfLife().getIntOrFail()
+  )
+}
+
+func isActiveUser(userAddress: Address) = {
+  userAddress.keyLockParamUserAmount().getIntOrElse(0) > 0
+}
+
+func getUserParamsOrUnit(userAddress: Address) = {
+  if (userAddress.isActiveUser()) then {
+    (
+      false, # isNewUser
+      userAddress.keyLockParamUserAmount().getIntOrFail(),
+      userAddress.keyLockParamStartBlock().getIntOrFail()
+    )
+  } else unit
+}
+
+func getUserParamsOrFail(userAddress: Address) = {
+  userAddress.getUserParamsOrUnit().valueOrErrorMessage("User " + userAddress.toString() + " is not defined")
+}
+
+# TODO: move to data state
+let supportedAssetsStr = keySupportedRewardAssets().getStrOrElse("")
+let supportedAssetsList = supportedAssetsStr.split("_")
+
+func calcReward(userAddress: String, assetId: String, stakedAmountX: BigInt, depositNumUser: Int, depositNumLast: Int) = {
+  let rewardPerNsbtSumLastKEY = keyRewardPerNsbtSumAt(depositNumLast, assetId)
+  let sumLastX18 = keyRewardPerNsbtSumAt(depositNumLast, assetId).getStrOrElse("0").parseBigIntValue()
+  let sumUserX18 = keyRewardPerNsbtSumAt(depositNumUser, assetId).getStrOrElse("0").parseBigIntValue()
+  let rewardDynamicPart = fraction((sumLastX18 - sumUserX18), stakedAmountX, MULTX18).toInt()
+  let rewardCachedPartKEY = keyReward(userAddress, assetId)
+  let rewardCachedPart = rewardCachedPartKEY.getIntOrElse(0)
+
+  (rewardCachedPart + rewardDynamicPart, rewardCachedPart, rewardDynamicPart, rewardCachedPartKEY)
+}
+
+func toStartOfDay(timestamp: Int) = {
+  (timestamp / DAYMILLIS) * DAYMILLIS
+}
+
+# TODO MATH or Library candidate
+func findElementPosition(src: String, element: String, sep: String) = {
+  let elementStart = src.indexOf(element).valueOrErrorMessage("there is no substring " + element + " in " + src)
+
+  if (elementStart == 0) then 0 else
+  let left = src.take(elementStart)
+  left.split(sep).size() - 1
+}
+
+
+let DepositTotalsPREFIX = "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d"
+
+func updateDepositTotals(currVal: String, idxToUpdate: Int, deltaAmt: Int) = {
+  let currArr = currVal.split(SEP)
+
+  func updDepTotByIdx(idx: Int) = {
+    if (idx != idxToUpdate) then currArr[idx] else (currArr[idx].parseIntValue() + deltaAmt).toString()
+  }
+
+  makeString([
+    DepositTotalsPREFIX,
+    updDepTotByIdx(1),
+    updDepTotByIdx(2),
+    updDepTotByIdx(3),
+    updDepTotByIdx(4),
+    updDepTotByIdx(5),
+    updDepTotByIdx(6),
+    updDepTotByIdx(7),
+    updDepTotByIdx(8),
+    updDepTotByIdx(9),
+    updDepTotByIdx(10),
+    updDepTotByIdx(11),
+    updDepTotByIdx(12),
+    updDepTotByIdx(13),
+    updDepTotByIdx(14),
+    updDepTotByIdx(15),
+    updDepTotByIdx(16),
+    updDepTotByIdx(17),
+    updDepTotByIdx(18)
+  ], SEP)
+}
+
+func DepositsTotalsEntries(depositAmount: Int, assetIdStr: String) = {
+  let startOfDay = toStartOfDay(lastBlock.timestamp)
+  let byDayKEY = keyStatsDepositAmtByDay(startOfDay)
+  let totalsKEY = keyStatsDepositAmtTotals()
+
+  let position    = findElementPosition(supportedAssetsStr, assetIdStr, "_")
+  let defaultDATA = DepositTotalsPREFIX + "__0__0__0__0__0__0__0__0__0__0__0__0__0__0__0__0__0__0"
+  let currTotalsDATA  = this.getString(totalsKEY).valueOrElse(defaultDATA)
+  let newTotalsDATA = updateDepositTotals(currTotalsDATA, position + 1, depositAmount)
+
+  [StringEntry(totalsKEY, newTotalsDATA),
+   StringEntry(byDayKEY, newTotalsDATA)]
+}
+
+func RewardEntries(isNewUser: Boolean, userAddress: String, stakedAmount: Int) = {
+  let stakedAmountX = stakedAmount.toBigInt()
+  let userRewardFromDepositNumKEY = keyUserRewardFromDepositNum(userAddress)
+  let depositNumUser = userRewardFromDepositNumKEY.getIntOrElse(-1)
+  let depositNumLast = keyDepositNumLast().getIntOrElse(-1)
+
+  func forEachAssetCacheUserReward(accum: List[IntegerEntry], asset: String) = {
+    let (rewardTotal, cached, dynamic, rewardCachedPartKEY) = calcReward(userAddress, asset, stakedAmountX, depositNumUser, depositNumLast)
+    accum :+ IntegerEntry(rewardCachedPartKEY, rewardTotal)
+  }
+
+# имеем ветки
+#   1) если depositNumLast == -1 и depositNumUser == -1 и isNewUser == true  - это ситуация когда не было еще ни одного депозита
+#      можно ничего не писать т.к. depositNumUser по дефолту всегда -1
+#      *[]
+#   2) если depositNumLast == -1 и depositNumUser == -1 и isNewUser == false - это ситуация когда не было еще ни одного депозита, а пользователь пришел достейкать
+#      можно ничего не писать т.к. depositNumUser по дефолту всегда -1
+#      *[]
+#   3) если depositNumLast == -1 и depositNumUser  > -1 и isNewUser == true  - INVALID
+#      * FAIL
+#   4) если depositNumLast == -1 и depositNumUser  > -1 и isNewUser == false - INVALID
+#      * FAIL
+#   5) если depositNumLast  > -1 и depositNumUser == -1 и isNewUser == true  - новый пользователь когда уже были депозиты
+#      * depositNumUser=depositNumLast
+#   6) если depositNumLast  > -1 и depositNumUser == -1 и isNewUser == false - старый пользователь, который пришел до первых депозитов
+#      * depositNumUser=depositNumLast и rewardCachedPart
+#   7) если depositNumLast  > -1 и depositNumUser  > -1 и isNewUser == true  - пользователь который пришел при fullUnstake
+#      * depositNumUser=depositNumLast
+#   8) если depositNumLast  > -1 и depositNumUser  > -1 и isNewUser == false - старый пользователь, который доносит в стейкинг
+#      * depositNumUser=depositNumLast и rewardCachedPart
+
+# MUST HAVE to CHECK
+# Прошли депозиты и приходит новый пользователь, по дефолту depositNumUser = -1, а depositNumLast = 20
+#   FOLD функция насчитает реворд от -1 до 20
+#   можно подумать над отдельными ветками:
+#     если depositNumLast == -1 значит выплат нет и реворд 0
+#     если depositNumUser == -1 - нужно быть аккуратным т.к. пользователь может зайти до депозитов и иметь старт индекса -1
+  # 1 + 2
+  if (depositNumLast == -1 && depositNumUser == -1) then [] else
+  # 3 + 4
+  if (depositNumLast == -1 && depositNumUser  > -1) then throw("invalid depositNumLast and depositNumUser state") else
+  # 5 + 6 + 7 + 8
+  if (depositNumLast  > -1 && depositNumUser >= -1) then {
+    if (isNewUser) then [IntegerEntry(userRewardFromDepositNumKEY, depositNumLast)] else
+    FOLD<9>(supportedAssetsList, [], forEachAssetCacheUserReward)
+          :+ IntegerEntry(userRewardFromDepositNumKEY, depositNumLast)
+  } else throw("uncovered condition: depositNumLast=" + depositNumLast.toString() + " depositNumUser=" + depositNumUser.toString())
+}
+
+func IncrementNotDistributedRewardEntry(tkn: String, amountInc: Int) = {
+  let notDistributedRewardKEY = keyNotDistributedReward(tkn)
+  let notDistributedReward = notDistributedRewardKEY.getIntOrElse(0)
+  [IntegerEntry(notDistributedRewardKEY, notDistributedReward + amountInc)]
+}
+
+func commonClaim(userAddress: Address, i: Invocation) = {
+  let userAddressStr = userAddress.toString()
+
+  if (i.payments.size() > 0) then throw("payments are not accepted") else
+  let (isNewUser, stakedAmount, stakingStart) = userAddress.getUserParamsOrUnit().valueOrElse((true, 0, 0))
+
+  let stakedAmountX = stakedAmount.toBigInt()
+  let userRewardFromDepositNumKEY = keyUserRewardFromDepositNum(userAddressStr)
+  let depositNumUser = userRewardFromDepositNumKEY.getIntOrElse(-1)
+  let depositNumLast = keyDepositNumLast().getIntOrElse(-1)
+
+  func forEachAssetCalcUnclaimedReward(accum: (List[ScriptTransfer|IntegerEntry], String), asset: String) = {
+    let (rewardTotal, cached, dynamic, rewardCachedPartKEY) = calcReward(userAddressStr, asset, stakedAmountX, depositNumUser, depositNumLast)
+    let claimedKEY = keyClaimed(userAddressStr, asset)
+    let (data, claimedAmtByAsset) = accum
+    let newPart = makeString([asset, rewardTotal.toString()], ":")
+    let claimedAmtByAssetNew = makeString([claimedAmtByAsset, newPart], "_")
+    if (rewardTotal <= 0) then (data, claimedAmtByAssetNew) else
+    (data
+      :+ ScriptTransfer(userAddress, rewardTotal, toAssetVect(asset))
+      :+ IntegerEntry(claimedKEY, claimedKEY.getInteger().valueOrElse(0) + rewardTotal)
+      :+ IntegerEntry(rewardCachedPartKEY, 0)
+
+    , claimedAmtByAssetNew)
+  }
+
+  let (transfers, claimedAmtByAssetResult) = FOLD<9>(supportedAssetsList, ([],""), forEachAssetCalcUnclaimedReward)
+  if (transfers.size() <= 0) then ([], 0) else
+  (transfers
+    :+ IntegerEntry(userRewardFromDepositNumKEY, depositNumLast)
+    :+ ClaimHistoryEntry(userAddress, i.transactionId, claimedAmtByAssetResult.drop(1)), transfers.size())
+}
+
+# init halfLife with 259200
+@Callable(i)
+func constructor(neutrinoContractAddress: String, mathContractAddress: String, minLockAmount: Int, halfLife: Int, supportedRewardAssets: String) = {
+  if (i.caller != this) then throw("Permission denied") else
+  [
+    StringEntry(keyNeutrinoContractAddress(), neutrinoContractAddress), # ignored
+    StringEntry(keyMathContractAddress(), mathContractAddress), # ignored
+    IntegerEntry(keyMinLockAmount(), minLockAmount),
+    IntegerEntry(keyHalfLife(), halfLife),
+    StringEntry(keySupportedRewardAssets(), supportedRewardAssets)
+  ]
+}
+
+@Callable(i)
+func stake() = {
+  let (bondAssetId, minLockAmount, halfLife) = getParamsOrFail()
+  if (i.payments.size() != 1) then throw("Invalid payments size") else
+  let payment = i.payments[0]
+  let amount = payment.amount
+
+  let invalidAssetMessage = "Invalid asset. " + bondAssetId.toBase58String() + " is expected"
+  let assetId = payment.assetId.valueOrErrorMessage(invalidAssetMessage)
+  if (assetId != bondAssetId) then throw(invalidAssetMessage) else
+
+  let userAddress = i.caller
+  let userAddressStr = i.caller.toString()
+#  if (userAddress.scriptHash().isDefined()) then throw("Address is scripted. Access denied") else
+
+  let (isNewUser, lockAmount, lockStartHeight) = userAddress.getUserParamsOrUnit().valueOrElse((true, 0, -1))
+
+  let mergedAmount = if (isNewUser) then amount else amount + lockAmount
+
+  let mergedStartHeight = if (isNewUser) then height else {
+    mathContract.invoke("mergeStakesREADONLY", [amount, height, lockAmount, lockStartHeight, halfLife], []).asInt()
+  }
+  if (mergedAmount < minLockAmount) then throw("Min lock amount is " + minLockAmount.toString()) else
+
+  let (statsEntries, totalStaked, totalStakedNew) = StatsResult(amount, 1, if (isNewUser) then 1 else 0)
+
+  [
+    HistoryRecordEntry("stake", userAddress, i.transactionId, lockAmount, lockStartHeight, mergedAmount, mergedStartHeight)
+  ]
+  ++ RewardEntries(isNewUser, userAddressStr, lockAmount)
+  ++ LockParamsEntry(userAddress, mergedAmount, mergedStartHeight)
+  ++ statsEntries
+}
+
+@Callable(i)
+func unstake(amount: Int) = {
+  if (i.payments.size() != 0) then throw("unstake doesn't require any payment") else
+  let userAddress  = i.caller
+  let userAddressStr = userAddress.toString()
+  let (bondAssetId, minLockAmount, halfLife) = getParamsOrFail()
+  let (isNewUser, lockAmount, lockStart) = userAddress.getUserParamsOrFail()
+
+  if (lockAmount <= 0) then throw("Nothing to unstake") else
+  if (amount > lockAmount) then throw("Requested " + amount.toString() + ", but staked only " + lockAmount.toString()) else
+  # check if gNSBT are taking part in votings
+  let t = blockInfoByHeight(height).value().timestamp
+  let releaseTime = govContract.getInteger(keyUserGnsbtReleaseTime(userAddressStr)).valueOrElse(0)
+  if (t <= releaseTime) then throw("Your gNsbt are taking part in voting, cannot unstake until " + releaseTime.toString()) else
+
+  let comissionAmount = mathContract.invoke("getUnstakeComissionAmountREADONLY", [amount, lockStart, halfLife], []).asInt()
+  let (statsEntries, totalStaked, totalStakedNew) = StatsResult(-amount, if (amount == lockAmount) then -1 else 0, if (amount == lockAmount) then -1 else 0)
+
+  [
+    ScriptTransfer(userAddress, amount - comissionAmount, bondAssetId),
+    ScriptTransfer(auctionContract, comissionAmount, bondAssetId),
+    HistoryRecordEntry("unstake", userAddress, i.transactionId, lockAmount, lockStart, lockAmount - amount, lockStart)
+  ]
+  ++ RewardEntries(false, userAddressStr, lockAmount)
+  ++ LockParamsEntry(userAddress, lockAmount - amount, lockStart)
+  ++ statsEntries
+}
+
+@Callable(i)
+func deposit() = {
+  if (i.payments.size() != 1) then throw("exact 1 payment is allowed only") else
+  let pmt = i.payments[0]
+  let amount = pmt.amount
+  let pmtAssetId = pmt.assetId.valueOrElse(WAVESID)
+  let pmtAssetIdStr = pmtAssetId.toBase58String()
+  let pmtMultX = if (pmtAssetId == WAVESID) then MULTX8 else MULTX6
+  let amountX = amount.toBigInt()
+
+  # read total staked
+  let totalStaked = keyLockParamTotalAmount().getIntOrElse(0)
+  let totalStakedX = totalStaked.toBigInt()
+
+  if (totalStaked < 0) then throw("TODO: case is not supported") else
+  # accumalate rewards if nobody stakes NSBT
+  if (totalStaked == 0) then IncrementNotDistributedRewardEntry(pmtAssetIdStr, amount) else
+
+  let rewardPerNsbtX18 = fraction(amountX, MULTX18, totalStakedX)
+
+  let depositNumLastKEY = keyDepositNumLast()
+  let depositNumLast = depositNumLastKEY.getIntOrElse(-1)
+  let depositNumNew = depositNumLast + 1
+
+  if (!supportedAssetsStr.contains(pmtAssetIdStr)) then throw(supportedAssetsStr + " doesn't contain " + pmtAssetIdStr) else
+
+  func refreshRewardPerNsbtSUM(accum: List[StringEntry], nextAsset: String) = {
+    let rewardPerNsbtSumNewKEY = keyRewardPerNsbtSumAt(depositNumNew, nextAsset)
+    let sumLastStr = keyRewardPerNsbtSumAt(depositNumLast, nextAsset).getStrOrElse("0")
+
+    accum :+
+      if (nextAsset == pmtAssetIdStr) then
+        StringEntry(rewardPerNsbtSumNewKEY, (sumLastStr.parseBigIntValue() + rewardPerNsbtX18).toString())
+      else
+        StringEntry(rewardPerNsbtSumNewKEY, sumLastStr)
+  }
+
+  FOLD<9>(supportedAssetsList, [], refreshRewardPerNsbtSUM)
+    :+ IntegerEntry(depositNumLastKEY, depositNumNew)
+    ++ DepositsTotalsEntries(amount, pmtAssetIdStr)
+}
+
+@Callable(i)
+func claimRewards() = {
+  commonClaim(i.caller, i)
+}
+
+@Callable(i)
+func claimRewardsByOriginCaller() = {
+  commonClaim(i.originCaller, i)
+}
+
+# TODO need to rename into SYSREADONLY
+@Callable(i)
+func unclaimedRewardsREADONLY(userAddressStr: String) = {
+  # function to create zero rewards result
+  func forEachAssetZeroReward(accum: String, asset: String) = {
+    accum + makeString([asset, "0", "0"], ":") + "_"
+  }
+
+  let unclaimedRewardStr = if (userAddressStr == "") then FOLD<9>(supportedAssetsList, "", forEachAssetZeroReward) else {
+    let userAddress = userAddressStr.addressFromStringValue()
+    let (isNewUser, stakedAmount, stakingStart) = userAddress.getUserParamsOrUnit().valueOrElse((true, 0, 0))
+
+    let stakedAmountX = stakedAmount.toBigInt()
+    let userRewardFromDepositNumKEY = keyUserRewardFromDepositNum(userAddressStr)
+    let depositNumUser = userRewardFromDepositNumKEY.getIntOrElse(-1)
+    let depositNumLast = keyDepositNumLast().getIntOrElse(-1)
+
+    func forEachAssetCalcUnclaimedReward(accum: String, asset: String) = {
+      let (rewardTotal, cached, dynamic, rewardCachedPartKEY) = calcReward(userAddressStr, asset, stakedAmountX, depositNumUser, depositNumLast)
+      let claimed = keyClaimed(userAddressStr, asset).getInteger().valueOrElse(0)
+      accum + makeString([asset, rewardTotal.toString(), claimed.toString()], ":") + "_"
+    }
+
+    FOLD<9>(supportedAssetsList, "", forEachAssetCalcUnclaimedReward)
+  }
+
+  ([], unclaimedRewardStr.dropRight(1))
+}
+
+@Callable(i)
+func nsbtUnstakingSYSREADONLY(userAddressStrOrEmpty: String, unstakeAmtP: Int) = {
+  let resultArray = if (userAddressStrOrEmpty == "") then [0, 0, 0, 0] else
+
+  let userAddress = userAddressStrOrEmpty.addressFromStringValue()
+
+  let cfgDATA = getParamsOrFail()
+  let nsbtAssetId   = cfgDATA._1
+  let minLockAmount = cfgDATA._2
+  let halfLife      = cfgDATA._3
+
+  let userDATA = userAddress.getUserParamsOrUnit().valueOrElse((true, 0, 0))
+  let isNewUser     = userDATA._1
+  let stakedAmount  = userDATA._2
+  let lockStart     = userDATA._3
+
+  let unstakeAmt = if (unstakeAmtP > stakedAmount) then stakedAmount else unstakeAmtP
+  let stakedAmountNEW = stakedAmount - unstakeAmt
+  let comissionAmount = if (unstakeAmt == 0) then 0 else
+      mathContract.invoke("getUnstakeComissionAmountREADONLY", [unstakeAmt, lockStart, halfLife], []).asInt()
+  let receiveAmount = unstakeAmt - comissionAmount
+  [stakedAmount, stakedAmountNEW, receiveAmount, comissionAmount]
+
+  ([], resultArray)
+}
+
+# Staking params
+# (userNsbtStakedAmount, totalNsbtStakedAmount, stakingStartHeight)
+@Callable(i)
+func nsbtStakingSYSREADONLY(userAddressStr: String, nsbtDiff: Int) = {
+# TODO modify returned value
+  let totalNsbtAmt = keyLockParamTotalAmount().getIntOrElse(0)
+
+  if (userAddressStr == "") then ([], [0, totalNsbtAmt, 0]) else
+  let userAddress = userAddressStr.toAddressOrFail()
+  let (isNewUser, userNsbtAmt, stakingStart) = userAddress.getUserParamsOrUnit().valueOrElse((true, 0, 0))
+  ([], [userNsbtAmt, totalNsbtAmt, stakingStart])
+}
+
+@Verifier(tx)
+func verify() = {
+    let pubKeyAdminsListStr = makeString([
+        "GJdLSaLiv5K7xuejac8mcRcHoyo3dPrESrvktG3a6MAR",
+        "EYwZmURd5KKaQRBjsVa6g8DPisFoS6SovRJtFiL5gMHU",
+        "DtmAfuDdCrHK8spdAeAYzq6MsZegeD9gnsrpuTRkCbVA",
+        "5WRXFSjwcTbNfKcJs8ZqXmSSWYsSVJUtMvMqZj5hH4Nc"
+    ], SEP)
+
+    let pubKeyAdminsList = controlContract.getString("%s__multisig")
+          .valueOrElse(pubKeyAdminsListStr)
+          .split(SEP)
+
+    let count =
+        (if(sigVerify(tx.bodyBytes, tx.proofs[0], fromBase58String(pubKeyAdminsList[0]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[1], fromBase58String(pubKeyAdminsList[1]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[2], fromBase58String(pubKeyAdminsList[2]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[3], fromBase58String(pubKeyAdminsList[3]))) then 2 else 0)
+
+    count >= 3
+}

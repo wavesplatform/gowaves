@@ -1,0 +1,154 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = {"%s__pendingManagerPublicKey"}
+
+# Early Birds Contract
+let separator = "__"
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+let keyStart = ["%s", "start"].makeString(separator)
+let keyDuration = ["%s", "duration"].makeString(separator)
+let keyAsset = ["%s", "asset"].makeString(separator)
+let keyIsDataReady = ["%s", "isDataReady"].makeString(separator)
+
+func keyUserRewardInfo(address: Address) = {
+  ["%s%s", "userRewardInfo", address.toString()].makeString(separator)
+}
+
+func keyClaimHistoryRecord(address: Address, txId: ByteVector) = {
+  ["%s%s%s", "claimHistoryRecord", address.toString(), txId.toBase58String()].makeString(separator)
+}
+
+func formatHistoryRecord(amount: Int) = {
+  ["%d%d%d", height.toString(), lastBlock.timestamp.toString(), amount.toString()].makeString(separator)
+}
+
+func dataUserRewardInfo(totalAmt: Int, claimedAmt: Int) = {
+  makeString(["%d%d", totalAmt.toString(), claimedAmt.toString()], separator)
+}
+
+func readUserRewardInfo(userAddr: Address) = {
+  this.getStringOrFail(keyUserRewardInfo(userAddr)).split(separator)
+}
+
+func checkIfDataIsReady() = {
+  let isDataReady = this.getBoolean(keyIsDataReady).valueOrElse(false)
+  if (isDataReady) then true else throw("Data is not ready")
+}
+
+func getUserRewards(address: Address) = {
+  let start = this.getInteger(keyStart).valueOrErrorMessage("Start block is not specified")
+  let duration = this.getInteger(keyDuration).valueOrErrorMessage("Duration is not specified")
+  let userRewardInfo = readUserRewardInfo(address)
+  let total = userRewardInfo[1].parseIntValue()
+  let claimed = userRewardInfo[2].parseIntValue()
+  # if height < start then 0, if height > end then total
+  let availableTotal = fraction(
+    total,
+    min([
+      duration,
+      max([
+        0,
+        height - start
+      ])
+    ]),
+    duration
+  )
+  let available = max([0, availableTotal - claimed])
+  (
+    total,
+    claimed,
+    available
+  )
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "Permission denied".throw()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+@Callable(i)
+func constructor(start: Int, duration: Int, assetId: String) = {
+  strict checkCaller = i.mustManager()
+  [
+    IntegerEntry(keyStart, start),
+    IntegerEntry(keyDuration, duration),
+    StringEntry(keyAsset, assetId),
+    BooleanEntry(keyIsDataReady, false)
+  ]
+}
+
+@Callable(i)
+func claim() = {
+  let (total, claimed, available) = i.caller.getUserRewards()
+  let asset = this.getStringOrFail(keyAsset).fromBase58String()
+  let balance = this.assetBalance(asset)
+  strict checks = [
+    checkIfDataIsReady(),
+    if (available > 0) then true else throw("No reward available"),
+    if (available <= balance) then true else throw("Insufficient funds. Contact support")
+  ]
+  [
+    ScriptTransfer(i.caller, available, asset),
+    StringEntry(i.caller.keyUserRewardInfo(), dataUserRewardInfo(total, claimed + available)),
+    StringEntry(i.caller.keyClaimHistoryRecord(i.transactionId), available.formatHistoryRecord())
+  ]
+}
+
+@Callable(i)
+func getUserRewardsREADONLY(address: String) = {
+  strict checks = [
+    checkIfDataIsReady()
+  ]
+  let (total, claimed, available) = address.addressFromStringValue().getUserRewards()
+  (
+    [],
+    ["%d%d%d", total.toString(), claimed.toString(), available.toString()].makeString(separator)
+  )
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

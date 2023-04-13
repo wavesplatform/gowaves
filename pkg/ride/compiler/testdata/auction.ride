@@ -1,0 +1,442 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+#
+# Smart Contract Implementing NSBT and SURF operation of Neutrino Protocol
+#
+let revisionNum = ""
+
+#-------------------Base functions----------------------
+func getNumberByKey(key: String) = {
+    getInteger(this, key).valueOrElse(0)
+}
+
+func getStringByKey(key: String) = {
+    getString(this, key).valueOrElse("")
+}
+
+func getBoolByAddressAndKey(address: Address, key: String) = {
+     getBoolean(address, key).valueOrElse(false)
+}
+
+func getStringByAddressAndKey(address: Address, key: String) = {
+   getString(address, key).valueOrElse("")
+}
+
+func getNumberByAddressAndKey(address: Address, key: String) = {
+    getInteger(address, key).valueOrElse(0)
+}
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyLyst: List[Any] => valAnyLyst
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+func asBytes(val: Any) = {
+  match val {
+    case valByte: ByteVector => valByte
+    case _ => throw("fail to cast into ByteVector")
+  }
+}
+
+#-------------------Constants---------------------------
+let SEP = "__"
+let MULT6 = 1_000_000
+let MULT8 = 1_0000_0000 #10^8
+let MULTX10 = 10_000_000_000.toBigInt() #10^10
+let MULTX12 = 1_0000_0000_0000.toBigInt() #10^12
+let MULTX16 = 1_0000_0000_0000_0000.toBigInt() #10^16
+
+#------Order statuses------
+let CANCELED = "canceled"
+let NEW = "new"
+let FILLED = "filled"
+let WAVESID = fromBase58String("WAVES")
+
+# calcNeutinoMetricsREADONLY result array indices
+let nMetricIdxPrice = 0
+let nMetricIdxUsdnLockedBalance = 1
+let nMetricIdxWavesLockedBalance = 2
+let nMetricIdxReserve = 3
+let nMetricIdxReserveInUsdn = 4
+let nMetricIdxUsdnSupply = 5
+let nMetricIdxSurplus = 6
+let nMetricIdxSurplusPercent = 7
+let nMetricIdxBR = 8 # BR with 6 decimals
+let nMetricIdxNsbtSupply = 9
+let nMetricIdxMaxNsbtSupply = 10
+let nMetricIdxSurfSupply = 11
+
+# surfFunctionREADONLY result array indices
+let bFuncIdxSurf = 0
+let bFuncIdxWaves = 1
+let bFuncIdxUsdn = 2
+let bFuncIdxReserveStart = 3
+let bFuncIdxSupplyStart = 4
+let bFuncIdxBRStart = 5
+let bFuncIdxReserveEnd = 6
+let bFuncIdxSupplyEnd = 7
+let bFuncIdxBREnd = 8
+let bFuncIdxRest = 9
+let bFuncIdxWavesPrice = 10
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp  = 11
+
+
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg()     = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = control.getStringOrFail(keyControlCfg()).split(SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+let mathContract = controlCfg.getContractAddressOrFail(IdxControlCfgMathDapp)
+let neutrinoContract = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let surfStakingContract = controlCfg.getContractAddressOrFail(IdxControlCfgSurfStakingDapp)
+
+
+#-------------------Keys--------------------------------
+let PriceKey = "price"
+let NsbtAssetIdKey = "bond_asset_id"
+let NeutrinoAssetIdKey = "neutrino_asset_id"
+let SurfAssetIdKey = "surf_asset_id"
+let BalanceLockedkKey = "balance_lock_"
+let WavesLockedBalanceKey = BalanceLockedkKey + "waves"
+let NeutrinoLockedBalanceKey = BalanceLockedkKey + "neutrino"
+let FirstOrderKey = "order_first"
+let MathContractKey = "math_contract"
+let MinWavesForNsbtBuyKey = "min_waves_nsbt_buy"
+let MinNsbtSellKey = "min_nsbt_sell"
+let MinWavesForSurfBuyKey = "min_waves_surf_buy"
+let MinUsdnForSurfBuyKey = "min_usdn_surf_buy"
+
+func getRoiByOrderIdKey(orderId: String) = "debug_order_roi_" + orderId
+
+func getOrderPriceKey(orderId: String) = "order_price_" + orderId
+func getOrderTotalKey(orderId: String) = "order_total_" + orderId
+func getOrderOwnerKey(orderId: String) = "order_owner_" + orderId
+func getOrderHeightKey(orderId: String) = "order_height_" + orderId
+func getOrderStatusKey(orderId: String) = "order_status_" + orderId
+func getOrderFilledTotalKey(orderId: String) = "order_filled_total_" + orderId
+
+func getPrevOrderKey(orderId: String) = "order_prev_" + orderId
+func getNextOrderKey(orderId: String) = "order_next_" + orderId
+#-------------------Convert functions-------------------
+func convertNeutrinoToWaves(amount: Int, price: Int) = fraction(amount, MULT8, price)
+func convertWavesToNeutrino(amount: Int, price: Int) = fraction(amount, price, MULT8)
+
+func toX16(origVal: Int, origScaleMult: Int)          = fraction(origVal.toBigInt(), MULTX16, origScaleMult.toBigInt())
+func fromX16(val: BigInt, resultScaleMult: Int)       = fraction(val, resultScaleMult.toBigInt(), MULTX16).toInt()
+
+#-------------------Global vars-------------------------
+let neutrinoAssetId = base58'DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p' # Assets ids. The value from neutrino.ride
+let nsbtAssetId = base58'6nSpVyNH7yM69eg446wrQR94ipbbcmZMU1ENPwanC97g' # NSBT with 6 decimals as USDN does
+
+let isBlocked = getBoolByAddressAndKey(controlContract, "is_blocked")
+let minWavesAmountNsbtBuy = this.getInteger(MinWavesForNsbtBuyKey).valueOrElse(10_0000_0000)
+let minNsbtSell = this.getInteger(MinNsbtSellKey).valueOrElse(1_000_000)
+let minWavesAmountSurfBuy = this.getInteger(MinWavesForSurfBuyKey).valueOrElse(1_0000_0000)
+let minUsdnAmountSurfBuy = this.getInteger(MinUsdnForSurfBuyKey).valueOrElse(10_000_000)
+
+#-------------------Global vars deficit, locked & supply -------------------------
+let firstOrder = getStringByKey(FirstOrderKey)
+
+#-------------------Get functions----------------------
+func getOrderPrice(id : String) = getNumberByKey(getOrderPriceKey(id))
+func getOrderTotal(id : String) = getNumberByKey(getOrderTotalKey(id))
+func getOrderOwner(id : String) = getStringByKey(getOrderOwnerKey(id))
+func getOrderStatus(id : String) = getStringByKey(getOrderStatusKey(id))
+func getOrderFilledTotal(id : String) = getNumberByKey(getOrderFilledTotalKey(id))
+func getPrevOrder(id: String) = getStringByKey(getPrevOrderKey(id))
+func getNextOrder(id: String) = getStringByKey(getNextOrderKey(id))
+func getReversePrice(price: Int) = {MULT6 * MULT6 / price}
+
+func calcNsbt2WavesPriceRaw(spentWavesRaw: Int, receivedNsbtRaw: Int) = {
+  fraction(spentWavesRaw.toBigInt(), (MULT6 * MULT6).toBigInt(), receivedNsbtRaw.toBigInt())
+}
+
+#-------------------Any functions----------------------
+func orderData(orderId: String, totalWavelets: Int, filledWavelets: Int, owner: String, status: String, roi: Int, price: BigInt, currentPrice: Int) = {
+    [StringEntry(getOrderPriceKey(orderId), price.toString()), # currently it is kept for backwards compatibility with cache-updater: see https://github.com/waves-exchange/cache-updater/blob/master/src/entities/bondsorder.go#L143
+     IntegerEntry(getOrderTotalKey(orderId), totalWavelets),
+     IntegerEntry(getOrderFilledTotalKey(orderId), filledWavelets),
+     StringEntry(getOrderOwnerKey(orderId), owner),
+     IntegerEntry(getOrderHeightKey(orderId), height),
+     StringEntry(getOrderStatusKey(orderId), status),
+     IntegerEntry("debug_order_currentPrice_" + orderId, currentPrice),
+     IntegerEntry(getRoiByOrderIdKey(orderId), roi)
+    ]
+}
+
+func toStr(name: String, curveResult: List[Any]) = {
+    name + "[nsbtAmountRaw="    + curveResult[0].asInt().toString()
+        + " usdnPayment="       + curveResult[1].asInt().toString()
+        + " wRaw="              + curveResult[2].asInt().toString()
+        + " uRaw="              + curveResult[3].asInt().toString()
+        + " mRaw="              + curveResult[4].asInt().toString()
+        + " sRaw="              + curveResult[5].asInt().toString()
+        + " nsbtCurveParam_a="  + curveResult[6].asInt().toString()
+        + " nsbtCurveParam_b="  + curveResult[7].asInt().toString()
+        + " wReservesInUsdn="   + curveResult[8].asInt().toString()
+        + " price="             + curveResult[9].asInt().toString()
+        + " multBR="            + curveResult[10].asInt().toString()
+        + " multPower="         + curveResult[11].asInt().toString()
+        + " multExpInPower="    + curveResult[12].asString()
+        + " multK="             + curveResult[13].asString()
+        + " step1="             + curveResult[14].asString()
+        + " step2="             + curveResult[15].asString()
+        + " step3="             + curveResult[16].asInt().toString()
+        + "]"
+}
+
+func surfData(surfResult: List[Any]) = {
+  StringEntry("debug_surfResult", ["%d%d%d%d%d%d%d%d%d%d%d",
+    surfResult[bFuncIdxSurf].asInt().toString(),
+    surfResult[bFuncIdxWaves].asInt().toString(),
+    surfResult[bFuncIdxUsdn].asInt().toString(),
+    surfResult[bFuncIdxReserveStart].asInt().toString(),
+    surfResult[bFuncIdxSupplyStart].asInt().toString(),
+    surfResult[bFuncIdxBRStart].asInt().toString(),
+    surfResult[bFuncIdxReserveEnd].asInt().toString(),
+    surfResult[bFuncIdxSupplyEnd].asInt().toString(),
+    surfResult[bFuncIdxBREnd].asInt().toString(),
+    surfResult[bFuncIdxRest].asInt().toString(),
+    surfResult[bFuncIdxWavesPrice].asInt().toString()
+  ].makeString(SEP))
+}
+
+#-------------------Callable---------------------------
+@Callable(i)
+func constructor(mathContractAddress: String, minWavesForNsbtBuy: Int, minNsbtSell: Int) = {
+  if (i.caller != this) then throw("Permission denied") else
+  [
+    StringEntry(MathContractKey, mathContractAddress), # ignored
+    IntegerEntry(MinNsbtSellKey, minNsbtSell),
+    IntegerEntry(MinWavesForNsbtBuyKey, minWavesForNsbtBuy)
+  ]
+}
+
+# Note, to use Reissue script action, token must be Issued by dApp
+@Callable(i)
+func constructorV2(minWavesForSurfBuyKey: Int, minUsdnForSurfBuyKey: Int, description: String) = {
+  if (i.caller != this) then throw("Permission denied") else
+  let issue = Issue("SURF", description, 0, 6, true, unit, 0)
+  let assetId = issue.calculateAssetId()
+  [
+    issue,
+    StringEntry(SurfAssetIdKey, assetId.toBase58String()),
+    IntegerEntry(MinWavesForSurfBuyKey, minWavesForSurfBuyKey),
+    IntegerEntry(MinUsdnForSurfBuyKey, minUsdnForSurfBuyKey)
+  ]
+}
+
+@Callable(i)
+func buyNsbt() = {
+    let pmt = i.payments[0].value()
+    let pmtAmount = pmt.amount
+    let wavesPay = pmtAmount
+
+    if (isBlocked) then throw("contract is blocked by EMERGENCY SHUTDOWN actions until reactivation by emergency oracles") else
+    if (isDefined(pmt.assetId)) then throw("can use waves only") else
+    if (pmtAmount < minWavesAmountNsbtBuy) then throw("min "+ (minWavesAmountNsbtBuy / MULT8).toString() + " waves expected") else
+    let ownerAddress = i.caller
+
+    let neutrinoMetrics = mathContract.invoke("calcNeutinoMetricsREADONLY", [], []).asAnyList()
+    let currentPrice = neutrinoMetrics[0].asInt()
+
+    let curveResult = mathContract.invoke("curveFunctionREADONLY", [wavesPay], []).asAnyList()
+
+    let nsbtAmount = curveResult[0].asInt()
+
+    if (nsbtAmount <= 0) then throw("nsbtAmount <= 0") else
+    let nsbt2WavesPriceRaw = calcNsbt2WavesPriceRaw(wavesPay, nsbtAmount)
+    let roi = 0
+
+    # replacement of ScriptTransfer(neutrinoContract, wavesPay, unit)
+    # now Neutrino callable acceptWaves() receives waves and puts them to leasing immediately
+    strict amountLeased = invoke(neutrinoContract, "acceptWaves", nil, i.payments)
+
+    (orderData(i.transactionId.toBase58String(), pmtAmount, pmtAmount, ownerAddress.toString(), FILLED,
+        roi,                # to keep backward compatability with prev. format
+        nsbt2WavesPriceRaw,
+        currentPrice) # to keep backward compatability with prev. format
+    ++ [
+      ScriptTransfer(ownerAddress, nsbtAmount, nsbtAssetId),
+      StringEntry("debug_curveResult", toStr("curveResult", curveResult))
+    ],
+    nsbtAmount)
+}
+
+# sell NSBT for USDN by price 1
+@Callable(i)
+func sellNsbt() = {
+  if (isBlocked) then throw("contract is blocked by EMERGENCY SHUTDOWN actions until reactivation by emergency oracles") else
+  let pmt = i.payments[0].value()
+  let pmtAmount = pmt.amount
+
+  if (pmt.assetId != nsbtAssetId) then throw("can use NSBT only") else
+  if (pmtAmount < minNsbtSell) then throw("min "+ (minNsbtSell / MULT6).toString() + " nsbt expected") else
+
+  let newPrice = mathContract.invoke("calcContractNsbtPriceSYSREADONLY", [-pmtAmount], []).asAnyList()[0].asInt()
+  if (newPrice < MULT6) then throw("resulting nsbt price would be < 1 (" + newPrice.toString() + " usdn)") else
+  strict transf = neutrinoContract.invoke("transferUsdnToUser", [pmtAmount, i.caller.toString()], [])
+  ([], newPrice)
+}
+
+# cancel buy NSBT order or liquidation order
+# [called by user]
+@Callable(i)
+func cancelOrder(orderId : String) = {
+    let owner = getOrderOwner(orderId)
+    let amount = getOrderTotal(orderId) - getOrderFilledTotal(orderId)
+    let caller = toString(i.caller)
+
+    let nextOrder = getNextOrder(orderId)
+    let prevOrder = getPrevOrder(orderId)
+
+    if(getOrderStatus(orderId) != NEW)
+        then throw("invalid order status")
+    else {[
+        StringEntry(FirstOrderKey, if firstOrder == orderId then nextOrder else firstOrder),
+
+        StringEntry(getNextOrderKey(prevOrder), nextOrder),
+        StringEntry(getPrevOrderKey(nextOrder), prevOrder),
+        StringEntry(getOrderStatusKey(orderId), CANCELED),
+        ScriptTransfer(i.caller, amount, unit)]
+    }
+}
+
+@Callable(i)
+func minWavesAmountNsbtBuySYSREADONLY() = {
+  ([], minWavesAmountNsbtBuy)
+}
+
+@Callable(i)
+func minNsbtAmountForSellSYSREADONLY() = {
+  ([], minNsbtSell)
+}
+
+@Callable(i)
+func minWavesAmountSurfBuySYSREADONLY() = {
+  ([], minWavesAmountSurfBuy)
+}
+
+@Callable(i)
+func minUsdnAmountSurfBuySYSREADONLY() = {
+  ([], minUsdnAmountSurfBuy)
+}
+
+# maxTolerancePerc: 6 decimals
+# averagePriceWanted: 6 decimals
+@Callable(i)
+func buySurf(averagePriceWanted: Int, maxTolerancePerc: Int, autoStake: Boolean) = {
+  let testAccounts = this.getString("testAccounts").valueOrElse("")
+  if (testAccounts != "" && !testAccounts.contains(i.caller.toString())) then throw("Be patient! Need to test in mainnet before launch.") else
+
+  if (i.payments.size() != 1) then throw("exactly 1 payment must be attached") else
+  if (averagePriceWanted <= 0) then throw("averagePriceWanted should be positive") else
+  if (maxTolerancePerc <= 0) then throw("maxTolerancePerc should be positive") else
+  if (isBlocked) then throw("contract is blocked by EMERGENCY SHUTDOWN actions until reactivation by emergency oracles") else
+  let pmt = i.payments[0]
+  let amt = pmt.amount
+  let pmtAssetId = pmt.assetId.valueOrElse(WAVESID)
+  if (pmtAssetId != neutrinoAssetId && pmtAssetId != WAVESID) then throw("Unsupported payment asset") else
+  if (pmtAssetId == neutrinoAssetId && amt < minUsdnAmountSurfBuy) then throw("min "+ (minUsdnAmountSurfBuy / MULT6).toString() + " USDN expected") else
+  if (pmtAssetId == WAVESID && amt < minWavesAmountSurfBuy) then throw("min "+ (minWavesAmountSurfBuy / MULT8).toString() + " WAVES expected") else
+
+  let surfResult = mathContract.invoke("surfFunctionREADONLY", [amt, pmtAssetId], []).asAnyList()
+  let spentWaves = surfResult[bFuncIdxWaves].asInt()
+  let spentUsdn = surfResult[bFuncIdxUsdn].asInt()
+  let surfAmount = surfResult[bFuncIdxSurf].asInt()
+  let surfAmountX6 = surfAmount.toBigInt()
+  let spentActualX18 = if (pmtAssetId == WAVESID) then spentWaves.toBigInt() * MULTX10 else spentUsdn.toBigInt() * MULTX12
+  if (spentActualX18 > (maxTolerancePerc + MULT6).toBigInt() * averagePriceWanted.toBigInt() * surfAmountX6) then
+    throw("Tolerance " + maxTolerancePerc.toString() + " exceeded: spent " +
+      (if (pmtAssetId == WAVESID) then spentWaves.toString() + " WAVES" else spentUsdn.toString() + " USDN") +
+      " for " + surfAmount.toString() + " SURF") else
+
+  let rest = surfResult[bFuncIdxRest].asInt()
+  let transfer = if (pmtAssetId == WAVESID) then {
+    strict wavesAmt = neutrinoContract.invoke("acceptWaves", nil, [AttachedPayment(unit, amt - rest)])
+    if (rest > 0) then [ScriptTransfer(i.caller, rest, unit)] else []
+  } else {
+    if (rest > 0) then [
+      ScriptTransfer(neutrinoContract, amt - rest, neutrinoAssetId),
+      ScriptTransfer(i.caller, rest, neutrinoAssetId)
+    ] else [ScriptTransfer(neutrinoContract, amt - rest, neutrinoAssetId)]
+  }
+
+  let surfAssetId = this.invoke("issueSurf", [surfAmount, ""], []).asBytes()
+  let surfAction = if (autoStake)
+    then {
+      strict stakingInv = surfStakingContract.invoke("stakeByOriginCaller", [], [AttachedPayment(surfAssetId, surfAmount)])
+      []
+    } else {
+      [ScriptTransfer(i.caller, surfAmount, surfAssetId)]
+    }
+
+  transfer ++ [surfData(surfResult)] ++ surfAction
+}
+
+@Callable(i)
+func issueSurf(surfAmount: Int, targetAddress: String) = {
+  let surfAssetId = getStringValue(SurfAssetIdKey).fromBase58String()
+  if (i.caller == this) then 
+    ([Reissue(surfAssetId, surfAmount, true)], surfAssetId) else
+  if (i.caller == neutrinoContract) then
+    ([Reissue(surfAssetId, surfAmount, true), 
+      ScriptTransfer(addressFromStringValue(targetAddress), surfAmount, surfAssetId)
+    ], surfAssetId)
+  else throw("issueSurf - permission denied")
+}
+
+@Verifier(tx)
+func verify() = {
+    let pubKeyAdminsListStr = makeString([
+        "GJdLSaLiv5K7xuejac8mcRcHoyo3dPrESrvktG3a6MAR",
+        "EYwZmURd5KKaQRBjsVa6g8DPisFoS6SovRJtFiL5gMHU",
+        "DtmAfuDdCrHK8spdAeAYzq6MsZegeD9gnsrpuTRkCbVA",
+        "5WRXFSjwcTbNfKcJs8ZqXmSSWYsSVJUtMvMqZj5hH4Nc"
+    ], SEP)
+
+    let pubKeyAdminsList = controlContract.getString("%s__multisig")
+          .valueOrElse(pubKeyAdminsListStr)
+          .split(SEP)
+
+    let count =
+        (if(sigVerify(tx.bodyBytes, tx.proofs[0], fromBase58String(pubKeyAdminsList[0]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[1], fromBase58String(pubKeyAdminsList[1]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[2], fromBase58String(pubKeyAdminsList[2]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[3], fromBase58String(pubKeyAdminsList[3]))) then 2 else 0)
+
+    count >= 3
+}

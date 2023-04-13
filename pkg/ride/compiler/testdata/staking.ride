@@ -1,0 +1,636 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SCALE8  = 8
+let MULT8   = 100000000
+let SCALE18 = 18
+let MULT18  = 1000_000_000_000_000_000.toBigInt() # 10^18
+let SEP     = "__"
+let POOLWEIGHTMULT = MULT8
+let zeroBigInt = 0.toBigInt()
+let oneBigInt = 1.toBigInt()
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyLyst: List[Any] => valAnyLyst
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asByteVector(val: Any) = {
+  match val {
+    case valBin: ByteVector => valBin
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func getStringOrFail(address: Address, key: String)   = address.getString(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+func getStringByAddressOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+func getIntOrZero(address: Address, key: String) = address.getInteger(key).valueOrElse(0)
+func getIntOrDefault(address: Address, key: String, defaultVal: Int) = address.getInteger(key).valueOrElse(defaultVal)
+func getIntOrFail(address: Address, key: String)      = address.getInteger(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+
+func getBigIntFromStringOrZero(address: Address, key: String) = address.getString(key).valueOrElse("0").parseBigInt().value()
+func getBigIntFromStringOrDefault(address: Address, key: String, defaultVal: BigInt) = {
+  match address.getString(key) {
+    case s: String => s.parseBigInt().value()
+    case _: Unit => defaultVal
+  }
+}
+
+func toX18(origVal: Int, origScaleMult: Int)          = fraction(origVal.toBigInt(), MULT18, origScaleMult.toBigInt())
+func fromX18(val: BigInt, resultScaleMult: Int)       = fraction(val, resultScaleMult.toBigInt(), MULT18).toInt()
+
+# FACTORY API
+# own factory address key
+func keyFactoryAddress()  = "%s%s__config__factoryAddress"
+
+func keyVotingEmissionContract() = "%s__votingEmissionContract"
+
+let IdxFactoryCfgStakingDapp    = 1
+let IdxFactoryCfgBoostingDapp   = 2
+let IdxFactoryCfgIdoDapp        = 3
+let IdxFactoryCfgTeamDapp       = 4
+let IdxFactoryCfgEmissionDapp   = 5
+let IdxFactoryCfgRestDapp       = 6
+let IdxFactoryCfgSlippageDapp   = 7
+
+func keyFactoryCfg() = "%s__factoryConfig"
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+func keyStablePoolAddonAddr() = "%s__stablePoolAddonAddr"
+func keyAddonAddr() = "%s__addonAddr"
+func keyFactoryLp2AssetsMapping(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryLpList()   = "%s__lpTokensList" # not used anymore
+func keyFactoryLpAssetToPoolContractAddress(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryPoolWeight(contractAddress: String) = { ["%s%s", "poolWeight", contractAddress].makeString(SEP) }
+
+func readLpList(factory: Address)                       = factory.getString(keyFactoryLpList()).valueOrElse("").split(SEP)
+func readFactoryCfgOrFail(factory: Address)             = factory.getStringByAddressOrFail(keyFactoryCfg()).split(SEP)
+func getBoostingAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgBoostingDapp].addressFromStringValue()
+func getEmissionAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgEmissionDapp].addressFromStringValue()
+func getStakingAddressOrFail(factoryCfg: List[String])  = factoryCfg[IdxFactoryCfgStakingDapp].addressFromStringValue()
+
+# EMISSION API
+func keyEmissionRatePerBlockCurrent() = "%s%s__ratePerBlock__current"
+func keyEmissionRatePerBlockMaxCurrent() = "%s%s__ratePerBlockMax__current"
+func keyEmissionStartBlock() = "%s%s__emission__startBlock"
+func keyEmissionDurationInBlocks() = "%s%s__emission__duration"
+func keyEmissionEndBlock() = "%s%s__emission__endBlock"
+
+# OWN KEYS
+func keyStakedByUser(userAddressStr: String, lpAssetIdStr: String) = makeString(["%s%s%s__staked", userAddressStr, lpAssetIdStr], SEP)
+func keyStakedTotal(lpAssetIdStr: String) = "%s%s%s__staked__total__" + lpAssetIdStr
+func keyClaimedByUser(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimed", userAddressStr, lpAssetIdStr], SEP)
+func keyClaimedByUserMinReward(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimedMinReward", userAddressStr, lpAssetIdStr], SEP)
+func keyClaimedByUserBoostReward(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimedBoostReward", userAddressStr, lpAssetIdStr], SEP)
+func keyClaimedTotal(lpAssetIdStr: String) = makeString(["%s%s%s__claimed__total", lpAssetIdStr], SEP)
+func readStaked(key: String) = this.getInteger(key).valueOrElse(0)
+
+# OWN MATH KEYS
+func keyLastTotalLpBalance(lpAssetId: String)                         = ["%s%s%s", lpAssetId, "total",      "bal"].makeString(SEP)
+func keyLastUserLpBalance(lpAssetId: String, userAddress: String)     = ["%s%s%s", lpAssetId, userAddress,  "bal"].makeString(SEP)
+func keyTotalLpBalanceIntegral(lpAssetId: String)                     = ["%s%s%s", lpAssetId, "total",      "balINT"].makeString(SEP)
+func keyUserLpBalanceIntegral(lpAssetId: String, userAddress: String) = ["%s%s%s", lpAssetId, userAddress,  "balINT"].makeString(SEP)
+func keyTotalLpBalanceIntegralLastUpdHeight(lpAssetId: String)        = ["%s%s%s", lpAssetId, "total", "lastUpd"].makeString(SEP)
+func keyUserLpBalanceIntegralLastUpdHeight(lpAssetId: String, userAddress: String) = ["%s%s%s", lpAssetId, userAddress, "lastUpd"].makeString(SEP)
+
+func keyWxPerLpIntegral(lpAssetId: String)                            = ["%s%s%s%s", lpAssetId, "common", "lpInt"].makeString(SEP)
+func keyWxPerLpIntegralLastUpdHeight(lpAssetId: String)               = ["%s%s%s%s", lpAssetId, "common", "lpIntH"].makeString(SEP)
+func keyWxToClaimUser(lpAssetId: String, userAddress: String)         = ["%s%s%s%s", lpAssetId, userAddress, "lpInt"].makeString(SEP)
+func keyWxPerLpIntegralUserLastUpdHeight(lpAssetId: String, userAddress: String) = ["%s%s%s%s", lpAssetId, userAddress, "lpIntH"].makeString(SEP)
+func keyWxPerLp(lpAssetId: String)                                    = ["%s", lpAssetId, "wxPerLp"].makeString(SEP)
+func keyWxPerLpX18(lpAssetId: String)                                 = ["%s", lpAssetId, "wxPerLpX18"].makeString(SEP)
+func keyWxPerLpIntegralUserLast(lpAssetId: String, userAddress: String) = ["%s%s%s%s", lpAssetId, userAddress, "uIntL"].makeString(SEP)
+
+func keyOperationHistoryRecord(type: String, userAddress: String, txId58: String) = {
+    makeString(["%s%s%s%s__history",
+        type,
+        userAddress,
+        txId58],
+    SEP)
+}
+
+func formatHistoryRecord(userAddress: String, lpAssetId: String, type: String, amount: Int) = {
+  makeString(["%s%s%s%d%d%d", userAddress, lpAssetId, type, height.toString(), lastBlock.timestamp.toString(), amount.toString()],  SEP)
+}
+
+func OperationHistoryEntry(type: String, userAddress: String, lpAssetId: String, amount: Int, txId: ByteVector) = {
+  StringEntry(
+      keyOperationHistoryRecord(type, userAddress, txId.toBase58String()),
+      formatHistoryRecord(userAddress, lpAssetId, type, amount))
+}
+
+# GLOBAL VARIABLES
+# CONSTRUCTOR IS NOT FAILED BECAUSE GLOBAL VARIABLES ARE NOT USED
+let factoryAddress    = this.getStringOrFail(keyFactoryAddress())
+let factoryContract   = factoryAddress.addressFromStringValue()
+let factoryCfg        = factoryContract.readFactoryCfgOrFail()
+let emissionContract  = factoryCfg.getEmissionAddressOrFail()
+let boostingContract  = factoryCfg.getBoostingAddressOrFail()
+
+func keyNextUser(lpAssetId: String) = ["%s%s", lpAssetId, "nextUser"].makeString(SEP)
+
+# Doubly linked list ->
+func getUsersListName(lpAssetId: String) = {
+  ["users", lpAssetId].makeString(SEP)
+}
+
+func keyListHead(listName: String) = ["%s%s%s", listName, "head"].makeString(SEP)
+func keyListSize(listName: String) = ["%s%s%s", listName, "size"].makeString(SEP)
+func keyListPrev(listName: String, id: String) = ["%s%s%s%s", listName, id, "prev"].makeString(SEP)
+func keyListNext(listName: String, id: String) = ["%s%s%s%s", listName, id, "next"].makeString(SEP)
+
+# Check if list contains the node
+func containsNode(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let prevOrUnit = this.getString(listName.keyListPrev(id))
+  let nextOrUnit = this.getString(listName.keyListNext(id))
+
+  id == headOrUnit.valueOrElse("") || prevOrUnit != unit || nextOrUnit != unit
+}
+
+# Insert at the beginning of the list
+func insertNodeActions(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  strict checkNode = !listName.containsNode(id) || "Node exists".throw()
+
+  [IntegerEntry(listName.keyListSize(), listSize + 1)]
+  ++
+  {
+    if (headOrUnit != unit) then
+    [
+      StringEntry(listName.keyListNext(id), headOrUnit.value()),
+      StringEntry(listName.keyListPrev(headOrUnit.value()), id)
+    ] else []
+  }
+  ++ [StringEntry(listName.keyListHead(), id)]
+}
+
+# Remove from the list
+func deleteNodeActions(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  let prevOrUnit = this.getString(listName.keyListPrev(id))
+  let nextOrUnit = this.getString(listName.keyListNext(id))
+
+  [IntegerEntry(listName.keyListSize(), listSize - 1)]
+  ++
+  {
+    if (prevOrUnit != unit && nextOrUnit != unit) then {
+      [
+        StringEntry(listName.keyListNext(prevOrUnit.value()), nextOrUnit.value()),
+        StringEntry(listName.keyListPrev(nextOrUnit.value()), prevOrUnit.value()),
+        DeleteEntry(listName.keyListPrev(id)),
+        DeleteEntry(listName.keyListNext(id))
+      ]
+    } else if (nextOrUnit != unit) then {
+      [
+        StringEntry(listName.keyListHead(), nextOrUnit.value()),
+        DeleteEntry(listName.keyListNext(id)),
+        DeleteEntry(listName.keyListPrev(nextOrUnit.value()))
+      ]
+    } else if (prevOrUnit != unit) then {
+      [
+        DeleteEntry(listName.keyListPrev(id)),
+        DeleteEntry(listName.keyListNext(prevOrUnit.value()))
+      ]
+    } else {
+      if (id == headOrUnit.valueOrElse("")) then [DeleteEntry(listName.keyListHead())] else {"invalid node: " + listName + "." + id}.throw()
+    }
+  }
+}
+# <-
+
+func calcWxPerLpIntegralUserLast(
+  stakedByUser: BigInt,
+  wxPerLpIntegralUserLastUpdHeightOrZero: BigInt,
+  wxPerLpIntegralNew: BigInt,
+  wxPerLpIntegralUserLastKEY: String
+) = {
+
+  if (wxPerLpIntegralUserLastUpdHeightOrZero == zeroBigInt && stakedByUser > zeroBigInt) then {
+    # 3. эмиссия начата - стейкинг был до начала эмиссии
+    zeroBigInt
+  } else if (stakedByUser == zeroBigInt) then {
+    # 4. эмиссия начата - стейкинга вообще нет
+    wxPerLpIntegralNew
+  } else if (wxPerLpIntegralUserLastUpdHeightOrZero > zeroBigInt && stakedByUser > zeroBigInt) then {
+    # 5. эмиссия начата - стейкинг был начат во время эмиссии
+    this.getStringOrFail(wxPerLpIntegralUserLastKEY).parseBigInt().value()
+  } else throw("calcWxPerLpIntegralUserLast: unexpected state")
+}
+
+func refreshPoolINTEGRALS(lpAssetIdStr: String, poolAddressStr: String, lpDeltaAmount: Int) = {
+  let stakedTotalKEY = keyStakedTotal(lpAssetIdStr)
+  let stakedTotal = stakedTotalKEY.readStaked().toBigInt()
+  let nonZeroStakedTotal = if stakedTotal == zeroBigInt then oneBigInt else stakedTotal
+
+  let poolWeight          = factoryContract.getIntegerValue(poolAddressStr.keyFactoryPoolWeight())
+  let emissionStartBlock  = emissionContract.getIntOrFail(keyEmissionStartBlock())
+
+  # TODO MOVE TO emission contract
+  let MULT3 = 1000
+  let wxEmissionPerBlockX3 = emissionContract.getIntOrFail(keyEmissionRatePerBlockCurrent()) * MULT3
+  # TODO 3 is hardcoded
+  let poolWxEmissionPerBlockX3 = fraction(wxEmissionPerBlockX3, poolWeight, POOLWEIGHTMULT * 3) # TODO POOLWEIGHTMULT*3
+
+  # POOL INTEGRAL values
+  let wxPerLpIntegralKEY                  = keyWxPerLpIntegral(lpAssetIdStr)
+  let wxPerLpIntegralLastUpdHeightKEY     = keyWxPerLpIntegralLastUpdHeight(lpAssetIdStr)
+  let wxPerLpKEY                          = keyWxPerLp(lpAssetIdStr)
+
+  let wxPerLpIntegralLastUpdHeight        = this.getIntOrDefault(wxPerLpIntegralLastUpdHeightKEY, emissionStartBlock)
+  let wxPerLpIntegral                     = this.getBigIntFromStringOrZero(wxPerLpIntegralKEY)
+  # TODO BUG - 001
+  let wxPerLpOrZeroX3                     = 0   #this.getIntOrZero(wxPerLpKEY)
+
+  let dh = max([height - wxPerLpIntegralLastUpdHeight, 0])
+  let wxPerLpX3 = if (wxPerLpOrZeroX3 != 0) then wxPerLpOrZeroX3.toBigInt() else fraction(poolWxEmissionPerBlockX3.toBigInt(), MULT8.toBigInt(), nonZeroStakedTotal)
+
+  let stakedTotalNew = stakedTotal + lpDeltaAmount.toBigInt()
+  let nonZeroStakedTotalNew = if stakedTotalNew == zeroBigInt then oneBigInt else stakedTotalNew
+
+  let wxPerLpIntegralNew = wxPerLpIntegral + wxPerLpX3 * dh.toBigInt()
+
+  # TODO BUG - 001
+  let wxPerLpX3New = poolWxEmissionPerBlockX3.toBigInt() / nonZeroStakedTotalNew
+  let wxPerLpIntegralLastUpdHeightNew = height
+
+  let debug = [
+      wxPerLpIntegralNew.toString(),
+      dh.toString(),
+      wxPerLpX3.toString(),
+      stakedTotal.toString(),
+      poolWxEmissionPerBlockX3.toString(),
+      wxEmissionPerBlockX3.toString(),
+      poolWeight.toString()
+    ].makeString("::")
+
+  (wxPerLpIntegralNew,
+  [StringEntry(wxPerLpIntegralKEY, wxPerLpIntegralNew.toString()),
+    IntegerEntry(wxPerLpIntegralLastUpdHeightKEY, wxPerLpIntegralLastUpdHeightNew),
+    StringEntry(wxPerLpKEY, wxPerLpX3New.toString())],
+  debug)
+}
+
+func refreshINTEGRALS(lpAssetIdStr: String, userAddressStr: String, poolAddressStr: String, lpDeltaAmount: Int) = {
+  # рассмотреть след. варианты:
+  # 1. эмиссия не начата - стейкинг есть
+  # 2. эмиссия не начата - стейинга нет
+  # 3. эмиссия начата - стейкинг был до начала эмиссии
+  # 4. эмиссия начата - стейкинга вообще нет
+  # 5. эмиссия начата - стейкинг был начат во время эмиссии
+
+  let (wxPerLpIntegralNew, poolIntegralSTATE, poolDEBUG) = refreshPoolINTEGRALS(lpAssetIdStr, poolAddressStr, lpDeltaAmount)
+
+  let MULT3 = 1000
+  let stakedByUserKEY = keyStakedByUser(userAddressStr, lpAssetIdStr)
+  let stakedByUser = stakedByUserKEY.readStaked()
+
+  # USER INTEGRAL values
+  let wxToClaimUserKEY                    = keyWxToClaimUser(lpAssetIdStr, userAddressStr)
+  let wxPerLpIntegralUserLastUpdHeightKEY = keyWxPerLpIntegralUserLastUpdHeight(lpAssetIdStr, userAddressStr)
+  let wxPerLpIntegralUserLastKEY          = keyWxPerLpIntegralUserLast(lpAssetIdStr, userAddressStr)
+
+  let wxToClaimUser                           = this.getBigIntFromStringOrZero(wxToClaimUserKEY)
+  let wxPerLpIntegralUserLastUpdHeightOrZero  = this.getIntOrZero(wxPerLpIntegralUserLastUpdHeightKEY)
+
+  let wxPerLpIntegralUserLast = calcWxPerLpIntegralUserLast(
+    stakedByUser.toBigInt(),
+    wxPerLpIntegralUserLastUpdHeightOrZero.toBigInt(),
+    wxPerLpIntegralNew,
+    wxPerLpIntegralUserLastKEY
+  )
+  let MULT11 = MULT8*MULT3
+  let wxToClaimUserNew = max([wxToClaimUser + fraction(
+                                                      wxPerLpIntegralNew - wxPerLpIntegralUserLast,
+                                                      stakedByUser.toBigInt(),
+                                                      MULT11.toBigInt()
+                                                    ), zeroBigInt])
+
+  let wxPerLpIntegralUserLastNew = wxPerLpIntegralNew
+  let wxPerLpIntegralUserLastUpdHeightNew = height
+
+  let debug = [
+    wxToClaimUser.toString(),
+    wxPerLpIntegralUserLast.toString(),
+    stakedByUser.toString(),
+    poolDEBUG,
+    height.toString()].makeString("::")
+
+  (wxToClaimUserNew,
+  poolIntegralSTATE ++ [
+          StringEntry(wxToClaimUserKEY, wxToClaimUserNew.toString()),
+          IntegerEntry(wxPerLpIntegralUserLastUpdHeightKEY, wxPerLpIntegralUserLastUpdHeightNew),
+          StringEntry(wxPerLpIntegralUserLastKEY, wxPerLpIntegralUserLastNew.toString())],
+  debug)
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+let permissionDeniedError = "Permission denied".throw()
+
+func mustThis(i: Invocation) = {
+  i.caller == this || permissionDeniedError
+}
+
+func mustManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || permissionDeniedError
+    case _: Unit => i.caller == this || permissionDeniedError
+  }
+}
+
+@Callable(i)
+func constructor(factoryAddressStr: String) = {
+  strict checkCaller = i.mustManager()
+
+  [StringEntry(keyFactoryAddress(), factoryAddressStr)]
+}
+
+@Callable(i)
+func constructorV2(votingEmissionContract: String) = {
+  strict cheks = [
+    i.mustManager(),
+    votingEmissionContract.addressFromString() != unit || "invalid voting emission contract address"
+  ]
+
+  [
+    StringEntry(keyVotingEmissionContract(), votingEmissionContract)
+  ]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Callable(i)
+func stake() = {
+  if (i.payments.size() != 1) then throw("invalid payment - exact one payment must be attached") else
+  let pmt = i.payments[0]
+  let lpAssetId = pmt.assetId.value()
+  let lpAssetIdStr = lpAssetId.toBase58String()
+  let amount = pmt.amount
+
+  let poolAddressStr = factoryContract.getString(keyFactoryLp2AssetsMapping(lpAssetIdStr)).valueOrErrorMessage("unsupported lp asset " + lpAssetIdStr)
+  let callerStr = i.caller.toString()
+  let userAddressStr = if (callerStr == poolAddressStr) then i.originCaller.toString() else callerStr
+
+  let stakedByUserKEY = keyStakedByUser(userAddressStr, lpAssetIdStr)
+  let stakedTotalKEY = keyStakedTotal(lpAssetIdStr)
+
+  let stakedByUser = stakedByUserKEY.readStaked()
+  let stakedTotal = stakedTotalKEY.readStaked()
+
+  # TODO обработать кейс когда эмиссия еще не началась
+  let (wxToClaimUserNew, integralSTATE, debug) = refreshINTEGRALS(lpAssetIdStr, userAddressStr, poolAddressStr, amount)
+
+  let listName = lpAssetIdStr.getUsersListName()
+  let listActions = if (listName.containsNode(userAddressStr)) then [] else {
+    listName.insertNodeActions(userAddressStr)
+  }
+
+  [IntegerEntry(stakedByUserKEY, stakedByUser + amount),
+    IntegerEntry(stakedTotalKEY, stakedTotal + amount),
+    OperationHistoryEntry("stake", userAddressStr, lpAssetIdStr, amount, i.transactionId)]
+  ++ integralSTATE
+  ++ listActions
+}
+
+@Callable(i)
+func unstake(lpAssetIdStr: String, amount: Int) = {
+  let lpAssetId = lpAssetIdStr.fromBase58String()
+  let poolAddressStr = factoryContract.getString(keyFactoryLp2AssetsMapping(lpAssetIdStr)).valueOrErrorMessage("unsupported lp asset " + lpAssetIdStr)
+  # todo: temporal fix, remove after node increase max possible script size and pool addon contract is removed
+  let poolAddon = poolAddressStr.addressFromStringValue().getString(keyAddonAddr()).valueOrElse(poolAddressStr)
+  let callerStr = i.caller.toString()
+  let userAddressStr = if (callerStr == poolAddressStr || callerStr == poolAddon) then i.originCaller.toString() else callerStr
+
+  let stakedByUserKEY = keyStakedByUser(userAddressStr, lpAssetIdStr)
+  let stakedTotalKEY = keyStakedTotal(lpAssetIdStr)
+
+  let stakedByUser = stakedByUserKEY.readStaked()
+  let stakedTotal = stakedTotalKEY.readStaked()
+
+  # TODO обработать кейс когда эмиссия еще не началась
+  let integralSTATE = refreshINTEGRALS(lpAssetIdStr, userAddressStr, poolAddressStr, -amount)._2
+
+  let listName = lpAssetIdStr.getUsersListName()
+  let listActions = if (listName.containsNode(userAddressStr) && amount == stakedByUser) then {
+    listName.deleteNodeActions(userAddressStr)
+  } else []
+
+  let claimedByUser = this.getBigIntFromStringOrZero(lpAssetIdStr.keyClaimedByUser(userAddressStr))
+  let poolAddress = factoryContract.getStringByAddressOrFail(lpAssetIdStr.keyFactoryLpAssetToPoolContractAddress())
+  let wxToClaimUserNew = refreshINTEGRALS(lpAssetIdStr, userAddressStr, poolAddress, 0)._1
+  let availableToClaim = wxToClaimUserNew - claimedByUser
+  strict r = if (availableToClaim > zeroBigInt) then this.invoke("claimWxINTERNAL", [lpAssetIdStr, userAddressStr], []) else unit
+
+  if (amount > stakedByUser) then throw("passed amount="+amount.toString()+" is greater than available="+stakedByUser.toString()+". lpAssetId="+lpAssetIdStr+". stakedByUserKEY="+stakedByUserKEY) else
+  [IntegerEntry(stakedByUserKEY, stakedByUser - amount),
+    IntegerEntry(stakedTotalKEY, stakedTotal - amount),
+    ScriptTransfer(i.caller, amount, lpAssetId),
+    OperationHistoryEntry("unstake", userAddressStr, lpAssetIdStr, amount, i.transactionId)]
+  ++ integralSTATE
+  ++ listActions
+}
+
+@Callable(i)
+func claimWx(lpAssetIdStr: String) = {
+  let userAddressStr = i.caller.toString()
+  let result = this.invoke("claimWxINTERNAL", [lpAssetIdStr, userAddressStr], [])
+
+  ([], result)
+}
+
+@Callable(i)
+func claimWxINTERNAL(lpAssetIdStr: String, userAddressStr: String) = {
+  strict checkCaller = i.mustThis()
+  let userAddress = userAddressStr.addressFromString().valueOrErrorMessage("claimWxINTERNAL: invalid user address")
+
+  let poolAddressStr = factoryContract.getStringByAddressOrFail(lpAssetIdStr.keyFactoryLpAssetToPoolContractAddress())
+  let claimedByUserKEY = keyClaimedByUser(lpAssetIdStr, userAddressStr)
+  let claimedTotalKEY = keyClaimedTotal(lpAssetIdStr)
+  let claimedByUserMinRewardKEY = keyClaimedByUserMinReward(lpAssetIdStr, userAddressStr)
+  let claimedByUserBoostRewardKEY = keyClaimedByUserBoostReward(lpAssetIdStr, userAddressStr)
+
+  let claimedByUser = this.getBigIntFromStringOrZero(claimedByUserKEY)
+  let claimedByUserMinReward = this.getBigIntFromStringOrZero(claimedByUserMinRewardKEY)
+  let claimedByUserBoostReward = this.getBigIntFromStringOrZero(claimedByUserBoostRewardKEY)
+  let claimedTotal = this.getBigIntFromStringOrZero(claimedTotalKEY)
+
+  let (wxToClaimUserNew, integralSTATE, debug) = refreshINTEGRALS(lpAssetIdStr, userAddressStr, poolAddressStr, 0)
+
+  let availableToClaim = max([wxToClaimUserNew - claimedByUser, zeroBigInt])
+  if (availableToClaim <= zeroBigInt) then throw("nothing to claim") else
+
+  # boost integral resfreshed here
+  let wxAmountBoostTotal = max([boostingContract.invoke("claimWxBoost", [lpAssetIdStr, userAddressStr], []).asAnyList()[0].asInt(), 0])
+
+  let minRewardPart = availableToClaim
+  let boostRewardPart = min([minRewardPart * 2.toBigInt(), wxAmountBoostTotal.toBigInt()])
+
+  let wxAssetId = emissionContract.invoke("emit", [minRewardPart.toInt()], []).asAnyList()[0].asByteVector()
+  strict emitBoost = emissionContract.invoke("emit", [boostRewardPart.toInt()], []).asAnyList()
+
+  let claimedByUserValue = claimedByUser + availableToClaim
+  let claimedByUserMinRewardPlusPart = claimedByUserMinReward + minRewardPart
+  let claimedByUserBoostRewardPlusBoostRewardPart = claimedByUserMinReward + minRewardPart
+  let claimedTotalPlusAvailableToClaim = claimedByUserMinReward + minRewardPart
+
+  [StringEntry(claimedByUserKEY, claimedByUserValue.toString()),
+  StringEntry(claimedByUserMinRewardKEY, claimedByUserMinRewardPlusPart.toString()),
+  StringEntry(claimedByUserBoostRewardKEY, claimedByUserBoostRewardPlusBoostRewardPart.toString()),
+  StringEntry(claimedTotalKEY, claimedTotalPlusAvailableToClaim.toString()),
+  ScriptTransfer(userAddress, minRewardPart.toInt(), wxAssetId),
+  ScriptTransfer(userAddress, boostRewardPart.toInt(), wxAssetId),
+  OperationHistoryEntry("claim", userAddressStr, lpAssetIdStr, availableToClaim.toInt(), i.transactionId)]
+}
+
+@Callable(i)
+func claimWxBulkInternalREADONLY(currentIter: Int, lpAssetIds: List[String], userAddressStr: String, resAcc: List[String]) = {
+  if (currentIter == lpAssetIds.size()) then ([], resAcc) else
+
+  let lpAssetId = lpAssetIds[currentIter]
+  let info = this.invoke("claimWxREADONLY", [lpAssetId, userAddressStr], []).exactAs[String].split(SEP)
+  let unclaimed = info[3]
+  let claimed = info[4]
+  let res = resAcc :+ ["%d%d", unclaimed, claimed].makeString(SEP)
+  strict inv = this.invoke("claimWxBulkInternalREADONLY", [currentIter+1, lpAssetIds, userAddressStr, res], []).exactAs[List[Any]]
+  ([], inv)
+}
+
+@Callable(i)
+func claimWxBulkREADONLY(lpAssetIds: List[String], userAddressStr: String) = {
+  let res = this.invoke("claimWxBulkInternalREADONLY", [0, lpAssetIds, userAddressStr, []], [])
+  ([], res)
+}
+
+@Callable(i)
+func claimWxREADONLY(lpAssetIdStr: String, userAddressStr: String) = {
+  let stakedByUserKEY = keyStakedByUser(userAddressStr, lpAssetIdStr)
+  let stakedTotalKEY = keyStakedTotal(lpAssetIdStr)
+  let claimedByUserKEY = keyClaimedByUser(lpAssetIdStr, userAddressStr)
+
+  let stakedByUser = stakedByUserKEY.readStaked()
+  let stakedTotal = stakedTotalKEY.readStaked()
+  let claimedByUser = this.getBigIntFromStringOrZero(claimedByUserKEY)
+
+  let poolAddressStr = factoryContract.getStringByAddressOrFail(lpAssetIdStr.keyFactoryLpAssetToPoolContractAddress())
+  let poolWeight = factoryContract.getIntegerValue(poolAddressStr.keyFactoryPoolWeight())
+
+  let wxEmissionPerBlock = emissionContract.getIntOrFail(keyEmissionRatePerBlockCurrent())
+
+  let emissionStartBlock = emissionContract.getIntOrFail(keyEmissionStartBlock())
+  let passedBlocks = if (height < emissionStartBlock) then 0 else height - emissionStartBlock
+
+  let poolWxEmission = fraction(wxEmissionPerBlock * passedBlocks, poolWeight, POOLWEIGHTMULT)
+  let userWxReward =  fraction(poolWxEmission, stakedByUser, stakedTotal)
+
+  let (wxToClaimUserNew, integralSTATE, debug) = refreshINTEGRALS(lpAssetIdStr, userAddressStr, poolAddressStr, 0)
+  let availableToClaim = max([wxToClaimUserNew - claimedByUser, zeroBigInt])
+
+  # boost integral resfreshed here
+  let boostInvResult = boostingContract.invoke("claimWxBoostREADONLY", [lpAssetIdStr, userAddressStr], []).asAnyList()
+  let wxAmountBoostTotal = max([boostInvResult[0].asInt(), 0])
+  let boostDebug = boostInvResult[1].asString()
+
+  let minRewardPart = availableToClaim
+  let boostRewardPart = min([minRewardPart * 2.toBigInt(), wxAmountBoostTotal.toBigInt()])
+  let totalReward = minRewardPart + boostRewardPart
+
+  ([], makeString(["%s%s%d%d%d%d%s", lpAssetIdStr, userAddressStr, totalReward.toString(), claimedByUser.toString(), minRewardPart.toString(), boostRewardPart.toString(), "soon"], SEP))
+}
+
+@Callable(i)
+func usersListTraversal(lpAssetId: String) = {
+  strict checkCaller = i.caller.bytes.toBase58String() == this.getString(keyVotingEmissionContract()).valueOrElse("") || i.mustManager()
+  let listName = lpAssetId.getUsersListName()
+  let userOrUnit = lpAssetId.keyNextUser().getString()
+  let headOrUnit = listName.keyListHead().getString()
+  match userOrUnit {
+    case _: Unit => {
+      match headOrUnit {
+        case _: Unit => ([], false)
+        case head: String => ([
+          StringEntry(lpAssetId.keyNextUser(), head)
+        ], true)
+      }
+    }
+    case userAddress: String => {
+      let claimedByUser = this.getBigIntFromStringOrZero(lpAssetId.keyClaimedByUser(userAddress))
+      let poolAddress = factoryContract.getStringByAddressOrFail(lpAssetId.keyFactoryLpAssetToPoolContractAddress())
+      let wxToClaimUserNew = refreshINTEGRALS(lpAssetId, userAddress, poolAddress, 0)._1
+      let availableToClaim = wxToClaimUserNew - claimedByUser
+      strict r = if (availableToClaim > zeroBigInt) then this.invoke("claimWxINTERNAL", [lpAssetId, userAddress], []) else unit
+      let nextUserOrUnit = listName.keyListNext(userAddress).getString()
+      match nextUserOrUnit {
+        case _: Unit => ([
+          DeleteEntry(lpAssetId.keyNextUser())
+        ], false)
+        case nextUser: String => ([
+          StringEntry(lpAssetId.keyNextUser(), nextUser)
+        ], true)
+      }
+    }
+  }
+}
+
+@Callable(i)
+func onModifyWeight(lpAssetIdStr: String, poolAddressStr: String) = {
+  if (i.caller != factoryContract) then throw("permissions denied") else
+  let (wxPerLpIntegralNew, poolIntegralSTATE, poolDEBUG) = refreshPoolINTEGRALS(lpAssetIdStr, poolAddressStr, 0)
+  poolIntegralSTATE
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}
