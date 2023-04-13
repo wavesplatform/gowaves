@@ -21,7 +21,7 @@ type WrappedState struct {
 	cle                       rideAddress
 	scheme                    proto.Scheme
 	height                    proto.Height
-	stateActionsCounter       *proto.StateActionsCounter
+	stateActionsCounter       proto.StateActionsCounter // copy of a real *proto.StateActionsCounter, we need this only to support some API methods
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -30,13 +30,13 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, stateActionsCounter *proto.StateActionsCounter) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, stateActionsCounter proto.StateActionsCounter) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
 		height:                    proto.Height(env.height()),
-		stateActionsCounter:       stateActionsCounter, // we can pass this param because we each time create new instance of wrapped state for a new tx
+		stateActionsCounter:       stateActionsCounter,
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
@@ -1052,7 +1052,7 @@ func NewEnvironmentWithWrappedState(
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 	checkSenderBalance bool,
-	stateActionsCounter *proto.StateActionsCounter,
+	stateActionsCounter proto.StateActionsCounter, // pass a copy of proto.StateActionsCounter because wrapped state is a temp state for a ride script
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
 	st := newWrappedState(env, rootScriptLibVersion, stateActionsCounter)
