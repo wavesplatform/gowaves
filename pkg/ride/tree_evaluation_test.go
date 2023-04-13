@@ -744,7 +744,17 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	deleteEntry := &proto.DeleteDataEntry{Key: "str"}
 	expectedDiffResult.data[dataEntryKey{deleteEntry.Key, dApp2.address()}] = deleteEntry
 
-	newAsset := diffNewAssetInfo{dAppIssuer: dApp2.address(), name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
+	newAsset := diffNewAssetInfo{
+		dAppIssuer:      dApp2.address(),
+		name:            "CatCoin",
+		description:     "",
+		quantity:        6,
+		decimals:        0,
+		reissuable:      false,
+		script:          nil,
+		nonce:           0,
+		sequenceInBlock: 1,
+	}
 	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
 	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease{recipient: dApp1.address(), sender: dApp2.address(), amount: 10, active: true}
 
