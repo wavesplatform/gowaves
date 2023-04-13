@@ -340,8 +340,8 @@ func (hr *historyRecord) appendEntry(entry historyEntry) error {
 }
 
 func (hr *historyRecord) topEntry() (historyEntry, error) {
-	if len(hr.entries) < 1 {
-		return historyEntry{}, errors.New("empty history")
+	if len(hr.entries) == 0 {
+		return historyEntry{}, errEmptyHist
 	}
 	return hr.entries[len(hr.entries)-1], nil
 }
@@ -603,7 +603,7 @@ func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
 	if err != nil {
 		return historyEntry{}, err // keyvalue.ErrNotFoundHere
 	}
-	return history.topEntry() // untyped error "empty history" here
+	return history.topEntry() // errEmptyHist here
 }
 
 func (hs *historyStorage) newestTopEntry(key []byte) (historyEntry, error) {
