@@ -26,7 +26,7 @@ require (
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.9.5
@@ -77,7 +77,7 @@ require (
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
@@ -86,8 +86,8 @@ require (
 	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/common v0.42.0 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
