@@ -21,7 +21,6 @@ type WrappedState struct {
 	cle                       rideAddress
 	scheme                    proto.Scheme
 	height                    proto.Height
-	stateActionsCounter       proto.StateActionsCounter // copy of a real *proto.StateActionsCounter, we need this only to support some API methods
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -30,13 +29,12 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion, stateActionsCounter proto.StateActionsCounter) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
 		height:                    proto.Height(env.height()),
-		stateActionsCounter:       stateActionsCounter,
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
@@ -268,7 +266,7 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     ws.height,
-		SequenceInBlock: searchNewAsset.sequenceInBlock,
+		SequenceInBlock: 0, // this field needs only for public API, but not for script execution
 	}, nil
 }
 
@@ -318,7 +316,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     ws.height,
-		SequenceInBlock: searchNewAsset.sequenceInBlock,
+		SequenceInBlock: 0, // this field needs only for public API, but not for script execution
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,
@@ -841,15 +839,14 @@ func (ws *WrappedState) ApplyToState(
 			}
 
 			assetInfo := diffNewAssetInfo{
-				dAppIssuer:      ws.callee(),
-				name:            a.Name,
-				description:     a.Description,
-				quantity:        a.Quantity,
-				decimals:        a.Decimals,
-				reissuable:      a.Reissuable,
-				script:          a.Script,
-				nonce:           a.Nonce,
-				sequenceInBlock: ws.stateActionsCounter.NextIssueActionNumber(),
+				dAppIssuer:  ws.callee(),
+				name:        a.Name,
+				description: a.Description,
+				quantity:    a.Quantity,
+				decimals:    a.Decimals,
+				reissuable:  a.Reissuable,
+				script:      a.Script,
+				nonce:       a.Nonce,
 			}
 			ws.diff.newAssetsInfo[a.ID] = assetInfo
 
@@ -1052,10 +1049,9 @@ func NewEnvironmentWithWrappedState(
 	isProtobufTransaction bool,
 	rootScriptLibVersion ast.LibraryVersion,
 	checkSenderBalance bool,
-	stateActionsCounter proto.StateActionsCounter, // pass a copy of proto.StateActionsCounter because wrapped state is a temp state for a ride script
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
-	st := newWrappedState(env, rootScriptLibVersion, stateActionsCounter)
+	st := newWrappedState(env, rootScriptLibVersion)
 	for i, payment := range payments {
 		var (
 			senderBalance uint64

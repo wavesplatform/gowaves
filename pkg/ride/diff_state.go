@@ -132,15 +132,14 @@ type diffSponsorship struct {
 }
 
 type diffNewAssetInfo struct {
-	dAppIssuer      proto.WavesAddress
-	name            string
-	description     string
-	quantity        int64
-	decimals        int32
-	reissuable      bool
-	script          []byte
-	nonce           int64
-	sequenceInBlock uint32
+	dAppIssuer  proto.WavesAddress
+	name        string
+	description string
+	quantity    int64
+	decimals    int32
+	reissuable  bool
+	script      []byte
+	nonce       int64
 }
 
 type diffOldAssetInfo struct {
