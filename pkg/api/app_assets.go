@@ -41,7 +41,7 @@ func (a *App) AssetsDetailsByID(fullAssetID crypto.Digest, full bool) (*AssetDet
 
 func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDetails, error) {
 	assetID := proto.AssetIDFromDigest(fullAssetID)
-	assetInfo, err := a.state.FullAssetInfo(assetID)
+	assetInfo, err := a.state.EnrichedFullAssetInfo(assetID)
 	if err != nil {
 		return AssetDetails{}, errors.Wrap(err, "failed to get info about asset")
 	}

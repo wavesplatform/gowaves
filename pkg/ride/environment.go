@@ -266,7 +266,6 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     ws.height,
-		SequenceInBlock: 0, // this field needs only for public API, but not for script execution
 	}, nil
 }
 
@@ -316,7 +315,6 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     ws.height,
-		SequenceInBlock: 0, // this field needs only for public API, but not for script execution
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,

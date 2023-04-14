@@ -1980,7 +1980,6 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     info.issueHeight,
-		SequenceInBlock: info.issueSequenceInBlock,
 	}, nil
 }
 
@@ -2080,7 +2079,6 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		Scripted:        scripted,
 		Sponsored:       sponsored,
 		IssueHeight:     info.issueHeight,
-		SequenceInBlock: info.issueSequenceInBlock,
 	}, nil
 }
 
@@ -2127,6 +2125,25 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 			return nil, wrapErr(RetrievalError, err)
 		}
 		res.ScriptInfo = *scriptInfo
+	}
+	return res, nil
+}
+
+func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	fa, err := s.FullAssetInfo(assetID)
+	if err != nil {
+		return nil, err
+	}
+	constInfo, err := s.stor.assets.constInfo(assetID)
+	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return nil, err
+		}
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.EnrichedFullAssetInfo{
+		FullAssetInfo:   *fa,
+		SequenceInBlock: constInfo.issueSequenceInBlock,
 	}
 	return res, nil
 }

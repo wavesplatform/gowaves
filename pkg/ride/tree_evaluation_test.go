@@ -745,15 +745,14 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedDiffResult.data[dataEntryKey{deleteEntry.Key, dApp2.address()}] = deleteEntry
 
 	newAsset := diffNewAssetInfo{
-		dAppIssuer:      dApp2.address(),
-		name:            "CatCoin",
-		description:     "",
-		quantity:        6,
-		decimals:        0,
-		reissuable:      false,
-		script:          nil,
-		nonce:           0,
-		sequenceInBlock: 1,
+		dAppIssuer:  dApp2.address(),
+		name:        "CatCoin",
+		description: "",
+		quantity:    6,
+		decimals:    0,
+		reissuable:  false,
+		script:      nil,
+		nonce:       0,
 	}
 	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
 	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease{recipient: dApp1.address(), sender: dApp2.address(), amount: 10, active: true}
@@ -3112,7 +3111,6 @@ func TestLigaDApp1(t *testing.T) {
 		Scripted:        false,
 		Sponsored:       false,
 		IssueHeight:     100500,
-		SequenceInBlock: 1,
 	}
 	team2AssetInfo := proto.AssetInfo{
 		ID:              team2,
@@ -3124,7 +3122,6 @@ func TestLigaDApp1(t *testing.T) {
 		Scripted:        false,
 		Sponsored:       false,
 		IssueHeight:     100501,
-		SequenceInBlock: 1,
 	}
 	te2 := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000).
 		withInvokeTransaction(tx2).withThis(acc).
@@ -3428,7 +3425,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env := newTestEnv(t).withComplexityLimit(ast.LibV3, 2000).withTree(issuer, treeV3).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo:   proto.AssetInfo{ID: assetID1, Quantity: 1000, Issuer: issuer.address(), IssuerPublicKey: issuer.publicKey(), IssueHeight: 100500, SequenceInBlock: 1},
+				AssetInfo:   proto.AssetInfo{ID: assetID1, Quantity: 1000, Issuer: issuer.address(), IssuerPublicKey: issuer.publicKey(), IssueHeight: 100500},
 				Name:        "ASSET1",
 				Description: "DESCRIPTION1",
 			}).
@@ -3977,7 +3974,6 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			Issuer:          issuer.address(),
 			IssuerPublicKey: issuer.publicKey(),
 			IssueHeight:     100500,
-			SequenceInBlock: 1,
 		}}).withAssetBalance(sender, asset, 0).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
@@ -4264,7 +4260,6 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 			IssuerPublicKey: dApp1.publicKey(),
 			Reissuable:      true,
 			IssueHeight:     100500,
-			SequenceInBlock: 1,
 		}}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
@@ -4326,7 +4321,6 @@ func TestReissueInInvoke(t *testing.T) {
 			IssuerPublicKey: dApp2.publicKey(),
 			Reissuable:      true,
 			IssueHeight:     100500,
-			SequenceInBlock: 1,
 		}}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 

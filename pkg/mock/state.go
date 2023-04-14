@@ -313,6 +313,21 @@ func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endH
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
 }
 
+// EnrichedFullAssetInfo mocks base method.
+func (m *MockStateInfo) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnrichedFullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.EnrichedFullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnrichedFullAssetInfo indicates an expected call of EnrichedFullAssetInfo.
+func (mr *MockStateInfoMockRecorder) EnrichedFullAssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnrichedFullAssetInfo", reflect.TypeOf((*MockStateInfo)(nil).EnrichedFullAssetInfo), assetID)
+}
+
 // EstimatorVersion mocks base method.
 func (m *MockStateInfo) EstimatorVersion() (int, error) {
 	m.ctrl.T.Helper()
@@ -1475,6 +1490,21 @@ func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHe
 func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
+}
+
+// EnrichedFullAssetInfo mocks base method.
+func (m *MockState) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnrichedFullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.EnrichedFullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnrichedFullAssetInfo indicates an expected call of EnrichedFullAssetInfo.
+func (mr *MockStateMockRecorder) EnrichedFullAssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnrichedFullAssetInfo", reflect.TypeOf((*MockState)(nil).EnrichedFullAssetInfo), assetID)
 }
 
 // EstimatorVersion mocks base method.
