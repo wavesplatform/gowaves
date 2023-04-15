@@ -1206,8 +1206,7 @@ func TestIssuesInInvokes(t *testing.T) {
 		a.ID = proto.GenerateIssueScriptActionID(a.Name, a.Description, int64(a.Decimals), a.Quantity, a.Reissuable, a.Nonce, *tx.ID)
 		assetIDToSequenceInBlock[a.ID] = uint32(i + 1)
 		// calculate asset balances
-		//correctBalances[rcpAsset{dApp.addr, &a.ID}] = uint64(a.Quantity * int64(math.Pow10(int(a.Decimals)))) // TODO: correct?
-		correctBalances[rcpAsset{dApp.addr, &a.ID}] = uint64(a.Quantity) // TODO: incorrect?
+		correctBalances[rcpAsset{dApp.addr, &a.ID}] = uint64(a.Quantity)
 
 	}
 
