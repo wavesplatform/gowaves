@@ -146,7 +146,7 @@ type SnapshotManager struct {
 	stor     *blockchainEntitiesStorage
 }
 
-func (SnapshotManager) TxSnapshotFromTx(tx *proto.Transaction) TransactionSnapshot {
-	var snapshots []AtomicSnapshot
-	return snapshots
-}
+//func (SnapshotManager) TxSnapshotFromTx(tx *proto.Transaction) TransactionSnapshot {
+//	var snapshots []AtomicSnapshot
+//	return snapshots
+//}
