@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
-	"io"
 	"strings"
 
 	edwards "filippo.io/edwards25519"
@@ -187,15 +186,6 @@ func (k PublicKey) WriteToBuf(buf []byte) error {
 	}
 	copy(buf, k[:])
 	return nil
-}
-
-func (k PublicKey) AppendToBuf(buf []byte) []byte {
-	return append(buf, k[:]...)
-}
-
-func (k PublicKey) WriteTo(w io.Writer) (n int64, err error) {
-	ni, err := w.Write(k[:])
-	return int64(ni), err
 }
 
 func (k *PublicKey) UnmarshalBinary(data []byte) error {
