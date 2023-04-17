@@ -8,18 +8,27 @@ type AtomicSnapshot interface {
 	dummy() error
 }
 
-type WavesBalanceSnapshot struct {
+type balanceWaves struct {
 	address *proto.Address
 	balance uint64
 }
 
-func (s *WavesBalanceSnapshot) dummy() error {
+type WavesBalancesSnapshot struct {
+	wavesBalances []balanceWaves
+}
+
+func (s *WavesBalancesSnapshot) dummy() error {
 	return nil
 }
 
-type AssetBalancesSnapshot struct {
+// What is address || asset_id?
+type balanceAsset struct {
 	address      *proto.Address
 	assetBalance map[proto.AssetID]uint64
+}
+
+type AssetBalancesSnapshot struct {
+	assetBalances []balanceAsset
 }
 
 func (s *AssetBalancesSnapshot) dummy() error {
