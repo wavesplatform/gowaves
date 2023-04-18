@@ -17,10 +17,17 @@ func (a *App) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	return addr, nil
 }
 
-func (a *App) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+func (a *App) AliasesByAddr(addr proto.WavesAddress) ([]proto.Alias, error) {
 	aliases, err := a.state.AliasesByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to find aliases by addr %q", addr.String())
 	}
-	return aliases, err
+	if len(aliases) == 0 {
+		return nil, nil
+	}
+	out := make([]proto.Alias, len(aliases))
+	for i := range aliases {
+		out[i] = *proto.NewAlias(a.scheme(), aliases[i])
+	}
+	return out, err
 }
