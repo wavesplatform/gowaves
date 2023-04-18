@@ -16,7 +16,7 @@ type ScriptDetails struct {
 type AssetDetails struct {
 	AssetId              crypto.Digest      `json:"assetId"`
 	IssueHeight          proto.Height       `json:"issueHeight"`
-	IssueTimestamp       proto.Timestamp    `json:"issueTimestamp"`
+	IssueTimestamp       proto.Timestamp    `json:"issueTimestamp,omitempty"`
 	Issuer               proto.WavesAddress `json:"issuer"`
 	IssuerPublicKey      crypto.PublicKey   `json:"issuerPublicKey"`
 	Name                 string             `json:"name"`
@@ -45,12 +45,16 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 	if err != nil {
 		return AssetDetails{}, errors.Wrap(err, "failed to get info about asset")
 	}
-	var txID []byte
+	var (
+		txID []byte
+		ts   uint64
+	)
 	if tx := assetInfo.IssueTransaction; tx != nil {
 		txID, err = tx.GetID(a.services.Scheme)
 		if err != nil {
 			return AssetDetails{}, errors.Wrap(err, "failed to get txID for asset")
 		}
+		ts = tx.GetTimestamp()
 	}
 	var minSponsoredAssetFee *uint64
 	if assetInfo.SponsorshipCost != 0 {
@@ -60,7 +64,7 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 	assetDetails := AssetDetails{
 		AssetId:              assetInfo.ID,
 		IssueHeight:          assetInfo.IssueHeight,
-		IssueTimestamp:       assetInfo.IssueTransaction.GetTimestamp(),
+		IssueTimestamp:       ts,
 		Issuer:               assetInfo.Issuer,
 		IssuerPublicKey:      assetInfo.IssuerPublicKey,
 		Name:                 assetInfo.Name,
