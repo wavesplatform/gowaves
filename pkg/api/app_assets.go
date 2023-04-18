@@ -26,7 +26,7 @@ type AssetDetails struct {
 	Quantity             uint64             `json:"quantity"`
 	Scripted             bool               `json:"scripted"`
 	MinSponsoredAssetFee *uint64            `json:"minSponsoredAssetFee"`
-	OriginTransactionId  proto.B58Bytes     `json:"originTransactionId"`
+	OriginTransactionId  proto.B58Bytes     `json:"originTransactionId,omitempty"`
 	SequenceInBlock      uint32             `json:"sequenceInBlock"`
 	ScriptDetails        *ScriptDetails     `json:"scriptDetails,omitempty"`
 }
@@ -45,9 +45,12 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 	if err != nil {
 		return AssetDetails{}, errors.Wrap(err, "failed to get info about asset")
 	}
-	txID, err := assetInfo.IssueTransaction.GetID(a.services.Scheme)
-	if err != nil {
-		return AssetDetails{}, errors.Wrap(err, "failed to get txID for asset")
+	var txID []byte
+	if tx := assetInfo.IssueTransaction; tx != nil {
+		txID, err = tx.GetID(a.services.Scheme)
+		if err != nil {
+			return AssetDetails{}, errors.Wrap(err, "failed to get txID for asset")
+		}
 	}
 	var minSponsoredAssetFee *uint64
 	if assetInfo.SponsorshipCost != 0 {
