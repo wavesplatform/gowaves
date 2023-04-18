@@ -753,10 +753,13 @@ func (a *NodeApi) AssetsDetailsByIDsPost(w http.ResponseWriter, r *http.Request)
 	return a.assetsDetailsByIDs(w, query.Get("full"), data.IDs)
 }
 
-func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam string, ids []string) error {
-	full, err := strconv.ParseBool(fullQueryParam)
-	if err != nil {
-		return apiErrs.InvalidAssetId
+func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam string, ids []string) (err error) {
+	var full bool
+	if fullQueryParam != "" {
+		full, err = strconv.ParseBool(fullQueryParam)
+		if err != nil {
+			return apiErrs.InvalidAssetId
+		}
 	}
 	if len(ids) == 0 {
 		return apiErrs.AssetIdNotSpecified
