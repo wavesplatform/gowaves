@@ -9,7 +9,7 @@ type AtomicSnapshot interface {
 }
 
 type balanceWaves struct {
-	address *proto.Address
+	address proto.Address
 	balance uint64
 }
 
@@ -23,7 +23,7 @@ func (s *WavesBalancesSnapshot) dummy() error {
 
 // What is address || asset_id?
 type balanceAsset struct {
-	address      *proto.Address
+	address      proto.Address
 	assetBalance map[proto.AssetID]uint64
 }
 
@@ -36,7 +36,7 @@ func (s *AssetBalancesSnapshot) dummy() error {
 }
 
 type DataEntriesSnapshot struct {
-	address     *proto.Address
+	address     proto.Address
 	dataEntries []proto.DataEntry
 }
 
@@ -45,8 +45,8 @@ func (s *DataEntriesSnapshot) dummy() error {
 }
 
 type AccountScriptSnapshot struct {
-	address *proto.Address
-	script  *proto.Script
+	address proto.Address
+	script  proto.Script
 }
 
 func (s *AccountScriptSnapshot) dummy() error {
@@ -54,8 +54,8 @@ func (s *AccountScriptSnapshot) dummy() error {
 }
 
 type AssetScriptSnapshot struct {
-	assetID *proto.AssetID
-	script  *proto.Script
+	assetID proto.AssetID
+	script  proto.Script
 }
 
 func (s *AssetScriptSnapshot) dummy() error {
@@ -63,7 +63,7 @@ func (s *AssetScriptSnapshot) dummy() error {
 }
 
 type LeaseBalanceSnapshot struct {
-	address  *proto.Address
+	address  proto.Address
 	leaseIn  uint64
 	leaseOut uint64
 }
@@ -82,7 +82,7 @@ func (s *LeaseStatusSnapshot) dummy() error {
 }
 
 type SponsorshipSnapshot struct {
-	assetID         *proto.AssetID
+	assetID         proto.AssetID
 	minSponsoredFee uint64
 }
 
@@ -111,8 +111,8 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 }
 
 type StaticAssetInfoSnapshot struct {
-	assetID *proto.AssetID
-	issuer  *proto.WavesAddress
+	assetID proto.AssetID
+	issuer  proto.Address
 	isNFT   bool
 }
 
@@ -121,7 +121,7 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 }
 
 type AssetReissuabilitySnapshot struct {
-	assetID      *proto.AssetID
+	assetID      proto.AssetID
 	isReissuable bool
 }
 
@@ -130,7 +130,7 @@ func (s *AssetReissuabilitySnapshot) dummy() error {
 }
 
 type AssetDescriptionSnapshot struct {
-	assetID          *proto.AssetID
+	assetID          proto.AssetID
 	assetName        *string
 	assetDescription string
 	changeHeight     uint64
