@@ -1189,8 +1189,8 @@ func TestIssuesInInvokes(t *testing.T) {
 
 	expectedIssueActionsOrder := []*proto.IssueScriptAction{
 		{Sender: &dApp.pk, Name: "FirstIssue", Description: "first issue", Quantity: 42, Decimals: 5, Reissuable: true, Script: nil, Nonce: 0},
-		{Sender: &dApp.pk, Name: "CatCoin", Description: "kitty", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0},
-		{Sender: &dApp.pk, Name: "PugCoin", Description: "pug", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0},
+		{Sender: &dApp.pk, Name: "CatCoin", Description: "kitty", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0}, // nft
+		{Sender: &dApp.pk, Name: "PugCoin", Description: "pug", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0},   // nft
 		{Sender: &dApp.pk, Name: "ParrotCoin", Description: "parrots", Quantity: 10000, Decimals: 1, Reissuable: true, Script: nil, Nonce: 0},
 		{Sender: &dApp.pk, Name: "OneMoreAsset", Description: "one more asset", Quantity: 42, Decimals: 5, Reissuable: true, Script: nil, Nonce: 0},
 		{Sender: &dApp.pk, Name: "Asset1", Description: "just an asset", Quantity: 100500, Decimals: 2, Reissuable: true, Script: nil, Nonce: 0},
@@ -1205,14 +1205,11 @@ func TestIssuesInInvokes(t *testing.T) {
 		a := expectedIssueActionsOrder[i]
 		a.ID = proto.GenerateIssueScriptActionID(a.Name, a.Description, int64(a.Decimals), a.Quantity, a.Reissuable, a.Nonce, *tx.ID)
 		assetIDToSequenceInBlock[a.ID] = uint32(i + 1)
-		// calculate asset balances
 		correctBalances[rcpAsset{dApp.addr, &a.ID}] = uint64(a.Quantity)
-
 	}
 
-	const waves = 0                                                           // TODO: should be == 100_000_000
-	senderBalance := invokeFee + uint64(len(expectedIssueActionsOrder)*waves) // TODO: why is it enough to perform invoke with issues?
-	//senderAddr, dAppAddr := sender.addr, dApp.addr
+	const waves = 0                                                               // TODO: should be == 100_000_000
+	senderBalance := invokeFee + uint64((len(expectedIssueActionsOrder)-2)*waves) // TODO: why is it enough to perform invoke with issues?
 	to.setAndCheckInitialWavesBalance(t, sender.addr, senderBalance)
 	to.setAndCheckInitialWavesBalance(t, dApp.addr, 0)
 
