@@ -18,17 +18,20 @@ func CompileToTree(code string) (*ast.Tree, []error) {
 		return nil, []error{err}
 	}
 	ap := newASTParser(pp.AST(), pp.buffer)
-	ap.parse()
 	if len(ap.errorsList) > 0 {
 		return nil, ap.errorsList
 	}
 	return ap.tree, nil
 }
 
-func Compile(code string) ([]byte, []error) {
+func Compile(code string, compact bool) ([]byte, []error) {
 	tree, errs := CompileToTree(code)
 	if len(errs) > 0 {
 		return nil, errs
+	}
+	if compact && tree.IsDApp() {
+		comp := NewCompaction(tree)
+		comp.Compact()
 	}
 	res, err := serialization.SerializeTree(tree)
 	if err != nil {
