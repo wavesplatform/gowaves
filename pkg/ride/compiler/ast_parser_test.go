@@ -871,6 +871,70 @@ func cursed() = [][0]`,
 	}
 }
 
+func TestBuiltInVarsWithCompaction(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(height: Any) = height
+
+let a = height.f()`,
+			false, "BgIQCAIiAWYiBmhlaWdodCIBYQIBAWEBAWIFAWIAAWMJAQFhAQUGaGVpZ2h0AAAPvLXS"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(unit: Any) = unit
+
+let a = unit.f()`,
+			false, "BgIOCAIiAWYiBHVuaXQiAWECAQFhAQFiBQFiAAFjCQEBYQEFBHVuaXQAALdQWqE="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, true)
+		})
+	}
+}
+
+func TestBuiltInFuncsWithCompaction(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(sha256: Any) = sha256
+
+let a = sha256(base16'')`,
+			false, "BgIQCAIiAWYiBnNoYTI1NiIBYQIBAWEBAWIFAWIAAWMJAPcDAQEAAAAs+gZs"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(addressFromPublicKey: Any) = addressFromPublicKey
+
+let a = addressFromPublicKey(base16'')`,
+			false, "BgIeCAIiAWYiFGFkZHJlc3NGcm9tUHVibGljS2V5IgFhAgEBYQEBYgUBYgABYwkApwgBAQAAAHqqKaU="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, true)
+		})
+	}
+}
+
 //go:embed testdata
 var embedScripts embed.FS
 
