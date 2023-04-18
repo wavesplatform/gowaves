@@ -23,8 +23,9 @@ func (s *WavesBalancesSnapshot) dummy() error {
 
 // What is address || asset_id?
 type balanceAsset struct {
-	address      proto.Address
-	assetBalance map[proto.AssetID]uint64
+	address proto.Address
+	assetID proto.AssetID
+	balance uint64
 }
 
 type AssetBalancesSnapshot struct {
