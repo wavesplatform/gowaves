@@ -17,11 +17,19 @@ var (
 )
 
 type BadRequestError struct {
-	error
+	inner error
+}
+
+func (e *BadRequestError) Error() string {
+	return e.inner.Error()
 }
 
 type AuthError struct {
-	error
+	inner error
+}
+
+func (e *AuthError) Error() string {
+	return e.inner.Error()
 }
 
 type ErrorHandler struct {
@@ -40,8 +48,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	}
 	// target errors
 	var (
-		badRequestError = BadRequestError{}
-		authError       = AuthError{}
+		badRequestError = &BadRequestError{}
+		authError       = &AuthError{}
 		unknownError    = &apiErrs.UnknownError{}
 		apiError        = apiErrs.ApiError(nil)
 		// check that all targets implement the error interface

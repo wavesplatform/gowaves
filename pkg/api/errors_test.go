@@ -20,7 +20,7 @@ func TestErrorHandler_Handle(t *testing.T) {
 			require.NoError(t, err)
 			return string(data)
 		}
-		badReqErr  = BadRequestError{errors.New("bad-request")}
+		badReqErr  = &BadRequestError{errors.New("bad-request")}
 		unknownErr = apiErrs.NewUnknownError(errors.New("unknown"))
 		defaultErr = errors.New("default")
 	)
@@ -44,7 +44,7 @@ func TestErrorHandler_Handle(t *testing.T) {
 		},
 		{
 			name:         "AuthErrorCase",
-			err:          AuthError{errors.New("auth")},
+			err:          &AuthError{errors.New("auth")},
 			expectedCode: http.StatusForbidden,
 			expectedBody: "Failed to complete request: auth\n",
 		},
