@@ -15,7 +15,7 @@ Usage:
   compiler -f <script path> [options]
 
 Options:
-	-c, --compaction	Compaction mode [not working yet]
+	-c, --compaction	Compaction mode
 `
 
 func main() {
@@ -24,8 +24,8 @@ func main() {
 		compaction bool
 	)
 	flag.StringVar(&scriptPath, "f", "", "Path to script file")
-	flag.BoolVar(&compaction, "compaction", false, "Compaction mode [not working yet]") // TODO: add compaction mode
-	flag.BoolVar(&compaction, "c", false, "Compaction mode [not working yet]")
+	flag.BoolVar(&compaction, "compaction", false, "Compaction mode")
+	flag.BoolVar(&compaction, "c", false, "Compaction mode")
 
 	flag.Usage = func() {
 		fmt.Println(usage)
