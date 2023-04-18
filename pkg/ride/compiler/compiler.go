@@ -18,6 +18,7 @@ func CompileToTree(code string) (*ast.Tree, []error) {
 		return nil, []error{err}
 	}
 	ap := newASTParser(pp.AST(), pp.buffer)
+	ap.parse()
 	if len(ap.errorsList) > 0 {
 		return nil, ap.errorsList
 	}

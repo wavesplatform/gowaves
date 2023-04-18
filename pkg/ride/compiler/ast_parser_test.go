@@ -29,34 +29,31 @@ func parseBase64Script(t *testing.T, src string) *ast.Tree {
 }
 
 func compareScriptsOrError(t *testing.T, code string, fail bool, expected string, compact bool) {
-	rawAST, buf, err := buildAST(t, code, false)
-	require.NoError(t, err)
-	ap := newASTParser(rawAST, buf)
-	ap.parse()
+	tree, err := CompileToTree(code)
 	if !fail {
-		require.Empty(t, ap.errorsList)
-		if compact && ap.tree.IsDApp() {
-			comp := NewCompaction(ap.tree)
+		require.Empty(t, err)
+		if compact && tree.IsDApp() {
+			comp := NewCompaction(tree)
 			comp.Compact()
 		}
-		tree := parseBase64Script(t, expected)
-		assert.Equal(t, tree.ContentType, ap.tree.ContentType)
-		assert.Equal(t, tree.LibVersion, ap.tree.LibVersion)
-		if diff := deep.Equal(tree.Declarations, ap.tree.Declarations); diff != nil {
+		expectedTree := parseBase64Script(t, expected)
+		assert.Equal(t, expectedTree.ContentType, tree.ContentType)
+		assert.Equal(t, expectedTree.LibVersion, tree.LibVersion)
+		if diff := deep.Equal(expectedTree.Declarations, tree.Declarations); diff != nil {
 			t.Errorf("Declaration mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Functions, ap.tree.Functions); diff != nil {
+		if diff := deep.Equal(expectedTree.Functions, tree.Functions); diff != nil {
 			t.Errorf("Functions mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Verifier, ap.tree.Verifier); diff != nil {
+		if diff := deep.Equal(expectedTree.Verifier, tree.Verifier); diff != nil {
 			t.Errorf("Verifier mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Meta, ap.tree.Meta); diff != nil {
+		if diff := deep.Equal(expectedTree.Meta, tree.Meta); diff != nil {
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
-		require.NotEmpty(t, ap.errorsList, "Expected error, but errors list is empty")
-		require.Equal(t, expected, ap.errorsList[0].Error())
+		require.NotEmpty(t, err, "Expected error, but errors list is empty")
+		require.Equal(t, expected, err[0].Error())
 	}
 }
 
