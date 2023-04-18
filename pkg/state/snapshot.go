@@ -89,7 +89,17 @@ func (s *SnapshotManager) TxSnapshotFromTx(tx proto.Transaction, scheme proto.Sc
 			// return err
 		}
 		if transfer.AmountAsset.Present {
-
+			senderAddress, err := proto.NewAddressFromPublicKey(scheme, transfer.SenderPK)
+			if err != nil {
+				//...
+			}
+			// TODO handle alias
+			recipientAddress := transfer.Recipient.Address()
+			assetBalanceSnapshotFromAmount, err := s.assetBalanceSnapshotTransfer(senderAddress, *recipientAddress, proto.AssetIDFromDigest(transfer.AmountAsset.ID), transfer.Amount)
+			if err != nil {
+				//...
+			}
+			snapshots = append(snapshots, assetBalanceSnapshotFromAmount)
 		} else {
 			senderAddress, err := proto.NewAddressFromPublicKey(scheme, transfer.SenderPK)
 			if err != nil {
@@ -97,19 +107,12 @@ func (s *SnapshotManager) TxSnapshotFromTx(tx proto.Transaction, scheme proto.Sc
 			}
 			// TODO handle alias
 			recipientAddress := transfer.Recipient.Address()
-			senderBalance, err := s.wavesBalanceByAddress(senderAddress)
+
+			wavesBalanceSnapshotFromAmount, err := s.wavesBalanceSnapshotTransfer(senderAddress, *recipientAddress, transfer.Amount)
 			if err != nil {
 				//...
 			}
-			recipientBalance, err := s.wavesBalanceByAddress(*recipientAddress)
-			if err != nil {
-				//...
-			}
-			wavesBalancesSnapshot := &WavesBalancesSnapshot{wavesBalances: []balanceWaves{
-				{address: &senderAddress, balance: senderBalance - transfer.Amount - transfer.Fee},
-				{address: recipientAddress, balance: recipientBalance + transfer.Amount}},
-			}
-			snapshots = append(snapshots, wavesBalancesSnapshot)
+			snapshots = append(snapshots, wavesBalanceSnapshotFromAmount)
 		}
 
 		if transfer.FeeAsset.Present {
@@ -120,59 +123,27 @@ func (s *SnapshotManager) TxSnapshotFromTx(tx proto.Transaction, scheme proto.Sc
 
 		// TODO merge different arrays of wavesBalances and assetBalances for the same addresses
 	case proto.ReissueTransaction: // 5
-		if t.Version >= 2 {
-			out = &ReissueWithProofs{}
-		} else {
-			out = &ReissueWithSig{}
-		}
+
 	case proto.BurnTransaction: // 6
-		if t.Version >= 2 {
-			out = &BurnWithProofs{}
-		} else {
-			out = &BurnWithSig{}
-		}
+
 	case proto.ExchangeTransaction: // 7
-		if t.Version >= 2 {
-			out = &ExchangeWithProofs{}
-		} else {
-			out = &ExchangeWithSig{}
-		}
+
 	case proto.LeaseTransaction: // 8
-		if t.Version >= 2 {
-			out = &LeaseWithProofs{}
-		} else {
-			out = &LeaseWithSig{}
-		}
+
 	case proto.LeaseCancelTransaction: // 9
-		if t.Version >= 2 {
-			out = &LeaseCancelWithProofs{}
-		} else {
-			out = &LeaseCancelWithSig{}
-		}
+
 	case proto.CreateAliasTransaction: // 10
-		if t.Version >= 2 {
-			out = &CreateAliasWithProofs{}
-		} else {
-			out = &CreateAliasWithSig{}
-		}
+
 	case proto.MassTransferTransaction: // 11
-		out = &MassTransferWithProofs{}
 	case proto.DataTransaction: // 12
-		out = &DataWithProofs{}
 	case proto.SetScriptTransaction: // 13
-		out = &SetScriptWithProofs{}
 	case proto.SponsorshipTransaction: // 14
-		out = &SponsorshipWithProofs{}
 	case proto.SetAssetScriptTransaction: // 15
-		out = &SetAssetScriptWithProofs{}
 	case proto.InvokeScriptTransaction: // 16
-		out = &InvokeScriptWithProofs{}
 	case proto.UpdateAssetInfoTransaction: // 17
-		out = &UpdateAssetInfoWithProofs{}
 	case proto.EthereumMetamaskTransaction: // 18
-		out = &EthereumTransaction{}
 	}
-	return snapshots
+	return snapshots, nil
 }
 
 //func (s *SnapshotManager) balanceByPublicKey(pk crypto.PublicKey, scheme proto.Scheme) uint64 {
@@ -187,8 +158,7 @@ func (s *SnapshotManager) TxSnapshotFromTx(tx proto.Transaction, scheme proto.Sc
 //	return balanceProfile.balance
 //}
 
-func (s SnapshotManager) wavesBalanceSnapshotAmountFee(sender proto.WavesAddress, recipient proto.WavesAddress,
-	amount uint64, fee uint64) (*WavesBalancesSnapshot, error) {
+func (s SnapshotManager) wavesBalanceSnapshotTransfer(sender proto.WavesAddress, recipient proto.WavesAddress, amount uint64) (*WavesBalancesSnapshot, error) {
 	senderBalance, err := s.wavesBalanceByAddress(sender)
 	if err != nil {
 		//...
@@ -198,24 +168,13 @@ func (s SnapshotManager) wavesBalanceSnapshotAmountFee(sender proto.WavesAddress
 		//...
 	}
 	wavesBalancesSnapshot := &WavesBalancesSnapshot{wavesBalances: []balanceWaves{
-		{address: &sender, balance: senderBalance - amount - fee},
+		{address: &sender, balance: senderBalance - amount},
 		{address: recipient, balance: recipientBalance + amount}},
 	}
 	return wavesBalancesSnapshot, nil
 }
 
-func (s SnapshotManager) wavesBalanceSnapshotFee(sender proto.WavesAddress, fee uint64) (*WavesBalancesSnapshot, error) {
-	senderBalance, err := s.wavesBalanceByAddress(sender)
-	if err != nil {
-		//...
-	}
-	wavesBalancesSnapshot := &WavesBalancesSnapshot{wavesBalances: []balanceWaves{
-		{address: &sender, balance: senderBalance - fee}},
-	}
-	return wavesBalancesSnapshot, nil
-}
-
-func (s SnapshotManager) assetBalanceSnapshotAmount(sender proto.WavesAddress, recipient proto.WavesAddress, assetID proto.AssetID,
+func (s SnapshotManager) assetBalanceSnapshotTransfer(sender proto.WavesAddress, recipient proto.WavesAddress, assetID proto.AssetID,
 	amount uint64) (*AssetBalancesSnapshot, error) {
 	senderAssetBalance, err := s.stor.balances.assetBalance(sender.ID(), assetID)
 	if err != nil {
