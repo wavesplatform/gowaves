@@ -2,78 +2,87 @@ package state
 
 import "github.com/wavesplatform/gowaves/pkg/proto"
 
-func (SnapshotManager) TxSnapshotFromTx(tx proto.Transaction) TransactionSnapshot {
+func (s *SnapshotManager) TxSnapshotFromTx(tx proto.Transaction, scheme proto.Scheme) (TransactionSnapshot, error) {
 	var snapshots []AtomicSnapshot
 
 	switch tx.GetTypeInfo().Type {
 	case proto.GenesisTransaction: // 1
-		out = &GenesisTransactionInfo{}
+		out = &Genesis{}
 	case proto.PaymentTransaction: // 2
-		out = &PaymentTransactionInfo{}
+		paymentTx := tx.(*proto.Payment)
+		senderAddress, err := proto.NewAddressFromPublicKey(scheme, paymentTx.SenderPK)
+		if err != nil {
+			//...
+		}
+		senderBalanceProfile, err := s.stor.balances.wavesBalance(senderAddress.ID())
+		recipientBalanceProfile, err := s.stor.balances.wavesBalance(paymentTx.Recipient.ID())
+
+		wavesBalanaceSnapshot := WavesBalancesSnapshot{wavesBalances: balanceWaves{address: *senderAddress}}
+
 	case proto.IssueTransaction: // 3
 		if t.Version >= 2 {
-			out = &IssueWithProofsTransactionInfo{}
+			out = &IssueWithProofs{}
 		} else {
-			out = &IssueWithSigTransactionInfo{}
+			out = &IssueWithSig{}
 		}
 	case proto.TransferTransaction: // 4
 		if t.Version >= 2 {
-			out = &TransferWithProofsTransactionInfo{}
+			out = &TransferWithProofs{}
 		} else {
-			out = &TransferWithSigTransactionInfo{}
+			out = &TransferWithSig{}
 		}
 	case proto.ReissueTransaction: // 5
 		if t.Version >= 2 {
-			out = &ReissueWithProofsTransactionInfo{}
+			out = &ReissueWithProofs{}
 		} else {
-			out = &ReissueWithSigTransactionInfo{}
+			out = &ReissueWithSig{}
 		}
 	case proto.BurnTransaction: // 6
 		if t.Version >= 2 {
-			out = &BurnWithProofsTransactionInfo{}
+			out = &BurnWithProofs{}
 		} else {
-			out = &BurnWithSigTransactionInfo{}
+			out = &BurnWithSig{}
 		}
 	case proto.ExchangeTransaction: // 7
 		if t.Version >= 2 {
-			out = &ExchangeWithProofsTransactionInfo{}
+			out = &ExchangeWithProofs{}
 		} else {
-			out = &ExchangeWithSigTransactionInfo{}
+			out = &ExchangeWithSig{}
 		}
 	case proto.LeaseTransaction: // 8
 		if t.Version >= 2 {
-			out = &LeaseWithProofsTransactionInfo{}
+			out = &LeaseWithProofs{}
 		} else {
-			out = &LeaseWithSigTransactionInfo{}
+			out = &LeaseWithSig{}
 		}
 	case proto.LeaseCancelTransaction: // 9
 		if t.Version >= 2 {
-			out = &LeaseCancelWithProofsTransactionInfo{}
+			out = &LeaseCancelWithProofs{}
 		} else {
-			out = &LeaseCancelWithSigTransactionInfo{}
+			out = &LeaseCancelWithSig{}
 		}
 	case proto.CreateAliasTransaction: // 10
 		if t.Version >= 2 {
-			out = &CreateAliasWithProofsTransactionInfo{}
+			out = &CreateAliasWithProofs{}
 		} else {
-			out = &CreateAliasWithSigTransactionInfo{}
+			out = &CreateAliasWithSig{}
 		}
 	case proto.MassTransferTransaction: // 11
-		out = &MassTransferTransactionInfo{}
+		out = &MassTransferWithProofs{}
 	case proto.DataTransaction: // 12
-		out = &DataTransactionInfo{}
+		out = &DataWithProofs{}
 	case proto.SetScriptTransaction: // 13
-		out = &SetScriptTransactionInfo{}
+		out = &SetScriptWithProofs{}
 	case proto.SponsorshipTransaction: // 14
-		out = &SponsorshipTransactionInfo{}
+		out = &SponsorshipWithProofs{}
 	case proto.SetAssetScriptTransaction: // 15
-		out = &SetAssetScriptTransactionInfo{}
+		out = &SetAssetScriptWithProofs{}
 	case proto.InvokeScriptTransaction: // 16
-		out = &InvokeScriptTransactionInfo{}
+		out = &InvokeScriptWithProofs{}
 	case proto.UpdateAssetInfoTransaction: // 17
-		out = &UpdateAssetInfoTransactionInfo{}
+		out = &UpdateAssetInfoWithProofs{}
 	case proto.EthereumMetamaskTransaction: // 18
-		out = &EthereumTransactionInfo{}
+		out = &EthereumTransaction{}
 	}
 	return snapshots
 }
