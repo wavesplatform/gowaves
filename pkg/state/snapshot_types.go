@@ -142,12 +142,10 @@ func (s *AssetDescriptionSnapshot) dummy() error {
 }
 
 type SnapshotManager struct {
-	diffStor *diffStorage
-	atx      *addressTransactions
-	stor     *blockchainEntitiesStorage
+	stor   *blockchainEntitiesStorage
+	scheme proto.Scheme
 }
 
-//func (SnapshotManager) TxSnapshotFromTx(tx *proto.Transaction) TransactionSnapshot {
-//	var snapshots []AtomicSnapshot
-//	return snapshots
-//}
+func NewSnapshotManager(stor *blockchainEntitiesStorage) *SnapshotManager {
+	return &SnapshotManager{stor: stor}
+}
