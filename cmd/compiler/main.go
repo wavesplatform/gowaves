@@ -15,17 +15,17 @@ Usage:
   compiler -f <script path> [options]
 
 Options:
-	-c, --compaction	Compaction mode [not working yet]
+	-c, --compaction	Compaction mode
 `
 
 func main() {
 	var (
-		scriptPath   string
-		isCompaction bool
+		scriptPath string
+		compaction bool
 	)
 	flag.StringVar(&scriptPath, "f", "", "Path to script file")
-	flag.BoolVar(&isCompaction, "compaction", false, "Compaction mode [not working yet]") // TODO: add compaction mode
-	flag.BoolVar(&isCompaction, "c", false, "Compaction mode [not working yet]")
+	flag.BoolVar(&compaction, "compaction", false, "Compaction mode")
+	flag.BoolVar(&compaction, "c", false, "Compaction mode")
 
 	flag.Usage = func() {
 		fmt.Println(usage)
@@ -44,7 +44,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	treeBytes, errors := compiler.Compile(string(b))
+	treeBytes, errors := compiler.Compile(string(b), compaction)
 	if len(errors) > 0 {
 		fmt.Println("Failed to compile script")
 		for _, err := range errors {

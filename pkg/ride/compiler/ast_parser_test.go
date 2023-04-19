@@ -28,31 +28,32 @@ func parseBase64Script(t *testing.T, src string) *ast.Tree {
 	return tree
 }
 
-func compareScriptsOrError(t *testing.T, code string, fail bool, expected string) {
-	rawAST, buf, err := buildAST(t, code, false)
-	require.NoError(t, err)
-	ap := newASTParser(rawAST, buf)
-	ap.parse()
+func compareScriptsOrError(t *testing.T, code string, fail bool, expected string, compact bool) {
+	tree, err := CompileToTree(code)
 	if !fail {
-		require.Empty(t, ap.errorsList)
-		tree := parseBase64Script(t, expected)
-		assert.Equal(t, tree.ContentType, ap.tree.ContentType)
-		assert.Equal(t, tree.LibVersion, ap.tree.LibVersion)
-		if diff := deep.Equal(tree.Declarations, ap.tree.Declarations); diff != nil {
+		require.Empty(t, err)
+		if compact && tree.IsDApp() {
+			comp := NewCompaction(tree)
+			comp.Compact()
+		}
+		expectedTree := parseBase64Script(t, expected)
+		assert.Equal(t, expectedTree.ContentType, tree.ContentType)
+		assert.Equal(t, expectedTree.LibVersion, tree.LibVersion)
+		if diff := deep.Equal(expectedTree.Declarations, tree.Declarations); diff != nil {
 			t.Errorf("Declaration mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Functions, ap.tree.Functions); diff != nil {
+		if diff := deep.Equal(expectedTree.Functions, tree.Functions); diff != nil {
 			t.Errorf("Functions mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Verifier, ap.tree.Verifier); diff != nil {
+		if diff := deep.Equal(expectedTree.Verifier, tree.Verifier); diff != nil {
 			t.Errorf("Verifier mismatch:\n%s", strings.Join(diff, "\n"))
 		}
-		if diff := deep.Equal(tree.Meta, ap.tree.Meta); diff != nil {
+		if diff := deep.Equal(expectedTree.Meta, tree.Meta); diff != nil {
 			t.Errorf("Meta mismatch:\n%s", strings.Join(diff, "\n"))
 		}
 	} else {
-		require.NotEmpty(t, ap.errorsList, "Expected error, but errors list is empty")
-		require.Equal(t, expected, ap.errorsList[0].Error())
+		require.NotEmpty(t, err, "Expected error, but errors list is empty")
+		require.Equal(t, expected, err[0].Error())
 	}
 }
 
@@ -152,7 +153,7 @@ func TestConstDeclaration(t *testing.T) {
 		{`let a = [1, "test", true, base64'', 5]`, false, "BgICCAIBAAFhCQDMCAIAAQkAzAgCAgR0ZXN0CQDMCAIGCQDMCAIBAAkAzAgCAAUFA25pbAAAbD363g=="},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -170,7 +171,7 @@ func TestStringDeclaration(t *testing.T) {
 		{`let a = "\u1234a\t"`, false, "BgICCAIBAAFhAgXhiLRhCQAADF+pNw=="},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -194,7 +195,7 @@ let (b, c, d) = a
 `, false, "BgICCAIFAAFhAwYJAJUKAwABAAICAWEJAJUKAwIBYQABAAMACSR0MDEzMDE0NwUBYQABYggFCSR0MDEzMDE0NwJfMQABYwgFCSR0MDEzMDE0NwJfMgABZAgFCSR0MDEzMDE0NwJfMwAAbYyzBw=="},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -226,7 +227,7 @@ let b = a >= 10`,
 		{`let a = "a" :: [1, 2]`, false, "BgICCAIBAAFhCQDMCAICAWEJAMwIAgABCQDMCAIAAgUDbmlsAADcsh9u"},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -261,7 +262,7 @@ let b = FOLD<5>([1], 0, sum)
 `, true, "(6:25, 6:28): Function 'sum' must have 2 arguments"},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -286,7 +287,7 @@ func x() = true
 x()
 `, false, "BgEKAQF4AAYJAQF4AIghWZw="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -299,7 +300,7 @@ func TestBuildInVars(t *testing.T) {
 		{`let a = height`, false, "BgICCAIBAAFhBQZoZWlnaHQAABNT5zQ="},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -322,7 +323,7 @@ func test(a : BigInt) = true`, true, "(6:15, 6:21): Undefined type 'BigInt'"},
 
 func test(a : BigInt) = true`, false, "BgICCAIBAQR0ZXN0AQFhBgAA2dZM5Q=="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -339,7 +340,7 @@ func TestFuncCalls(t *testing.T) {
 	} {
 
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -494,7 +495,7 @@ let b = match a {
 			false, "BgICCAICAAFhAwYJAQlBc3NldFBhaXICAQABAAAKAAFiBAckbWF0Y2gwBQFhAwMJAAECBQckbWF0Y2gwAglBc3NldFBhaXIEByRtYXRjaDAFByRtYXRjaDAGBwQHJG1hdGNoMAUHJG1hdGNoMAYHAAD1dYoP"},
 	} {
 		code := DappV6Directive + test.code
-		compareScriptsOrError(t, code, test.fail, test.expected)
+		compareScriptsOrError(t, code, test.fail, test.expected, false)
 	}
 }
 
@@ -513,7 +514,7 @@ func TestFuncCallsPrevVers(t *testing.T) {
 let a = addressFromPublicKey(base58'')`,
 			false, "AAIEAAAAAAAAAAIIAgAAAAEAAAAAAWEJAQAAABRhZGRyZXNzRnJvbVB1YmxpY0tleQAAAAEBAAAAAAAAAAAAAAAATbuPXQ=="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -543,7 +544,7 @@ let c = b :+ nil
 let d = c :+ true
 `, false, "AAIFAAAAAAAAAAIIAgAAAAQAAAAAAWEDBgkABEwAAAACAgAAAAZzdHJpbmcFAAAAA25pbAkABEwAAAACAAAAAAAAAAABBQAAAANuaWwAAAAAAWIJAARNAAAAAgUAAAABYQIAAAABYQAAAAABYwkABE0AAAACBQAAAAFiBQAAAANuaWwAAAAAAWQJAARNAAAAAgUAAAABYwYAAAAAAAAAAMlcQqo="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -586,7 +587,7 @@ func foo(a : Any) = {
 }
 `, false, "BgICCAIBAQNmb28BAWEEByRtYXRjaDAFAWEDAwkAAQIFByRtYXRjaDACLihJbnQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACLShJbnQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAItKEludCwgVW5pdCwgVW5pdCwgVW5pdCwgVW5pdCwgSW50LCBVbml0LCBJbnQpBgMJAAECBQckbWF0Y2gwAiwoSW50LCBVbml0LCBVbml0LCBVbml0LCBVbml0LCBJbnQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAItKEludCwgVW5pdCwgVW5pdCwgVW5pdCwgSW50LCBVbml0LCBVbml0LCBJbnQpBgMJAAECBQckbWF0Y2gwAiwoSW50LCBVbml0LCBVbml0LCBVbml0LCBJbnQsIFVuaXQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAIsKEludCwgVW5pdCwgVW5pdCwgVW5pdCwgSW50LCBJbnQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACKyhJbnQsIFVuaXQsIFVuaXQsIFVuaXQsIEludCwgSW50LCBJbnQsIEludCkGAwkAAQIFByRtYXRjaDACLShJbnQsIFVuaXQsIFVuaXQsIEludCwgVW5pdCwgVW5pdCwgVW5pdCwgSW50KQYDCQABAgUHJG1hdGNoMAIsKEludCwgVW5pdCwgVW5pdCwgSW50LCBVbml0LCBVbml0LCBJbnQsIEludCkGAwkAAQIFByRtYXRjaDACLChJbnQsIFVuaXQsIFVuaXQsIEludCwgVW5pdCwgSW50LCBVbml0LCBJbnQpBgMJAAECBQckbWF0Y2gwAisoSW50LCBVbml0LCBVbml0LCBJbnQsIFVuaXQsIEludCwgSW50LCBJbnQpBgMJAAECBQckbWF0Y2gwAiwoSW50LCBVbml0LCBVbml0LCBJbnQsIEludCwgVW5pdCwgVW5pdCwgSW50KQYDCQABAgUHJG1hdGNoMAIrKEludCwgVW5pdCwgVW5pdCwgSW50LCBJbnQsIFVuaXQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAIrKEludCwgVW5pdCwgVW5pdCwgSW50LCBJbnQsIEludCwgVW5pdCwgSW50KQYDCQABAgUHJG1hdGNoMAIqKEludCwgVW5pdCwgVW5pdCwgSW50LCBJbnQsIEludCwgSW50LCBJbnQpBgMJAAECBQckbWF0Y2gwAi0oSW50LCBVbml0LCBJbnQsIFVuaXQsIFVuaXQsIFVuaXQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACLChJbnQsIFVuaXQsIEludCwgVW5pdCwgVW5pdCwgVW5pdCwgSW50LCBJbnQpBgMJAAECBQckbWF0Y2gwAiwoSW50LCBVbml0LCBJbnQsIFVuaXQsIFVuaXQsIEludCwgVW5pdCwgSW50KQYDCQABAgUHJG1hdGNoMAIrKEludCwgVW5pdCwgSW50LCBVbml0LCBVbml0LCBJbnQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAIsKEludCwgVW5pdCwgSW50LCBVbml0LCBJbnQsIFVuaXQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACKyhJbnQsIFVuaXQsIEludCwgVW5pdCwgSW50LCBVbml0LCBJbnQsIEludCkGAwkAAQIFByRtYXRjaDACKyhJbnQsIFVuaXQsIEludCwgVW5pdCwgSW50LCBJbnQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACKihJbnQsIFVuaXQsIEludCwgVW5pdCwgSW50LCBJbnQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAIsKEludCwgVW5pdCwgSW50LCBJbnQsIFVuaXQsIFVuaXQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACKyhJbnQsIFVuaXQsIEludCwgSW50LCBVbml0LCBVbml0LCBJbnQsIEludCkGAwkAAQIFByRtYXRjaDACKyhJbnQsIFVuaXQsIEludCwgSW50LCBVbml0LCBJbnQsIFVuaXQsIEludCkGAwkAAQIFByRtYXRjaDACKihJbnQsIFVuaXQsIEludCwgSW50LCBVbml0LCBJbnQsIEludCwgSW50KQYDCQABAgUHJG1hdGNoMAIrKEludCwgVW5pdCwgSW50LCBJbnQsIEludCwgVW5pdCwgVW5pdCwgSW50KQYDCQABAgUHJG1hdGNo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"},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -727,7 +728,7 @@ func fn() = nil
 `,
 			false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAACZm4AAAAABQAAAANuaWwAAAAA4fhNCw=="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -775,7 +776,7 @@ let (a, b, c, d) = (1, 2, 3, f())
 true
 `, false, "BgEKAQFmAAMGCQACAQIJZXhjZXB0aW9uAAQECSR0MDEzOTE3MgkAlgoEAAEAAgADCQEBZgAEAWEIBQkkdDAxMzkxNzICXzEEAWIIBQkkdDAxMzkxNzICXzIEAWMIBQkkdDAxMzkxNzICXzMEAWQIBQkkdDAxMzkxNzICXzQGe+5PRg=="},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -833,7 +834,7 @@ foo(10) == 10
 baz != 10
 `, true, "lib_test_scripts/lib-baz-2.ride(4:11, 4:12): Variable 'baz' already declared"},
 	} {
-		compareScriptsOrError(t, test.code, test.fail, test.expected)
+		compareScriptsOrError(t, test.code, test.fail, test.expected, false)
 	}
 }
 
@@ -865,7 +866,71 @@ func cursed() = [][0]`,
 	}
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			compareScriptsOrError(t, test.code, test.fail, test.expected)
+			compareScriptsOrError(t, test.code, test.fail, test.expected, false)
+		})
+	}
+}
+
+func TestBuiltInVarsWithCompaction(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(height: Any) = height
+
+let a = height.f()`,
+			false, "BgIQCAIiAWYiBmhlaWdodCIBYQIBAWEBAWIFAWIAAWMJAQFhAQUGaGVpZ2h0AAAPvLXS"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(unit: Any) = unit
+
+let a = unit.f()`,
+			false, "BgIOCAIiAWYiBHVuaXQiAWECAQFhAQFiBQFiAAFjCQEBYQEFBHVuaXQAALdQWqE="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, true)
+		})
+	}
+}
+
+func TestBuiltInFuncsWithCompaction(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(sha256: Any) = sha256
+
+let a = sha256(base16'')`,
+			false, "BgIQCAIiAWYiBnNoYTI1NiIBYQIBAWEBAWIFAWIAAWMJAPcDAQEAAAAs+gZs"},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func f(addressFromPublicKey: Any) = addressFromPublicKey
+
+let a = addressFromPublicKey(base16'')`,
+			false, "BgIeCAIiAWYiFGFkZHJlc3NGcm9tUHVibGljS2V5IgFhAgEBYQEBYgUBYgABYwkApwgBAQAAAHqqKaU="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, true)
 		})
 	}
 }
@@ -890,6 +955,27 @@ func TestCompilationWithScalaNode(t *testing.T) {
 		require.NoError(t, err)
 		res, _, err := cli.Utils.ScriptCompileCode(context.Background(), string(code), false)
 		require.NoError(t, err)
-		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"))
+		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"), false)
+	}
+}
+
+func TestCompilationWithScalaNodeWithCompaction(t *testing.T) {
+	if ok, err := strconv.ParseBool(os.Getenv("REAL_NODE")); err != nil || !ok {
+		t.Skip("Skipping testing the compilation of scripts with comparison compilation from scala node")
+	}
+	cli, err := client.NewClient(client.Options{
+		BaseUrl: "https://nodes.wavesnodes.com",
+		Client:  &http.Client{Timeout: 10 * time.Second},
+	})
+	require.NoError(t, err)
+	files, err := embedScripts.ReadDir("testdata")
+	require.NoError(t, err)
+	for _, file := range files {
+		t.Logf("Test %s", file.Name())
+		code, err := embedScripts.ReadFile("testdata/" + file.Name())
+		require.NoError(t, err)
+		res, _, err := cli.Utils.ScriptCompileCode(context.Background(), string(code), true)
+		require.NoError(t, err)
+		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"), true)
 	}
 }
