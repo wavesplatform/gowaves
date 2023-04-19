@@ -29,6 +29,7 @@ func TestGetInfo(t *testing.T) {
 	assetId := crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
 	correctInfo, err := st.FullAssetInfo(proto.AssetIDFromDigest(assetId))
 	assert.NoError(t, err)
+	assert.NotNil(t, correctInfo.IssueTransaction)
 	correctInfoProto, err := correctInfo.ToProtobuf(sets.AddressSchemeCharacter)
 	assert.NoError(t, err)
 	req := &g.AssetRequest{AssetId: assetId.Bytes()}
