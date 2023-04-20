@@ -3,6 +3,7 @@ package compiler
 import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -230,40 +231,30 @@ func diff(map1, map2 map[string]struct{}) map[string]struct{} {
 	return difference
 }
 
-func appendMapNames(to, from map[string]struct{}) map[string]struct{} {
-	res := make(map[string]struct{})
-	for k, v := range from {
-		res[k] = v
-	}
-	for k, v := range to {
-		res[k] = v
-	}
-	return res
-}
-
-func getUsedNamesFromList(tree *ast.Tree, exprList []ast.Node, prevNamesList map[string]struct{}) map[string]struct{} {
-	nextNameList := make(map[string]struct{})
+func getUsedNamesFromList(tree *ast.Tree, exprList []ast.Node, prevNames map[string]struct{}) map[string]struct{} {
+	nextNames := make(map[string]struct{})
 	for _, expr := range exprList {
-		getUsedNames(expr, nextNameList)
+		getUsedNames(expr, nextNames)
 	}
-	nextNameList = diff(nextNameList, prevNamesList)
-	if len(nextNameList) != 0 {
+	nextNames = diff(nextNames, prevNames)
+	if len(nextNames) != 0 {
 		nextExprList := []ast.Node{}
 		for _, d := range tree.Declarations {
 			switch e := d.(type) {
 			case *ast.FunctionDeclarationNode:
-				if _, ok := nextNameList[e.Name]; ok {
+				if _, ok := nextNames[e.Name]; ok {
 					nextExprList = append(nextExprList, e.Body)
 				}
 			case *ast.AssignmentNode:
-				if _, ok := nextNameList[e.Name]; ok {
+				if _, ok := nextNames[e.Name]; ok {
 					nextExprList = append(nextExprList, e.Expression)
 				}
 			}
 		}
-		return getUsedNamesFromList(tree, nextExprList, appendMapNames(prevNamesList, nextNameList))
+		maps.Copy(prevNames, nextNames)
+		return getUsedNamesFromList(tree, nextExprList, prevNames)
 	} else {
-		return prevNamesList
+		return prevNames
 	}
 }
 
@@ -277,7 +268,7 @@ func removeUnusedCode(tree *ast.Tree) {
 		v := tree.Verifier.(*ast.FunctionDeclarationNode)
 		bodies = append(bodies, v.Body)
 	}
-	usedNames := getUsedNamesFromList(tree, bodies, nil)
+	usedNames := getUsedNamesFromList(tree, bodies, make(map[string]struct{}))
 	newDecl := []ast.Node{}
 	for _, d := range tree.Declarations {
 		switch e := d.(type) {

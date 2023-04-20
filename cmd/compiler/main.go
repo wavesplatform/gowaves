@@ -15,7 +15,7 @@ Usage:
   compiler -f <script path> [options]
 
 Options:
-	-c, --compaction	Compaction mode
+	-compaction	Compaction mode
     -remove-unused      Remove unused code
 `
 
@@ -25,9 +25,8 @@ func main() {
 		compaction   bool
 		removeUnused bool
 	)
-	flag.StringVar(&scriptPath, "f", "", "Path to script file")
+	flag.StringVar(&scriptPath, "script", "", "Path to script file")
 	flag.BoolVar(&compaction, "compaction", false, "Compaction mode")
-	flag.BoolVar(&compaction, "c", false, "Compaction mode")
 	flag.BoolVar(&removeUnused, "remove-unused", false, "Remove unused code")
 
 	flag.Usage = func() {
