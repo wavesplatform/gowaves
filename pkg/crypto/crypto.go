@@ -180,7 +180,7 @@ func (k PublicKey) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
-func (k PublicKey) WriteTo(buf []byte) error {
+func (k PublicKey) WriteToBuf(buf []byte) error {
 	if len(buf) < PublicKeySize {
 		return errors.New("buffer is too small")
 	}

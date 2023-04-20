@@ -17,11 +17,19 @@ var (
 )
 
 type BadRequestError struct {
-	error
+	inner error
+}
+
+func (e *BadRequestError) Error() string {
+	return e.inner.Error()
 }
 
 type AuthError struct {
-	error
+	inner error
+}
+
+func (e *AuthError) Error() string {
+	return e.inner.Error()
 }
 
 type ErrorHandler struct {
@@ -38,14 +46,23 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	if err == nil {
 		return
 	}
-	switch innerErr := errors.Cause(err).(type) {
-	case BadRequestError, *BadRequestError:
+	// target errors
+	var (
+		badRequestError = &BadRequestError{}
+		authError       = &AuthError{}
+		unknownError    = &apiErrs.UnknownError{}
+		apiError        = apiErrs.ApiError(nil)
+		// check that all targets implement the error interface
+		_, _, _, _ = error(badRequestError), error(authError), error(unknownError), error(apiError)
+	)
+	switch {
+	case errors.As(err, &badRequestError):
 		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusBadRequest)
-	case AuthError, *AuthError:
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", badRequestError.Error()), http.StatusBadRequest)
+	case errors.As(err, &authError):
 		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusForbidden)
-	case *apiErrs.UnknownError:
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)
+	case errors.As(err, &unknownError):
 		eh.logger.Error("UnknownError",
 			zap.String("proto", r.Proto),
 			zap.String("path", r.URL.Path),
@@ -53,9 +70,9 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 			zap.String("remote_addr", r.RemoteAddr),
 			zap.Error(err),
 		)
-		eh.sendApiErrJSON(w, r, innerErr)
-	case apiErrs.ApiError:
-		eh.sendApiErrJSON(w, r, innerErr)
+		eh.sendApiErrJSON(w, r, unknownError)
+	case errors.As(err, &apiError):
+		eh.sendApiErrJSON(w, r, apiError)
 	default:
 		eh.logger.Error("InternalServerError",
 			zap.String("proto", r.Proto),
@@ -64,7 +81,7 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 			zap.String("remote_addr", r.RemoteAddr),
 			zap.Error(err),
 		)
-		unknownErrWrapper := apiErrs.NewUnknownError(innerErr)
+		unknownErrWrapper := apiErrs.NewUnknownError(err)
 		eh.sendApiErrJSON(w, r, unknownErrWrapper)
 	}
 }

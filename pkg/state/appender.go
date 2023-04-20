@@ -345,8 +345,9 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	if res.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
-			height:  params.checkerInfo.height,
-			blockID: params.checkerInfo.blockID,
+			height:              params.checkerInfo.height,
+			stateActionsCounter: params.stateActionsCounterInBlock,
+			blockID:             params.checkerInfo.blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
@@ -409,6 +410,7 @@ type appendTxParams struct {
 	consensusImprovementsActivated bool
 	invokeExpressionActivated      bool // TODO: check feature naming
 	validatingUtx                  bool // if validatingUtx == false then chans MUST be initialized with non nil value
+	stateActionsCounterInBlock     *proto.StateActionsCounter
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -614,6 +616,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	stateActionsCounterInBlock := new(proto.StateActionsCounter)
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -628,6 +631,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			consensusImprovementsActivated: consensusImprovementsActivated,
 			invokeExpressionActivated:      invokeExpressionActivated,
 			validatingUtx:                  false,
+			stateActionsCounterInBlock:     stateActionsCounterInBlock,
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -862,6 +866,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		consensusImprovementsActivated: consensusImprovementsActivated,
 		invokeExpressionActivated:      invokeExpressionActivated,
 		validatingUtx:                  true,
+		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {

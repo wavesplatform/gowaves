@@ -25,7 +25,7 @@ var (
 	cutCommentsRegex = regexp.MustCompile(`\s*#.*\n?`)
 )
 
-func invokeSenderRecipient() (proto.WavesAddress, proto.WavesAddress) {
+func invokeSenderRecipientAddresses() (proto.WavesAddress, proto.WavesAddress) {
 	return *testGlobal.senderInfo.rcp.Address(), *testGlobal.recipientInfo.rcp.Address()
 }
 
@@ -42,9 +42,15 @@ func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 	to.activateFeature(t, int16(settings.SmartAccounts))
 	to.activateFeature(t, int16(settings.Ride4DApps))
 	t.Cleanup(func() {
+		to.cleanup()
 		assert.NoError(t, to.state.Close(), "state.Close() failed")
 	})
 	return to
+}
+
+func (to *invokeApplierTestObjects) cleanup() {
+	to.state.stor.dropUncertain()
+	to.state.appender.ia.sc.resetComplexity()
 }
 
 func (to *invokeApplierTestObjects) fallibleValidationParams(t *testing.T) *fallibleValidationParams {
@@ -181,12 +187,12 @@ type invokeApplierTestData struct {
 	info                *fallibleValidationParams
 }
 
-func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects) {
-	defer func() {
-		to.state.stor.dropUncertain()
-		to.state.appender.ia.sc.resetComplexity()
-	}()
+func (id *invokeApplierTestData) applyTestWithCleanup(t *testing.T, to *invokeApplierTestObjects) {
+	defer to.cleanup()
+	id.applyTest(t, to)
+}
 
+func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects) {
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
 		_, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
@@ -215,7 +221,8 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 			balance, err = to.state.NewestWavesBalance(rcp)
 		}
 		assert.NoError(t, err)
-		assert.Equal(t, int(correct), int(balance))
+		assert.Equal(t, int(correct), int(balance),
+			"incorrect asset balance %q for addr %q", fmt.Stringer(aa.asset), rcp.String())
 	}
 	for aa, correct := range id.correctFullBalances {
 		fb, err := to.state.NewestFullWavesBalance(proto.NewRecipientFromAddress(aa))
@@ -251,7 +258,8 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 			balance, err = to.state.WavesBalance(rcp)
 		}
 		assert.NoError(t, err)
-		assert.Equal(t, int(correct), int(balance))
+		assert.Equal(t, int(correct), int(balance),
+			"incorrect asset balance %q for addr %q", fmt.Stringer(aa.asset), rcp.String())
 	}
 	//for aa, correct := range id.correctFullBalances {
 	//	fb, err := to.state.FullWavesBalance(aa)
@@ -322,7 +330,7 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 	startBalance := amount + invokeFee + 1
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	pmts := []proto.ScriptPayment{
 		{Amount: amount},
 	}
@@ -348,7 +356,7 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -362,7 +370,7 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 	startBalance := amount + invokeFee*2
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	pmts := []proto.ScriptPayment{
 		{Amount: amount},
 	}
@@ -407,7 +415,7 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -419,7 +427,7 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	tests := []invokeApplierTestData{
@@ -439,7 +447,7 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -451,7 +459,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*2)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -486,7 +494,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -498,7 +506,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -548,7 +556,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -560,7 +568,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -601,7 +609,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -613,7 +621,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*100)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -656,7 +664,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -672,7 +680,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -721,7 +729,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -743,7 +751,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	// This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
 	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
@@ -809,7 +817,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -829,7 +837,7 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
 	//Note that after activation of RideV6 only the size of payload is counted
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	//This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
 	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
@@ -881,7 +889,7 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -948,7 +956,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee)
 	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	fc := proto.FunctionCall{
 		Name:      "simpleLeaseToSender",
 		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
@@ -973,7 +981,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -989,7 +997,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, 2*invokeFee)
 	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	fc1 := proto.FunctionCall{
 		Name:      "simpleLeaseToSender",
 		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
@@ -1037,7 +1045,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
 	}
 }
 
@@ -1096,7 +1104,7 @@ func TestFailRejectOnThrow(t *testing.T) {
 	to.setDApp(t, "ride5_fail_on_throw.base64", testGlobal.recipientInfo)
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
-	sender, dapp := invokeSenderRecipient()
+	sender, dapp := invokeSenderRecipientAddresses()
 	heavyDirectThrow := proto.FunctionCall{Name: "heavyDirectThrow", Arguments: []proto.Argument{}}
 	heavyIndirectThrow := proto.FunctionCall{Name: "heavyIndirectThrow", Arguments: []proto.Argument{}}
 	lightDirectThrow := proto.FunctionCall{Name: "lightDirectThrow", Arguments: []proto.Argument{}}
@@ -1160,6 +1168,67 @@ func TestFailRejectOnThrow(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to)
+		tc.applyTestWithCleanup(t, to)
+	}
+}
+
+// TODO: check correctness of the test, check TODOs
+func TestIssuesInInvokes(t *testing.T) {
+	to := createInvokeApplierTestObjects(t)
+	to.activateFeature(t, int16(settings.RideV5))
+
+	sender := testGlobal.senderInfo  // 3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz
+	dApp := testGlobal.recipientInfo // 3P2S4mBei2JfbpjiAnC5ssdjnVC8hG21yti
+
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "ride5_issues_in_invokes.base64", dApp)
+
+	var payments []proto.ScriptPayment // empty payments
+	functionCall := proto.FunctionCall{Name: "call", Arguments: []proto.Argument{}}
+	tx := createInvokeScriptWithProofs(t, payments, functionCall, feeAsset, invokeFee)
+
+	expectedIssueActionsOrder := []*proto.IssueScriptAction{
+		{Sender: &dApp.pk, Name: "FirstIssue", Description: "first issue", Quantity: 42, Decimals: 5, Reissuable: true, Script: nil, Nonce: 0},
+		{Sender: &dApp.pk, Name: "CatCoin", Description: "kitty", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0}, // nft
+		{Sender: &dApp.pk, Name: "PugCoin", Description: "pug", Quantity: 1, Decimals: 0, Reissuable: false, Script: nil, Nonce: 0},   // nft
+		{Sender: &dApp.pk, Name: "ParrotCoin", Description: "parrots", Quantity: 10000, Decimals: 1, Reissuable: true, Script: nil, Nonce: 0},
+		{Sender: &dApp.pk, Name: "OneMoreAsset", Description: "one more asset", Quantity: 42, Decimals: 5, Reissuable: true, Script: nil, Nonce: 0},
+		{Sender: &dApp.pk, Name: "Asset1", Description: "just an asset", Quantity: 100500, Decimals: 2, Reissuable: true, Script: nil, Nonce: 0},
+		{Sender: &dApp.pk, Name: "Asset2", Description: "just an asset", Quantity: 100100, Decimals: 3, Reissuable: true, Script: nil, Nonce: 0},
+	}
+	assetIDToSequenceInBlock := make(map[crypto.Digest]uint32, len(expectedIssueActionsOrder))
+	correctBalances := map[rcpAsset]uint64{
+		{sender.addr, nil}: 0,
+		{dApp.addr, nil}:   0,
+	}
+	for i := range expectedIssueActionsOrder {
+		a := expectedIssueActionsOrder[i]
+		a.ID = proto.GenerateIssueScriptActionID(a.Name, a.Description, int64(a.Decimals), a.Quantity, a.Reissuable, a.Nonce, *tx.ID)
+		assetIDToSequenceInBlock[a.ID] = uint32(i + 1)
+		correctBalances[rcpAsset{dApp.addr, &a.ID}] = uint64(a.Quantity)
+	}
+
+	const waves = 0                                                               // TODO: should be == 100_000_000
+	senderBalance := invokeFee + uint64((len(expectedIssueActionsOrder)-2)*waves) // TODO: why is it enough to perform invoke with issues?
+	to.setAndCheckInitialWavesBalance(t, sender.addr, senderBalance)
+	to.setAndCheckInitialWavesBalance(t, dApp.addr, 0)
+
+	testData := invokeApplierTestData{
+		payments:        payments,
+		fc:              functionCall,
+		errorRes:        false,
+		failRes:         false,
+		correctBalances: correctBalances,
+		correctAddrs:    []proto.WavesAddress{sender.addr, dApp.addr},
+		info:            info,
+	}
+	testData.applyTest(t, to)
+
+	for i, action := range expectedIssueActionsOrder {
+		ai, err := to.state.EnrichedFullAssetInfo(proto.AssetIDFromDigest(action.ID))
+		require.NoError(t, err)
+		sequenceInBlock := uint32(i + 1)
+		assert.Equal(t, sequenceInBlock, ai.SequenceInBlock, "invalid SequenceInBlock for asset %q", ai.Name)
+		assert.Equal(t, info.blockInfo.Height, ai.IssueHeight, "invalid IssueHeight for asset %q", ai.Name)
 	}
 }

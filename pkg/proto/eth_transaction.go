@@ -454,20 +454,20 @@ func (tx *EthereumTransaction) To() *EthereumAddress {
 	return tx.inner.to().copy()
 }
 
-func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (*WavesAddress, error) {
+func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
 	if tx.inner == nil {
-		return nil, errors.New("empty Ethereum transaction")
+		return WavesAddress{}, errors.New("empty Ethereum transaction")
 	}
 	toEthAdr := tx.inner.to()
 	if toEthAdr == nil { // contract-creation transactions, To returns nil
-		return nil, errors.New("recipient address is nil, but it has been called")
+		return WavesAddress{}, errors.New("recipient address is nil, but it has been called")
 	}
 
 	to, err := toEthAdr.ToWavesAddress(scheme)
 	if err != nil {
-		return nil, err
+		return WavesAddress{}, err
 	}
-	return &to, nil
+	return to, nil
 }
 
 // From returns the sender address of the transaction.

@@ -15,7 +15,9 @@ var errEmptyHist = errors.New("empty history for this record")
 type blockchainEntity byte
 
 const (
-	alias blockchainEntity = iota
+	_ blockchainEntity = iota // this is a placeholder for a zero value
+	alias
+	addressToAliases
 	asset
 	lease
 	wavesBalance
@@ -61,6 +63,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    true,
 		recordSize:   aliasRecordSize + 4,
+	},
+	addressToAliases: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
 	},
 	asset: {
 		needToFilter: true,
@@ -790,4 +797,8 @@ func (hs *historyStorage) flush() error {
 	}
 	hs.stor.reset()
 	return nil
+}
+
+func isNotFoundInHistoryOrDBErr(err error) bool {
+	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }
