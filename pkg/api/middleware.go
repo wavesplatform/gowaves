@@ -10,10 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// CreateLoggerMiddleware creates a middleware that logs the start and end of each request, along
+// createLoggerMiddleware creates a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
-func CreateLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
+func createLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ww, ok := w.(middleware.WrapResponseWriter)
@@ -26,10 +26,12 @@ func CreateLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler 
 				l.Info("ServedHttpRequest",
 					zap.String("proto", r.Proto),
 					zap.String("path", r.URL.Path),
-					zap.Duration("lat", time.Since(t1)),
+					zap.Duration("duration", time.Since(t1)),
 					zap.Int("status", ww.Status()),
-					zap.Int("size", ww.BytesWritten()),
-					zap.String("request_id", middleware.GetReqID(r.Context())))
+					zap.Int("response-size", ww.BytesWritten()),
+					zap.String("request_id", middleware.GetReqID(r.Context())),
+					zap.String("remote_addr", r.RemoteAddr),
+				)
 			}()
 
 			next.ServeHTTP(ww, r)

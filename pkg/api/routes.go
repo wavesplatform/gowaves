@@ -40,8 +40,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		}
 		r.Use(rateLimiter.RateLimit)
 	}
+	if opts.RequestIDMiddleware {
+		r.Use(middleware.RequestID)
+	}
 	if opts.LogHttpRequestOpts {
-		r.Use(middleware.RequestID, CreateLoggerMiddleware(zap.L()))
+		r.Use(createLoggerMiddleware(zap.L()))
 	}
 	if opts.RouteNotFoundHandler != nil {
 		r.NotFound(opts.RouteNotFoundHandler)

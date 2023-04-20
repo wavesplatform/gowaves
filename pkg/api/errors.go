@@ -66,7 +66,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 		eh.logger.Error("UnknownError",
 			zap.String("proto", r.Proto),
 			zap.String("path", r.URL.Path),
-			zap.String("reqId", middleware.GetReqID(r.Context())),
+			zap.String("request_id", middleware.GetReqID(r.Context())),
+			zap.String("remote_addr", r.RemoteAddr),
 			zap.Error(err),
 		)
 		eh.sendApiErrJSON(w, r, unknownError)
@@ -76,7 +77,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 		eh.logger.Error("InternalServerError",
 			zap.String("proto", r.Proto),
 			zap.String("path", r.URL.Path),
-			zap.String("reqId", middleware.GetReqID(r.Context())),
+			zap.String("request_id", middleware.GetReqID(r.Context())),
+			zap.String("remote_addr", r.RemoteAddr),
 			zap.Error(err),
 		)
 		unknownErrWrapper := apiErrs.NewUnknownError(err)
@@ -91,6 +93,7 @@ func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, a
 			zap.String("proto", r.Proto),
 			zap.String("path", r.URL.Path),
 			zap.String("request_id", middleware.GetReqID(r.Context())),
+			zap.String("remote_addr", r.RemoteAddr),
 			zap.Error(encodeErr),
 			zap.String("api_error", apiErr.Error()),
 		)
