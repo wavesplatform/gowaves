@@ -3,6 +3,7 @@ package compiler
 import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -192,4 +193,94 @@ func (c *Compaction) processExpr(node ast.Node) ast.Node {
 	default:
 		return node
 	}
+}
+
+func getUsedNames(node ast.Node, usedNames map[string]struct{}) {
+	switch expr := node.(type) {
+	case *ast.AssignmentNode:
+		getUsedNames(expr.Expression, usedNames)
+		getUsedNames(expr.Block, usedNames)
+	case *ast.FunctionDeclarationNode:
+		getUsedNames(expr.Body, usedNames)
+		getUsedNames(expr.Block, usedNames)
+	case *ast.FunctionCallNode:
+		usedNames[expr.Function.Name()] = struct{}{}
+		for _, a := range expr.Arguments {
+			getUsedNames(a, usedNames)
+		}
+	case *ast.PropertyNode:
+		getUsedNames(expr.Object, usedNames)
+	case *ast.ConditionalNode:
+		getUsedNames(expr.Condition, usedNames)
+		getUsedNames(expr.TrueExpression, usedNames)
+		getUsedNames(expr.FalseExpression, usedNames)
+	case *ast.ReferenceNode:
+		usedNames[expr.Name] = struct{}{}
+	}
+}
+
+func diff(map1, map2 map[string]struct{}) map[string]struct{} {
+	difference := make(map[string]struct{})
+
+	for key, value := range map1 {
+		if _, exists := map2[key]; !exists {
+			difference[key] = value
+		}
+	}
+
+	return difference
+}
+
+func getUsedNamesFromList(tree *ast.Tree, exprList []ast.Node, prevNames map[string]struct{}) map[string]struct{} {
+	nextNames := make(map[string]struct{})
+	for _, expr := range exprList {
+		getUsedNames(expr, nextNames)
+	}
+	nextNames = diff(nextNames, prevNames)
+	if len(nextNames) != 0 {
+		nextExprList := []ast.Node{}
+		for _, d := range tree.Declarations {
+			switch e := d.(type) {
+			case *ast.FunctionDeclarationNode:
+				if _, ok := nextNames[e.Name]; ok {
+					nextExprList = append(nextExprList, e.Body)
+				}
+			case *ast.AssignmentNode:
+				if _, ok := nextNames[e.Name]; ok {
+					nextExprList = append(nextExprList, e.Expression)
+				}
+			}
+		}
+		maps.Copy(prevNames, nextNames)
+		return getUsedNamesFromList(tree, nextExprList, prevNames)
+	} else {
+		return prevNames
+	}
+}
+
+func removeUnusedCode(tree *ast.Tree) {
+	bodies := []ast.Node{}
+	for _, n := range tree.Functions {
+		f := n.(*ast.FunctionDeclarationNode)
+		bodies = append(bodies, f.Body)
+	}
+	if tree.Verifier != nil {
+		v := tree.Verifier.(*ast.FunctionDeclarationNode)
+		bodies = append(bodies, v.Body)
+	}
+	usedNames := getUsedNamesFromList(tree, bodies, make(map[string]struct{}))
+	newDecl := []ast.Node{}
+	for _, d := range tree.Declarations {
+		switch e := d.(type) {
+		case *ast.FunctionDeclarationNode:
+			if _, ok := usedNames[e.Name]; ok {
+				newDecl = append(newDecl, d)
+			}
+		case *ast.AssignmentNode:
+			if _, ok := usedNames[e.Name]; ok {
+				newDecl = append(newDecl, d)
+			}
+		}
+	}
+	tree.Declarations = newDecl
 }

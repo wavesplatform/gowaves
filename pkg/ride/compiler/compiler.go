@@ -25,10 +25,13 @@ func CompileToTree(code string) (*ast.Tree, []error) {
 	return ap.tree, nil
 }
 
-func Compile(code string, compact bool) ([]byte, []error) {
+func Compile(code string, compact, removeUnused bool) ([]byte, []error) {
 	tree, errs := CompileToTree(code)
 	if len(errs) > 0 {
 		return nil, errs
+	}
+	if removeUnused && tree.IsDApp() {
+		removeUnusedCode(tree)
 	}
 	if compact && tree.IsDApp() {
 		comp := NewCompaction(tree)

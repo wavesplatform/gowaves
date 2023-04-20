@@ -15,17 +15,19 @@ Usage:
   compiler -f <script path> [options]
 
 Options:
-	-c, --compaction	Compaction mode
+	-compaction	Compaction mode
+    -remove-unused      Remove unused code
 `
 
 func main() {
 	var (
-		scriptPath string
-		compaction bool
+		scriptPath   string
+		compaction   bool
+		removeUnused bool
 	)
-	flag.StringVar(&scriptPath, "f", "", "Path to script file")
+	flag.StringVar(&scriptPath, "script", "", "Path to script file")
 	flag.BoolVar(&compaction, "compaction", false, "Compaction mode")
-	flag.BoolVar(&compaction, "c", false, "Compaction mode")
+	flag.BoolVar(&removeUnused, "remove-unused", false, "Remove unused code")
 
 	flag.Usage = func() {
 		fmt.Println(usage)
@@ -44,7 +46,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	treeBytes, errors := compiler.Compile(string(b), compaction)
+	treeBytes, errors := compiler.Compile(string(b), compaction, removeUnused)
 	if len(errors) > 0 {
 		fmt.Println("Failed to compile script")
 		for _, err := range errors {
