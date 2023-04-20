@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -198,9 +199,6 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 	to, err := strconv.ParseUint(toParam, 10, 64)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse 'to' url param")
-	}
-	if from > to || to-from >= blocksSequenceLimit {
-		return apiErrs.TooBigArrayAllocation
 	}
 	seq, err := a.app.BlocksHeadersFromTo(from, to)
 	if err != nil {
@@ -707,6 +705,90 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	}
 	if err := trySendJson(w, methods); err != nil {
 		return errors.Wrap(err, "EthereumDAppABI")
+	}
+	return nil
+}
+
+func (a *NodeApi) AssetsDetailsByID(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "id")
+	fullAssetID, err := crypto.NewDigestFromBase58(s)
+	if err != nil {
+		return apiErrs.InvalidAssetId
+	}
+
+	var full bool
+	if f := r.URL.Query().Get("full"); f != "" {
+		if full, err = strconv.ParseBool(f); err != nil {
+			return apiErrs.InvalidAssetId
+		}
+	}
+
+	assetDetails, err := a.app.AssetsDetailsByID(fullAssetID, full)
+	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return apiErrs.NewAssetDoesNotExistError(fullAssetID)
+		}
+		return errors.Wrapf(err, "failed to get asset details by assetID=%q", fullAssetID)
+	}
+	if err := trySendJson(w, assetDetails); err != nil {
+		return errors.Wrap(err, "AssetsDetailsByID")
+	}
+	return nil
+}
+
+func (a *NodeApi) AssetsDetailsByIDsGet(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	return a.assetsDetailsByIDs(w, query.Get("full"), query["id"])
+
+}
+
+func (a *NodeApi) AssetsDetailsByIDsPost(w http.ResponseWriter, r *http.Request) error {
+	var data struct {
+		IDs []string `json:"ids"`
+	}
+	if err := tryParseJson(r.Body, &data); err != nil {
+		return err
+	}
+	query := r.URL.Query()
+	return a.assetsDetailsByIDs(w, query.Get("full"), data.IDs)
+}
+
+func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam string, ids []string) (err error) {
+	var full bool
+	if fullQueryParam != "" {
+		full, err = strconv.ParseBool(fullQueryParam)
+		if err != nil {
+			return apiErrs.InvalidAssetId
+		}
+	}
+	if len(ids) == 0 {
+		return apiErrs.AssetIdNotSpecified
+	}
+	if limit := a.app.settings.AssetDetailsLimit; len(ids) > limit {
+		return apiErrs.NewTooBigArrayAllocationError(limit)
+	}
+	var (
+		fullAssetsIDs = make([]crypto.Digest, 0, len(ids))
+		invalidIDs    []string
+	)
+	for _, id := range ids {
+		d, err := crypto.NewDigestFromBase58(id)
+		if err != nil {
+			invalidIDs = append(invalidIDs, id)
+		} else {
+			fullAssetsIDs = append(fullAssetsIDs, d)
+		}
+	}
+	if len(invalidIDs) != 0 {
+		return apiErrs.NewInvalidIDsError(invalidIDs)
+	}
+
+	assetsDetails, err := a.app.AssetsDetails(fullAssetsIDs, full)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get asset details by list of assets")
+	}
+	if err := trySendJson(w, assetsDetails); err != nil {
+		return errors.Wrap(err, "AssetsDetails")
 	}
 	return nil
 }

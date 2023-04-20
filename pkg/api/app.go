@@ -25,6 +25,24 @@ type SchedulerEmits interface {
 	Emits() []scheduler.Emit
 }
 
+// default app settings
+const (
+	defaultBlockRequestLimit = 100
+	defaultAssetDetailsLimit = 100
+)
+
+type appSettings struct {
+	BlockRequestLimit uint64
+	AssetDetailsLimit int
+}
+
+func defaultAppSettings() *appSettings {
+	return &appSettings{
+		BlockRequestLimit: defaultBlockRequestLimit,
+		AssetDetailsLimit: defaultAssetDetailsLimit,
+	}
+}
+
 type App struct {
 	hashedApiKey  crypto.Digest
 	apiKeyEnabled bool
@@ -34,9 +52,17 @@ type App struct {
 	peers         peer_manager.PeerManager
 	sync          types.StateSync
 	services      services.Services
+	settings      *appSettings
 }
 
 func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
+	return newApp(apiKey, scheduler, services, nil)
+}
+
+func newApp(apiKey string, scheduler SchedulerEmits, services services.Services, settings *appSettings) (*App, error) {
+	if settings == nil {
+		settings = defaultAppSettings()
+	}
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -50,6 +76,7 @@ func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services)
 		utx:           services.UtxPool,
 		peers:         services.Peers,
 		services:      services,
+		settings:      settings,
 	}, nil
 }
 

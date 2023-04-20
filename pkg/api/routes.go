@@ -40,8 +40,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		}
 		r.Use(rateLimiter.RateLimit)
 	}
+	if opts.RequestIDMiddleware {
+		r.Use(middleware.RequestID)
+	}
 	if opts.LogHttpRequestOpts {
-		r.Use(middleware.RequestID, CreateLoggerMiddleware(zap.L()))
+		r.Use(createLoggerMiddleware(zap.L()))
 	}
 	if opts.RouteNotFoundHandler != nil {
 		r.NotFound(opts.RouteNotFoundHandler)
@@ -110,6 +113,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 				r.Get("/{id}", wrapper(a.BlockHeadersID))
 				r.Get("/seq/{from:\\d+}/{to:\\d+}", wrapper(a.BlocksHeadersSeqFromTo))
 			})
+		})
+
+		r.Route("/assets", func(r chi.Router) {
+			r.Get("/details/{id}", wrapper(a.AssetsDetailsByID))
+			r.Get("/details", wrapper(a.AssetsDetailsByIDsGet))
+			r.Post("/details", wrapper(a.AssetsDetailsByIDsPost))
 		})
 
 		r.Route("/addresses", func(r chi.Router) {

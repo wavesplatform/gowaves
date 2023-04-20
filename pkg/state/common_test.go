@@ -136,11 +136,12 @@ func defaultDifferInfo() *differInfo {
 
 func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:   defaultCheckerInfo(),
-		blockInfo:     defaultBlockInfo(),
-		block:         defaultBlock(),
-		acceptFailed:  false,
-		validatingUtx: false,
+		checkerInfo:                defaultCheckerInfo(),
+		blockInfo:                  defaultBlockInfo(),
+		block:                      defaultBlock(),
+		acceptFailed:               false,
+		validatingUtx:              false,
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 }
 
@@ -473,7 +474,7 @@ func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypt
 	s.addBlock(t, blockID0)
 	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	require.True(t, decimals >= 0)
-	assetInfo.decimals = int8(decimals)
+	assetInfo.decimals = uint8(decimals)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)

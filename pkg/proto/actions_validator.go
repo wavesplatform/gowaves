@@ -5,6 +5,15 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
+type StateActionsCounter struct {
+	issueActionsCount uint32 // we assume that number of issue actions in one block is less than MaxUInt32
+}
+
+func (c *StateActionsCounter) NextIssueActionNumber() uint32 {
+	c.issueActionsCount++
+	return c.issueActionsCount
+}
+
 type ActionsValidationRestrictions struct {
 	DisableSelfTransfers  bool
 	ScriptAddress         WavesAddress
