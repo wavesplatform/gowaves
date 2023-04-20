@@ -260,6 +260,12 @@ func (a *ThreadSafeReadWrapper) AssetIsSponsored(assetID proto.AssetID) (bool, e
 	return a.s.AssetIsSponsored(assetID)
 }
 
+func (a *ThreadSafeReadWrapper) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.IsAssetExist(assetID)
+}
+
 func (a *ThreadSafeReadWrapper) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -270,6 +276,12 @@ func (a *ThreadSafeReadWrapper) FullAssetInfo(assetID proto.AssetID) (*proto.Ful
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.FullAssetInfo(assetID)
+}
+
+func (a *ThreadSafeReadWrapper) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.EnrichedFullAssetInfo(assetID)
 }
 
 func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {

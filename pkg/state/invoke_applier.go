@@ -484,9 +484,11 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Create asset's info.
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
-					tail:     proto.DigestTail(a.ID),
-					issuer:   senderPK,
-					decimals: int8(a.Decimals),
+					tail:                 proto.DigestTail(a.ID),
+					issuer:               senderPK,
+					decimals:             uint8(a.Decimals),
+					issueHeight:          info.blockInfo.Height,
+					issueSequenceInBlock: info.stateActionsCounterInBlock.NextIssueActionNumber(),
 				},
 				assetChangeableInfo: assetChangeableInfo{
 					quantity:    *big.NewInt(a.Quantity),

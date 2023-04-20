@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -38,7 +39,7 @@ type (
 	MissingSenderPrivateKeyError validationError
 	InvalidIdsError              struct {
 		validationError
-		Ids []string `json:"ids"`
+		IDs []string `json:"ids"`
 	}
 	CustomValidationError                     validationError
 	BlockDoesNotExistError                    validationError
@@ -177,5 +178,18 @@ func NewAliasDoesNotExistError(aliasFull string) *AliasDoesNotExistError {
 			HttpCode: http.StatusNotFound,
 			Message:  fmt.Sprintf("alias '%s' doesn't exist", aliasFull),
 		},
+	}
+}
+
+func NewInvalidIDsError(ids []string) *InvalidIdsError {
+	return &InvalidIdsError{
+		validationError: validationError{
+			genericError: genericError{
+				ID:       InvalidIdsErrorID,
+				HttpCode: http.StatusBadRequest,
+				Message:  fmt.Sprintf("Request contains invalid IDs. %s", strings.Join(ids, ", ")),
+			},
+		},
+		IDs: ids,
 	}
 }

@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -1983,12 +1982,13 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 
@@ -2040,6 +2040,18 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 	return res, nil
 }
 
+func (s *stateManager) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	// this is the fastest way to understand whether asset exist or not
+	switch _, err := s.stor.assets.constInfo(assetID); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, errs.UnknownAsset{}):
+		return false, nil
+	default:
+		return false, wrapErr(RetrievalError, err)
+	}
+}
+
 // AssetInfo returns stable (stored in DB) information about an asset by given ID.
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.
@@ -2069,12 +2081,13 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 
@@ -2122,6 +2135,25 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 			return nil, wrapErr(RetrievalError, err)
 		}
 		res.ScriptInfo = *scriptInfo
+	}
+	return res, nil
+}
+
+func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	fa, err := s.FullAssetInfo(assetID)
+	if err != nil {
+		return nil, err
+	}
+	constInfo, err := s.stor.assets.constInfo(assetID)
+	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return nil, err
+		}
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.EnrichedFullAssetInfo{
+		FullAssetInfo:   *fa,
+		SequenceInBlock: constInfo.issueSequenceInBlock,
 	}
 	return res, nil
 }
@@ -2180,7 +2212,6 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	ev, err := s.EstimatorVersion()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -2196,7 +2227,6 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2206,7 +2236,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2218,7 +2247,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2228,7 +2256,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2240,7 +2267,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }

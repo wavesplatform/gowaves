@@ -30,36 +30,62 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 	return ai.assetChangeableInfo.equal(&ai1.assetChangeableInfo) && (ai.assetConstInfo == ai1.assetConstInfo)
 }
 
+// assetConstInfoSize = len(digestTail) + len(issuerPK) + len(decimals_byte) + len(issueHeight_bytes)
+const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1 + 8 + 8
+
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
-	tail     [proto.AssetIDTailSize]byte
-	issuer   crypto.PublicKey
-	decimals int8
+	tail                 [proto.AssetIDTailSize]byte
+	issuer               crypto.PublicKey
+	decimals             uint8
+	issueHeight          proto.Height
+	issueSequenceInBlock uint32
 }
 
-func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
-	res := make([]byte, proto.AssetIDTailSize+crypto.PublicKeySize+1)
+func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
+	data = make([]byte, assetConstInfoSize)
+	res := data
+	// write digest tail
 	copy(res, ai.tail[:])
-	if err := ai.issuer.WriteTo(res[proto.AssetIDTailSize:]); err != nil {
+	res = res[proto.AssetIDTailSize:]
+	// write issuer PK
+	if err := ai.issuer.WriteToBuf(res); err != nil {
 		return nil, err
 	}
-	res[proto.AssetIDTailSize+crypto.PublicKeySize] = byte(ai.decimals)
-	return res, nil
+	res = res[crypto.PublicKeySize:]
+	// write info about decimals
+	res[0] = ai.decimals
+	res = res[1:]
+	//write issue height
+	binary.BigEndian.PutUint64(res, ai.issueHeight)
+	res = res[8:]
+	// write issue tx position in block
+	binary.BigEndian.PutUint32(res, ai.issueSequenceInBlock)
+	// return full data slice
+	return data, nil
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1
-	if len(data) < assetConstInfoSize {
+	if len(data) < assetConstInfoSize { // initial sanity check
 		return errors.Errorf("invalid data size: want %d, got %d", assetConstInfoSize, len(data))
 	}
+	// read digest tail
 	copy(ai.tail[:], data[:proto.AssetIDTailSize])
 	data = data[proto.AssetIDTailSize:]
+	// read issuer PK
 	err := ai.issuer.UnmarshalBinary(data[:crypto.PublicKeySize])
 	if err != nil {
 		return err
 	}
 	data = data[crypto.PublicKeySize:]
-	ai.decimals = int8(data[0])
+	// read asset decimals
+	ai.decimals = data[0]
+	data = data[1:]
+	// read issue height
+	ai.issueHeight = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	// read issue tx position in block
+	ai.issueSequenceInBlock = binary.BigEndian.Uint32(data)
 	return nil
 }
 

@@ -20,6 +20,7 @@ type WrappedState struct {
 	diff                      diffState
 	cle                       rideAddress
 	scheme                    proto.Scheme
+	height                    proto.Height
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -33,6 +34,7 @@ func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.Librar
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
+		height:                    proto.Height(env.height()),
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
@@ -227,6 +229,7 @@ func (ws *WrappedState) NewestAssetIsSponsored(asset crypto.Digest) (bool, error
 
 func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(asset)
+	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestAssetInfo(asset)
 		if err != nil {
@@ -240,6 +243,7 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		}
 		return assetFromStore, nil
 	}
+	// it's a new asset
 	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
@@ -261,12 +265,13 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     ws.height,
 	}, nil
 }
 
 func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(asset)
-
+	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestFullAssetInfo(asset)
 		if err != nil {
@@ -284,7 +289,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		}
 		return assetFromStore, nil
 	}
-
+	// it's a new asset
 	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
@@ -309,6 +314,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     ws.height,
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,

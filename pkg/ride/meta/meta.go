@@ -65,6 +65,14 @@ type Abbreviations struct {
 	compact2original map[string]string
 }
 
+func NewAbbreviations(names []string) Abbreviations {
+	return Abbreviations{
+		pairs:            []pair{},
+		names:            names,
+		compact2original: make(map[string]string, 0),
+	}
+}
+
 func (a *Abbreviations) CompactToOriginal(compact string) (string, error) {
 	if n, ok := a.compact2original[compact]; ok {
 		return n, nil

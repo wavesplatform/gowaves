@@ -209,3 +209,21 @@ func TestAssetsUncertain(t *testing.T) {
 		t.Errorf("assets after flush differ.")
 	}
 }
+
+func TestAssetConstInfoRoundTrip(t *testing.T) {
+	expectedInfo := assetConstInfo{
+		tail:                 [12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+		issuer:               crypto.PublicKey{1, 2, 3, 4, 5, 6, 7},
+		decimals:             8,
+		issueHeight:          100500,
+		issueSequenceInBlock: 42,
+	}
+	data, err := expectedInfo.marshalBinary()
+	assert.NoError(t, err)
+
+	var info assetConstInfo
+	err = info.unmarshalBinary(data)
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedInfo, info)
+}
