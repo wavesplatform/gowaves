@@ -972,7 +972,7 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			rideByteVector(nil),
 			proofs(proto.NewProofs()),
 			rideInt(tx.GetFee()),
-			rideAddress(*to),
+			rideAddress(to),
 			tx.ID.Bytes(),
 			callerPK,
 			rideInt(tx.GetTimestamp()),
@@ -1030,7 +1030,7 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			return newRideInvokeScriptTransactionV3(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
-				rideAddress(*to),
+				rideAddress(to),
 				rideString(tx.TxKind.DecodedData().Name),
 				rideByteVector(nil),
 				tx.ID.Bytes(),
@@ -1050,7 +1050,7 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			return newRideInvokeScriptTransactionV4(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
-				rideAddress(*to),
+				rideAddress(to),
 				rideString(tx.TxKind.DecodedData().Name),
 				rideByteVector(nil),
 				tx.ID.Bytes(),

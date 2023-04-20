@@ -171,6 +171,16 @@ func NewCustomValidationError(message string) *CustomValidationError {
 	}
 }
 
+func NewAliasDoesNotExistError(aliasFull string) *AliasDoesNotExistError {
+	return &AliasDoesNotExistError{
+		genericError: genericError{
+			ID:       AliasDoesNotExistErrorID,
+			HttpCode: http.StatusNotFound,
+			Message:  fmt.Sprintf("alias '%s' doesn't exist", aliasFull),
+		},
+	}
+}
+
 func NewInvalidIDsError(ids []string) *InvalidIdsError {
 	return &InvalidIdsError{
 		validationError: validationError{

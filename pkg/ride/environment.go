@@ -89,7 +89,7 @@ func (ws *WrappedState) NewestScriptBytesByAccount(account proto.Recipient) (pro
 	return ws.diff.state.NewestScriptBytesByAccount(account)
 }
 
-func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	return ws.diff.state.NewestRecipientToAddress(recipient)
 }
 
@@ -156,11 +156,11 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, *address); intDataEntry != nil {
+	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, address); intDataEntry != nil {
 		return intDataEntry, nil
 	}
 
@@ -172,11 +172,11 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, *address); boolDataEntry != nil {
+	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, address); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBooleanEntry(account, key)
@@ -187,11 +187,11 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, *address); stringDataEntry != nil {
+	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, address); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestStringEntry(account, key)
@@ -202,11 +202,11 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, *address); binaryDataEntry != nil {
+	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, address); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBinaryEntry(account, key)
@@ -950,7 +950,7 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
-			if err := ws.diff.lease(senderAddress, *receiver, a.Amount, a.ID); err != nil {
+			if err := ws.diff.lease(senderAddress, receiver, a.Amount, a.ID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 

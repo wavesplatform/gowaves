@@ -148,6 +148,21 @@ func (mr *MockStateInfoMockRecorder) AddrByAlias(alias interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockStateInfo)(nil).AddrByAlias), alias)
 }
 
+// AliasesByAddr mocks base method.
+func (m *MockStateInfo) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AliasesByAddr indicates an expected call of AliasesByAddr.
+func (mr *MockStateInfoMockRecorder) AliasesByAddr(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AliasesByAddr", reflect.TypeOf((*MockStateInfo)(nil).AliasesByAddr), addr)
+}
+
 // AllFeatures mocks base method.
 func (m *MockStateInfo) AllFeatures() ([]int16, error) {
 	m.ctrl.T.Helper()
@@ -1311,6 +1326,21 @@ func (m *MockState) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 func (mr *MockStateMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockState)(nil).AddrByAlias), alias)
+}
+
+// AliasesByAddr mocks base method.
+func (m *MockState) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AliasesByAddr indicates an expected call of AliasesByAddr.
+func (mr *MockStateMockRecorder) AliasesByAddr(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AliasesByAddr", reflect.TypeOf((*MockState)(nil).AliasesByAddr), addr)
 }
 
 // AllFeatures mocks base method.

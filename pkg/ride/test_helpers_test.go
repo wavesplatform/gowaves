@@ -162,11 +162,11 @@ func newTestEnv(t *testing.T) *testEnv {
 	r.me.stateFunc = func() types.SmartState {
 		return r.ms
 	}
-	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
-			return &a, nil
+			return a, nil
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", recipient.String())
+		return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", recipient.String())
 	}
 	r.ms.NewestScriptPKByAddrFunc = func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 		if acc, ok := r.accounts[addr]; ok {
