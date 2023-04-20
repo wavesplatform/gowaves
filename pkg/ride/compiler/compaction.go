@@ -193,3 +193,103 @@ func (c *Compaction) processExpr(node ast.Node) ast.Node {
 		return node
 	}
 }
+
+func getUsedNames(node ast.Node, usedNames map[string]struct{}) {
+	switch expr := node.(type) {
+	case *ast.AssignmentNode:
+		getUsedNames(expr.Expression, usedNames)
+		getUsedNames(expr.Block, usedNames)
+	case *ast.FunctionDeclarationNode:
+		getUsedNames(expr.Body, usedNames)
+		getUsedNames(expr.Block, usedNames)
+	case *ast.FunctionCallNode:
+		usedNames[expr.Function.Name()] = struct{}{}
+		for _, a := range expr.Arguments {
+			getUsedNames(a, usedNames)
+		}
+	case *ast.PropertyNode:
+		getUsedNames(expr.Object, usedNames)
+	case *ast.ConditionalNode:
+		getUsedNames(expr.Condition, usedNames)
+		getUsedNames(expr.TrueExpression, usedNames)
+		getUsedNames(expr.FalseExpression, usedNames)
+	case *ast.ReferenceNode:
+		usedNames[expr.Name] = struct{}{}
+	}
+}
+
+func diff(map1, map2 map[string]struct{}) map[string]struct{} {
+	difference := make(map[string]struct{})
+
+	for key, value := range map1 {
+		if _, exists := map2[key]; !exists {
+			difference[key] = value
+		}
+	}
+
+	return difference
+}
+
+func appendMapNames(to, from map[string]struct{}) map[string]struct{} {
+	res := make(map[string]struct{})
+	for k, v := range from {
+		res[k] = v
+	}
+	for k, v := range to {
+		res[k] = v
+	}
+	return res
+}
+
+func getUsedNamesFromList(tree *ast.Tree, exprList []ast.Node, prevNamesList map[string]struct{}) map[string]struct{} {
+	nextNameList := make(map[string]struct{})
+	for _, expr := range exprList {
+		getUsedNames(expr, nextNameList)
+	}
+	nextNameList = diff(nextNameList, prevNamesList)
+	if len(nextNameList) != 0 {
+		nextExprList := []ast.Node{}
+		for _, d := range tree.Declarations {
+			switch e := d.(type) {
+			case *ast.FunctionDeclarationNode:
+				if _, ok := nextNameList[e.Name]; ok {
+					nextExprList = append(nextExprList, e.Body)
+				}
+			case *ast.AssignmentNode:
+				if _, ok := nextNameList[e.Name]; ok {
+					nextExprList = append(nextExprList, e.Expression)
+				}
+			}
+		}
+		return getUsedNamesFromList(tree, nextExprList, appendMapNames(prevNamesList, nextNameList))
+	} else {
+		return prevNamesList
+	}
+}
+
+func removeUnusedCode(tree *ast.Tree) {
+	bodies := []ast.Node{}
+	for _, n := range tree.Functions {
+		f := n.(*ast.FunctionDeclarationNode)
+		bodies = append(bodies, f.Body)
+	}
+	if tree.Verifier != nil {
+		v := tree.Verifier.(*ast.FunctionDeclarationNode)
+		bodies = append(bodies, v.Body)
+	}
+	usedNames := getUsedNamesFromList(tree, bodies, nil)
+	newDecl := []ast.Node{}
+	for _, d := range tree.Declarations {
+		switch e := d.(type) {
+		case *ast.FunctionDeclarationNode:
+			if _, ok := usedNames[e.Name]; ok {
+				newDecl = append(newDecl, d)
+			}
+		case *ast.AssignmentNode:
+			if _, ok := usedNames[e.Name]; ok {
+				newDecl = append(newDecl, d)
+			}
+		}
+	}
+	tree.Declarations = newDecl
+}
