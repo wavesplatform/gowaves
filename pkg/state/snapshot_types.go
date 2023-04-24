@@ -1,6 +1,10 @@
 package state
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"math/big"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
 type TransactionSnapshot []AtomicSnapshot
 
@@ -124,7 +128,7 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 
 type AssetReissuabilitySnapshot struct {
 	assetID       proto.AssetID
-	totalQuantity uint64
+	totalQuantity *big.Int
 	isReissuable  bool
 }
 
