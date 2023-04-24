@@ -114,7 +114,7 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 type StaticAssetInfoSnapshot struct {
 	assetID  proto.AssetID
 	issuer   proto.Address
-	decimals uint8
+	decimals int8
 	isNFT    bool
 }
 
