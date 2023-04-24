@@ -123,8 +123,9 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 }
 
 type AssetReissuabilitySnapshot struct {
-	assetID      proto.AssetID
-	isReissuable bool
+	assetID       proto.AssetID
+	totalQuantity uint64
+	isReissuable  bool
 }
 
 func (s *AssetReissuabilitySnapshot) dummy() error {
