@@ -18,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -28,6 +29,7 @@ const (
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
+	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
@@ -224,6 +226,12 @@ func RandDigest(t *testing.T, n int, symbolSet string) crypto.Digest {
 	return id
 }
 
+func GetScriptBytes(suite *f.BaseSuite, scriptStr string) []byte {
+	script, err := base64.StdEncoding.DecodeString(scriptStr)
+	require.NoError(suite.T(), err, "Failed to decode script string to byte array")
+	return script
+}
+
 func GetCurrentTimestampInMs() uint64 {
 	return uint64(time.Now().UnixMilli())
 }
@@ -339,6 +347,18 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
+}
+
+func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+}
+
+func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+}
+
+func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) (*g.AssetInfoResponse, *g.AssetInfoResponse) {
+	return GetAssetInfoGrpcGo(suite, assetId), GetAssetInfoGrpcScala(suite, assetId)
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {

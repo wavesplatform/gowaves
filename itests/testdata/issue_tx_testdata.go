@@ -21,6 +21,7 @@ type IssueTestData[T any] struct {
 	Quantity   uint64
 	Decimals   byte
 	Reissuable bool
+	Script     proto.Script
 	Fee        uint64
 	Timestamp  uint64
 	ChainID    proto.Scheme
@@ -44,7 +45,7 @@ type ExpectedValuesPositive struct {
 }
 
 func NewIssueTestData[T any](account config.AccountInfo, assetName string, assetDesc string, quantity uint64, decimals byte,
-	reissuable bool, fee uint64, timestamp uint64, chainID proto.Scheme, expected T) *IssueTestData[T] {
+	reissuable bool, script proto.Script, fee uint64, timestamp uint64, chainID proto.Scheme, expected T) *IssueTestData[T] {
 	return &IssueTestData[T]{
 		Account:    account,
 		AssetName:  assetName,
@@ -52,6 +53,7 @@ func NewIssueTestData[T any](account config.AccountInfo, assetName string, asset
 		Quantity:   quantity,
 		Decimals:   decimals,
 		Reissuable: reissuable,
+		Script:     script,
 		Fee:        fee,
 		Timestamp:  timestamp,
 		ChainID:    chainID,
@@ -60,13 +62,14 @@ func NewIssueTestData[T any](account config.AccountInfo, assetName string, asset
 }
 
 func DataChangedTimestamp[T any](td *IssueTestData[T]) IssueTestData[T] {
-	return *NewIssueTestData(td.Account, td.AssetName, td.AssetDesc, td.Quantity, td.Decimals, td.Reissuable, td.Fee,
+	return *NewIssueTestData(td.Account, td.AssetName, td.AssetDesc, td.Quantity, td.Decimals, td.Reissuable, td.Script, td.Fee,
 		utl.GetCurrentTimestampInMs(), td.ChainID, td.Expected)
 }
 
 type CommonIssueData struct {
 	NFT        IssueTestData[ExpectedValuesPositive]
 	Reissuable IssueTestData[ExpectedValuesPositive]
+	Smart      IssueTestData[ExpectedValuesPositive]
 }
 
 func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
@@ -78,6 +81,7 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			1,
 			0,
 			false,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -92,6 +96,22 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			100000000000,
 			4,
 			true,
+			nil,
+			utl.MinIssueFeeWaves,
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			ExpectedValuesPositive{
+				WavesDiffBalance: utl.MinIssueFeeWaves,
+				AssetBalance:     100000000000,
+			}),
+		Smart: *NewIssueTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			utl.RandStringBytes(8, utl.CommonSymbolSet),
+			utl.RandStringBytes(500, utl.CommonSymbolSet),
+			100000000000,
+			4,
+			true,
+			utl.GetScriptBytes(suite, "BQbtKNoM"),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -111,6 +131,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			1,
 			0,
 			false,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -125,6 +146,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000000000,
 			4,
 			false,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -139,6 +161,7 @@ func GetPositiveDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			utl.MaxAmount,
 			8,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -159,6 +182,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			1,
 			0,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -177,6 +201,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -195,6 +220,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -213,6 +239,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -231,6 +258,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			10000,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -249,6 +277,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			0,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -267,6 +296,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			utl.MaxAmount+1,
 			2,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -285,6 +315,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			9,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -303,6 +334,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			utl.MaxAmount+1,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -321,6 +353,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			10,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -339,6 +372,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			0,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -357,6 +391,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs()-7260000,
 			utl.TestChainID,
@@ -375,6 +410,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs()+54160000,
 			utl.TestChainID,
@@ -393,6 +429,7 @@ func GetNegativeDataMatrix(suite *f.BaseSuite) map[string]IssueTestData[Expected
 			100000,
 			8,
 			true,
+			nil,
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,

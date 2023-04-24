@@ -55,6 +55,12 @@ func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, a
 	assert.Equalf(t, expected, actualScala, "Node Scala"+errMsg)
 }
 
+func AssetScriptCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
+	errMsg := makeErrorMessage("Script bytes mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
 func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, actualErrGo,
 	actualErrScala error, args ...interface{}) {
 	errMsg := makeErrorMessage("Error message mismatch", args...)
