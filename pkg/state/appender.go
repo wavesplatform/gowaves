@@ -326,11 +326,11 @@ func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress
 	return nil
 }
 
-func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxParams, res *applicationResult) error {
+func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxParams, res *applicationResult) (TransactionSnapshot, error) {
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
+		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
 	}
 	a.recentTxIds[string(txID)] = empty
 	// Update script runs.
@@ -339,35 +339,37 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	a.sc.addRecentTxComplexity()
 	// Save balance diff.
 	if err := a.diffStor.saveTxDiff(res.changes.diff); err != nil {
-		return wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
+		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
 	// Perform state changes.
+	var snapshot TransactionSnapshot
 	if res.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
 			height:  params.checkerInfo.height,
 			blockID: params.checkerInfo.blockID,
 		}
-		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
-			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
+		snapshot, err := a.txHandler.performTx(tx, performerInfo)
+		if err != nil {
+			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
 	}
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
 		if err := a.rw.writeTransactionToMem(tx, !res.status); err != nil {
-			return wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to in mem stor: %v", err))
+			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to in mem stor: %v", err))
 		}
 	} else {
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
+			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
 		// Save transaction to storage.
 		if err := a.rw.writeTransaction(tx, !res.status); err != nil {
-			return wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to storage: %v", err))
+			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to storage: %v", err))
 		}
 	}
-	return nil
+	return snapshot, nil
 }
 
 func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
@@ -547,7 +549,9 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	if err != nil {
 		return errs.Extend(err, "get transaction id")
 	}
-	if err := a.commitTxApplication(tx, params, applicationRes); err != nil {
+
+	snapshot, err := a.commitTxApplication(tx, params, applicationRes)
+	if err != nil {
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}

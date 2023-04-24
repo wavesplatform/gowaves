@@ -8,7 +8,7 @@ import (
 )
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
-type txPerformFunc func(proto.Transaction, *performerInfo) error
+type txPerformFunc func(proto.Transaction, *performerInfo) (TransactionSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -154,16 +154,17 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([
 	return funcs.check(tx, info)
 }
 
-func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo) error {
+func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
+		return nil, errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.perform == nil {
 		// No perform func for this combination of transaction type and version.
-		return nil
+		return nil, nil
 	}
+
 	return funcs.perform(tx, info)
 }
 

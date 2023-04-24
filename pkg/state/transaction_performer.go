@@ -23,7 +23,7 @@ func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings
 	return &transactionPerformer{stor, settings}, nil
 }
 
-func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Digest, info *performerInfo) error {
+func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Digest, info *performerInfo) (TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -40,13 +40,24 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 			reissuable:               tx.Reissuable,
 		},
 	}
+
 	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to issue asset")
 	}
+
+
+	sender := proto.MustAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	issueSnapshot := StaticAssetInfoSnapshot{
+		assetID: proto.AssetIDFromDigest(assetID),
+		issuer:  sender,
+		isNFT:   assetInfo.isNFT(),
+	}
+	tp.stor.assets.
+
 	return nil
 }
 
-func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
 		return errors.New("failed to convert interface to IssueWithSig transaction")
