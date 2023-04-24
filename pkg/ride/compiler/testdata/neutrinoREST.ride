@@ -1,0 +1,658 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let revisionNum = ""
+
+#-------------------Constants---------------------------
+let EULER8     = 271828182      # 10ˆ8
+let MULT6      = 1_000_000
+let MULTX6     = 1_000_000.toBigInt()
+let MULT8      = 1_0000_0000
+let MULTX8     = 1_0000_0000.toBigInt()
+let MULT12     = 1_000_000_000_000
+let MULT18     = 1_000_000_000_000_000_000.toBigInt()
+let SEP        = "__"
+let BRPROTECTED = 100000 # if BR <= 10% then use SURF during swap USDN->WAVES
+let DEFAULTPAYMENT = 10_0000_0000
+let DEFAULTCREATIONGNSBT = 1000_000000
+
+# synthetic WAVES assetId
+let WAVESID = fromBase58String("WAVES")
+
+# calcNeutinoMetricsREADONLY result array indices
+let nMetricIdxPrice = 0
+let nMetricIdxUsdnLockedBalance = 1
+let nMetricIdxWavesLockedBalance = 2
+let nMetricIdxReserve = 3
+let nMetricIdxReserveInUsdn = 4
+let nMetricIdxUsdnSupply = 5
+let nMetricIdxSurplus = 6
+let nMetricIdxSurplusPercent = 7
+let nMetricIdxBR = 8 # BR with 6 decimals
+let nMetricIdxNsbtSupply = 9
+let nMetricIdxMaxNsbtSupply = 10
+let nMetricIdxSurfSupply = 11
+
+# surfFunctionREADONLY result array indices
+let bFuncIdxSurf = 0
+let bFuncIdxWaves = 1
+let bFuncIdxUsdn = 2
+let bFuncIdxReserveStart = 3
+let bFuncIdxSupplyStart = 4
+let bFuncIdxBRStart = 5
+let bFuncIdxReserveEnd = 6
+let bFuncIdxSupplyEnd = 7
+let bFuncIdxBREnd = 8
+let bFuncIdxRest = 9
+let bFuncIdxWavesPrice = 10
+
+#-------this keys---------
+func keyNeutrinoAddress()  = "%s%s__config__neutrinoAddress" # ignored
+#-------neutrino keys------
+func keyNeutrinoAssetId() = "neutrino_asset_id"
+func keyNsbtAssetId() = "bond_asset_id" # nsbt
+func keySurfAssetId() = "surf_asset_id"
+func keyBalanceLocked() = "balance_lock_"
+func keyWavesLockedBalance() = keyBalanceLocked() + "waves"
+func keyNeutrinoLockedBalance() = keyBalanceLocked() + "neutrino"
+func keyMinWavesSwapAmount() = "min_waves_swap_amount"
+func keyMinNeutrinoSwapAmount() = "min_neutrino_swap_amount"
+func keyWavesOutFeePart() = "wavesOut_swap_feePart"
+func keyNeutrinoOutFeePart() = "neutrinoOut_swap_feePart"
+func keySwapAmountAParam() = "%s%s__config__swapAParam"
+func keySwapAmountBParam() = "%s%s__config__swapBParam"
+func keyUsdnSwapAmountAParam()  = "%s%s__config__usdnSwapAParam"
+func keyUsdnSwapAmountBParam()  = "%s%s__config__usdnSwapBParam"
+func keyNsbtLockContract() = "%s__nsbtLockContract" # ignored
+func keyMathContract() = "%s__mathContract" # ignored
+func brProtectedKEY()  = "min_BR_protection_level"
+
+func keyBalanceWavesLockInterval() = "balance_waves_lock_interval"
+func keyBalanceNeutrinoLockInterval() = "balance_neutrino_lock_interval"
+func keyPaymentRequired() = "%s__paymentRequired"
+func keyGnsbtRequired() = "%s__gNsbtRequired"
+
+#------control keys-------
+func keyPrice() = "price"
+
+#-------- nsbt staking keys-----------
+func keyLockParamStartBlock(userAddress: String) = ["%s%s%s", "paramByUser", userAddress, "start"].makeString(SEP)
+func keyHalfLife() = "%s__halfLife"
+func keyMinLockAmount() = "%s__minLockAmount"
+
+#------- auction keys------
+func keyMinWavesForNsbtBuy() = "min_waves_nsbt_buy"
+func keyMinNsbtSell() = "min_nsbt_sell"
+
+#------- usdn staking keys and api------
+func keyRpdContractBalanceKey(assetId: String) = "rpd_balance_" + assetId
+
+#-------------------Base functions----------------------
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getIntOrFail(address: Address, key: String) = address.getInteger(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getBoolOrFail(address: Address, key: String) = address.getBoolean(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func convertNeutrinoToWaves(amount: Int, price: Int) = fraction(amount, MULT8, price)
+func convertWavesToNeutrino(amount: Int, price: Int) = fraction(amount, price, MULT8)
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyList: List[Any] => valAnyList
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+
+func asTuple2Ints(val: Any) = {
+  match val {
+    case v: (Int, Int) => v
+    case _ => throw("fail to cast into Tuple2 ints")
+  }
+}
+
+func asSwapParamsSTRUCT(val: Any) = {
+  match val {
+    case struct: (Int,Int,Int,Int,Int,Int,Int) => struct
+    case _ => throw("fail to cast into SwapParamsSTRUCT")
+  }
+}
+
+func toTimestamp(start: Int) = {
+  if start < 0 then -1 else
+  match blockInfoByHeight(start) {
+    case block: BlockInfo => block.timestamp
+    case _ => -1
+  }
+}
+
+func toX18(origVal: Int, origScaleMult: Int)    = fraction(origVal.toBigInt(), MULT18, origScaleMult.toBigInt())
+func fromX18(val: BigInt, resultScaleMult: Int) = fraction(val, resultScaleMult.toBigInt(), MULT18).toInt()
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp  = 11
+let IdxControlCfgRestV2Dapp       = 12
+let IdxControlCfgGovernanceDapp   = 13
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg()     = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = control.getStringOrFail(keyControlCfg()).split(SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+
+let mathContract = controlCfg.getContractAddressOrFail(IdxControlCfgMathDapp)
+let neutrinoContract = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let auctionContract = controlCfg.getContractAddressOrFail(IdxControlCfgAuctionDapp)
+let liquidationContract = controlCfg.getContractAddressOrFail(IdxControlCfgLiquidationDapp)
+let rpdContract = controlCfg.getContractAddressOrFail(IdxControlCfgRpdDapp)
+let nsbtStakingContract = controlCfg.getContractAddressOrFail(IdxControlCfgNsbtStakingDapp)
+let surfStakingContract = controlCfg.getContractAddressOrFail(IdxControlCfgSurfStakingDapp)
+let gnsbtControllerContract = controlCfg.getContractAddressOrFail(IdxControlCfgGnsbtControllerDapp)
+let restV2Contract = controlCfg.getContractAddressOrFail(IdxControlCfgRestV2Dapp)
+let governanceContract = controlCfg.getContractAddressOrFail(IdxControlCfgGovernanceDapp)
+
+let neutrinoAssetIdString = neutrinoContract.getStringOrFail(keyNeutrinoAssetId())
+let neutrinoAssetId = fromBase58String(neutrinoAssetIdString)
+let nsbtAssetIdStr = neutrinoContract.getStringValue(keyNsbtAssetId())
+let nsbtAssetId = nsbtAssetIdStr.fromBase58String()
+let surfAssetIdStr = auctionContract.getStringValue(keySurfAssetId())
+let surfAssetId = surfAssetIdStr.fromBase58String()
+
+func minWavesForNsbtBuy() = auctionContract.invoke("minWavesAmountNsbtBuySYSREADONLY", [], []).asInt()
+
+func minNsbtForSell() = auctionContract.invoke("minNsbtAmountForSellSYSREADONLY", [], []).asInt()
+
+func minWavesForSurfBuy() = auctionContract.invoke("minWavesAmountSurfBuySYSREADONLY", [], []).asInt()
+
+func minUsdnForSurfBuy() = auctionContract.invoke("minUsdnAmountSurfBuySYSREADONLY", [], []).asInt()
+
+func privateNsbtPriceREST() = {
+  let prices = mathContract.invoke("calcContractNsbtPriceSYSREADONLY",[0],[]).asAnyList()
+
+  let nsbt2usdnPrice  = prices[0].asInt()
+  let nsbt2wavesPrice = prices[1].asInt()
+
+  (
+    IntegerEntry("nsbt2usdnPrice",  nsbt2usdnPrice),
+    IntegerEntry("nsbt2wavesPrice", nsbt2wavesPrice)
+  )
+}
+
+func getLockedOnRpd(addrStr: String, assetIdStr: String) = {
+  let key = makeString(["rpd_balance", assetIdStr, addrStr], "_")
+  rpdContract.getInteger(key).valueOrElse(0)
+}
+
+@Callable(i)
+# swapAmountAParam is MULT8
+func constructor(neutrinoAddress: String, nsbtLockAddress: String, mathAddress: String) = {
+  if (i.caller != this) then throw("not authorized") else
+  [
+      StringEntry(keyNeutrinoAddress(), neutrinoAddress),
+      StringEntry(keyNsbtLockContract(), nsbtLockAddress),
+      StringEntry(keyMathContract(), mathAddress)
+  ]
+}
+
+@Callable(i)
+func neutrinoStatsREADONLY() = {
+  let neutrinoMetrics = mathContract.invoke("calcNeutinoMetricsREADONLY",[],[]).asAnyList()
+
+  let prices = mathContract.invoke("calcContractNsbtPriceSYSREADONLY",[0],[]).asAnyList()
+
+  let currentPrice           = neutrinoMetrics[nMetricIdxPrice].asInt()
+  let neutrinoLockedBalance  = neutrinoMetrics[nMetricIdxUsdnLockedBalance].asInt()
+  let wavesLockedBalance     = neutrinoMetrics[nMetricIdxWavesLockedBalance].asInt()
+  let reservesInWaves        = neutrinoMetrics[nMetricIdxReserve].asInt()
+  let reservesInUsdn         = neutrinoMetrics[nMetricIdxReserveInUsdn].asInt()
+  let neutrinoSupply         = neutrinoMetrics[nMetricIdxUsdnSupply].asInt()
+  let surplus                = neutrinoMetrics[nMetricIdxSurplus].asInt()
+  let surplusPercent         = neutrinoMetrics[nMetricIdxSurplusPercent].asInt()
+  let BR                     = neutrinoMetrics[nMetricIdxBR].asInt()
+  let nsbtSupply             = neutrinoMetrics[nMetricIdxNsbtSupply].asInt()
+  let maxNsbtSupply          = neutrinoMetrics[nMetricIdxMaxNsbtSupply].asInt()
+  let nsbt2usdnPrice         = prices[0].asInt()
+  let nsbt2wavesPrice        = prices[1].asInt()
+  let minWaves4NsbtBuy       = minWavesForNsbtBuy()
+  let minNsbtsell            = minNsbtForSell()
+  let minNsbtLockAmt         = nsbtStakingContract.getIntOrFail(keyMinLockAmount())
+  let maxWaves2BuySurf       = fraction(neutrinoSupply, MULT8, currentPrice) - reservesInWaves
+  let maxUsdn2BuySurf        = neutrinoSupply - reservesInUsdn
+  let surfPriceInUsdn        = BR
+  let surfPriceInWaves       = fraction(BR, MULT6, currentPrice)
+  let totalUsdnStaked        = rpdContract.getInteger(keyRpdContractBalanceKey(neutrinoAssetIdString)).valueOrElse(0)
+
+  ([], makeString([
+          "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
+          currentPrice.toString(),          # 1
+          neutrinoLockedBalance.toString(), # 2
+          wavesLockedBalance.toString(),    # 3
+          reservesInWaves.toString(),       # 4
+          reservesInUsdn.toString(),        # 5
+          neutrinoSupply.toString(),        # 6
+          surplus.toString(),               # 7
+          surplusPercent.toString(),        # 8
+          BR.toString(),                    # 9
+          nsbtSupply.toString(),            # 10
+          maxNsbtSupply.toString(),         # 11
+          nsbt2usdnPrice.toString(),        # 12
+          nsbt2wavesPrice.toString(),       # 13
+          minWaves4NsbtBuy.toString(),      # 14
+          minNsbtsell.toString(),           # 15
+          minNsbtLockAmt.toString(),        # 16
+          totalUsdnStaked.toString()        # 17
+        ], SEP))
+}
+
+@Callable(i)
+func swapInfoREADONLY(userAddressStrOpt: String) = {
+  let currentPrice           = controlContract.getIntegerValue(keyPrice())
+  let minWavesSwapAmt        = neutrinoContract.getIntegerValue(keyMinWavesSwapAmount())
+  let minUsdnSwapAmt         = neutrinoContract.getIntegerValue(keyMinNeutrinoSwapAmount())
+  let waves2UsdnFee          = neutrinoContract.getIntegerValue(keyWavesOutFeePart())
+  let usdn2WavesFee          = neutrinoContract.getIntegerValue(keyNeutrinoOutFeePart())
+  let usdnSwapDelayDuration  = neutrinoContract.getIntegerValue(keyBalanceNeutrinoLockInterval())
+  let wavesSwapDelayDuration = neutrinoContract.getIntegerValue(keyBalanceWavesLockInterval())
+
+  let swapParamsSTRUCT = neutrinoContract.invoke("swapParamsByUserSYSREADONLY", [userAddressStrOpt, 0], []).asSwapParamsSTRUCT()
+  let swapLimitMaxUsdn    = swapParamsSTRUCT._1
+  let swapLimitSpentUsdn  = swapParamsSTRUCT._2
+  let blcks2LmtReset      = swapParamsSTRUCT._3
+  let wavesSwapLimitMax   = swapParamsSTRUCT._6
+  let usdnSwapLimitMax    = swapParamsSTRUCT._7
+
+  ([],
+    makeString([
+          "%d%d%d%d%d%d%d%d%d%d%d",         # 0
+          currentPrice.toString(),          # 1
+          minWavesSwapAmt.toString(),       # 2
+          minUsdnSwapAmt.toString(),        # 3
+          waves2UsdnFee.toString(),         # 4
+          usdn2WavesFee.toString(),         # 5
+          usdnSwapDelayDuration.toString(), # 6  usdn swap delay duration
+          wavesSwapDelayDuration.toString(),# 7  waves swap delay duration
+          blcks2LmtReset.toString(),        # 8
+          wavesSwapLimitMax.toString(),     # 9  max allowed swap limit based on gnsbt balance
+          usdnSwapLimitMax.toString(),      # 10 max allowed swap limit based on gnsbt balance
+          swapLimitSpentUsdn.toString()     # 11
+          ], SEP))
+}
+
+@Callable(i)
+func gnsbtInfoREADONLY(userAddressStrOpt: String, nsbtAmtDiff: Int) = {
+  let currentPrice = controlContract.getIntegerValue(keyPrice())
+
+  let swapParams = neutrinoContract.invoke("swapParamsByUserSYSREADONLY", [userAddressStrOpt, 0], []).asSwapParamsSTRUCT()
+  let blcks2LmtReset    = swapParams._3
+  let gnsbtAmt          = swapParams._4
+  let gnsbtAmtTotal     = swapParams._5
+  let limitMaxWaves     = swapParams._6
+  let limitMaxUsdn      = swapParams._7
+
+  let swapParamsNEW = neutrinoContract.invoke("swapParamsByUserSYSREADONLY", [userAddressStrOpt, nsbtAmtDiff], []).asSwapParamsSTRUCT()
+  let blcks2LmtResetNEW = swapParamsNEW._3
+  let gnsbtAmtNEW       = swapParamsNEW._4
+  let gnsbtAmtTotalNEW  = swapParamsNEW._5
+  let limitMaxWavesNEW  = swapParamsNEW._6
+  let limitMaxUsdnNEW   = swapParamsNEW._7
+
+  let gnsbtShare = if (gnsbtAmtTotal != 0) then fraction(gnsbtAmt * 100, MULT12, gnsbtAmtTotal) else 0
+  let gnsbtShareNEW = if (gnsbtAmtTotalNEW != 0) then fraction(gnsbtAmtNEW * 100, MULT12, gnsbtAmtTotalNEW) else 0
+
+  let rewardInfo = nsbtStakingContract.invoke("unclaimedRewardsREADONLY", [userAddressStrOpt], []).asString()
+
+  let nsbtAmt = gnsbtAmt
+  let nsbtAmtNew = gnsbtAmtNEW
+  let nsbtAmtStakedTotal = nsbtStakingContract.assetBalance(nsbtAssetId)
+  let nsbtAmtStakedTotalNew = nsbtAmtStakedTotal
+
+  let nsbtData = nsbtStakingContract.invoke("nsbtStakingSYSREADONLY", [userAddressStrOpt, nsbtAmtDiff], []).asAnyList()
+  # for unknown user or user without gNsbt (gnsbtAmt = gnsbtAmtNEW == 0) we return heights and timestamps -1
+  let isEmptyNsbtBalance = gnsbtAmt == 0 && gnsbtAmtNEW == 0
+  let startHeight = if (isEmptyNsbtBalance) then height else nsbtData[2].asInt()
+  let startTimestamp = toTimestamp(startHeight)
+  let halfLife = nsbtStakingContract.getIntOrFail(keyHalfLife());
+  let startHeightNew = if (isEmptyNsbtBalance) then height else
+  mathContract.invoke("mergeStakesREADONLY", [gnsbtAmt, startHeight, gnsbtAmtNEW, height, halfLife], []).asInt()
+  let startTimestampNew = toTimestamp(startHeightNew)
+
+  ([], makeString([
+          "%d%d%d%d%d%d%d%d%s%d%d%d%d%d%d%d%d", # 0
+          gnsbtAmt.toString(),              # 1
+          gnsbtAmtNEW.toString(),           # 2
+          gnsbtShare.toString(),            # 3
+          gnsbtShareNEW.toString(),         # 4
+          limitMaxUsdn.toString(),          # 5
+          limitMaxWaves.toString(),         # 6
+          limitMaxUsdnNEW.toString(),       # 7
+          limitMaxWavesNEW.toString(),      # 8
+          rewardInfo,                       # 9
+          nsbtAmt.toString(),               # 10
+          nsbtAmtNew.toString(),            # 11
+          nsbtAmtStakedTotal.toString(),    # 12
+          nsbtAmtStakedTotalNew.toString(), # 13
+          startHeight.toString(),           # 14
+          startTimestamp.toString(),        # 15
+          startHeightNew.toString(),        # 16
+          startTimestampNew.toString()      # 17
+          ], SEP))
+}
+
+@Callable(i)
+func neutrinoConfigREADONLY() = {
+  let limitParamA      = mathContract.getIntegerValue(keySwapAmountAParam())
+  let limitParamB      = mathContract.getIntegerValue(keySwapAmountBParam())
+  let usdnLimitParamA  = mathContract.getIntegerValue(keyUsdnSwapAmountAParam())
+  let usdnLimitParamB  = mathContract.getIntegerValue(keyUsdnSwapAmountBParam())
+
+  let minWavesSwapAmt  = neutrinoContract.getIntegerValue(keyMinWavesSwapAmount())
+  let minUsdnSwapAmt   = neutrinoContract.getIntegerValue(keyMinNeutrinoSwapAmount())
+  let waves2UsdnFee    = neutrinoContract.getIntegerValue(keyWavesOutFeePart())
+  let usdn2WavesFee    = neutrinoContract.getIntegerValue(keyNeutrinoOutFeePart())
+  let brProtected      = neutrinoContract.getInteger(brProtectedKEY()).valueOrElse(BRPROTECTED)
+  let usdnSwapDelay    = neutrinoContract.getIntegerValue(keyBalanceNeutrinoLockInterval())
+  let wavesSwapDelay   = neutrinoContract.getIntegerValue(keyBalanceWavesLockInterval())
+
+  let minWaves4NsbtBuy = minWavesForNsbtBuy()
+  let minNsbtsell      = minNsbtForSell()
+  let minNsbtLockAmt   = nsbtStakingContract.getIntegerValue(keyMinLockAmount())
+  let halfLife         = nsbtStakingContract.getIntegerValue(keyHalfLife())
+  let minWaves4SurfBuy = minWavesForSurfBuy()
+  let minUsdn4SurfBuy  = minUsdnForSurfBuy()
+
+  let surfStakingCfg = surfStakingContract.invoke("configSYSREADONLY", [], []).asAnyList()
+  let minSurfStakeAmt                   = surfStakingCfg[0].asInt()
+  let gnsbtFromSurfCoeff                = surfStakingCfg[1].asInt()
+  let surfVotingPowerRestrictivePeriod  = surfStakingCfg[2].asInt()
+  let brToStartSurfTransformation       = surfStakingCfg[3].asInt()
+  let shutdown                          = controlContract.getBoolean("is_blocked").valueOrElse(false)
+  let votingCreationCost = governanceContract.getInteger(keyPaymentRequired()).valueOrElse(DEFAULTPAYMENT)
+  let votingCreationGnsbtNeeded = governanceContract.getInteger(keyGnsbtRequired()).valueOrElse(DEFAULTCREATIONGNSBT)
+
+  ([], makeString(["%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%b%d%d%d%d%d%d%d",
+      limitParamA.toString(),                         # 1
+      limitParamB.toString(),                         # 2
+      minWavesSwapAmt.toString(),                     # 3
+      minUsdnSwapAmt.toString(),                      # 4
+      waves2UsdnFee.toString(),                       # 5
+      usdn2WavesFee.toString(),                       # 6
+      minWaves4NsbtBuy.toString(),                    # 7
+      minNsbtsell.toString(),                         # 8
+      minNsbtLockAmt.toString(),                      # 9
+      halfLife.toString(),                            # 10
+      minWaves4SurfBuy.toString(),                    # 11
+      minUsdn4SurfBuy.toString(),                     # 12
+      minSurfStakeAmt.toString(),                     # 13
+      gnsbtFromSurfCoeff.toString(),                  # 14
+      surfVotingPowerRestrictivePeriod.toString(),    # 15
+      brToStartSurfTransformation.toString(),         # 16
+      shutdown.toString(),                            # 17
+      usdnLimitParamA.toString(),                     # 18
+      usdnLimitParamB.toString(),                     # 19
+      brProtected.toString(),                         # 20
+      wavesSwapDelay.toString(),                      # 21
+      usdnSwapDelay.toString(),                       # 22
+      votingCreationCost.toString(),                  # 23
+      votingCreationGnsbtNeeded.toString()            # 24
+    ], SEP))
+}
+
+@Callable(i)
+func buyNsbtREADONLY(wavesPay: Int) = {
+  let minWavesAmountNsbtBuy = minWavesForNsbtBuy()
+  if (wavesPay < minWavesAmountNsbtBuy) then throw("min " + minWavesAmountNsbtBuy.toString() + " waves expected") else
+
+  strict curveResult = mathContract.invoke("curveFunctionREADONLY", [wavesPay], []).asAnyList()
+
+  let nsbtAmount = curveResult[0].asInt()
+
+  if (nsbtAmount <= 0) then throw("nsbtAmount <= 0") else
+
+  ([], makeString(["%d", nsbtAmount.toString()], SEP))
+}
+
+# use base58 assetId or 'WAVES' as waves assetIdStr
+@Callable(i)
+func buySurfREADONLY(userAddressStrOpt: String, amount: Int, assetIdStr: String) = {
+  let assetId = assetIdStr.fromBase58String()
+
+  let surfResult = mathContract.invoke("surfFunctionREADONLY", [amount, assetId], []).asAnyList()
+  let surfAmount = surfResult[bFuncIdxSurf].asInt()
+  let gNsbtAmount = surfStakingContract.invoke("gnsbtFromSurfSYSREADONLY", [surfAmount], []).asInt()
+
+  let swapParams = neutrinoContract.invoke("swapParamsByUserSYSREADONLY", [userAddressStrOpt, 0], []).asSwapParamsSTRUCT()
+  let wavesLimit = swapParams._6
+  let usdnLimit = swapParams._7
+
+  let swapParamsNew = neutrinoContract.invoke("swapParamsByUserSYSREADONLY", [userAddressStrOpt, gNsbtAmount], []).asSwapParamsSTRUCT()
+  let wavesLimitNew = swapParamsNew._6
+  let usdnLimitNew = swapParamsNew._7
+
+  let price = surfResult[bFuncIdxWavesPrice].asInt()
+  let additionalLimitUsdn = usdnLimitNew - usdnLimit
+  let additionalLimitWaves = wavesLimitNew - wavesLimit
+  let br0 = surfResult[bFuncIdxBRStart].asInt()
+  let br1 = surfResult[bFuncIdxBREnd].asInt()
+  let priceSurf2Waves0 = fraction(br0, MULT6, price)
+  let priceSurf2Waves1 = fraction(br1, MULT6, price)
+
+  let gsnbtRestV2DATA  = restV2Contract.invoke("gnsbtInfoINTERNAL", [userAddressStrOpt, 0, surfAmount], []).asAnyList()
+  let votingPowerMax    = gsnbtRestV2DATA[21].asInt()
+  let votingPowerMaxNEW = gsnbtRestV2DATA[22].asInt()
+  let votingPowerEtaNEW = gsnbtRestV2DATA[23].asInt()
+
+  let mergedVotingPowerEta  = votingPowerEtaNEW # it is new (merged) votingPowerEffectiveHeight after SURF buy and stake
+  let maxVotingPowerDiff    = votingPowerMaxNEW - votingPowerMax # difference between max voting power
+  let rest = surfResult[bFuncIdxRest].asInt()
+
+  ([], makeString(["%d%d%d%d%d%d%d%d%d%d%d",
+      surfAmount.toString(),            # 1
+      gNsbtAmount.toString(),           # 2
+      additionalLimitUsdn.toString(),   # 3
+      additionalLimitWaves.toString(),  # 4
+      br0.toString(),                   # 5
+      br1.toString(),                   # 6
+      priceSurf2Waves0.toString(),      # 7
+      priceSurf2Waves1.toString(),      # 8
+      mergedVotingPowerEta.toString(),  # 9
+      maxVotingPowerDiff.toString(),    # 10
+      rest.toString()                   # 11
+  ], SEP))
+}
+
+@Callable(i)
+func walletInfoREADONLY(userAddressStrOpt: String) = {
+  let addr = addressFromString(userAddressStrOpt)
+  let balance = if (addr.isDefined()) then addr.value().wavesBalance() else BalanceDetails(0, 0, 0, 0)
+  let usdnLocked = getLockedOnRpd(userAddressStrOpt, neutrinoAssetIdString)
+  let nsbtLockedOld = getLockedOnRpd(userAddressStrOpt, nsbtAssetIdStr)
+
+  let gnsbtData = gnsbtControllerContract.invoke("gnsbtInfoSYSREADONLY", [userAddressStrOpt, 0, 0], []).asAnyList()
+
+  let nsbtData = gnsbtData[2].asAnyList()
+  let nsbtUser            = nsbtData[0].asInt()
+  let nsbtTotal           = nsbtData[1].asInt()
+  let gNsbtFromNsbtUser   = nsbtData[2].asInt()
+  let gNsbtFromNsbtTotal  = nsbtData[3].asInt()
+
+  let surfData = gnsbtData[3].asAnyList()
+  let surfUser            = surfData[0].asInt()
+  let surfTotal           = surfData[1].asInt()
+  let gNsbtFromSurfUser   = surfData[2].asInt()
+  let gNsbtFromSurfTotal  = surfData[3].asInt()
+
+  let availableUsdnToClaimFromSurf  = 0 # STUB! usdn amount received during surf transformation and available to claim right now
+  let alreadyClaimedUsdnFromSurf    = 0 # STUB! usdn amount received during surf transformation that has been already claimed by user
+
+  let gsnbtRestV2DATA = restV2Contract.invoke("gnsbtInfoINTERNAL", [userAddressStrOpt, 0, 0], []).asAnyList()
+  let votingPower     = gsnbtRestV2DATA[19].asInt()
+  let votingPowerMax  = gsnbtRestV2DATA[21].asInt()
+  let votingPowerEta  = gsnbtRestV2DATA[23].asInt()
+
+  ([], makeString([
+    "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
+        balance.regular.toString(),             # 1
+        balance.available.toString(),           # 2
+        balance.generating.toString(),          # 3
+        balance.effective.toString(),           # 4
+        height.toString(),                      # 5
+        usdnLocked.toString(),                  # 6
+        nsbtLockedOld.toString(),               # 7
+        nsbtUser.toString(),                    # 8
+        gNsbtFromNsbtUser.toString(),           # 9
+        gNsbtFromSurfUser.toString(),           # 10
+        surfUser.toString(),                    # 11
+
+        votingPower.toString(),                 # 12
+        votingPowerMax.toString(),              # 13
+        votingPowerEta.toString(),              # 14
+        availableUsdnToClaimFromSurf.toString(),# 15
+        alreadyClaimedUsdnFromSurf.toString(),  # 16
+
+        gNsbtFromNsbtTotal.toString(),          # 17
+        gNsbtFromSurfTotal.toString()           # 18
+    ], SEP))
+}
+
+# for evaluating merged stake height and amount
+@Callable(i)
+func mergedStakeREADONLY(amount1: Int, height1: Int, amount2: Int, height2: Int) = {
+  let halfLife = nsbtStakingContract.getIntOrFail(keyHalfLife());
+  let h = mathContract.invoke("mergeStakesREADONLY", [amount1, height1, amount2, height2, halfLife], []).asInt()
+  ([], makeString([
+    "%d%d",
+    (amount1 + amount2).toString(),
+    h.toString()
+    ], SEP))
+}
+
+@Callable(i)
+func unstakeComissionAmountByHeightREADONLY(amount: Int, startHeight: Int) = {
+  let halfLife = nsbtStakingContract.getIntOrFail(keyHalfLife());
+  strict a = mathContract.invoke("getUnstakeComissionAmountREADONLY", [amount, startHeight, halfLife], []).asInt()
+  ([], makeString(["%d", a.toString()], SEP))
+}
+
+@Callable(i)
+func unstakeComissionAmountByUserREADONLY(amount: Int, userAddress: String) = {
+  let halfLife = nsbtStakingContract.getIntOrFail(keyHalfLife());
+  let startHeight = nsbtStakingContract.getInteger(keyLockParamStartBlock(userAddress)).valueOrElse(height)
+  strict a = mathContract.invoke("getUnstakeComissionAmountREADONLY", [amount, startHeight, halfLife], []).asInt()
+  ([], makeString(["%d", a.toString()], SEP))
+}
+
+@Callable(i)
+func usdnStakingAprREADONLY(days: Int) = {
+  let wavesIncome = 6000*MULT8 # TODO hardocoded income - need to read it dynamically
+
+  let neutrinoMetrics = mathContract.invoke("calcNeutinoMetricsREADONLY",[],[]).asAnyList()
+  let currentPrice    = neutrinoMetrics[nMetricIdxPrice].asInt()
+  let totalUsdnStaked = rpdContract.getInteger(keyRpdContractBalanceKey(neutrinoAssetIdString)).valueOrElse(0)
+
+  let usdnIncome = fraction(wavesIncome, currentPrice, MULT8)
+  let apr = fraction(usdnIncome * MULT6, 365, totalUsdnStaked)
+  ([], [apr])
+}
+
+@Callable(i)
+func neutrinoStateREST() = {
+
+  let neutrinoMetrics = mathContract.invoke("calcNeutinoMetricsREADONLY",[],[]).asAnyList()
+
+  let currentPrice           = neutrinoMetrics[nMetricIdxPrice].asInt()
+  let neutrinoLockedBalance  = neutrinoMetrics[nMetricIdxUsdnLockedBalance].asInt()
+  let wavesLockedBalance     = neutrinoMetrics[nMetricIdxWavesLockedBalance].asInt()
+  let reservesInWaves        = neutrinoMetrics[nMetricIdxReserve].asInt()
+  let reservesInUsdn         = neutrinoMetrics[nMetricIdxReserveInUsdn].asInt()
+  let neutrinoSupply         = neutrinoMetrics[nMetricIdxUsdnSupply].asInt()
+  let surplus                = neutrinoMetrics[nMetricIdxSurplus].asInt()
+  let surplusPercent         = neutrinoMetrics[nMetricIdxSurplusPercent].asInt()
+  let BR                     = neutrinoMetrics[nMetricIdxBR].asInt()
+  let nsbtSupply             = neutrinoMetrics[nMetricIdxNsbtSupply].asInt()
+  let nsbtSupplyMax          = neutrinoMetrics[nMetricIdxMaxNsbtSupply].asInt()
+  let surfSupply             = neutrinoMetrics[nMetricIdxSurfSupply].asInt()
+
+  throw(
+    makeString([
+          "resultNeutrinoStateREST",        # 0
+          currentPrice.toString(),          # 1
+          neutrinoLockedBalance.toString(), # 2
+          wavesLockedBalance.toString(),    # 3
+          reservesInWaves.toString(),       # 4
+          reservesInUsdn.toString(),        # 5
+          neutrinoSupply.toString(),        # 6
+          surplus.toString(),               # 7
+          surplusPercent.toString(),        # 8
+          BR.toString(),                    # 9
+          nsbtSupply.toString(),            # 10
+          nsbtSupplyMax.toString(),         # 11
+          surfSupply.toString()             # 12
+          ],
+    "__"))
+}
+
+@Callable(i)
+func nsbtPriceREST() = {
+  let prices = mathContract.invoke("calcContractNsbtPriceSYSREADONLY",[0],[]).asAnyList()
+
+  let nsbt2usdnPrice         = prices[0].asInt()
+  let nsbt2wavesPrice        = prices[1].asInt()
+
+  let restData = makeString([
+        "startNsbtPriceREST",       #0
+        nsbt2usdnPrice.toString(),  #1
+        nsbt2wavesPrice.toString(), #2
+        "endNsbtPriceREST"          #3
+        ],
+    "__")
+
+  throw(restData)
+}
+
+@Callable(i)
+func surfPriceREST() = {
+  let neutrinoMetrics = mathContract.invoke("calcNeutinoMetricsREADONLY",[],[]).asAnyList()
+  let currentPrice    = neutrinoMetrics[nMetricIdxPrice].asInt()
+  let reservesInWaves = neutrinoMetrics[nMetricIdxReserve].asInt()
+  let neutrinoSupply  = neutrinoMetrics[nMetricIdxUsdnSupply].asInt()
+
+  let surfPriceInUsdn = fraction(reservesInWaves, currentPrice, neutrinoSupply)
+  let surfPriceInWaves = fraction(reservesInWaves, MULT8, neutrinoSupply)
+
+  let restData = makeString([
+        "startSurfPriceREST",        #0
+        surfPriceInUsdn.toString(),  #1
+        surfPriceInWaves.toString(), #2
+        "endSurfPriceREST"           #3
+        ],
+    "__")
+
+  throw(restData)
+}

@@ -1,0 +1,177 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# TEAM Contract
+
+# Operation flow:
+# 1. WX tokens are transferred to this account using constructor callable
+# 2. 'constructor' callable is called once and specified the following parameters
+#    - start block (first block after which funds owner could have a claim possibility)
+#    - vesting period for emission (period in which funds owner got all emission)
+#    - address of the funds owner
+#    - payment of with the amount of tokens for further claim
+# 3. 'claim' callable used to claim the available atm portion of funds.
+#    Claim amount is calculated based on the 'open period' of blocks since cliff block.
+
+let SEP = "__"
+
+# State Data Formatting Functions
+let IdxCfgClaimStartBlock        = 1
+let IdxCfgClaimVestingPeriod     = 2
+let IdxCfgClaimAssetId           = 3
+let IdxCfgClaimAssetMult         = 4
+let IdxCfgClaimAssetOwner        = 5
+let IdxCfgClaimAssetTotalAmount  = 6
+
+let IdxTotalsTotalClaimedAmount  = 1
+let IdxTotalsRemainingAmount     = 2
+let IdxTotalsLastClaimedHeight   = 3
+
+func getStringOrFail(key: String) = getString(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+
+func formatConfigString(claimStartBlock: String, vestingPeriod: String, assetIdBase58:String, assetMult: String, assetOwner: String, assetTotalAmt: String) = {
+  makeString([
+      "%d%d%s%d%s%d%",
+      claimStartBlock,              # 1
+      vestingPeriod,            # 2
+      assetIdBase58,            # 3
+      assetMult,                # 4
+      assetOwner,               # 5
+      assetTotalAmt             # 6
+    ],
+  SEP)
+}
+
+func formatConfig(claimStartBlock: Int, vestingPeriod: Int, assetIdBase58: String, assetMult: Int, claimAssetOwner: String, claimAssetTotalAmount: Int) = {
+  formatConfigString(
+    claimStartBlock.toString(),       # 1
+    vestingPeriod.toString(),         # 2
+    assetIdBase58,                    # 3
+    assetMult.toString(),             # 4
+    claimAssetOwner,                  # 5
+    claimAssetTotalAmount.toString()  # 6
+  )
+}
+
+func formatTotalsString(totalClaimedAmount: String, remainingAmountForClaim: String, lastClaimedHeight: String) = {
+  makeString([
+      "%d%d%d",
+      totalClaimedAmount,           # 1
+      remainingAmountForClaim,      # 2
+      lastClaimedHeight             # 3
+      ],
+  SEP)
+}
+
+func formatHistoryRecord(claimedAssetAmount: Int, claimingBlocks: Int, firstCalulationBlock: Int, lastCalulationBlock: Int) = {
+  makeString(["%d%d%d%d%d%d", height.toString(), lastBlock.timestamp.toString(), claimedAssetAmount.toString(), claimingBlocks.toString(), firstCalulationBlock.toString(), lastCalulationBlock.toString()],  SEP)
+}
+
+# Keys Definition
+func keyConfig() = {"%s__config"}
+func keyTotals() = {"%s__totals"}
+func keyOperationHistoryRecord(type: String, userAddress: String, txId58: String) = {
+    makeString(["%s%s%s%s__history",
+        type,
+        userAddress,
+        txId58],
+    SEP)
+}
+
+# State Reading Functions
+func readConfigArray() = {
+  getStringOrFail(keyConfig()).split(SEP)
+}
+
+func readTotalsArray() = {
+  getStringOrFail(keyTotals()).split(SEP)
+}
+
+# Custom Data Entries
+func TotalsEntry(key: String, origArray: List[String], claimedAmt: Int, newLastClaimedHeight: Int) = {
+  let totalClaimedAmount          = origArray[IdxTotalsTotalClaimedAmount].parseIntValue()
+  let remainingAmount             = origArray[IdxTotalsRemainingAmount].parseIntValue()
+  let lastClaimedHeight           = origArray[IdxTotalsLastClaimedHeight].parseIntValue()
+
+  let newTotalClaimedAmount       = totalClaimedAmount  + claimedAmt
+  let newRemainingAmount          = remainingAmount     - claimedAmt
+
+  if (newRemainingAmount < 0) then throw("invalid math") else
+
+  StringEntry(key,
+      formatTotalsString(newTotalClaimedAmount.toString(), newRemainingAmount.toString(), newLastClaimedHeight.toString())
+  )
+}
+
+func ClaimOperationHistoryEntry(userAddress: String, claimedAssetAmount: Int,  claimingBlocks: Int, firstCalculationBlock: Int, lastCalculationBlock: Int, txId: ByteVector) = {
+  StringEntry(
+      keyOperationHistoryRecord("claim", userAddress, txId.toBase58String()),
+      formatHistoryRecord(claimedAssetAmount, claimingBlocks, firstCalculationBlock, lastCalculationBlock))
+}
+
+# params:
+#    1. claimStartBlock         - first block after which funds owner could have a claim possibility
+#    2. vestingPeriod      - period in which funds owner got all emission
+#    3. beneficiarAddress  - funds owner
+#    4. mandatory payment  - payment with the tockens for further claiming
+@Callable(i)
+func constructor(claimStartBlock: Int, vestingPeriodBlocks: Int, beneficiaryAddress: String) = {
+  let vestingEnd = claimStartBlock + vestingPeriodBlocks
+  if (getString(keyConfig()).isDefined()) then throw("already initialized") else
+  if (i.payments.size() != 1) then throw("exactly 1 payment must be attached") else
+  # TODO
+  if (i.callerPublicKey != base58'2Cbd8ozG7A1RyRNC3nNnZgHu7Ru4K3JCfpyPkhqr9zxq') then throw("not authorized") else
+  let beneficiaryAddressParsed = addressFromString(beneficiaryAddress).valueOrErrorMessage("Invalid beneficiarAddress passed")
+
+  let pmt = i.payments[0].value()
+  let claimAssetId = pmt.assetId.value()
+  let claimAssetInfo = assetInfo(claimAssetId).valueOrErrorMessage("fail to load ido asset info")
+  let claimAssetId58 = claimAssetId.toBase58String()
+  let claimAssetMult = pow(10, 0, claimAssetInfo.decimals, 0, 0, DOWN)
+  let claimAssetAmount = pmt.amount
+  [
+      StringEntry(keyConfig(),
+          formatConfig(claimStartBlock, vestingPeriodBlocks, claimAssetId58, claimAssetMult, beneficiaryAddressParsed.toString(), claimAssetAmount)),
+      StringEntry(keyTotals(), formatTotalsString("0", claimAssetAmount.toString(), "0"))
+  ]
+}
+
+@Callable(i)
+func claim() = {
+  let cfgArray                  = readConfigArray()
+  let cfgClaimStartHeight       = cfgArray[IdxCfgClaimStartBlock].parseIntValue()
+  let cfgClaimDuration          = cfgArray[IdxCfgClaimVestingPeriod].parseIntValue()
+  let cfgClaimEnd               = cfgClaimStartHeight + cfgClaimDuration
+  let cfgClaimAssetId58         = cfgArray[IdxCfgClaimAssetId]
+  let cfgClaimAssetOwner        = cfgArray[IdxCfgClaimAssetOwner]
+  let cfgClaimAssetTotalAmount  = cfgArray[IdxCfgClaimAssetTotalAmount].parseIntValue()
+
+  let userAddress            = i.caller
+  let userAddress58          = userAddress.toString()
+
+  let origTotalsArray        = readTotalsArray()
+  let totalClaimedAmount     = origTotalsArray[IdxTotalsTotalClaimedAmount].parseIntValue()
+  let totalRemainingAmount   = origTotalsArray[IdxTotalsRemainingAmount].parseIntValue()
+  let lastClaimedHeight      = origTotalsArray[IdxTotalsLastClaimedHeight].parseIntValue()
+
+  if (userAddress58 != cfgClaimAssetOwner) then throw("permissions denied") else
+  if (height < cfgClaimStartHeight) then throw("Wait claim start block: " + cfgClaimStartHeight.toString()) else
+
+  let lastCalulationBlock = if (height > cfgClaimEnd) then cfgClaimEnd else height
+  let firstCalulationBlock = if (lastClaimedHeight == 0) then cfgClaimStartHeight else lastClaimedHeight
+  let claimingBlocks = lastCalulationBlock - firstCalulationBlock
+
+  let claimingAssetAmount = fraction(cfgClaimAssetTotalAmount, claimingBlocks, cfgClaimDuration)
+
+  [
+      ScriptTransfer(userAddress, claimingAssetAmount, cfgClaimAssetId58.fromBase58String()),
+      TotalsEntry(keyTotals(), readTotalsArray(), claimingAssetAmount, lastCalulationBlock),
+      ClaimOperationHistoryEntry(userAddress58, claimingAssetAmount, claimingBlocks, firstCalulationBlock, lastCalulationBlock, i.transactionId)
+  ]
+}
+
+@Verifier(tx)
+func verify () = {
+  sigVerify(tx.bodyBytes, tx.proofs[0], fromBase58String("2Cbd8ozG7A1RyRNC3nNnZgHu7Ru4K3JCfpyPkhqr9zxq"))
+}

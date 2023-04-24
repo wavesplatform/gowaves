@@ -39,6 +39,7 @@ const (
 	TransactionDoesNotExistErrorID    TransactionErrorID = 311
 	UnsupportedTransactionTypeErrorID TransactionErrorID = 312
 	AssetDoesNotExistErrorID          TransactionErrorID = 313
+	AssetsDoesNotExistErrorID         TransactionErrorID = 314
 	NegativeAmountErrorID             TransactionErrorID = 111
 	InsufficientFeeErrorID            TransactionErrorID = 112
 	NegativeMinFeeErrorID             TransactionErrorID = 114
@@ -51,6 +52,7 @@ const (
 	InvalidTransactionIdErrorID       TransactionErrorID = 4001
 	InvalidBlockIdErrorID             TransactionErrorID = 4002
 	InvalidAssetIdErrorID             TransactionErrorID = 4007
+	AssetIdNotSpecifiedErrorID        TransactionErrorID = 4009
 )
 
 var errorNames = map[Identifier]string{
@@ -82,6 +84,7 @@ var errorNames = map[Identifier]string{
 	TransactionDoesNotExistErrorID:    "TransactionDoesNotExistError",
 	UnsupportedTransactionTypeErrorID: "UnsupportedTransactionTypeError",
 	AssetDoesNotExistErrorID:          "AssetDoesNotExistError",
+	AssetsDoesNotExistErrorID:         "AssetsDoesNotExistErrorID",
 	NegativeAmountErrorID:             "NegativeAmountError",
 	InsufficientFeeErrorID:            "InsufficientFeeError",
 	NegativeMinFeeErrorID:             "NegativeMinFeeError",
@@ -94,4 +97,5 @@ var errorNames = map[Identifier]string{
 	InvalidTransactionIdErrorID:       "InvalidTransactionIdError",
 	InvalidBlockIdErrorID:             "InvalidBlockIdError",
 	InvalidAssetIdErrorID:             "InvalidAssetIdError",
+	AssetIdNotSpecifiedErrorID:        "AssetIdNotSpecifiedError",
 }

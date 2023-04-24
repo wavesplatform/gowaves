@@ -40,8 +40,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		}
 		r.Use(rateLimiter.RateLimit)
 	}
+	if opts.RequestIDMiddleware {
+		r.Use(middleware.RequestID)
+	}
 	if opts.LogHttpRequestOpts {
-		r.Use(middleware.RequestID, CreateLoggerMiddleware(zap.L()))
+		r.Use(createLoggerMiddleware(zap.L()))
 	}
 	if opts.RouteNotFoundHandler != nil {
 		r.NotFound(opts.RouteNotFoundHandler)
@@ -112,8 +115,19 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			})
 		})
 
+		r.Route("/assets", func(r chi.Router) {
+			r.Get("/details/{id}", wrapper(a.AssetsDetailsByID))
+			r.Get("/details", wrapper(a.AssetsDetailsByIDsGet))
+			r.Post("/details", wrapper(a.AssetsDetailsByIDsPost))
+		})
+
 		r.Route("/addresses", func(r chi.Router) {
 			r.Get("/", wrapper(a.Addresses))
+		})
+
+		r.Route("/alias", func(r chi.Router) {
+			r.Get("/by-alias/{alias}", wrapper(a.AddrByAlias))
+			r.Get("/by-address/{address}", wrapper(a.AliasesByAddr))
 		})
 
 		r.Route("/transactions", func(r chi.Router) {
@@ -143,7 +157,15 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))
+			r.Get("/status", wrapper(a.NodeStatus))
 		})
+
+		r.Route("/wallet", func(r chi.Router) {
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Get("/seed", wrapper(a.walletSeed))
+		})
+
 		r.Route("/eth", func(r chi.Router) {
 			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
 			if opts.EnableMetaMaskAPI {

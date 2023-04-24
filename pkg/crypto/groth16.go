@@ -58,14 +58,19 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 	}
 
 	var buf bytes.Buffer
+	buf.Grow(8 + 4 + len(inputsBytes))
+	// Add 8 bytes for correct reading
+	// Gnark witness has two addition number in the start
+	// These numbers aren't used for verification
+	buf.Write(make([]byte, 8))
 	err = binary.Write(&buf, binary.BigEndian, uint32(len(inputsBytes)/(fr.Limbs*sizeUint64)))
 	if err != nil {
 		return false, err
 	}
 	buf.Write(inputsBytes)
-
-	wit := &witness.Witness{
-		CurveID: curve,
+	wit, err := witness.New(curve.ScalarField())
+	if err != nil {
+		return false, err
 	}
 	err = wit.UnmarshalBinary(buf.Bytes())
 	if err != nil {

@@ -1,0 +1,63 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let separator = "__"
+
+func keyListHead(listName: String) = ["%s%s", listName, "head"].makeString(separator)
+func keyListSize(listName: String) = ["%s%s", listName, "size"].makeString(separator)
+func keyListPrev(listName: String, id: String) = ["%s%s%s", listName, id, "prev"].makeString(separator)
+func keyListNext(listName: String, id: String) = ["%s%s%s", listName, id, "next"].makeString(separator)
+
+# Insert at the beginning
+@Callable(i)
+func insert(listName: String, id: String) = {
+  let head = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  let prev = this.getString(listName.keyListPrev(id))
+  let next = this.getString(listName.keyListNext(id))
+  strict checkNode = id != head && prev == unit && next == unit || throw("Node exists")
+  let stateChanges = [IntegerEntry(listName.keyListSize(), listSize + 1)]
+    ++ (if (head.isDefined()) then [StringEntry(listName.keyListNext(id), head.value()), StringEntry(listName.keyListPrev(head.value()), id)] else [])
+    ++ [StringEntry(listName.keyListHead(), id)]
+
+  (
+    stateChanges,
+    unit
+  )
+}
+
+# Delete
+@Callable(i)
+func delete(listName: String, id: String) = {
+  let head = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  let prev = this.getString(listName.keyListPrev(id))
+  let next = this.getString(listName.keyListNext(id))
+  let stateChanges = [IntegerEntry(listName.keyListSize(), listSize - 1)] ++ (if (prev.isDefined() && next.isDefined()) then {
+    [
+      StringEntry(listName.keyListNext(prev.value()), next.value()),
+      StringEntry(listName.keyListPrev(next.value()), prev.value()),
+      DeleteEntry(listName.keyListPrev(id)),
+      DeleteEntry(listName.keyListNext(id))
+    ]
+  } else if (next.isDefined()) then {
+    [
+      StringEntry(listName.keyListHead(), next.value()),
+      DeleteEntry(listName.keyListNext(id)),
+      DeleteEntry(listName.keyListPrev(next.value()))
+    ]
+  } else if (prev.isDefined()) then {
+    [
+      DeleteEntry(listName.keyListPrev(id)),
+      DeleteEntry(listName.keyListNext(prev.value()))
+    ]
+  } else {
+    if (id == head) then [DeleteEntry(listName.keyListHead())] else throw("Invalid node")
+  })
+
+  (
+    stateChanges,
+    unit
+  )
+}

@@ -1,0 +1,3 @@
+{-# CONTENT_TYPE LIBRARY #-}
+let tmp = "some value"
+func foo() = 40

@@ -1,0 +1,738 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let separator = "__"
+let poolWeightMult = 100_000_000
+let maxDepthDefault = 10
+let finalizationStageTotal = 0
+let finalizationStageShares = 1
+let keyEpochLength = ["%s", "epochLength"].makeString(separator)
+let keyCurrentEpoch = ["%s", "currentEpoch"].makeString(separator)
+let keyMaxDepth = ["%s", "maxDepth"].makeString(separator)
+let keyVotingEmissionCandidateContract = ["%s", "votingEmissionCandidateContract"].makeString(separator)
+let keyFactoryContract = ["%s", "factoryContract"].makeString(separator)
+let keyBoostingContract = ["%s", "boostingContract"].makeString(separator)
+let keyStakingContract = ["%s", "stakingContract"].makeString(separator)
+let keyFinalizationStage = ["%s", "finalizationStage"].makeString(separator)
+let keyNextPool = ["%s", "nextPool"].makeString(separator)
+let keyNextUser = ["%s", "nextUser"].makeString(separator)
+let keyStartHeight = ["%s", "startHeight"].makeString(separator)
+
+let keyCurrentEpochUi = ["%s", "currentEpochUi"].makeString(separator)
+let keyStartHeightUi = ["%s", "startHeightUi"].makeString(separator)
+
+let keyFinalizationShouldBeForced = ["%s", "force"].makeString(separator)
+
+# start height will be set after first pool adding
+func keyStartHeightByEpoch(epoch: Int) = ["%s%d", "startHeight", epoch.toString()].makeString(separator)
+func keyFinalized(epoch: Int) = ["%s%d", "finalized", epoch.toString()].makeString(separator)
+func keyInList(pool: (String, String)) = {
+  let (amountAssetId, priceAssetId) = pool
+
+  ["%s%s%s", "inList", amountAssetId, priceAssetId].makeString(separator)
+}
+func keyUsed(address: Address, epoch: Int) =["%s%s%d", "used", address.toString(), epoch.toString()].makeString(separator)
+func keyVote(pool: (String, String), address: Address, epoch: Int) = {
+  let (amountAssetId, priceAssetId) = pool
+
+  ["%s%s%s%s%d", "vote", amountAssetId, priceAssetId, address.toString(), epoch.toString()].makeString(separator)
+}
+
+func keyVotingResult(pool: (String, String), epoch: Int) = {
+  let (amountAssetId, priceAssetId) = pool
+
+  ["%s%s%s%d", "votingResult", amountAssetId, priceAssetId, epoch.toString()].makeString(separator)
+}
+
+func keyPoolShare(pool: (String, String), epoch: Int) = {
+  let (amountAssetId, priceAssetId) = pool
+
+  ["%s%s%s%d", "poolShare", amountAssetId, priceAssetId, epoch.toString()].makeString(separator)
+}
+
+func keyTotalVotes(epoch: Int) = {
+  ["%s%d", "totalVotes", epoch.toString()].makeString(separator)
+}
+
+func getValueOrFail(address: Address, key: String, type: String|Int) = {
+  let error = ["mandatory ", address.toString(), ".", key, " is not defined"].makeString("")
+
+  {
+    match type {
+      case str: String => address.getString(key)
+      case int: Int => address.getInteger(key)
+      case _ => "invalid entry type".throw()
+    }
+  }.valueOrErrorMessage(error)
+}
+func getStrOrFail(address: Address, key: String) = address.getValueOrFail(key, "").exactAs[String]
+func getIntOrFail(address: Address, key: String) = address.getValueOrFail(key, 0).exactAs[Int]
+
+func poolToString(pool: (String, String)) = pool._1 + separator + pool._2
+func stringToPool(str: String) = {
+  let parts = str.split(separator)
+
+  if (parts.size() == 2) then (parts[0], parts[1]) else "invalid pool string".throw()
+}
+
+func getLpAssetByPoolAssets(amountAssetId: String, priceAssetId: String) = {
+  func keyMappingsBaseAsset2internalId(baseAssetStr: String) = {
+    "%s%s%s__mappings__baseAsset2internalId__" + baseAssetStr
+  }
+  func keyMappingPoolAssetsToPoolContractAddress(internalAmountAssetIdStr: Int, internalPriceAssetIdStr: Int) = {
+    "%d%d%s%s__" + internalAmountAssetIdStr.toString() + "__" + internalPriceAssetIdStr.toString() + "__mappings__poolAssets2PoolContract"
+  }
+  func keyMappingPoolContractToLPAsset(poolContractAddress: String) = {
+    "%s%s%s__" + poolContractAddress + "__mappings__poolContract2LpAsset"
+  }
+
+  let factoryContract = this.getStrOrFail(keyFactoryContract).addressFromStringValue()
+  let amountAssetInternalId = factoryContract.getIntOrFail(amountAssetId.keyMappingsBaseAsset2internalId())
+  let priceAssetInternalId = factoryContract.getIntOrFail(priceAssetId.keyMappingsBaseAsset2internalId())
+  let poolContractAddress = factoryContract.getStrOrFail(keyMappingPoolAssetsToPoolContractAddress(amountAssetInternalId, priceAssetInternalId))
+  let lpAssetId = factoryContract.getStrOrFail(poolContractAddress.keyMappingPoolContractToLPAsset())
+
+  lpAssetId
+}
+
+func checkWxEmissionPoolLabel(pool: (String, String)) = {
+  let (amountAssetId, priceAssetId) = pool
+  let factoryContract = this.getStrOrFail(keyFactoryContract).addressFromStringValue()
+
+  factoryContract.invoke("checkWxEmissionPoolLabel", [amountAssetId, priceAssetId], []).exactAs[Boolean]
+}
+
+# Doubly linked list ->
+let poolsListName = "pools"
+func getVotesListName(pool: (String, String)) = {
+  let (amountAssetId, priceAssetId) = pool
+  ["votes", amountAssetId, priceAssetId].makeString(separator)
+}
+
+func keyListHead(listName: String) = {
+  let meta = if (listName == poolsListName) then "%s%s" else "%s%s%s%s"
+  [meta, listName, "head"].makeString(separator)
+}
+func keyListSize(listName: String) = {
+  let meta = if (listName == poolsListName) then "%s%s" else "%s%s%s%s"
+  [meta, listName, "size"].makeString(separator)
+}
+func keyListPrev(listName: String, id: String) = {
+  let meta = if (listName == poolsListName) then "%s%s%s%s" else "%s%s%s%s%s"
+  [meta, listName, id, "prev"].makeString(separator)
+}
+func keyListNext(listName: String, id: String) = {
+  let meta = if (listName == poolsListName) then "%s%s%s%s" else "%s%s%s%s%s"
+  [meta, listName, id, "next"].makeString(separator)
+}
+
+# Check if list contains the node
+func containsNode(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let prevOrUnit = this.getString(listName.keyListPrev(id))
+  let nextOrUnit = this.getString(listName.keyListNext(id))
+
+  id == headOrUnit.valueOrElse("") || prevOrUnit != unit || nextOrUnit != unit
+}
+
+# Insert at the beginning of the list
+func insertNodeActions(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  strict checkNode = !listName.containsNode(id) || "Node exists".throw()
+
+  [IntegerEntry(listName.keyListSize(), listSize + 1)]
+  ++
+  {
+    if (headOrUnit != unit) then
+    [
+      StringEntry(listName.keyListNext(id), headOrUnit.value()),
+      StringEntry(listName.keyListPrev(headOrUnit.value()), id)
+    ] else []
+  }
+  ++ [StringEntry(listName.keyListHead(), id)]
+}
+
+# Remove from the list
+func deleteNodeActions(listName: String, id: String) = {
+  let headOrUnit = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  let prevOrUnit = this.getString(listName.keyListPrev(id))
+  let nextOrUnit = this.getString(listName.keyListNext(id))
+
+  [IntegerEntry(listName.keyListSize(), listSize - 1)]
+  ++
+  {
+    if (prevOrUnit != unit && nextOrUnit != unit) then {
+      [
+        StringEntry(listName.keyListNext(prevOrUnit.value()), nextOrUnit.value()),
+        StringEntry(listName.keyListPrev(nextOrUnit.value()), prevOrUnit.value()),
+        DeleteEntry(listName.keyListPrev(id)),
+        DeleteEntry(listName.keyListNext(id))
+      ]
+    } else if (nextOrUnit != unit) then {
+      [
+        StringEntry(listName.keyListHead(), nextOrUnit.value()),
+        DeleteEntry(listName.keyListNext(id)),
+        DeleteEntry(listName.keyListPrev(nextOrUnit.value()))
+      ]
+    } else if (prevOrUnit != unit) then {
+      [
+        DeleteEntry(listName.keyListPrev(id)),
+        DeleteEntry(listName.keyListNext(prevOrUnit.value()))
+      ]
+    } else {
+      if (id == headOrUnit.valueOrElse("")) then [DeleteEntry(listName.keyListHead())] else {"invalid node: " + listName + "." + id}.throw()
+    }
+  }
+}
+# <-
+
+# Manager keys and functions ->
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+let permissionDeniedError = "Permission denied".throw()
+
+func mustThis(i: Invocation) = {
+  i.caller == this || permissionDeniedError
+}
+
+func mustManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || permissionDeniedError
+    case _: Unit => i.mustThis()
+  }
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+# <-
+
+# TODO: Сделать обычной функцией
+@Callable(i)
+func getUserGwxAmountAtHeight(userAddress: String, targetHeight: Int) = {
+  let boostingContractAddress = this.getStrOrFail(keyBoostingContract).addressFromString().valueOrErrorMessage("invalid boosting contract address")
+
+  ([], boostingContractAddress.invoke("getUserGwxAmountAtHeightREADONLY", [userAddress, targetHeight], []).exactAs[Int])
+}
+
+@Callable(i)
+func constructor(
+  factoryContract: String,
+  votingEmissionCandidateContract: String,
+  boostingContract: String,
+  stakingContract: String,
+  epochLength: Int
+) = {
+  strict checks = [
+    i.mustManager(),
+    factoryContract.addressFromString() != unit || "invalid factory contract address",
+    votingEmissionCandidateContract.addressFromString() != unit || "invalid voting emission candidate contract address",
+    boostingContract.addressFromString() != unit || "invalid boosting contract address",
+    stakingContract.addressFromString() != unit || "invalid staking contract address",
+    epochLength > 0 || "invalid epoch length".throw()
+  ]
+
+  (
+    [
+      StringEntry(keyFactoryContract, factoryContract),
+      StringEntry(keyVotingEmissionCandidateContract, votingEmissionCandidateContract),
+      StringEntry(keyBoostingContract, boostingContract),
+      StringEntry(keyStakingContract, stakingContract),
+      IntegerEntry(keyEpochLength, epochLength)
+    ],
+    unit
+  )
+}
+
+@Callable(i)
+func create(amountAssetId: String, priceAssetId: String) = {
+  strict checks = [
+    i.caller.bytes.toBase58String() == this.getString(keyVotingEmissionCandidateContract).valueOrElse("") || i.mustManager()
+  ]
+
+  let pool = (amountAssetId, priceAssetId)
+  let inListActions = [BooleanEntry(pool.keyInList(), true)]
+    ++ poolsListName.insertNodeActions(pool.poolToString())
+
+  let currentEpochIsNotDefined = this.getInteger(keyCurrentEpoch) == unit
+  let startHeightActions = if (currentEpochIsNotDefined) then {
+    let epoch = 0
+    [
+      IntegerEntry(keyCurrentEpoch, epoch),
+      IntegerEntry(epoch.keyStartHeightByEpoch(), height),
+      IntegerEntry(keyStartHeight, height),
+      IntegerEntry(keyCurrentEpochUi, epoch),
+      IntegerEntry(keyStartHeightUi, height)
+    ]
+  } else []
+
+  (
+    inListActions ++ startHeightActions,
+    unit
+  )
+}
+
+@Callable(i)
+func vote(amountAssetId: String, priceAssetId: String, amount: Int) = {
+  let pool = (amountAssetId, priceAssetId)
+  let epoch = this.getInteger(keyCurrentEpoch).valueOrElse(0)
+  let startHeight = this.getIntOrFail(epoch.keyStartHeightByEpoch())
+  let epochLength = this.getIntOrFail(keyEpochLength)
+  let endHeight = startHeight + epochLength
+  let finalizationStageOrUnit = this.getInteger(keyFinalizationStage)
+  let used = this.getInteger(i.caller.keyUsed(epoch)).valueOrElse(0)
+  let vote = this.getInteger(pool.keyVote(i.caller, epoch)).valueOrElse(0)
+  let poolResult = this.getInteger(pool.keyVotingResult(epoch)).valueOrElse(0)
+  let totalVotes = this.getInteger(epoch.keyTotalVotes()).valueOrElse(0)
+  let gwxAmountAtEndTotal = this.invoke("getUserGwxAmountAtHeight", [i.caller.bytes.toBase58String(), endHeight], []).exactAs[Int]
+  let available = gwxAmountAtEndTotal - used
+  let newVote = vote + amount
+  let wxEmission = pool.checkWxEmissionPoolLabel()
+  strict checks = [
+    pool.keyInList().getBoolean() != unit || "invalid assets".throw(),
+    height < endHeight || "invalid height".throw(),
+    finalizationStageOrUnit == unit || "finalization in progress".throw(),
+    gwxAmountAtEndTotal > 0 || "you do not have gWX".throw(),
+    (amount > 0 && amount <= available) || "invalid amount".throw(),
+    wxEmission || "pool hasn't WX_EMISSION label".throw()
+  ]
+  let votesListName = pool.getVotesListName()
+  let userAddressStr = i.caller.toString()
+  let votesListActions = if (votesListName.containsNode(userAddressStr)) then [] else {
+    votesListName.insertNodeActions(userAddressStr)
+  }
+
+  (
+    [
+      IntegerEntry(i.caller.keyUsed(epoch), used + amount),
+      IntegerEntry(pool.keyVote(i.caller, epoch), newVote),
+      IntegerEntry(pool.keyVotingResult(epoch), poolResult + amount),
+      IntegerEntry(epoch.keyTotalVotes(), totalVotes + amount)
+    ] ++ votesListActions,
+    unit
+  )
+}
+
+@Callable(i)
+func cancelVote(amountAssetId: String, priceAssetId: String) = {
+  let pool = (amountAssetId, priceAssetId)
+  let epoch = this.getInteger(keyCurrentEpoch).valueOrElse(0)
+  let startHeight = this.getIntOrFail(epoch.keyStartHeightByEpoch())
+  let epochLength = this.getIntOrFail(keyEpochLength)
+  let endHeight = startHeight + epochLength
+  let finalizationStageOrUnit = this.getInteger(keyFinalizationStage)
+  let used = this.getInteger(i.caller.keyUsed(epoch)).valueOrElse(0)
+  let vote = this.getInteger(pool.keyVote(i.caller, epoch)).valueOrElse(0)
+  let poolResult = this.getInteger(pool.keyVotingResult(epoch)).valueOrElse(0)
+  let totalVotes = this.getInteger(epoch.keyTotalVotes()).valueOrElse(0)
+  strict checks = [
+    pool.keyInList().getBoolean() != unit || "invalid assets".throw(),
+    height < endHeight || "invalid height".throw(),
+    finalizationStageOrUnit == unit || "finalization in progress".throw(),
+    vote > 0 || "no vote".throw()
+  ]
+  let votesListName = pool.getVotesListName()
+  let userAddressStr = i.caller.toString()
+
+  (
+    [
+      IntegerEntry(i.caller.keyUsed(epoch), max([used - vote, 0])),
+      DeleteEntry(pool.keyVote(i.caller, epoch)),
+      IntegerEntry(pool.keyVotingResult(epoch), poolResult - vote),
+      IntegerEntry(epoch.keyTotalVotes(), totalVotes - vote)
+    ] ++ votesListName.deleteNodeActions(userAddressStr),
+    unit
+  )
+}
+
+@Callable(i)
+func setEpochLength(newEpochLength: Int) = {
+  strict checks = [
+    i.mustManager(),
+    newEpochLength > 0 || "invalid epoch length".throw()
+  ]
+
+  (
+    [
+      IntegerEntry(keyEpochLength, newEpochLength)
+    ],
+    unit
+  )
+}
+
+@Callable(i)
+func setMaxDepth(newMaxDepth: Int) = {
+  strict checks = [
+    i.mustManager(),
+    newMaxDepth > 0 || "invalid max depth".throw()
+  ]
+
+  (
+    [
+      IntegerEntry(keyMaxDepth, newMaxDepth)
+    ],
+    unit
+  )
+}
+
+# stages:
+# 0 - расчет общего числа голосов, перенос голосов с предыдущего периода, перенос на следующий период
+# 1 - расчет долей пулов, начало нового периода и изменение весов пулов - после этого этапа доступно голосование
+
+# сохраняем следующий шаг, чтобы не было проблем при удалении элементов
+
+# stage 0:
+# pool  user
+# -     -     получить pool из head pools, есть - записать, нет - завершить
+# +     -     получить user из head pool votes, есть - записать, нет - получить следующий пул и записать или завершить
+# +     +     обработать, получить следующего пользователя или пул и записать или завершить
+
+# stage 1:
+# pool
+# -     получить pool из head pools, нет - завершить, есть - записать
+# +     обработать, получить следующий пул и записать или завершить
+
+# при переносе голосов возможно удаление пользователей из списка, если количество gwx стало равно 0
+
+# если голоса на текущий период нет, перенести с предыдущего?
+# учесть голос (totalVotes)? или totalVotes всегда актуален?
+# перенести голос на следующий период (vote, used, votingResult, totalVotes)
+# TODO: Сделать обычной функцией
+@Callable(i)
+func processVoteINTERNAL(poolStr: String, userAddressStr: String) = {
+  strict checkCaller = i.mustThis()
+  let userAddress = userAddressStr.addressFromString().valueOrErrorMessage("processVoteINTERNAL: invalid user address " + userAddressStr)
+  let epoch = this.getIntOrFail(keyCurrentEpoch)
+  let epochPrevious = epoch - 1
+  let epochLength = this.getIntOrFail(keyEpochLength)
+  let startHeight = this.getIntOrFail(epoch.keyStartHeightByEpoch())
+  let endHeight = startHeight + epochLength
+  let startHeightPrevious = this.getIntOrFail(epochPrevious.keyStartHeightByEpoch())
+  let endHeightPrevious = startHeightPrevious + epochLength
+  strict checkTargetEpoch = epochPrevious >= 0 || "processVoteINTERNAL: invalid previous epoch".throw()
+  let pool = poolStr.stringToPool()
+  let (amountAssetId, priceAssetId) = pool
+  let wxEmission = pool.checkWxEmissionPoolLabel()
+  let gwxAmountAtEndTotal = this.invoke("getUserGwxAmountAtHeight", [userAddressStr, endHeight], []).exactAs[Int]
+  let gwxAmountAtEndTotalPrevious = this.invoke("getUserGwxAmountAtHeight", [userAddressStr, endHeightPrevious], []).exactAs[Int]
+  let totalVotes = epoch.keyTotalVotes().getInteger().valueOrElse(0)
+  let votingResult = pool.keyVotingResult(epoch).getInteger().valueOrElse(0)
+  let votePrevious = pool.keyVote(userAddress, epochPrevious).getInteger()
+    .valueOrErrorMessage("processVoteINTERNAL " + poolStr + " " + userAddressStr + ": no previous vote")
+  let used = this.getInteger(userAddress.keyUsed(epoch)).valueOrElse(0)
+
+  let newVote = if (gwxAmountAtEndTotalPrevious > 0) then fraction(votePrevious, gwxAmountAtEndTotal, gwxAmountAtEndTotalPrevious) else 0
+  let actions = if (newVote > 0 && wxEmission) then {
+    [
+      IntegerEntry(pool.keyVote(userAddress, epoch), newVote),
+      IntegerEntry(epoch.keyTotalVotes(), totalVotes + newVote),
+      IntegerEntry(pool.keyVotingResult(epoch), votingResult + newVote),
+      IntegerEntry(userAddress.keyUsed(epoch), used + newVote)
+    ]
+  } else {
+    pool.getVotesListName().deleteNodeActions(userAddressStr)
+  }
+
+  (
+    actions,
+    unit
+  )
+}
+
+@Callable(i)
+func processPoolINTERNAL(poolStr: String, force: Boolean) = {
+  strict checkCaller = i.mustThis()
+  let targetEpoch = {
+    let currentEpoch = this.getIntOrFail(keyCurrentEpoch)
+    # if force then epoch was not increased, so use current one
+    if (force) then currentEpoch else currentEpoch - 1
+  }
+  strict checkTargetEpoch = targetEpoch >= 0 || "processPoolINTERNAL: invalid target epoch".throw()
+  let pool = poolStr.stringToPool()
+  let (amountAssetId, priceAssetId) = pool
+  let stakingContract = this.getStrOrFail(keyStakingContract).addressFromStringValue()
+
+  let factoryContract = this.getStrOrFail(keyFactoryContract).addressFromStringValue()
+  let lpAssetId = getLpAssetByPoolAssets(amountAssetId, priceAssetId)
+  strict r = stakingContract.invoke("usersListTraversal", [lpAssetId], []).exactAs[Boolean]
+  if (r) then {
+    ([], true)
+  } else {
+    let wxEmission = pool.checkWxEmissionPoolLabel()
+    let totalVotes = this.getInteger(targetEpoch.keyTotalVotes()).valueOrElse(0)
+    let votingResult = this.getInteger(pool.keyVotingResult(targetEpoch)).valueOrElse(0)
+    let share = if (totalVotes == 0 || !wxEmission) then 0 else fraction(votingResult, poolWeightMult, totalVotes)
+    strict modifyWeightInv = factoryContract.invoke("modifyWeight", [lpAssetId, share], [])
+    let poolsListActions = if (wxEmission || force) then [] else {
+      [
+        DeleteEntry(pool.keyInList())
+      ] ++ poolsListName.deleteNodeActions(poolStr)
+    }
+
+    (
+      [
+        IntegerEntry(pool.keyPoolShare(targetEpoch), share)
+      ] ++ poolsListActions,
+      false
+    )
+  }
+}
+
+# Может вызвать любой
+# Должно работать так же, как и финализация voting verified
+# Обновляем высоту сразу, так как для переноса голоса нужно знать, куда переносить
+@Callable(i)
+func finalizeHelper() = {
+  let force = keyFinalizationShouldBeForced.getBoolean().valueOrElse(false)
+  let epoch = this.getInteger(keyCurrentEpoch).valueOrElse(0)
+  let previousEpoch = epoch - 1
+  let startHeight = this.getIntOrFail(epoch.keyStartHeightByEpoch())
+  let epochLength = this.getIntOrFail(keyEpochLength)
+  let endHeight = startHeight + epochLength
+  let finalizationStageOrUnit = this.getInteger(keyFinalizationStage)
+  # если пора начинать финализацию, обновляем высоту, эпоху и этап финализации
+  if (height >= endHeight && finalizationStageOrUnit == unit && !force) then {
+    let newEpoch = epoch + 1
+    (
+      [
+        IntegerEntry(newEpoch.keyStartHeightByEpoch(), height),
+        IntegerEntry(keyStartHeight, height),
+        IntegerEntry(keyCurrentEpoch, newEpoch),
+        IntegerEntry(keyFinalizationStage, finalizationStageTotal)
+      ],
+      true
+    )
+  } else if (force && finalizationStageOrUnit == unit) then {
+    (
+      [
+        IntegerEntry(keyFinalizationStage, finalizationStageShares)
+      ],
+      true
+    )
+  # голосование еще не завершилось
+  } else if (finalizationStageOrUnit == unit) then {
+    (
+      [],
+      false
+    )
+  # этап подсчета общего числа голосов
+  } else if (finalizationStageOrUnit == finalizationStageTotal) then {
+    let poolOrUnit = keyNextPool.getString()
+    let userOrUnit = keyNextUser.getString()
+    # Если нет пула, то получить пул из head.
+      # Если нет, то завершить.
+      # Если есть, то записать.
+    # Если есть пул
+      # Если нет пользователя, то получить пользователя из head для данного пула.
+        # Если нет, то получить следующий пул
+          # Если нет, то завершить
+          # Если есть, то записать
+        # Если есть, то записать
+      # Если есть пользователь, то обработать и получить следующего пользователя
+        # Если нет, то получить следующий пул
+          # Если нет, то завершить
+          # Если есть, то записать
+        # Если есть, то записать
+    match poolOrUnit {
+      case _: Unit => {
+        match poolsListName.keyListHead().getString() {
+          case _: Unit => (
+            [
+              IntegerEntry(keyFinalizationStage, finalizationStageShares),
+              DeleteEntry(keyNextPool),
+              DeleteEntry(keyNextUser)
+            ],
+            true
+          )
+          case poolsHeadStr: String => {
+            ([StringEntry(keyNextPool, poolsHeadStr)], true)
+          }
+        }
+      }
+      case poolStr: String => {
+        let pool = poolStr.stringToPool()
+        let nextUserOrUnit = match userOrUnit {
+          case _: Unit => pool.getVotesListName().keyListHead().getString()
+          case user: String => {
+            strict next = pool.getVotesListName().keyListNext(user).getString()
+            strict processVoteInv = this.invoke("processVoteINTERNAL", [poolStr, user], [])
+            next
+          }
+        }
+        match nextUserOrUnit {
+          case _: Unit => {
+            let nextPoolOrUnit = poolsListName.keyListNext(poolStr).getString()
+            match nextPoolOrUnit {
+              case _: Unit => (
+                [
+                  IntegerEntry(keyFinalizationStage, finalizationStageShares),
+                  DeleteEntry(keyNextPool),
+                  DeleteEntry(keyNextUser)
+                ],
+                true
+              )
+              case s: String => {
+                ([
+                  StringEntry(keyNextPool, s),
+                  DeleteEntry(keyNextUser)
+                ], true)
+              }
+            }
+          }
+          case nextUser: String => {
+            ([StringEntry(keyNextUser, nextUser)], true)
+          }
+        }
+      }
+    }
+  # этап вычисления долей пулов
+  } else if (finalizationStageOrUnit == finalizationStageShares) then {
+    let poolOrUnit = keyNextPool.getString()
+    match poolOrUnit {
+      case _: Unit => {
+        match poolsListName.keyListHead().getString() {
+          case _: Unit => {
+            let actions = if (force) then {
+              [
+                DeleteEntry(keyFinalizationStage),
+                DeleteEntry(keyFinalizationShouldBeForced)
+              ]
+            } else {
+              [
+                DeleteEntry(keyFinalizationStage),
+                BooleanEntry(previousEpoch.keyFinalized(), true),
+                IntegerEntry(keyCurrentEpochUi, epoch),
+                IntegerEntry(keyStartHeightUi, startHeight)
+              ]
+            }
+            (actions, true)
+          }
+          case nextPoolStr: String => {
+            ([StringEntry(keyNextPool, nextPoolStr)], true)
+          }
+        }
+      }
+      case poolStr: String => {
+        strict nextPoolOrUnit = poolsListName.keyListNext(poolStr).getString()
+        strict r = this.invoke("processPoolINTERNAL", [poolStr, force], []).exactAs[Boolean]
+        if (r) then {
+          ([], true)
+        } else {
+          match nextPoolOrUnit {
+            case _: Unit => {
+              let actions = if (force) then {
+                [
+                  DeleteEntry(keyFinalizationStage),
+                  DeleteEntry(keyFinalizationShouldBeForced),
+                  DeleteEntry(keyNextPool)
+                ]
+              } else {
+                [
+                  DeleteEntry(keyFinalizationStage),
+                  BooleanEntry(previousEpoch.keyFinalized(), true),
+                  IntegerEntry(keyCurrentEpochUi, epoch),
+                  IntegerEntry(keyStartHeightUi, startHeight),
+                  DeleteEntry(keyNextPool)
+                ]
+              }
+              (actions, true)
+            }
+            case nextPoolStr: String => {
+              ([StringEntry(keyNextPool, nextPoolStr)], true)
+            }
+          }
+        }
+      }
+    }
+  } else "finalization is broken".throw()
+}
+
+@Callable(i)
+func finalizeWrapper(counter: Int) = {
+  strict result = this.invoke("finalizeHelper", [], []).exactAs[Boolean]
+  if (!result) then {
+    if (counter == 0) then {
+      throw("Current voting is not over yet")
+    } else {
+      ([], unit)
+    }
+  } else {
+    let maxDepth = this.getInteger(keyMaxDepth).valueOrElse(maxDepthDefault)
+    if (counter < maxDepth) then {
+      strict inv = this.invoke("finalizeWrapper", [counter + 1], [])
+      ([], unit)
+    } else {
+      ([], unit)
+    }
+  }
+}
+
+# TODO: возможны проблемы, если пользователь блокирует средства во время финализации
+# Запоминать количество gwx на момент начала финализации?
+@Callable(i)
+func finalize() = {
+  strict inv = this.invoke("finalizeWrapper", [0], [])
+
+  ([], unit)
+}
+
+# пул теряет свою эмиссию при потере токеном COMMUNITY VERIFIED лейбла.
+# но для того чтобы у пула была эмиссия, у него должен быть и WX EMISSION лейбл. а если токен теряет COMMUNITY VERIFIED, то пул лишается и WX EMISSION лейбла
+
+@Callable(i)
+func containsNodeREADONLY(listName: String, id: String) = {
+  ([], listName.containsNode(id))
+}
+
+@Callable(i)
+func insertNode(listName: String, id: String) = {
+  strict checkCaller = i.mustManager()
+
+  (listName.insertNodeActions(id), unit)
+}
+
+@Callable(i)
+func deleteNode(listName: String, id: String) = {
+  strict checkCaller = i.mustManager()
+
+  (listName.deleteNodeActions(id), unit)
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

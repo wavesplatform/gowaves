@@ -1,0 +1,743 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# TODO:
+# 1. save all constants in state with constructor
+#  sponsorship for LP token
+
+#-----------------
+# GLOBAL VARIABLES
+#-----------------
+let SCALE8  = 8
+let MULT8   = 100000000
+let SCALE18 = 18
+let MULT18  = 1000_000_000_000_000_000.toBigInt() # 10^18
+let POOLWEIGHTMULT = MULT8
+let GWXvirtualPOOL = "GWXvirtualPOOL"
+let labelPoolsLp = "POOLS_LP"
+let defaultSpread = 2000000 # 2 / 100 * 10^8
+
+let decimalsMultPrice = 100 * 1000 * 1000 # 10^8
+let SEP = "__"
+let EMPTY = ""
+let PoolActive               = 1   # ACTIVE, pool without restrictions
+let PoolPutDisabled          = 2   # PUT DISABLED, pool with put operation disabled
+let PoolMatcherDisabled      = 3   # MATCHER DISABLED, pool with matcher operations disabled
+let PoolShutdown             = 4   # SHUTDOWN, pool operations halted
+
+let idxInternalAssetId                        = 1
+let idxResutActions                           = 2
+let idxIfAssetIdCalculationPerformed          = 3
+
+# data indexes from pool config stored in factory
+let idxPoolAddress                              = 1
+let idxPoolStatus                               = 2
+let idxPoolLPAssetId                            = 3
+let idxAmtAssetId                               = 4
+let idxPriceAssetId                             = 5
+let idxAmtAssetDcm                              = 6
+let idxPriceAssetDcm                            = 7
+let idxIAmtAssetId                              = 8
+let idxIPriceAssetId                            = 9
+let idxLPAssetDcm                               = 10
+let idxPoolType                                 = 11
+
+# pool labels
+let poolLabelWxEmission = "WX_EMISSION"
+let validPoolLabels = [poolLabelWxEmission]
+
+#-------------------------
+# KEYS ON CURRENT CONTRACT
+#-------------------------
+
+func keyAllowedLpScriptHash() = "%s__allowedLpScriptHash"
+func keyAllowedLpStableScriptHash() = "%s__allowedLpStableScriptHash"
+func keyAllowedLpStableAddonScriptHash() = "%s__allowedLpStableAddonScriptHash"
+
+func keyFactoryConfig()
+      = "%s__factoryConfig"
+func keyLpTokensList()
+      = "%s__lpTokensList" # not used anymore
+func keyPoolScriptHash()
+      = "%s%s__pool__scriptHash"
+func keyMatcherPub()
+      = "%s%s__matcher__publicKey"
+func keyLegacyFactoryContract()
+      = "%s__legacyFactoryContract"
+func keyLegacyPools()
+      = "%s__legacyPools"
+func keyManagerPublicKey()
+      = "%s__managerPublicKey"
+func keyPendingManagerPublicKey()
+      = {"%s__pendingManagerPublicKey"}
+func keyAdminPubKeys() = "%s__adminPubKeys"
+func keyAssetsStoreContract() = "%s__assetsStoreContract"
+func keyVotingEmissionContract() = "%s__votingEmissionContract"
+func keyPriceAssets() = ["%s", "priceAssets"].makeString(SEP)
+
+func keyPriceDecimals()
+      = "%s__priceDecimals"
+func keyAllPoolsShutdown()
+      = "%s__shutdown"
+func keyNextInternalAssetId()
+      = "%s__nextInternalAssetId"
+func keyPoolToWeight(poolAddress: String)
+      = "%s%s__poolWeight__" + poolAddress
+func keyPoolToWeightHistory(poolAddress: String, num: Int)
+      = "%s%s__poolWeight__" + poolAddress + "__" + num.toString()
+func keyMappingsInternal2baseAssetId(internalBaseAsset: Int)
+      = "%s%s%d__mappings__internal2baseAssetId__" + internalBaseAsset.toString()
+func keyMappingsBaseAsset2internalId(baseAssetStr: String)
+      = "%s%s%s__mappings__baseAsset2internalId__" + baseAssetStr
+func keyPoolConfig(amountAssetInternal: String, priceAssetInternal: String)
+      = "%d%d%s__" + amountAssetInternal + "__" + priceAssetInternal + "__config"
+func keyPoolOneTokenOperationsDisabled(assetsInternal: (Int, Int)) = {
+  let (amountAssetInternal, priceAssetInternal) = assetsInternal
+  ["%d%d%s", amountAssetInternal.toString(), priceAssetInternal.toString(), "oneTokenOperationsDisabled"].makeString(SEP)
+}
+func keyAllPoolsOneTokenOperationsDisabled() = {
+  ["%s", "oneTokenOperationsDisabled"].makeString(SEP)
+}
+func keyMappingLpAssetToPoolAssets(lpAssetStr: String)
+       = "%s%s%s__" + lpAssetStr + "__mappings__lpAsset2Pool"
+func keyMappingPoolAssetsToLpasset(internalAmountAssetIdStr: String, internalPriceAssetIdStr: String)
+      = "%d%d%s%s__" + internalAmountAssetIdStr + "__" + internalPriceAssetIdStr + "__mappings__PoolAssets2LpAsset"
+func keyPoolSpread(poolAddress: String)
+      = "%s%s__spread__" + poolAddress
+
+func keyMappingPoolContractAddressToPoolAssets(poolContractAddress: String)
+      = "%s%s%s__" + poolContractAddress + "__mappings__poolContract2PoolAssets"
+func keyMappingPoolAssetsToPoolContractAddress(internalAmountAssetIdStr: Int, internalPriceAssetIdStr: Int)
+      = "%d%d%s%s__" + internalAmountAssetIdStr.toString() + "__" + internalPriceAssetIdStr.toString() + "__mappings__poolAssets2PoolContract"
+
+func keyMappingPoolContractToLPAsset(poolContractAddress: String)
+      = "%s%s%s__" + poolContractAddress + "__mappings__poolContract2LpAsset"
+func keyMappingPoolLPAssetToPoolContractAddress(lpAssetStr: String)
+      = "%s%s%s__" + lpAssetStr + "__mappings__lpAsset2PoolContract"
+
+func keyWxEmission(amountAssetId: String, priceAssetId: String)
+      = "%s%s%s__wxEmission__" + amountAssetId + "__" + priceAssetId
+
+func keyInFee(poolAddress: String)
+      = "%s%s__inFee__" + poolAddress
+func keyInFeeDefault()
+      = "%s__inFeeDefault"
+
+func keyOutFee(poolAddress: String)
+      = "%s%s__outFee__" + poolAddress
+func keyOutFeeDefault()
+      = "%s__outFeeDefault"
+
+#------------------------
+# GLOBAL FUNCTIONS
+#------------------------
+func getStringOrFail(key: String)   = {this.getString(key).valueOrErrorMessage("No data for this.key=" + key)}
+func getBooleanOrFail(key: String)  = {this.getBoolean(key).valueOrErrorMessage("No data for this.key=" + key)}
+func getIntOrFail(key: String)      = {this.getInteger(key).valueOrErrorMessage("No data for this.key=" + key)}
+
+#------------------------
+# CONTRACT FUNCTIONS
+#------------------------
+# data indexes from factoryConfig
+let IdxFactoryCfgStakingDapp    = 1
+let IdxFactoryCfgBoostingDapp   = 2
+let IdxFactoryCfgIdoDapp        = 3
+let IdxFactoryCfgTeamDapp       = 4
+let IdxFactoryCfgEmissionDapp   = 5
+let IdxFactoryCfgRestDapp       = 6
+let IdxFactoryCfgSlippageDapp   = 7
+let IdxFactoryCfgDaoDapp        = 8
+let IdxFactoryCfgMarketingDapp  = 9
+let IdxFactoryCfgGwxRewardDapp  = 10
+let IdxFactoryCfgBirdsDapp      = 11
+
+func getBoostingAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgBoostingDapp].addressFromStringValue()
+func getEmissionAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgEmissionDapp].addressFromStringValue()
+func getStakingAddressOrFail(factoryCfg: List[String])  = factoryCfg[IdxFactoryCfgStakingDapp].addressFromStringValue()
+func getGwxRewardAddressOrFail(factoryCfg: List[String])  = factoryCfg[IdxFactoryCfgGwxRewardDapp].addressFromStringValue()
+
+func getPriceAssets() = {
+  match keyPriceAssets().getString() {
+    case s: String => if (s.size() == 0) then nil else s.split(SEP)
+    case _ => nil
+  }
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+let permissionDeniedError = "Permission denied".throw()
+
+func mustThis(i: Invocation) = {
+  i.caller == this || permissionDeniedError
+}
+
+func mustManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || permissionDeniedError
+    case _: Unit => i.mustThis()
+  }
+}
+
+func dataFactoryCfgV3(stakingAddress: String, boostingAddress: String, idoContract: String, teamContract: String,
+                    emissionContract: String, restContract: String, slippageContract: String, daoContract: String,
+                    marketingContract: String, gwxRewardsContract: String, birdsContract: String) = {
+  makeString(
+    ["%s%s%s%s%s%s%s%s%s%s%s",
+    stakingAddress,      #1
+    boostingAddress,     #2
+    idoContract,         #3
+    teamContract,        #4
+    emissionContract,    #5
+    restContract,        #6
+    slippageContract,    #7
+    daoContract,         #8
+    marketingContract,   #9
+    gwxRewardsContract,  #10
+    birdsContract        #11
+    ],
+    SEP)
+}
+
+func dataFactoryCfg(stakingAddress: String, boostingAddress: String, idoContract: String, teamContract: String, emissionContract: String, restContract: String, slippageContract: String) = {
+  makeString(
+    ["%s%s%s%s%s%s",
+    stakingAddress,      #1
+    boostingAddress,     #2
+    idoContract,         #3
+    teamContract,        #4
+    emissionContract,    #5
+    restContract,        #6
+    slippageContract],   #7
+    SEP)
+}
+
+# main config of pool - key contains both assets
+func dataPoolCfg(poolAddress: String,        #1
+                 poolStatus: String,         #2
+                 lpAssetId: String,          #3
+                 amountAssetStr: String,     #4
+                 priceAssetStr: String,      #5
+                 amountAssetDecimals: Int,   #6
+                 priceAssetDecimals: Int,    #7
+                 amountAssetInternalId: Int, #8
+                 priceAssetInternalId: Int,  #9
+                 lpAssetDecimals: Int,
+                 poolType: String       #10
+                 ) = {
+  makeString(
+    ["%s%d%s%s%s%d%d%d%d%d%s",
+    poolAddress,
+    poolStatus,
+    lpAssetId,
+    amountAssetStr,
+    priceAssetStr,
+    amountAssetDecimals.toString(),
+    priceAssetDecimals.toString(),
+    amountAssetInternalId.toString(),
+    priceAssetInternalId.toString(),
+    lpAssetDecimals.toString(),
+    poolType],
+    SEP)
+}
+
+func dataMappingPoolAssets(internalAmountAssetStr: Int, internalPriceAssetStr: Int) = {
+  makeString(
+    ["%d%d",
+    internalAmountAssetStr.toString(),
+    internalPriceAssetStr.toString()],
+    SEP)
+}
+
+  # function used to gather all pool data from factory
+  func getPoolConfig(poolAddress: String) = {
+    let poolAssets = getStringOrFail(keyMappingPoolContractAddressToPoolAssets(poolAddress)).split(SEP)
+    let amountAssetInternal = poolAssets[1]
+    let priceAssetInternal = poolAssets[2]
+    getStringOrFail(keyPoolConfig(amountAssetInternal, priceAssetInternal)).split(SEP)
+  }
+
+# purpose:
+#    attemps to find mapping for passed assetId, create new mapping if was failed
+# actions:
+#
+# arguments:
+#    - assetIdStr   asset id that needs intrnal id
+#    - incrementor  number of next index incrementing
+# return: list with the follwing items
+#                   1: internal asset id
+#                   2: tuple of actions need to be attached to callable results
+#                   3: flag indicating whether new internal id calculation was performed or not
+func getInternalAssetIdOrCreate(assetIdStr: String, incrementor: Int) = {
+  let internalAssetId = this.getInteger(keyMappingsBaseAsset2internalId(assetIdStr)).valueOrElse(0)
+  let currentIndexOfInternalId = this.getInteger(keyNextInternalAssetId()).valueOrElse(0)
+  let result = if (internalAssetId == 0) then
+      let newInternalAssetId = currentIndexOfInternalId + incrementor
+      (
+        newInternalAssetId,
+        [
+          # TODO: check that 2 simultaneous IntegeEntry with the same keys will write to state the last one passed
+          IntegerEntry(keyNextInternalAssetId(), newInternalAssetId),
+          IntegerEntry(keyMappingsBaseAsset2internalId(assetIdStr), newInternalAssetId),
+          StringEntry(keyMappingsInternal2baseAssetId(newInternalAssetId), assetIdStr)
+        ],
+        true
+       ) else (internalAssetId, [], false)
+
+    result
+}
+
+func mustAdmin(i: Invocation) = {
+  let adminPKs = keyAdminPubKeys().getString().valueOrElse(EMPTY).split(SEP)
+  if (adminPKs.containsElement(i.callerPublicKey.toBase58String())) then {
+    true
+  } else {
+    strict isManager = i.mustManager()
+    true
+  }
+}
+
+func intOrDefaultOrFallback(key: String, keyDefault: String, valueFallback: Int) = {
+  this.getInteger(key).valueOrElse(this.getInteger(keyDefault).valueOrElse(valueFallback))
+}
+
+@Callable(i)
+# ido, team, emission, staking, locking (boosting), rest
+func constructor(stakingContract: String, boostingContract: String, idoContract: String, teamContract: String, emissionContract: String, restContract: String, slpipageContract: String, priceDecimals: Int) = {
+  strict checkCaller = i.mustManager()
+
+    [StringEntry(keyFactoryConfig(), dataFactoryCfg(stakingContract, boostingContract, idoContract, teamContract, emissionContract, restContract, slpipageContract)),
+    IntegerEntry(keyPriceDecimals(), priceDecimals)]
+}
+
+@Callable(i)
+func constructorV2(mathcherPub58Str: String) = {
+  strict checkCaller = i.mustManager()
+
+    strict mathcerPub = mathcherPub58Str.fromBase58String().addressFromPublicKey()
+    [StringEntry(keyMatcherPub(), mathcherPub58Str)]
+}
+
+@Callable(i)
+func constructorV3(daoContract: String, marketingContract: String, gwxRewardsContract: String, birdsContract: String) = {
+  strict checkCaller = i.mustManager()
+
+   let factoryCfg = getStringOrFail(keyFactoryConfig()).split(SEP)
+
+   [StringEntry(
+         keyFactoryConfig(),
+         dataFactoryCfgV3(
+               factoryCfg[1],
+               factoryCfg[2],
+               factoryCfg[3],
+               factoryCfg[4],
+               factoryCfg[5],
+               factoryCfg[6],
+               factoryCfg[7],
+               daoContract,
+               marketingContract,
+               gwxRewardsContract,
+               birdsContract
+         ))]
+}
+
+@Callable(i)
+func constructorV4(legacyFactoryContract: String, legacyPools: List[String]) = {
+  strict checkCaller = i.mustManager()
+
+  [
+    StringEntry(keyLegacyFactoryContract(), legacyFactoryContract),
+    StringEntry(keyLegacyPools(), makeString(legacyPools, SEP))
+  ]
+}
+
+@Callable(i)
+func constructorV5(assetsStoreContract: String) = {
+  strict checkCaller = i.mustManager()
+
+  [
+    StringEntry(keyAssetsStoreContract(), assetsStoreContract)
+  ]
+}
+
+@Callable(i)
+func constructorV6(votingEmissionContract: String, priceAssets: List[String]) = {
+  strict cheks = [
+    i.mustManager(),
+    votingEmissionContract.addressFromString() != unit || "invalid voting emission contract address"
+  ]
+
+  [
+    StringEntry(keyVotingEmissionContract(), votingEmissionContract),
+    StringEntry(keyPriceAssets(), priceAssets.makeString(SEP))
+  ]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Callable(i)
+func setAdmins(adminPubKeys: List[String]) = {
+  strict checkCaller = i.mustManager()
+  [StringEntry(keyAdminPubKeys(), adminPubKeys.makeString(SEP))]
+}
+
+# purpose:
+#    used for registering new LP pool
+# actions:
+#    1. performs validation
+#    2. call pool 'activate' method
+#    3. save pool data in state
+# arguments:
+#    - poolAddress     address of an account that should be registered as a new pool
+#    - amountAssetStr  pool's asset pair amount token
+#    - priceAssetStr   pool's asset pair price token
+#    - lpAssetName     name of the lp asset that will be issued
+#    - lpAssetDescr    description of the lp asset that will be issued
+#    - poolWeight      weight of the pool
+# attach:
+# return:
+@Callable(i)
+func activateNewPool(poolAddress: String, amountAssetStr: String, priceAssetStr: String, lpAssetName: String, lpAssetDescr: String, poolWeight: Int, poolType: String, logo: String) = {
+    strict checkCaller = i.mustAdmin()
+    if(getString(keyMappingPoolContractAddressToPoolAssets(poolAddress)).isDefined()) then throw("Pool address " + poolAddress + " already registered.") else
+      let internalAmountAssetData = getInternalAssetIdOrCreate(amountAssetStr, 1)
+      let internalAmountAssetId = internalAmountAssetData._1
+
+      let internalPriceAssetData = getInternalAssetIdOrCreate(priceAssetStr, if (internalAmountAssetData._3) then 2 else 1)
+      let internalPriceAssetId = internalPriceAssetData._1
+
+      let poolAccountScriptHash = scriptHash(addressFromStringValue(poolAddress)).valueOrErrorMessage("No script has been found on pool account " + poolAddress)
+      let ethalonPoolAccountScriptHash = getBinaryValue(keyPoolScriptHash())
+
+      let poolConfig = this.getString(keyPoolConfig(internalAmountAssetId.toString(), internalPriceAssetId.toString()))
+      if (poolConfig.isDefined()) then throw("Pool " + amountAssetStr + "/" + priceAssetStr + " has already been activated.") else
+
+        let poolConfigValue = this.getString(keyPoolConfig(internalAmountAssetId.toString(), internalPriceAssetId.toString())).value()
+        # todo: uncomment after debugging
+        # validate BLAKE2b-256 hash of the pool account script matches the expected icon script stored on factory account
+        #if (poolAccountScriptHash != ethalonPoolAccountScriptHash)
+         # then throw("BLAKE2b-256 hashes don't match. Pool has: " +  toBase64String(poolAccountScriptHash) + " hash. Should have: " + toBase64String(ethalonPoolAccountScriptHash))
+          #else
+
+            let amountAssetsDecimals = if(amountAssetStr == "WAVES") then decimalsMultPrice else pow(10, 0, assetInfo(amountAssetStr.fromBase58String()).value().decimals, 0, 0, DOWN)
+            let priceAssetsDecimals =  if(priceAssetStr == "WAVES") then decimalsMultPrice else pow(10, 0, assetInfo(priceAssetStr.fromBase58String()).value().decimals, 0, 0, DOWN)
+
+            let lpAssetIssueAction = Issue(lpAssetName, lpAssetDescr, 1, 8, true)
+            let lpAssetId = lpAssetIssueAction.calculateAssetId()
+            let lpAssetIdStr = lpAssetId.toBase58String()
+
+            strict poolActivateInvokeResult = invoke(
+                                      addressFromStringValue(poolAddress),
+                                        "activate",
+                                        [amountAssetStr, priceAssetStr],
+                                        [])
+            if(poolActivateInvokeResult != "success") then throw("Pool initialisation error happened.") else
+
+            let assetsStoreContract = keyAssetsStoreContract().getStringOrFail().addressFromStringValue()
+            strict createOrUpdateLpAssetInv = assetsStoreContract.invoke("createOrUpdate", [lpAssetIdStr, lpAssetName, false], [])
+            strict addPoolsLpLabelInv = assetsStoreContract.invoke("addLabel", [lpAssetIdStr, labelPoolsLp], [])
+            strict setLogoInv = assetsStoreContract.invoke("setLogo", [lpAssetIdStr, logo], [])
+            strict addAssetsLinkInv = assetsStoreContract.invoke("addAssetsLink", [amountAssetStr, priceAssetStr, lpAssetIdStr], [])
+            strict increaseAssetPoolsNumberInv = assetsStoreContract.invoke("increaseAssetPoolsNumber", [amountAssetStr], [])
+
+            (
+              internalAmountAssetData._2 ++
+              internalPriceAssetData._2 ++
+              [
+                  lpAssetIssueAction,
+                  Burn(lpAssetId, 1),
+                  StringEntry(keyPoolConfig(internalAmountAssetId.toString(),internalPriceAssetId.toString()),
+                    dataPoolCfg(
+                      poolAddress,
+                      PoolActive.toString(),
+                      lpAssetIdStr,
+                      amountAssetStr,
+                      priceAssetStr,
+                      amountAssetsDecimals,
+                      priceAssetsDecimals,
+                      internalAmountAssetId,
+                      internalPriceAssetId,
+                      decimalsMultPrice,
+                      poolType)),
+                  StringEntry(keyMappingLpAssetToPoolAssets(lpAssetIdStr),
+                    dataMappingPoolAssets(
+                      internalAmountAssetId,
+                      internalPriceAssetId)),
+                  # FIXME: %s in single-value entry
+                  StringEntry(keyMappingPoolAssetsToLpasset(internalAmountAssetId.toString(), internalPriceAssetId.toString()),
+                    "%s__" + lpAssetIdStr),
+                  StringEntry(keyMappingPoolContractAddressToPoolAssets(poolAddress),
+                    dataMappingPoolAssets(
+                      internalAmountAssetId,
+                      internalPriceAssetId)),
+                  StringEntry(keyMappingPoolAssetsToPoolContractAddress(internalAmountAssetId, internalPriceAssetId),poolAddress),
+
+                  StringEntry(keyMappingPoolLPAssetToPoolContractAddress(lpAssetIdStr), poolAddress),
+                  StringEntry(keyMappingPoolContractToLPAsset(poolAddress), lpAssetIdStr),
+                  IntegerEntry(keyPoolToWeight(poolAddress),poolWeight),
+                  IntegerEntry(keyPoolSpread(poolAddress),defaultSpread)
+              ]
+              , lpAssetIdStr
+            )
+}
+
+# purpose:
+#    used to disable pool operations, partially or in full
+# actions:
+# arguments:
+#    1. lpAssetIdStr  lp pool asset id as an pool indicator
+#    2. newStatus  new status of the pool, where (ACTIVE - pool without restrictions)
+# attach:
+# return:
+@Callable(i)
+func managePool(poolAddress: String, newStatus: Int) = {
+  strict checkCaller = i.mustManager()
+
+  let poolConfig = getPoolConfig(poolAddress)
+
+  let poolStatus = poolConfig[idxPoolStatus]
+  let lpAssetIdStr = poolConfig[idxPoolLPAssetId]
+  let amountAssetStr =   poolConfig[idxAmtAssetId]
+  let priceAssetStr  = poolConfig[idxPriceAssetId]
+  let amountAssetsDecimals    = poolConfig[idxAmtAssetDcm].parseIntValue()
+  let priceAssetsDecimals  = poolConfig[idxPriceAssetDcm].parseIntValue()
+  let internalAmountAssetId    = poolConfig[idxIAmtAssetId].parseIntValue()
+  let internalPriceAssetId   = poolConfig[idxIPriceAssetId].parseIntValue()
+  let lpAssetDcm      = poolConfig[idxLPAssetDcm].parseIntValue()
+  let poolType      = poolConfig[idxPoolType]
+
+  [StringEntry(keyPoolConfig(internalAmountAssetId.toString(),internalPriceAssetId.toString()),
+                dataPoolCfg(
+                  poolAddress,
+                  newStatus.toString(),
+                  lpAssetIdStr,
+                  amountAssetStr,
+                  priceAssetStr,
+                  amountAssetsDecimals,
+                  priceAssetsDecimals,
+                  internalAmountAssetId,
+                  internalPriceAssetId,
+                  lpAssetDcm,
+                  poolType))]
+}
+
+@Callable(i)
+func emit(amountToEmit: Int) = {
+   let caller = i.caller
+   let originCaller = i.originCaller
+
+   let lpAssetRequested = getString(keyMappingPoolContractToLPAsset(caller.toString())).valueOrErrorMessage("Invalid LP address called me.")
+   let lpAsset = fromBase58String(lpAssetRequested)
+
+   let legacyPools = getString(keyLegacyPools()).valueOrElse(EMPTY).split(SEP)
+   let legacyFactoryContract = getString(keyLegacyFactoryContract()).valueOrErrorMessage("Legacy factory contract does not exists.").addressFromStringValue()
+
+   if(amountToEmit <= 0) then {
+     []
+   } else if(legacyPools.containsElement(caller.toString())) then {
+     (
+       [],
+       legacyFactoryContract
+     )
+   } else {
+     (
+       [Reissue(lpAsset, amountToEmit, true), ScriptTransfer(i.caller, amountToEmit, lpAsset)],
+       "success"
+     )
+   }
+}
+
+@Callable(i)
+func burn(amountToBurn: Int) = {
+   let caller = i.caller
+   let originCaller = i.originCaller
+   let payment = i.payments[0].value()
+   let paymentAmount = payment.amount.value()
+   let inAmountAssetId = payment.assetId.value().toBase58String()
+   let lpAssetRequestedForBurning = getString(keyMappingPoolContractToLPAsset(caller.toString())).valueOrErrorMessage("Invalid LP address called me.")
+
+   if(inAmountAssetId != lpAssetRequestedForBurning) then throw("Invalid asset passed.") else
+   if(amountToBurn != paymentAmount) then throw("Invalid amount passed.")  else
+   let lpAsset = fromBase58String(lpAssetRequestedForBurning)
+
+   ([Burn(lpAsset, amountToBurn)], "success")
+}
+
+@Callable(i)
+func modifyWeight(lpAssetId: String, share: Int) = {
+  strict checkCaller = i.caller.bytes.toBase58String() == this.getString(keyVotingEmissionContract()).valueOrElse("") || i.mustManager()
+  let poolContractAddress = keyMappingPoolLPAssetToPoolContractAddress(lpAssetId).getStringOrFail()
+  let poolWeightKey = poolContractAddress.keyPoolToWeight()
+  let gwxWeightKey = GWXvirtualPOOL.keyPoolToWeight()
+  let gwxWeight = gwxWeightKey.getInteger().valueOrElse(0)
+  let poolWeight = poolWeightKey.getInteger().valueOrElse(0)
+  let poolWeightNew = share
+
+  let factoryCfg = keyFactoryConfig().getStringOrFail().split(SEP)
+  let stakingContract = factoryCfg.getStakingAddressOrFail()
+
+  strict onModifyWeightInv = stakingContract.invoke("onModifyWeight", [lpAssetId, poolContractAddress], [])
+
+  let gwxVirtualPoolActions = if (gwxWeight == 0) then [] else [IntegerEntry(gwxWeightKey, 0)]
+  let poolWeightHistoryKey = poolContractAddress.keyPoolToWeightHistory(0)
+  let poolWeightHistoryOrUnit = poolWeightHistoryKey.getInteger()
+  let poolWeightHistoryActions = if (poolWeightHistoryOrUnit == unit) then [] else [DeleteEntry(poolWeightHistoryKey)]
+
+  [
+    IntegerEntry(poolWeightKey, poolWeightNew)
+  ] ++ gwxVirtualPoolActions ++ poolWeightHistoryActions
+}
+
+@Callable(i)
+func modifyWeights(btcPoolAddress: String, ethPoolAddress: String, ethBtcPoolAddress: String, usdcUsdtPoolAddress: String) = {
+   strict checkCaller = i.mustManager()
+
+   let ethBtcWeightNew   = 5 * POOLWEIGHTMULT / 100   # 0.05
+   let usdcUsdtWeightNew = 5 * POOLWEIGHTMULT / 100   # 0.05
+   let weightDecrement   = 5 * POOLWEIGHTMULT / 100   # 0.05
+
+   let factoryCfg = getStringOrFail(keyFactoryConfig()).split(SEP)
+   let stakingDapp = factoryCfg.getStakingAddressOrFail()
+   let gwxRewardDapp = factoryCfg.getGwxRewardAddressOrFail()
+
+   let btcWeightKEY = keyPoolToWeight(btcPoolAddress)
+   let ethWeightKEY = keyPoolToWeight(ethPoolAddress)
+   let ethBtcWeightKEY = keyPoolToWeight(ethBtcPoolAddress)
+   let usdcUsdtWeightKEY = keyPoolToWeight(usdcUsdtPoolAddress)
+
+   let btcWeight = getIntOrFail(btcWeightKEY)
+   let ethWeight = getIntOrFail(ethWeightKEY)
+
+   let btcWeightNew = btcWeight - weightDecrement
+   let ethWeightNew = ethWeight - weightDecrement
+
+   if (btcWeightNew <= 0) then throw("invalid btcWeightNew: " + btcWeightNew.toString()) else
+   if (ethWeightNew <= 0) then throw("invalid ethWeightNew: " + ethWeightNew.toString()) else
+
+   let btcLpAssetIdStr = getStringOrFail(keyMappingPoolContractToLPAsset(btcPoolAddress))
+   let ethLpAssetIdStr = getStringOrFail(keyMappingPoolContractToLPAsset(ethPoolAddress))
+   let ethBtcLpAssetIdStr = getStringOrFail(keyMappingPoolContractToLPAsset(ethBtcPoolAddress))
+   let usdcUsdtLpAssetIdStr = getStringOrFail(keyMappingPoolContractToLPAsset(usdcUsdtPoolAddress))
+
+   strict onModifyWeightBtc = stakingDapp.invoke("onModifyWeight", [btcLpAssetIdStr, btcPoolAddress], [])
+   strict onModifyWeightEth = stakingDapp.invoke("onModifyWeight", [ethLpAssetIdStr, ethPoolAddress], [])
+   strict onModifyWeightEthBtc = stakingDapp.invoke("onModifyWeight", [ethBtcLpAssetIdStr, ethBtcPoolAddress], [])
+   strict onModifyWeightUsdcUsdt = stakingDapp.invoke("onModifyWeight", [usdcUsdtLpAssetIdStr, usdcUsdtPoolAddress], [])
+
+   [IntegerEntry(btcWeightKEY, btcWeightNew),
+    IntegerEntry(ethWeightKEY, ethWeightNew),
+    IntegerEntry(ethBtcWeightKEY, ethBtcWeightNew),
+    IntegerEntry(usdcUsdtWeightKEY, usdcUsdtWeightNew),
+    IntegerEntry(keyPoolToWeightHistory(btcPoolAddress, 0), btcWeight),
+    IntegerEntry(keyPoolToWeightHistory(ethPoolAddress, 0), ethWeight),
+    IntegerEntry(keyPoolToWeightHistory(ethBtcPoolAddress, 0), ethBtcWeightNew),
+    IntegerEntry(keyPoolToWeightHistory(usdcUsdtPoolAddress, 0), usdcUsdtWeightNew)
+    ]
+}
+
+@Callable(i)
+func checkWxEmissionPoolLabel(amountAssetId: String, priceAssetId: String) = {
+  let haveLabel = match keyWxEmission(amountAssetId, priceAssetId).getBoolean() {
+      case b: Boolean => b
+      case _ => false
+    }
+
+  ([], haveLabel)
+}
+
+@Callable(i)
+func setWxEmissionPoolLabel(amountAssetId: String, priceAssetId: String) = {
+  strict checkCaller = i.mustAdmin()
+
+  ([BooleanEntry(keyWxEmission(amountAssetId, priceAssetId), true)], unit)
+}
+
+
+@Callable(i)
+func deleteWxEmissionPoolLabel(amountAssetId: String, priceAssetId: String) = {
+  strict checkCaller = i.mustThis() || i.mustAdmin()
+
+  ([DeleteEntry(keyWxEmission(amountAssetId, priceAssetId))], unit)
+}
+
+@Callable(i)
+func onVerificationLoss(assetId: String) = {
+  strict checkCaller = i.caller.bytes.toBase58String() == this.getString(keyAssetsStoreContract()).valueOrElse("") || i.mustManager()
+  let priceAssets = getPriceAssets()
+  strict checkPriceAssetsSize = priceAssets.size() > 0 || "invalid price assets".throw()
+
+  func cb(acc: Unit, priceAsset: String) = {
+    strict r = this.invoke("deleteWxEmissionPoolLabel", [assetId, priceAsset], [])
+    unit
+    
+  }
+  strict actions = FOLD<3>(priceAssets, unit, cb)
+
+  (nil, unit)
+}
+
+@Callable(i)
+func isPoolOneTokenOperationsDisabledREADONLY(poolAddress: String) = {
+  let poolConfig = poolAddress.getPoolConfig()
+  let assetsInternal = (poolConfig[idxIAmtAssetId].parseIntValue(), poolConfig[idxIPriceAssetId].parseIntValue())
+  let poolOneTokenOperationsDisabled = assetsInternal.keyPoolOneTokenOperationsDisabled().getBoolean().valueOrElse(false)
+  let allPoolsOneTokenOperationsDisabled = keyAllPoolsOneTokenOperationsDisabled().getBoolean().valueOrElse(false)
+
+  ([], allPoolsOneTokenOperationsDisabled || poolOneTokenOperationsDisabled)
+}
+
+@Callable(i)
+func getInFeeREADONLY(poolAddress: String) = {
+  let fee = intOrDefaultOrFallback(keyInFee(poolAddress), keyInFeeDefault(), 0)
+  ([], fee)
+}
+
+@Callable(i)
+func getOutFeeREADONLY(poolAddress: String) = {
+  let fee = intOrDefaultOrFallback(keyOutFee(poolAddress), keyOutFeeDefault(), fraction(10, MULT8, 10_000))
+  ([], fee)
+}
+
+@Callable(i)
+func getPoolStatusREADONLY(poolAddress: String) = {
+  let poolAssets = keyMappingPoolContractAddressToPoolAssets(poolAddress).getStringOrFail().split(SEP)
+  let amountAssetInternal = poolAssets[1]
+  let priceAssetInternal = poolAssets[2]
+  let cfg = keyPoolConfig(amountAssetInternal, priceAssetInternal).getStringOrFail().split(SEP)
+  ([], cfg[idxPoolStatus].parseIntValue())
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

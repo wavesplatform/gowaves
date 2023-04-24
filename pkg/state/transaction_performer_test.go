@@ -25,7 +25,7 @@ func createPerformerTestObjects(t *testing.T) *performerTestObjects {
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return &performerInfo{0, blockID0}
+	return &performerInfo{0, new(proto.StateActionsCounter), blockID0}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
@@ -36,11 +36,13 @@ func TestPerformIssueWithSig(t *testing.T) {
 	err := to.tp.performIssueWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performIssueWithSig() failed")
 	to.stor.flush(t)
-	assetInfo := assetInfo{
+	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(*tx.ID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:                 proto.DigestTail(*tx.ID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          1,
+			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -54,7 +56,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
+	assert.Equal(t, expectedAssetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
@@ -66,11 +68,13 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	err := to.tp.performIssueWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
-	assetInfo := assetInfo{
+	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(*tx.ID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:                 proto.DigestTail(*tx.ID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          1,
+			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -84,7 +88,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID))
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
+	assert.Equal(t, expectedAssetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
 
 func TestPerformReissueWithSig(t *testing.T) {
@@ -304,13 +308,13 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
-	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithSig transaction")
+	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithSig transaction")
 
 	// Test stealing aliases.
 	err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performCreateAliasWithSig() failed")
 	to.stor.flush(t)
-	err = to.stor.entities.aliases.disableStolenAliases()
+	err = to.stor.entities.aliases.disableStolenAliases(blockID0)
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
 	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
@@ -327,13 +331,13 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
 	assert.NoError(t, err, "addrByAlias failed")
-	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
+	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
 
 	// Test stealing aliases.
 	err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performCreateAliasWithProofs() failed")
 	to.stor.flush(t)
-	err = to.stor.entities.aliases.disableStolenAliases()
+	err = to.stor.entities.aliases.disableStolenAliases(blockID0)
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
 	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)

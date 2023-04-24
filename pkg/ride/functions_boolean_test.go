@@ -13,10 +13,10 @@ func TestBooleanToByte(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideBoolean(true)}, false, rideBytes{1}},
-		{[]rideType{rideBoolean(false)}, false, rideBytes{0}},
+		{[]rideType{rideBoolean(true)}, false, rideByteVector{1}},
+		{[]rideType{rideBoolean(false)}, false, rideByteVector{0}},
 		{[]rideType{rideBoolean(true), rideBoolean(false)}, true, nil},
-		{[]rideType{rideBytes{1}}, true, nil},
+		{[]rideType{rideByteVector{1}}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
@@ -40,7 +40,7 @@ func TestBooleanToString(t *testing.T) {
 		{[]rideType{rideBoolean(true)}, false, rideString("true")},
 		{[]rideType{rideBoolean(false)}, false, rideString("false")},
 		{[]rideType{rideBoolean(true), rideBoolean(false)}, true, nil},
-		{[]rideType{rideBytes{1}}, true, nil},
+		{[]rideType{rideByteVector{1}}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
@@ -64,7 +64,7 @@ func TestUnaryNot(t *testing.T) {
 		{[]rideType{rideBoolean(true)}, false, rideBoolean(false)},
 		{[]rideType{rideBoolean(false)}, false, rideBoolean(true)},
 		{[]rideType{rideBoolean(true), rideBoolean(false)}, true, nil},
-		{[]rideType{rideBytes{1}}, true, nil},
+		{[]rideType{rideByteVector{1}}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},

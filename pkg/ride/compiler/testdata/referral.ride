@@ -1,0 +1,515 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let separator = "__"
+
+func keyWxAssetId() = ["%s", "wxAssetId"].makeString(separator)
+
+let keyBackendPublicKey = makeString(["%s", "backendPublicKey"], separator)
+
+func keyExistsReferrerToReferral(
+  programName: String,
+  referrerAddress: String,
+  referralAddress: String
+) = ["%s%s%s%s", "existsReferrerToReferral", programName, referrerAddress, referralAddress].makeString(separator)
+func keyClaimedReferrer(
+  programName: String,
+  claimerAddress: String
+) = makeString(["%s%s%s", "claimedReferrer", programName, claimerAddress], separator)
+func keyClaimedReferral(
+  programName: String,
+  claimerAddress: String
+) = makeString(["%s%s%s", "claimedReferral", programName, claimerAddress], separator)
+func keyUnclaimedReferrer(
+  programName: String,
+  claimerAddress: String
+) = makeString(["%s%s%s", "unclaimedReferrer", programName, claimerAddress], separator)
+func keyUnclaimedReferral(
+  programName: String,
+  claimerAddress: String
+) = makeString(["%s%s%s", "unclaimedReferral", programName, claimerAddress], separator)
+func keyReferrer(
+  programName: String,
+  referralAddress: String
+) = makeString(["%s%s%s", "referrer", programName, referralAddress], separator)
+func keyProgramName(programName: String) = makeString(["%s%s", "programName", programName], separator)
+func keyTotalReferralCount(
+  programName: String,
+  referrerAddress: String
+) = makeString(["%s%s%s", "totalReferralCount", programName, referrerAddress], separator)
+func keyActiveReferralCount(
+  programName: String,
+  referrerAddress: String
+) = makeString(["%s%s%s", "activeReferralCount", programName, referrerAddress], separator)
+func keyIsReferralActive(
+  programName: String,
+  referralAddress: String
+) = makeString(["%s%s%s", "activeReferral", programName, referralAddress], separator)
+
+func keyClaimedTotalAddress(address: String) = {
+  ["%s%s", "claimedTotalAddress", address].makeString(separator)
+}
+func keyUnclaimedTotalAddress(address: String) = {
+  ["%s%s", "unclaimedTotalAddress", address].makeString(separator)
+}
+func keyClaimedTotal(programName: String)           = ["%s%s", "claimedTotal", programName].makeString(separator)
+func keyRewardsTotal(programName: String)           = ["%s%s", "rewardsTotal", programName].makeString(separator)
+func keyRewardAssetId(programName: String)          = ["%s%s", "rewardAssetId", programName].makeString(separator)
+func keyTreasuryContract(programName: String)       = ["%s%s", "treasuryContract", programName].makeString(separator)
+func keyImplementationContract(programName: String) = {
+  ["%s%s", "implementationContract", programName].makeString(separator)
+}
+func keyAllReferralPrograms(address: String) = ["%s%s", "allReferralPrograms", address].makeString(separator)
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+
+func keyClaimHistory(
+  programName: String,
+  userAddress: String,
+  transactionId: String,
+  type: String
+) = ["%s%s%s%s%s", "history", type, programName, userAddress, transactionId].makeString(separator)
+func formatClaimHistory(amount: Int) = ["%d%d%d", lastBlock.height.toString(), lastBlock.timestamp.toString(), amount.toString()].makeString(separator)
+
+func throwErr(msg: String) = ["referral.ride:", msg].makeString(" ").throw()
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "permission denied".throwErr()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+func updateAllReferralPrograms(address: String, programName: String) = {
+  let allReferralPrograms = address.keyAllReferralPrograms().getString().valueOrElse("")
+  let updatedAllReferralPrograms = if allReferralPrograms.contains(programName) then {
+    []
+  } else {
+    let newAllReferralPrograms = if allReferralPrograms == "" then {
+      programName
+    } else {
+      [allReferralPrograms, programName].makeString(separator)
+    }
+    [StringEntry(address.keyAllReferralPrograms(), newAllReferralPrograms)]
+  }
+  updatedAllReferralPrograms
+}
+
+@Callable(i)
+func claimInternal(programName: String, claimerAddress: String, isImplementationContract: Boolean) = {
+  strict checkProgramExists = programName.keyProgramName().getBoolean().valueOrElse(
+    false
+  ) || "program does not exist".throwErr()
+
+  let (
+    claimerClaimed,
+    claimerUnclaimed,
+    keyClaimed,
+    keyUnclaimed,
+    claimHistoryKey
+  ) = if (isImplementationContract) then {
+    (
+      programName.keyClaimedReferral(claimerAddress).getInteger().valueOrElse(0),
+      programName.keyUnclaimedReferral(claimerAddress).getInteger().valueOrElse(0),
+      programName.keyClaimedReferral(claimerAddress),
+      programName.keyUnclaimedReferral(claimerAddress),
+      programName.keyClaimHistory(claimerAddress, i.transactionId.toBase58String(), "claimReferral")
+    )
+  } else {
+    (
+      programName.keyClaimedReferrer(claimerAddress).getInteger().valueOrElse(0),
+      programName.keyUnclaimedReferrer(claimerAddress).getInteger().valueOrElse(0),
+      programName.keyClaimedReferrer(claimerAddress),
+      programName.keyUnclaimedReferrer(claimerAddress),
+      programName.keyClaimHistory(claimerAddress, i.transactionId.toBase58String(), "claimReferrer")
+    )
+  }
+  let claimedTotal      = programName.keyClaimedTotal().getInteger().valueOrElse(0)
+  let treasuryContract  = programName.keyTreasuryContract().getString().value().addressFromString().value()
+  let rewardAssetId     = programName.keyRewardAssetId().getString().value().fromBase58String()
+  let claimedTotalAddress = claimerAddress.keyClaimedTotalAddress().getInteger().valueOrElse(0)
+  let unclaimedTotalAddress = claimerAddress.keyUnclaimedTotalAddress().getInteger().valueOrElse(0)
+
+  if (isImplementationContract && claimerUnclaimed == 0) then {
+	  ([], 0)
+  } else {
+    strict checkCanClaim  = claimerUnclaimed > 0 || "nothing to claim".throwErr()
+
+    let newClaimerClaimed = claimerClaimed + claimerUnclaimed
+    let newClaimedTotal   = claimedTotal + claimerUnclaimed
+    let newClaimedTotalAddress = claimedTotalAddress + claimerUnclaimed
+    let newUnclaimedTotalAddress = unclaimedTotalAddress - claimerUnclaimed
+
+    strict balanceBefore  = this.assetBalance(rewardAssetId).value()
+    strict res            = treasuryContract.invoke("withdrawReferralReward", [claimerUnclaimed], [])
+    strict balanceAfter   = this.assetBalance(rewardAssetId).value()
+    strict balanceDiff    = balanceAfter - balanceBefore
+    strict checkBalance   = balanceDiff == claimerUnclaimed || "insufficient balance on referral contract".throwErr()
+
+    ([
+      IntegerEntry(keyClaimed, newClaimerClaimed),
+      IntegerEntry(keyUnclaimed, 0),
+      IntegerEntry(programName.keyClaimedTotal(), newClaimedTotal),
+      IntegerEntry(claimerAddress.keyClaimedTotalAddress(), newClaimedTotalAddress),
+      IntegerEntry(claimerAddress.keyUnclaimedTotalAddress(), newUnclaimedTotalAddress),
+      ScriptTransfer(claimerAddress.addressFromStringValue(), claimerUnclaimed, rewardAssetId),
+      StringEntry(
+        claimHistoryKey,
+        claimerUnclaimed.formatClaimHistory()
+      )
+    ], claimerUnclaimed)
+  }
+}
+
+@Callable(i)
+func claimBulkInternal(claimer: String, programNames: List[String], currentIter: Int) = {
+  strict checkCaller = i.caller == this || "permission denied".throwErr()
+  if (currentIter == programNames.size()) then ([]) else
+
+  let programName       = programNames[currentIter]
+  let programUnclaimed  = programName.keyUnclaimedReferrer(claimer).getInteger().valueOrElse(0)
+  let claimHistoryKey   = programName.keyClaimHistory(
+    claimer,
+    i.transactionId.toBase58String(),
+    "claimBulk"
+  )
+
+  strict claimBulkInternal = this.invoke(
+    "claimBulkInternal",
+    [
+      claimer,
+      programNames,
+      currentIter+1
+    ],
+    []
+  )
+
+  let unclaimedReferrer = programName.keyUnclaimedReferrer(claimer).getInteger().valueOrElse(0)
+  strict claim = if (unclaimedReferrer > 0) then {
+    this.invoke(
+      "claimInternal",
+      [
+        programName,
+        claimer,
+        false
+      ],
+      []
+    )
+  } else {
+    unit
+  }
+
+  ([], [claimBulkInternal, claim])
+}
+
+@Callable(i)
+func incUnclaimedWithPaymentInternal(
+  paymentAmounts: List[Int],
+  programName: String,
+  referrerAddresses: List[String],
+  currentIter: Int,
+  resAmount: Int
+) = {
+  strict checkCaller = i.caller == this || "permission denied".throwErr()
+
+  let argsComparison = paymentAmounts.size() == referrerAddresses.size()
+  strict check = argsComparison || "lists in args must be same size".throwErr()
+  if (currentIter == paymentAmounts.size()) then ([], resAmount) else
+
+  let referrerAddress = referrerAddresses[currentIter]
+  let unclaimedTotalAddress = referrerAddress.keyUnclaimedTotalAddress().getInteger().valueOrElse(0)
+  let referrerUnclaimed = programName.keyUnclaimedReferrer(referrerAddress).getInteger().valueOrElse(0)
+  let rewardsTotal = programName.keyRewardsTotal().getInteger().valueOrElse(0)
+
+  let newUnclaimedTotalAddress = unclaimedTotalAddress + paymentAmounts[currentIter]
+  let newReferrerUnclaimed = referrerUnclaimed + paymentAmounts[currentIter]
+  let newResAmount = resAmount + paymentAmounts[currentIter]
+
+  strict inv = this.invoke(
+    "incUnclaimedWithPaymentInternal",
+    [
+      paymentAmounts,
+      programName,
+      referrerAddresses,
+      currentIter+1,
+      newResAmount
+    ], []
+  )
+
+  let updatedAllReferrerPrograms = updateAllReferralPrograms(referrerAddress, programName)
+
+  ([
+    IntegerEntry(referrerAddress.keyUnclaimedTotalAddress(), newUnclaimedTotalAddress),
+    IntegerEntry(programName.keyUnclaimedReferrer(referrerAddress), newReferrerUnclaimed),
+    IntegerEntry(programName.keyRewardsTotal(), rewardsTotal + paymentAmounts[currentIter])
+  ] ++ updatedAllReferrerPrograms, inv)
+}
+
+@Callable(i)
+func createReferralProgram(programName: String, treasuryContract: String, implementationContract: String, rewardAssetId: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkProgramName = programName.keyProgramName().getBoolean() == unit || "program name already exists".throwErr()
+  let programNameIsValid = !programName.contains(separator) && !programName.contains(" ")
+  strict checkProgramExists = programNameIsValid || "invalid program name".throwErr()
+  strict checkRewardAsset = rewardAssetId.fromBase58String().assetInfo() != unit || "invalid reward asset id".throwErr()
+
+  ([
+    BooleanEntry(programName.keyProgramName(), true),
+    StringEntry(programName.keyTreasuryContract(), treasuryContract),
+    StringEntry(programName.keyImplementationContract(), implementationContract),
+    StringEntry(programName.keyRewardAssetId(), rewardAssetId),
+    IntegerEntry(programName.keyRewardsTotal(), 0)
+  ], unit)
+}
+
+@Callable(i)
+func createPair(
+  programName: String,
+  referrerAddress: String,
+  referralAddress: String,
+  signature: ByteVector
+) = {
+  strict checkProgramExists = programName.keyProgramName().getBoolean().valueOrElse(false) || "program does not exist".throwErr()
+  strict pairReferrerToReferralExistCheck = programName.keyExistsReferrerToReferral(
+    referrerAddress, referralAddress
+  ).getBoolean() == unit || "pair already exists".throwErr()
+  strict noRefSelf = referrerAddress != referralAddress || "cannot refer to self".throwErr()
+
+  let pair = [programName, referrerAddress, referralAddress].makeString(":").toBytes()
+  let backendPublicKey = keyBackendPublicKey.getString().value().fromBase58String()
+  strict validateSignature = sigVerify(pair, signature, backendPublicKey) || "bad signature".throwErr()
+
+  let totalReferralCount = programName.keyTotalReferralCount(referrerAddress).getInteger().valueOrElse(0)
+  let newTotalReferralCount = totalReferralCount + 1
+
+  let updatedAllReferrerPrograms = updateAllReferralPrograms(referrerAddress, programName)
+  let updatedAllReferralPrograms = updateAllReferralPrograms(referralAddress, programName)
+
+  (
+    [
+      BooleanEntry(programName.keyExistsReferrerToReferral(referrerAddress, referralAddress), true),
+      IntegerEntry(programName.keyTotalReferralCount(referrerAddress), newTotalReferralCount),
+      StringEntry(programName.keyReferrer(referralAddress), referrerAddress)
+    ] ++ updatedAllReferrerPrograms ++ updatedAllReferralPrograms,
+    unit
+  )
+}
+
+@Callable(i)
+func updateReferralActivity(
+  programName: String,
+  referralAddress: String,
+  isActive: Boolean
+) = {
+  let implementationContract  = programName.keyImplementationContract().getString().value()
+  let isReferralActive        = programName.keyIsReferralActive(referralAddress).getBoolean() != unit
+  let referrerAddress         = programName.keyReferrer(referralAddress).getString().value()
+
+  strict checkCaller = i.caller.toString() == implementationContract || "permission denied".throwErr()
+
+  let update = if isReferralActive == isActive then {
+    ([], unit)
+  } else {
+    let update = if isActive == true then {
+      let newActiveReferralCount = programName.keyActiveReferralCount(referrerAddress).getInteger().valueOrElse(0) + 1
+      ([
+        BooleanEntry(programName.keyIsReferralActive(referralAddress), true),
+        IntegerEntry(programName.keyActiveReferralCount(referrerAddress), newActiveReferralCount)
+      ], unit)
+    } else {
+      let newActiveReferralCount = programName.keyActiveReferralCount(referrerAddress).getInteger().valueOrElse(0) - 1
+      ([
+        DeleteEntry(programName.keyIsReferralActive(referralAddress)),
+        IntegerEntry(programName.keyActiveReferralCount(referrerAddress), newActiveReferralCount)
+      ], unit)
+    }
+    update
+  }
+
+  update
+}
+
+@Callable(i)
+func incUnclaimed(
+  programName: String,
+  referralAddress: String,
+  referrerReward: Int,
+  referralReward: Int
+) = {
+  let implementationContract = programName.keyImplementationContract().getString().value()
+  let referrerAddress   = programName.keyReferrer(referralAddress).getString().value()
+
+  strict checkCaller = i.caller.toString() == implementationContract || "permission denied".throwErr()
+  strict checkProgram = programName == "wxlock" || "invalid program".throwErr()
+  strict checkReferrerInProgram = referrerAddress.keyAllReferralPrograms().getString().valueOrElse(
+    ""
+  ).contains(programName) || ("referrer not in program="+programName+" addr="+referrerAddress).throwErr()
+  strict checkReferralInProgram = referralAddress.keyAllReferralPrograms().getString().valueOrElse(
+    ""
+  ).contains(programName) || ("referral not in program="+programName+" addr="+referralAddress).throwErr()
+
+  let unclaimedTotalReferrer = referrerAddress.keyUnclaimedTotalAddress().getInteger().valueOrElse(0)
+  let referrerUnclaimed = programName.keyUnclaimedReferrer(referrerAddress).getInteger().valueOrElse(0)
+  let unclaimedTotalReferral = referralAddress.keyUnclaimedTotalAddress().getInteger().valueOrElse(0)
+  let referralUnclaimed = programName.keyUnclaimedReferral(referralAddress).getInteger().valueOrElse(0)
+  let rewardsTotal = programName.keyRewardsTotal().getInteger().valueOrElse(0)
+
+  let newUnclaimedTotalReferrer = unclaimedTotalReferrer + referrerReward
+  let newReferrerUnclaimed = referrerUnclaimed + referrerReward
+  let newUnclaimedTotalReferral = unclaimedTotalReferral + referralReward
+  let newReferralUnclaimed = referralUnclaimed + referralReward
+
+  ([
+    IntegerEntry(referrerAddress.keyUnclaimedTotalAddress(), newUnclaimedTotalReferrer),
+    IntegerEntry(referralAddress.keyUnclaimedTotalAddress(), newUnclaimedTotalReferral),
+    IntegerEntry(programName.keyUnclaimedReferrer(referrerAddress), newReferrerUnclaimed),
+    IntegerEntry(programName.keyUnclaimedReferral(referralAddress), newReferralUnclaimed),
+    IntegerEntry(programName.keyRewardsTotal(), rewardsTotal + referrerReward + referralReward)
+  ], unit)
+}
+
+@Callable(i)
+func incUnclaimedWithPayment(programName: String, referrerAddresses: List[String]) = {
+  strict checkProgram = programName == "wxSpotFee" || "invalid program".throwErr()
+
+  func map(accum: List[Int], next: AttachedPayment) = {
+    let assetIdCheck = next.assetId.value().toBase58String() == programName.keyRewardAssetId().getString().value()
+    strict amountCheck = assetIdCheck || "invalid asset id".throwErr()
+    accum :+ next.amount
+  }
+  let payments = FOLD<10>(i.payments, [], map)
+
+  strict resAmount = this.invoke(
+    "incUnclaimedWithPaymentInternal",
+    [
+      payments,
+      programName,
+      referrerAddresses,
+      0,
+      0
+    ], []
+  ).exactAs[Int]
+
+  let treasuryContract = programName.keyTreasuryContract().getString().value().addressFromStringValue()
+  let rewardAssetId    = programName.keyRewardAssetId().getString().value().fromBase58String()
+
+  [
+    ScriptTransfer(treasuryContract, resAmount, rewardAssetId)
+  ]
+}
+
+@Callable(i)
+func claim(programName: String) = {
+  strict checkProgramExists = programName.keyProgramName().getBoolean().valueOrElse(
+    false
+  ) || "program does not exist".throwErr()
+
+  let isImplementationContract = i.caller.toString() == keyImplementationContract(programName).getString().value()
+  let claimerAddress = if isImplementationContract then i.originCaller.toString() else i.caller.toString()
+
+  strict claimInternal = this.invoke(
+    "claimInternal",
+    [
+      programName,
+      claimerAddress,
+      isImplementationContract
+    ], []
+  )
+  ([], claimInternal)
+}
+
+@Callable(i)
+func claimBulk() = {
+  let callerAddress = i.caller.toString()
+  let callerProgramsStr = i.caller.toString().keyAllReferralPrograms().getString()
+
+  strict programsExists = callerProgramsStr.isDefined() || "no referral programs".throwErr()
+
+  let callerPrograms = callerProgramsStr.value().split("__")
+
+  strict bulkClaim = this.invoke(
+    "claimBulkInternal",
+    [
+      callerAddress,
+      callerPrograms,
+      0
+    ], []
+  )
+
+  ([], bulkClaim)
+}
+
+@Callable(i)
+func claimREADONLY(programName: String, userAddress: String) = {
+  let claimerClaimed    = programName.keyClaimedReferrer(userAddress).getInteger().valueOrElse(0)
+  let claimerUnclaimed  = programName.keyUnclaimedReferrer(userAddress).getInteger().valueOrElse(0)
+
+  ([], [claimerUnclaimed, claimerClaimed])
+}
+
+@Callable(i)
+func claimBulkREADONLY(claimer: String) = {
+  let claimedTotalAddress = claimer.keyClaimedTotalAddress().getInteger().valueOrElse(0)
+  let unclaimedTotalAddress = claimer.keyUnclaimedTotalAddress().getInteger().valueOrElse(0)
+
+  ([], [unclaimedTotalAddress, claimedTotalAddress])
+}
+
+@Callable(i)
+func setTotalKeys(programName: String, address: String) = {
+  let claimedReferrer = programName.keyClaimedReferrer(address).getInteger().valueOrElse(0)
+  let claimedReferral = programName.keyClaimedReferral(address).getInteger().valueOrElse(0)
+  let unclaimedReferrer = programName.keyUnclaimedReferrer(address).getInteger().valueOrElse(0)
+  let unclaimedReferral = programName.keyUnclaimedReferral(address).getInteger().valueOrElse(0)
+
+  let claimedTotalAddress = claimedReferrer + claimedReferral
+  let unclaimedTotalAddress = unclaimedReferrer + unclaimedReferral
+
+  ([
+    IntegerEntry(address.keyClaimedTotalAddress(), claimedTotalAddress),
+    IntegerEntry(address.keyUnclaimedTotalAddress(), unclaimedTotalAddress)
+  ], unit)
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller            = i.mustManager()
+  strict checkManagerPublicKey  = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM    = pm.isDefined() || "no pending manager".throwErr()
+  strict checkPM  = i.callerPublicKey == pm.value() || "you are not pending manager".throwErr()
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

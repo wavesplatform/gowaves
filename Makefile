@@ -37,6 +37,9 @@ gotest:
 gotest-race-coverage:
 	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
 
+gotest-real-node:
+	@REAL_NODE=true go test -cover $$(go list ./... | grep -v "/itests")
+
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
@@ -123,6 +126,8 @@ build-retransmitter-windows:
 
 release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin build-retransmitter-windows
 
+build-node-native:
+	@CGO_ENABLE=0 go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-arm:
@@ -151,6 +156,8 @@ build-custom-windows:
 
 build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
+build-importer-native:
+	@CGO_ENABLE=0 go build -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-darwin:

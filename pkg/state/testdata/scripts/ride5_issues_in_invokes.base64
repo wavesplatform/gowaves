@@ -1,0 +1,42 @@
+# {-# STDLIB_VERSION 5 #-}
+# {-# CONTENT_TYPE DAPP #-}
+# {-# SCRIPT_TYPE ACCOUNT #-}
+#
+# @Callable(i)
+# func call() = {
+#   let asset1 = Issue("Asset1", "just an asset", 100500, 2, true, unit, 0)
+#
+#   let res = invoke(this, "issueActions", [], [])
+#   if res == true
+#   then
+#     let asset2 = Issue("Asset2", "just an asset", 100100, 3, true, unit, 0)
+#     let res2 = invoke(this, "oneMoreIssue", ["OneMoreAsset", "one more asset"], [])
+#     if res2 == true
+#     then
+#       [asset1, asset2]
+#     else
+#       throw("call oneMoreIssue in call bug")
+#   else
+#     throw("call issueActions bug")
+# }
+#
+# @Callable(i)
+# func issueActions() = {
+#   let catCoin = Issue("CatCoin", "kitty", 1, 0, false, unit, 0)
+#   let res =  invoke(this, "oneMoreIssue", ["FirstIssue", "first issue"], [])
+#   if res == true
+#   then
+#     let pugCoin = Issue("PugCoin", "pug", 1, 0, false, unit, 0)
+#     let parrotCoin = Issue("ParrotCoin", "parrots", 10000, 1, true, unit, 0)
+#     ([catCoin, pugCoin, parrotCoin], true)
+#   else
+#     throw("call oneMoreIssue in issueActions bug")
+# }
+#
+# @Callable(i)
+# func oneMoreIssue(name: String, description: String) = {
+#     let firstAsset = Issue(name, description, 42, 5, true, unit, 0)
+#     ([firstAsset], true)
+# }
+
+AAIFAAAAAAAAAAwIAhIAEgASBAoCCAgAAAAAAAAAAwAAAAFpAQAAAARjYWxsAAAAAAQAAAAGYXNzZXQxCQAEQwAAAAcCAAAABkFzc2V0MQIAAAANanVzdCBhbiBhc3NldAAAAAAAAAGIlAAAAAAAAAAAAgYFAAAABHVuaXQAAAAAAAAAAAAEAAAAA3JlcwkAA/wAAAAEBQAAAAR0aGlzAgAAAAxpc3N1ZUFjdGlvbnMFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMGBAAAAAZhc3NldDIJAARDAAAABwIAAAAGQXNzZXQyAgAAAA1qdXN0IGFuIGFzc2V0AAAAAAAAAYcEAAAAAAAAAAADBgUAAAAEdW5pdAAAAAAAAAAAAAQAAAAEcmVzMgkAA/wAAAAEBQAAAAR0aGlzAgAAAAxvbmVNb3JlSXNzdWUJAARMAAAAAgIAAAAMT25lTW9yZUFzc2V0CQAETAAAAAICAAAADm9uZSBtb3JlIGFzc2V0BQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAAEcmVzMgYJAARMAAAAAgUAAAAGYXNzZXQxCQAETAAAAAIFAAAABmFzc2V0MgUAAAADbmlsCQAAAgAAAAECAAAAHWNhbGwgb25lTW9yZUlzc3VlIGluIGNhbGwgYnVnCQAAAgAAAAECAAAAFWNhbGwgaXNzdWVBY3Rpb25zIGJ1ZwAAAAFpAQAAAAxpc3N1ZUFjdGlvbnMAAAAABAAAAAdjYXRDb2luCQAEQwAAAAcCAAAAB0NhdENvaW4CAAAABWtpdHR5AAAAAAAAAAABAAAAAAAAAAAABwUAAAAEdW5pdAAAAAAAAAAAAAQAAAADcmVzCQAD/AAAAAQFAAAABHRoaXMCAAAADG9uZU1vcmVJc3N1ZQkABEwAAAACAgAAAApGaXJzdElzc3VlCQAETAAAAAICAAAAC2ZpcnN0IGlzc3VlBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBgQAAAAHcHVnQ29pbgkABEMAAAAHAgAAAAdQdWdDb2luAgAAAANwdWcAAAAAAAAAAAEAAAAAAAAAAAAHBQAAAAR1bml0AAAAAAAAAAAABAAAAApwYXJyb3RDb2luCQAEQwAAAAcCAAAAClBhcnJvdENvaW4CAAAAB3BhcnJvdHMAAAAAAAAAJxAAAAAAAAAAAAEGBQAAAAR1bml0AAAAAAAAAAAACQAFFAAAAAIJAARMAAAAAgUAAAAHY2F0Q29pbgkABEwAAAACBQAAAAdwdWdDb2luCQAETAAAAAIFAAAACnBhcnJvdENvaW4FAAAAA25pbAYJAAACAAAAAQIAAAAlY2FsbCBvbmVNb3JlSXNzdWUgaW4gaXNzdWVBY3Rpb25zIGJ1ZwAAAAFpAQAAAAxvbmVNb3JlSXNzdWUAAAACAAAABG5hbWUAAAALZGVzY3JpcHRpb24EAAAACmZpcnN0QXNzZXQJAARDAAAABwUAAAAEbmFtZQUAAAALZGVzY3JpcHRpb24AAAAAAAAAACoAAAAAAAAAAAUGBQAAAAR1bml0AAAAAAAAAAAACQAFFAAAAAIJAARMAAAAAgUAAAAKZmlyc3RBc3NldAUAAAADbmlsBgAAAABjCAgr
