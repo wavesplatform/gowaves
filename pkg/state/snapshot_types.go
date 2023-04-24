@@ -128,7 +128,7 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 
 type AssetReissuabilitySnapshot struct {
 	assetID       proto.AssetID
-	totalQuantity *big.Int
+	totalQuantity big.Int
 	isReissuable  bool
 }
 
