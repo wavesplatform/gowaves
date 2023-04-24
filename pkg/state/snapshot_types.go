@@ -112,9 +112,10 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 }
 
 type StaticAssetInfoSnapshot struct {
-	assetID proto.AssetID
-	issuer  proto.Address
-	isNFT   bool
+	assetID  proto.AssetID
+	issuer   proto.Address
+	decimals uint8
+	isNFT    bool
 }
 
 func (s *StaticAssetInfoSnapshot) dummy() error {
@@ -132,7 +133,7 @@ func (s *AssetReissuabilitySnapshot) dummy() error {
 
 type AssetDescriptionSnapshot struct {
 	assetID          proto.AssetID
-	assetName        *string
+	assetName        string
 	assetDescription string
 	changeHeight     uint64
 }
