@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -28,7 +29,7 @@ func (s *WavesBalancesSnapshot) dummy() error {
 // What is address || asset_id?
 type balanceAsset struct {
 	address proto.Address
-	assetID proto.AssetID
+	assetID crypto.Digest
 	balance uint64
 }
 
@@ -59,7 +60,7 @@ func (s *AccountScriptSnapshot) dummy() error {
 }
 
 type AssetScriptSnapshot struct {
-	assetID proto.AssetID
+	assetID crypto.Digest
 	script  proto.Script
 }
 
@@ -87,7 +88,7 @@ func (s *LeaseStatusSnapshot) dummy() error {
 }
 
 type SponsorshipSnapshot struct {
-	assetID         proto.AssetID
+	assetID         crypto.Digest
 	minSponsoredFee uint64
 }
 
@@ -116,7 +117,7 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 }
 
 type StaticAssetInfoSnapshot struct {
-	assetID  proto.AssetID
+	assetID  crypto.Digest
 	issuer   proto.Address
 	decimals int8
 	isNFT    bool
@@ -127,7 +128,7 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 }
 
 type AssetReissuabilitySnapshot struct {
-	assetID       proto.AssetID
+	assetID       crypto.Digest
 	totalQuantity big.Int
 	isReissuable  bool
 }
@@ -137,7 +138,7 @@ func (s *AssetReissuabilitySnapshot) dummy() error {
 }
 
 type AssetDescriptionSnapshot struct {
-	assetID          proto.AssetID
+	assetID          crypto.Digest
 	assetName        string
 	assetDescription string
 	changeHeight     uint64
