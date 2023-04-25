@@ -42,152 +42,209 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	}
 
 	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to issue asset")
+		return nil, errors.Wrap(err, "failed to issue asset")
 	}
-
 
 	sender := proto.MustAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	issueSnapshot := StaticAssetInfoSnapshot{
-		assetID: proto.AssetIDFromDigest(assetID),
-		issuer:  sender,
-		isNFT:   assetInfo.isNFT(),
+	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
+		assetID:  proto.AssetIDFromDigest(assetID),
+		issuer:   sender,
+		decimals: assetInfo.decimals,
+		isNFT:    assetInfo.isNFT(),
 	}
-	tp.stor.assets.
 
-	return nil
+	assetDescription := &AssetDescriptionSnapshot{
+		assetID:          proto.AssetIDFromDigest(assetID),
+		assetName:        assetInfo.name,
+		assetDescription: assetInfo.description,
+		changeHeight:     assetInfo.lastNameDescChangeHeight,
+	}
+
+	assetReissuability := &AssetReissuabilitySnapshot{
+		assetID:      proto.AssetIDFromDigest(assetID),
+		isReissuable: assetInfo.reissuable,
+	}
+
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to IssueWithSig transaction")
+		return nil, errors.New("failed to convert interface to IssueWithSig transaction")
 	}
 	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
-		return errors.Errorf("failed to get transaction ID: %v\n", err)
+		return nil, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
 	assetID, err := crypto.NewDigestFromBytes(txID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
-		return err
+		return nil, err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
-func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to IssueWithProofs transaction")
+		return nil, errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
 	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
-		return errors.Errorf("failed to get transaction ID: %v\n", err)
+		return nil, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
 	assetID, err := crypto.NewDigestFromBytes(txID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return err
+		return nil, err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
-func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo) error {
+func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetReissueChange{
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
 	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to reissue asset")
+		return nil, errors.Wrap(err, "failed to reissue asset")
 	}
-	return nil
+
+	newestTokenInfo, err := tp.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to pull the newest info for an asset")
+	}
+
+	assetReissuability := &AssetReissuabilitySnapshot{
+		assetID:       proto.AssetIDFromDigest(tx.AssetID),
+		totalQuantity: newestTokenInfo.quantity,
+		isReissuable:  change.reissuable,
+	}
+
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, assetReissuability)
+	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueWithSig transaction")
+		return nil, errors.New("failed to convert interface to ReissueWithSig transaction")
 	}
 	return tp.performReissue(&tx.Reissue, info)
 }
 
-func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueWithProofs transaction")
+		return nil, errors.New("failed to convert interface to ReissueWithProofs transaction")
 	}
 	return tp.performReissue(&tx.Reissue, info)
 }
 
-func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo) error {
+func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
 	}
 	if err := tp.stor.assets.burnAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to burn asset")
+		return nil, errors.Wrap(err, "failed to burn asset")
 	}
-	return nil
+
+	newestTokenInfo, err := tp.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(tx.AssetID))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to pull the newest info for an asset")
+	}
+
+	assetReissuability := &AssetReissuabilitySnapshot{
+		assetID:       proto.AssetIDFromDigest(tx.AssetID),
+		totalQuantity: newestTokenInfo.quantity,
+		isReissuable:  newestTokenInfo.reissuable,
+	}
+
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, assetReissuability)
+	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to BurnWithSig transaction")
+		return nil, errors.New("failed to convert interface to BurnWithSig transaction")
 	}
 	return tp.performBurn(&tx.Burn, info)
 }
 
-func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to BurnWithProofs transaction")
+		return nil, errors.New("failed to convert interface to BurnWithProofs transaction")
 	}
 	return tp.performBurn(&tx.Burn, info)
 }
 
-func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.Exchange, info *performerInfo) error {
+func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.Exchange, info *performerInfo) (*FilledVolumeFeeSnapshot, error) {
 	orderId, err := order.GetID()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fee := tx.GetBuyMatcherFee()
 	if order.GetOrderType() == proto.Sell {
 		fee = tx.GetSellMatcherFee()
 	}
+	volume := tx.GetAmount()
+
 	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID); err != nil {
-		return err
+		return nil, err
 	}
-	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID); err != nil {
-		return err
+	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, volume, info.blockID); err != nil {
+		return nil, err
 	}
-	return nil
+
+	volumeRecord, err := tp.stor.ordersVolumes.newestVolumeById(orderId)
+
+	orderSnapshot := &FilledVolumeFeeSnapshot{
+		orderID:      orderId,
+		filledVolume: volumeRecord.amountFilled,
+		filledFee:    volumeRecord.feeFilled,
+	}
+
+	return orderSnapshot, nil
 }
 
-func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
-		return errors.New("failed to convert interface to Exchange transaction")
+		return nil, errors.New("failed to convert interface to Exchange transaction")
 	}
 	so, err := tx.GetSellOrder()
 	if err != nil {
-		return errors.Wrap(err, "no sell order")
+		return nil, errors.Wrap(err, "no sell order")
 	}
-	if err := tp.increaseOrderVolume(so, tx, info); err != nil {
-		return err
+	sellOrderSnapshot, err := tp.increaseOrderVolume(so, tx, info)
+	if err != nil {
+		return nil, err
 	}
 	bo, err := tx.GetBuyOrder()
 	if err != nil {
-		return errors.Wrap(err, "no buy order")
+		return nil, errors.Wrap(err, "no buy order")
 	}
-	if err := tp.increaseOrderVolume(bo, tx, info); err != nil {
-		return err
+	buyOrderSnapshot, err := tp.increaseOrderVolume(bo, tx, info)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, sellOrderSnapshot, buyOrderSnapshot)
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) error {
