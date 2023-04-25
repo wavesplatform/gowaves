@@ -106,7 +106,7 @@ func (s *AliasSnapshot) dummy() error {
 
 // FilledVolumeFee Filled Volume and Fee
 type FilledVolumeFeeSnapshot struct {
-	orderID      uint64
+	orderID      []byte
 	filledVolume uint64
 	filledFee    uint64
 }
