@@ -14,7 +14,7 @@ type AtomicSnapshot interface {
 }
 
 type balanceWaves struct {
-	address proto.Address
+	address proto.WavesAddress
 	balance uint64
 }
 
@@ -28,7 +28,7 @@ func (s *WavesBalancesSnapshot) dummy() error {
 
 // What is address || asset_id?
 type balanceAsset struct {
-	address proto.Address
+	address proto.WavesAddress
 	assetID crypto.Digest
 	balance uint64
 }
@@ -42,7 +42,7 @@ func (s *AssetBalancesSnapshot) dummy() error {
 }
 
 type DataEntriesSnapshot struct {
-	address     proto.Address
+	address     proto.WavesAddress
 	dataEntries []proto.DataEntry
 }
 
@@ -51,7 +51,7 @@ func (s *DataEntriesSnapshot) dummy() error {
 }
 
 type AccountScriptSnapshot struct {
-	address proto.Address
+	address proto.WavesAddress
 	script  proto.Script
 }
 
@@ -69,7 +69,7 @@ func (s *AssetScriptSnapshot) dummy() error {
 }
 
 type LeaseBalanceSnapshot struct {
-	address  proto.Address
+	address  proto.WavesAddress
 	leaseIn  uint64
 	leaseOut uint64
 }
@@ -98,7 +98,7 @@ func (s *SponsorshipSnapshot) dummy() error {
 
 type AliasSnapshot struct {
 	alias   *proto.Alias
-	address *proto.Address
+	address *proto.WavesAddress
 }
 
 func (s *AliasSnapshot) dummy() error {
@@ -118,7 +118,7 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 
 type StaticAssetInfoSnapshot struct {
 	assetID  crypto.Digest
-	issuer   proto.Address
+	issuer   proto.WavesAddress
 	decimals int8
 	isNFT    bool
 }
