@@ -147,11 +147,6 @@ func (s *AssetDescriptionSnapshot) dummy() error {
 	return nil
 }
 
-type SnapshotManager struct {
-	stor   *blockchainEntitiesStorage
-	scheme proto.Scheme
-}
-
-func NewSnapshotManager(stor *blockchainEntitiesStorage) *SnapshotManager {
-	return &SnapshotManager{stor: stor}
+type SnapshotManager interface {
+	// TODO: add all necessary methods here
 }
