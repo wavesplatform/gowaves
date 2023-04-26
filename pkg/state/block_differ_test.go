@@ -194,7 +194,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	to := createBlockDiffer(t)
 	// Add some addresses for reward distribution
-	to.blockDiffer.settings.RewardAddresses = append(to.blockDiffer.settings.RewardAddresses, []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}...)
+	to.blockDiffer.settings.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -239,7 +239,7 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	to := createBlockDiffer(t)
 	// Add some addresses for reward distribution
-	to.blockDiffer.settings.RewardAddresses = append(to.blockDiffer.settings.RewardAddresses, testGlobal.senderInfo.addr)
+	to.blockDiffer.settings.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
