@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -13,7 +14,7 @@ type AtomicSnapshot interface {
 }
 
 type balanceWaves struct {
-	address proto.Address
+	address proto.WavesAddress
 	balance uint64
 }
 
@@ -27,8 +28,8 @@ func (s *WavesBalancesSnapshot) dummy() error {
 
 // What is address || asset_id?
 type balanceAsset struct {
-	address proto.Address
-	assetID proto.AssetID
+	address proto.WavesAddress
+	assetID crypto.Digest
 	balance uint64
 }
 
@@ -41,7 +42,7 @@ func (s *AssetBalancesSnapshot) dummy() error {
 }
 
 type DataEntriesSnapshot struct {
-	address     proto.Address
+	address     proto.WavesAddress
 	dataEntries []proto.DataEntry
 }
 
@@ -50,7 +51,7 @@ func (s *DataEntriesSnapshot) dummy() error {
 }
 
 type AccountScriptSnapshot struct {
-	address proto.Address
+	address proto.WavesAddress
 	script  proto.Script
 }
 
@@ -59,7 +60,7 @@ func (s *AccountScriptSnapshot) dummy() error {
 }
 
 type AssetScriptSnapshot struct {
-	assetID proto.AssetID
+	assetID crypto.Digest
 	script  proto.Script
 }
 
@@ -68,7 +69,7 @@ func (s *AssetScriptSnapshot) dummy() error {
 }
 
 type LeaseBalanceSnapshot struct {
-	address  proto.Address
+	address  proto.WavesAddress
 	leaseIn  uint64
 	leaseOut uint64
 }
@@ -87,7 +88,7 @@ func (s *LeaseStatusSnapshot) dummy() error {
 }
 
 type SponsorshipSnapshot struct {
-	assetID         proto.AssetID
+	assetID         crypto.Digest
 	minSponsoredFee uint64
 }
 
@@ -97,7 +98,7 @@ func (s *SponsorshipSnapshot) dummy() error {
 
 type AliasSnapshot struct {
 	alias   *proto.Alias
-	address *proto.Address
+	address *proto.WavesAddress
 }
 
 func (s *AliasSnapshot) dummy() error {
@@ -116,8 +117,8 @@ func (s *FilledVolumeFeeSnapshot) dummy() error {
 }
 
 type StaticAssetInfoSnapshot struct {
-	assetID  proto.AssetID
-	issuer   proto.Address
+	assetID  crypto.Digest
+	issuer   proto.WavesAddress
 	decimals int8
 	isNFT    bool
 }
@@ -127,7 +128,7 @@ func (s *StaticAssetInfoSnapshot) dummy() error {
 }
 
 type AssetReissuabilitySnapshot struct {
-	assetID       proto.AssetID
+	assetID       crypto.Digest
 	totalQuantity big.Int
 	isReissuable  bool
 }
@@ -137,7 +138,7 @@ func (s *AssetReissuabilitySnapshot) dummy() error {
 }
 
 type AssetDescriptionSnapshot struct {
-	assetID          proto.AssetID
+	assetID          crypto.Digest
 	assetName        string
 	assetDescription string
 	changeHeight     uint64
@@ -147,11 +148,6 @@ func (s *AssetDescriptionSnapshot) dummy() error {
 	return nil
 }
 
-type SnapshotManager struct {
-	stor   *blockchainEntitiesStorage
-	scheme proto.Scheme
-}
-
-func NewSnapshotManager(stor *blockchainEntitiesStorage) *SnapshotManager {
-	return &SnapshotManager{stor: stor}
+type SnapshotManager interface {
+	// TODO: add all necessary methods here
 }
