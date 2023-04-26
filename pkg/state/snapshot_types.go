@@ -79,7 +79,7 @@ func (s *LeaseBalanceSnapshot) dummy() error {
 }
 
 type LeaseStatusSnapshot struct {
-	leaseID  uint64
+	leaseID  crypto.Digest
 	isActive bool
 }
 
