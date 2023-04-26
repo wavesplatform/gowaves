@@ -203,8 +203,27 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *p
 	if reward > math.MaxInt64 {
 		return errors.New("reward overflows int64")
 	}
+	blockRewardDistribution, err := d.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
 	wavesKey := wavesBalanceKey{addr}
-	err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
+	if blockRewardDistribution && len(d.settings.RewardAddresses) != 0 {
+		numberOfAddresses := uint64(len(d.settings.RewardAddresses) + 1)
+		minerReward := int64(reward)
+		for _, a := range d.settings.RewardAddresses {
+			balanceKey := wavesBalanceKey{a.ID()}
+			addressReward := int64(reward / numberOfAddresses)
+			err = diff.appendBalanceDiff(balanceKey.bytes(), balanceDiff{balance: addressReward})
+			minerReward -= addressReward
+			if err != nil {
+				return err
+			}
+		}
+		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: minerReward})
+	} else {
+		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
+	}
 	if err != nil {
 		return err
 	}

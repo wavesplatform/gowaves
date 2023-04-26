@@ -81,10 +81,11 @@ type FunctionalitySettings struct {
 	MaxBaseTarget uint64 `json:"max_base_target"`
 
 	// Block Reward
-	BlockRewardTerm         uint64 `json:"block_reward_term"`
-	InitialBlockReward      uint64 `json:"initial_block_reward"`
-	BlockRewardIncrement    uint64 `json:"block_reward_increment"`
-	BlockRewardVotingPeriod uint64 `json:"block_reward_voting_period"`
+	BlockRewardTerm         uint64               `json:"block_reward_term"`
+	InitialBlockReward      uint64               `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64               `json:"block_reward_increment"`
+	BlockRewardVotingPeriod uint64               `json:"block_reward_voting_period"`
+	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
 
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 }
