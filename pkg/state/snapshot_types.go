@@ -70,8 +70,8 @@ func (s *AssetScriptSnapshot) dummy() error {
 
 type LeaseBalanceSnapshot struct {
 	address  proto.WavesAddress
-	leaseIn  uint64
-	leaseOut uint64
+	leaseIn  int64
+	leaseOut int64
 }
 
 func (s *LeaseBalanceSnapshot) dummy() error {
