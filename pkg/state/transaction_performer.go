@@ -47,21 +47,21 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 
 	sender := proto.MustAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
-		assetID:  proto.AssetIDFromDigest(assetID),
+		assetID:  assetID,
 		issuer:   sender,
 		decimals: assetInfo.decimals,
 		isNFT:    assetInfo.isNFT(),
 	}
 
 	assetDescription := &AssetDescriptionSnapshot{
-		assetID:          proto.AssetIDFromDigest(assetID),
+		assetID:          assetID,
 		assetName:        assetInfo.name,
 		assetDescription: assetInfo.description,
 		changeHeight:     assetInfo.lastNameDescChangeHeight,
 	}
 
 	assetReissuability := &AssetReissuabilitySnapshot{
-		assetID:      proto.AssetIDFromDigest(assetID),
+		assetID:      assetID,
 		isReissuable: assetInfo.reissuable,
 	}
 
@@ -124,7 +124,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 	}
 
 	assetReissuability := &AssetReissuabilitySnapshot{
-		assetID:       proto.AssetIDFromDigest(tx.AssetID),
+		assetID:       tx.AssetID,
 		totalQuantity: newestTokenInfo.quantity,
 		isReissuable:  change.reissuable,
 	}
@@ -165,7 +165,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo)
 	}
 
 	assetReissuability := &AssetReissuabilitySnapshot{
-		assetID:       proto.AssetIDFromDigest(tx.AssetID),
+		assetID:       tx.AssetID,
 		totalQuantity: newestTokenInfo.quantity,
 		isReissuable:  newestTokenInfo.reissuable,
 	}
@@ -247,16 +247,16 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) error {
+func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) (TransactionSnapshot, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var recipientAddr *proto.WavesAddress
 	if addr := tx.Recipient.Address(); addr == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
-			return errors.Errorf("invalid alias: %v\n", err)
+			return nil, errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
 		recipientAddr = addr
@@ -271,46 +271,105 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		RecipientAlias: tx.Recipient.Alias(),
 	}
 	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to add leasing")
+		return nil, errors.Wrap(err, "failed to add leasing")
 	}
-	return nil
+	leaseStatusSnapshot := &LeaseStatusSnapshot{
+		leaseID:  *id,
+		isActive: true,
+	}
+
+	// TODO check if the balance will be updated immediately after the leasing
+	senderBalanceProfile, err := tp.stor.balances.wavesBalance(senderAddr.ID())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+	}
+	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		address:  senderAddr,
+		leaseIn:  senderBalanceProfile.leaseIn,
+		leaseOut: senderBalanceProfile.leaseOut,
+	}
+
+	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(recipientAddr.ID())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to receive recipient's waves balance")
+	}
+	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		address:  *recipientAddr,
+		leaseIn:  receiverBalanceProfile.leaseIn,
+		leaseOut: receiverBalanceProfile.leaseOut,
+	}
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseWithSig transaction")
+		return nil, errors.New("failed to convert interface to LeaseWithSig transaction")
 	}
 	return tp.performLease(&tx.Lease, tx.ID, info)
 }
 
-func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseWithProofs transaction")
+		return nil, errors.New("failed to convert interface to LeaseWithProofs transaction")
 	}
 	return tp.performLease(&tx.Lease, tx.ID, info)
 }
 
-func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo) error {
+func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo) (TransactionSnapshot, error) {
 	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID); err != nil {
-		return errors.Wrap(err, "failed to cancel leasing")
+		return nil, errors.Wrap(err, "failed to cancel leasing")
 	}
-	return nil
+	leaseStatusSnapshot := &LeaseStatusSnapshot{
+		leaseID:  tx.LeaseID,
+		isActive: false,
+	}
+
+	leasingInfo, err := tp.stor.leases.leasingInfo(tx.LeaseID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to receiver leasing info")
+	}
+
+	// TODO check if the balance will be updated immediately after the leasing
+	senderBalanceProfile, err := tp.stor.balances.wavesBalance(leasingInfo.Sender.ID())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+	}
+	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		address:  leasingInfo.Sender,
+		leaseIn:  senderBalanceProfile.leaseIn,
+		leaseOut: senderBalanceProfile.leaseOut,
+	}
+
+	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(leasingInfo.Recipient.ID())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to receive recipient's waves balance")
+	}
+	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		address:  leasingInfo.Recipient,
+		leaseIn:  receiverBalanceProfile.leaseIn,
+		leaseOut: receiverBalanceProfile.leaseOut,
+	}
+	var snapshot TransactionSnapshot
+	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelWithSig transaction")
+		return nil, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
 	}
 	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info)
 }
 
-func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo) error {
+func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
+		return nil, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
 	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info)
 }
