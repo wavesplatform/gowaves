@@ -49,6 +49,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
 	RideV6:                          {true, "Ride V6, MetaMask support"},
 	ConsensusImprovements:           {true, "Consensus and MetaMask updates"},
-	BlockRewardDistribution:         {true, "Block reward distribution"},
+	BlockRewardDistribution:         {true, "Block Reward Distribution"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
