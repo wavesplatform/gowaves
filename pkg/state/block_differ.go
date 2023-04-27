@@ -208,23 +208,19 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *p
 		return err
 	}
 	wavesKey := wavesBalanceKey{addr}
-	if blockRewardDistribution && len(d.settings.RewardAddresses) != 0 {
+	minerReward := int64(reward)
+	if blockRewardDistribution {
 		numberOfAddresses := uint64(len(d.settings.RewardAddresses) + 1)
-		minerReward := int64(reward)
 		for _, a := range d.settings.RewardAddresses {
 			balanceKey := wavesBalanceKey{a.ID()}
 			addressReward := int64(reward / numberOfAddresses)
-			err = diff.appendBalanceDiff(balanceKey.bytes(), balanceDiff{balance: addressReward})
-			minerReward -= addressReward
-			if err != nil {
+			if err = diff.appendBalanceDiff(balanceKey.bytes(), balanceDiff{balance: addressReward}); err != nil {
 				return err
 			}
+			minerReward -= addressReward
 		}
-		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: minerReward})
-	} else {
-		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
 	}
-	if err != nil {
+	if err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: minerReward}); err != nil {
 		return err
 	}
 	d.appendBlockInfoToTxDiff(diff, block)
