@@ -18,8 +18,11 @@ type blockDifferTestObjects struct {
 }
 
 func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
-	sets := settings.TestNetSettings
-	stor := createStorageObjects(t, false)
+	return createBlockDifferWithSettings(t, settings.TestNetSettings)
+}
+
+func createBlockDifferWithSettings(t *testing.T, sets *settings.BlockchainSettings) *blockDifferTestObjects {
+	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: false, Settings: sets})
 	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
@@ -192,9 +195,11 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 }
 
 func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
-	to := createBlockDiffer(t)
+	sets := settings.TestNetSettings
 	// Add some addresses for reward distribution
-	to.blockDiffer.settings.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	sets.InitialBlockReward = 800000000
+	to := createBlockDifferWithSettings(t, sets)
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -221,10 +226,12 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true)
 	require.NoError(t, err)
 
-	fee := defaultFee - defaultFee/5*2
-	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3)), 0, 0, false)
-	correctFirstRewardAddressBalanceDiff := newBalanceDiff(int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3), 0, 0, false)
-	correctSecondRewardAddressBalanceDiff := newBalanceDiff(int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3), 0, 0, false)
+	fee := int64(defaultFee - defaultFee/5*2)
+	reward := int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward)
+	additionalAddressReward := reward / 3
+	correctFirstRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
+	correctSecondRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(fee+reward-2*additionalAddressReward, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctFirstRewardAddressBalanceDiff.blockID = block2.BlockID()
 	correctSecondRewardAddressBalanceDiff.blockID = block2.BlockID()
