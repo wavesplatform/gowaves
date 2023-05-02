@@ -5,6 +5,10 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
+const (
+	IssueSmartAssetMinVersion = 2
+)
+
 func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
 	return map[string]IssueTestData[ExpectedValuesPositive]{
 		"Valid script, true as expression": *NewIssueTestData(
@@ -29,27 +33,28 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 			100000000000,
 			8,
 			true,
-			utl.GetScriptBytes(suite, "BgEEA3N0cgI3VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgODE5MiBieQQFc3RyXz"+
-				"ECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQFc3RyXzI"+
-				"CgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBz"+
-				"ZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3RyXzMCbkZvc"+
-				"iBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIG"+
-				"NoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJfNAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcml"+
-				"wdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNj"+
-				"cmlwdC4EBnRleHRfMQkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCAIFBXN0cl80BQNuaWwCA"+
-				"yAmIAQGdGV4dF8yCQC7CQIJAMwIAgUFc3RyXzEJAMwIAgUFc3RyXzIJAMwIAgUFc3RyXzMJAMwIAgUFc3RyXzQFA25pbAIDIC"+
-				"YgBAZ0ZXh0XzMJALsJAgkAzAgCBQVzdHJfMQkAzAgCBQVzdHJfMgkAzAgCBQVzdHJfMwkAzAgCBQVzdHJfNAUDbmlsAgMgJiA"+
-				"EBnRleHRfNAkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCAIFBXN0cl80BQNuaWwCAyAmIAQE"+
-				"c3RyMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxdWlyZWQgdm9sdW1lBARzd"+
-				"HIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJsb2NrY2hhaW4gYW5kIGFsc2"+
-				"8gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0byBpdC4EBHN0cjMCbkZ"+
-				"vciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVu"+
-				"IGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBARzdHI0AmtBIHRva2VuIHdpdGggYW4gYXNzaWduZWQgc2Nya"+
-				"XB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYW4gYXNzZXQgc2"+
-				"NyaXB0LgQFdGV4dDEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQ"+
-				"FdGV4dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDMJ"+
-				"ALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDQJALsJAgkAz"+
-				"AgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDUJALsJAgkAzAgCBQRzdH"+
+			utl.GetScriptBytes(suite, "BgEEA3N0cgI3VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBv"+
+				"ZiB0aGUgODE5MiBieQQFc3RyXzECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlc"+
+				"XVpcmVkIHZvbHVtZQQFc3RyXzICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYm"+
+				"xvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB"+
+				"0IHRvIGl0LgQFc3RyXzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRy"+
+				"YW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJfNAJrQSB0b2tlbiB3a"+
+				"XRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaX"+
+				"MgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHRfMQkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8"+
+				"zCQDMCAIFBXN0cl80BQNuaWwCAyAmIAQGdGV4dF8yCQC7CQIJAMwIAgUFc3RyXzEJAMwIAgUFc3RyXzIJAMwIAgUFc3RyXzMJ"+
+				"AMwIAgUFc3RyXzQFA25pbAIDICYgBAZ0ZXh0XzMJALsJAgkAzAgCBQVzdHJfMQkAzAgCBQVzdHJfMgkAzAgCBQVzdHJfMwkAz"+
+				"AgCBQVzdHJfNAUDbmlsAgMgJiAEBnRleHRfNAkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCA"+
+				"IFBXN0cl80BQNuaWwCAyAmIAQEc3RyMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGU"+
+				"gcmVxdWlyZWQgdm9sdW1lBARzdHIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVz"+
+				"IGJsb2NrY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjc"+
+				"mlwdCB0byBpdC4EBHN0cjMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IH"+
+				"RyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBARzdHI0AmtBIHRva2VuIHd"+
+				"pdGggYW4gYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBp"+
+				"cyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQFdGV4dDEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAz"+
+				"AgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdH"+
+				"I0BQNuaWwCAyAmIAQFdGV4dDMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWw"+
+				"CAyAmIAQFdGV4dDQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQF"+
+				"dGV4dDUJALsJAgkAzAgCBQRzdH"+
 				"IxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFc3RyMTECP1RoaXMgdGV4dCBpcyBuZWNlc3N"+
 				"hcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQFc3RyMjICgwFBbnkgdXNlciBjYW4gY3JlYXRl"+
 				"IHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY"+
@@ -149,22 +154,6 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
-		"Simple Script with match...case": *NewIssueTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			utl.RandStringBytes(5, utl.CommonSymbolSet),
-			utl.RandStringBytes(20, utl.CommonSymbolSet),
-			100000000000,
-			8,
-			true,
-			utl.GetScriptBytes(suite, "BQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAGVNldEFz"+
-				"c2V0U2NyaXB0VHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGBm3Fhro="),
-			utl.MinIssueFeeWaves,
-			utl.GetCurrentTimestampInMs(),
-			utl.TestChainID,
-			ExpectedValuesPositive{
-				WavesDiffBalance: utl.MinIssueFeeWaves,
-				AssetBalance:     100000000000,
-			}),
 		"Script with complexity 4000": *NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
@@ -186,77 +175,196 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
-		/*
-			{-# STDLIB_VERSION 5 #-}
-			{-# CONTENT_TYPE EXPRESSION #-}
-			{-# SCRIPT_TYPE ASSET #-}
+	}
+}
 
-			...
-		*/
-		/*"": *NewIssueTestData(
+func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
+	return map[string]IssueTestData[ExpectedValuesNegative]{
+		"Complexity more than 4000": *NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
 			100000000000,
 			8,
 			true,
-			Script(""),
+			utl.GetScriptBytes(suite, "BgEEByRtYXRjaDAFAnR4AwkAAQIFByRtYXRjaDACE1RyYW5zZmVyVHJhbnNhY3Rpb24EAXQ"+
+				"FByRtYXRjaDAEAWEJAKQIAQgFAXQJcmVjaXBpZW50AwkAAAIFAWEFAWEDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwkA9AMDAQABAA"+
+				"EACQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAH"+
+				"CQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0"+
+				"AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMB"+
+				"AAEAAQAHCQDIEwMBAAEAAQAHCQDIEwMBAAEAAQAHCQDHEwMBAAEAAQAHCQDHEwMBAAEAAQAHCQACAQIkU3RyaWN0IHZhbHVlIGlz"+
+				"IG5vdCBlcXVhbCB0byBpdHNlbGYuBgANpkU="),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
-			ExpectedValuesPositive{
-				WavesDiffBalance: utl.MinIssueFeeWaves,
-				AssetBalance:     100000000000,
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Script is too complex",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
 			}),
-		/*
-			{-# STDLIB_VERSION 5 #-}
-			{-# CONTENT_TYPE EXPRESSION #-}
-			{-# SCRIPT_TYPE ASSET #-}
-
-			...
-		*/
-		/*"": *NewIssueTestData(
+		//Should it be passed?
+		/*"Empty script bytes": *NewIssueTestData(
 		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 		utl.RandStringBytes(5, utl.CommonSymbolSet),
 		utl.RandStringBytes(20, utl.CommonSymbolSet),
 		100000000000,
 		8,
 		true,
-		Script(""),
+		utl.GetScriptBytes(suite, ""),
 		utl.MinIssueFeeWaves,
 		utl.GetCurrentTimestampInMs(),
 		utl.TestChainID,
-		ExpectedValuesPositive{
-			WavesDiffBalance: utl.MinIssueFeeWaves,
-			AssetBalance:     100000000000,
+		ExpectedValuesNegative{
+			ErrGoMsg:          errMsg,
+			ErrScalaMsg:       errMsg,
+			ErrBrdCstGoMsg:    errBrdCstMsg,
+			ErrBrdCstScalaMsg: "",
+			WavesDiffBalance:  0,
+			AssetBalance:      0,
 		}),*/
-	}
-}
-
-//данные блокчейна, которые может использовать скрипт
-
-//скрипт написан на Ride
-
-//скрипт скомпилирован в base64
-
-func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
-	return map[string]IssueTestData[ExpectedValuesNegative]{
-		/*
-			{-# STDLIB_VERSION 5 #-}
-			{-# CONTENT_TYPE EXPRESSION #-}
-			{-# SCRIPT_TYPE ASSET #-}
-
-			...
-		*/
-		"Account script as negative data": *NewIssueTestData(
+		//TO DO Wait fix for Scala Node
+		/*"Script size more 8192 bytes": *NewIssueTestData(
+		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+		utl.RandStringBytes(5, utl.CommonSymbolSet),
+		utl.RandStringBytes(20, utl.CommonSymbolSet),
+		100000000000,
+		8,
+		true,
+		utl.GetScriptBytes(suite, "BgEEA3N0cgI6VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZ"+
+			"iB0aGUgODE5MiBieXRlcwQFc3RyXzECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJ"+
+			"lcXVpcmVkIHZvbHVtZQQFc3RyXzICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgY"+
+			"mxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2Nya"+
+			"XB0IHRvIGl0LgQFc3RyXzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHR"+
+			"yYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJfNAJrQSB0b2tlbiB3a"+
+			"XRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXM"+
+			"gY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHRfMQkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zC"+
+			"QDMCAIFBXN0cl80BQNuaWwCAyAmIAQGdGV4dF8yCQC7CQIJAMwIAgUFc3RyXzEJAMwIAgUFc3RyXzIJAMwIAgUFc3RyXzMJAMw"+
+			"IAgUFc3RyXzQFA25pbAIDICYgBAZ0ZXh0XzMJALsJAgkAzAgCBQVzdHJfMQkAzAgCBQVzdHJfMgkAzAgCBQVzdHJfMwkAzAgCB"+
+			"QVzdHJfNAUDbmlsAgMgJiAEBnRleHRfNAkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCAIFBXN"+
+			"0cl80BQNuaWwCAyAmIAQEc3RyMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxd"+
+			"WlyZWQgdm9sdW1lBARzdHIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJsb2N"+
+			"rY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0b"+
+			"yBpdC4EBHN0cjMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN"+
+			"0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBARzdHI0AmtBIHRva2VuIHdpdGggYW4gY"+
+			"XNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQ"+
+			"gYW4gYXNzZXQgc2NyaXB0LgQFdGV4dDEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0B"+
+			"QNuaWwCAyAmIAQFdGV4dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyA"+
+			"mIAQFdGV4dDMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4d"+
+			"DQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDUJALsJAgk"+
+			"AzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFc3RyMTECP1RoaXMgdGV4dCBpc"+
+			"yBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQFc3RyMjICgwFBbnkgdXNlciBjYW4"+
+			"gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvc"+
+			"iBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3RyMzMCbkZvciBleGFtcGxlLCBmb3IgaW4"+
+			"tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZ"+
+			"XJ0YWluIHByb3BlcnRpZXMuBAVzdHI0NAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWF"+
+			"ydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHQxMQkAuwkCC"+
+			"QDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0MjIJALsJAgkAzAgCBQR"+
+			"zdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGdGV4dDMzCQC7CQIJAMwIAgUEc3RyMQkAz"+
+			"AgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEBnRleHQ0NAkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3R"+
+			"yMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIA"+
+			"gUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGc3RyMTExAj9UaGlzIHRleHQgaXMgbmVjZXNzYXJ5IHRvIGdldCB0aGUgc2N"+
+			"yaXB0IG9mIHRoZSByZXF1aXJlZCB2b2x1bWUEBnN0cjIyMgKDAUFueSB1c2VyIGNhbiBjcmVhdGUgdGhlaXIgb3duIHRva2VuI"+
+			"G9uIHRoZSBXYXZlcyBibG9ja2NoYWluIGFuZCBhbHNvIHNldCB0aGUgcnVsZXMgZm9yIGl0cyBjaXJjdWxhdGlvbiBieSBhc3N"+
+			"pZ25pbmcgYSBzY3JpcHQgdG8gaXQuBAZzdHIzMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhb"+
+			"iBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAZzdHI"+
+			"0NDQCa0EgdG9rZW4gd2l0aCBhbiBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGEgc21hcnQgYXNzZXQsIGFuZCB0aGUgYXNza"+
+			"WduZWQgc2NyaXB0IGlzIGNhbGxlZCBhbiBhc3NldCBzY3JpcHQuBAd0ZXh0MTExCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHI"+
+			"yCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHQyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIA"+
+			"gUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHdGV4dDMzMwkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHI"+
+			"zCQDMCAIFBHN0cjQFA25pbAIDICYgBAd0ZXh0NDQ0CQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIA"+
+			"gUEc3RyNAUDbmlsAgMgJiAEB3RleHQ1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI"+
+			"0BQNuaWwCAyAmIAQHc3RyMTExMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxd"+
+			"WlyZWQgdm9sdW1lBAdzdHIyMjIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJ"+
+			"sb2NrY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwd"+
+			"CB0byBpdC4EB3N0cjMzMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHR"+
+			"yYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAdzdHI0NDQ0AmtBIHRva2VuI"+
+			"HdpdGggYW4gYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCB"+
+			"pcyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQIdGV4dDExMTEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyM"+
+			"wkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dDIyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAg"+
+			"CBQRzdHI0BQNuaWwCAyAmIAQIdGV4dDMzMzMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzd"+
+			"HI0BQNuaWwCAyAmIAQIdGV4dDQ0NDQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQN"+
+			"uaWwCAyAmIAQIdGV4dDU1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCA"+
+			"yAmIAQFc3RycjECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHV"+
+			"tZQQFc3RycjICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhb"+
+			"mQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3R"+
+			"ycjMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZ"+
+			"XR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJyNAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmV"+
+			"kIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc"+
+			"2V0IHNjcmlwdC4EBnRleHR0MQkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAI"+
+			"DICYgBAZ0ZXh0dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGd"+
+			"GV4dHQzCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEBnRleHR0NAk"+
+			"AuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0dDUJALsJAgkA"+
+			"zAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGc3RycjExAj9UaGlzIHRleHQga"+
+			"XMgbmVjZXNzYXJ5IHRvIGdldCB0aGUgc2NyaXB0IG9mIHRoZSByZXF1aXJlZCB2b2x1bWUEBnN0cnIyMgKDAUFueSB1c2VyIG"+
+			"NhbiBjcmVhdGUgdGhlaXIgb3duIHRva2VuIG9uIHRoZSBXYXZlcyBibG9ja2NoYWluIGFuZCBhbHNvIHNldCB0aGUgcnVsZXM"+
+			"gZm9yIGl0cyBjaXJjdWxhdGlvbiBieSBhc3NpZ25pbmcgYSBzY3JpcHQgdG8gaXQuBAZzdHJyMzMCbkZvciBleGFtcGxlLCBm"+
+			"b3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd"+
+			"2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAZzdHJyNDQCa0EgdG9rZW4gd2l0aCBhbiBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbG"+
+			"VkIGEgc21hcnQgYXNzZXQsIGFuZCB0aGUgYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhbiBhc3NldCBzY3JpcHQuBAd0ZXh"+
+			"0dDExCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHR0MjIJ"+
+			"ALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHdGV4dHQzMwkAuwkCC"+
+			"QDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAd0ZXh0dDQ0CQC7CQIJAMwIAg"+
+			"UEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHR0NTUJALsJAgkAzAgCBQRzdHI"+
+			"xCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHc3RycjExMQI/VGhpcyB0ZXh0IGlzIG5lY2Vz"+
+			"c2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxdWlyZWQgdm9sdW1lBAdzdHJyMjIyAoMBQW55IHVzZXIgY2FuIGNyZ"+
+			"WF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJsb2NrY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaX"+
+			"RzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0byBpdC4EB3N0cnIzMzMCbkZvciBleGFtcGxlLCBmb3IgaW4"+
+			"tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBj"+
+			"ZXJ0YWluIHByb3BlcnRpZXMuBAdzdHJyNDQ0AmtBIHRva2VuIHdpdGggYW4gYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhI"+
+			"HNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQIdGV4dHQxMT"+
+			"EJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQyMjIJALs"+
+			"JAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQzMzMJALsJAgkA"+
+			"zAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQ0NDQJALsJAgkAzAgCB"+
+			"QRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQ1NTUJALsJAgkAzAgCBQRzdH"+
+			"IxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIc3RycjExMTECP1RoaXMgdGV4dCBpcyBuZ"+
+			"WNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQIc3RycjIyMjICgwFBbnkgdXNlciBjYW"+
+			"4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZv"+
+			"ciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQIc3RycjMzMzMCbkZvciBleGFtcGxlLCBmb3"+
+			"IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0"+
+			"aCBjZXJ0YWluIHByb3BlcnRpZXMuBAhzdHJyNDQ0NAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZW"+
+			"QgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4ECXRleHR0"+
+			"MTExMQkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAl0ZXh0dDIyMj"+
+			"IJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQJdGV4dHQzMzMzCQC7"+
+			"CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAECXRleHR0NDQ0NAkAuwkCCQ"+
+			"DMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAl0ZXh0dDU1NTUJALsJAgkAzAgC"+
+			"BQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGYW1vdW50BAckbWF0Y2gwBQJ0eAMJAA"+
+			"ECBQckbWF0Y2gwAhdJbnZva2VTY3JpcHRUcmFuc2FjdGlvbgQBaQUHJG1hdGNoMAAKAwkAAQIFByRtYXRjaDACD0J1cm5UcmFu"+
+			"c2FjdGlvbgQBYgUHJG1hdGNoMAAAAwkAAQIFByRtYXRjaDACE1RyYW5zZmVyVHJhbnNhY3Rpb24EAXQFByRtYXRjaDAIBQF0Bm"+
+			"Ftb3VudAMJAAECBQckbWF0Y2gwAhdNYXNzVHJhbnNmZXJUcmFuc2FjdGlvbgQBbQUHJG1hdGNoMAgFAW0LdG90YWxBbW91bnQA"+
+			"AAQHYW1vdW50dAQHJG1hdGNoMAUCdHgDCQABAgUHJG1hdGNoMAIXSW52b2tlU2NyaXB0VHJhbnNhY3Rpb24EAWkFByRtYXRjaD"+
+			"AACgMJAAECBQckbWF0Y2gwAg9CdXJuVHJhbnNhY3Rpb24EAWIFByRtYXRjaDAAAAMJAAECBQckbWF0Y2gwAhNUcmFuc2ZlclRy"+
+			"YW5zYWN0aW9uBAF0BQckbWF0Y2gwCAUBdAZhbW91bnQDCQABAgUHJG1hdGNoMAIXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAW"+
+			"0FByRtYXRjaDAIBQFtC3RvdGFsQW1vdW50AAAEByRtYXRjaDAFAnR4AwkAAQIFByRtYXRjaDACF0ludm9rZVNjcmlwdFRyYW5z"+
+			"YWN0aW9uBAFpBQckbWF0Y2gwBgMJAAECBQckbWF0Y2gwAhJSZWlzc3VlVHJhbnNhY3Rpb24EAXIFByRtYXRjaDAGAwkAAQIFBy"+
+			"RtYXRjaDACD0J1cm5UcmFuc2FjdGlvbgQBYgUHJG1hdGNoMAYDCQABAgUHJG1hdGNoMAITVHJhbnNmZXJUcmFuc2FjdGlvbgQB"+
+			"dAUHJG1hdGNoMAQBYQkApAgBCAUBdAlyZWNpcGllbnQDCQAAAgUBYQUBYQMDAwMDAwMDAwMDAwMDAwMDAwMDAwkA9AMDAQABAA"+
+			"EACQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAH"+
+			"CQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQ"+
+			"D0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0"+
+			"AwMBAAEAAQAHCQDIEwMBAAEAAQAHCQDIEwMBAAEAAQAHCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbG"+
+			"YuBuFg8mQ="),
+		utl.MinIssueFeeWaves,
+		utl.GetCurrentTimestampInMs(),
+		utl.TestChainID,
+		ExpectedValuesNegative{
+			ErrGoMsg:          errMsg,
+			ErrScalaMsg:       errMsg,
+			ErrBrdCstGoMsg:    errBrdCstMsg,
+			ErrBrdCstScalaMsg: "",
+			WavesDiffBalance:  0,
+			AssetBalance:      0,
+		}),*/
+		"Illegal length of script": *NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
 			100000000000,
 			8,
 			true,
-			//GetScriptBytes(suite, "BQkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAAIBQAAAAJ0eAAAAA9zZW5kZXJQdWJsaWNLZXlzTh3b"),
-			utl.GetScriptBytes(suite, ""),
+			utl.GetScriptBytes(suite, "AA=="),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -264,54 +372,18 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "Illegal length of script",
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
-	}
-}
-
-/*
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE EXPRESSION #-}
-	{-# SCRIPT_TYPE ASSET #-}
-
-	...
-*/
-/*"": *NewIssueTestData(
-	utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-	utl.RandStringBytes(5, utl.CommonSymbolSet),
-	utl.RandStringBytes(20, utl.CommonSymbolSet),
-	100000000000,
-	8,
-	true,
-	Script(""),
-	utl.MinIssueFeeWaves,
-	utl.GetCurrentTimestampInMs(),
-	utl.TestChainID,
-	ExpectedValuesNegative{
-		ErrGoMsg:          errMsg,
-		ErrScalaMsg:       errMsg,
-		ErrBrdCstGoMsg:    errBrdCstMsg,
-		ErrBrdCstScalaMsg: "",
-		WavesDiffBalance:  0,
-		AssetBalance:      0,
-	}),
-/*
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE EXPRESSION #-}
-	{-# SCRIPT_TYPE ASSET #-}
-
-	...
-*/
-/*"": *NewIssueTestData(
+		"Invalid content type of script": *NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
 			100000000000,
 			8,
 			true,
-			Script(""),
+			utl.GetScriptBytes(suite, "AAQB"),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -319,9 +391,28 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "",
+				ErrBrdCstScalaMsg: "Invalid content type of script",
+				WavesDiffBalance:  0,
+				AssetBalance:      0,
+			}),
+		"Invalid script version": *NewIssueTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			utl.RandStringBytes(5, utl.CommonSymbolSet),
+			utl.RandStringBytes(20, utl.CommonSymbolSet),
+			100000000000,
+			8,
+			true,
+			utl.GetScriptBytes(suite, "CAEF"),
+			utl.MinIssueFeeWaves,
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			ExpectedValuesNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Invalid version of script",
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
 	}
-}*/
+}

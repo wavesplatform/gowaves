@@ -93,19 +93,6 @@ func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
 	}
 }
 
-func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAssetGo, diffBalanceAssetScala int64) *AccountDiffBalances {
-	return &AccountDiffBalances{
-		DiffBalanceWaves: BalanceInWaves{
-			BalanceInWavesGo:    diffBalanceWavesGo,
-			BalanceInWavesScala: diffBalanceWavesScala,
-		},
-		DiffBalanceAsset: BalanceInAsset{
-			BalanceInAssetGo:    diffBalanceAssetGo,
-			BalanceInAssetScala: diffBalanceAssetScala,
-		},
-	}
-}
-
 type AccountsDiffBalancesTxWithSponsorship struct {
 	DiffBalancesSender    AccountDiffBalancesSponsorshipSender
 	DiffBalancesRecipient AccountDiffBalances
@@ -189,10 +176,16 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 	}
 }
 
-func GetAvailableVersions(txType proto.TransactionType, maxVersion byte) AvailableVersions {
+func GetAvailableVersions(txType proto.TransactionType, maxVersion byte, minVersion ...byte) AvailableVersions {
 	var binary, protobuf []byte
+	var minV byte
+	if len(minVersion) == 1 {
+		minV = minVersion[0]
+	} else {
+		minV = 1
+	}
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
-	for i := 1; i < int(minPBVersion); i++ {
+	for i := int(minV); i < int(minPBVersion); i++ {
 		binary = append(binary, byte(i))
 	}
 	for i := int(minPBVersion); i < int(maxVersion+1); i++ {

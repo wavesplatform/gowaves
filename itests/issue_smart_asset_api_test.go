@@ -17,7 +17,7 @@ type IssueSmartAssetApiSuite struct {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
-	versions := issue_utilities.GetVersions()
+	versions := issue_utilities.GetVersionsSmartAsset()
 	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
@@ -34,17 +34,15 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 
-				if v > 1 {
-					assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
-					utl.AssetScriptCheck(suite.T(), td.Script, assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes)
-				}
+				assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+				utl.AssetScriptCheck(suite.T(), td.Script, assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes)
 			})
 		}
 	}
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
-	versions := issue_utilities.GetVersions()
+	versions := issue_utilities.GetVersionsSmartAsset()
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
