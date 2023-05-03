@@ -16,12 +16,13 @@ const (
 	Ride4DApps // RIDE V3
 	OrderV3
 	ReduceNFTFee
-	BlockReward           // 14
-	BlockV5               // 15
-	RideV5                // 16
-	RideV6                // 17
-	ConsensusImprovements // 18
-	InvokeExpression      // 19
+	BlockReward             // 14
+	BlockV5                 // 15
+	RideV5                  // 16
+	RideV6                  // 17
+	ConsensusImprovements   // 18
+	BlockRewardDistribution // 19
+	InvokeExpression        // 20
 )
 
 type FeatureInfo struct {
@@ -48,5 +49,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
 	RideV6:                          {true, "Ride V6, MetaMask support"},
 	ConsensusImprovements:           {true, "Consensus and MetaMask updates"},
+	BlockRewardDistribution:         {true, "Block Reward Distribution"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }

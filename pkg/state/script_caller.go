@@ -59,6 +59,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		info.blockV5Activated,
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
+		info.blockRewardDistributionActivated,
 		info.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -120,6 +121,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
+		params.blockRewardDistributionActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -217,6 +219,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
+		params.blockRewardDistributionActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -237,6 +240,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
+		params.blockRewardDistributionActivated,
 		params.invokeExpressionActivated,
 	)
 	if err != nil {
@@ -257,6 +261,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		info.blockV5Activated,
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
+		info.blockRewardDistributionActivated,
 		info.invokeExpressionActivated,
 	)
 	if err != nil {
