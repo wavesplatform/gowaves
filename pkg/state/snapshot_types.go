@@ -10,7 +10,8 @@ import (
 type TransactionSnapshot []AtomicSnapshot
 
 type AtomicSnapshot interface {
-	dummy() error
+	atomicSnapshotMarker()
+	// TODO: add all necessary methods here
 }
 
 type balanceWaves struct {
@@ -22,9 +23,7 @@ type WavesBalancesSnapshot struct {
 	wavesBalances []balanceWaves
 }
 
-func (s *WavesBalancesSnapshot) dummy() error {
-	return nil
-}
+func (*WavesBalancesSnapshot) atomicSnapshotMarker() {}
 
 // What is address || asset_id?
 type balanceAsset struct {
@@ -37,36 +36,28 @@ type AssetBalancesSnapshot struct {
 	assetBalances []balanceAsset
 }
 
-func (s *AssetBalancesSnapshot) dummy() error {
-	return nil
-}
+func (*AssetBalancesSnapshot) atomicSnapshotMarker() {}
 
 type DataEntriesSnapshot struct {
 	address     proto.WavesAddress
 	dataEntries []proto.DataEntry
 }
 
-func (s *DataEntriesSnapshot) dummy() error {
-	return nil
-}
+func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
 
 type AccountScriptSnapshot struct {
 	address proto.WavesAddress
 	script  proto.Script
 }
 
-func (s *AccountScriptSnapshot) dummy() error {
-	return nil
-}
+func (*AccountScriptSnapshot) atomicSnapshotMarker() {}
 
 type AssetScriptSnapshot struct {
 	assetID crypto.Digest
 	script  proto.Script
 }
 
-func (s *AssetScriptSnapshot) dummy() error {
-	return nil
-}
+func (*AssetScriptSnapshot) atomicSnapshotMarker() {}
 
 type LeaseBalanceSnapshot struct {
 	address  proto.WavesAddress
@@ -74,36 +65,28 @@ type LeaseBalanceSnapshot struct {
 	leaseOut int64
 }
 
-func (s *LeaseBalanceSnapshot) dummy() error {
-	return nil
-}
+func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
 
 type LeaseStatusSnapshot struct {
 	leaseID  crypto.Digest
 	isActive bool
 }
 
-func (s *LeaseStatusSnapshot) dummy() error {
-	return nil
-}
+func (*LeaseStatusSnapshot) atomicSnapshotMarker() {}
 
 type SponsorshipSnapshot struct {
 	assetID         crypto.Digest
 	minSponsoredFee uint64
 }
 
-func (s *SponsorshipSnapshot) dummy() error {
-	return nil
-}
+func (*SponsorshipSnapshot) atomicSnapshotMarker() {}
 
 type AliasSnapshot struct {
 	alias   proto.Alias
 	address proto.WavesAddress
 }
 
-func (s *AliasSnapshot) dummy() error {
-	return nil
-}
+func (*AliasSnapshot) atomicSnapshotMarker() {}
 
 // FilledVolumeFee Filled Volume and Fee
 type FilledVolumeFeeSnapshot struct {
@@ -112,9 +95,7 @@ type FilledVolumeFeeSnapshot struct {
 	filledFee    uint64
 }
 
-func (s *FilledVolumeFeeSnapshot) dummy() error {
-	return nil
-}
+func (*FilledVolumeFeeSnapshot) atomicSnapshotMarker() {}
 
 type StaticAssetInfoSnapshot struct {
 	assetID  crypto.Digest
@@ -123,9 +104,7 @@ type StaticAssetInfoSnapshot struct {
 	isNFT    bool
 }
 
-func (s *StaticAssetInfoSnapshot) dummy() error {
-	return nil
-}
+func (*StaticAssetInfoSnapshot) atomicSnapshotMarker() {}
 
 type AssetReissuabilitySnapshot struct {
 	assetID       crypto.Digest
@@ -133,9 +112,7 @@ type AssetReissuabilitySnapshot struct {
 	isReissuable  bool
 }
 
-func (s *AssetReissuabilitySnapshot) dummy() error {
-	return nil
-}
+func (*AssetReissuabilitySnapshot) atomicSnapshotMarker() {}
 
 type AssetDescriptionSnapshot struct {
 	assetID          crypto.Digest
@@ -144,9 +121,7 @@ type AssetDescriptionSnapshot struct {
 	changeHeight     uint64
 }
 
-func (s *AssetDescriptionSnapshot) dummy() error {
-	return nil
-}
+func (*AssetDescriptionSnapshot) atomicSnapshotMarker() {}
 
 type SnapshotManager interface {
 	// TODO: add all necessary methods here
