@@ -19,20 +19,6 @@ func NewSignedSetAssetScriptTransaction(suite *f.BaseSuite, version byte, scheme
 	return tx
 }
 
-func SetAssetScriptSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
-	senderSK crypto.SecretKey, assetID crypto.Digest, script proto.Script, fee, timestamp uint64,
-	waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignedSetAssetScriptTransaction(suite, version, scheme, senderPK, senderSK, assetID, script, fee, timestamp)
-	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
-}
-
-func SetAssetScriptBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
-	senderSK crypto.SecretKey, assetID crypto.Digest, script proto.Script, fee, timestamp uint64,
-	waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignedSetAssetScriptTransaction(suite, version, scheme, senderPK, senderSK, assetID, script, fee, timestamp)
-	return utl.BroadcastAndWaitTransaction(suite, tx, scheme, waitForTx)
-}
-
 func NewSignedSetAssetScriptTransactionWithTestData[T any](suite *f.BaseSuite, version byte,
 	testdata testdata.SetAssetScriptTestData[T]) proto.Transaction {
 	return NewSignedSetAssetScriptTransaction(suite, version, testdata.ChainID, testdata.Account.PublicKey,
@@ -79,9 +65,9 @@ func SendSetAssetScriptTxAndGetBalances[T any](suite *f.BaseSuite, testdata test
 
 func BroadcastSetAssetScriptTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.SetAssetScriptTestData[T],
 	version byte, waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SetAssetScriptSendWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SetAssetScriptBroadcastWithTestData[T])
 }
 
 func GetVersions() []byte {
-	return utl.GetAvailableVersions(proto.SetAssetScriptTransaction, testdata.SetAssetScriptMaxVersion).Sum
+	return utl.GetAvailableVersions(proto.SetAssetScriptTransaction, testdata.SetAssetScriptMaxVersion, testdata.SetAssetScriptMinVersion).Sum
 }

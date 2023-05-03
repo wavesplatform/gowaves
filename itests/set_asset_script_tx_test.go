@@ -17,7 +17,7 @@ type SetAssetScriptSuite struct {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
-	versions := []byte{2, 3} /*set_asset_script_utilities.GetVersions()*/
+	versions := set_asset_script_utilities.GetVersions()
 	waitForTx := true
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -40,7 +40,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
-	versions := []byte{2, 3} /*set_asset_script_utilities.GetVersions()*/
+	versions := set_asset_script_utilities.GetVersions()
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
