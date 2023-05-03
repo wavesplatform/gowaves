@@ -225,7 +225,7 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 			WavesDiffBalance:  0,
 			AssetBalance:      0,
 		}),*/
-		//TO DO Wait fix for Scala Node
+		//TODO Wait fix for Scala Node
 		/*"Script size more 8192 bytes": *NewIssueTestData(
 		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 		utl.RandStringBytes(5, utl.CommonSymbolSet),
