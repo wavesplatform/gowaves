@@ -283,7 +283,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		functionCall proto.FunctionCall
 		payments     proto.ScriptPayments
 		sender       proto.WavesAddress
-		result       ride.Result
+		r            ride.Result
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -307,7 +307,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		functionCall = transaction.FunctionCall
 
-		result, err = ride.CallFunction(env, tree, functionCall)
+		r, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
@@ -334,7 +334,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		functionCall = proto.DefaultFunctionCall()
 
-		result, err = ride.CallVerifier(env, tree)
+		r, err = ride.CallVerifier(env, tree)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
@@ -380,7 +380,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		}
 		functionCall = proto.NewFunctionCall(decodedData.Name, arguments)
 
-		result, err = ride.CallFunction(env, tree, functionCall)
+		r, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
@@ -392,10 +392,10 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
-	if err := a.appendFunctionComplexity(result.Complexity(), scriptAddress, functionCall, info); err != nil {
+	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionCall, info); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return r, nil
 }
 
 func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, scriptAddress proto.Address, fc proto.FunctionCall, info *fallibleValidationParams) error {
