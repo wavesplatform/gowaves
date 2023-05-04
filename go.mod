@@ -26,7 +26,7 @@ require (
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.9.5
@@ -40,7 +40,7 @@ require (
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
-	go.uber.org/atomic v1.10.0
+	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.8.0
 	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
