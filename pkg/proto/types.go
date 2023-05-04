@@ -3684,6 +3684,8 @@ type FunctionCall struct {
 	Arguments Arguments
 }
 
+func DefaultFunctionCall() FunctionCall { return FunctionCall{} }
+
 func (c *FunctionCall) Default() bool {
 	return c.Name == "" && len(c.Arguments) == 0
 }
