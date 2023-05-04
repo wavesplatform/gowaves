@@ -332,7 +332,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 			}
 		}
 
-		functionCall = proto.DefaultFunctionCall()
+		functionCall = proto.FunctionCall{}
 
 		r, err = ride.CallVerifier(env, tree)
 		if err != nil {
