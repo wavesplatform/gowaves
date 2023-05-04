@@ -3763,17 +3763,17 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	}
 	var err error
 	data = data[2:]
-	c.name, err = StringWithUInt32Len(data)
+	name, err := StringWithUInt32Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	data = data[4+len(c.name):]
+	data = data[4+len(name):]
 	args := Arguments{}
 	err = args.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	c.arguments = args
+	*c = NewFunctionCall(name, args)
 	return nil
 }
 
@@ -3803,8 +3803,7 @@ func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize function call from JSON")
 	}
-	c.name = tmp.Name
-	c.arguments = tmp.Arguments
+	*c = NewFunctionCall(tmp.Name, tmp.Arguments)
 	return nil
 }
 
