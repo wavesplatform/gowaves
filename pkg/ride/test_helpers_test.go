@@ -486,7 +486,6 @@ func withPayments(payments ...proto.ScriptPayment) testInvocationOption {
 
 func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testEnv {
 	call := proto.FunctionCall{
-		Default:   false,
 		Name:      fn,
 		Arguments: proto.Arguments{},
 	}

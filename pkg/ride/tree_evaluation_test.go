@@ -2699,7 +2699,6 @@ func TestWhaleDApp(t *testing.T) {
 	arguments.Append(&proto.StringArgument{Value: "3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"})
 	arguments.Append(&proto.StringArgument{Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`})
 	call := proto.FunctionCall{
-		Default:   false,
 		Name:      "inviteuser",
 		Arguments: arguments,
 	}
@@ -2785,7 +2784,6 @@ func TestExchangeDApp(t *testing.T) {
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 	call := proto.FunctionCall{
-		Default:   false,
 		Name:      "cancel",
 		Arguments: arguments,
 	}
@@ -2878,7 +2876,6 @@ func TestBankDApp(t *testing.T) {
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(dapp)
 	call := proto.FunctionCall{
-		Default:   false,
 		Name:      "buyBack",
 		Arguments: proto.Arguments{},
 	}
@@ -2980,7 +2977,6 @@ func TestLigaDApp1(t *testing.T) {
 	sender1, err := crypto.NewPublicKeyFromBase58("56xTC8QUv2imTCZqZSvWNbjiKbPLMqbfrUk9nNPd1ra6")
 	require.NoError(t, err)
 	call1 := proto.FunctionCall{
-		Default:   false,
 		Name:      "stage2",
 		Arguments: proto.Arguments{},
 	}
@@ -3071,7 +3067,6 @@ func TestLigaDApp1(t *testing.T) {
 	args2 := proto.Arguments{}
 	args2.Append(&proto.BinaryArgument{Value: av})
 	call2 := proto.FunctionCall{
-		Default:   false,
 		Name:      "stage31",
 		Arguments: args2,
 	}
@@ -3177,7 +3172,6 @@ func TestTestingDApp(t *testing.T) {
 	arguments.Append(&proto.BinaryArgument{Value: av1})
 	arguments.Append(&proto.StringArgument{Value: "10"})
 	call := proto.FunctionCall{
-		Default:   false,
 		Name:      "main",
 		Arguments: arguments,
 	}

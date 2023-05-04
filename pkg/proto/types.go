@@ -3680,9 +3680,12 @@ func (a *ListArgument) UnmarshalJSON(value []byte) error {
 
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
-	Default   bool
 	Name      string
 	Arguments Arguments
+}
+
+func (c *FunctionCall) Default() bool {
+	return c.Name == "" && len(c.Arguments) == 0
 }
 
 const (
@@ -3690,8 +3693,8 @@ const (
 	tokenUserFunction = 1
 )
 
-func (c FunctionCall) Serialize(s *serializer.Serializer) error {
-	if c.Default {
+func (c *FunctionCall) Serialize(s *serializer.Serializer) error {
+	if c.Default() {
 		return s.Byte(0)
 	}
 	err := s.Bytes([]byte{1, tokenFunctionCall, tokenUserFunction})
@@ -3709,8 +3712,8 @@ func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-func (c FunctionCall) MarshalBinary() ([]byte, error) {
-	if c.Default {
+func (c *FunctionCall) MarshalBinary() ([]byte, error) {
+	if c.Default() {
 		return []byte{0}, nil
 	}
 	buf := make([]byte, c.BinarySize())
@@ -3731,7 +3734,6 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("%d is not enough bytes for FunctionCall", l)
 	}
 	if data[0] == 0 {
-		c.Default = true
 		return nil
 	}
 	data = data[1:]
@@ -3761,8 +3763,8 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (c FunctionCall) MarshalJSON() ([]byte, error) {
-	if c.Default {
+func (c *FunctionCall) MarshalJSON() ([]byte, error) {
+	if c.Default() {
 		return []byte("null"), nil
 	}
 	tmp := struct {
@@ -3776,7 +3778,6 @@ func (c FunctionCall) MarshalJSON() ([]byte, error) {
 func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	str := string(value)
 	if str == "null" || str == "{}" {
-		c.Default = true
 		return nil
 	}
 	var tmp struct {
@@ -3786,14 +3787,13 @@ func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize function call from JSON")
 	}
-	c.Default = false
 	c.Name = tmp.Name
 	c.Arguments = tmp.Arguments
 	return nil
 }
 
-func (c FunctionCall) BinarySize() int {
-	if c.Default {
+func (c *FunctionCall) BinarySize() int {
+	if c.Default() {
 		return 1
 	}
 	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.BinarySize()

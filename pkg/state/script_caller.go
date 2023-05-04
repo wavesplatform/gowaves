@@ -300,7 +300,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		}
 		functionName = transaction.FunctionCall.Name
 		functionArguments = transaction.FunctionCall.Arguments
-		defaultFunction = transaction.FunctionCall.Default
+		defaultFunction = transaction.FunctionCall.Default()
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {

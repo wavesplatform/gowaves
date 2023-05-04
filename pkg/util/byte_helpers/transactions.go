@@ -654,7 +654,6 @@ func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
 	t := proto.NewUnsignedInvokeScriptWithProofs(1, pk, proto.NewRecipientFromAddress(address), proto.FunctionCall{
-		Default:   true,
 		Name:      "funcname",
 		Arguments: proto.Arguments{proto.NewStringArgument("StringArgument")},
 	}, proto.ScriptPayments{proto.ScriptPayment{
