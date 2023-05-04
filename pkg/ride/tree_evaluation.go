@@ -14,8 +14,11 @@ func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	return e.evaluate()
 }
 
-func CallFunction(env environment, tree *ast.Tree, name string, args proto.Arguments) (Result, error) {
-	fc := proto.FunctionCall{Name: name, Arguments: args}
+func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Result, error) {
+	var (
+		name = fc.Name
+		args = fc.Arguments
+	)
 	if fc.Default() {
 		name = "default"
 	}

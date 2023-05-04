@@ -304,12 +304,10 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
 		}
-		functionCall = proto.FunctionCall{
-			Name:      transaction.FunctionCall.Name,
-			Arguments: transaction.FunctionCall.Arguments,
-		}
 
-		result, err = ride.CallFunction(env, tree, functionCall.Name, functionCall.Arguments)
+		functionCall = transaction.FunctionCall
+
+		result, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
@@ -374,17 +372,15 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
 		}
+
 		decodedData := transaction.TxKind.DecodedData()
 		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}
-		functionCall = proto.FunctionCall{
-			Name:      decodedData.Name,
-			Arguments: arguments,
-		}
+		functionCall = proto.NewFunctionCall(decodedData.Name, arguments)
 
-		result, err = ride.CallFunction(env, tree, functionCall.Name, functionCall.Arguments)
+		result, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
 			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr

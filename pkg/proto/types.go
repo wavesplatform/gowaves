@@ -3684,6 +3684,10 @@ type FunctionCall struct {
 	Arguments Arguments
 }
 
+func NewFunctionCall(name string, args Arguments) FunctionCall {
+	return FunctionCall{Name: name, Arguments: args}
+}
+
 func DefaultFunctionCall() FunctionCall { return FunctionCall{} }
 
 func (c FunctionCall) Default() bool {
