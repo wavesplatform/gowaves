@@ -3680,18 +3680,26 @@ func (a *ListArgument) UnmarshalJSON(value []byte) error {
 
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
-	Name      string
-	Arguments Arguments
+	name      string
+	arguments Arguments
 }
 
 func NewFunctionCall(name string, args Arguments) FunctionCall {
-	return FunctionCall{Name: name, Arguments: args}
+	return FunctionCall{name: name, arguments: args}
 }
 
 func DefaultFunctionCall() FunctionCall { return FunctionCall{} }
 
+func (c FunctionCall) Name() string {
+	return c.name
+}
+
+func (c FunctionCall) Arguments() Arguments {
+	return c.arguments
+}
+
 func (c FunctionCall) Default() bool {
-	return c.Name == "" && len(c.Arguments) == 0
+	return c.name == "" && len(c.arguments) == 0
 }
 
 const (
@@ -3707,11 +3715,11 @@ func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 	if err != nil {
 		return err
 	}
-	err = s.StringWithUInt32Len(c.Name)
+	err = s.StringWithUInt32Len(c.name)
 	if err != nil {
 		return err
 	}
-	err = c.Arguments.Serialize(s)
+	err = c.arguments.Serialize(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize FunctionCall to bytes")
 	}
@@ -3726,12 +3734,12 @@ func (c FunctionCall) MarshalBinary() ([]byte, error) {
 	buf[0] = 1
 	buf[1] = tokenFunctionCall
 	buf[2] = tokenUserFunction
-	PutStringWithUInt32Len(buf[3:], c.Name)
-	ab, err := c.Arguments.MarshalBinary()
+	PutStringWithUInt32Len(buf[3:], c.name)
+	ab, err := c.arguments.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
 	}
-	copy(buf[3+4+len(c.Name):], ab)
+	copy(buf[3+4+len(c.name):], ab)
 	return buf, nil
 }
 
@@ -3755,17 +3763,17 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	}
 	var err error
 	data = data[2:]
-	c.Name, err = StringWithUInt32Len(data)
+	c.name, err = StringWithUInt32Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	data = data[4+len(c.Name):]
+	data = data[4+len(c.name):]
 	args := Arguments{}
 	err = args.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	c.Arguments = args
+	c.arguments = args
 	return nil
 }
 
@@ -3777,7 +3785,7 @@ func (c FunctionCall) MarshalJSON() ([]byte, error) {
 	tmp := struct {
 		Name      string    `json:"function"`
 		Arguments Arguments `json:"args"`
-	}{c.Name, c.Arguments}
+	}{c.name, c.arguments}
 	return json.Marshal(tmp)
 }
 
@@ -3795,8 +3803,8 @@ func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize function call from JSON")
 	}
-	c.Name = tmp.Name
-	c.Arguments = tmp.Arguments
+	c.name = tmp.Name
+	c.arguments = tmp.Arguments
 	return nil
 }
 
@@ -3804,7 +3812,7 @@ func (c *FunctionCall) BinarySize() int {
 	if c.Default() {
 		return 1
 	}
-	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.BinarySize()
+	return 1 + 1 + 1 + 4 + len(c.name) + c.arguments.BinarySize()
 }
 
 type FullScriptTransfer struct {

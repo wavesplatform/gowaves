@@ -16,8 +16,8 @@ func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 
 func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Result, error) {
 	var (
-		name = fc.Name
-		args = fc.Arguments
+		name = fc.Name()
+		args = fc.Arguments()
 	)
 	if fc.Default() {
 		name = "default"

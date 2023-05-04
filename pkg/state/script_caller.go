@@ -414,7 +414,7 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 		if err != nil {
 			return err
 		}
-		functionName := fc.Name
+		functionName := fc.Name()
 		if fc.Default() {
 			functionName = "default"
 		}
