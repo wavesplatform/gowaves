@@ -31,6 +31,7 @@ const (
 	MinIssueFeeWaves           = 100000000
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
+	MinTxFeeWavesSmartAsset    = 500000
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
