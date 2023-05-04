@@ -5062,7 +5062,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistribution(t *test
 	  strict a3 = invoke(dApp2,  "call", [], []) # 30 actions
 	  strict b3 = invoke(dApp3,  "call", [], []) # check V5 - OK
 	  strict a4 = invoke(dApp2,  "call", [], []) # 40 actions
-	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - FAIL
+	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - OK
 	  []
 	}
 	*/
