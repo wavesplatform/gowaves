@@ -6109,7 +6109,7 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
-		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
+		fc := NewFunctionCall(tc.name, tc.args)
 		tx := NewUnsignedInvokeScriptWithProofs(tc.version, spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)

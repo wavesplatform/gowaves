@@ -2698,10 +2698,7 @@ func TestWhaleDApp(t *testing.T) {
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"})
 	arguments.Append(&proto.StringArgument{Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`})
-	call := proto.FunctionCall{
-		Name:      "inviteuser",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("inviteuser", arguments)
 
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
@@ -2783,10 +2780,7 @@ func TestExchangeDApp(t *testing.T) {
 	recipient := proto.NewRecipientFromAddress(address)
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-	call := proto.FunctionCall{
-		Name:      "cancel",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("cancel", arguments)
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -2875,10 +2869,7 @@ func TestBankDApp(t *testing.T) {
 	dapp, err := proto.NewAddressFromString("3P4ub5GDTxMMr9VAoWzvMKofXWLbbpBxqZS")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(dapp)
-	call := proto.FunctionCall{
-		Name:      "buyBack",
-		Arguments: proto.Arguments{},
-	}
+	call := proto.NewFunctionCall("buyBack", proto.Arguments{})
 	paymentAsset, err := crypto.NewDigestFromBase58("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
 	require.NoError(t, err)
 	tx := &proto.InvokeScriptWithProofs{
@@ -2976,10 +2967,7 @@ func TestLigaDApp1(t *testing.T) {
 	proofs1.Proofs = []proto.B58Bytes{proof1[:]}
 	sender1, err := crypto.NewPublicKeyFromBase58("56xTC8QUv2imTCZqZSvWNbjiKbPLMqbfrUk9nNPd1ra6")
 	require.NoError(t, err)
-	call1 := proto.FunctionCall{
-		Name:      "stage2",
-		Arguments: proto.Arguments{},
-	}
+	call1 := proto.NewFunctionCall("stage2", proto.Arguments{})
 	tx1 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -3066,10 +3054,7 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	args2 := proto.Arguments{}
 	args2.Append(&proto.BinaryArgument{Value: av})
-	call2 := proto.FunctionCall{
-		Name:      "stage31",
-		Arguments: args2,
-	}
+	call2 := proto.NewFunctionCall("stage31", args2)
 	tx2 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -3171,10 +3156,7 @@ func TestTestingDApp(t *testing.T) {
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.BinaryArgument{Value: av1})
 	arguments.Append(&proto.StringArgument{Value: "10"})
-	call := proto.FunctionCall{
-		Name:      "main",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("main", arguments)
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
