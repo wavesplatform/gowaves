@@ -5417,3 +5417,37 @@ func TestThrowComplexity(t *testing.T) {
 	assert.EqualError(t, err, "fail")
 	assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
 }
+
+func TestDefaultFunction(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func default(a: String) = {
+		([], a)
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAHZGVmYXVsdAAAAAEAAAABYQkABRQAAAACBQAAAANuaWwFAAAAAWEAAAAAuBVHDg==")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV5).
+		withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+
+	args := proto.Arguments{proto.NewStringArgument("arg")}
+
+	_, err := CallFunction(env.withComplexityLimit(ast.LibV5, 2000).toEnv(), tree1, "", args)
+	assert.EqualError(t, err, "failed to call function '': function '' not found")
+
+	env = env.withInvocation("default", withTransactionID(crypto.Digest{}))
+
+	_, err = CallFunction(env.withComplexityLimit(ast.LibV5, 2000).toEnv(), tree1, "default", args)
+	assert.NoError(t, err)
+}
