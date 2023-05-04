@@ -128,12 +128,6 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 	}
 }
 
-/*
-Error in Scala Node: putIfNew(...) failed with GenericError(Transaction involves 1 scripted assets.
-Requires 400000 extra fee. Fee for SponsorFeeTransaction (100000 in WAVES) does not exceed minimal value of 500000 WAVES.)
-Go Node: Failed to broadcast transaction "...": Failed to add transaction to utx:
-failed to handle transaction '...': can not sponsor smart asset
-*/
 func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
 	versions := sponsor_utilities.GetVersions()
 	waitForTx := true
