@@ -3686,7 +3686,7 @@ type FunctionCall struct {
 
 func DefaultFunctionCall() FunctionCall { return FunctionCall{} }
 
-func (c *FunctionCall) Default() bool {
+func (c FunctionCall) Default() bool {
 	return c.Name == "" && len(c.Arguments) == 0
 }
 
@@ -3695,7 +3695,7 @@ const (
 	tokenUserFunction = 1
 )
 
-func (c *FunctionCall) Serialize(s *serializer.Serializer) error {
+func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 	if c.Default() {
 		return s.Byte(0)
 	}
@@ -3714,7 +3714,7 @@ func (c *FunctionCall) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-func (c *FunctionCall) MarshalBinary() ([]byte, error) {
+func (c FunctionCall) MarshalBinary() ([]byte, error) {
 	if c.Default() {
 		return []byte{0}, nil
 	}
@@ -3765,7 +3765,7 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (c *FunctionCall) MarshalJSON() ([]byte, error) {
+func (c FunctionCall) MarshalJSON() ([]byte, error) {
 	if c.Default() {
 		return []byte("null"), nil
 	}
