@@ -3740,6 +3740,7 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("%d is not enough bytes for FunctionCall", l)
 	}
 	if data[0] == 0 {
+		*c = DefaultFunctionCall()
 		return nil
 	}
 	data = data[1:]
@@ -3784,6 +3785,7 @@ func (c FunctionCall) MarshalJSON() ([]byte, error) {
 func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	str := string(value)
 	if str == "null" || str == "{}" {
+		*c = DefaultFunctionCall()
 		return nil
 	}
 	var tmp struct {
