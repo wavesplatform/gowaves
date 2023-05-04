@@ -128,6 +128,39 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 	}
 }
 
+/*
+Error in Scala Node: putIfNew(...) failed with GenericError(Transaction involves 1 scripted assets.
+Requires 400000 extra fee. Fee for SponsorFeeTransaction (100000 in WAVES) does not exceed minimal value of 500000 WAVES.)
+Go Node: Failed to broadcast transaction "...": Failed to add transaction to utx:
+failed to handle transaction '...': can not sponsor smart asset
+*/
+func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
+	versions := sponsor_utilities.GetVersions()
+	waitForTx := true
+	for _, v := range versions {
+		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, v, waitForTx)
+		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
+		name := "Check sponsorship for smart asset"
+		txIds := make(map[string]*crypto.Digest)
+
+		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.SendSponsorshipTxAndGetBalances(
+				&suite.BaseSuite, td, v, !waitForTx)
+			txIds[name] = &tx.TxID
+
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+				tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+		})
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
 func TestSponsorshipTxSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(SponsorshipTxSuite))

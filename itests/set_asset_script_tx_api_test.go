@@ -53,6 +53,12 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
 					&suite.BaseSuite, td, v, !waitForTx)
+
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
+					utl.GetTestcaseNameWithVersion(name, v))
+				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, utl.GetTestcaseNameWithVersion(name, v))
+
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
@@ -63,6 +69,38 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
+func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
+	versions := set_asset_script_utilities.GetVersions()
+	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
+	for _, v := range versions {
+		asset := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, asset, v, waitForTx)
+		name := "Set script for not scripted asset"
+		td := testdata.GetSimpleSmartAssetNegativeData(&suite.BaseSuite, itx.TxID)
+		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
+				&suite.BaseSuite, td, v, !waitForTx)
+
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
+				utl.GetTestcaseNameWithVersion(name, v))
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+				tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, utl.GetTestcaseNameWithVersion(name, v))
+
+			txIds[name] = &tx.TxID
+
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+				tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+		})
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}

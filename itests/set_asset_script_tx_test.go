@@ -66,6 +66,32 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 	}
 }
 
+func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
+	versions := set_asset_script_utilities.GetVersions()
+	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
+	for _, v := range versions {
+		asset := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, asset, v, waitForTx)
+		name := "Set script for not scripted asset"
+		td := testdata.GetSimpleSmartAssetNegativeData(&suite.BaseSuite, itx.TxID)
+		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.SendSetAssetScriptTxAndGetBalances(
+				&suite.BaseSuite, td, v, !waitForTx)
+			txIds[name] = &tx.TxID
+
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+				tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala)
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+		})
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
 func TestSetAssetScriptSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(SetAssetScriptSuite))
