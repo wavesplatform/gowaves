@@ -3703,6 +3703,16 @@ func (c FunctionCall) Default() bool {
 	return c.name == "" && len(c.arguments) == 0
 }
 
+func (c FunctionCall) Valid() error {
+	if len(c.arguments) > maxArguments {
+		return errors.New("too many arguments")
+	}
+	if len(c.name) > maxFunctionNameBytes {
+		return errors.New("function name is too big")
+	}
+	return nil
+}
+
 const (
 	tokenFunctionCall = 9
 	tokenUserFunction = 1
