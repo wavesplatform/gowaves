@@ -3689,6 +3689,9 @@ func NewFunctionCall(name string, args Arguments) FunctionCall {
 }
 
 func (c FunctionCall) Name() string {
+	if c.Default() {
+		return "default"
+	}
 	return c.name
 }
 

@@ -415,9 +415,6 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 			return err
 		}
 		functionName := fc.Name()
-		if fc.Default() {
-			functionName = "default"
-		}
 		c, ok := est.Functions[functionName]
 		if !ok {
 			return errors.Errorf("no estimation for function '%s'", functionName)

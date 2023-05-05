@@ -19,9 +19,6 @@ func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Resul
 		name = fc.Name()
 		args = fc.Arguments()
 	)
-	if fc.Default() {
-		name = "default"
-	}
 	arguments, err := convertProtoArguments(args)
 	if err != nil {
 		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)
