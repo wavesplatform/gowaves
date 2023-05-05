@@ -20,6 +20,11 @@ func selectFunctionsByName(v ast.LibraryVersion, enableInvocation bool) (func(st
 			return functionsV6, nil
 		}
 		return expressionFunctionsV6, nil
+	case ast.LibV7:
+		if enableInvocation {
+			return functionsV7, nil
+		}
+		return expressionFunctionsV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -37,6 +42,8 @@ func selectFunctions(v ast.LibraryVersion) (func(id int) rideFunction, error) {
 		return functionV5, nil
 	case ast.LibV6:
 		return functionV6, nil
+	case ast.LibV7:
+		return functionV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -54,6 +61,8 @@ func selectFunctionChecker(v ast.LibraryVersion) (func(name string) (uint16, boo
 		return checkFunctionV5, nil
 	case ast.LibV6:
 		return checkFunctionV6, nil
+	case ast.LibV7:
+		return checkFunctionV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -91,6 +100,8 @@ func selectEvaluationCostsProvider(v ast.LibraryVersion, ev int) (map[string]int
 		}
 	case ast.LibV6: // Only new version of evaluator works after activation of RideV6
 		return EvaluationCatalogueV6EvaluatorV2, nil
+	case ast.LibV7:
+		return EvaluationCatalogueV7EvaluatorV2, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -108,6 +119,8 @@ func selectFunctionNameProvider(v ast.LibraryVersion) (func(int) string, error) 
 		return functionNameV5, nil
 	case ast.LibV6:
 		return functionNameV6, nil
+	case ast.LibV7:
+		return functionNameV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -127,6 +140,8 @@ func selectConstants(v ast.LibraryVersion) (func(int) rideConstructor, error) {
 		return constantV5, nil
 	case ast.LibV6:
 		return constantV6, nil
+	case ast.LibV7:
+		return constantV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -146,6 +161,8 @@ func selectConstantsChecker(v ast.LibraryVersion) (func(name string) (uint16, bo
 		return checkConstantV5, nil
 	case ast.LibV6:
 		return checkConstantV6, nil
+	case ast.LibV7:
+		return checkConstantV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}

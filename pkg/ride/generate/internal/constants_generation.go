@@ -71,6 +71,10 @@ func constantsV6() map[string]constantDescription {
 	return constantsV5()
 }
 
+func constantsV7() map[string]constantDescription {
+	return constantsV6()
+}
+
 func createConstants(cd *Coder, ver string, c map[string]constantDescription) {
 	keys := make([]string, 0, len(c))
 	for k := range c {
@@ -154,6 +158,7 @@ func GenerateConstants(fn string) {
 	createConstants(cd, "V4", constantsV4())
 	createConstants(cd, "V5", constantsV5())
 	createConstants(cd, "V6", constantsV6())
+	createConstants(cd, "V7", constantsV7())
 	createConstructors(cd, constantsV4())
 
 	if err := cd.Save(fn); err != nil {

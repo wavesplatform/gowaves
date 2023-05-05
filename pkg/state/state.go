@@ -651,6 +651,31 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
+func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+	reward, err := s.stor.monetaryPolicy.reward()
+	if err != nil {
+		return nil, err
+	}
+	minerReward := reward
+	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	if !active {
+		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
+	}
+	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
+	r := make(proto.Rewards, 0, numberOfAddresses)
+	for _, a := range s.settings.RewardAddresses {
+		addressReward := reward / numberOfAddresses
+		r = append(r, proto.NewReward(a, addressReward))
+		minerReward -= addressReward
+	}
+	r = append(r, proto.NewReward(minerAddress, minerReward))
+	return r, nil
+}
+
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {

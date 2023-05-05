@@ -801,6 +801,12 @@ func functionsV6() map[string]string {
 	return m
 }
 
+func functionsV7() map[string]string {
+	m := functionsV6()
+	constructorsFunctions(ast.LibV7, m)
+	return m
+}
+
 func catalogueV6() map[string]int {
 	m := catalogueV5()
 	m["3"] = 1
@@ -846,6 +852,12 @@ func catalogueV6() map[string]int {
 	m["sqrtBigInt"] = 5
 
 	constructorsCatalogue(ast.LibV6, m)
+	return m
+}
+
+func catalogueV7() map[string]int {
+	m := catalogueV6()
+	constructorsCatalogue(ast.LibV7, m)
 	return m
 }
 
@@ -898,6 +910,18 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["Address"] = 1
 	m["Alias"] = 1
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV6, m)
+	return m
+}
+
+func evaluationCatalogueV7EvaluatorV1() map[string]int {
+	m := evaluationCatalogueV6EvaluatorV1()
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV7, m)
+	return m
+}
+
+func evaluationCatalogueV7EvaluatorV2() map[string]int {
+	m := evaluationCatalogueV6EvaluatorV2()
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV7, m)
 	return m
 }
 
@@ -1023,6 +1047,7 @@ func GenerateFunctions(fn string) {
 	createFunctionsList(cd, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4EvaluatorV1(), evaluationCatalogueV4EvaluatorV2())
 	createFunctionsList(cd, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5EvaluatorV1(), evaluationCatalogueV5EvaluatorV2())
 	createFunctionsList(cd, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6EvaluatorV1(), evaluationCatalogueV6EvaluatorV2())
+	createFunctionsList(cd, "V7", functionsV7(), catalogueV7(), evaluationCatalogueV7EvaluatorV1(), evaluationCatalogueV7EvaluatorV2())
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}

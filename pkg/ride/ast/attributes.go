@@ -52,7 +52,7 @@ const (
 
 // CurrentMaxLibraryVersion reports the max lib version. Update it when a new version was added.
 func CurrentMaxLibraryVersion() LibraryVersion {
-	return LibV6
+	return LibV7
 }
 
 func NewLibraryVersion(b byte) (LibraryVersion, error) {

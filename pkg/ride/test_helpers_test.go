@@ -388,6 +388,27 @@ func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
 	return e
 }
 
+func (e *testEnv) withBlockHeader(blockHeader *proto.BlockHeader) *testEnv {
+	e.ms.NewestHeaderByHeightFunc = func(height uint64) (*proto.BlockHeader, error) {
+		return blockHeader, nil
+	}
+	return e
+}
+
+func (e *testEnv) withBlockVRF(vrf []byte) *testEnv {
+	e.ms.BlockVRFFunc = func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
+		return vrf, nil
+	}
+	return e
+}
+
+func (e *testEnv) withBlockRewards(rewards proto.Rewards) *testEnv {
+	e.ms.BlockRewardsFunc = func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
+		return rewards, nil
+	}
+	return e
+}
+
 func (e *testEnv) withProtobufTx() *testEnv {
 	e.me.isProtobufTxFunc = func() bool {
 		return true

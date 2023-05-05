@@ -116,7 +116,8 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 	)
 }
 
-func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
+func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Height, header *proto.BlockHeader, vrf []byte,
+	rewards proto.Rewards) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
@@ -127,7 +128,10 @@ func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Heigh
 	}
 	switch lib {
 	case ast.LibV7:
-		rewards := rideList{}
+		rl := rideList{}
+		for _, r := range rewards.Sorted() {
+			rl = append(rl, tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())})
+		}
 		return newRideBlockInfoV7(vf,
 			common.Dup(header.GenSignature.Bytes()),
 			common.Dup(header.GeneratorPublicKey.Bytes()),
@@ -135,7 +139,7 @@ func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Heigh
 			rideInt(header.Timestamp),
 			rideInt(height),
 			rideAddress(address),
-			rewards,
+			rl,
 		), nil
 
 	default:
