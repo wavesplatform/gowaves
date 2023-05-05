@@ -280,12 +280,10 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 	}
 
 	var (
-		functionName      string
-		functionArguments proto.Arguments
-		defaultFunction   bool
-		payments          proto.ScriptPayments
-		sender            proto.WavesAddress
-		r                 ride.Result
+		functionCall proto.FunctionCall
+		payments     proto.ScriptPayments
+		sender       proto.WavesAddress
+		r            ride.Result
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -298,9 +296,6 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		if err != nil {
 			return nil, err
 		}
-		functionName = transaction.FunctionCall.Name
-		functionArguments = transaction.FunctionCall.Arguments
-		defaultFunction = transaction.FunctionCall.Default
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
@@ -310,9 +305,11 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 			}
 		}
 
-		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
+		functionCall = transaction.FunctionCall
+
+		r, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -326,7 +323,6 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		if err != nil {
 			return nil, err
 		}
-		functionName = ""
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
@@ -336,9 +332,11 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 			}
 		}
 
+		functionCall = proto.FunctionCall{}
+
 		r, err = ride.CallVerifier(env, tree)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -365,14 +363,6 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		if err != nil {
 			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
 		}
-		decodedData := transaction.TxKind.DecodedData()
-		functionName = decodedData.Name
-		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
-		if err != nil {
-			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
-		}
-		functionArguments = arguments
-		defaultFunction = true
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= ast.LibV5 {
 			//TODO: Update last argument of the followinxg call with new feature activation flag or
@@ -383,9 +373,16 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 			}
 		}
 
-		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
+		decodedData := transaction.TxKind.DecodedData()
+		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+		}
+		functionCall = proto.NewFunctionCall(decodedData.Name, arguments)
+
+		r, err = ride.CallFunction(env, tree, functionCall)
+		if err != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -395,13 +392,13 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
-	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {
+	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionCall, info); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
-func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, scriptAddress proto.Address, functionName string, functionDefault bool, info *fallibleValidationParams) error {
+func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, scriptAddress proto.Address, fc proto.FunctionCall, info *fallibleValidationParams) error {
 	// Increase recent complexity
 	if info.rideV5Activated {
 		// After activation of RideV5 we have to add actual execution complexity
@@ -417,9 +414,7 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 		if err != nil {
 			return err
 		}
-		if functionName == "" && functionDefault {
-			functionName = "default"
-		}
+		functionName := fc.Name()
 		c, ok := est.Functions[functionName]
 		if !ok {
 			return errors.Errorf("no estimation for function '%s'", functionName)
