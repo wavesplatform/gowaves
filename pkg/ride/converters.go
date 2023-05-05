@@ -116,7 +116,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 	)
 }
 
-func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
+func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
@@ -125,15 +125,30 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 	if len(vrf) > 0 {
 		vf = rideByteVector(common.Dup(vrf))
 	}
-	return newRideBlockInfoV4(
-		vf,
-		common.Dup(header.GenSignature.Bytes()),
-		common.Dup(header.GeneratorPublicKey.Bytes()),
-		rideInt(header.BaseTarget),
-		rideInt(header.Timestamp),
-		rideInt(height),
-		rideAddress(address),
-	), nil
+	switch lib {
+	case ast.LibV7:
+		rewards := rideList{}
+		return newRideBlockInfoV7(vf,
+			common.Dup(header.GenSignature.Bytes()),
+			common.Dup(header.GeneratorPublicKey.Bytes()),
+			rideInt(header.BaseTarget),
+			rideInt(header.Timestamp),
+			rideInt(height),
+			rideAddress(address),
+			rewards,
+		), nil
+
+	default:
+		return newRideBlockInfoV4(
+			vf,
+			common.Dup(header.GenSignature.Bytes()),
+			common.Dup(header.GeneratorPublicKey.Bytes()),
+			rideInt(header.BaseTarget),
+			rideInt(header.Timestamp),
+			rideInt(height),
+			rideAddress(address),
+		), nil
+	}
 }
 
 func genesisToObject(_ byte, tx *proto.Genesis) (rideGenesisTransaction, error) {

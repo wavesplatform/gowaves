@@ -844,7 +844,11 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	obj, err := blockHeaderToObject(env.scheme(), height, header, vrf)
+	v, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "blockInfoByHeight")
+	}
+	obj, err := blockHeaderToObject(env.scheme(), v, height, header, vrf)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
