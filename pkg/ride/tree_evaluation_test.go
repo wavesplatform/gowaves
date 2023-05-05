@@ -5085,7 +5085,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistribution(t *test
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
 		withWrappedState().withBlockRewardDistribution()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.NotNil(t, res)
 	assert.NoError(t, err)
 }
@@ -5174,7 +5174,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistributionFailed(t
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
 		withWrappedState().withBlockRewardDistribution()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100")
 }
