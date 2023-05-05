@@ -653,14 +653,12 @@ func initSetAssetScriptWithProofs() {
 func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
-	t := proto.NewUnsignedInvokeScriptWithProofs(1, pk, proto.NewRecipientFromAddress(address), proto.FunctionCall{
-		Default:   true,
-		Name:      "funcname",
-		Arguments: proto.Arguments{proto.NewStringArgument("StringArgument")},
-	}, proto.ScriptPayments{proto.ScriptPayment{
-		Amount: 100000,
-		Asset:  *asset,
-	}}, *asset, 10000, TIMESTAMP)
+	t := proto.NewUnsignedInvokeScriptWithProofs(1, pk, proto.NewRecipientFromAddress(address),
+		proto.NewFunctionCall("funcname", proto.Arguments{proto.NewStringArgument("StringArgument")}),
+		proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 100000,
+			Asset:  *asset,
+		}}, *asset, 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary(proto.MainNetScheme)
 	if err != nil {

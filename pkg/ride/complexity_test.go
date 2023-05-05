@@ -30,7 +30,7 @@ func checkVerifierSpentComplexityV6(t *testing.T, code string, complexity int, c
 
 func checkFunctionCallComplexity(t *testing.T, env environment, code, fn string, fa proto.Arguments, complexity int) {
 	_, tree := parseBase64Script(t, code)
-	r, err := CallFunction(env, tree, fn, fa)
+	r, err := CallFunction(env, tree, proto.NewFunctionCall(fn, fa))
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, complexity, r.Complexity())
@@ -344,7 +344,7 @@ func TestOnEdgeComplexity1(t *testing.T) {
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
 		withTree(dApp, tree).withWrappedState().toEnv()
 
-	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
+	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
 	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
@@ -378,7 +378,7 @@ func TestOnEdgeComplexity2(t *testing.T) {
 		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
 		withTree(dApp, tree).withWrappedState().toEnv()
-	r, err := CallFunction(env, tree, "foo", proto.Arguments{proto.NewIntegerArgument(52)})
+	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
 	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
@@ -572,6 +572,6 @@ func TestComplexityOverflow(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
 		withWrappedState()
 
-	_, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.EqualError(t, err, "evaluation complexity 26149 exceeds the limit 26000")
 }
