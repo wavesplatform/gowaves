@@ -818,8 +818,8 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 	if err != nil {
 		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
-	args := make(rideList, len(tx.FunctionCall.Arguments))
-	for i, arg := range tx.FunctionCall.Arguments {
+	args := make(rideList, len(tx.FunctionCall.Arguments()))
+	for i, arg := range tx.FunctionCall.Arguments() {
 		a, err := convertArgument(arg)
 		if err != nil {
 			return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
@@ -836,7 +836,7 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			proofs(tx.Proofs),
 			optionalAsset(tx.FeeAsset),
 			recipientToObject(tx.ScriptRecipient),
-			rideString(tx.FunctionCall.Name),
+			rideString(tx.FunctionCall.Name()),
 			body,
 			tx.ID.Bytes(),
 			common.Dup(tx.SenderPK.Bytes()),
@@ -856,7 +856,7 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			proofs(tx.Proofs),
 			optionalAsset(tx.FeeAsset),
 			recipientToObject(tx.ScriptRecipient),
-			rideString(tx.FunctionCall.Name),
+			rideString(tx.FunctionCall.Name()),
 			body,
 			tx.ID.Bytes(),
 			common.Dup(tx.SenderPK.Bytes()),

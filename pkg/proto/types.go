@@ -3323,16 +3323,16 @@ func NewIntegerArgument(i int64) *IntegerArgument {
 }
 
 // GetValueType returns the value type of the entry.
-func (a IntegerArgument) GetValueType() ArgumentValueType {
+func (a *IntegerArgument) GetValueType() ArgumentValueType {
 	return ArgumentInteger
 }
 
-func (a IntegerArgument) BinarySize() int {
+func (a *IntegerArgument) BinarySize() int {
 	return integerArgumentLen
 }
 
 // MarshalBinary marshals the integer argument in its bytes representation.
-func (a IntegerArgument) MarshalBinary() ([]byte, error) {
+func (a *IntegerArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentInteger)
@@ -3342,7 +3342,7 @@ func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 }
 
 // Serialize the integer argument in its bytes representation.
-func (a IntegerArgument) Serialize(s *serializer.Serializer) error {
+func (a *IntegerArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentInteger))
 	if err != nil {
 		return err
@@ -3363,7 +3363,7 @@ func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes a JSON representation of integer argument.
-func (a IntegerArgument) MarshalJSON() ([]byte, error) {
+func (a *IntegerArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V int    `json:"value"`
@@ -3389,16 +3389,16 @@ type BooleanArgument struct {
 }
 
 // GetValueType returns the data type (Boolean) of the argument.
-func (a BooleanArgument) GetValueType() ArgumentValueType {
+func (a *BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
 }
 
-func (a BooleanArgument) BinarySize() int {
+func (a *BooleanArgument) BinarySize() int {
 	return booleanArgumentLen
 }
 
 // MarshalBinary writes a byte representation of the boolean data entry.
-func (a BooleanArgument) MarshalBinary() ([]byte, error) {
+func (a *BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	if a.Value {
 		buf[0] = byte(ArgumentValueTrue)
@@ -3409,7 +3409,7 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 }
 
 // Serialize argument to its byte representation.
-func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
+func (a *BooleanArgument) Serialize(s *serializer.Serializer) error {
 	buf := byte(0)
 	if a.Value {
 		buf = byte(ArgumentValueTrue)
@@ -3436,7 +3436,7 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the argument to a JSON representation.
-func (a BooleanArgument) MarshalJSON() ([]byte, error) {
+func (a *BooleanArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V bool   `json:"value"`
@@ -3462,16 +3462,16 @@ type BinaryArgument struct {
 }
 
 // GetValueType returns the type of value (Binary) stored in an argument.
-func (a BinaryArgument) GetValueType() ArgumentValueType {
+func (a *BinaryArgument) GetValueType() ArgumentValueType {
 	return ArgumentBinary
 }
 
-func (a BinaryArgument) BinarySize() int {
+func (a *BinaryArgument) BinarySize() int {
 	return binaryArgumentMinLen + len(a.Value)
 }
 
 // MarshalBinary writes an argument to its byte representation.
-func (a BinaryArgument) MarshalBinary() ([]byte, error) {
+func (a *BinaryArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentBinary)
@@ -3483,7 +3483,7 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 }
 
 // Serialize argument to its byte representation.
-func (a BinaryArgument) Serialize(s *serializer.Serializer) error {
+func (a *BinaryArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentBinary))
 	if err != nil {
 		return err
@@ -3508,7 +3508,7 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
-func (a BinaryArgument) MarshalJSON() ([]byte, error) {
+func (a *BinaryArgument) MarshalJSON() ([]byte, error) {
 	// TODO: support marshal BinaryArgument to JSON with `ByteVector` type field
 	return json.Marshal(&struct {
 		T string     `json:"type"`
@@ -3539,16 +3539,16 @@ func NewStringArgument(s string) *StringArgument {
 }
 
 // GetValueType returns the type of value of the argument.
-func (a StringArgument) GetValueType() ArgumentValueType {
+func (a *StringArgument) GetValueType() ArgumentValueType {
 	return ArgumentString
 }
 
-func (a StringArgument) BinarySize() int {
+func (a *StringArgument) BinarySize() int {
 	return stringArgumentMinLen + len(a.Value)
 }
 
 // MarshalBinary converts the argument to its byte representation.
-func (a StringArgument) MarshalBinary() ([]byte, error) {
+func (a *StringArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentString)
@@ -3558,7 +3558,7 @@ func (a StringArgument) MarshalBinary() ([]byte, error) {
 }
 
 // Serialize argument to its byte representation.
-func (a StringArgument) Serialize(s *serializer.Serializer) error {
+func (a *StringArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentString))
 	if err != nil {
 		return err
@@ -3583,7 +3583,7 @@ func (a *StringArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (a StringArgument) MarshalJSON() ([]byte, error) {
+func (a *StringArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V string `json:"value"`
@@ -3608,16 +3608,16 @@ type ListArgument struct {
 }
 
 // GetValueType returns the type of value of the argument.
-func (a ListArgument) GetValueType() ArgumentValueType {
+func (a *ListArgument) GetValueType() ArgumentValueType {
 	return ArgumentList
 }
 
-func (a ListArgument) BinarySize() int {
+func (a *ListArgument) BinarySize() int {
 	return 1 + a.Items.BinarySize()
 }
 
 // MarshalBinary converts the argument to its byte representation.
-func (a ListArgument) MarshalBinary() ([]byte, error) {
+func (a *ListArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentList)
@@ -3631,7 +3631,7 @@ func (a ListArgument) MarshalBinary() ([]byte, error) {
 }
 
 // Serialize argument to its byte representation.
-func (a ListArgument) Serialize(s *serializer.Serializer) error {
+func (a *ListArgument) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(byte(ArgumentList))
 	if err != nil {
 		return err
@@ -3658,7 +3658,7 @@ func (a *ListArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (a ListArgument) MarshalJSON() ([]byte, error) {
+func (a *ListArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string     `json:"type"`
 		V []Argument `json:"value"`
@@ -3680,9 +3680,37 @@ func (a *ListArgument) UnmarshalJSON(value []byte) error {
 
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
-	Default   bool
-	Name      string
-	Arguments Arguments
+	name      string
+	arguments Arguments
+}
+
+func NewFunctionCall(name string, args Arguments) FunctionCall {
+	return FunctionCall{name: name, arguments: args}
+}
+
+func (c FunctionCall) Name() string {
+	if c.Default() {
+		return "default"
+	}
+	return c.name
+}
+
+func (c FunctionCall) Arguments() Arguments {
+	return c.arguments
+}
+
+func (c FunctionCall) Default() bool {
+	return c.name == "" && len(c.arguments) == 0
+}
+
+func (c FunctionCall) Valid() error {
+	if len(c.arguments) > maxArguments {
+		return errors.New("too many arguments")
+	}
+	if len(c.name) > maxFunctionNameBytes {
+		return errors.New("function name is too big")
+	}
+	return nil
 }
 
 const (
@@ -3691,18 +3719,18 @@ const (
 )
 
 func (c FunctionCall) Serialize(s *serializer.Serializer) error {
-	if c.Default {
+	if c.Default() {
 		return s.Byte(0)
 	}
 	err := s.Bytes([]byte{1, tokenFunctionCall, tokenUserFunction})
 	if err != nil {
 		return err
 	}
-	err = s.StringWithUInt32Len(c.Name)
+	err = s.StringWithUInt32Len(c.name)
 	if err != nil {
 		return err
 	}
-	err = c.Arguments.Serialize(s)
+	err = c.arguments.Serialize(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize FunctionCall to bytes")
 	}
@@ -3710,19 +3738,19 @@ func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 }
 
 func (c FunctionCall) MarshalBinary() ([]byte, error) {
-	if c.Default {
+	if c.Default() {
 		return []byte{0}, nil
 	}
 	buf := make([]byte, c.BinarySize())
 	buf[0] = 1
 	buf[1] = tokenFunctionCall
 	buf[2] = tokenUserFunction
-	PutStringWithUInt32Len(buf[3:], c.Name)
-	ab, err := c.Arguments.MarshalBinary()
+	PutStringWithUInt32Len(buf[3:], c.name)
+	ab, err := c.arguments.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
 	}
-	copy(buf[3+4+len(c.Name):], ab)
+	copy(buf[3+4+len(c.name):], ab)
 	return buf, nil
 }
 
@@ -3731,7 +3759,7 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("%d is not enough bytes for FunctionCall", l)
 	}
 	if data[0] == 0 {
-		c.Default = true
+		*c = FunctionCall{}
 		return nil
 	}
 	data = data[1:]
@@ -3746,29 +3774,29 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	}
 	var err error
 	data = data[2:]
-	c.Name, err = StringWithUInt32Len(data)
+	name, err := StringWithUInt32Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	data = data[4+len(c.Name):]
+	data = data[4+len(name):]
 	args := Arguments{}
 	err = args.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
 	}
-	c.Arguments = args
+	*c = NewFunctionCall(name, args)
 	return nil
 }
 
 // MarshalJSON writes the entry to its JSON representation.
 func (c FunctionCall) MarshalJSON() ([]byte, error) {
-	if c.Default {
+	if c.Default() {
 		return []byte("null"), nil
 	}
 	tmp := struct {
 		Name      string    `json:"function"`
 		Arguments Arguments `json:"args"`
-	}{c.Name, c.Arguments}
+	}{c.name, c.arguments}
 	return json.Marshal(tmp)
 }
 
@@ -3776,7 +3804,7 @@ func (c FunctionCall) MarshalJSON() ([]byte, error) {
 func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	str := string(value)
 	if str == "null" || str == "{}" {
-		c.Default = true
+		*c = FunctionCall{}
 		return nil
 	}
 	var tmp struct {
@@ -3786,17 +3814,15 @@ func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize function call from JSON")
 	}
-	c.Default = false
-	c.Name = tmp.Name
-	c.Arguments = tmp.Arguments
+	*c = NewFunctionCall(tmp.Name, tmp.Arguments)
 	return nil
 }
 
-func (c FunctionCall) BinarySize() int {
-	if c.Default {
+func (c *FunctionCall) BinarySize() int {
+	if c.Default() {
 		return 1
 	}
-	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.BinarySize()
+	return 1 + 1 + 1 + 4 + len(c.name) + c.arguments.BinarySize()
 }
 
 type FullScriptTransfer struct {
