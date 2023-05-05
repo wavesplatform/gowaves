@@ -55,7 +55,7 @@ func TestConstructorsDifferentVersions(t *testing.T) {
 			withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree).
 			withInvocation("test")
 
-		res, err := CallFunction(env.toEnv(), tree, "f", proto.Arguments{})
+		res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("f", proto.Arguments{}))
 		require.NoError(t, err)
 		require.Equal(t, 1, len(res.ScriptActions()))
 

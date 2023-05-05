@@ -196,12 +196,7 @@ func TestUnmarshalStateChangesAllFields(t *testing.T) {
 		Invokes: []InvokeAction{
 			{
 				DApp: expectedInvokeDApp,
-				Call: proto.FunctionCall{
-					Name: "printNumber",
-					Arguments: proto.Arguments{
-						proto.NewIntegerArgument(1000),
-					},
-				},
+				Call: proto.NewFunctionCall("printNumber", proto.Arguments{proto.NewIntegerArgument(1000)}),
 				Payments: []proto.ScriptPayment{
 					{
 						Asset:  *proto.NewOptionalAssetFromDigest(expectedAssetId),

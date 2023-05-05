@@ -238,10 +238,7 @@ func makeInvokeScriptTransactionAndObject(t *testing.T, sig, senderPublicKey, fe
 	require.NoError(t, err)
 	rcp, err := proto.NewRecipientFromString(recipient)
 	require.NoError(t, err)
-	fc := proto.FunctionCall{
-		Name:      functionName,
-		Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(arg)}},
-	}
+	fc := proto.NewFunctionCall(functionName, proto.Arguments{&proto.IntegerArgument{Value: int64(arg)}})
 	pa, err := proto.NewOptionalAssetFromString(paymentAsset)
 	require.NoError(t, err)
 	ps := []proto.ScriptPayment{{Amount: uint64(paymentAmount), Asset: *pa}}
