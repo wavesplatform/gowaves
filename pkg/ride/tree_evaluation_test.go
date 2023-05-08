@@ -390,7 +390,7 @@ func TestDappDefaultFunc(t *testing.T) {
 
 	_, tree := parseBase64Script(t, "AAIDAAAAAAAAAAAAAAABAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwUAAAAHYWRkcmVzcwAAAAIAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAhxdWVzdGlvbgQAAAAGYW5zd2VyCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAABBQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9xBQAAAAhxdWVzdGlvbgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAAppbnZvY2F0aW9uAQAAAAdkZWZhdWx0AAAAAAQAAAAHc2VuZGVyMAgIBQAAAAppbnZvY2F0aW9uAAAABmNhbGxlcgAAAAVieXRlcwkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQIAAAABYgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAAGc2VuZGVyBQAAAAdzZW5kZXIwBQAAAANuaWwAAAABAAAAAnR4AQAAAAZ2ZXJpZnkAAAAACQAAAAAAAAIJAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEJAAQlAAAAAQgFAAAAAnR4AAAABnNlbmRlcgIAAAABMcP91gY=")
 
-	res, err := CallFunction(env, tree, "", proto.Arguments{})
+	res, err := CallFunction(env, tree, proto.FunctionCall{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -501,7 +501,7 @@ func TestTransferSet(t *testing.T) {
 	addr := proto.MustAddressFromPublicKey(proto.TestNetScheme, tx.SenderPK)
 	_, tree := parseBase64Script(t, "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAALVHJhbnNmZXJTZXQAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAZAUAAAAEdW5pdAUAAAADbmlsAAAAAH5a2L0=")
 
-	res, err := CallFunction(env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100500)})
+	res, err := CallFunction(env, tree, proto.NewFunctionCall("tellme", proto.Arguments{proto.NewIntegerArgument(100500)}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -549,7 +549,7 @@ func TestScriptResult(t *testing.T) {
 	addr := proto.MustAddressFromPublicKey(proto.TestNetScheme, tx.SenderPK)
 	_, tree := parseBase64Script(t, "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAABkBQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAYiUBQAAAAR1bml0BQAAAANuaWwAAAAARKRntw==")
 
-	res, err := CallFunction(env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100)})
+	res, err := CallFunction(env, tree, proto.NewFunctionCall("tellme", proto.Arguments{proto.NewIntegerArgument(100)}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -637,7 +637,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		withAssetBalance(dApp2, aid, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -814,7 +814,7 @@ func TestInvokeBalanceValidationV6(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -920,7 +920,7 @@ func TestInvokeFailedBalanceValidationV6(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	_, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.Error(t, err)
 
 	fullBalanceExpected := &proto.FullWavesBalance{
@@ -987,7 +987,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1079,7 +1079,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1194,7 +1194,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1312,7 +1312,7 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.Nil(t, res)
 	require.Error(t, err)
 }
@@ -1387,7 +1387,7 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1460,7 +1460,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).
 		withWrappedState()
 
-	_, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	assert.EqualError(t, err, "invoke: too many internal invocations")
 
 	expectedDiffResult := newDiffState(nil)
@@ -1530,7 +1530,7 @@ func TestAttachedPaymentsAfterLeaseCancel(t *testing.T) {
 		withWavesBalance(dApp2, 0).withWavesBalance(other, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1576,7 +1576,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 		withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).
 		withWrappedState()
 
-	_, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	assert.EqualError(t, err, "reentrantInvoke: too many internal invocations")
 
 	expectedDiffResult := newDiffState(nil)
@@ -1632,7 +1632,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1697,7 +1697,7 @@ func TestLeaseToSelf(t *testing.T) {
 		withWavesBalance(sender, 0).withWavesBalance(dApp1, 1000).withWavesBalance(other, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	// TODO: Test checks self transfer not leasing
 	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: payments to DApp itself are forbidden since activation of RIDE V4")
 	require.Nil(t, res)
@@ -1761,7 +1761,7 @@ func TestLeaseAndLeaseCancelFromAnotherDApp(t *testing.T) {
 		withWavesBalance(dApp2, 0).withWavesBalance(other, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.EqualError(t, err, "invoke: failed to apply actions: attempt to cancel leasing that was created by other account; leaser '3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz'; canceller '3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1'; leasing: FnYn9TMb38ZkG9uQjtTc2UGaapYVYtjW2WcRagx8X39b")
 	require.Nil(t, res)
 }
@@ -1816,7 +1816,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1934,7 +1934,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 		withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 10000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2029,7 +2029,7 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2173,7 +2173,7 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.Nil(t, res)
 	assert.EqualError(
 		t,
@@ -2233,7 +2233,7 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "test", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("test", proto.Arguments{}))
 	require.Nil(t, res)
 	assert.EqualError(
 		t,
@@ -2320,7 +2320,7 @@ func TestActionsLimitInOneInvokeV5(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "bar", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("bar", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2373,7 +2373,7 @@ func TestActionsLimitInOneInvokeV5(t *testing.T) {
 	_, tree22 := parseBase64Script(t, "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")
 	env = env.withTree(dApp2, tree22).withComplexityLimit(ast.LibV5, 2000).withWrappedState()
 
-	res, err = CallFunction(env.toEnv(), tree1, "bar", proto.Arguments{})
+	res, err = CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("bar", proto.Arguments{}))
 	require.Nil(t, res)
 	assert.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
@@ -2435,7 +2435,7 @@ func TestActionsLimitInvokeV5(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "bar", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("bar", proto.Arguments{}))
 	require.Nil(t, res)
 	assert.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
 }
@@ -2462,7 +2462,7 @@ func TestHashScriptFunc(t *testing.T) {
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2510,7 +2510,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree).withUntouchedState(dApp1).
 		withInvocation("foo").withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree, "foo", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("foo", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2698,11 +2698,7 @@ func TestWhaleDApp(t *testing.T) {
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"})
 	arguments.Append(&proto.StringArgument{Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`})
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "inviteuser",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("inviteuser", arguments)
 
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
@@ -2744,7 +2740,7 @@ func TestWhaleDApp(t *testing.T) {
 			&proto.BooleanDataEntry{Key: "D796K7uVAeSPJcv29BN1KCuzrc6h7bAN1MSKPnrPPMfF/CAWKh6suz3jKw6PhzEh5FDCWLvLFJ6BZEpmxv6oZQSzr", Value: true},
 		)
 
-	res, err := CallFunction(te.toEnv(), tree, "inviteuser", arguments)
+	res, err := CallFunction(te.toEnv(), tree, proto.NewFunctionCall("inviteuser", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2784,11 +2780,7 @@ func TestExchangeDApp(t *testing.T) {
 	recipient := proto.NewRecipientFromAddress(address)
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "cancel",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("cancel", arguments)
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -2827,7 +2819,7 @@ func TestExchangeDApp(t *testing.T) {
 		withBlock(blockInfo).withWavesBalance(acc, 5000000000).withTransaction(tx).withThis(acc).
 		withInvokeTransaction(tx).withDataEntries(acc, binEntry)
 
-	res, err := CallFunction(te.toEnv(), tree, "cancel", arguments)
+	res, err := CallFunction(te.toEnv(), tree, proto.NewFunctionCall("cancel", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2877,11 +2869,7 @@ func TestBankDApp(t *testing.T) {
 	dapp, err := proto.NewAddressFromString("3P4ub5GDTxMMr9VAoWzvMKofXWLbbpBxqZS")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(dapp)
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "buyBack",
-		Arguments: proto.Arguments{},
-	}
+	call := proto.NewFunctionCall("buyBack", proto.Arguments{})
 	paymentAsset, err := crypto.NewDigestFromBase58("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
 	require.NoError(t, err)
 	tx := &proto.InvokeScriptWithProofs{
@@ -2942,7 +2930,7 @@ func TestBankDApp(t *testing.T) {
 		withInvokeTransaction(tx).
 		withDataEntries(acc, intEntries...).withDataEntries(acc, stringEntries...)
 
-	res, err := CallFunction(te.toEnv(), tree, "buyBack", proto.Arguments{})
+	res, err := CallFunction(te.toEnv(), tree, proto.NewFunctionCall("buyBack", proto.Arguments{}))
 	require.NoError(t, err)
 	_, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2979,11 +2967,7 @@ func TestLigaDApp1(t *testing.T) {
 	proofs1.Proofs = []proto.B58Bytes{proof1[:]}
 	sender1, err := crypto.NewPublicKeyFromBase58("56xTC8QUv2imTCZqZSvWNbjiKbPLMqbfrUk9nNPd1ra6")
 	require.NoError(t, err)
-	call1 := proto.FunctionCall{
-		Default:   false,
-		Name:      "stage2",
-		Arguments: proto.Arguments{},
-	}
+	call1 := proto.NewFunctionCall("stage2", proto.Arguments{})
 	tx1 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -3024,7 +3008,7 @@ func TestLigaDApp1(t *testing.T) {
 		withAssetBalance(acc, team1, 1000-5).withAssetBalance(acc, team2, 1000).
 		withDataEntries(acc, intEntries...).withDataEntries(acc, stringEntries...)
 
-	res, err := CallFunction(te.toEnv(), tree, "stage2", proto.Arguments{})
+	res, err := CallFunction(te.toEnv(), tree, proto.NewFunctionCall("stage2", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3070,11 +3054,7 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	args2 := proto.Arguments{}
 	args2.Append(&proto.BinaryArgument{Value: av})
-	call2 := proto.FunctionCall{
-		Default:   false,
-		Name:      "stage31",
-		Arguments: args2,
-	}
+	call2 := proto.NewFunctionCall("stage31", args2)
 	tx2 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -3132,7 +3112,7 @@ func TestLigaDApp1(t *testing.T) {
 		withAssetBalance(acc, team1, 1000-5).withAssetBalance(acc, team2, 1000).
 		withDataEntries(acc, intEntries...).withDataEntries(acc, stringEntries...)
 
-	res, err = CallFunction(te2.toEnv(), tree, "stage31", args2)
+	res, err = CallFunction(te2.toEnv(), tree, proto.NewFunctionCall("stage31", args2))
 	require.NoError(t, err)
 	r, ok = res.(DAppResult)
 	require.True(t, ok)
@@ -3176,11 +3156,7 @@ func TestTestingDApp(t *testing.T) {
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.BinaryArgument{Value: av1})
 	arguments.Append(&proto.StringArgument{Value: "10"})
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      "main",
-		Arguments: arguments,
-	}
+	call := proto.NewFunctionCall("main", arguments)
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -3215,7 +3191,7 @@ func TestTestingDApp(t *testing.T) {
 		withHeight(1642207).withScheme(proto.TestNetScheme).withBlock(blockInfo).
 		withWavesBalance(acc, 5000000000)
 
-	res, err := CallFunction(te.toEnv(), tree, "main", arguments)
+	res, err := CallFunction(te.toEnv(), tree, proto.NewFunctionCall("main", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3250,7 +3226,7 @@ func TestDropElementDApp(t *testing.T) {
 		withInvocation("dropElementInArray")
 
 	arguments := proto.Arguments{&proto.StringArgument{Value: "aaa,bbb,ccc"}, &proto.StringArgument{Value: "ccc"}}
-	res, err := CallFunction(env.toEnv(), tree, "dropElementInArray", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("dropElementInArray", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3291,7 +3267,7 @@ func TestMathDApp(t *testing.T) {
 		withThis(dApp).withSender(sender).withDApp(dApp).withTree(dApp, tree).
 		withInvocation("coxRossRubinsteinCall")
 
-	res, err := CallFunction(env.toEnv(), tree, "coxRossRubinsteinCall", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("coxRossRubinsteinCall", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3333,7 +3309,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		withInvocation("deposit", withPayments(proto.ScriptPayment{Amount: 100000000, Asset: proto.NewOptionalAssetWaves()})).
 		withDataEntries(dApp, &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 6012000})
 
-	res, err := CallFunction(env.toEnv(), tree, "deposit", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("deposit", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3378,7 +3354,7 @@ func Test8Ball(t *testing.T) {
 			&proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a", Value: "You may rely on it."},
 		)
 
-	res, err := CallFunction(env.toEnv(), tree, "tellme", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("tellme", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3413,7 +3389,7 @@ func TestIntegerEntry(t *testing.T) {
 		withThis(acc).withSender(acc).withDApp(acc).withTree(acc, tree).
 		withInvocation("tellme")
 
-	_, err := CallFunction(env.toEnv(), tree, "tellme", arguments)
+	_, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("tellme", arguments))
 	assert.Error(t, err)
 }
 
@@ -3467,7 +3443,7 @@ func TestJSONParsing(t *testing.T) {
 func TestDAppWithFullIssue(t *testing.T) {
 	_, tree := parseBase64Script(t, "AAIEAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAFaXNzdWUAAAABAAAABG5hbWUJAARMAAAAAgkABEMAAAAHBQAAAARuYW1lAgAAAAtkZXNjcmlwdGlvbgAAAAAAAAGGoAAAAAAAAAAAAgYFAAAABHVuaXQAAAAAAAAAAAAFAAAAA25pbAAAAABNz7Zz")
 	env := newTestEnv(t).withTransactionID(crypto.Digest{}).withComplexityLimit(ast.LibV4, 2000)
-	res, err := CallFunction(env.toEnv(), tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3482,7 +3458,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	_, tree := parseBase64Script(t, "AAIEAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAFaXNzdWUAAAABAAAABG5hbWUJAARMAAAAAgkABEIAAAAFBQAAAARuYW1lAgAAAAtkZXNjcmlwdGlvbgAAAAAAAAGGoAAAAAAAAAAAAgYFAAAAA25pbAAAAAAOKB/n")
 
 	env := newTestEnv(t).withTransactionID(crypto.Digest{}).withComplexityLimit(ast.LibV4, 2000)
-	res, err := CallFunction(env.toEnv(), tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3508,7 +3484,7 @@ func TestBadType(t *testing.T) {
 			withPayments(proto.ScriptPayment{Amount: 13500000, Asset: proto.NewOptionalAssetWaves()}),
 		)
 
-	res, err := CallFunction(env.toEnv(), tree, "initDraw", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("initDraw", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3563,7 +3539,7 @@ func TestNoDeclaration(t *testing.T) {
 		).
 		withInvocation("settle", withTransactionID(txID))
 
-	res, err := CallFunction(env.toEnv(), tree, "settle", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("settle", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3625,7 +3601,7 @@ func TestZeroReissue(t *testing.T) {
 			&proto.BinaryDataEntry{Key: "share_token_id", Value: guessBytesFromString(t, "Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ=")},
 		).withWavesBalance(sender, 10_00000000).withWavesBalance(dApp, 10_00000000)
 
-	res, err := CallFunction(env.toEnv(), tree, "replenishment", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("replenishment", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3680,7 +3656,7 @@ func TestStageNet2(t *testing.T) {
 
 	_, tree := parseBase64Script(t, "AAIEAAAAAAAAACsIAhIGCgQIAQEIEgUKAwEICBIDCgEIEgQKAggBEgMKAQgSAwoBCBIDCgEIAAAAGwAAAAAFYWRtaW4BAAAAIAj8cpFuriBeYVtrdATBbLEGiGP0beK8x+YDq9aX3ZNqAAAAAAtkYXBwQWRkcmVzcwkAAlgAAAABCAUAAAAEdGhpcwAAAAVieXRlcwAAAAAETk9ORQIAAAALbm8gZXhpc3RpbmcAAAAABExJU1QJAQAAABFAZXh0ck5hdGl2ZSgxMDYyKQAAAAECAAAAIzNNa3RKZ1YyZVRtY0NxdHlRYWVxaWlIa1ExZVkzRUg1VGRiAQAAAAtmZXRjaFN0cmluZwAAAAIAAAAFYWxpYXMAAAADa2V5BAAAAAckbWF0Y2gwCQAEHQAAAAIFAAAABWFsaWFzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABlN0cmluZwQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQUAAAAETk9ORQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgAAAAVhbGlhcwAAAANrZXkEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAFYWxpYXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAAAQAAAAlnZXRNYXN0ZXIAAAAACQEAAAALZmV0Y2hTdHJpbmcAAAACBQAAAARMSVNUAgAAAA1tYXN0ZXJBZGRyZXNzAQAAABBnZXRBY2NvdW50U3RhdHVzAAAAAQAAAAdhZGRyZXNzCQEAAAARQGV4dHJOYXRpdmUoMTA1MSkAAAACBQAAAARMSVNUCQABLAAAAAIFAAAAB2FkZHJlc3MCAAAAB19hY3RpdmUBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABAAAAB2Fzc2V0SWQJAAEsAAAAAgIAAAATYXNzZXRfdG90YWxfYW1vdW50XwUAAAAHYXNzZXRJZAEAAAAYZ2V0QXNzZXRUb3RhbEFtb3VudFZhbHVlAAAAAQAAAAdhc3NldElkCQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgUAAAAEdGhpcwkBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABBQAAAAdhc3NldElkAQAAAAtnZXRMaW1pdEtleQAAAAEAAAAHYXNzZXRJZAkAASwAAAACAgAAAAZsaW1pdF8FAAAAB2Fzc2V0SWQBAAAADWdldExpbWl0VmFsdWUAAAABAAAAB2Fzc2V0SWQJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAAAtnZXRMaW1pdEtleQAAAAEFAAAAB2Fzc2V0SWQBAAAACWdldElzc3VlcgAAAAEAAAAHYXNzZXRJZAQAAAAHJG1hdGNoMAkAA+wAAAABCQACWQAAAAEFAAAAB2Fzc2V0SWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABUFzc2V0BAAAAAFhBQAAAAckbWF0Y2gwCAUAAAABYQAAAAZpc3N1ZXIJAAACAAAAAQIAAAAPaW52YWxpZCBhc3NldElkAQAAAA5nZXRUb3RhbEFtb3VudAAAAAAJAQAAAAxmZXRjaEludGVnZXIAAAACBQAAAAR0aGlzAgAAAAx0b3RhbF9hbW91bnQBAAAACmdldExpc3RLZXkAAAACAAAAB2FkZHJlc3MAAAAHYXNzZXRJZAQAAAAKc2VlZFBocmFzZQkAASwAAAACBQAAAAdhZGRyZXNzBQAAAAdhc3NldElkCQABLAAAAAICAAAAB2xpc3RlZF8JAAJYAAAAAQkAAfcAAAABCQABmwAAAAEFAAAACnNlZWRQaHJhc2UBAAAAEGdldExpc3RBbW91bnRLZXkAAAABAAAAB2xpc3RLZXkJAAEsAAAAAgUAAAAHbGlzdEtleQIAAAAHX2Ftb3VudAEAAAAPZ2V0TGlzdEFzc2V0S2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAACF9hc3NldElkAQAAAA9nZXRMaXN0T3duZXJLZXkAAAABAAAAB2xpc3RLZXkJAAEsAAAAAgUAAAAHbGlzdEtleQIAAAAGX293bmVyAQAAABNnZXRMaXN0VW5pdFByaWNlS2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAACl91bml0UHJpY2UBAAAAFWdldExpc3REZXNjcmlwdGlvbktleQAAAAEAAAAHbGlzdEtleQkAASwAAAACBQAAAAdsaXN0S2V5AgAAAAxfZGVzY3JpcHRpb24BAAAAEmdldExpc3RBbW91bnRWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAADGZldGNoSW50ZWdlcgAAAAIFAAAABHRoaXMJAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQUAAAAHbGlzdEtleQEAAAARZ2V0TGlzdEFzc2V0VmFsdWUAAAABAAAAB2xpc3RLZXkJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAAA9nZXRMaXN0QXNzZXRLZXkAAAABBQAAAAdsaXN0S2V5AQAAABFnZXRMaXN0T3duZXJWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAAC2ZldGNoU3RyaW5nAAAAAgUAAAAEdGhpcwkBAAAAD2dldExpc3RPd25lcktleQAAAAEFAAAAB2xpc3RLZXkBAAAAFWdldExpc3RVbml0UHJpY2VWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAADGZldGNoSW50ZWdlcgAAAAIFAAAABHRoaXMJAQAAABNnZXRMaXN0VW5pdFByaWNlS2V5AAAAAQUAAAAHbGlzdEtleQEAAAAXZ2V0TGlzdERlc2NyaXB0aW9uVmFsdWUAAAABAAAAB2xpc3RLZXkJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAABVnZXRMaXN0RGVzY3JpcHRpb25LZXkAAAABBQAAAAdsaXN0S2V5AQAAAAp1cGRhdGVMaXN0AAAABQAAAAVvd25lcgAAAAZhbW91bnQAAAAHYXNzZXRJZAAAAAl1bml0UHJpY2UAAAALZGVzY3JpcHRpb24EAAAAB2xpc3RLZXkJAQAAAApnZXRMaXN0S2V5AAAAAgUAAAAFb3duZXIFAAAAB2Fzc2V0SWQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQUAAAAHbGlzdEtleQkAAGQAAAACCQEAAAASZ2V0TGlzdEFtb3VudFZhbHVlAAAAAQUAAAAHbGlzdEtleQUAAAAGYW1vdW50CQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAIJAQAAAA9nZXRMaXN0QXNzZXRLZXkAAAABBQAAAAdsaXN0S2V5BQAAAAdhc3NldElkCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAA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")
 
-	res, err := CallFunction(env.toEnv(), tree, "purchaseToken", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("purchaseToken", arguments))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3813,7 +3789,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		withInvocation("swapRKMTToWAVES", withTransactionID(txID), withPayments(proto.ScriptPayment{Amount: 1000, Asset: *asset})).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree, "swapRKMTToWAVES", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("swapRKMTToWAVES", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3889,7 +3865,7 @@ func TestOriginCaller(t *testing.T) {
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3978,14 +3954,14 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	// No error is expected in this case
 	require.NoError(t, err)
 	require.IsType(t, DAppResult{}, res)
 
 	// Switch on internal payments validation and reset wrapped state
 	env = env.withValidateInternalPayments().withWrappedState()
-	res, err = CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err = CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	// Expecting validation error for the switched on internal payments validation
 	require.Nil(t, res)
 	require.Error(t, err)
@@ -4037,7 +4013,7 @@ func TestAliasesInInvokes(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -4127,7 +4103,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		withAssetBalance(dApp1, nft, 0).withAssetBalance(dApp2, nft, 0).withAssetBalance(dApp3, nft, 0).withAssetBalance(sender, nft, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -4197,7 +4173,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(sender, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.Nil(t, res)
 	require.Error(t, err)
 	assert.EqualError(t, err, "invoke: failed to apply actions: failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
@@ -4263,7 +4239,7 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		}}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.Nil(t, res)
 	require.Error(t, err)
 }
@@ -4324,7 +4300,7 @@ func TestReissueInInvoke(t *testing.T) {
 		}}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -4384,7 +4360,7 @@ func TestNegativePayments(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -4408,7 +4384,7 @@ func TestNegativePayments(t *testing.T) {
 
 	// Activate internal payments validation
 	env = env.withValidateInternalPayments()
-	_, err = CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	_, err = CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.EqualError(t, err, "invoke: failed to apply attached payments: failed to apply attached payment: negative transfer amount")
 }
 
@@ -4447,7 +4423,7 @@ func TestDateEntryPutAfterRemoval(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(sender, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	ur, ok := res.userResult().(rideString)
 	assert.True(t, ok)
@@ -4487,14 +4463,14 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(sender, 10_00000000).withWavesBalance(test, 0).
 		withWrappedState()
 
-	_, err := CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 10}})
+	_, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 10}}))
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
 	calls := env.ms.NewestAddrByAliasCalls()
 	require.Len(t, calls, 1)
 	require.Equal(t, alias, calls[0].Alias)
 
-	_, err = CallFunction(env.toEnv(), tree, "call", proto.Arguments{&proto.IntegerArgument{Value: 1}})
+	_, err = CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 1}}))
 	require.Error(t, err)
 	assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(err))
 }
@@ -4590,7 +4566,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Positive(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, 50, len(res.ScriptActions()))
@@ -4707,7 +4683,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5NestedPositive(t *testing.T) {
 		withWavesBalance(dApp1, 1000_00000000).withWavesBalance(dApp2, 1000_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, 40, len(res.ScriptActions()))
@@ -4799,7 +4775,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5OverflowNegative(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate local actions count: number of actions (31) produced by script is more than allowed 30")
 }
@@ -4895,7 +4871,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5Negative(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (31) produced by script is more than allowed 30")
 }
@@ -4970,7 +4946,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (40) produced by script is more than allowed 30")
 }
@@ -5028,13 +5004,13 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 		withWavesBalance(dApp1, 50_00000000).withWavesBalance(dApp2, 50_00000000).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree, "test", arguments)
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("test", arguments))
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
 	// Activate RideV6 and reset wrapped state
 	env = env.withRideV6Activated().withWrappedState()
-	res, err = CallFunction(env.toEnv(), tree, "test", arguments)
+	res, err = CallFunction(env.toEnv(), tree, proto.NewFunctionCall("test", arguments))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100")
 }
@@ -5098,7 +5074,7 @@ func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 	}
 
 	callAndCheckResults := func() {
-		res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		require.NoError(t, err)
 		r, ok := res.(DAppResult)
 		require.True(t, ok)
@@ -5155,7 +5131,7 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 		withWavesBalance(dApp1, 100_00000000, 0, 60_00000000, 40_00000000).withWavesBalance(dApp2, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(res.ScriptActions()))
 	_, err = env.ws.NewestFullWavesBalance(dApp1.recipient())
@@ -5163,7 +5139,7 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 
 	// Reset wrapped state
 	env = env.withRideV6Activated().withWrappedState()
-	res, err = CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err = CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -1000000000")
 }
@@ -5211,13 +5187,13 @@ func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T)
 
 	t.Run("BeforeInvokeScriptActivation", func(t *testing.T) {
 		env := prepareEnv().withWrappedState()
-		res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "gotcha")
 	})
 	t.Run("AfterInvokeScriptActivation", func(t *testing.T) {
 		env := prepareEnv().withInvokeExpressionActivated()
-		res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000")
 	})
@@ -5278,7 +5254,7 @@ func TestValidateBalancesOnlyForChangedAccountsBeforeInvokeScriptActivation(t *t
 		withWavesBalance(dApp1, 1_00000000, 0, 1_00000000, 1_00000000).withWavesBalance(dApp2, 0).withWavesBalance(dApp3, 0).
 		withWrappedState()
 
-	res, err := CallFunction(env.toEnv(), tree1, "call", proto.Arguments{})
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "gotcha")
 }
@@ -5350,7 +5326,7 @@ func TestInvokeFailOnCallDAppLowerV5(t *testing.T) {
 			withAdditionalDApp(test.account).withTree(test.account, test.tree).
 			withSender(sender).withWrappedState().withInvocation(test.fn)
 
-		_, err := CallFunction(env.toEnv(), treeInvoker, test.fn, proto.Arguments{})
+		_, err := CallFunction(env.toEnv(), treeInvoker, proto.NewFunctionCall(test.fn, proto.Arguments{}))
 		assert.EqualError(
 			t,
 			err,
@@ -5407,19 +5383,53 @@ func TestThrowComplexity(t *testing.T) {
 		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
 		withWrappedState()
 
-	_, err := CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, "foo", proto.Arguments{})
+	_, err := CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	assert.EqualError(t, err, "Explicit script termination")
 	assert.Equal(t, 77, EvaluationErrorSpentComplexity(err))
 
-	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, "baz", proto.Arguments{})
+	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, proto.NewFunctionCall("baz", proto.Arguments{}))
 	assert.EqualError(t, err, "Explicit script termination")
 	assert.Equal(t, 2, EvaluationErrorSpentComplexity(err))
 
-	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, "bar", proto.Arguments{})
+	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, proto.NewFunctionCall("bar", proto.Arguments{}))
 	assert.EqualError(t, err, "fail")
 	assert.Equal(t, 76, EvaluationErrorSpentComplexity(err))
 
-	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, "qux", proto.Arguments{})
+	_, err = CallFunction(env.withComplexityLimit(ast.LibV6, 2000).toEnv(), tree1, proto.NewFunctionCall("qux", proto.Arguments{}))
 	assert.EqualError(t, err, "fail")
 	assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
+}
+
+func TestDefaultFunction(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func default(a: String) = {
+		([], a)
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAHZGVmYXVsdAAAAAEAAAABYQkABRQAAAACBQAAAANuaWwFAAAAAWEAAAAAuBVHDg==")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV5).
+		withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+
+	args := proto.Arguments{proto.NewStringArgument("arg")}
+
+	_, err := CallFunction(env.withComplexityLimit(ast.LibV5, 2000).toEnv(), tree1, proto.NewFunctionCall("", args))
+	assert.EqualError(t, err, "failed to call function '': function '' not found")
+
+	env = env.withInvocation("default", withTransactionID(crypto.Digest{}))
+
+	_, err = CallFunction(env.withComplexityLimit(ast.LibV5, 2000).toEnv(), tree1, proto.NewFunctionCall("default", args))
+	assert.NoError(t, err)
 }

@@ -143,7 +143,7 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
 	name := "Somerset"
 	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, invokeFee)
 	return proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, *tx.ID), name
 }
@@ -334,7 +334,7 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 	pmts := []proto.ScriptPayment{
 		{Amount: amount},
 	}
-	fc0 := proto.FunctionCall{Name: "deposit"}
+	fc0 := proto.NewFunctionCall("deposit", proto.Arguments{})
 	key := base58.Encode(testGlobal.senderInfo.addr[:])
 	tests := []invokeApplierTestData{
 		{
@@ -374,9 +374,9 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 	pmts := []proto.ScriptPayment{
 		{Amount: amount},
 	}
-	fc0 := proto.FunctionCall{Name: "deposit"}
+	fc0 := proto.NewFunctionCall("deposit", proto.Arguments{})
 	withdrawAmount := amount / 2
-	fc1 := proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
+	fc1 := proto.NewFunctionCall("withdraw", proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}})
 	key := base58.Encode(testGlobal.senderInfo.addr[:])
 	tests := []invokeApplierTestData{
 		{
@@ -429,7 +429,7 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -461,8 +461,8 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
+	fc1 := proto.NewFunctionCall("reissue", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -508,9 +508,9 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
-	fc2 := proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
+	fc1 := proto.NewFunctionCall("reissue", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
+	fc2 := proto.NewFunctionCall("burn", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -570,8 +570,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
+	fc1 := proto.NewFunctionCall("reissue", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -623,8 +623,8 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
+	fc1 := proto.NewFunctionCall("burn", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -682,8 +682,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	fc := proto.NewFunctionCall("issue", []proto.Argument{&proto.StringArgument{Value: name}})
+	fc1 := proto.NewFunctionCall("reissue", []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -753,11 +753,11 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipientAddresses()
 	// This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
-	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	fcEverythingFine := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}})
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
-	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 150)}}}
+	fcSizeLimitAfterComplexityLimit := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 150)}})
 	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
-	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 11}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	fcSizeLimitBeforeComplexityLimit := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 11}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -839,11 +839,11 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	//Note that after activation of RideV6 only the size of payload is counted
 	sender, dapp := invokeSenderRecipientAddresses()
 	//This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
-	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	fcEverythingFine := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}})
 	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
-	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 200)}}}
+	fcSizeLimitAfterComplexityLimit := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 200)}})
 	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
-	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 10}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	fcSizeLimitBeforeComplexityLimit := proto.NewFunctionCall("keyvalue", []proto.Argument{&proto.IntegerArgument{Value: 10}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}})
 	tests := []invokeApplierTestData{
 		{ // No error, no failure - transaction applied
 			payments: []proto.ScriptPayment{},
@@ -957,10 +957,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
 
 	sender, dapp := invokeSenderRecipientAddresses()
-	fc := proto.FunctionCall{
-		Name:      "simpleLeaseToSender",
-		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
-	}
+	fc := proto.NewFunctionCall("simpleLeaseToSender", []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -998,16 +995,10 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
 
 	sender, dapp := invokeSenderRecipientAddresses()
-	fc1 := proto.FunctionCall{
-		Name:      "simpleLeaseToSender",
-		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
-	}
+	fc1 := proto.NewFunctionCall("simpleLeaseToSender", []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}})
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc1, feeAsset, invokeFee)
 	id := proto.GenerateLeaseScriptActionID(proto.NewRecipientFromAddress(sender), thousandWaves, 0, *tx.ID)
-	fc2 := proto.FunctionCall{
-		Name:      "cancel",
-		Arguments: []proto.Argument{&proto.BinaryArgument{Value: id.Bytes()}},
-	}
+	fc2 := proto.NewFunctionCall("cancel", []proto.Argument{&proto.BinaryArgument{Value: id.Bytes()}})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -1105,10 +1096,10 @@ func TestFailRejectOnThrow(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
 	sender, dapp := invokeSenderRecipientAddresses()
-	heavyDirectThrow := proto.FunctionCall{Name: "heavyDirectThrow", Arguments: []proto.Argument{}}
-	heavyIndirectThrow := proto.FunctionCall{Name: "heavyIndirectThrow", Arguments: []proto.Argument{}}
-	lightDirectThrow := proto.FunctionCall{Name: "lightDirectThrow", Arguments: []proto.Argument{}}
-	lightIndirectThrow := proto.FunctionCall{Name: "lightIndirectThrow", Arguments: []proto.Argument{}}
+	heavyDirectThrow := proto.NewFunctionCall("heavyDirectThrow", []proto.Argument{})
+	heavyIndirectThrow := proto.NewFunctionCall("heavyIndirectThrow", []proto.Argument{})
+	lightDirectThrow := proto.NewFunctionCall("lightDirectThrow", []proto.Argument{})
+	lightIndirectThrow := proto.NewFunctionCall("lightIndirectThrow", []proto.Argument{})
 	tests := []invokeApplierTestData{
 		{
 			payments: []proto.ScriptPayment{},
@@ -1184,7 +1175,7 @@ func TestIssuesInInvokes(t *testing.T) {
 	to.setDApp(t, "ride5_issues_in_invokes.base64", dApp)
 
 	var payments []proto.ScriptPayment // empty payments
-	functionCall := proto.FunctionCall{Name: "call", Arguments: []proto.Argument{}}
+	functionCall := proto.NewFunctionCall("call", []proto.Argument{})
 	tx := createInvokeScriptWithProofs(t, payments, functionCall, feeAsset, invokeFee)
 
 	expectedIssueActionsOrder := []*proto.IssueScriptAction{
