@@ -97,8 +97,8 @@ func (s *SponsorshipSnapshot) dummy() error {
 }
 
 type AliasSnapshot struct {
-	alias   *proto.Alias
-	address *proto.WavesAddress
+	alias   proto.Alias
+	address proto.WavesAddress
 }
 
 func (s *AliasSnapshot) dummy() error {
