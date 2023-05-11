@@ -6077,7 +6077,7 @@ func TestSetAssetScriptWithProofsToJSON(t *testing.T) {
 }
 
 func TestInvokeScriptWithProofsValidations(t *testing.T) {
-	repeat := func(arg StringArgument, n int) Arguments {
+	repeat := func(arg *StringArgument, n int) Arguments {
 		r := make([]Argument, n)
 		for i := 0; i < n; i++ {
 			r = append(r, arg)
@@ -6097,19 +6097,19 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		err     string
 		version byte
 	}{
-		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 0, "fee should be positive", 1},
-		{ScriptPayments{{12345, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, math.MaxInt64 + 1, "fee is too big", 1},
-		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function name is too big", 1},
-		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments", 1},
-		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount", 1},
-		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount", 1},
-		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 1, "unexpected version 128 for InvokeScriptWithProofs", 128},
+		{ScriptPayments{}, "foo", Arguments{NewIntegerArgument(1234567890)}, 0, "fee should be positive", 1},
+		{ScriptPayments{{12345, *a1}}, "foo", Arguments{NewStringArgument("some value should be ok")}, math.MaxInt64 + 1, "fee is too big", 1},
+		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function call validation failed: function name is too big", 1},
+		{ScriptPayments{{12345, *a1}}, "foo", repeat(NewStringArgument("some value should be ok"), 100), 13245, "function call validation failed: too many arguments", 1},
+		{ScriptPayments{{0, *a1}}, "foo", Arguments{NewStringArgument("some value should be ok")}, 1234, "at least one payment has a non-positive amount", 1},
+		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{NewStringArgument("some value should be ok")}, 12345, "at least one payment has a too big amount", 1},
+		{ScriptPayments{}, "foo", Arguments{NewIntegerArgument(1234567890)}, 1, "unexpected version 128 for InvokeScriptWithProofs", 128},
 		//TODO: add test on arguments evaluation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
-		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
+		fc := NewFunctionCall(tc.name, tc.args)
 		tx := NewUnsignedInvokeScriptWithProofs(tc.version, spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
 		_, err := tx.Validate(TestNetScheme)
 		assert.EqualError(t, err, tc.err)

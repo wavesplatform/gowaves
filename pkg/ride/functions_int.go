@@ -194,7 +194,7 @@ func intToBytes(_ environment, args ...rideType) (rideType, error) {
 
 	out := make([]byte, 8)
 	binary.BigEndian.PutUint64(out, uint64(i))
-	return rideBytes(out), nil
+	return rideByteVector(out), nil
 }
 
 func pow(env environment, args ...rideType) (rideType, error) {

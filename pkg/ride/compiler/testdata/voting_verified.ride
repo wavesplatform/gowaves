@@ -1,0 +1,638 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let separator = "__"
+let maxDepthDefault = 10
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("Failed to cast into Integer")
+  }
+}
+
+func asBool(val: Any) = {
+  match val {
+    case valBool: Boolean => valBool
+    case _ => throw("Failed to cast into Boolean")
+  }
+}
+
+let keyFeeAmount = ["%s", "fee"].makeString(separator)
+let keyWxAssetId = ["%s", "wxAssetId"].makeString(separator)
+let keyVotingThreshold = ["%s", "votingThreshold"].makeString(separator)
+let keyVotingDuration = ["%s", "epochLength"].makeString(separator)
+let keyVoteBeforeElimination = ["%s", "voteBeforeElimination"].makeString(separator)
+let keyStartHeight = ["%s", "currentVotingHeightStart"].makeString(separator)
+let keyCurrentPeriod = ["%s", "currentEpoch"].makeString(separator)
+let keyBoostingContract = ["%s", "boostingContract"].makeString(separator)
+let keyEmissionContract = ["%s", "emissionContract"].makeString(separator)
+let keyAssetsStoreContract = ["%s", "assetsStoreContract"].makeString(separator)
+let keyLatestProcessedAsset = ["%s", "latestProcessedAsset"].makeString(separator)
+let keyLatestProcessedUser = ["%s", "latestProcessedUser"].makeString(separator)
+let keyLatestProcessedUserRemove = ["%s", "latestProcessedUserRemove"].makeString(separator)
+let keyLatestProcessedAssetTransfer = ["%s", "latestProcessedAssetTransfer"].makeString(separator)
+let keyLatestProcessedUserTransfer = ["%s", "latestProcessedUserTransfer"].makeString(separator)
+let keyLatestProcessedUserRemoveTransfer = ["%s", "latestProcessedUserRemoveTransfer"].makeString(separator)
+let keyMaxDepth = ["%s", "maxDepth"].makeString(separator)
+
+func keyVotesTransferFinishedByPeriod(period: Int) = ["%s", "votesTransferFinished", period.toString()].makeString(separator)
+
+# Doubly linked list
+let assetsListName = "__assets"
+func getVotesListName(assetId: String) = "%s__votes__" + assetId
+func keyListHead(listName: String) = ["%s%s" + listName, "head"].makeString(separator)
+func keyListSize(listName: String) = ["%s%s" + listName, "size"].makeString(separator)
+func keyListPrev(listName: String, id: String) = ["%s%s%s" + listName, id, "prev"].makeString(separator)
+func keyListNext(listName: String, id: String) = ["%s%s%s" + listName, id, "next"].makeString(separator)
+
+func keyAssetVerifiedByPeriod(assetId: String, period: Int) = ["%s%d%s", "verifiedAt", period.toString(), assetId].makeString(separator)
+func keyAssetVerified(assetId: String) = ["%s%s", "verified", assetId].makeString(separator)
+func keyAssetWasEliminated(assetId: String, period: Int) = ["%s%s%d", "eliminated", assetId, period.toString()].makeString(separator)
+
+func keyVoteResultByPeriod(assetId: String, period: Int) = ["%s%d%s", "votingResultAtAsset", period.toString(), assetId].makeString(separator)
+func formatVoteResult(totalYes: Int, totalNo: Int, verified: Boolean) = {
+  ["%d%d%s", totalYes.toString(), totalNo.toString(), verified.toString()].makeString(separator)
+}
+func parseVoteResult(input: String) = {
+  let parts = input.split(separator)
+  let totalYesIdx = 1
+  let totalNoIdx = 2
+  let verifiedIdx = 3
+  let totalYes = parts[totalYesIdx].parseIntValue()
+  let totalNo = parts[totalNoIdx].parseIntValue()
+  # TODO: удалить условие при переезде на новый адрес
+  let verified = if (parts.size() == 4) then parts[verifiedIdx] == "true" else false
+
+  (totalYes, totalNo, verified)
+}
+
+func keyUserVoteByPeriod(userAddress: String, assetId: String, period: Int) = ["%s%d%s%s", "vru", period.toString(), assetId, userAddress].makeString(separator)
+func formatUserVote(total: Int, inFavor: Boolean) = {
+  let totalYes = if (inFavor) then total else 0
+  let totalNo = if (inFavor) then 0 else total
+
+  ["%d%d", totalYes.toString(), totalNo.toString()].makeString(separator)
+}
+func parseUserVote(input: String) = {
+  let parts = input.split(separator)
+  let totalYesIdx = 1
+  let totalNoIdx = 2
+  let totalYes = parts[totalYesIdx].parseIntValue()
+  let totalNo = parts[totalNoIdx].parseIntValue()
+  let inFavor = totalYes > 0 && totalNo == 0
+  let against = totalYes == 0 && totalNo > 0
+  strict checkTotals = inFavor || against || "Invalid user vote value".throw()
+  let total = if (inFavor) then totalYes else totalNo
+
+  (total, inFavor)
+}
+
+# types: vote | cancelVote
+func keyUserVoteHistory(type: String, userAddress: String, assetId: String, txId: String, period: Int) = ["%s%s%s%s%s%d", "history", type, assetId, userAddress, txId, period.toString()].makeString(separator)
+
+func thisOnly(i: Invocation) = {
+  i.caller == this || "Permission denied".throw()
+}
+
+func getIntegerOrZero(key: String) = this.getInteger(key).valueOrElse(0)
+func getIntegerOrFail(key: String) = this.getInteger(key).valueOrErrorMessage(key + " is not defined")
+func getStringOrEmpty(key: String) = this.getString(key).valueOrElse("")
+func getStringOrFail(key: String) = this.getString(key).valueOrErrorMessage(key + " is not defined")
+
+let feeAmount = keyFeeAmount.getIntegerOrFail()
+let wxAssetId = keyWxAssetId.getStringOrFail().fromBase58String()
+let votingThreshold = keyVotingThreshold.getIntegerOrFail()
+let votingDuration = keyVotingDuration.getIntegerOrFail()
+let voteBeforeElimination = keyVoteBeforeElimination.getIntegerOrFail()
+let startHeight = keyStartHeight.getIntegerOrFail()
+let currentPeriod = keyCurrentPeriod.getIntegerOrFail()
+let boostingContract = keyBoostingContract.getStringOrFail().addressFromStringValue()
+let emissionContract = keyEmissionContract.getStringOrFail().addressFromStringValue()
+let assetsStoreContract = keyAssetsStoreContract.getStringOrFail().addressFromStringValue()
+let maxDepth = keyMaxDepth.getInteger().valueOrElse(maxDepthDefault)
+
+let endHeight = startHeight + votingDuration
+
+func getUserGwxAmountAtHeight(userAddress: String, targetHeight: Int) = {
+  let gwxAmount = boostingContract.invoke("getUserGwxAmountAtHeightREADONLY", [userAddress, targetHeight], [])
+
+  gwxAmount.asInt()
+}
+
+func getVoteResultAction(assetId: String, total: Int, inFavor: Boolean, period: Int, verified: Boolean|Unit) = {
+  let voteResultKey = assetId.keyVoteResultByPeriod(period)
+  let (oldTotalYes, oldTotalNo, oldVerified) = match voteResultKey.getString() {
+    case s: String => s.parseVoteResult()
+    case _: Unit => match assetId.keyVoteResultByPeriod(period - 1).getString() {
+      case s: String => (0, 0, s.parseVoteResult()._3)
+      case _: Unit => (0, 0, false)
+    }
+  }
+  StringEntry(
+    voteResultKey,
+    formatVoteResult(
+      oldTotalYes + if (inFavor) then total else 0,
+      oldTotalNo + if (inFavor) then 0 else total,
+      if (verified == unit) then oldVerified else verified.value()
+    )
+  )
+}
+
+# Check if list contains the node
+func containsNode(listName: String, id: String) = {
+  let head = this.getString(listName.keyListHead())
+  let prev = this.getString(listName.keyListPrev(id))
+  let next = this.getString(listName.keyListNext(id))
+
+  # BUG: id != head always because head is String|Unit?
+  id == head || prev != unit || next != unit
+}
+
+# Insert at the beginning of the list
+func insertNode(listName: String, id: String) = {
+  let head = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  strict checkNode = !listName.containsNode(id) || throw("Node exists")
+
+  [IntegerEntry(listName.keyListSize(), listSize + 1)]
+    ++ (if (head.isDefined()) then [StringEntry(listName.keyListNext(id), head.value()), StringEntry(listName.keyListPrev(head.value()), id)] else [])
+    ++ [StringEntry(listName.keyListHead(), id)]
+}
+
+# Remove from the list
+func deleteNode(listName: String, id: String) = {
+  let head = this.getString(listName.keyListHead())
+  let listSize = this.getInteger(listName.keyListSize()).valueOrElse(0)
+  let prev = this.getString(listName.keyListPrev(id))
+  let next = this.getString(listName.keyListNext(id))
+
+  [IntegerEntry(listName.keyListSize(), listSize - 1)] ++ (if (prev.isDefined() && next.isDefined()) then {
+    [
+      StringEntry(listName.keyListNext(prev.value()), next.value()),
+      StringEntry(listName.keyListPrev(next.value()), prev.value()),
+      DeleteEntry(listName.keyListPrev(id)),
+      DeleteEntry(listName.keyListNext(id))
+    ]
+  } else if (next.isDefined()) then {
+    [
+      StringEntry(listName.keyListHead(), next.value()),
+      DeleteEntry(listName.keyListNext(id)),
+      DeleteEntry(listName.keyListPrev(next.value()))
+    ]
+  } else if (prev.isDefined()) then {
+    [
+      DeleteEntry(listName.keyListPrev(id)),
+      DeleteEntry(listName.keyListNext(prev.value()))
+    ]
+  } else {
+    if (id == head) then [DeleteEntry(listName.keyListHead())] else throw("Invalid node")
+  })
+}
+
+func processVote(
+  assetId: String,
+  userAddressOrUnit: String|Unit,
+  latestProcessedAssetKey: String,
+  latestProcessedUserKey: String,
+  latestProcessedUserRemoveKey: String
+) = {
+  # Если пользователь пустой, то записать только asset
+  # Если пользователь не пустой, то обработать и записать asset, user
+  # Если голос указан на текущий период, то используем его. Если нет, то пробуем перенести голос с предыдущего периода.
+  # Если количество gWX ушло в ноль, то удаляем пользователя из списка.
+  # Записываем в стейт последний обработанный голос.
+  let updateLatestProcessedAssetAction = StringEntry(latestProcessedAssetKey, assetId)
+  let deleteLatestProcessedUserAction = DeleteEntry(latestProcessedUserKey)
+  if (userAddressOrUnit == unit) then {
+    [updateLatestProcessedAssetAction, deleteLatestProcessedUserAction]
+  } else {
+    let userAddress = userAddressOrUnit.value()
+    let updateLatestProcessedUserAction = StringEntry(latestProcessedUserKey, userAddress)
+    let userVoteKey = userAddress.keyUserVoteByPeriod(assetId, currentPeriod)
+    let userVoteOrUnit = userVoteKey.getString()
+    let voteActions = if (userVoteOrUnit == unit) then {
+      let userGwxAmountAtEndHeight = userAddress.getUserGwxAmountAtHeight(endHeight)
+      if (userGwxAmountAtEndHeight == 0) then {
+        [BooleanEntry(latestProcessedUserRemoveKey, true)]
+      } else {
+        # Надо ли проверять, что currentPeriod > 0? Ведь пользователь есть в списке, но нет голоса на текущий период
+        let previousPeriod = currentPeriod - 1
+        let assetWasEliminated = assetId.keyAssetWasEliminated(previousPeriod).getBoolean().valueOrElse(false)
+        let userPreviousVoteOrUnit = if (assetWasEliminated) then unit else userAddress.keyUserVoteByPeriod(assetId, previousPeriod).getString()
+        if (userPreviousVoteOrUnit == unit) then [] else {
+          let (prevTotal, inFavor) = userPreviousVoteOrUnit.value().parseUserVote()
+          let total = min([prevTotal, userGwxAmountAtEndHeight])
+          [
+            StringEntry(userVoteKey, total.formatUserVote(inFavor)),
+            assetId.getVoteResultAction(total, inFavor, currentPeriod, unit)
+          ]
+        }
+      }
+    } else {
+      # Если в текущем периоде есть голос, то ничего не делаем, так как он уже учтен в сумме голосов при голосовании или при переносе
+      # let (total, inFavor) = userVoteOrUnit.value().parseUserVote()
+      [
+        # assetId.getVoteResultAction(total, inFavor, currentPeriod)
+      ]
+    }
+
+    voteActions :+ updateLatestProcessedAssetAction :+ updateLatestProcessedUserAction
+  }
+}
+
+func assetShouldBeEliminated(assetId: String, period: Int) = {
+  !assetId.keyAssetVerifiedByPeriod(period).getBoolean().valueOrElse(true)
+}
+
+func eliminationCheck(assetId: String) = {
+  assetId.assetShouldBeEliminated(currentPeriod - 1)
+    && assetId.assetShouldBeEliminated(currentPeriod - 2)
+    && assetId.assetShouldBeEliminated(currentPeriod - 3)
+}
+
+@Callable(i)
+func constructor(
+  boostingContractPrm: String,
+  emissionContractPrm: String,
+  assetsStoreContractPrm: String,
+  feeAmountPrm: Int,
+  wxAssetIdPrm: String,
+  votingThresholdPrm: Int,
+  votingDurationPrm: Int,
+  voteBeforeEliminationPrm: Int,
+  startHeightPrm: Int,
+  maxDepthPrm: Int
+) = {
+
+  strict checks = [
+    i.thisOnly(),
+    boostingContractPrm.addressFromString().isDefined() || throw("Invalid boosting contract address"),
+    emissionContractPrm.addressFromString().isDefined() || throw("Invalid emission contract address"),
+    assetsStoreContractPrm.addressFromString().isDefined() || throw("Invalid asset_store contract address"),
+    feeAmountPrm >= 0 || throw("Invalid fee amount"),
+    wxAssetIdPrm.fromBase58String().assetInfo().isDefined() || throw("Invalid WX asset ID"),
+    votingThresholdPrm >= 0 || throw("Invalid voting threshold"),
+    votingDurationPrm > 0 || throw("Invalid voting duration"),
+    startHeightPrm + votingDurationPrm > height || throw("Invalid start height")
+  ]
+
+  (
+    [
+      StringEntry(keyBoostingContract, boostingContractPrm),
+      StringEntry(keyEmissionContract, emissionContractPrm),
+      StringEntry(keyAssetsStoreContract, assetsStoreContractPrm),
+      IntegerEntry(keyFeeAmount, feeAmountPrm),
+      StringEntry(keyWxAssetId, wxAssetIdPrm),
+      IntegerEntry(keyVotingThreshold, votingThresholdPrm),
+      IntegerEntry(keyVotingDuration, votingDurationPrm),
+      IntegerEntry(keyVoteBeforeElimination, voteBeforeEliminationPrm),
+      IntegerEntry(keyStartHeight, startHeightPrm),
+      IntegerEntry(keyCurrentPeriod, 0),
+      IntegerEntry(keyMaxDepth, maxDepthPrm)
+    ],
+    unit
+  )
+}
+
+# TODO: проверить, что токена нет в списке
+@Callable(i)
+func suggest(assetId: String, assetImage: String) = {
+  let info = assetId.fromBase58String().assetInfo().valueOrErrorMessage("Invalid asset ID")
+  let payment = i.payments[0].value()
+  strict checks = [
+    info.issuer == i.caller || "Asset can only be suggested by its issuer".throw(),
+    payment.assetId.value() == wxAssetId || "Invalid fee asset".throw(),
+    payment.amount == feeAmount || "Invalid fee amount".throw()
+  ]
+  strict assetsStoreCreateOrUpdateInv = assetsStoreContract.invoke("createOrUpdate", [assetId, assetImage, false], [])
+  strict burnFeeInv = emissionContract.invoke("burn", [], [AttachedPayment(payment.assetId, payment.amount)])
+  let addAssetActions = assetsListName.insertNode(assetId)
+  let nextPeriod = currentPeriod + 1
+  let targetPeriod = if (height < endHeight) then currentPeriod else nextPeriod
+
+  (
+    addAssetActions
+      :+ assetId.getVoteResultAction(0, true, targetPeriod, false),
+    unit
+  )
+}
+
+@Callable(i)
+func vote(assetId: String, inFavor: Boolean) = {
+  strict checkAsset = assetsListName.containsNode(assetId) || "Invalid asset".throw()
+  strict checkHeight = height < endHeight || "Current voting is over but results are not finalized".throw()
+
+  let userAddress = i.caller.toString()
+  let gwxAmountAtEnd = userAddress.getUserGwxAmountAtHeight(endHeight)
+  strict checkGwxAmountAtEnd = gwxAmountAtEnd > 0 || "You'll not have gWX at the end of voting".throw()
+
+  let votesListName = assetId.getVotesListName()
+  let userVoteKey = userAddress.keyUserVoteByPeriod(assetId, currentPeriod)
+  let userVoteOrUnit = userVoteKey.getString()
+  strict cancelVoteInv = if (userVoteOrUnit == unit) then unit else this.invoke("cancelVote", [assetId], [])
+  let userVoteActions = [
+    StringEntry(userVoteKey, gwxAmountAtEnd.formatUserVote(inFavor)),
+    StringEntry(
+      "vote".keyUserVoteHistory(userAddress, assetId, i.transactionId.toBase58String(), currentPeriod),
+      gwxAmountAtEnd.formatUserVote(inFavor)
+    ),
+    assetId.getVoteResultAction(gwxAmountAtEnd, inFavor, currentPeriod, unit)
+  ]
+  let votesListActions = if (votesListName.containsNode(userAddress)) then [] else {
+    votesListName.insertNode(userAddress)
+  }
+
+  (
+    votesListActions
+      ++ userVoteActions,
+    unit
+  )
+}
+
+@Callable(i)
+func cancelVote(assetId: String) = {
+  let userAddress = if (i.caller == this) then i.originCaller.toString() else i.caller.toString()
+  let votesListName = assetId.getVotesListName()
+  let userVoteKey = userAddress.keyUserVoteByPeriod(assetId, currentPeriod)
+  let userVoteOrUnit = userVoteKey.getString()
+  let (total, inFavor) = userVoteOrUnit.valueOrErrorMessage("Nothing to cancel").parseUserVote()
+  let votesListActions = votesListName.deleteNode(userAddress)
+  let userVoteActions = [
+    DeleteEntry(userVoteKey),
+    StringEntry(
+      "cancelVote".keyUserVoteHistory(userAddress, assetId, i.transactionId.toBase58String(), currentPeriod),
+      0.formatUserVote(true)
+    ),
+    assetId.getVoteResultAction(-total, inFavor, currentPeriod, unit)
+  ]
+
+  (
+    votesListActions
+      ++ userVoteActions,
+    unit
+  )
+}
+
+# TODO: Сделать обычной функцией
+@Callable(i)
+func finalizeAssetINTERNAL(assetId: String, period: Int) = {
+  strict checkCaller = i.thisOnly()
+
+  let voteResultKey = assetId.keyVoteResultByPeriod(period)
+  let (totalYes, totalNo) = match voteResultKey.getString() {
+    case s: String => {
+      let r = s.parseVoteResult()
+      (r._1, r._2)
+    }
+    case _: Unit => (0, 0)
+  }
+  let total = totalYes + totalNo
+  let verified = total >= votingThreshold && totalYes > totalNo
+  let assetVerifiedActions = [
+    BooleanEntry(assetId.keyAssetVerifiedByPeriod(period), verified),
+    if (verified) then BooleanEntry(assetId.keyAssetVerified(), true) else DeleteEntry(assetId.keyAssetVerified())
+  ]
+  # TODO: нужно ли проверять, что ассет существует?
+  strict assetsStoreSetVerifiedInv = assetsStoreContract.invoke("setVerified", [assetId, verified], [])
+  let eliminate = if (verified) then false else assetId.eliminationCheck()
+  let assetWasEliminatedActions = if (eliminate) then [BooleanEntry(assetId.keyAssetWasEliminated(currentPeriod), true)] else []
+  let voteResultActions = if (eliminate) then [] else [assetId.getVoteResultAction(0, true, currentPeriod + 1, verified)]
+  let votesListActions = if (eliminate) then assetsListName.deleteNode(assetId) else []
+  strict onEliminationInv = if (eliminate) then assetsStoreContract.invoke("onEliminate", [assetId], []) else unit
+
+  (
+    votesListActions ++ voteResultActions ++ assetVerifiedActions,
+    unit
+  )
+}
+
+@Callable(i)
+func deleteUserNodeINTERNAL(assetId: String, userAddress: String, latestProcessedUserRemoveKey: String) = {
+  strict checkCaller = i.thisOnly()
+
+  (
+    assetId.getVotesListName().deleteNode(userAddress) :+ DeleteEntry(latestProcessedUserRemoveKey),
+    unit
+  )
+}
+
+# Счетчик эпохи нужен для того чтобы убирать ассет из списка если он проиграл голосование N(константа) эпох подряд
+@Callable(i)
+func finalizeVotingHelper() = {
+  # когда финализация завершена, обновляется startHeight
+  # финализировать можно, если height > endHeight
+  if (height < endHeight) then {
+    (
+      [],
+      false
+    )
+  } else {
+    # Получить последний обработанный голос.
+    let latestProcessedAssetOrUnit = keyLatestProcessedAsset.getString()
+    let latestProcessedUserOrUnit = keyLatestProcessedUser.getString()
+    # Если нет ассета, то получить ассет из head.
+      # Если нет, то завершить.
+      # Если есть, то получить пользователя из head для данного ассета.
+        # Если есть, то обработать и записать asset, user
+        # Если нет, то записать только asset
+    # Если есть ассет
+      # Если нет пользователя, то перейти к следующему ассету
+        # Если нет, то завершить.
+        # Если есть, то получить пользователя из head для данного ассета.
+          # Если есть, то обработать и записать asset, user
+          # Если нет, то записать только asset
+      # Если есть пользователь, то получить следующего пользователя
+        # Если есть, то обработать и записать asset, user
+        # Если нет, то записать только asset
+    let nextPeriodDelay = 0
+    let finish = (
+      [
+        IntegerEntry(keyStartHeight, height + nextPeriodDelay),
+        IntegerEntry(keyCurrentPeriod, currentPeriod + 1),
+        DeleteEntry(keyLatestProcessedAsset),
+        DeleteEntry(keyLatestProcessedUser),
+        DeleteEntry(keyLatestProcessedAssetTransfer),
+        DeleteEntry(keyLatestProcessedUserTransfer)
+      ],
+      true
+    )
+    if (latestProcessedAssetOrUnit == unit) then {
+      let assetsHeadOrUnit = assetsListName.keyListHead().getString()
+      if (assetsHeadOrUnit == unit) then {
+        finish
+      } else {
+        let asset = assetsHeadOrUnit.value()
+        let userAddressOrUnit = asset.getVotesListName().keyListHead().getString()
+        let processVoteActions = processVote(asset, userAddressOrUnit, keyLatestProcessedAsset, keyLatestProcessedUser, keyLatestProcessedUserRemove)
+        (processVoteActions, true)
+      }
+    } else {
+      let latestProcessedAsset = latestProcessedAssetOrUnit.value()
+      if (latestProcessedUserOrUnit == unit) then {
+        strict assetOrUnit = assetsListName.keyListNext(latestProcessedAsset).getString()
+        strict finalizeAssetInv = this.invoke("finalizeAssetINTERNAL", [latestProcessedAsset, currentPeriod], [])
+        if (assetOrUnit == unit) then {
+          finish
+        } else {
+          let asset = assetOrUnit.value()
+          let userAddressOrUnit = asset.getVotesListName().keyListHead().getString()
+          let processVoteActions = processVote(asset, userAddressOrUnit, keyLatestProcessedAsset, keyLatestProcessedUser, keyLatestProcessedUserRemove)
+          (processVoteActions, true)
+        }
+      } else {
+        let latestProcessedUser = latestProcessedUserOrUnit.value()
+        strict userAddressOrUnit = latestProcessedAsset.getVotesListName().keyListNext(latestProcessedUser).getString()
+        let removeLatestUser = keyLatestProcessedUserRemove.getBoolean().valueOrElse(false)
+        strict deleteUserInv = if (removeLatestUser) then this.invoke("deleteUserNodeINTERNAL", [latestProcessedAsset, latestProcessedUser, keyLatestProcessedUserRemove], []) else unit
+        let processVoteActions = processVote(latestProcessedAsset, userAddressOrUnit, keyLatestProcessedAsset, keyLatestProcessedUser, keyLatestProcessedUserRemove)
+        (processVoteActions, true)
+      }
+    }
+  }
+}
+
+@Callable(i)
+func finalizeVotingWrapper(counter: Int) = {
+  strict result = this.invoke("finalizeVotingHelper", [], []).asBool()
+  if (!result) then {
+    if (counter == 0) then {
+      throw("Current voting is not over yet")
+    } else {
+      ([], unit)
+    }
+  } else {
+    if (counter < maxDepth) then {
+      strict inv = this.invoke("finalizeVotingWrapper", [counter + 1], [])
+      ([], unit)
+    } else {
+      ([], unit)
+    }
+  }
+}
+
+@Callable(i)
+func finalizeVoting() = {
+  strict inv = this.invoke("finalizeVotingWrapper", [0], [])
+
+  ([], unit)
+}
+
+@Callable(i)
+func transferVotesHelper() = {
+  let votesTransferFinishedKey = currentPeriod.keyVotesTransferFinishedByPeriod()
+  let votesTransferFinished = votesTransferFinishedKey.getBoolean().valueOrElse(false)
+  # Переносить голоса можно, когда завершилась финализация,
+  # так как теперь известна высота окончания периода
+  if (height < startHeight || height >= endHeight || votesTransferFinished) then {
+    (
+      [],
+      false
+    )
+  } else {
+    let latestProcessedAssetOrUnit = keyLatestProcessedAssetTransfer.getString()
+    let latestProcessedUserOrUnit = keyLatestProcessedUserTransfer.getString()
+    let finish = (
+      [
+        BooleanEntry(votesTransferFinishedKey, true),
+        DeleteEntry(keyLatestProcessedAssetTransfer),
+        DeleteEntry(keyLatestProcessedUserTransfer)
+      ],
+      true
+    )
+    if (latestProcessedAssetOrUnit == unit) then {
+      let assetsHeadOrUnit = assetsListName.keyListHead().getString()
+      if (assetsHeadOrUnit == unit) then {
+        finish
+      } else {
+        let asset = assetsHeadOrUnit.value()
+        let userAddressOrUnit = asset.getVotesListName().keyListHead().getString()
+        let processVoteActions = processVote(asset, userAddressOrUnit, keyLatestProcessedAssetTransfer, keyLatestProcessedUserTransfer, keyLatestProcessedUserRemoveTransfer)
+        (processVoteActions, true)
+      }
+    } else {
+      let latestProcessedAsset = latestProcessedAssetOrUnit.value()
+      if (latestProcessedUserOrUnit == unit) then {
+        let assetOrUnit = assetsListName.keyListNext(latestProcessedAsset).getString()
+        if (assetOrUnit == unit) then {
+          finish
+        } else {
+          let asset = assetOrUnit.value()
+          let userAddressOrUnit = asset.getVotesListName().keyListHead().getString()
+          let processVoteActions = processVote(asset, userAddressOrUnit, keyLatestProcessedAssetTransfer, keyLatestProcessedUserTransfer, keyLatestProcessedUserRemoveTransfer)
+          (processVoteActions, true)
+        }
+      } else {
+        let latestProcessedUser = latestProcessedUserOrUnit.value()
+        strict userAddressOrUnit = latestProcessedAsset.getVotesListName().keyListNext(latestProcessedUser).getString()
+        let removeLatestUser = keyLatestProcessedUserRemoveTransfer.getBoolean().valueOrElse(false)
+        strict deleteUserInv = if (removeLatestUser) then this.invoke("deleteUserNodeINTERNAL", [latestProcessedAsset, latestProcessedUser, keyLatestProcessedUserRemoveTransfer], []) else unit
+        let processVoteActions = processVote(latestProcessedAsset, userAddressOrUnit, keyLatestProcessedAssetTransfer, keyLatestProcessedUserTransfer, keyLatestProcessedUserRemoveTransfer)
+        (processVoteActions, true)
+      }
+    }
+  }
+}
+
+@Callable(i)
+func transferVotesWrapper(counter: Int) = {
+  strict result = this.invoke("transferVotesHelper", [], []).asBool()
+  if (!result) then {
+    if (counter == 0) then {
+      throw("Voting is not started yet")
+    } else {
+      ([], unit)
+    }
+  } else {
+    if (counter < maxDepth) then {
+      strict inv = this.invoke("transferVotesWrapper", [counter + 1], [])
+      ([], unit)
+    } else {
+      ([], unit)
+    }
+  }
+}
+
+@Callable(i)
+func transferVotes() = {
+  strict inv = this.invoke("transferVotesWrapper", [0], [])
+
+  ([], unit)
+}
+
+@Callable(i)
+func setVotingThreshold(newThreshold: Int) = {
+  strict checkCaller = i.thisOnly()
+
+  (
+    [
+      IntegerEntry(keyVotingThreshold, newThreshold)
+    ],
+    unit
+  )
+}
+
+@Callable(i)
+func setFee(newFee: Int) = {
+  strict checkCaller = i.thisOnly()
+
+  (
+    [
+      IntegerEntry(keyFeeAmount, newFee)
+    ],
+    unit
+  )
+}
+
+# По юзеру - сколько gwx доступных для "доголосования" у него будет на конец текущего голосования
+@Callable(i)
+func gwxAvailableForVoteREADONLY(userAddress: String) = {
+  # После завершения текущего периода можно возвращать данные для следующего
+  # Для этого startHeight должен быть обновлен
+  let gwxAmountAtEnd = userAddress.getUserGwxAmountAtHeight(endHeight)
+  (
+    [],
+    gwxAmountAtEnd
+  )
+}

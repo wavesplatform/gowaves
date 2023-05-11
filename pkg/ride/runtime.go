@@ -15,139 +15,24 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+// base types
 const (
 	byteVectorBase58Prefix = "base58"
 	byteVectorBase64Prefix = "base64"
 
-	addressTypeName         = "Address"
-	aliasTypeName           = "Alias"
-	assetPairTypeName       = "AssetPair"
-	assetTypeName           = "Asset"
-	attachedPaymentTypeName = "AttachedPayment"
-	balanceDetailsTypeName  = "BalanceDetails"
-	bigIntTypeName          = "BigInt"
-	binaryEntryTypeName     = "BinaryEntry"
-	blockInfoTypeName       = "BlockInfo"
-	booleanEntryTypeName    = "BooleanEntry"
-	booleanTypeName         = "Boolean"
-	burnTypeName            = "Burn"
-	bytesTypeName           = "ByteVector"
-	dataEntryTypeName       = "DataEntry"
-	deleteEntryTypeName     = "DeleteEntry"
-	intTypeName             = "Int"
-	integerEntryTypeName    = "IntegerEntry"
-	invocationTypeName      = "Invocation"
-	issueTypeName           = "Issue"
-	leaseCancelTypeName     = "LeaseCancel"
-	leaseTypeName           = "Lease"
-	listTypeName            = "List[Any]"
-	orderTypeName           = "Order"
-	recipientTypeName       = "Recipient"
-	reissueTypeName         = "Reissue"
-	scriptResultTypeName    = "ScriptResult"
-	scriptTransferTypeName  = "ScriptTransfer"
-	sponsorFeeTypeName      = "SponsorFee"
-	stringEntryTypeName     = "StringEntry"
-	stringTypeName          = "String"
-	transferTypeName        = "Transfer"
-	transferSetTypeName     = "TransferSet"
-	unitTypeName            = "Unit"
-	writeSetTypeName        = "WriteSet"
+	bigIntTypeName     = "BigInt"
+	booleanTypeName    = "Boolean"
+	byteVectorTypeName = "ByteVector"
+	intTypeName        = "Int"
+	listTypeName       = "List[Any]"
+	stringTypeName     = "String"
+	unitTypeName       = "Unit"
 
-	burnTransactionTypeName             = "BurnTransaction"
-	createAliasTransactionTypeName      = "CreateAliasTransaction"
-	dataTransactionTypeName             = "DataTransaction"
-	exchangeTransactionTypeName         = "ExchangeTransaction"
-	genesisTransactionTypeName          = "GenesisTransaction"
-	invokeExpressionTransactionTypeName = "InvokeExpressionTransaction"
-	invokeScriptTransactionTypeName     = "InvokeScriptTransaction"
-	issueTransactionTypeName            = "IssueTransaction"
-	leaseCancelTransactionTypeName      = "LeaseCancelTransaction"
-	leaseTransactionTypeName            = "LeaseTransaction"
-	massTransferTransactionTypeName     = "MassTransferTransaction"
-	paymentTransactionTypeName          = "PaymentTransaction"
-	reissueTransactionTypeName          = "ReissueTransaction"
-	setAssetScriptTransactionTypeName   = "SetAssetScriptTransaction"
-	setScriptTransactionTypeName        = "SetScriptTransaction"
-	sponsorFeeTransactionTypeName       = "SponsorFeeTransaction"
-	transferTransactionTypeName         = "TransferTransaction"
-	updateAssetInfoTransactionTypeName  = "UpdateAssetInfoTransaction"
+	addressTypeName = "Address"
+	aliasTypeName   = "Alias"
 
-	aliasField                 = "alias"
-	amountAssetField           = "amountAsset"
-	amountField                = "amount"
-	argsField                  = "args"
-	assetField                 = "asset"
-	assetIDField               = "assetId"
-	assetPairField             = "assetPair"
-	attachmentField            = "attachment"
-	availableField             = "available"
-	baseTargetField            = "baseTarget"
-	bodyBytesField             = "bodyBytes"
-	buyMatcherFeeField         = "buyMatcherFee"
-	buyOrderField              = "buyOrder"
-	bytesField                 = "bytes"
-	callerField                = "caller"
-	callerPublicKeyField       = "callerPublicKey"
-	compiledScriptField        = "compiledScript"
-	dAppField                  = "dApp"
-	dataField                  = "data"
-	decimalsField              = "decimals"
-	descriptionField           = "description"
-	effectiveField             = "effective"
-	expirationField            = "expiration"
-	expressionField            = "expression"
-	feeAssetIDField            = "feeAssetId"
-	feeField                   = "fee"
-	functionField              = "function"
-	generatingField            = "generating"
-	generationSignatureField   = "generationSignature"
-	generatorField             = "generator"
-	generatorPublicKeyField    = "generatorPublicKey"
-	heightField                = "height"
-	idField                    = "id"
-	instanceField              = "$instance"
-	isReissuableField          = "isReissuable"
-	issuePublicKeyField        = "issuerPublicKey"
-	issuerField                = "issuer"
-	keyField                   = "key"
-	leaseIDField               = "leaseId"
-	matcherFeeAssetIDField     = "matcherFeeAssetId"
-	matcherFeeField            = "matcherFee"
-	matcherPublicKeyField      = "matcherPublicKey"
-	minSponsoredAssetFeeField  = "minSponsoredAssetFee"
-	minSponsoredFeeField       = "minSponsoredFee"
-	nameField                  = "name"
-	nonceField                 = "nonce"
-	orderTypeField             = "orderType"
-	originCallerField          = "originCaller"
-	originCallerPublicKeyField = "originCallerPublicKey"
-	paymentField               = "payment"
-	paymentsField              = "payments"
-	priceAssetField            = "priceAsset"
-	priceField                 = "price"
-	proofsField                = "proofs"
-	quantityField              = "quantity"
-	recipientField             = "recipient"
-	regularField               = "regular"
-	reissuableField            = "reissuable"
-	scriptField                = "script"
-	scriptedField              = "scripted"
-	sellMatcherFeeField        = "sellMatcherFee"
-	sellOrderField             = "sellOrder"
-	senderField                = "sender"
-	senderPublicKeyField       = "senderPublicKey"
-	sponsoredField             = "sponsored"
-	timestampField             = "timestamp"
-	totalAmountField           = "totalAmount"
-	transactionIDField         = "transactionId"
-	transferSetField           = "transferSet"
-	transfersCountField        = "transferCount"
-	transfersField             = "transfers"
-	valueField                 = "value"
-	versionField               = "version"
-	vrfField                   = "vrf"
-	writeSetField              = "writeSet"
+	bytesField    = "bytes"
+	instanceField = "$instance"
 )
 
 type rideType interface {
@@ -265,28 +150,28 @@ func (s rideString) String() string {
 	return strconv.Quote(string(s))
 }
 
-type rideBytes []byte
+type rideByteVector []byte
 
-func (b rideBytes) instanceOf() string {
-	return bytesTypeName
+func (b rideByteVector) instanceOf() string {
+	return byteVectorTypeName
 }
 
-func (b rideBytes) eq(other rideType) bool {
-	if o, ok := other.(rideBytes); ok {
+func (b rideByteVector) eq(other rideType) bool {
+	if o, ok := other.(rideByteVector); ok {
 		return bytes.Equal(b, o)
 	}
 	return false
 }
 
-func (b rideBytes) get(prop string) (rideType, error) {
+func (b rideByteVector) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
 }
 
-func (b rideBytes) lines() []string {
+func (b rideByteVector) lines() []string {
 	return []string{b.String()}
 }
 
-func (b rideBytes) String() string {
+func (b rideByteVector) String() string {
 	str, prefix := b.stringAndPrefix()
 	return prefix + "'" + str + "'"
 }
@@ -294,14 +179,14 @@ func (b rideBytes) String() string {
 // stringAndPrefix function return string representation of byte slice and the name of encoding used to produce it.
 // In Scala implementation the string representation of byte arrays switches from Base58 to Base64 for arrays of size
 // bigger than 1024 bytes.
-func (b rideBytes) stringAndPrefix() (string, string) {
+func (b rideByteVector) stringAndPrefix() (string, string) {
 	if len(b) > 1024 {
 		return base64.StdEncoding.EncodeToString(b), byteVectorBase64Prefix
 	}
 	return base58.Encode(b), byteVectorBase58Prefix
 }
 
-func (b rideBytes) scalaString() string {
+func (b rideByteVector) scalaString() string {
 	str, prefix := b.stringAndPrefix()
 	if prefix == byteVectorBase58Prefix {
 		return str
@@ -319,7 +204,7 @@ func (a rideAddress) eq(other rideType) bool {
 	switch o := other.(type) {
 	case rideAddress:
 		return bytes.Equal(a[:], o[:])
-	case rideBytes:
+	case rideByteVector:
 		return bytes.Equal(a[:], o[:])
 	default:
 		return false
@@ -329,7 +214,7 @@ func (a rideAddress) eq(other rideType) bool {
 func (a rideAddress) get(prop string) (rideType, error) {
 	switch prop {
 	case bytesField:
-		return rideBytes(a[:]), nil
+		return rideByteVector(a[:]), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
@@ -338,7 +223,7 @@ func (a rideAddress) get(prop string) (rideType, error) {
 func makeLinesForAddressBytes(b []byte) []string {
 	return []string{
 		addressTypeName + "(",
-		"\t" + bytesField + " = " + rideBytes(b).String(),
+		"\t" + bytesField + " = " + rideByteVector(b).String(),
 		")",
 	}
 }
@@ -361,7 +246,7 @@ func (a rideAddressLike) eq(other rideType) bool {
 	switch o := other.(type) {
 	case rideAddress:
 		return bytes.Equal(a[:], o[:])
-	case rideBytes:
+	case rideByteVector:
 		return bytes.Equal(a[:], o[:])
 	case rideAddressLike:
 		return bytes.Equal(a[:], o[:])
@@ -373,7 +258,7 @@ func (a rideAddressLike) eq(other rideType) bool {
 func (a rideAddressLike) get(prop string) (rideType, error) {
 	switch prop {
 	case bytesField:
-		return rideBytes(a[:]), nil
+		return rideByteVector(a[:]), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}

@@ -63,7 +63,7 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 //				panic("mock out the NewestLeasingInfo method")
 //			},
-//			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+//			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (proto.WavesAddress, error) {
 //				panic("mock out the NewestRecipientToAddress method")
 //			},
 //			NewestScriptByAccountFunc: func(account proto.Recipient) (*ast.Tree, error) {
@@ -155,7 +155,7 @@ type AnotherMockSmartState struct {
 	NewestLeasingInfoFunc func(id crypto.Digest) (*proto.LeaseInfo, error)
 
 	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
-	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.WavesAddress, error)
+	NewestRecipientToAddressFunc func(recipient proto.Recipient) (proto.WavesAddress, error)
 
 	// NewestScriptByAccountFunc mocks the NewestScriptByAccount method.
 	NewestScriptByAccountFunc func(account proto.Recipient) (*ast.Tree, error)
@@ -830,7 +830,7 @@ func (mock *AnotherMockSmartState) NewestLeasingInfoCalls() []struct {
 }
 
 // NewestRecipientToAddress calls NewestRecipientToAddressFunc.
-func (mock *AnotherMockSmartState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (mock *AnotherMockSmartState) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if mock.NewestRecipientToAddressFunc == nil {
 		panic("AnotherMockSmartState.NewestRecipientToAddressFunc: method is nil but SmartState.NewestRecipientToAddress was just called")
 	}

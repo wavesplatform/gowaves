@@ -162,11 +162,11 @@ func newTestEnv(t *testing.T) *testEnv {
 	r.me.stateFunc = func() types.SmartState {
 		return r.ms
 	}
-	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
-			return &a, nil
+			return a, nil
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", recipient.String())
+		return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", recipient.String())
 	}
 	r.ms.NewestScriptPKByAddrFunc = func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 		if acc, ok := r.accounts[addr]; ok {
@@ -485,11 +485,7 @@ func withPayments(payments ...proto.ScriptPayment) testInvocationOption {
 }
 
 func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testEnv {
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      fn,
-		Arguments: proto.Arguments{},
-	}
+	call := proto.NewFunctionCall(fn, proto.Arguments{})
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -533,14 +529,14 @@ func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
 	id, err := tx.GetID(e.me.scheme())
 	require.NoError(e.t, err)
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id)
+		return rideByteVector(id)
 	}
 	return e
 }
 
 func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id.Bytes())
+		return rideByteVector(id.Bytes())
 	}
 	return e
 }
@@ -761,7 +757,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 		e.inv = inv
 	}
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(tx.ID.Bytes())
+		return rideByteVector(tx.ID.Bytes())
 	}
 	return e
 }

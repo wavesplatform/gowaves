@@ -24,13 +24,13 @@ type Type interface {
 const MaxTupleLength = 22
 
 var (
-	Any            = SimpleType{"Any"}
+	AnyType        = anyType{}
 	BooleanType    = SimpleType{"Boolean"}
 	IntType        = SimpleType{"Int"}
 	StringType     = SimpleType{"String"}
 	ByteVectorType = SimpleType{"ByteVector"}
 	BigIntType     = SimpleType{"BigInt"}
-	ThrowType      = SimpleType{"Unknown"}
+	ThrowType      = throwType{}
 
 	CallableRetV3 = UnionType{Types: []Type{
 		SimpleType{Type: "ScriptResult"},
@@ -66,7 +66,7 @@ var (
 	CallableRetV5 = UnionType{Types: []Type{
 		TupleType{Types: []Type{
 			callableRetV5OnlyList,
-			Any,
+			AnyType,
 		}},
 		callableRetV5OnlyList,
 	}}
@@ -96,7 +96,15 @@ func handleTypes(node *node32, t string) Type {
 		T = handleTupleType(curNode, t)
 	case ruleType:
 		// check Types
-		T = SimpleType{t[curNode.begin:curNode.end]}
+		stringType := t[curNode.begin:curNode.end]
+		switch stringType {
+		case "Any":
+			T = AnyType
+		case "Unknown":
+			T = ThrowType
+		default:
+			T = SimpleType{stringType}
+		}
 	}
 	curNode = curNode.next
 	if curNode == nil {
@@ -153,6 +161,36 @@ func handleGeneric(node *node32, t string) Type {
 	return ListType{Type: handleTypes(curNode, t)}
 }
 
+type throwType struct{}
+
+func (t throwType) String() string {
+	return "Unknown"
+}
+
+func (t throwType) Equal(rideType Type) bool {
+	_, ok := rideType.(throwType)
+	return ok
+}
+
+func (t throwType) EqualWithEntry(rideType Type) bool {
+	return t.Equal(rideType)
+}
+
+type anyType struct{}
+
+func (t anyType) String() string {
+	return "Any"
+}
+
+func (t anyType) Equal(rideType Type) bool {
+	_, ok := rideType.(anyType)
+	return ok
+}
+
+func (t anyType) EqualWithEntry(_ Type) bool {
+	return true
+}
+
 type SimpleType struct {
 	Type string
 }
@@ -162,25 +200,10 @@ func (t SimpleType) EqualWithEntry(rideType Type) bool {
 }
 
 func (t SimpleType) Equal(rideType Type) bool {
-	// TODO: if t is 'Any' and rideType is 'ThrowType' (or 'Nothing') (and vice versa) this method returns false,
-	//  but it should return true because Any is an extension of any type, even 'Nothing'
-	if t.Type == "Any" {
-		if T, ok := rideType.(SimpleType); ok {
-			if T.Type != "Unknown" {
-				return true
-			}
-		} else {
-			return true
-		}
+	if T, ok := rideType.(SimpleType); ok {
+		return t.Type == T.Type
 	}
-	T, ok := rideType.(SimpleType)
-	if !ok {
-		return false
-	}
-	if T.Type == "Any" {
-		return true
-	}
-	return t.Type == T.Type
+	return false
 }
 
 func (t SimpleType) String() string {
@@ -192,28 +215,24 @@ type UnionType struct {
 }
 
 func (t UnionType) Equal(rideType Type) bool {
-	if rideType == Any {
-		return true
-	}
-	T, ok := rideType.(UnionType)
-	if !ok {
-		return false
-	}
-	for _, typeName := range T.Types {
-		for _, checkTypeName := range t.Types {
-			if !checkTypeName.Equal(typeName) {
-				return false
+	if T, ok := rideType.(UnionType); ok {
+		for _, typeName := range T.Types {
+			for _, checkTypeName := range t.Types {
+				if !checkTypeName.Equal(typeName) {
+					return false
+				}
 			}
 		}
+		return true
 	}
-	return true
+	return false
 }
 
 func (t UnionType) EqualWithEntry(rideType Type) bool {
-	if rideType == Any {
-		return true
-	}
-	if T, ok := rideType.(UnionType); ok {
+	switch T := rideType.(type) {
+	case anyType:
+		return false
+	case UnionType:
 		for _, typeName := range T.Types {
 			eq := false
 			for _, checkTypeName := range t.Types {
@@ -227,13 +246,14 @@ func (t UnionType) EqualWithEntry(rideType Type) bool {
 			}
 		}
 		return true
-	}
-	for _, typeName := range t.Types {
-		if typeName.EqualWithEntry(rideType) {
-			return true
+	default:
+		for _, typeName := range t.Types {
+			if typeName.EqualWithEntry(rideType) {
+				return true
+			}
 		}
+		return false
 	}
-	return false
 }
 
 func (t *UnionType) AppendType(rideType Type) {
@@ -466,7 +486,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[v]["HalfEven"] = SimpleType{Type: "HalfEven"}
 		res[v]["Down"] = SimpleType{Type: "Down"}
 		res[v]["Floor"] = SimpleType{Type: "Floor"}
-		res[v]["Any"] = Any
+		res[v]["Any"] = AnyType
 	}
 	for v := ast.LibV1; v <= ast.LibV4; v++ {
 		res[v]["HalfDown"] = SimpleType{Type: "HalfDown"}

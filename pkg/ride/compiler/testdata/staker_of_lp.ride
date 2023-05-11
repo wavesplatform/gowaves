@@ -1,0 +1,32 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let sep = "__"
+
+func keyWxAssetId() = ["%s", "wxAssetId"].makeString(sep)
+func keyWxOutAddressOne() = ["%s", "wxOutAddressOne"].makeString(sep)
+func keyWxOutAddressTwo() = ["%s", "wxOutAddressTwo"].makeString(sep)
+
+func throwErr(msg: String) = ["staker_of_lp.ride:", msg].makeString(" ").throw()
+
+func mustThis(i: Invocation) = {
+  i.caller == this || "permission denied".throwErr()
+}
+
+@Callable(i)
+func wxSplit() = {
+  strict checkCaller = i.mustThis()
+
+  let assetId = keyWxAssetId().getString().value().fromBase58String()
+  let outAddressOne = keyWxOutAddressOne().getString().value().addressFromStringValue()
+  let outAddressTwo = keyWxOutAddressTwo().getString().value().addressFromStringValue()
+
+  let balance = this.assetBalance(assetId)
+  let half = balance / 2
+
+  [
+    ScriptTransfer(outAddressOne, half, assetId),
+    ScriptTransfer(outAddressTwo, half, assetId)
+  ]
+}

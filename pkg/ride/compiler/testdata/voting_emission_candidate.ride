@@ -1,0 +1,377 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let separator = "__"
+
+let keyFeeAmount = ["%s", "fee"].makeString(separator)
+let keyUsdnAssetId = ["%s", "usdnAssetId"].makeString(separator)
+let keyEpochLength = ["%s", "epochLength"].makeString(separator)
+let keyFinalizeReward = ["%s", "finalizeReward"].makeString(separator)
+let keyWxAssetId = ["%s", "wxAssetId"].makeString(separator)
+let keyAssetsStoreContract = ["%s", "assetsStoreContract"].makeString(separator)
+let keyUserPoolContract = ["%s", "userPoolContract"].makeString(separator)
+let keyEmissionContract = ["%s", "emissionContract"].makeString(separator)
+let keyBoostingContract = ["%s", "boostingContract"].makeString(separator)
+let keyFactoryContract = ["%s", "factoryContract"].makeString(separator)
+let keyVotingEmissionContract = ["%s", "votingEmissionContract"].makeString(separator)
+let keyThreshold = ["%s", "votingThreshold"].makeString(separator)
+
+func getStringOrFail(key: String) = this.getString(key).valueOrErrorMessage(key + " is not defined")
+func getIntOrFail(key: String) = this.getInteger(key).valueOrErrorMessage(key + " is not defined")
+
+func keyInListAssetId(
+  amountAssetId: String,
+  priceAssetId: String
+) = ["%s%s%s", "inList", amountAssetId, priceAssetId].makeString(separator)
+func keySuggestIndex(
+  amountAssetId: String,
+  priceAssetId: String
+) = ["%s%s%s", "suggestIndex", amountAssetId, priceAssetId].makeString(separator)
+func keyStartHeight(
+  amountAssetId: String,
+  priceAssetId: String,
+  suggestIndex: Int
+) = ["%s%s%s%d", "startHeight", amountAssetId, priceAssetId, suggestIndex.toString()].makeString(separator)
+
+func keyVotingResult(
+  amountAssetId: String,
+  priceAssetId: String,
+  suggestIndex: Int
+) = ["%s%s%s%d", "votingResult", amountAssetId, priceAssetId, suggestIndex.toString()].makeString(separator)
+func totalVotes(
+  totalYes: String,
+  totalNo: String
+) = ["%d%d", totalYes, totalNo].makeString(separator)
+
+func keyVote(
+  amountAssetId: String,
+  priceAssetId: String,
+  suggestIndex: Int,
+  voterAddress: String
+) = ["%s%s%s%d%s", "vote", amountAssetId, priceAssetId, suggestIndex.toString(), voterAddress].makeString(separator)
+func keyVoteValue(gwxAmount: String, vote: Boolean) = {
+  let key = if (vote) then {
+    ["%d%s", gwxAmount, "yes"].makeString(separator)
+  } else {
+    ["%d%s", gwxAmount, "no"].makeString(separator)
+  }
+  key
+}
+
+# voting emission
+func keyInList(pool: (String, String)) = {
+  let (amountAssetId, priceAssetId) = pool
+
+  ["%s%s%s", "inList", amountAssetId, priceAssetId].makeString(separator)
+}
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = "%s__pendingManagerPublicKey"
+
+let assetsStoreContract = keyAssetsStoreContract.getStringOrFail().addressFromStringValue()
+let boostingContract = keyBoostingContract.getStringOrFail().addressFromStringValue()
+let emissionContract = keyEmissionContract.getStringOrFail().addressFromStringValue()
+let factoryContract = keyFactoryContract.getStringOrFail().addressFromStringValue()
+let userPoolContract = keyUserPoolContract.getStringOrFail().addressFromStringValue()
+let votingEmissionContract = keyVotingEmissionContract.getStringOrFail().addressFromStringValue()
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+
+func isManager(i: Invocation) = {
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk
+    case _: Unit => i.caller == this
+  }
+}
+
+func mustManager(i: Invocation) = {
+  i.isManager() || "permission denied".throw()
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("failed to cast into Integer")
+  }
+}
+
+@Callable(i)
+func constructor(
+  assetsStoreContractPrm: String,
+  boostingContractPrm: String,
+  emissionContractPrm: String,
+  factoryContractPrm: String,
+  userPoolContractPrm: String,
+  votingEmissionContractPrm: String,
+  feeAmountPrm: Int,
+  wxAssetIdPrm: String,
+  votingDurationPrm: Int,
+  usdnAssetIdPrm: String,
+  finalizeRewardPrm: Int
+) = {
+  strict checks = [
+    i.mustManager(),
+    assetsStoreContractPrm.addressFromString().isDefined() || throw("Invalid asset_store contract address"),
+    boostingContractPrm.addressFromString().isDefined() || throw("Invalid boosting contract address"),
+    userPoolContractPrm.addressFromString().isDefined() || throw("Invalid user_pools contract address"),
+    emissionContractPrm.addressFromString().isDefined() || throw("Invalid emission contract address"),
+    factoryContractPrm.addressFromString().isDefined() || throw("Invalid factory contract address"),
+    feeAmountPrm >= 0 || throw("Invalid fee amount"),
+    votingDurationPrm > 0 || throw("Invalid voting duration"),
+    finalizeRewardPrm >= 0 || throw("Invalid finalize reward"),
+    wxAssetIdPrm.fromBase58String().assetInfo().isDefined() || throw("Invalid WX asset ID"),
+    usdnAssetIdPrm.fromBase58String().assetInfo().isDefined() || throw("Invalid USDN asset ID")
+  ]
+
+  ([
+      StringEntry(keyAssetsStoreContract, assetsStoreContractPrm),
+      StringEntry(keyBoostingContract, boostingContractPrm),
+      StringEntry(keyEmissionContract, emissionContractPrm),
+      StringEntry(keyFactoryContract, factoryContractPrm),
+      StringEntry(keyUserPoolContract, userPoolContractPrm),
+      StringEntry(keyVotingEmissionContract, votingEmissionContractPrm),
+      IntegerEntry(keyFeeAmount, feeAmountPrm),
+      IntegerEntry(keyEpochLength, votingDurationPrm),
+      IntegerEntry(keyFinalizeReward, finalizeRewardPrm),
+      StringEntry(keyWxAssetId, wxAssetIdPrm),
+      StringEntry(keyUsdnAssetId, usdnAssetIdPrm)
+    ], unit)
+}
+
+@Callable(i)
+func constructorV2(
+  threshold: Int
+) = {
+  strict checks = [
+    i.mustManager(),
+    threshold > 0 || "invalid threshold".throw()
+  ]
+
+  ([
+    IntegerEntry(keyThreshold, threshold)
+  ], unit)
+}
+
+@Callable(i)
+func suggest(amountAssetId: String, priceAssetId: String) = {
+  let pool = (amountAssetId, priceAssetId)
+  let payment = i.payments[0].value()
+  strict checkAmountAsset = if (amountAssetId == "WAVES") then unit else {
+    let info = amountAssetId.fromBase58String().assetInfo().valueOrErrorMessage("invalid amountAssetId ID")
+    info.scripted == false || "asset is smart".throw()
+  }
+
+  strict checks = [
+    payment.assetId.value().toBase58String() == keyWxAssetId.getString().value() || "invalid fee asset".throw(),
+    payment.amount == keyFeeAmount.getInteger().value() || "invalid fee amount".throw(),
+    keyInListAssetId(amountAssetId, priceAssetId).getInteger() == unit || "already in voting list".throw(),
+    !votingEmissionContract.getBoolean(pool.keyInList()).valueOrElse(false) || "pool is in emission voting list".throw()
+  ]
+
+  strict ensureActive = match userPoolContract.invoke(
+    "statusREADONLY",
+    [amountAssetId, priceAssetId],
+    []
+  ) {
+    case s: String => s == "active" || "user pool is not active".throw() 
+    case _ => "user pool is not active".throw()
+  }
+
+  strict ensureAmountAssetVerified = if (i.isManager()) then unit else {
+    strict inv = match assetsStoreContract.invoke(
+        "isVerifiedREADONLY",
+        [amountAssetId],
+        []
+      ) {
+        case b: Boolean => b || "asset is not verified".throw()
+        case _ => "asset is not verified".throw()
+      }
+    unit
+  }
+
+  strict burnFeeInv = emissionContract.invoke("burn", [], [AttachedPayment(payment.assetId, payment.amount)])
+
+  let newSuggestIndex = match keySuggestIndex(amountAssetId, priceAssetId).getInteger() {
+    case int: Int => int + 1
+    case _ => 0
+  }
+
+  ([
+    IntegerEntry(keyInListAssetId(amountAssetId, priceAssetId), newSuggestIndex),
+    IntegerEntry(keyStartHeight(amountAssetId, priceAssetId, newSuggestIndex), height),
+    StringEntry(keyVotingResult(amountAssetId, priceAssetId, newSuggestIndex), totalVotes("0", "0")),
+    IntegerEntry(keySuggestIndex(amountAssetId, priceAssetId), newSuggestIndex)
+  ], unit)
+}
+
+@Callable(i)
+func vote(amountAssetId: String, priceAssetId: String, inFavor: Boolean) = {
+  let suggestIndex = keyInListAssetId(amountAssetId, priceAssetId).getInteger().value()
+  let votingFinishHeight = keyStartHeight(amountAssetId, priceAssetId, suggestIndex).getInteger().value() + keyEpochLength.getInteger().value()
+  strict checks = [
+    keyInListAssetId(amountAssetId, priceAssetId).getInteger().isDefined() || "the token isn't on the voting list".throw(),
+    votingFinishHeight > height || "too late to vote".throw()
+  ]
+
+  let gwxAmount = boostingContract.invoke("getUserGwxAmountAtHeightREADONLY", [i.caller.toString(), votingFinishHeight], [])
+  strict notZero = gwxAmount.asInt() > 0 || "you don't have gwx".throw()
+
+  strict vote = match keyVote(amountAssetId, priceAssetId, suggestIndex, i.caller.toString()).getString() {
+    case s: String => {
+      let vote = s.split(separator)
+      let voteValue = vote[1]
+      let voteType = vote[2]
+      let isVoteTypeSimilar = voteType == "yes" && inFavor == true || voteType == "no" && inFavor == false
+      let isVoteValueSimilar = isVoteTypeSimilar && gwxAmount.asInt() == parseIntValue(voteValue)
+      let isNewVoteSimilar = if isVoteTypeSimilar && isVoteValueSimilar then {
+        "you already voted".throw()
+      } else {
+        this.invoke("cancelVote", [amountAssetId, priceAssetId], [])
+      }
+
+      isNewVoteSimilar
+    }
+    case u: Unit => u
+  }
+
+  let votingResult = keyVotingResult(amountAssetId, priceAssetId, suggestIndex).getString().value().split(separator)
+  let positiveVotes = votingResult[1]
+  let negativeVotes = votingResult[2]
+
+  let newPositiveAndNegativeVotes = if (inFavor) then {
+    let newPositiveVotes = parseIntValue(positiveVotes) + gwxAmount.asInt()
+    [newPositiveVotes.toString(), negativeVotes]
+  }
+  else {
+    let newNegativeVotes = parseIntValue(negativeVotes) + gwxAmount.asInt()
+    [positiveVotes, newNegativeVotes.toString()]
+  }
+
+  let voteKey = keyVote(amountAssetId, priceAssetId, suggestIndex, i.caller.toString())
+  let voteValue = keyVoteValue(gwxAmount.asInt().toString(), inFavor)
+
+  ([
+    StringEntry(keyVotingResult(amountAssetId, priceAssetId, suggestIndex),
+      totalVotes(newPositiveAndNegativeVotes[0], newPositiveAndNegativeVotes[1])),
+    StringEntry(voteKey, voteValue)
+  ], unit)
+}
+
+@Callable(i)
+func cancelVote(amountAssetId: String, priceAssetId: String) = {
+  let userAddress = if (i.caller == this) then i.originCaller.toString() else i.caller.toString()
+  let suggestIndex = keyInListAssetId(amountAssetId, priceAssetId).getInteger().value()
+  strict checks = [
+    keyVotingResult(amountAssetId, priceAssetId, suggestIndex).getString().isDefined() || "no vote for assets pair".throw()
+  ]
+
+  let vote = keyVote(amountAssetId, priceAssetId, suggestIndex, userAddress).getString().value().split(separator)
+  let voteValue = vote[1]
+  let voteType = vote[2]
+
+  let votingResult = keyVotingResult(amountAssetId, priceAssetId, suggestIndex).getString().value().split(separator)
+  let positiveVotes = votingResult[1]
+  let negativeVotes = votingResult[2]
+
+  let actions = if (voteType == "yes") then {
+    let newPositiveVotes = parseIntValue(positiveVotes) - parseIntValue(voteValue)
+    ([
+      StringEntry(keyVotingResult(amountAssetId, priceAssetId, suggestIndex), totalVotes(newPositiveVotes.toString(), negativeVotes)),
+      DeleteEntry(keyVote(amountAssetId, priceAssetId, suggestIndex, userAddress))
+    ], unit)
+  } else {
+    let newNegativeVotes = parseIntValue(negativeVotes) - parseIntValue(voteValue)
+    ([
+      StringEntry(keyVotingResult(amountAssetId, priceAssetId, suggestIndex), totalVotes(positiveVotes, newNegativeVotes.toString())),
+      DeleteEntry(keyVote(amountAssetId, priceAssetId, suggestIndex, userAddress))
+    ], unit)
+  }
+
+  actions
+}
+
+@Callable(i)
+func setFee(newFee: Int) = {
+  strict checks = [
+    i.mustManager()
+  ]
+
+  [IntegerEntry(keyFeeAmount, newFee)]
+}
+
+@Callable(i)
+func setThreshold(newThreshold: Int) = {
+  strict checks = [
+    i.mustManager(),
+    newThreshold > 0 || "invalid threshold".throw()
+  ]
+
+  ([
+    IntegerEntry(keyThreshold, newThreshold)
+  ], unit)
+}
+
+@Callable(i)
+func finalize(amountAssetId: String, priceAssetId: String) = {
+  let suggestIndex = keyInListAssetId(amountAssetId, priceAssetId).getInteger().value()
+  let votingFinishHeight = keyStartHeight(amountAssetId, priceAssetId, suggestIndex).getInteger().value() + keyEpochLength.getInteger().value()
+  strict checks = [
+    keyInListAssetId(amountAssetId, priceAssetId).getInteger().isDefined() || "no assets pair".throw(),
+    votingFinishHeight <= height || "insufficient height for completion".throw()
+  ]
+
+  let votingResult = keyVotingResult(amountAssetId, priceAssetId, suggestIndex).getString().value().split(separator)
+  let positiveVotes = parseIntValue(votingResult[1])
+  let negativeVotes = parseIntValue(votingResult[2])
+  let allVotes = positiveVotes + negativeVotes
+  let threshold = keyThreshold.getIntOrFail()
+
+  let actions = if (allVotes >= threshold && positiveVotes > negativeVotes) then {
+    strict res = factoryContract.invoke("setWxEmissionPoolLabel", [amountAssetId, priceAssetId], [])
+    strict votingEmissionInv = votingEmissionContract.invoke("create", [amountAssetId, priceAssetId], [])
+    ([DeleteEntry(keyInListAssetId(amountAssetId, priceAssetId))], unit)
+  } else {
+    ([DeleteEntry(keyInListAssetId(amountAssetId, priceAssetId))], unit)
+  }
+
+  actions
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("no pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("you are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

@@ -113,11 +113,11 @@ func TestAssetBalanceV3(t *testing.T) {
 		expectErr       bool
 	}{
 		{expectedBalance: rideInt(21), assetID: rideUnit{}, expectErr: false},
-		{expectedBalance: rideInt(42), assetID: make(rideBytes, crypto.DigestSize), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: rideBytes(nil), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: rideBytes([]byte{}), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make(rideBytes, 7), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make(rideBytes, 33), expectErr: false},
+		{expectedBalance: rideInt(42), assetID: make(rideByteVector, crypto.DigestSize), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideByteVector(nil), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideByteVector([]byte{}), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideByteVector, 7), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideByteVector, 33), expectErr: false},
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
@@ -149,11 +149,11 @@ func TestAssetBalanceV4(t *testing.T) {
 		assetID         rideType
 		expectErr       bool
 	}{
-		{expectedBalance: rideInt(42), assetID: make(rideBytes, crypto.DigestSize), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make(rideBytes, 7), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make(rideBytes, 33), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: rideBytes(nil), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: rideBytes([]byte{}), expectErr: false},
+		{expectedBalance: rideInt(42), assetID: make(rideByteVector, crypto.DigestSize), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideByteVector, 7), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideByteVector, 33), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideByteVector(nil), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideByteVector([]byte{}), expectErr: false},
 		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
@@ -243,8 +243,8 @@ func TestBytesFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideByteVector("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideByteVector("value")},
 		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
 		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
 		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
@@ -427,7 +427,7 @@ func TestBytesFromSelfState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideString("key")}, false, rideByteVector("value")},
 		{[]rideType{rideString("xxx")}, false, rideUnit{}},
 		{[]rideType{}, false, rideUnit{}},
 		{[]rideType{rideUnit{}}, false, rideUnit{}},
@@ -581,14 +581,14 @@ func TestSigVerify(t *testing.T) {
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(true)},
-		{[]rideType{rideBytes(msg), rideBytes(bad), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideBytes(pk[:10])}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideString("MESSAGE"), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, true, nil},
-		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideBytes(big), rideBytes(sig), rideBytes(pk)}, bytesSizeCheckV3V6, true, nil},
-		{[]rideType{rideBytes(msg), rideString("SIGNATURE"), rideBytes(pk)}, bytesSizeCheckV1V2, true, nil},
-		{[]rideType{rideBytes(msg), rideBytes(sig), rideString("PUBLIC KEY")}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(true)},
+		{[]rideType{rideByteVector(msg), rideByteVector(bad), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk[:10])}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideString("MESSAGE"), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideByteVector(big), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
+		{[]rideType{rideByteVector(big), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(msg), rideString("SIGNATURE"), rideByteVector(pk)}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideString("PUBLIC KEY")}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
@@ -626,10 +626,10 @@ func TestKeccak256(t *testing.T) {
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(data)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
@@ -661,10 +661,10 @@ func TestBlake2b256(t *testing.T) {
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(data)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
@@ -696,10 +696,10 @@ func TestSha256(t *testing.T) {
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideBytes(data1)}, bytesSizeCheckV1V2, false, rideBytes(digest1)},
-		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideBytes(digest2)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV1V2, false, rideBytes(digest3)},
-		{[]rideType{rideBytes(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(data1)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
+		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
@@ -808,7 +808,7 @@ func TestRSAVerify(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := base64.StdEncoding.DecodeString(test.sig)
 		require.NoErrorf(t, err, "#%d", i)
-		r, err := rsaVerify(nil, test.alg, rideBytes(msg), rideBytes(sig), rideBytes(pk))
+		r, err := rsaVerify(nil, test.alg, rideByteVector(msg), rideByteVector(sig), rideByteVector(pk))
 		require.NoErrorf(t, err, "#%d", i)
 		assert.Equalf(t, rideBoolean(test.ok), r, "#%d", i)
 	}
@@ -851,7 +851,7 @@ func TestCheckMerkleProof(t *testing.T) {
 		require.NoError(t, err)
 		leaf, err := base64.StdEncoding.DecodeString(test.leaf)
 		require.NoError(t, err)
-		r, err := checkMerkleProof(nil, rideBytes(root), rideBytes(proof), rideBytes(leaf))
+		r, err := checkMerkleProof(nil, rideByteVector(root), rideByteVector(proof), rideByteVector(leaf))
 		require.NoError(t, err)
 		assert.Equal(t, rideBoolean(test.result), r)
 	}
@@ -933,8 +933,8 @@ func TestBytesValueFromState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
-		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{recipientToObject(correctAddressRecipient), rideString("key")}, false, rideByteVector("value")},
+		{[]rideType{recipientToObject(correctAliasRecipient), rideString("key")}, false, rideByteVector("value")},
 		{[]rideType{recipientToObject(correctAddressRecipient), rideString("xxx")}, true, nil},
 		{[]rideType{recipientToObject(correctAliasRecipient), rideString("xxx")}, true, nil},
 		{[]rideType{recipientToObject(incorrectAddressRecipient), rideString("key")}, true, nil},
@@ -1116,7 +1116,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideString("key")}, false, rideByteVector("value")},
 		{[]rideType{rideString("xxx")}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
@@ -1236,7 +1236,7 @@ func TestTransferFromProtobuf(t *testing.T) {
 		inst rideType
 		id   rideType
 	}{
-		{[]rideType{rideBytes(bts)}, false, rideString("TransferTransaction"), rideBytes(tx.ID.Bytes())},
+		{[]rideType{rideByteVector(bts)}, false, rideString("TransferTransaction"), rideByteVector(tx.ID.Bytes())},
 		{[]rideType{rideUnit{}}, true, nil, nil},
 		{[]rideType{}, true, nil, nil},
 		{[]rideType{rideString("x")}, true, nil, nil},
@@ -1279,7 +1279,7 @@ func TestRebuildMerkleRoot(t *testing.T) {
 	require.NoError(t, err)
 	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
 	require.NoError(t, err)
-	r, err := rebuildMerkleRoot(nil, rideList{rideBytes(p1), rideBytes(p2), rideBytes(p3)}, rideBytes(leaf), rideInt(3))
+	r, err := rebuildMerkleRoot(nil, rideList{rideByteVector(p1), rideByteVector(p2), rideByteVector(p3)}, rideByteVector(leaf), rideInt(3))
 	assert.NoError(t, err)
 	assert.Equal(t, "ByteVector", r.instanceOf())
 	assert.ElementsMatch(t, root, r)
@@ -1306,10 +1306,10 @@ func TestAddressFromPublicKeyStrict(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideBytes(guessBytesFromString(t, "qhZIsJQ2+At/RHmPBsLuG3sMSZJfQTDhJOgzPtisRUg="))}, false, rideAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))},
-		{[]rideType{rideBytes(guessBytesFromString(t, "0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
-		{[]rideType{rideBytes(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu8A/w=="))}, true, nil},
-		{[]rideType{rideBytes(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+7/8="))}, true, nil},
+		{[]rideType{rideByteVector(guessBytesFromString(t, "qhZIsJQ2+At/RHmPBsLuG3sMSZJfQTDhJOgzPtisRUg="))}, false, rideAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))},
+		{[]rideType{rideByteVector(guessBytesFromString(t, "0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
+		{[]rideType{rideByteVector(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu8A/w=="))}, true, nil},
+		{[]rideType{rideByteVector(guessBytesFromString(t, "yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+7/8="))}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
@@ -1364,8 +1364,8 @@ func TestHashScriptAtAddress(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{recipientToObject(r1)}, false, rideBytes(d1[:])},
-		{[]rideType{recipientToObject(r2)}, false, rideBytes(d2[:])},
+		{[]rideType{recipientToObject(r1)}, false, rideByteVector(d1[:])},
+		{[]rideType{recipientToObject(r2)}, false, rideByteVector(d2[:])},
 		{[]rideType{recipientToObject(r3)}, false, rideUnit{}},
 		{[]rideType{recipientToObject(r4)}, false, rideUnit{}},
 		{[]rideType{recipientToObject(r5)}, true, nil},
@@ -1379,7 +1379,7 @@ func TestHashScriptAtAddress(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 			switch rr := r.(type) {
-			case rideBytes:
+			case rideByteVector:
 				assert.Equal(t, test.r, rr)
 			case rideUnit:
 				assert.Equal(t, test.r, rr)

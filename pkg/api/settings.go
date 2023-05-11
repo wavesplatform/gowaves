@@ -15,6 +15,7 @@ type RunOptions struct {
 	LogHttpRequestOpts   bool
 	CollectMetrics       bool
 	UseRealIPMiddleware  bool
+	RequestIDMiddleware  bool
 	EnableHeartbeatRoute bool
 	RouteNotFoundHandler func(w http.ResponseWriter, r *http.Request)
 	MaxConnections       int
@@ -34,6 +35,7 @@ func DefaultRunOptions() *RunOptions {
 		LogHttpRequestOpts:   false,
 		EnableHeartbeatRoute: true,
 		UseRealIPMiddleware:  true,
+		RequestIDMiddleware:  true,
 		CollectMetrics:       true,
 		RouteNotFoundHandler: func(w http.ResponseWriter, r *http.Request) {
 			zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)

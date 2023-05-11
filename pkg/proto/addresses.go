@@ -54,6 +54,10 @@ func (a AddressID) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
 	return newWavesAddress(scheme, a)
 }
 
+func (a AddressID) Equal(id AddressID) bool {
+	return a == id
+}
+
 type Address interface {
 	ID() AddressID
 	Bytes() []byte

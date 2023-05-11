@@ -216,9 +216,9 @@ func defaultDecodedData(name string, arguments []ethabi.DecodedArg, payments []e
 func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor scriptStorageState) (proto.WavesAddress, *ast.Tree) {
 	scriptAddr, err := tx.WavesAddressTo(0)
 	require.NoError(t, err)
-	tree, err := stor.newestScriptByAddr(*scriptAddr)
+	tree, err := stor.newestScriptByAddr(scriptAddr)
 	require.NoError(t, err)
-	return *scriptAddr, tree
+	return scriptAddr, tree
 }
 
 func TestEthereumInvoke(t *testing.T) {

@@ -1,0 +1,174 @@
+{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+# COMMON API
+let SEP = "__"
+func getStringOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+
+# FACTORY API
+# own factory address key
+func keyFactoryAddress()  = "%s%s__config__factoryAddress"
+
+let keyVotingVerifiedContract  = "%s%s__config__votingVerifiedContract"
+let keyVotingEmissionCandidateContract  = "%s%s__config__votingEmissionCandidateContract"
+let keyUserPoolsContract  = "%s%s__config__userPoolsContract"
+
+let votingVerifiedContract = this.getStringOrFail(keyVotingVerifiedContract).addressFromStringValue()
+let votingEmissionCandidateContract = this.getStringOrFail(keyVotingEmissionCandidateContract).addressFromStringValue()
+let userPoolsContract = this.getStringOrFail(keyUserPoolsContract).addressFromStringValue()
+
+let IdxFactoryCfgStakingDapp    = 1
+let IdxFactoryCfgBoostingDapp   = 2
+let IdxFactoryCfgIdoDapp        = 3
+let IdxFactoryCfgTeamDapp       = 4
+let IdxFactoryCfgEmissionDapp   = 5
+let IdxFactoryCfgRestDapp       = 6
+let IdxFactoryCfgSlippageDapp   = 7
+let IdxFactoryCfgGwxRewardDapp  = 10
+
+func keyFactoryCfg()      = "%s__factoryConfig"
+func keyFactoryLp2AssetsMapping(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryLpList()   = "%s__lpTokensList" # not used anymore
+func keyFactoryLpAssetToPoolContractAddress(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryPoolWeight(contractAddress: String) = { ["%s%s", "poolWeight", contractAddress].makeString(SEP) }
+
+func readFactoryAddressOrFail() = this.getStringOrFail(keyFactoryAddress()).addressFromStringValue()
+func readLpList()               = readFactoryAddressOrFail().getString(keyFactoryLpList()).valueOrElse("").split(SEP)
+func readFactoryCfgOrFail(factory: Address)     = factory.getStringOrFail(keyFactoryCfg()).split(SEP)
+func getBoostingAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgBoostingDapp].addressFromStringValue()
+func getEmissionAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgEmissionDapp].addressFromStringValue()
+func getStakingAddressOrFail(factoryCfg: List[String])  = factoryCfg[IdxFactoryCfgStakingDapp].addressFromStringValue()
+func getGwxRewardAddressOrFail(factoryCfg: List[String]) = factoryCfg[IdxFactoryCfgGwxRewardDapp].addressFromStringValue()
+
+# OWN KEYS
+func keyConfig() = {"%s__config"}
+
+func keyRatePerBlockMaxCurrent() = "%s%s__ratePerBlockMax__current"
+func keyRatePerBlockMaxStartFrom(timestamp: Int, block: Int) = ["%s%s%d%d__ratePerBlockMax__start", timestamp.toString(), block.toString()].makeString(SEP)
+
+func keyRatePerBlockCurrent() = "%s%s__ratePerBlock__current"
+func keyRatePerBlockStartFrom(timestamp: Int, block: Int) = ["%s%s%d%d__ratePerBlock__start", timestamp.toString(), block.toString()].makeString(SEP)
+
+func keyEmissionStartBlock() = "%s%s__emission__startBlock"
+func keyEmissionDurationInBlocks() = "%s%s__emission__duration"
+func keyEmissionEndBlock() = "%s%s__emission__endBlock"
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = {"%s__pendingManagerPublicKey"}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "Permission denied".throw()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+@Callable(i)
+func constructor(factoryAddress: String, ratePerBlockMax: Int, ratePerBlock: Int, emissionStartBlock: Int, emissionDuration: Int, emissionStartTimestamp: Int, wxAssetIdStr: String) = {
+  strict checkCaller = i.mustManager()
+
+  [IntegerEntry(keyRatePerBlockMaxStartFrom(emissionStartTimestamp, emissionStartBlock), ratePerBlockMax),
+    IntegerEntry(keyRatePerBlockMaxCurrent(), ratePerBlockMax),
+
+    IntegerEntry(keyRatePerBlockStartFrom(emissionStartTimestamp, emissionStartBlock), ratePerBlock),
+    IntegerEntry(keyRatePerBlockCurrent(), ratePerBlock),
+    IntegerEntry(keyEmissionStartBlock(), emissionStartBlock),
+    IntegerEntry(keyEmissionDurationInBlocks(), emissionDuration),
+    IntegerEntry(keyEmissionEndBlock(), emissionStartBlock + emissionDuration),
+
+    StringEntry(keyFactoryAddress(), factoryAddress),
+    StringEntry(keyConfig(), "%s__" + wxAssetIdStr)]
+}
+
+@Callable(i)
+func constructorV2(votingVerifiedContractPrm: String) = {
+  strict checkCaller = i.mustManager()
+
+  (
+    [
+      StringEntry(keyVotingVerifiedContract, votingVerifiedContractPrm)
+    ],
+    unit
+  )
+}
+
+@Callable(i)
+func emit(amount: Int) = {
+  if (amount <= 0) then ([], []) else
+  let factoryContract = readFactoryAddressOrFail()
+  let factoryCfg = factoryContract.readFactoryCfgOrFail()
+  let stakingContract = factoryCfg.getStakingAddressOrFail()
+  let gwxRewardsContract = factoryCfg.getGwxRewardAddressOrFail()
+  let caller = i.caller
+  if (caller != stakingContract && caller != gwxRewardsContract) then throw("permissions denied") else
+
+  let wxAssetIdStr = this.getStringOrFail(keyConfig()).split(SEP)[1]
+  let wxAssetId = wxAssetIdStr.fromBase58String()
+
+  ([ScriptTransfer(caller, amount, wxAssetId)], [wxAssetId])
+}
+
+@Callable(i)
+func burn() = {
+  let factoryContract = readFactoryAddressOrFail()
+  let factoryCfg = factoryContract.readFactoryCfgOrFail()
+  let boostingContract = factoryCfg.getBoostingAddressOrFail()
+
+  if (i.payments.size() != 1)  then throw("exact one payment is allowed") else
+
+  let pmt = i.payments[0]
+  let assetId = pmt.assetId.value()
+  let pmtAmount = pmt.amount
+
+  let wxAssetId = this.getStringOrFail(keyConfig()).split(SEP)[1].fromBase58String()
+  if (assetId != wxAssetId) then throw("invalid wxAssetId is passed") else
+  if (![boostingContract, votingVerifiedContract, votingEmissionCandidateContract, userPoolsContract].containsElement(i.caller)) then throw("permissions denied") else
+
+  [Burn(assetId, pmtAmount),
+  StringEntry(
+    "%s%s%s__history__burn__" + i.transactionId.toBase58String(),
+    ["%d%d%d", height.toString(), lastBlock.timestamp.toString(), pmtAmount.toString()].makeString(SEP))
+  ]
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

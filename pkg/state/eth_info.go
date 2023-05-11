@@ -79,7 +79,7 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		if err != nil {
 			return nil, err
 		}
-		tree, err := e.stor.scriptsStorage.newestScriptByAddr(*scriptAddr)
+		tree, err := e.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
