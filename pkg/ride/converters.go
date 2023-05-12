@@ -116,7 +116,27 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 	)
 }
 
-func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Height, header *proto.BlockHeader, vrf []byte,
+func blockHeaderToObjectV1V6(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
+	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
+	}
+	var vf rideType = rideUnit{}
+	if len(vrf) > 0 {
+		vf = rideByteVector(common.Dup(vrf))
+	}
+	return newRideBlockInfoV4(
+		vf,
+		common.Dup(header.GenSignature.Bytes()),
+		common.Dup(header.GeneratorPublicKey.Bytes()),
+		rideInt(header.BaseTarget),
+		rideInt(header.Timestamp),
+		rideInt(height),
+		rideAddress(address),
+	), nil
+}
+
+func blockHeaderToObjectV7(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte,
 	rewards proto.Rewards) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
@@ -126,33 +146,20 @@ func blockHeaderToObject(scheme byte, lib ast.LibraryVersion, height proto.Heigh
 	if len(vrf) > 0 {
 		vf = rideByteVector(common.Dup(vrf))
 	}
-	switch lib {
-	case ast.LibV7:
-		rl := rideList{}
-		for _, r := range rewards.Sorted() {
-			rl = append(rl, tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())})
-		}
-		return newRideBlockInfoV7(vf,
-			common.Dup(header.GenSignature.Bytes()),
-			common.Dup(header.GeneratorPublicKey.Bytes()),
-			rideInt(header.BaseTarget),
-			rideInt(header.Timestamp),
-			rideInt(height),
-			rideAddress(address),
-			rl,
-		), nil
-
-	default:
-		return newRideBlockInfoV4(
-			vf,
-			common.Dup(header.GenSignature.Bytes()),
-			common.Dup(header.GeneratorPublicKey.Bytes()),
-			rideInt(header.BaseTarget),
-			rideInt(header.Timestamp),
-			rideInt(height),
-			rideAddress(address),
-		), nil
+	sr := rewards.Sorted()
+	rl := make(rideList, len(sr))
+	for i, r := range sr {
+		rl[i] = tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())}
 	}
+	return newRideBlockInfoV7(vf,
+		common.Dup(header.GenSignature.Bytes()),
+		common.Dup(header.GeneratorPublicKey.Bytes()),
+		rideInt(header.BaseTarget),
+		rideInt(header.Timestamp),
+		rideInt(height),
+		rideAddress(address),
+		rl,
+	), nil
 }
 
 func genesisToObject(_ byte, tx *proto.Genesis) (rideGenesisTransaction, error) {

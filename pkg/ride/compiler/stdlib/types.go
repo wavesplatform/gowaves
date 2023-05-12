@@ -489,7 +489,7 @@ func (t TupleType) String() string {
 }
 
 func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
-	for v := ast.LibV1; v <= ast.LibV7; v++ {
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["Int"] = IntType
 		res[v]["String"] = StringType
 		res[v]["Boolean"] = BooleanType
@@ -506,16 +506,16 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[v]["HalfDown"] = SimpleType{Type: "HalfDown"}
 		res[v]["Up"] = SimpleType{Type: "Up"}
 	}
-	for v := ast.LibV2; v <= ast.LibV7; v++ {
+	for v := ast.LibV2; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["OrderType"] = SimpleType{Type: "OrderType"}
 	}
-	for v := ast.LibV3; v <= ast.LibV7; v++ {
+	for v := ast.LibV3; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["DigestAlgorithmType"] = SimpleType{Type: "DigestAlgorithmType"}
 	}
-	for v := ast.LibV4; v <= ast.LibV7; v++ {
+	for v := ast.LibV4; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["BlockInfo"] = SimpleType{Type: "BlockInfo"}
 	}
-	for v := ast.LibV5; v <= ast.LibV7; v++ {
+	for v := ast.LibV5; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["BigInt"] = BigIntType
 
 	}

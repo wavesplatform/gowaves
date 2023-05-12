@@ -848,11 +848,18 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	rewards, err := env.state().BlockRewards(header, height)
-	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
+	if v >= ast.LibV7 {
+		rewards, err := env.state().BlockRewards(header, height)
+		if err != nil {
+			return nil, errors.Wrap(err, "blockInfoByHeight")
+		}
+		obj, err := blockHeaderToObjectV7(env.scheme(), height, header, vrf, rewards)
+		if err != nil {
+			return nil, errors.Wrap(err, "blockInfoByHeight")
+		}
+		return obj, nil
 	}
-	obj, err := blockHeaderToObject(env.scheme(), v, height, header, vrf, rewards)
+	obj, err := blockHeaderToObjectV1V6(env.scheme(), height, header, vrf)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}

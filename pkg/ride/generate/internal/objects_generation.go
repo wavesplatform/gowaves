@@ -5,16 +5,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 )
 
-var (
-	versionString = []string{"V1", "V2", "V3", "V4", "V5", "V6", "V7"}
-)
-
 func removeVersionFromString(name string) string {
-	for _, v := range versionString {
-		name = strings.ReplaceAll(name, v, "")
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
+		vs := fmt.Sprintf("V%d", v)
+		name = strings.ReplaceAll(name, vs, "")
 	}
 	return name
 }
