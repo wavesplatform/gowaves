@@ -515,22 +515,22 @@ func (rw *blockReadWriter) recentHeight() uint64 {
 	return rw.height
 }
 
-func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, error) {
+func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, bool, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	info, err := rw.rtx.txInfoById(txID)
 	if err == nil {
-		return info.height, nil
+		return info.height, info.failed, nil
 	}
 	return rw.transactionHeightByID(txID)
 }
 
-func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, error) {
+func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, bool, error) {
 	info, err := rw.transactionInfoByID(txID)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
-	return info.height, nil
+	return info.height, info.failed, nil
 }
 
 func (rw *blockReadWriter) transactionInfoByID(txID []byte) (txInfo, error) {

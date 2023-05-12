@@ -151,7 +151,7 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("headers are not equal")
 			}
 		case readTxHeight:
-			height, err := rw.newestTransactionHeightByID(task.txID)
+			height, _, err := rw.newestTransactionHeightByID(task.txID)
 			if err != nil {
 				return err
 			}
@@ -207,7 +207,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("blocks are not equal")
 			}
 		case readTxHeight:
-			height, err := rw.transactionHeightByID(task.txID)
+			height, _, err := rw.transactionHeightByID(task.txID)
 			if err != nil {
 				return err
 			}
