@@ -1886,10 +1886,15 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	return entry, nil
 }
 
+// NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, _, err := s.rw.readNewestTransaction(id)
+	tx, failed, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return tx, nil
 }
@@ -1910,16 +1915,21 @@ func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, 
 	return tx, failed, nil
 }
 
+// NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return txHeight, nil
 }
 
 func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.transactionHeightByID(id)
+	txHeight, _, err := s.rw.transactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
