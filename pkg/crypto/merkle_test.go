@@ -1,8 +1,8 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -122,7 +122,8 @@ func BenchmarkMerkleTreeEven(b *testing.B) {
 	a := make([][]byte, 2048)
 	for i := range a {
 		v := make([]byte, 2048)
-		rand.Read(v)
+		_, err := rand.Read(v)
+		require.NoError(b, err)
 		a[i] = v
 	}
 	tree, err := NewMerkleTree()
@@ -142,7 +143,8 @@ func BenchmarkMerkleTreeOdd(b *testing.B) {
 	a := make([][]byte, 2123)
 	for i := range a {
 		v := make([]byte, 2048)
-		rand.Read(v)
+		_, err := rand.Read(v)
+		require.NoError(b, err)
 		a[i] = v
 	}
 	tree, err := NewMerkleTree()
@@ -162,7 +164,8 @@ func BenchmarkMerkleTreeRootEven(b *testing.B) {
 	a := make([][]byte, 2048)
 	for i := range a {
 		v := make([]byte, 2048)
-		rand.Read(v)
+		_, err := rand.Read(v)
+		require.NoError(b, err)
 		a[i] = v
 	}
 	tree, err := NewMerkleTree()
@@ -182,7 +185,8 @@ func BenchmarkMerkleTreeRootOdd(b *testing.B) {
 	a := make([][]byte, 2123)
 	for i := range a {
 		v := make([]byte, 2048)
-		rand.Read(v)
+		_, err := rand.Read(v)
+		require.NoError(b, err)
 		a[i] = v
 	}
 	tree, err := NewMerkleTree()

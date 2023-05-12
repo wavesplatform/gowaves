@@ -1,7 +1,7 @@
 package keyvalue
 
 import (
-	"math/rand"
+	"crypto/rand"
 	"path"
 	"testing"
 
@@ -17,15 +17,15 @@ const (
 
 func TestBloomFilter(t *testing.T) {
 	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil, false})
-	assert.NoError(t, err, "newBloomFilter() failed")
+	require.NoError(t, err, "newBloomFilter() failed")
 	for i := 0; i < n; i++ {
 		data := make([]byte, 100)
 		_, err := rand.Read(data)
-		assert.NoError(t, err, "rand.Read() failed")
+		require.NoError(t, err, "rand.Read() failed")
 		err = filter.add(data)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		notInTheSet, err := filter.notInTheSet(data)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, notInTheSet, false, "notInTheSet() returned wrong result")
 	}
 }

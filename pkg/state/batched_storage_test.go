@@ -1,7 +1,7 @@
 package state
 
 import (
-	"math/rand"
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,7 +116,7 @@ func genTestRecords(t *testing.T, ids []proto.BlockID) []testRecord {
 	for i, id := range ids {
 		record := make([]byte, testRecordSize)
 		_, err := rand.Read(record)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		res[i].blockID = id
 		res[i].record = record
 	}

@@ -132,13 +132,13 @@ func TestTransactionPool(t *testing.T) {
 
 func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
-	rand.Seed(time.Now().Unix())
+	rnd := rand.New(rand.NewSource(time.Now().Unix()))
 	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		n := rand.Intn(1000000)
+		n := rnd.Intn(1000000)
 		b.StartTimer()
 		_ = a.AddWithBytes(tr(uint64(n)), []byte{1})
 	}

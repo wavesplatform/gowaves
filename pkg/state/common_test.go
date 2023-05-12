@@ -1,15 +1,14 @@
 package state
 
 import (
+	crand "crypto/rand"
 	"encoding/base64"
 	"log"
 	"math/big"
-	"math/rand"
 	"os"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -381,13 +380,13 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	stateDB, err := newStateDB(db, dbBatch, DefaultTestingStateParams())
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		assert.NoError(t, stateDB.close())
+		require.NoError(t, stateDB.close())
 	})
 
 	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, options.Scheme)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		assert.NoError(t, rw.close())
+		require.NoError(t, rw.close())
 	})
 	stateDB.setRw(rw)
 
@@ -403,47 +402,47 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
 	blockID := block.BlockID()
 	err := s.stateDB.addBlock(blockID)
-	assert.NoError(t, err, "stateDB.addBlock() failed")
+	require.NoError(t, err, "stateDB.addBlock() failed")
 	err = s.rw.startBlock(blockID)
-	assert.NoError(t, err, "startBlock() failed")
+	require.NoError(t, err, "startBlock() failed")
 	err = s.rw.writeBlockHeader(&block.BlockHeader)
-	assert.NoError(t, err, "writeBlockHeader() failed")
+	require.NoError(t, err, "writeBlockHeader() failed")
 	for _, tx := range block.Transactions {
 		err = s.rw.writeTransaction(tx, false)
-		assert.NoError(t, err, "writeTransaction() failed")
+		require.NoError(t, err, "writeTransaction() failed")
 	}
 	err = s.rw.finishBlock(blockID)
-	assert.NoError(t, err, "finishBlock() failed")
+	require.NoError(t, err, "finishBlock() failed")
 	s.flush(t)
 }
 
 func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) {
 	err := s.stateDB.rollbackBlock(blockID)
-	assert.NoError(t, err, "rollbackBlock() failed")
+	require.NoError(t, err, "rollbackBlock() failed")
 	s.flush(t)
 	err = s.rw.syncWithDb()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID proto.BlockID) {
 	s.flush(t)
 	err := s.stateDB.rollback(blockID)
-	assert.NoError(t, err, "rollbackBlock() failed")
+	require.NoError(t, err, "rollbackBlock() failed")
 	err = s.rw.syncWithDb()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = s.entities.scriptsStorage.clearCache()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	s.entities.features.clearCache()
 	s.flush(t)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
 	err := s.stateDB.addBlock(blockID)
-	assert.NoError(t, err, "stateDB.addBlock() failed")
+	require.NoError(t, err, "stateDB.addBlock() failed")
 	err = s.rw.startBlock(blockID)
-	assert.NoError(t, err, "startBlock() failed")
+	require.NoError(t, err, "startBlock() failed")
 	err = s.rw.finishBlock(blockID)
-	assert.NoError(t, err, "finishBlock() failed")
+	require.NoError(t, err, "finishBlock() failed")
 }
 
 func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
@@ -457,7 +456,7 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.Digest, info *assetInfo) {
 	s.addBlock(t, blockID0)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), info, blockID0)
-	assert.NoError(t, err, "issueAsset() failed")
+	require.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 }
 
@@ -465,7 +464,7 @@ func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Dig
 	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID)
-	assert.NoError(t, err, "issueAsset() failed")
+	require.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
 }
@@ -476,7 +475,7 @@ func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypt
 	require.True(t, decimals >= 0)
 	assetInfo.decimals = uint8(decimals)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)
-	assert.NoError(t, err, "issueAsset() failed")
+	require.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
 }
@@ -492,7 +491,7 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
 	s.addBlock(t, blockID0)
 	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
-	assert.NoError(t, err, "setAssetScript failed")
+	require.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
 }
 
@@ -500,7 +499,7 @@ func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
 	activationReq := &activatedFeaturesRecord{1}
 	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
-	assert.NoError(t, err, "activateFeature() failed")
+	require.NoError(t, err, "activateFeature() failed")
 	s.flush(t)
 }
 
@@ -512,22 +511,22 @@ func (s *testStorageObjects) activateSponsorship(t *testing.T) {
 
 func (s *testStorageObjects) flush(t *testing.T) {
 	err := s.rw.flush()
-	assert.NoError(t, err, "rw.flush() failed")
+	require.NoError(t, err, "rw.flush() failed")
 	s.rw.reset()
 	err = s.entities.flush()
-	assert.NoError(t, err, "entities.flush() failed")
+	require.NoError(t, err, "entities.flush() failed")
 	s.entities.reset()
 	err = s.stateDB.flush()
-	assert.NoError(t, err, "stateDB.flush() failed")
+	require.NoError(t, err, "stateDB.flush() failed")
 	s.stateDB.reset()
 }
 
 func genRandBlockId(t *testing.T) proto.BlockID {
 	id := make([]byte, crypto.SignatureSize)
-	_, err := rand.Read(id)
-	assert.NoError(t, err, "rand.Read() failed")
+	_, err := crand.Read(id)
+	require.NoError(t, err, "rand.Read() failed")
 	blockID, err := proto.NewBlockIDFromBytes(id)
-	assert.NoError(t, err, "NewBlockIDFromBytes() failed")
+	require.NoError(t, err, "NewBlockIDFromBytes() failed")
 	return blockID
 }
 
@@ -558,20 +557,20 @@ func genBlockId(fillWith byte) proto.BlockID {
 
 func generateRandomRecipient(t *testing.T) proto.Recipient {
 	seed := make([]byte, testSeedLen)
-	_, err := rand.Read(seed)
-	assert.NoError(t, err, "rand.Read() failed")
+	_, err := crand.Read(seed)
+	require.NoError(t, err, "rand.Read() failed")
 	_, pk, err := crypto.GenerateKeyPair(seed)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
-	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
+	require.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)
 }
 
 func existingGenesisTx(t *testing.T) proto.Transaction {
 	sig, err := crypto.NewSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
-	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	require.NoError(t, err, "NewSignatureFromBase58() failed")
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
-	assert.NoError(t, err, "NewAddressFromString() failed")
+	require.NoError(t, err, "NewAddressFromString() failed")
 	return &proto.Genesis{
 		Type:      proto.GenesisTransaction,
 		Version:   1,

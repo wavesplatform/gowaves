@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -178,12 +179,12 @@ func TestVRFVerificationFailureBySignature(t *testing.T) {
 
 func TestVRFMultipleRoundTrips(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		rand.Seed(time.Now().UnixNano())
-		ml := rand.Intn(2048)
+		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		ml := rnd.Intn(2048)
 		msg := make([]byte, ml)
 		seed := make([]byte, 256)
-		rand.Read(msg)
-		rand.Read(seed)
+		rnd.Read(msg)
+		rnd.Read(seed)
 		sk, pk, err := GenerateKeyPair(seed)
 		require.NoError(t, err)
 		sig1, err := SignVRF(sk, msg)
@@ -210,11 +211,11 @@ func BenchmarkSignVRF(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			msg := make([]byte, size)
-			if _, err := rand.Read(msg); err != nil {
+			if _, err := crand.Read(msg); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			seed := make([]byte, 32)
-			if _, err := rand.Read(seed); err != nil {
+			if _, err := crand.Read(seed); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			sk := GenerateSecretKey(seed)
@@ -232,11 +233,11 @@ func BenchmarkVerifyVRF(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			msg := make([]byte, size)
-			if _, err := rand.Read(msg); err != nil {
+			if _, err := crand.Read(msg); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			seed := make([]byte, 32)
-			if _, err := rand.Read(seed); err != nil {
+			if _, err := crand.Read(seed); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			sk, pk, err := GenerateKeyPair(seed)
@@ -265,11 +266,11 @@ func BenchmarkComputeVRF(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			msg := make([]byte, size)
-			if _, err := rand.Read(msg); err != nil {
+			if _, err := crand.Read(msg); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			seed := make([]byte, 32)
-			if _, err := rand.Read(seed); err != nil {
+			if _, err := crand.Read(seed); err != nil {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			sk, _, err := GenerateKeyPair(seed)
