@@ -14,10 +14,11 @@ func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	return e.evaluate()
 }
 
-func CallFunction(env environment, tree *ast.Tree, name string, args proto.Arguments) (Result, error) {
-	if name == "" {
-		name = "default"
-	}
+func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Result, error) {
+	var (
+		name = fc.Name()
+		args = fc.Arguments()
+	)
 	arguments, err := convertProtoArguments(args)
 	if err != nil {
 		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)

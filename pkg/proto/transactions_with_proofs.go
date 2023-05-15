@@ -4439,11 +4439,8 @@ func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-	if len(tx.FunctionCall.Arguments) > maxArguments {
-		return tx, errors.New("too many arguments")
-	}
-	if len(tx.FunctionCall.Name) > maxFunctionNameBytes {
-		return tx, errors.New("function name is too big")
+	if err := tx.FunctionCall.Valid(); err != nil {
+		return nil, errors.Wrap(err, "function call validation failed")
 	}
 	for _, p := range tx.Payments {
 		if p.Amount == 0 {
