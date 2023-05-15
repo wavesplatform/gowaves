@@ -62,11 +62,10 @@ func checkListElementsTypes(cd *Coder, constructorName string, topListVarName st
 			}
 			cd.Line("case %s:", ts)
 		case stdlib.TupleType:
-			l := len(tt.Types)
-			cd.Line("case tuple%d:", l)
+			cd.Line("case tuple%d:", len(tt.Types))
 			for i, elt := range tt.Types {
-				cd.Line("if _, ok := (el.(tuple%d)).el%d.(%s); !ok {", l, i+1, getType(elt))
-				cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' of element %d in %s list tuple\", (el.(tuple%d)).el%d.instanceOf())", constructorName, i+1, topListVarName, l, i+1)
+				cd.Line("if _, ok := te.el%d.(%s); !ok {", i+1, getType(elt))
+				cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' of element %d in %s list tuple\", te.el%d.instanceOf())", constructorName, i+1, topListVarName, i+1)
 				cd.Line("}")
 			}
 		case stdlib.ListType:

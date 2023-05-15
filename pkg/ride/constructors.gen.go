@@ -341,11 +341,11 @@ func blockInfoV7Constructor(_ environment, args_ ...rideType) (rideType, error) 
 	for _, el := range rewards {
 		switch te := el.(type) {
 		case tuple2:
-			if _, ok := (el.(tuple2)).el1.(rideAddress); !ok {
-				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 1 in rewards list tuple", (el.(tuple2)).el1.instanceOf())
+			if _, ok := te.el1.(rideAddress); !ok {
+				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 1 in rewards list tuple", te.el1.instanceOf())
 			}
-			if _, ok := (el.(tuple2)).el2.(rideInt); !ok {
-				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 2 in rewards list tuple", (el.(tuple2)).el2.instanceOf())
+			if _, ok := te.el2.(rideInt); !ok {
+				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 2 in rewards list tuple", te.el2.instanceOf())
 			}
 		default:
 			return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' in rewards list", te.instanceOf())
