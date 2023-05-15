@@ -28,12 +28,20 @@ func getType(t stdlib.Type) string {
 	}
 }
 
-func getUnionType(union stdlib.UnionType) string {
-	ns := make([]string, len(union.Types))
-	for i, t := range union.Types {
-		ns[i] = getType(t)
+func getUnionType(union stdlib.UnionType) (string, bool, stdlib.ListType) {
+	ns := make([]string, 0, len(union.Types))
+	hasList := false
+	listType := stdlib.ListType{}
+	for _, t := range union.Types {
+		switch tt := t.(type) {
+		case stdlib.ListType:
+			hasList = true
+			listType = tt
+		case stdlib.SimpleType:
+			ns = append(ns, getType(t))
+		}
 	}
-	return strings.Join(ns, ", ")
+	return strings.Join(ns, ", "), hasList, listType
 }
 
 func rideActionConstructorName(act actionsObject) string {

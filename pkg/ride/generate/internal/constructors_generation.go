@@ -49,13 +49,18 @@ func checkListElementsTypes(cd *Coder, constructorName string, topListVarName st
 
 	helper = func(listVarName string, t stdlib.Type) {
 		cd.Line("for _, el := range %s {", listVarName)
-		cd.Line("switch el.(type) {")
+		cd.Line("switch te := el.(type) {")
 
 		switch tt := t.(type) {
 		case stdlib.SimpleType:
 			cd.Line("case %s:", getType(tt))
 		case stdlib.UnionType:
-			cd.Line("case %s:", getUnionType(tt))
+			ts, l, lt := getUnionType(tt)
+			if l {
+				cd.Line("case %s:", getType(lt))
+				helper("te", lt.Type)
+			}
+			cd.Line("case %s:", ts)
 		case stdlib.TupleType:
 			l := len(tt.Types)
 			cd.Line("case tuple%d:", l)
@@ -69,7 +74,7 @@ func checkListElementsTypes(cd *Coder, constructorName string, topListVarName st
 			helper(listVarName, tt.Type)
 		}
 		cd.Line("default:")
-		cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' in %s list\", el.instanceOf())", constructorName, topListVarName)
+		cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' in %s list\", te.instanceOf())", constructorName, topListVarName)
 		cd.Line("}")
 		cd.Line("}")
 	}
@@ -191,9 +196,10 @@ func constructorsHandleRideObject(cd *Coder, obj rideObject) error {
 				checkListElementsTypes(cd, constructorName, varName, att)
 
 			case stdlib.UnionType:
+				ts, _, _ := getUnionType(att)
 				cd.Line("var %s rideType", varName)
 				cd.Line("switch v := args_[%d].(type) {", i)
-				cd.Line("case %s:", getUnionType(att))
+				cd.Line("case %s:", ts)
 				cd.Line("%s = v", varName)
 				cd.Line("default:")
 				cd.Line("return nil, errors.Errorf(\"%s: unexpected type '%%s' for %s\", args_[%d].instanceOf())", constructorName, varName, i)
