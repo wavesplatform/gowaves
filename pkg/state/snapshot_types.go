@@ -14,111 +14,121 @@ type AtomicSnapshot interface {
 	// TODO: add all necessary methods here
 }
 
-type balanceWaves struct {
-	address proto.WavesAddress
-	balance uint64
+type BalanceWaves struct {
+	Address proto.WavesAddress
+	Balance uint64
 }
 
 type WavesBalancesSnapshot struct {
-	wavesBalances []balanceWaves
+	WavesBalances []BalanceWaves
 }
 
 func (*WavesBalancesSnapshot) atomicSnapshotMarker() {}
 
 // What is address || asset_id?
-type balanceAsset struct {
-	address proto.WavesAddress
-	assetID crypto.Digest
-	balance uint64
+type BalanceAsset struct {
+	Address proto.WavesAddress
+	AssetID crypto.Digest
+	Balance uint64
 }
 
 type AssetBalancesSnapshot struct {
-	assetBalances []balanceAsset
+	AssetBalances []BalanceAsset
 }
 
 func (*AssetBalancesSnapshot) atomicSnapshotMarker() {}
 
 type DataEntriesSnapshot struct {
-	address     proto.WavesAddress
-	dataEntries []proto.DataEntry
+	Address     proto.WavesAddress
+	DataEntries []proto.DataEntry
 }
 
 func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
 
 type AccountScriptSnapshot struct {
-	address proto.WavesAddress
-	script  proto.Script
+	Address              proto.WavesAddress // TODO: is it necessary?
+	PublicKey            crypto.PublicKey
+	Script               proto.Script
+	VerifierComplexity   uint64
+	CallableComplexities map[string]uint64
 }
 
 func (*AccountScriptSnapshot) atomicSnapshotMarker() {}
 
 type AssetScriptSnapshot struct {
-	assetID crypto.Digest
-	script  proto.Script
+	AssetID    crypto.Digest
+	Script     proto.Script
+	Complexity uint64
 }
 
 func (*AssetScriptSnapshot) atomicSnapshotMarker() {}
 
 type LeaseBalanceSnapshot struct {
-	address  proto.WavesAddress
-	leaseIn  int64
-	leaseOut int64
+	Address  proto.WavesAddress
+	LeaseIn  uint64
+	LeaseOut uint64
 }
 
 func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
 
-type LeaseStatusSnapshot struct {
-	leaseID  crypto.Digest
-	isActive bool
+type LeaseStateSnapshot struct {
+	LeaseID             crypto.Digest
+	Status              LeaseStatus // TODO(nickeskov): add cancelHeight and cancelTxID info for canceled leases
+	Amount              uint64
+	Sender              proto.WavesAddress
+	Recipient           proto.WavesAddress
+	OriginTransactionID crypto.Digest
+	Height              proto.Height
 }
 
-func (*LeaseStatusSnapshot) atomicSnapshotMarker() {}
+func (*LeaseStateSnapshot) atomicSnapshotMarker() {}
 
 type SponsorshipSnapshot struct {
-	assetID         crypto.Digest
-	minSponsoredFee uint64
+	AssetID         crypto.Digest
+	MinSponsoredFee uint64
 }
 
 func (*SponsorshipSnapshot) atomicSnapshotMarker() {}
 
 type AliasSnapshot struct {
-	alias   proto.Alias
-	address proto.WavesAddress
+	Address proto.WavesAddress
+	Alias   proto.Alias
 }
 
 func (*AliasSnapshot) atomicSnapshotMarker() {}
 
-// FilledVolumeFee Filled Volume and Fee
-type FilledVolumeFeeSnapshot struct {
-	orderID      []byte
-	filledVolume uint64
-	filledFee    uint64
+// FilledVolumeFeeSnapshot Filled Volume and Fee
+type FilledVolumeFeeSnapshot struct { // OrderFill
+	OrderID      crypto.Digest
+	FilledVolume uint64
+	FilledFee    uint64
 }
 
 func (*FilledVolumeFeeSnapshot) atomicSnapshotMarker() {}
 
 type StaticAssetInfoSnapshot struct {
-	assetID  crypto.Digest
-	issuer   proto.WavesAddress
-	decimals int8
-	isNFT    bool
+	AssetID             crypto.Digest
+	SourceTransactionID crypto.Digest
+	Issuer              proto.WavesAddress
+	Decimals            uint8
+	IsNFT               bool
 }
 
 func (*StaticAssetInfoSnapshot) atomicSnapshotMarker() {}
 
-type AssetReissuabilitySnapshot struct {
-	assetID       crypto.Digest
-	totalQuantity big.Int
-	isReissuable  bool
+type AssetReissuabilitySnapshot struct { // AssetVolume in pb
+	AssetID       crypto.Digest
+	TotalQuantity big.Int // volume in protobuf
+	IsReissuable  bool
 }
 
 func (*AssetReissuabilitySnapshot) atomicSnapshotMarker() {}
 
-type AssetDescriptionSnapshot struct {
-	assetID          crypto.Digest
-	assetName        string
-	assetDescription string
-	changeHeight     uint64
+type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
+	AssetID          crypto.Digest
+	AssetName        string
+	AssetDescription string
+	ChangeHeight     proto.Height // last_updated in pb
 }
 
 func (*AssetDescriptionSnapshot) atomicSnapshotMarker() {}
