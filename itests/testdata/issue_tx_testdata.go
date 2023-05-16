@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	IssueMinVersion = 1
 	IssueMaxVersion = 3
 	errMsg          = "transactions does not exist"
 	errBrdCstMsg    = "Error is unknown"
@@ -111,7 +112,7 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			100000000000,
 			4,
 			true,
-			utl.GetScriptBytes(suite, "BQbtKNoM"),
+			readScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,

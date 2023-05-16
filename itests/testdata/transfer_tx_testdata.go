@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	TransferMinVersion = 1
 	TransferMaxVersion = 3
 )
 

@@ -19,7 +19,7 @@ type TransferTxSuite struct {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxPositive() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -61,8 +61,8 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferSmartAssetPositive() {
-	versions := transfer_utilities.GetVersions()
-	saversions := issue_utilities.GetVersionsSmartAsset()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
+	saversions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	name := "Check transfer smart asset"
 	for _, v := range versions {
@@ -98,7 +98,7 @@ func (suite *TransferTxSuite) Test_TransferSmartAssetPositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -137,7 +137,7 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -177,7 +177,7 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

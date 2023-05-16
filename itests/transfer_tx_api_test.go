@@ -20,7 +20,7 @@ type TransferTxApiSuite struct {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -68,8 +68,8 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
-	versions := transfer_utilities.GetVersions()
-	saversions := issue_utilities.GetVersionsSmartAsset()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
+	saversions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	name := "Check transfer smart asset"
 	for _, v := range versions {
@@ -107,7 +107,7 @@ func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -153,7 +153,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -204,7 +204,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

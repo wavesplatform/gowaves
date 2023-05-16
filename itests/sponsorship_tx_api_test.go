@@ -19,7 +19,7 @@ type SponsorshipTxApiSuite struct {
 }
 
 func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -43,7 +43,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 }
 
 func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -70,7 +70,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
 }
 
 func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	waitForTx := true
 	for _, v := range versions {
@@ -106,7 +106,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 }
 
 func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -139,7 +139,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 }
 
 func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart

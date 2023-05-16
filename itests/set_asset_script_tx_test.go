@@ -17,7 +17,7 @@ type SetAssetScriptSuite struct {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -40,7 +40,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -61,13 +61,13 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -87,9 +87,9 @@ func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
 			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 		})
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestSetAssetScriptSuite(t *testing.T) {

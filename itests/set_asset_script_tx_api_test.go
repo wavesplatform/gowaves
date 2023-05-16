@@ -18,7 +18,7 @@ type SetAssetScriptApiSuite struct {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -42,7 +42,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -69,13 +69,13 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
-	versions := set_asset_script_utilities.GetVersions()
+	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -101,9 +101,9 @@ func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegativ
 			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
 				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 		})
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestSetAssetScriptApiSuite(t *testing.T) {

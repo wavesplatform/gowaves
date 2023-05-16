@@ -96,6 +96,6 @@ func SponsorshipEnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.S
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 
-func GetVersions() []byte {
-	return utl.GetAvailableVersions(proto.SponsorshipTransaction, testdata.SponsorshipMaxVersion, testdata.SponsorshipMinVersion).Sum
+func GetVersions(suite *f.BaseSuite) []byte {
+	return utl.GetAvailableVersions(suite.T(), proto.SponsorshipTransaction, testdata.SponsorshipMinVersion, testdata.SponsorshipMaxVersion).Sum
 }

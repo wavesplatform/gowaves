@@ -17,7 +17,7 @@ type IssueSmartAssetApiSuite struct {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
-	versions := issue_utilities.GetVersionsSmartAsset()
+	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
@@ -42,7 +42,7 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
-	versions := issue_utilities.GetVersionsSmartAsset()
+	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

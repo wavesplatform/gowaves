@@ -68,6 +68,6 @@ func BroadcastSetAssetScriptTxAndGetBalances[T any](suite *f.BaseSuite, testdata
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SetAssetScriptBroadcastWithTestData[T])
 }
 
-func GetVersions() []byte {
-	return utl.GetAvailableVersions(proto.SetAssetScriptTransaction, testdata.SetAssetScriptMaxVersion, testdata.SetAssetScriptMinVersion).Sum
+func GetVersions(suite *f.BaseSuite) []byte {
+	return utl.GetAvailableVersions(suite.T(), proto.SetAssetScriptTransaction, testdata.SetAssetScriptMinVersion, testdata.SetAssetScriptMaxVersion).Sum
 }

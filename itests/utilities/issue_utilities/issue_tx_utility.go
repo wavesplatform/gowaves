@@ -93,10 +93,10 @@ func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, acc
 	return tx.TxID
 }
 
-func GetVersions() []byte {
-	return utl.GetAvailableVersions(proto.IssueTransaction, testdata.IssueMaxVersion).Sum
+func GetVersions(suite *f.BaseSuite) []byte {
+	return utl.GetAvailableVersions(suite.T(), proto.IssueTransaction, testdata.IssueMinVersion, testdata.IssueMaxVersion).Sum
 }
 
-func GetVersionsSmartAsset() []byte {
-	return utl.GetAvailableVersions(proto.IssueTransaction, testdata.IssueMaxVersion, testdata.IssueSmartAssetMinVersion).Sum
+func GetVersionsSmartAsset(suite *f.BaseSuite) []byte {
+	return utl.GetAvailableVersions(suite.T(), proto.IssueTransaction, testdata.IssueSmartAssetMinVersion, testdata.IssueMaxVersion).Sum
 }

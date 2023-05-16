@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,20 +181,15 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 	}
 }
 
-func GetAvailableVersions(txType proto.TransactionType, maxVersion byte, minVersion ...byte) AvailableVersions {
+func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion, maxVersion byte) AvailableVersions {
 	var binary, protobuf []byte
-	var minV byte
-	if len(minVersion) == 1 {
-		minV = minVersion[0]
-	} else {
-		minV = 1
-	}
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
-	for i := int(minV); i < int(minPBVersion); i++ {
-		binary = append(binary, byte(i))
+	require.GreaterOrEqual(t, minPBVersion, minVersion, "Min binary version greater then min protobuf version")
+	for i := minVersion; i < minPBVersion; i++ {
+		binary = append(binary, i)
 	}
-	for i := int(minPBVersion); i < int(maxVersion+1); i++ {
-		protobuf = append(protobuf, byte(i))
+	for i := minPBVersion; i < maxVersion+1; i++ {
+		protobuf = append(protobuf, i)
 	}
 	return NewAvailableVersions(binary, protobuf)
 }
@@ -471,4 +470,27 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+}
+
+func getItestsDir() (string, error) {
+	filename, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(filename), "itests"), nil
+}
+
+func ReadScript(scriptDir, fileName string) ([]byte, error) {
+	cutCommentsRegex := regexp.MustCompile(`\s*#.*\n?`)
+	dir, err := getItestsDir()
+	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
+	scriptFileContent, err := os.ReadFile(scriptPath)
+	if err != nil {
+		return nil, err
+	}
+	scriptBase64WithComments := string(scriptFileContent)
+	scriptBase64WithoutComments := cutCommentsRegex.ReplaceAllString(scriptBase64WithComments, "")
+	scriptBase64 := strings.TrimSpace(scriptBase64WithoutComments)
+
+	return base64.StdEncoding.DecodeString(scriptBase64)
 }

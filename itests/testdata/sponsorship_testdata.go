@@ -282,7 +282,6 @@ func GetSponsorshipForSmartAssetData(suite *f.BaseSuite, assetID crypto.Digest) 
 		Enabled: *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			//100000,
 			500000,
 			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
