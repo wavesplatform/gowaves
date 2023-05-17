@@ -490,7 +490,7 @@ func ReadScript(scriptDir, fileName string) ([]byte, error) {
 		return nil, err
 	}
 	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
-	scriptFileContent, err := os.ReadFile(scriptPath)
+	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
 	if err != nil {
 		return nil, err
 	}
