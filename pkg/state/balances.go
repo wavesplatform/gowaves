@@ -267,7 +267,7 @@ func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 		zap.S().Infof("Resetting lease balance for %s", addr.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
-		val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
+		val := wavesValue{leaseChange: true, profile: r.balanceProfile}
 		if err := s.setWavesBalance(k.address, val, blockID); err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 			)
 			overflowedAddresses[wavesAddr] = empty
 			r.leaseOut = 0
-			val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
+			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
 			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
 				return nil, err
 			}
@@ -355,7 +355,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 				wavesAddress.String(), r.leaseIn, correctLeaseIn,
 			)
 			r.leaseIn = correctLeaseIn
-			val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
+			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
 			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
 				return err
 			}
@@ -374,11 +374,11 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 			return err
 		}
 		profile := r.balanceProfile
-		newProfile, err := bd.applyTo(&profile)
+		newProfile, err := bd.applyTo(profile)
 		if err != nil {
 			return err
 		}
-		val := &wavesValue{leaseChange: true, profile: *newProfile}
+		val := wavesValue{leaseChange: true, profile: newProfile}
 		if err := s.setWavesBalance(a.ID(), val, blockID); err != nil {
 			return err
 		}
@@ -544,59 +544,59 @@ func (s *balances) newestAssetBalance(addr proto.AddressID, asset proto.AssetID)
 	return s.assetBalanceFromRecordBytes(recordBytes)
 }
 
-func (s *balances) newestWavesRecord(key []byte) (*wavesBalanceRecord, error) {
+func (s *balances) newestWavesRecord(key []byte) (wavesBalanceRecord, error) {
 	recordBytes, err := s.hs.newestTopEntryData(key)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
-		return &wavesBalanceRecord{}, nil
+		return wavesBalanceRecord{}, nil
 	} else if err != nil {
-		return nil, err
+		return wavesBalanceRecord{}, err
 	}
 	var record wavesBalanceRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, err
+		return wavesBalanceRecord{}, err
 	}
-	return &record, nil
+	return record, nil
 }
 
-func (s *balances) newestWavesBalance(addr proto.AddressID) (*balanceProfile, error) {
+func (s *balances) newestWavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.newestWavesRecord(key.bytes())
 	if err != nil {
-		return nil, err
+		return balanceProfile{}, err
 	}
-	return &r.balanceProfile, nil
+	return r.balanceProfile, nil
 }
 
-func (s *balances) wavesRecord(key []byte) (*wavesBalanceRecord, error) {
+func (s *balances) wavesRecord(key []byte) (wavesBalanceRecord, error) {
 	recordBytes, err := s.hs.topEntryData(key)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
-		return &wavesBalanceRecord{}, nil
+		return wavesBalanceRecord{}, nil
 	} else if err != nil {
-		return nil, err
+		return wavesBalanceRecord{}, err
 	}
 	var record wavesBalanceRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, err
+		return wavesBalanceRecord{}, errors.Wrap(err, "failed to unmarshal data to %T")
 	}
-	return &record, nil
+	return record, nil
 }
 
-func (s *balances) wavesBalance(addr proto.AddressID) (*balanceProfile, error) {
+func (s *balances) wavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.wavesRecord(key.bytes())
 	if err != nil {
-		return nil, err
+		return balanceProfile{}, err
 	}
-	return &r.balanceProfile, nil
+	return r.balanceProfile, nil
 }
 
 func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, balance uint64, blockID proto.BlockID) error {
 	key := assetBalanceKey{address: addr, asset: assetID}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
-	record := &assetBalanceRecord{balance}
+	record := assetBalanceRecord{balance}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -624,11 +624,11 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalance(addr proto.AddressID, balance *wavesValue, blockID proto.BlockID) error {
+func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blockID proto.BlockID) error {
 	key := wavesBalanceKey{address: addr}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
-	record := &wavesBalanceRecord{balance.profile}
+	record := wavesBalanceRecord{balance.profile}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
