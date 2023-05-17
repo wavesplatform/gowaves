@@ -46,11 +46,9 @@ type DataEntriesSnapshot struct {
 func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
 
 type AccountScriptSnapshot struct {
-	Address              proto.WavesAddress // TODO: is it necessary?
-	PublicKey            crypto.PublicKey
-	Script               proto.Script
-	VerifierComplexity   uint64
-	CallableComplexities map[string]uint64
+	PublicKey          crypto.PublicKey
+	Script             proto.Script
+	VerifierComplexity uint64
 }
 
 func (*AccountScriptSnapshot) atomicSnapshotMarker() {}
