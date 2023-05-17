@@ -1,0 +1,20 @@
+# {-# STDLIB_VERSION 6 #-}
+# {-# CONTENT_TYPE EXPRESSION #-}
+# {-# SCRIPT_TYPE ASSET #-}
+#
+# match tx {
+# 	 case t: TransferTransaction =>
+# 		 strict a = addressFromRecipient(t.recipient)
+# 		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#		 sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify_128Kb(base58'', base58'', base58'') &&
+#		 sigVerify_128Kb(base58'', base58'', base58'') && sigVerify_64Kb(base58'', base58'', base58'')
+#	 case _ => true
+# }
+
+BgEEByRtYXRjaDAFAnR4AwkAAQIFByRtYXRjaDACE1RyYW5zZmVyVHJhbnNhY3Rpb24EAXQFByRtYXRjaDAEAWEJAKQIAQgFAXQJcmVjaXBpZW50AwkAAAIFAWEFAWEDAwMDAwMDAwMDAwMDAwMDAwMDAwMDCQD0AwMBAAEAAQAJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQAB
+AAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAPQDAwEAAQABAAcJAMgTAwEAAQABAAcJAMgTAwEAAQABAAcJAMcTAwEAAQABAAcJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4Gh1kbVQ==
