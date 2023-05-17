@@ -41,6 +41,10 @@ const (
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
+var (
+	cutCommentsRegex = regexp.MustCompile(`\s*#.*\n?`)
+)
+
 type Response struct {
 	ResponseGo    *client.Response
 	ResponseScala *client.Response
@@ -481,7 +485,6 @@ func getItestsDir() (string, error) {
 }
 
 func ReadScript(scriptDir, fileName string) ([]byte, error) {
-	cutCommentsRegex := regexp.MustCompile(`\s*#.*\n?`)
 	dir, err := getItestsDir()
 	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
 	scriptFileContent, err := os.ReadFile(scriptPath)
