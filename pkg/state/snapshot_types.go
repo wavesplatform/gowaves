@@ -14,31 +14,23 @@ type AtomicSnapshot interface {
 	// TODO: add all necessary methods here
 }
 
-type BalanceWaves struct {
+type WavesBalanceSnapshot struct {
 	Address proto.WavesAddress
 	Balance uint64
 }
 
-type WavesBalancesSnapshot struct {
-	WavesBalances []BalanceWaves
-}
-
-func (*WavesBalancesSnapshot) atomicSnapshotMarker() {}
+func (*WavesBalanceSnapshot) atomicSnapshotMarker() {}
 
 // What is address || asset_id?
-type BalanceAsset struct {
+type AssetBalanceSnapshot struct {
 	Address proto.WavesAddress
 	AssetID crypto.Digest
 	Balance uint64
 }
 
-type AssetBalancesSnapshot struct {
-	AssetBalances []BalanceAsset
-}
+func (*AssetBalanceSnapshot) atomicSnapshotMarker() {}
 
-func (*AssetBalancesSnapshot) atomicSnapshotMarker() {}
-
-type DataEntriesSnapshot struct {
+type DataEntriesSnapshot struct { // AccountData in pb
 	Address     proto.WavesAddress
 	DataEntries []proto.DataEntry
 }
