@@ -486,6 +486,9 @@ func getItestsDir() (string, error) {
 
 func ReadScript(scriptDir, fileName string) ([]byte, error) {
 	dir, err := getItestsDir()
+	if err != nil {
+		return nil, err
+	}
 	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
 	scriptFileContent, err := os.ReadFile(scriptPath)
 	if err != nil {
