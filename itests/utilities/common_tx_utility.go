@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +22,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -28,10 +33,16 @@ const (
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
+	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
+	MinTxFeeWavesSmartAsset    = 500000
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
+
+var (
+	cutCommentsRegex = regexp.MustCompile(`\s*#.*\n?`)
 )
 
 type Response struct {
@@ -88,19 +99,6 @@ func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
 	return &BalanceInAsset{
 		BalanceInAssetGo:    balanceGo,
 		BalanceInAssetScala: balanceScala,
-	}
-}
-
-func NewDiffBalances(diffBalanceWavesGo, diffBalanceWavesScala, diffBalanceAssetGo, diffBalanceAssetScala int64) *AccountDiffBalances {
-	return &AccountDiffBalances{
-		DiffBalanceWaves: BalanceInWaves{
-			BalanceInWavesGo:    diffBalanceWavesGo,
-			BalanceInWavesScala: diffBalanceWavesScala,
-		},
-		DiffBalanceAsset: BalanceInAsset{
-			BalanceInAssetGo:    diffBalanceAssetGo,
-			BalanceInAssetScala: diffBalanceAssetScala,
-		},
 	}
 }
 
@@ -187,14 +185,15 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 	}
 }
 
-func GetAvailableVersions(txType proto.TransactionType, maxVersion byte) AvailableVersions {
+func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion, maxVersion byte) AvailableVersions {
 	var binary, protobuf []byte
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
-	for i := 1; i < int(minPBVersion); i++ {
-		binary = append(binary, byte(i))
+	require.GreaterOrEqual(t, minPBVersion, minVersion, "Min binary version greater then min protobuf version")
+	for i := minVersion; i < minPBVersion; i++ {
+		binary = append(binary, i)
 	}
-	for i := int(minPBVersion); i < int(maxVersion+1); i++ {
-		protobuf = append(protobuf, byte(i))
+	for i := minPBVersion; i < maxVersion+1; i++ {
+		protobuf = append(protobuf, i)
 	}
 	return NewAvailableVersions(binary, protobuf)
 }
@@ -222,6 +221,12 @@ func RandDigest(t *testing.T, n int, symbolSet string) crypto.Digest {
 	id, err := crypto.NewDigestFromBytes([]byte(RandStringBytes(n, symbolSet)))
 	require.NoError(t, err, "Failed to create random Digest")
 	return id
+}
+
+func GetScriptBytes(suite *f.BaseSuite, scriptStr string) []byte {
+	script, err := base64.StdEncoding.DecodeString(scriptStr)
+	require.NoError(suite.T(), err, "Failed to decode script string to byte array")
+	return script
 }
 
 func GetCurrentTimestampInMs() uint64 {
@@ -341,6 +346,18 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	return assetInfo
 }
 
+func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+}
+
+func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+}
+
+func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) (*g.AssetInfoResponse, *g.AssetInfoResponse) {
+	return GetAssetInfoGrpcGo(suite, assetId), GetAssetInfoGrpcScala(suite, assetId)
+}
+
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
 	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount()
 }
@@ -457,4 +474,29 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+}
+
+func getItestsDir() (string, error) {
+	filename, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(filename), "itests"), nil
+}
+
+func ReadScript(scriptDir, fileName string) ([]byte, error) {
+	dir, err := getItestsDir()
+	if err != nil {
+		return nil, err
+	}
+	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
+	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
+	if err != nil {
+		return nil, err
+	}
+	scriptBase64WithComments := string(scriptFileContent)
+	scriptBase64WithoutComments := cutCommentsRegex.ReplaceAllString(scriptBase64WithComments, "")
+	scriptBase64 := strings.TrimSpace(scriptBase64WithoutComments)
+
+	return base64.StdEncoding.DecodeString(scriptBase64)
 }

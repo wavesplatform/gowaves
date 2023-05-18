@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	BurnMinVersion = 1
 	BurnMaxVersion = 3
 )
 

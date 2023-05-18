@@ -1,0 +1,177 @@
+# {-# STDLIB_VERSION 6 #-}
+# {-# CONTENT_TYPE EXPRESSION #-}
+# {-# SCRIPT_TYPE ASSET #-}
+#
+# let str = "This text is necessary to get the script of the 8192 by"
+#
+# let str_1 = "This text is necessary to get the script of the required volume"
+# let str_2 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let str_3 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let str_4 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let text_1 = makeString_11C([str_1,str_2,str_3,str_4], " & ")
+# let text_2 = makeString_11C([str_1,str_2,str_3,str_4], " & ")
+# let text_3 = makeString_11C([str_1,str_2,str_3,str_4], " & ")
+# let text_4 = makeString_11C([str_1,str_2,str_3,str_4], " & ")
+#
+# let str1 = "This text is necessary to get the script of the required volume"
+# let str2 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let str3 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let str4 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let text1 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text2 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text3 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text4 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text5 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let str11 = "This text is necessary to get the script of the required volume"
+# let str22 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let str33 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let str44 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let text11 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text22 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text33 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text44 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text55 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let str111 = "This text is necessary to get the script of the required volume"
+# let str222 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let str333 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let str444 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let text111 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text222 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text333 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text444 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text555 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let str1111 = "This text is necessary to get the script of the required volume"
+# let str2222 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let str3333 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let str4444 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let text1111 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text2222 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text3333 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text4444 = makeString_11C([str1,str2,str3,str4], " & ")
+# let text5555 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let strr1 = "This text is necessary to get the script of the required volume"
+# let strr2 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let strr3 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let strr4 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let textt1 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt2 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt3 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt4 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt5 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let strr11 = "This text is necessary to get the script of the required volume"
+# let strr22 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let strr33 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let strr44 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let textt11 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt22 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt33 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt44 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt55 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let strr111 = "This text is necessary to get the script of the required volume"
+# let strr222 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let strr333 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let strr444 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let textt111 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt222 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt333 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt444 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt555 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let strr1111 = "This text is necessary to get the script of the required volume"
+# let strr2222 = "Any user can create their own token on the Waves blockchain and also set the rules for its circulation by assigning a script to it."
+# let strr3333 = "For example, for in-game currency, you can allow only transactions between characters with certain properties."
+# let strr4444 = "A token with an assigned script is called a smart asset, and the assigned script is called an asset script."
+#
+# let textt1111 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt2222 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt3333 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt4444 = makeString_11C([str1,str2,str3,str4], " & ")
+# let textt5555 = makeString_11C([str1,str2,str3,str4], " & ")
+#
+# let amount = match tx {
+#   case i: InvokeScriptTransaction => 10
+#   case b: BurnTransaction  => 0
+#   case t: TransferTransaction =>
+#         t.amount
+#   case m: MassTransferTransaction =>
+#         m.totalAmount
+#   case _ => 0
+# }
+#
+# let amountt = match tx {
+#   case i: InvokeScriptTransaction => 10
+#   case b: BurnTransaction  => 0
+#   case t: TransferTransaction =>
+#         t.amount
+#   case m: MassTransferTransaction =>
+#         m.totalAmount
+#   case _ => 0
+# }
+#
+# match tx {
+#     case i: InvokeScriptTransaction => true
+#     case r: ReissueTransaction => true
+#     case b: BurnTransaction => true
+#     case t: TransferTransaction =>
+#         strict a = addressFromRecipient(t.recipient)
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') &&
+#         sigVerify(base58'', base58'', base58'') && sigVerify(base58'', base58'', base58'') && sigVerify_128Kb(base58'', base58'', base58'') &&
+#         sigVerify_128Kb(base58'', base58'', base58'')
+#     case _ => true
+# }
+
+BgEEA3N0cgI3VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgODE5MiBieQQFc3RyXzECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQFc3RyXzICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBp
+dHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3RyXzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJfNAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRo
+ZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHRfMQkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCAIFBXN0cl80BQNuaWwCAyAmIAQGdGV4dF8yCQC7CQIJAMwIAgUFc3RyXzEJAMwIAgUFc3RyXzIJAMwIAgUFc3RyXzMJAMwIAgUFc3RyXzQFA25pbAIDICYgBAZ0ZXh0XzMJALsJAgkAzAgCBQVzdHJfMQkAzAgCBQVzdHJfMgkAzAgCBQVzdHJf
+MwkAzAgCBQVzdHJfNAUDbmlsAgMgJiAEBnRleHRfNAkAuwkCCQDMCAIFBXN0cl8xCQDMCAIFBXN0cl8yCQDMCAIFBXN0cl8zCQDMCAIFBXN0cl80BQNuaWwCAyAmIAQEc3RyMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxdWlyZWQgdm9sdW1lBARzdHIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJsb2NrY2hhaW4g
+YW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0byBpdC4EBHN0cjMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBARzdHI0AmtBIHRva2VuIHdpdGggYW4gYXNzaWduZWQgc2NyaXB0IGlzIGNh
+bGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQFdGV4dDEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0
+cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFdGV4dDUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFc3RyMTECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZv
+bHVtZQQFc3RyMjICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3RyMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJh
+Y3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHI0NAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHQxMQkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0MjIJALsJAgkAzAgCBQRz
+dHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGdGV4dDMzCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEBnRleHQ0NAkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRz
+dHI0BQNuaWwCAyAmIAQGc3RyMTExAj9UaGlzIHRleHQgaXMgbmVjZXNzYXJ5IHRvIGdldCB0aGUgc2NyaXB0IG9mIHRoZSByZXF1aXJlZCB2b2x1bWUEBnN0cjIyMgKDAUFueSB1c2VyIGNhbiBjcmVhdGUgdGhlaXIgb3duIHRva2VuIG9uIHRoZSBXYXZlcyBibG9ja2NoYWluIGFuZCBhbHNvIHNldCB0aGUgcnVsZXMgZm9yIGl0cyBjaXJjdWxhdGlvbiBieSBhc3NpZ25pbmcgYSBzY3JpcHQgdG8gaXQuBAZzdHIz
+MzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAZzdHI0NDQCa0EgdG9rZW4gd2l0aCBhbiBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGEgc21hcnQgYXNzZXQsIGFuZCB0aGUgYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhbiBhc3NldCBzY3JpcHQuBAd0
+ZXh0MTExCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHQyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHdGV4dDMzMwkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAd0ZXh0NDQ0CQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRz
+dHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHQ1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHc3RyMTExMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxdWlyZWQgdm9sdW1lBAdzdHIyMjIyAoMBQW55IHVzZXIgY2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdh
+dmVzIGJsb2NrY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0byBpdC4EB3N0cjMzMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAdzdHI0NDQ0AmtBIHRva2VuIHdpdGggYW4g
+YXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQIdGV4dDExMTEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dDIyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4
+dDMzMzMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dDQ0NDQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dDU1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQFc3RycjECP1RoaXMgdGV4dCBpcyBuZWNlc3Nhcnkg
+dG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQFc3RycjICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQFc3RycjMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBh
+bGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAVzdHJyNAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4EBnRleHR0MQkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIF
+BHN0cjQFA25pbAIDICYgBAZ0ZXh0dDIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGdGV4dHQzCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEBnRleHR0NAkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAZ0ZXh0dDUJALsJAgkAzAgC
+BQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGc3RycjExAj9UaGlzIHRleHQgaXMgbmVjZXNzYXJ5IHRvIGdldCB0aGUgc2NyaXB0IG9mIHRoZSByZXF1aXJlZCB2b2x1bWUEBnN0cnIyMgKDAUFueSB1c2VyIGNhbiBjcmVhdGUgdGhlaXIgb3duIHRva2VuIG9uIHRoZSBXYXZlcyBibG9ja2NoYWluIGFuZCBhbHNvIHNldCB0aGUgcnVsZXMgZm9yIGl0cyBjaXJjdWxhdGlv
+biBieSBhc3NpZ25pbmcgYSBzY3JpcHQgdG8gaXQuBAZzdHJyMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAZzdHJyNDQCa0EgdG9rZW4gd2l0aCBhbiBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGEgc21hcnQgYXNzZXQsIGFuZCB0aGUgYXNzaWduZWQg
+c2NyaXB0IGlzIGNhbGxlZCBhbiBhc3NldCBzY3JpcHQuBAd0ZXh0dDExCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHR0MjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHdGV4dHQzMwkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAID
+ICYgBAd0ZXh0dDQ0CQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAEB3RleHR0NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQHc3RycjExMQI/VGhpcyB0ZXh0IGlzIG5lY2Vzc2FyeSB0byBnZXQgdGhlIHNjcmlwdCBvZiB0aGUgcmVxdWlyZWQgdm9sdW1lBAdzdHJyMjIyAoMBQW55IHVzZXIg
+Y2FuIGNyZWF0ZSB0aGVpciBvd24gdG9rZW4gb24gdGhlIFdhdmVzIGJsb2NrY2hhaW4gYW5kIGFsc28gc2V0IHRoZSBydWxlcyBmb3IgaXRzIGNpcmN1bGF0aW9uIGJ5IGFzc2lnbmluZyBhIHNjcmlwdCB0byBpdC4EB3N0cnIzMzMCbkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHBy
+b3BlcnRpZXMuBAdzdHJyNDQ0AmtBIHRva2VuIHdpdGggYW4gYXNzaWduZWQgc2NyaXB0IGlzIGNhbGxlZCBhIHNtYXJ0IGFzc2V0LCBhbmQgdGhlIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYW4gYXNzZXQgc2NyaXB0LgQIdGV4dHQxMTEJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJ
+AMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQzMzMJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQ0NDQJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQIdGV4dHQ1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwC
+AyAmIAQIc3RycjExMTECP1RoaXMgdGV4dCBpcyBuZWNlc3NhcnkgdG8gZ2V0IHRoZSBzY3JpcHQgb2YgdGhlIHJlcXVpcmVkIHZvbHVtZQQIc3RycjIyMjICgwFBbnkgdXNlciBjYW4gY3JlYXRlIHRoZWlyIG93biB0b2tlbiBvbiB0aGUgV2F2ZXMgYmxvY2tjaGFpbiBhbmQgYWxzbyBzZXQgdGhlIHJ1bGVzIGZvciBpdHMgY2lyY3VsYXRpb24gYnkgYXNzaWduaW5nIGEgc2NyaXB0IHRvIGl0LgQIc3RycjMzMzMC
+bkZvciBleGFtcGxlLCBmb3IgaW4tZ2FtZSBjdXJyZW5jeSwgeW91IGNhbiBhbGxvdyBvbmx5IHRyYW5zYWN0aW9ucyBiZXR3ZWVuIGNoYXJhY3RlcnMgd2l0aCBjZXJ0YWluIHByb3BlcnRpZXMuBAhzdHJyNDQ0NAJrQSB0b2tlbiB3aXRoIGFuIGFzc2lnbmVkIHNjcmlwdCBpcyBjYWxsZWQgYSBzbWFydCBhc3NldCwgYW5kIHRoZSBhc3NpZ25lZCBzY3JpcHQgaXMgY2FsbGVkIGFuIGFzc2V0IHNjcmlwdC4ECXRl
+eHR0MTExMQkAuwkCCQDMCAIFBHN0cjEJAMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAl0ZXh0dDIyMjIJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQJdGV4dHQzMzMzCQC7CQIJAMwIAgUEc3RyMQkAzAgCBQRzdHIyCQDMCAIFBHN0cjMJAMwIAgUEc3RyNAUDbmlsAgMgJiAECXRleHR0NDQ0NAkAuwkCCQDMCAIFBHN0cjEJ
+AMwIAgUEc3RyMgkAzAgCBQRzdHIzCQDMCAIFBHN0cjQFA25pbAIDICYgBAl0ZXh0dDU1NTUJALsJAgkAzAgCBQRzdHIxCQDMCAIFBHN0cjIJAMwIAgUEc3RyMwkAzAgCBQRzdHI0BQNuaWwCAyAmIAQGYW1vdW50BAckbWF0Y2gwBQJ0eAMJAAECBQckbWF0Y2gwAhdJbnZva2VTY3JpcHRUcmFuc2FjdGlvbgQBaQUHJG1hdGNoMAAKAwkAAQIFByRtYXRjaDACD0J1cm5UcmFuc2FjdGlvbgQBYgUHJG1hdGNoMAAAAwkA
+AQIFByRtYXRjaDACE1RyYW5zZmVyVHJhbnNhY3Rpb24EAXQFByRtYXRjaDAIBQF0BmFtb3VudAMJAAECBQckbWF0Y2gwAhdNYXNzVHJhbnNmZXJUcmFuc2FjdGlvbgQBbQUHJG1hdGNoMAgFAW0LdG90YWxBbW91bnQAAAQHYW1vdW50dAQHJG1hdGNoMAUCdHgDCQABAgUHJG1hdGNoMAIXSW52b2tlU2NyaXB0VHJhbnNhY3Rpb24EAWkFByRtYXRjaDAACgMJAAECBQckbWF0Y2gwAg9CdXJuVHJhbnNhY3Rpb24EAWIF
+ByRtYXRjaDAAAAMJAAECBQckbWF0Y2gwAhNUcmFuc2ZlclRyYW5zYWN0aW9uBAF0BQckbWF0Y2gwCAUBdAZhbW91bnQDCQABAgUHJG1hdGNoMAIXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAW0FByRtYXRjaDAIBQFtC3RvdGFsQW1vdW50AAAEByRtYXRjaDAFAnR4AwkAAQIFByRtYXRjaDACF0ludm9rZVNjcmlwdFRyYW5zYWN0aW9uBAFpBQckbWF0Y2gwBgMJAAECBQckbWF0Y2gwAhJSZWlzc3VlVHJhbnNhY3Rp
+b24EAXIFByRtYXRjaDAGAwkAAQIFByRtYXRjaDACD0J1cm5UcmFuc2FjdGlvbgQBYgUHJG1hdGNoMAYDCQABAgUHJG1hdGNoMAITVHJhbnNmZXJUcmFuc2FjdGlvbgQBdAUHJG1hdGNoMAQBYQkApAgBCAUBdAlyZWNpcGllbnQDCQAAAgUBYQUBYQMDAwMDAwMDAwMDAwMDAwMDAwMDAwkA9AMDAQABAAEACQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0
+AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQD0AwMBAAEAAQAHCQDIEwMBAAEAAQAHCQDIEwMBAAEAAQAHCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuBtTZ
+Q5E=
