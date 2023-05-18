@@ -18,7 +18,7 @@ type ReissueTxSuite struct {
 }
 
 func (suite *ReissueTxSuite) Test_ReissuePositive() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 }
 
 func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -65,7 +65,7 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -103,7 +103,7 @@ func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -130,7 +130,7 @@ func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 }
 
 func (suite *ReissueTxSuite) Test_ReissueNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable

@@ -17,7 +17,7 @@ type AliasTxSuite struct {
 }
 
 func (suite *AliasTxSuite) Test_AliasPositive() {
-	versions := alias_utilities.GetVersions()
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
@@ -38,7 +38,7 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 }
 
 func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
-	versions := alias_utilities.GetVersions()
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -60,7 +60,7 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 }
 
 func (suite *AliasTxSuite) Test_AliasNegative() {
-	versions := alias_utilities.GetVersions()
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := false
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
@@ -82,7 +82,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 }
 
 func (suite *AliasTxSuite) Test_SameAliasNegative() {
-	versions := alias_utilities.GetVersions()
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -122,7 +122,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 }
 
 func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
-	versions := alias_utilities.GetVersions()
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	name := "Same alias for different accounts "
 	var idsCount = 2
