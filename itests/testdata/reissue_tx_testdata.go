@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	ReissueMinVersion = 2
 	ReissueMaxVersion = 3
 )
 

@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	AliasMinVersion       = 1
 	AliasMaxVersion       = 3
 	AliasSymbolSet        = "abcdefghijklmnopqrstuvwxyz0123456789.-_@"
 	AliasInvalidSymbolSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ~!|#$%^&*()+=;:/?><|][{}\\\""

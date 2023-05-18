@@ -18,7 +18,7 @@ type SponsorshipTxSuite struct {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -67,7 +67,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	waitForTx := true
 	for _, v := range versions {
@@ -101,7 +101,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
-	versions := sponsor_utilities.GetVersions()
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -123,6 +123,33 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
 			})
 		}
+		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	}
+}
+
+func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
+	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
+	waitForTx := true
+	for _, v := range versions {
+		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, v, waitForTx)
+		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
+		name := "Check sponsorship for smart asset"
+		txIds := make(map[string]*crypto.Digest)
+
+		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.SendSponsorshipTxAndGetBalances(
+				&suite.BaseSuite, td, v, !waitForTx)
+			txIds[name] = &tx.TxID
+
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+				tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+		})
 		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}

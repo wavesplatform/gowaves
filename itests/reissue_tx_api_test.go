@@ -19,7 +19,7 @@ type ReissueTxApiSuite struct {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -43,7 +43,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -67,7 +67,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -113,7 +113,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -145,7 +145,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
-	versions := reissue_utilities.GetVersions()
+	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
