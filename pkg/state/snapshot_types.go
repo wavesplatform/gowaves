@@ -106,13 +106,13 @@ type StaticAssetInfoSnapshot struct {
 
 func (*StaticAssetInfoSnapshot) atomicSnapshotMarker() {}
 
-type AssetReissuabilitySnapshot struct { // AssetVolume in pb
+type AssetVolumeSnapshot struct { // AssetVolume in pb
 	AssetID       crypto.Digest
 	TotalQuantity big.Int // volume in protobuf
 	IsReissuable  bool
 }
 
-func (*AssetReissuabilitySnapshot) atomicSnapshotMarker() {}
+func (*AssetVolumeSnapshot) atomicSnapshotMarker() {}
 
 type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	AssetID          crypto.Digest
