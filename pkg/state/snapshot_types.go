@@ -38,7 +38,7 @@ type DataEntriesSnapshot struct { // AccountData in pb
 func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
 
 type AccountScriptSnapshot struct {
-	PublicKey          crypto.PublicKey
+	SenderPublicKey    crypto.PublicKey
 	Script             proto.Script
 	VerifierComplexity uint64
 }
@@ -99,7 +99,7 @@ func (*FilledVolumeFeeSnapshot) atomicSnapshotMarker() {}
 type StaticAssetInfoSnapshot struct {
 	AssetID             crypto.Digest
 	SourceTransactionID crypto.Digest
-	Issuer              proto.WavesAddress
+	IssuerPublicKey     crypto.PublicKey
 	Decimals            uint8
 	IsNFT               bool
 }
