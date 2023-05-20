@@ -26,14 +26,15 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 					&suite.BaseSuite, td, v, waitForTx)
 
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-					utl.GetTestcaseNameWithVersion(name, v), tx.TxID.String())
+					"Issue smart asset:"+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Issue smart asset:"+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Issue smart asset:"+tx.TxID.String())
 
 				assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
-				utl.AssetScriptCheck(suite.T(), td.Script, assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes)
+				utl.AssetScriptCheck(suite.T(), td.Script, assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes,
+					"Issue smart asset:"+tx.TxID.String())
 			})
 		}
 	}
@@ -53,16 +54,16 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+					tx.WtErr.ErrWtScala, "Issue smart asset:"+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Issue smart asset:"+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Issue smart asset:"+tx.TxID.String())
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestIssueSmartAssetSuite(t *testing.T) {

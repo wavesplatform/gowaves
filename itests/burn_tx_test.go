@@ -30,12 +30,11 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String(),
-					utl.GetTestcaseNameWithVersion(name, v))
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Burn: "+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Burn: "+tx.TxID.String())
 			})
 		}
 	}
@@ -55,12 +54,11 @@ func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String(),
-					utl.GetTestcaseNameWithVersion(name, v))
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Burn: "+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Burn: "+tx.TxID.String())
 			})
 		}
 	}
@@ -81,19 +79,17 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 				//transfer NFT from Account 2 to Account 3
 				ttx := transfer_utilities.TransferSendWithTestData(&suite.BaseSuite, transferNFT, v, waitForTx)
 
-				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
-					"Transfer: "+ttx.TxID.String(), utl.GetTestcaseNameWithVersion(name, v))
+				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala, "Transfer: "+ttx.TxID.String())
 
 				//burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String(),
-					utl.GetTestcaseNameWithVersion(name, v))
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Burn: "+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Burn: "+tx.TxID.String())
 			})
 		}
 	}
@@ -102,6 +98,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 func (suite *BurnTxSuite) Test_BurnTxNegative() {
 	versions := burn_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
@@ -110,7 +107,6 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 		if v >= 2 {
 			maps.Copy(tdmatrix, testdata.GetBurnChainIDNegativeDataMatrix(&suite.BaseSuite, itx.TxID))
 		}
-		txIds := make(map[string]*crypto.Digest)
 		for name, td := range tdmatrix {
 			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.SendBurnTxAndGetBalances(
@@ -118,16 +114,16 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+					tx.WtErr.ErrWtScala, "Burn: "+tx.TxID.String())
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, "Burn: "+tx.TxID.String())
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, "Burn: "+tx.TxID.String())
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestBurnTxSuite(t *testing.T) {
