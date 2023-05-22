@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
@@ -23,13 +24,14 @@ const (
 )
 
 type checkerInfo struct {
-	currentTimestamp uint64
-	parentTimestamp  uint64
-	blockID          proto.BlockID
-	blockVersion     proto.BlockVersion
-	height           uint64
-	rideV5Activated  bool
-	rideV6Activated  bool
+	currentTimestamp        uint64
+	parentTimestamp         uint64
+	blockID                 proto.BlockID
+	blockVersion            proto.BlockVersion
+	height                  uint64
+	rideV5Activated         bool
+	rideV6Activated         bool
+	blockRewardDistribution bool
 }
 
 func (i *checkerInfo) estimatorVersion() int {
@@ -398,11 +400,15 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errs.Extend(err, "invalid timestamp in ethereum transaction")
 	}
 
+	needToValidateNonEmptyCallData := info.blockRewardDistribution
 	var smartAssets []crypto.Digest
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		if tx.Value() == nil {
 			return nil, errors.New("amount of ethereum transfer waves is nil")
+		}
+		if l := len(tx.Data()); l != 0 {
+			return nil, errors.Errorf("ethereum call data must be empty for waves transfer, but size is %d", l)
 		}
 		res, err := proto.EthereumWeiToWavelet(tx.Value())
 		if err != nil {
@@ -415,6 +421,10 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if kind.Arguments.Amount == 0 {
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
+		if l := len(tx.Data()); needToValidateNonEmptyCallData && l != ethabi.ERC20TransferCallDataSize {
+			return nil, errors.Errorf("ethereum call data must be %d size for assset transfer, but size is %d",
+				ethabi.ERC20TransferCallDataSize, l)
+		}
 		allAssets := []proto.OptionalAsset{kind.Asset}
 		smartAssets, err = tc.smartAssets(allAssets)
 		if err != nil {
@@ -422,11 +432,20 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 	case *proto.EthereumInvokeScriptTxKind:
 		var (
-			decodedData = tx.TxKind.DecodedData()
+			decodedData = kind.DecodedData()
 			abiPayments = decodedData.Payments
 		)
-		if len(abiPayments) > 10 {
+		if len(abiPayments) > maxPaymentsCountSinceRideV5Activation {
 			return nil, errors.New("no more than 10 payments is allowed since RideV5 activation")
+		}
+		if needToValidateNonEmptyCallData {
+			dApp, err := tx.To().ToWavesAddress(tc.settings.AddressSchemeCharacter)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to convert eth addr %q to waves addr", tx.To().String())
+			}
+			if err := kind.ValidateCallData(dApp); err != nil {
+				return nil, errors.Wrap(err, "failed to validate callData")
+			}
 		}
 
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
@@ -1312,6 +1331,8 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	return smartAssets, nil
 }
 
+const maxPaymentsCountSinceRideV5Activation = 10
+
 func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
@@ -1344,7 +1365,7 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 		return nil, errors.New("no more than one payment is allowed")
 	case l > 2 && multiPaymentActivated && !rideV5activated:
 		return nil, errors.New("no more than two payments is allowed")
-	case l > 10 && rideV5activated:
+	case l > maxPaymentsCountSinceRideV5Activation && rideV5activated:
 		return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 	}
 	var paymentAssets []proto.OptionalAsset

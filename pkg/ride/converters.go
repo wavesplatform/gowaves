@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -893,51 +892,6 @@ func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionT
 	), nil
 }
 
-func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
-	var arg proto.Argument
-	switch m := decodedArg.(type) {
-	case rideInt:
-		arg = &proto.IntegerArgument{Value: int64(m)}
-	case rideBoolean:
-		arg = &proto.BooleanArgument{Value: bool(m)}
-	case rideByteVector:
-		arg = &proto.BinaryArgument{Value: m}
-	case rideString:
-		arg = &proto.StringArgument{Value: string(m)}
-	case rideList:
-		var miniArgs proto.Arguments
-		for _, v := range m {
-			a, err := ConvertEthereumRideArgumentsToSpecificArgument(v)
-			if err != nil {
-				return nil, err
-			}
-			miniArgs = append(miniArgs, a)
-		}
-		arg = &proto.ListArgument{Items: miniArgs}
-	default:
-		return nil, EvaluationFailure.New("unknown argument type")
-	}
-
-	return arg, nil
-}
-
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
-	var arguments []proto.Argument
-	for _, decodedArg := range decodedArgs {
-		value, err := ethABIDataTypeToRideType(decodedArg.Value)
-		if err != nil {
-			return nil, EvaluationFailure.Errorf("failed to convert data type to ride type %v", err)
-		}
-		arg, err := ConvertEthereumRideArgumentsToSpecificArgument(value)
-		if err != nil {
-			return nil, err
-		}
-		arguments = append(arguments, arg)
-
-	}
-	return arguments, nil
-}
-
 func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
@@ -1009,17 +963,13 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
-		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
+		arguments, err := proto.ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}
-		args := make(rideList, len(arguments))
-		for i, arg := range arguments {
-			a, err := convertArgument(arg)
-			if err != nil {
-				return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
-			}
-			args[i] = a
+		args, err := convertProtoArguments(arguments)
+		if err != nil {
+			return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 		}
 		switch ver {
 		case ast.LibV1, ast.LibV2, ast.LibV3:

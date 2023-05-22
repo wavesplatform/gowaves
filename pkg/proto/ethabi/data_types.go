@@ -48,7 +48,7 @@ func (b Bool) EncodeToABI() []byte {
 func (s String) EncodeToABI() []byte {
 	l := len(s)
 	strSlots := l / abiSlotSize
-	if l-strSlots*abiSlotSize > 0 { // division rem
+	if l%abiSlotSize != 0 { // doesn't fit in strSlots
 		strSlots += 1 // add slot
 	}
 	var (

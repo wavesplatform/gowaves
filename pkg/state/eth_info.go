@@ -53,11 +53,10 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 	case EthereumTransferWavesKind:
 		return proto.NewEthereumTransferWavesTxKind(), nil
 	case EthereumTransferAssetsKind:
-
 		db := ethabi.NewErc20MethodsMap()
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		decodedData, err := db.ParseCallDataRide(ethTx.Data(), params.blockRewardDistributionActivated)
 		if err != nil {
-			return nil, errors.Errorf("failed to parse ethereum data")
+			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}
 		if len(decodedData.Inputs) != ethabi.NumberOfERC20TransferArguments {
 			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20TransferArguments)
@@ -87,7 +86,7 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		if err != nil {
 			return nil, err
 		}
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		decodedData, err := db.ParseCallDataRide(ethTx.Data(), params.blockRewardDistributionActivated)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}

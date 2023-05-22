@@ -5015,6 +5015,170 @@ func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
 	require.EqualError(t, err, "reentrantInvoke: failed to apply attached payments: failed to validate total actions count: number of attached payments (101) produced by script is more than allowed 100")
 }
 
+func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistribution(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	dApp3 := newTestAccount(t, "DAPP3")   // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp2 = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1') # V6 script produces 10 transfer actions
+	let dApp3 = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh') # V5 script produces no actions
+
+	@Callable(i)
+	func call() = {
+	  strict a1 = invoke(dApp2,  "call", [], []) # 10 actions
+	  strict b1 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a2 = invoke(dApp2,  "call", [], []) # 20 actions
+	  strict b2 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a3 = invoke(dApp2,  "call", [], []) # 30 actions
+	  strict b3 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict a4 = invoke(dApp2,  "call", [], []) # 40 actions
+	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  []
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "BgIECAISAAIABWRBcHAyCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAVkQXBwMwkBB0FkZHJlc3MBARoBVHrvJZrEY3NpLnBpk6ugJuX5CI8UJdzjLgEBaQEEY2FsbAAEAmExCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMQUCYTEEAmIxCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMQUCYjEEAmEyCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMgUCYTIEAmIyCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMgUCYjIEAmEzCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMwUCYTMEAmIzCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMwUCYjMEAmE0CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNAUCYTQEAmI0CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNAUCYjQFA25pbAkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgCZPou1")
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = [
+		ScriptTransfer(i.caller, 1, unit),
+		ScriptTransfer(i.caller, 2, unit),
+		ScriptTransfer(i.caller, 3, unit),
+		ScriptTransfer(i.caller, 4, unit),
+		ScriptTransfer(i.caller, 5, unit),
+		ScriptTransfer(i.caller, 6, unit),
+		ScriptTransfer(i.caller, 7, unit),
+		ScriptTransfer(i.caller, 8, unit),
+		ScriptTransfer(i.caller, 9, unit),
+		ScriptTransfer(i.caller, 10, unit)
+	]
+	*/
+	_, tree2 := parseBase64Script(t, "BgIECAISAAABAWkBBGNhbGwACQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0BQNuaWwAdHE1Mw==")
+
+	/* On dApp3 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = []
+	*/
+	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 2000).
+		withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withAdditionalDApp(dApp3).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
+		withWrappedState().withBlockRewardDistribution()
+
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+	assert.NotNil(t, res)
+	assert.NoError(t, err)
+}
+
+func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistributionFailed(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	dApp3 := newTestAccount(t, "DAPP3")   // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp2 = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1') # V6 script produces 10 transfer actions
+	let dApp3 = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh') # V5 script produces no actions
+
+	@Callable(i)
+	func call() = {
+	  strict a1 = invoke(dApp2,  "call", [], [])
+	  strict b1 = invoke(dApp3,  "call", [], [])
+	  strict a2 = invoke(dApp2,  "call", [], [])
+	  strict b2 = invoke(dApp3,  "call", [], [])
+	  strict a3 = invoke(dApp2,  "call", [], [])
+	  strict b3 = invoke(dApp3,  "call", [], [])
+	  strict a4 = invoke(dApp2,  "call", [], [])
+	  strict b4 = invoke(dApp3,  "call", [], [])
+	  strict a5 = invoke(dApp2,  "call", [], [])
+	  strict b5 = invoke(dApp3,  "call", [], [])
+	  strict a6 = invoke(dApp2,  "call", [], [])
+	  strict b6 = invoke(dApp3,  "call", [], [])
+	  strict a7 = invoke(dApp2,  "call", [], [])
+	  strict b7 = invoke(dApp3,  "call", [], [])
+	  strict a8 = invoke(dApp2,  "call", [], [])
+	  strict b8 = invoke(dApp3,  "call", [], [])
+	  strict a9 = invoke(dApp2,  "call", [], [])
+	  strict b9 = invoke(dApp3,  "call", [], [])
+	  strict a10 = invoke(dApp2,  "call", [], [])
+	  strict b10 = invoke(dApp3,  "call", [], [])
+	  strict a11 = invoke(dApp2,  "call", [], [])
+	  strict b11 = invoke(dApp3,  "call", [], [])
+	  []
+	}
+	*/
+	_, tree1 := parseBase64Script(t, "BgIECAISAAIABWRBcHAyCQEHQWRkcmVzcwEBGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAVkQXBwMwkBB0FkZHJlc3MBARoBVHrvJZrEY3NpLnBpk6ugJuX5CI8UJdzjLgEBaQEEY2FsbAAEAmExCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMQUCYTEEAmIxCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMQUCYjEEAmEyCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMgUCYTIEAmIyCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMgUCYjIEAmEzCQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhMwUCYTMEAmIzCQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiMwUCYjMEAmE0CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNAUCYTQEAmI0CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNAUCYjQEAmE1CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNQUCYTUEAmI1CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNQUCYjUEAmE2CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNgUCYTYEAmI2CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNgUCYjYEAmE3CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhNwUCYTcEAmI3CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiNwUCYjcEAmE4CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhOAUCYTgEAmI4CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiOAUCYjgEAmE5CQD8BwQFBWRBcHAyAgRjYWxsBQNuaWwFA25pbAMJAAACBQJhOQUCYTkEAmI5CQD8BwQFBWRBcHAzAgRjYWxsBQNuaWwFA25pbAMJAAACBQJiOQUCYjkEA2ExMAkA/AcEBQVkQXBwMgIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDYTEwBQNhMTAEA2IxMAkA/AcEBQVkQXBwMwIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDYjEwBQNiMTAEA2ExMQkA/AcEBQVkQXBwMgIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDYTExBQNhMTEEA2IxMQkA/AcEBQVkQXBwMwIEY2FsbAUDbmlsBQNuaWwDCQAAAgUDYjExBQNiMTEFA25pbAkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkAAgECJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgBfLydR")
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = [
+		ScriptTransfer(i.caller, 1, unit),
+		ScriptTransfer(i.caller, 2, unit),
+		ScriptTransfer(i.caller, 3, unit),
+		ScriptTransfer(i.caller, 4, unit),
+		ScriptTransfer(i.caller, 5, unit),
+		ScriptTransfer(i.caller, 6, unit),
+		ScriptTransfer(i.caller, 7, unit),
+		ScriptTransfer(i.caller, 8, unit),
+		ScriptTransfer(i.caller, 9, unit),
+		ScriptTransfer(i.caller, 10, unit)
+	]
+	*/
+	_, tree2 := parseBase64Script(t, "BgIECAISAAABAWkBBGNhbGwACQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgABBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgACBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgADBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAEBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAFBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAGBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAHBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAIBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAJBQR1bml0CQDMCAIJAQ5TY3JpcHRUcmFuc2ZlcgMIBQFpBmNhbGxlcgAKBQR1bml0BQNuaWwAdHE1Mw==")
+
+	/* On dApp3 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = []
+	*/
+	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 2000).
+		withBlockV5Activated().withProtobufTx().
+		withDataEntriesSizeV2().withMessageLengthV3().
+		withValidateInternalPayments().withThis(dApp1).
+		withDApp(dApp1).withAdditionalDApp(dApp2).withAdditionalDApp(dApp3).withSender(sender).
+		withInvocation("call").
+		withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
+		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
+		withWrappedState().withBlockRewardDistribution()
+
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+	assert.Nil(t, res)
+	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100")
+}
+
 func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1

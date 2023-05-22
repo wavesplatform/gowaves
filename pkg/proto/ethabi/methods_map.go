@@ -39,7 +39,7 @@ type MethodsMap struct {
 
 func NewErc20MethodsMap() MethodsMap {
 	return MethodsMap{
-		methods:       erc20Methods,
+		methods:       methods,
 		parsePayments: false,
 	}
 }
@@ -76,7 +76,7 @@ func (mm MethodsMap) MethodBySelector(id Selector) (Method, error) {
 	return Method{}, fmt.Errorf("signature %q not found", id.String())
 }
 
-func (mm MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
+func (mm MethodsMap) ParseCallDataRide(data []byte, sanityChecksEnabled bool) (*DecodedCallData, error) {
 	// If the data is empty, we have a plain value transfer, nothing more to do
 	if len(data) == 0 {
 		return nil, errors.New("transaction doesn't contain data")
@@ -85,19 +85,25 @@ func (mm MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 	if len(data) < SelectorSize {
 		return nil, errors.New("transaction data is not valid ABI: missing the 4 byte call prefix")
 	}
-	if n := len(data) - SelectorSize; n%32 != 0 {
+	if n := len(data) - SelectorSize; sanityChecksEnabled && n%abiSlotSize != 0 {
 		return nil, errors.Errorf("transaction data is not valid ABI (length should be a multiple of 32 (was %d))", n)
 	}
-	var selector Selector
-	copy(selector[:], data[:SelectorSize])
+	selector, err := NewSelectorFromBytes(data[:SelectorSize])
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse selector")
+	}
 	method, err := mm.MethodBySelector(selector)
 	if err != nil {
-		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
+		return nil, errors.Errorf("transaction contains data, but the ABI signature could not be found: %v", err)
 	}
 
-	info, err := parseArgDataToRideTypes(&method, data[SelectorSize:], mm.parsePayments)
+	argsData := data[SelectorSize:]
+	info, slotsReadTotal, err := parseArgDataToRideTypes(&method, argsData, mm.parsePayments)
 	if err != nil {
-		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
+		return nil, errors.Errorf("transaction contains data, but provided ABI signature could not be verified: %v", err)
+	}
+	if readData := slotsReadTotal * abiSlotSize; sanityChecksEnabled && readData != len(argsData) {
+		return nil, errors.Errorf("transaction abi contains garbage data: read %d, len %d", readData, len(argsData))
 	}
 	return info, nil
 }
@@ -140,18 +146,20 @@ func (da *DecodedArg) InternalType() byte {
 	return byte(da.Soltype.Type.T)
 }
 
-func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
-	values, paymentsOffset, err := method.Inputs.UnpackRideValues(argData)
+func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (_ *DecodedCallData, slotsReadTotal int, _ error) {
+	values, paymentsIndex, slotsReadTotal, err := method.Inputs.UnpackRideValues(argData)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
+		return nil, 0, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
 
 	var payments []Payment
 	if parsePayments {
-		payments, err = unpackPayments(paymentsOffset, argData)
+		var paymentsSlotsRead int
+		payments, paymentsSlotsRead, err = unpackPayments(paymentsIndex, argData)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to unpack payments")
+			return nil, 0, errors.Wrap(err, "failed to unpack payments")
 		}
+		slotsReadTotal += paymentsSlotsRead
 	}
 
 	decodedInputs := make([]DecodedArg, len(method.Inputs))
@@ -164,5 +172,5 @@ func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool)
 		Inputs:    decodedInputs,
 		Payments:  payments,
 	}
-	return &decoded, nil
+	return &decoded, slotsReadTotal, nil
 }
