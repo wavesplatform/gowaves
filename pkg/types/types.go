@@ -71,6 +71,7 @@ type SmartState interface {
 	NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+	BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error)
 
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool

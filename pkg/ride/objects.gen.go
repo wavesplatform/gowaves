@@ -109,6 +109,7 @@ const (
 	recipientField             = "recipient"
 	regularField               = "regular"
 	reissuableField            = "reissuable"
+	rewardsField               = "rewards"
 	scriptField                = "script"
 	scriptedField              = "scripted"
 	sellMatcherFeeField        = "sellMatcherFee"
@@ -797,6 +798,113 @@ func (o rideBlockInfoV4) lines() []string {
 }
 
 func (o rideBlockInfoV4) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+type rideBlockInfoV7 struct {
+	vrf                 rideType
+	generationSignature rideByteVector
+	generatorPublicKey  rideByteVector
+	baseTarget          rideInt
+	timestamp           rideInt
+	height              rideInt
+	generator           rideAddress
+	rewards             rideList
+}
+
+func newRideBlockInfoV7(vrf rideType, generationSignature rideByteVector, generatorPublicKey rideByteVector, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress, rewards rideList) rideBlockInfoV7 {
+	return rideBlockInfoV7{
+		vrf:                 vrf,
+		generationSignature: generationSignature,
+		generatorPublicKey:  generatorPublicKey,
+		baseTarget:          baseTarget,
+		timestamp:           timestamp,
+		height:              height,
+		generator:           generator,
+		rewards:             rewards,
+	}
+}
+
+func (o rideBlockInfoV7) instanceOf() string {
+	return "BlockInfo"
+}
+
+func (o rideBlockInfoV7) eq(other rideType) bool {
+	if oo, ok := other.(rideBlockInfoV7); ok {
+		if !o.vrf.eq(oo.vrf) {
+			return false
+		}
+		if !o.generationSignature.eq(oo.generationSignature) {
+			return false
+		}
+		if !o.generatorPublicKey.eq(oo.generatorPublicKey) {
+			return false
+		}
+		if !o.baseTarget.eq(oo.baseTarget) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.height.eq(oo.height) {
+			return false
+		}
+		if !o.generator.eq(oo.generator) {
+			return false
+		}
+		if !o.rewards.eq(oo.rewards) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideBlockInfoV7) get(prop string) (rideType, error) {
+	switch prop {
+	case "$instance":
+		return rideString("BlockInfo"), nil
+	case "vrf":
+		return o.vrf, nil
+	case "generationSignature":
+		return o.generationSignature, nil
+	case "generatorPublicKey":
+		return o.generatorPublicKey, nil
+	case "baseTarget":
+		return o.baseTarget, nil
+	case "timestamp":
+		return o.timestamp, nil
+	case "height":
+		return o.height, nil
+	case "generator":
+		return o.generator, nil
+	case "rewards":
+		return o.rewards, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideBlockInfoV7) copy() rideType {
+	return newRideBlockInfoV7(o.vrf, o.generationSignature, o.generatorPublicKey, o.baseTarget, o.timestamp, o.height, o.generator, o.rewards)
+}
+
+func (o rideBlockInfoV7) lines() []string {
+	r := make([]string, 0, 10)
+	r = append(r, "BlockInfo(")
+	r = append(r, fieldLines("baseTarget", o.baseTarget.lines())...)
+	r = append(r, fieldLines("generator", o.generator.lines())...)
+	r = append(r, fieldLines("timestamp", o.timestamp.lines())...)
+	r = append(r, fieldLines("vrf", o.vrf.lines())...)
+	r = append(r, fieldLines("height", o.height.lines())...)
+	r = append(r, fieldLines("generationSignature", o.generationSignature.lines())...)
+	r = append(r, fieldLines("generatorPublicKey", o.generatorPublicKey.lines())...)
+	r = append(r, fieldLines("rewards", o.rewards.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideBlockInfoV7) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 

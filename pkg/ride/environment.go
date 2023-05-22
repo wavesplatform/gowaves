@@ -342,6 +342,10 @@ func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.He
 	return ws.diff.state.BlockVRF(blockHeader, height)
 }
 
+func (ws *WrappedState) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+	return ws.diff.state.BlockRewards(blockHeader, height)
+}
+
 func (ws *WrappedState) EstimatorVersion() (int, error) {
 	return ws.diff.state.EstimatorVersion()
 }

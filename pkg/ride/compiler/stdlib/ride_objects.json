@@ -8,82 +8,61 @@
           "fields": [
             {
               "name": "description",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 9
             },
             {
               "name": "name",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 8,
               "constructorOrder": 8
             },
             {
               "name": "issuerPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 4
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 0
             },
             {
               "name": "minSponsoredFee",
-              "types": [
-                "Int",
-                "Unit"
-              ],
+              "type": "Int|Unit",
               "order": 4,
               "constructorOrder": 7
             },
             {
               "name": "decimals",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 2
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 1
             },
             {
               "name": "issuer",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 1,
               "constructorOrder": 3
             },
             {
               "name": "reissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 7,
               "constructorOrder": 5
             },
             {
               "name": "scripted",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 2,
               "constructorOrder": 6
             }
@@ -94,65 +73,49 @@
           "fields": [
             {
               "name": "issuerPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 4
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 0
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 1
             },
             {
               "name": "decimals",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "issuer",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "scripted",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 1,
               "constructorOrder": 6
             },
             {
               "name": "sponsored",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 7,
               "constructorOrder": 7
             },
             {
               "name": "reissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 5,
               "constructorOrder": 5
             }
@@ -168,19 +131,13 @@
           "fields": [
             {
               "name": "amountAsset",
-              "types": [
-                "Unit",
-                "ByteVector"
-              ],
+              "type": "Unit|ByteVector",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "priceAsset",
-              "types": [
-                "Unit",
-                "ByteVector"
-              ],
+              "type": "Unit|ByteVector",
               "order": 1,
               "constructorOrder": 1
             }
@@ -196,18 +153,13 @@
           "fields": [
             {
               "name": "assetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -223,33 +175,25 @@
           "fields": [
             {
               "name": "available",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "regular",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             },
             {
               "name": "generating",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "effective",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 3
             }
@@ -265,17 +209,13 @@
           "fields": [
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "value",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 1
             }
@@ -291,49 +231,37 @@
           "fields": [
             {
               "name": "generationSignature",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "generatorPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 5
             },
             {
               "name": "baseTarget",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 2
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "height",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 1
             },
             {
               "name": "generator",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 1,
               "constructorOrder": 4
             }
@@ -344,60 +272,98 @@
           "fields": [
             {
               "name": "vrf",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 6
             },
             {
               "name": "generationSignature",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "generatorPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 5
             },
             {
               "name": "baseTarget",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 2
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "height",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 1
             },
             {
               "name": "generator",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 1,
               "constructorOrder": 4
+            }
+          ]
+        },
+        {
+          "version": 7,
+          "fields": [
+            {
+              "name": "vrf",
+              "type": "ByteVector|Unit",
+              "order": 3,
+              "constructorOrder": 6
+            },
+            {
+              "name": "generationSignature",
+              "type": "ByteVector",
+              "order": 5,
+              "constructorOrder": 3
+            },
+            {
+              "name": "generatorPublicKey",
+              "type": "ByteVector",
+              "order": 6,
+              "constructorOrder": 5
+            },
+            {
+              "name": "baseTarget",
+              "type": "Int",
+              "order": 0,
+              "constructorOrder": 2
+            },
+            {
+              "name": "timestamp",
+              "type": "Int",
+              "order": 2,
+              "constructorOrder": 0
+            },
+            {
+              "name": "height",
+              "type": "Int",
+              "order": 4,
+              "constructorOrder": 1
+            },
+            {
+              "name": "generator",
+              "type": "Address",
+              "order": 1,
+              "constructorOrder": 4
+            },
+            {
+              "name": "rewards",
+              "type": "List[(Address,Int)]",
+              "order": 7,
+              "constructorOrder": 7
             }
           ]
         }
@@ -411,17 +377,13 @@
           "fields": [
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "value",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 1,
               "constructorOrder": 1
             }
@@ -437,17 +399,13 @@
           "fields": [
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -464,20 +422,13 @@
           "fields": [
             {
               "name": "value",
-              "types": [
-                "Int",
-                "ByteVector",
-                "Boolean",
-                "String"
-              ],
+              "type": "Int|ByteVector|Boolean|String",
               "order": 1,
               "constructorOrder": 1
             },
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             }
@@ -493,9 +444,7 @@
           "fields": [
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             }
@@ -511,17 +460,13 @@
           "fields": [
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "value",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -537,51 +482,37 @@
           "fields": [
             {
               "name": "payment",
-              "types": [
-                "AttachedPayment",
-                "Unit"
-              ],
+              "type": "AttachedPayment|Unit",
               "order": 1,
               "constructorOrder": 0
             },
             {
               "name": "callerPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "transactionId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "caller",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 1
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 7,
               "constructorOrder": 4
             }
@@ -592,50 +523,37 @@
           "fields": [
             {
               "name": "payments",
-              "types": [
-                "List[AttachedPayment]"
-              ],
+              "type": "List[AttachedPayment]",
               "order": 1,
               "constructorOrder": 0
             },
             {
               "name": "callerPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "transactionId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "caller",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 1
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 7,
               "constructorOrder": 4
             }
@@ -646,67 +564,49 @@
           "fields": [
             {
               "name": "originCaller",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 0,
               "constructorOrder": 6
             },
             {
               "name": "payments",
-              "types": [
-                "List[AttachedPayment]"
-              ],
+              "type": "List[AttachedPayment]",
               "order": 1,
               "constructorOrder": 0
             },
             {
               "name": "callerPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "originCallerPublicKey",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 4,
               "constructorOrder": 7
             },
             {
               "name": "transactionId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "caller",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 1
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 7,
               "constructorOrder": 4
             }
@@ -722,58 +622,43 @@
           "fields": [
             {
               "name": "compiledScript",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 4,
               "constructorOrder": 5
             },
             {
               "name": "name",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 5,
               "constructorOrder": 0
             },
             {
               "name": "description",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 2,
               "constructorOrder": 1
             },
             {
               "name": "nonce",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 6
             },
             {
               "name": "decimals",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 3
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 2
             },
             {
               "name": "isReissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 0,
               "constructorOrder": 4
             }
@@ -789,9 +674,7 @@
           "fields": [
             {
               "name": "leaseId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 0,
               "constructorOrder": 0
             }
@@ -807,27 +690,19 @@
           "fields": [
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             },
             {
               "name": "nonce",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 2
             }
@@ -843,114 +718,85 @@
           "fields": [
             {
               "name": "assetPair",
-              "types": [
-                "Type"
-              ],
+              "type": "Type",
               "order": 0,
               "constructorOrder": 2
             },
             {
               "name": "orderType",
-              "types": [
-                "Type"
-              ],
+              "type": "Type",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "matcherFeeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 4,
               "constructorOrder": 9
             },
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 10,
               "constructorOrder": 13
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 12
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 0
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 11
             },
             {
               "name": "matcherPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 7,
               "constructorOrder": 1
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 6
             },
             {
               "name": "expiration",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 11,
               "constructorOrder": 7
             },
             {
               "name": "matcherFee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 12,
               "constructorOrder": 8
             },
             {
               "name": "price",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 13,
               "constructorOrder": 4
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 8,
               "constructorOrder": 10
             }
@@ -967,25 +813,19 @@
           "fields": [
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             },
             {
               "name": "isReissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 2,
               "constructorOrder": 2
             }
@@ -1002,17 +842,13 @@
           "fields": [
             {
               "name": "writeSet",
-              "types": [
-                "WriteSet"
-              ],
+              "type": "WriteSet",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "transferSet",
-              "types": [
-                "TransferSet"
-              ],
+              "type": "TransferSet",
               "order": 1,
               "constructorOrder": 1
             }
@@ -1028,28 +864,19 @@
           "fields": [
             {
               "name": "asset",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -1065,17 +892,13 @@
           "fields": [
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "minSponsoredAssetFee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -1091,17 +914,13 @@
           "fields": [
             {
               "name": "key",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "value",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 1,
               "constructorOrder": 1
             }
@@ -1117,19 +936,13 @@
           "fields": [
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 1
             }
@@ -1146,9 +959,7 @@
           "fields": [
             {
               "name": "transfers",
-              "types": [
-                "List[ScriptTransfer]"
-              ],
+              "type": "List[ScriptTransfer]",
               "order": 0,
               "constructorOrder": 0
             }
@@ -1165,9 +976,7 @@
           "fields": [
             {
               "name": "data",
-              "types": [
-                "List[DataEntry]"
-              ],
+              "type": "List[DataEntry]",
               "order": 0,
               "constructorOrder": 0
             }
@@ -1183,81 +992,61 @@
           "fields": [
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 8
             },
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 9
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 7
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 2
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 4
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 5
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 6
             }
@@ -1274,73 +1063,55 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 5,
               "constructorOrder": 8
             },
             {
               "name": "alias",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 7,
               "constructorOrder": 0
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 1
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 6
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 2
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 4
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 4,
               "constructorOrder": 5
             }
@@ -1357,73 +1128,55 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 7,
               "constructorOrder": 8
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 1
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 6
             },
             {
               "name": "data",
-              "types": [
-                "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]"
-              ],
+              "type": "List[BinaryEntry|BooleanEntry|DeleteEntry|IntegerEntry|StringEntry]",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 4
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 2
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 5
             }
@@ -1440,113 +1193,85 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 12,
               "constructorOrder": 13
             },
             {
               "name": "buyOrder",
-              "types": [
-                "Type"
-              ],
+              "type": "Type",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "sellOrder",
-              "types": [
-                "Type"
-              ],
+              "type": "Type",
               "order": 7,
               "constructorOrder": 1
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 6
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 12
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 8,
               "constructorOrder": 11
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 8
             },
             {
               "name": "price",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 2
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 3
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 5,
               "constructorOrder": 9
             },
             {
               "name": "buyMatcherFee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 4
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 11,
               "constructorOrder": 7
             },
             {
               "name": "sellMatcherFee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 13,
               "constructorOrder": 5
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 10,
               "constructorOrder": 10
             }
@@ -1563,51 +1288,37 @@
           "fields": [
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 1
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 4
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 5,
               "constructorOrder": 3
             }
@@ -1623,82 +1334,61 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 9
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 2,
               "constructorOrder": 1
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 8
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "expression",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 0
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 7
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 4
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 6
             }
@@ -1715,109 +1405,79 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 5,
               "constructorOrder": 12
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "dApp",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 7,
               "constructorOrder": 0
             },
             {
               "name": "function",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 10,
               "constructorOrder": 2
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 10
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 4
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 9,
               "constructorOrder": 9
             },
             {
               "name": "payment",
-              "types": [
-                "AttachedPayment",
-                "Unit"
-              ],
+              "type": "AttachedPayment|Unit",
               "order": 0,
               "constructorOrder": 11
             },
             {
               "name": "args",
-              "types": [
-                "List[Boolean|ByteVector|Int|List[Boolean|ByteVector|Int|String]|String]"
-              ],
+              "type": "List[Boolean|ByteVector|Int|List[Boolean|ByteVector|Int|String]|String]",
               "order": 12,
               "constructorOrder": 3
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 6
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 5
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 7
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 11,
               "constructorOrder": 8
             }
@@ -1829,108 +1489,79 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 5,
               "constructorOrder": 12
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "dApp",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 7,
               "constructorOrder": 0
             },
             {
               "name": "function",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 10,
               "constructorOrder": 2
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 10
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 4
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 9,
               "constructorOrder": 9
             },
             {
               "name": "payments",
-              "types": [
-                "List[AttachedPayment]"
-              ],
+              "type": "List[AttachedPayment]",
               "order": 0,
               "constructorOrder": 11
             },
             {
               "name": "args",
-              "types": [
-                "List[Boolean|ByteVector|Int|List[Boolean|ByteVector|Int|String]|String]"
-              ],
+              "type": "List[Boolean|ByteVector|Int|List[Boolean|ByteVector|Int|String]|String]",
               "order": 12,
               "constructorOrder": 3
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 6
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 6,
               "constructorOrder": 5
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 7
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 11,
               "constructorOrder": 8
             }
@@ -1947,114 +1578,85 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 12,
               "constructorOrder": 13
             },
             {
               "name": "script",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 7,
               "constructorOrder": 5
             },
             {
               "name": "description",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 2,
               "constructorOrder": 2
             },
             {
               "name": "name",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 10,
               "constructorOrder": 1
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 12
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 6
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 11
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 8
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 9
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 7
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 11,
               "constructorOrder": 0
             },
             {
               "name": "decimals",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 13,
               "constructorOrder": 4
             },
             {
               "name": "reissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 8,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 10
             }
@@ -2071,73 +1673,55 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 7,
               "constructorOrder": 8
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 6
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "leaseId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 0
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 4
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 2
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 5
             }
@@ -2154,83 +1738,61 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 9
             },
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 1
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 8
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 2
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 7
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 4
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 0
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 6
             }
@@ -2247,106 +1809,79 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 9,
               "constructorOrder": 12
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 0
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 11
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 5
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 10
             },
             {
               "name": "attachment",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 4
             },
             {
               "name": "transfers",
-              "types": [
-                "List[Transfer]"
-              ],
+              "type": "List[Transfer]",
               "order": 8,
               "constructorOrder": 2
             },
             {
               "name": "transferCount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 10,
               "constructorOrder": 6
             },
             {
               "name": "totalAmount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 11,
               "constructorOrder": 1
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 12,
               "constructorOrder": 8
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 9
             }
@@ -2363,83 +1898,61 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 9
             },
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 1
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 8
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 2
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 7
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 4
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 0
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 6
             }
@@ -2456,89 +1969,67 @@
           "fields": [
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 9
             },
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 10
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 8
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 3
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 5
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 4,
               "constructorOrder": 6
             },
             {
               "name": "quantity",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 0
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 10,
               "constructorOrder": 4
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 7,
               "constructorOrder": 7
             },
             {
               "name": "reissuable",
-              "types": [
-                "Boolean"
-              ],
+              "type": "Boolean",
               "order": 9,
               "constructorOrder": 2
             }
@@ -2555,82 +2046,61 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 8,
               "constructorOrder": 9
             },
             {
               "name": "script",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 7,
               "constructorOrder": 0
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 8
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 1
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 7
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 4
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 6
             }
@@ -2647,74 +2117,55 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 7,
               "constructorOrder": 8
             },
             {
               "name": "script",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 6,
               "constructorOrder": 0
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 3,
               "constructorOrder": 1
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 6
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 2,
               "constructorOrder": 4
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 8,
               "constructorOrder": 2
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 5,
               "constructorOrder": 5
             }
@@ -2731,82 +2182,61 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 7,
               "constructorOrder": 9
             },
             {
               "name": "minSponsoredAssetFee",
-              "types": [
-                "Int",
-                "Unit"
-              ],
+              "type": "Int|Unit",
               "order": 8,
               "constructorOrder": 1
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 1,
               "constructorOrder": 8
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 0
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 5,
               "constructorOrder": 7
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 0,
               "constructorOrder": 4
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 3,
               "constructorOrder": 5
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 9,
               "constructorOrder": 3
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 6,
               "constructorOrder": 6
             }
@@ -2823,112 +2253,79 @@
           "fields": [
             {
               "name": "assetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 2
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 11
             },
             {
               "name": "feeAssetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 4,
               "constructorOrder": 0
             },
             {
               "name": "version",
-              "types": [
-                "Int",
-                "Unit"
-              ],
+              "type": "Int|Unit",
               "order": 6,
               "constructorOrder": 8
             },
             {
               "name": "attachment",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 9,
               "constructorOrder": 4
             },
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 11,
               "constructorOrder": 12
             },
             {
               "name": "fee",
-              "types": [
-                "Int",
-                "Unit"
-              ],
+              "type": "Int|Unit",
               "order": 12,
               "constructorOrder": 6
             },
             {
               "name": "recipient",
-              "types": [
-                "Alias",
-                "Address",
-                "AddressLike"
-              ],
+              "type": "Alias|Address|AddressLike",
               "order": 0,
               "constructorOrder": 3
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 7,
               "constructorOrder": 5
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 8,
               "constructorOrder": 10
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 7
             },
             {
               "name": "amount",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 5,
               "constructorOrder": 1
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 10,
               "constructorOrder": 9
             }
@@ -2945,90 +2342,67 @@
           "fields": [
             {
               "name": "proofs",
-              "types": [
-                "List[ByteVector]"
-              ],
+              "type": "List[ByteVector]",
               "order": 9,
               "constructorOrder": 10
             },
             {
               "name": "assetId",
-              "types": [
-                "ByteVector",
-                "Unit"
-              ],
+              "type": "ByteVector|Unit",
               "order": 3,
               "constructorOrder": 0
             },
             {
               "name": "name",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 0,
               "constructorOrder": 1
             },
             {
               "name": "description",
-              "types": [
-                "String"
-              ],
+              "type": "String",
               "order": 4,
               "constructorOrder": 2
             },
             {
               "name": "bodyBytes",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 2,
               "constructorOrder": 9
             },
             {
               "name": "id",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 6,
               "constructorOrder": 3
             },
             {
               "name": "senderPublicKey",
-              "types": [
-                "ByteVector"
-              ],
+              "type": "ByteVector",
               "order": 7,
               "constructorOrder": 8
             },
             {
               "name": "timestamp",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 1,
               "constructorOrder": 5
             },
             {
               "name": "version",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 5,
               "constructorOrder": 6
             },
             {
               "name": "fee",
-              "types": [
-                "Int"
-              ],
+              "type": "Int",
               "order": 10,
               "constructorOrder": 4
             },
             {
               "name": "sender",
-              "types": [
-                "Address"
-              ],
+              "type": "Address",
               "order": 8,
               "constructorOrder": 7
             }
