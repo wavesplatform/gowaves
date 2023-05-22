@@ -73,9 +73,9 @@ func TestDirectivesCompileFail(t *testing.T) {
 		errorMsg []string
 	}{
 		{`
-{-# STDLIB_VERSION 7 #-}
+{-# STDLIB_VERSION 8 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '7'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '8'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}

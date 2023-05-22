@@ -4,24 +4,44 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-)
 
-var (
-	versionString = []string{"V1", "V2", "V3", "V4", "V5", "V6"}
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 )
 
 func removeVersionFromString(name string) string {
-	for _, v := range versionString {
-		name = strings.ReplaceAll(name, v, "")
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
+		vs := fmt.Sprintf("V%d", v)
+		name = strings.ReplaceAll(name, vs, "")
 	}
 	return name
 }
 
-func getType(types typeInfos) string {
-	if len(types) == 1 {
-		return types[0].String()
+func getType(t stdlib.Type) string {
+	switch t.(type) {
+	case stdlib.SimpleType:
+		return "ride" + t.String()
+	case stdlib.ListType:
+		return "rideList"
+	default:
+		return "rideType"
 	}
-	return "rideType"
+}
+
+func getUnionType(union stdlib.UnionType) (string, bool, stdlib.ListType) {
+	ns := make([]string, 0, len(union.Types))
+	hasList := false
+	listType := stdlib.ListType{}
+	for _, t := range union.Types {
+		switch tt := t.(type) {
+		case stdlib.ListType:
+			hasList = true
+			listType = tt
+		case stdlib.SimpleType:
+			ns = append(ns, getType(t))
+		}
+	}
+	return strings.Join(ns, ", "), hasList, listType
 }
 
 func rideActionConstructorName(act actionsObject) string {
@@ -83,7 +103,8 @@ func GenerateObjects(configPath, fn string) {
 			// Struct Implementation
 			cd.Line("type ride%s struct {", act.StructName)
 			for _, field := range act.Fields {
-				cd.Line("%s %s", field.Name, getType(field.Types))
+				ft := stdlib.ParseRuntimeType(field.Type)
+				cd.Line("%s %s", field.Name, getType(ft))
 			}
 			cd.Line("}")
 			cd.Line("")
@@ -92,7 +113,8 @@ func GenerateObjects(configPath, fn string) {
 			constructorName := rideActionConstructorName(act)
 			arguments := make([]string, len(act.Fields))
 			for i, field := range act.Fields {
-				arguments[i] = fmt.Sprintf("%s %s", field.Name, getType(field.Types))
+				ft := stdlib.ParseRuntimeType(field.Type)
+				arguments[i] = fmt.Sprintf("%s %s", field.Name, getType(ft))
 			}
 			cd.Line("func %s(%s) ride%s {", constructorName, strings.Join(arguments, ", "), act.StructName)
 			cd.Line("return ride%s{", act.StructName)

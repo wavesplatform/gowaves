@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
@@ -5038,7 +5039,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistribution(t *test
 	  strict a3 = invoke(dApp2,  "call", [], []) # 30 actions
 	  strict b3 = invoke(dApp3,  "call", [], []) # check V5 - OK
 	  strict a4 = invoke(dApp2,  "call", [], []) # 40 actions
-	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - OK
+	  strict b4 = invoke(dApp3,  "call", [], []) # check V5 - FAIL
 	  []
 	}
 	*/
@@ -5596,4 +5597,76 @@ func TestDefaultFunction(t *testing.T) {
 
 	_, err = CallFunction(env.withComplexityLimit(ast.LibV5, 2000).toEnv(), tree1, proto.NewFunctionCall("default", args))
 	assert.NoError(t, err)
+}
+
+func TestRideBlockInfoV7(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	src1 := `
+	{-# STDLIB_VERSION 7 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let sender = addressFromStringValue("3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW") 
+	let dapp1 = addressFromStringValue("3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz") 
+
+	func rewardFor(rwds: List[(Address, Int)], target: Address) = {
+  		let s = rwds.size()
+  		let (a0, r0) = rwds[0]
+  		let (a1, r1) = rwds[1]
+  		let (a2, r2) = rwds[2]
+  		if (s > 0 && a0 == target) then r0 
+  		else if (s > 1 && a1 == target) then r1
+		else if (s > 2 && a2 == target) then r2
+  		else unit 
+	}
+
+	@Callable(i)
+	func foo() = {
+		match blockInfoByHeight(height) {
+    		case block: BlockInfo =>
+				let r1 = rewardFor(block.rewards, sender).value()
+				let r2 = rewardFor(block.rewards, dapp1).value()
+				[IntegerEntry("sender", r1), IntegerEntry("dapp1", r2)]
+    		case _ => throw("Can't find block")
+		}
+	}
+	`
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+
+	blockHeader := &proto.BlockHeader{
+		Version:            proto.ProtobufBlockVersion,
+		GeneratorPublicKey: sender.publicKey(),
+	}
+	rewards := proto.Rewards{proto.NewReward(dApp1.address(), 67890), proto.NewReward(sender.address(), 12345)}
+
+	env := newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 2000).
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().withBlockRewardDistribution().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).withHeight(12345).
+		withBlockHeader(blockHeader).withBlockVRF(nil).withBlockRewards(rewards).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(res.ScriptActions()))
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+
+	sr, _, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "sender", Value: 12345}}, {Entry: &proto.IntegerDataEntry{Key: "dapp1", Value: 67890}}},
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
 }

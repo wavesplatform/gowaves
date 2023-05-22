@@ -178,6 +178,8 @@ func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 		return ConstantsV5, nil
 	case ast.LibV6:
 		return ConstantsV6, nil
+	case ast.LibV7:
+		return ConstantsV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
 	}

@@ -5,131 +5,16 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 type actionField struct {
-	Name             string    `json:"name"`
-	Types            typeInfos `json:"types"`
-	Order            int       `json:"order"`            // order for string representation
-	ConstructorOrder int       `json:"constructorOrder"` // order for constructor
-}
-
-type typeInfo interface {
-	fmt.Stringer
-	json.Unmarshaler
-}
-
-type typeInfos []typeInfo
-
-func (infos *typeInfos) UnmarshalJSON(data []byte) error {
-	var rawTypes []string
-	if err := json.Unmarshal(data, &rawTypes); err != nil {
-		return errors.Wrap(err, "typeInfos raw types unmarshal")
-	}
-
-	typeInfoList := make([]typeInfo, len(rawTypes))
-	for i, name := range rawTypes {
-		typeInfoList[i] = guessInfoType(name)
-	}
-
-	if err := json.Unmarshal(data, &typeInfoList); err != nil {
-		return errors.Wrapf(err, "typeInfoList unmarshal(%s)", strings.Join(rawTypes, ","))
-	}
-	*infos = typeInfoList
-
-	return nil
-}
-
-func guessInfoType(typeName string) typeInfo {
-	if strings.HasPrefix(typeName, "List") {
-		return &listTypeInfo{}
-	}
-	return &simpleTypeInfo{}
-}
-
-type simpleTypeInfo struct {
-	name string
-}
-
-func (info *simpleTypeInfo) String() string {
-	return "ride" + info.name
-}
-
-func (info *simpleTypeInfo) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &info.name); err != nil {
-		return errors.Wrap(err, "unmarshal type name")
-	}
-	return nil
-}
-
-type listTypeInfo struct {
-	elementsTypes typeInfos
-}
-
-func (info *listTypeInfo) String() string {
-	return "rideList"
-}
-
-func (info *listTypeInfo) UnmarshalJSON(data []byte) error {
-	var source string
-	if err := json.Unmarshal(data, &source); err != nil {
-		return errors.Wrap(err, "listTypeInfo unmarshal raw string")
-	}
-
-	if !strings.HasPrefix(source, "List") {
-		return errors.Errorf("'%s' is missing: %s", info.String(), source)
-	}
-	source = strings.ReplaceAll(string(data), " ", "")
-
-	begin, end := strings.Index(source, "["), strings.LastIndex(source, "]")
-	if begin == -1 || end == -1 || begin == end {
-		return errors.Errorf("bad brace sequence in elements types: %s", source)
-	}
-	begin++
-
-	var typeNames []string
-	opened := 0
-	for cur := begin; cur < end; cur++ {
-		switch source[cur] {
-		case '[':
-			opened++
-		case ']':
-			if opened == 0 {
-				return errors.Errorf("bad bracket sequence: %s", source)
-			}
-			opened--
-		case '|':
-			if opened == 0 {
-				typeNames = append(typeNames, source[begin:cur])
-				begin = cur + 1
-			}
-		}
-	}
-	typeNames = append(typeNames, source[begin:end])
-	if opened != 0 {
-		return errors.Errorf("bad bracket sequence:%s", source)
-	}
-
-	var jsonStr strings.Builder
-	jsonStr.WriteByte('[')
-	for i, name := range typeNames {
-		jsonStr.WriteString(strconv.Quote(name))
-		if i != len(typeNames)-1 {
-			jsonStr.WriteByte(',')
-		}
-	}
-	jsonStr.WriteByte(']')
-
-	return json.Unmarshal([]byte(jsonStr.String()), &info.elementsTypes)
-}
-
-func (info *listTypeInfo) ElementTypes() typeInfos {
-	return info.elementsTypes
+	Name             string `json:"name"`
+	Type             string `json:"type"`
+	Order            int    `json:"order"`            // order for string representation
+	ConstructorOrder int    `json:"constructorOrder"` // order for constructor
 }
 
 type actionsObject struct {
