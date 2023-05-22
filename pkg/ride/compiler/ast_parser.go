@@ -136,7 +136,7 @@ func (p *astParser) loadBuildInVarsToStackByVersion() {
 			Type: txType,
 		})
 	}
-	if p.tree.LibVersion >= ast.LibV5 && p.tree.LibVersion <= ast.LibV7 {
+	if p.tree.LibVersion >= ast.LibV4 && p.tree.LibVersion <= ast.LibV7 {
 		if p.scriptType == assetScript {
 			p.stack.pushVariable(s.Variable{
 				Name: "this",
