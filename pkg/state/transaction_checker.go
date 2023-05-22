@@ -83,6 +83,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
+	blockRewardDistributionActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return scriptFeaturesActivations{}, err
+	}
 	if libVersion == ast.LibV3 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
@@ -97,6 +101,9 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	}
 	if libVersion == ast.LibV6 && !rideV6Activated {
 		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
+	}
+	if libVersion == ast.LibV7 && !blockRewardDistributionActivated {
+		return scriptFeaturesActivations{}, errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -117,7 +124,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 		| DApp Callable V1, V2                   | 2000                          | 2000                         |
 		| DApp Callable V3, V4                   | 4000                          | 4000                         |
 		| DApp Callable V5                       | 10000                         | 10000                        |
-		| DApp Callable V6                       | 52000                         | 52000                        |
+		| DApp Callable V6, V7                   | 52000                         | 52000                        |
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
@@ -130,7 +137,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 	case ast.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case ast.LibV6:
+	case ast.LibV6, ast.LibV7:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:

@@ -24,6 +24,9 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			AddingBlockHeightFunc: func() (uint64, error) {
 //				panic("mock out the AddingBlockHeight method")
 //			},
+//			BlockRewardsFunc: func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
+//				panic("mock out the BlockRewards method")
+//			},
 //			BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
 //				panic("mock out the BlockVRF method")
 //			},
@@ -115,6 +118,9 @@ type AnotherMockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
+	// BlockRewardsFunc mocks the BlockRewards method.
+	BlockRewardsFunc func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error)
+
 	// BlockVRFFunc mocks the BlockVRF method.
 	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
 
@@ -200,6 +206,13 @@ type AnotherMockSmartState struct {
 	calls struct {
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
+		}
+		// BlockRewards holds details about calls to the BlockRewards method.
+		BlockRewards []struct {
+			// BlockHeader is the blockHeader argument value.
+			BlockHeader *proto.BlockHeader
+			// Height is the height argument value.
+			Height uint64
 		}
 		// BlockVRF holds details about calls to the BlockVRF method.
 		BlockVRF []struct {
@@ -350,6 +363,7 @@ type AnotherMockSmartState struct {
 		}
 	}
 	lockAddingBlockHeight              sync.RWMutex
+	lockBlockRewards                   sync.RWMutex
 	lockBlockVRF                       sync.RWMutex
 	lockEstimatorVersion               sync.RWMutex
 	lockIsNotFound                     sync.RWMutex
@@ -403,6 +417,42 @@ func (mock *AnotherMockSmartState) AddingBlockHeightCalls() []struct {
 	mock.lockAddingBlockHeight.RLock()
 	calls = mock.calls.AddingBlockHeight
 	mock.lockAddingBlockHeight.RUnlock()
+	return calls
+}
+
+// BlockRewards calls BlockRewardsFunc.
+func (mock *AnotherMockSmartState) BlockRewards(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
+	if mock.BlockRewardsFunc == nil {
+		panic("AnotherMockSmartState.BlockRewardsFunc: method is nil but SmartState.BlockRewards was just called")
+	}
+	callInfo := struct {
+		BlockHeader *proto.BlockHeader
+		Height      uint64
+	}{
+		BlockHeader: blockHeader,
+		Height:      height,
+	}
+	mock.lockBlockRewards.Lock()
+	mock.calls.BlockRewards = append(mock.calls.BlockRewards, callInfo)
+	mock.lockBlockRewards.Unlock()
+	return mock.BlockRewardsFunc(blockHeader, height)
+}
+
+// BlockRewardsCalls gets all the calls that were made to BlockRewards.
+// Check the length with:
+//
+//	len(mockedSmartState.BlockRewardsCalls())
+func (mock *AnotherMockSmartState) BlockRewardsCalls() []struct {
+	BlockHeader *proto.BlockHeader
+	Height      uint64
+} {
+	var calls []struct {
+		BlockHeader *proto.BlockHeader
+		Height      uint64
+	}
+	mock.lockBlockRewards.RLock()
+	calls = mock.calls.BlockRewards
+	mock.lockBlockRewards.RUnlock()
 	return calls
 }
 

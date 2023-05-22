@@ -73,6 +73,14 @@ var (
 )
 
 func ParseType(t string) Type {
+	return parseType(t, true)
+}
+
+func ParseRuntimeType(t string) Type {
+	return parseType(t, false)
+}
+
+func parseType(t string, dropRuntimeTypes bool) Type {
 	p := Types{Buffer: t}
 	err := p.Init()
 	if err != nil {
@@ -83,47 +91,53 @@ func ParseType(t string) Type {
 		panic(err)
 	}
 	node := p.AST()
-	return handleTypes(node.up, t)
+	return handleTypes(node.up, t, dropRuntimeTypes)
 }
 
-func handleTypes(node *node32, t string) Type {
+func handleTypes(node *node32, s string, dropRuntimeTypes bool) Type {
 	curNode := node.up
-	var T Type
+	var t Type
 	switch curNode.pegRule {
 	case ruleGenericType:
-		T = handleGeneric(curNode, t)
+		t = handleGeneric(curNode, s, dropRuntimeTypes)
 	case ruleTupleType:
-		T = handleTupleType(curNode, t)
+		t = handleTupleType(curNode, s, dropRuntimeTypes)
 	case ruleType:
 		// check Types
-		stringType := t[curNode.begin:curNode.end]
+		stringType := s[curNode.begin:curNode.end]
 		switch stringType {
 		case "Any":
-			T = AnyType
+			t = AnyType
 		case "Unknown":
-			T = ThrowType
+			t = ThrowType
+		case "AddressLike": // Replace implementation specific AddressLike with Address, duplications handled later
+			if dropRuntimeTypes {
+				t = SimpleType{Type: "Address"}
+			} else {
+				t = SimpleType{Type: "AddressLike"}
+			}
 		default:
-			T = SimpleType{stringType}
+			t = SimpleType{stringType}
 		}
 	}
 	curNode = curNode.next
 	if curNode == nil {
-		return T
+		return t
 	}
 
 	resType := UnionType{Types: []Type{}}
-	resType.Types = append(resType.Types, T)
+	resType.AppendType(t)
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
 	if curNode.pegRule == rule_ {
 		curNode = curNode.next
 	}
-	resType.Types = append(resType.Types, handleTypes(curNode, t))
+	resType.AppendType(handleTypes(curNode, s, dropRuntimeTypes))
 	return resType
 }
 
-func handleTupleType(node *node32, t string) Type {
+func handleTupleType(node *node32, t string, dropRuntimeTypes bool) Type {
 	curNode := node.up
 	var tupleTypes []Type
 	for {
@@ -131,7 +145,7 @@ func handleTupleType(node *node32, t string) Type {
 			curNode = curNode.next
 		}
 		if curNode.pegRule == ruleTypes {
-			tupleTypes = append(tupleTypes, handleTypes(curNode, t))
+			tupleTypes = append(tupleTypes, handleTypes(curNode, t, dropRuntimeTypes))
 			curNode = curNode.next
 		}
 		if curNode == nil {
@@ -141,7 +155,7 @@ func handleTupleType(node *node32, t string) Type {
 	return TupleType{tupleTypes}
 }
 
-func handleGeneric(node *node32, t string) Type {
+func handleGeneric(node *node32, t string, dropRuntimeTypes bool) Type {
 	curNode := node.up
 	name := t[curNode.begin:curNode.end]
 	if name != "List" {
@@ -158,7 +172,7 @@ func handleGeneric(node *node32, t string) Type {
 		curNode = curNode.next
 	}
 
-	return ListType{Type: handleTypes(curNode, t)}
+	return ListType{Type: handleTypes(curNode, t, dropRuntimeTypes)}
 }
 
 type throwType struct{}
@@ -167,13 +181,13 @@ func (t throwType) String() string {
 	return "Unknown"
 }
 
-func (t throwType) Equal(rideType Type) bool {
-	_, ok := rideType.(throwType)
+func (t throwType) Equal(other Type) bool {
+	_, ok := other.(throwType)
 	return ok
 }
 
-func (t throwType) EqualWithEntry(rideType Type) bool {
-	return t.Equal(rideType)
+func (t throwType) EqualWithEntry(other Type) bool {
+	return t.Equal(other)
 }
 
 type anyType struct{}
@@ -182,8 +196,8 @@ func (t anyType) String() string {
 	return "Any"
 }
 
-func (t anyType) Equal(rideType Type) bool {
-	_, ok := rideType.(anyType)
+func (t anyType) Equal(other Type) bool {
+	_, ok := other.(anyType)
 	return ok
 }
 
@@ -195,13 +209,13 @@ type SimpleType struct {
 	Type string
 }
 
-func (t SimpleType) EqualWithEntry(rideType Type) bool {
-	return t.Equal(rideType)
+func (t SimpleType) EqualWithEntry(other Type) bool {
+	return t.Equal(other)
 }
 
-func (t SimpleType) Equal(rideType Type) bool {
-	if T, ok := rideType.(SimpleType); ok {
-		return t.Type == T.Type
+func (t SimpleType) Equal(other Type) bool {
+	if o, ok := other.(SimpleType); ok {
+		return t.Type == o.Type
 	}
 	return false
 }
@@ -214,11 +228,11 @@ type UnionType struct {
 	Types []Type
 }
 
-func (t UnionType) Equal(rideType Type) bool {
-	if T, ok := rideType.(UnionType); ok {
-		for _, typeName := range T.Types {
-			for _, checkTypeName := range t.Types {
-				if !checkTypeName.Equal(typeName) {
+func (t UnionType) Equal(other Type) bool {
+	if o, ok := other.(UnionType); ok {
+		for _, ot := range o.Types {
+			for _, tt := range t.Types {
+				if !tt.Equal(ot) {
 					return false
 				}
 			}
@@ -228,15 +242,15 @@ func (t UnionType) Equal(rideType Type) bool {
 	return false
 }
 
-func (t UnionType) EqualWithEntry(rideType Type) bool {
-	switch T := rideType.(type) {
+func (t UnionType) EqualWithEntry(other Type) bool {
+	switch o := other.(type) {
 	case anyType:
 		return false
 	case UnionType:
-		for _, typeName := range T.Types {
+		for _, ot := range o.Types {
 			eq := false
-			for _, checkTypeName := range t.Types {
-				if checkTypeName.EqualWithEntry(typeName) {
+			for _, tt := range t.Types {
+				if tt.EqualWithEntry(ot) {
 					eq = true
 					break
 				}
@@ -247,8 +261,8 @@ func (t UnionType) EqualWithEntry(rideType Type) bool {
 		}
 		return true
 	default:
-		for _, typeName := range t.Types {
-			if typeName.EqualWithEntry(rideType) {
+		for _, tt := range t.Types {
+			if tt.EqualWithEntry(other) {
 				return true
 			}
 		}
@@ -328,12 +342,12 @@ func (t *UnionType) AppendType(rideType Type) {
 }
 
 func (t UnionType) String() string {
-	var stringTypes []string
-	for _, T := range t.Types {
-		stringTypes = append(stringTypes, T.String())
+	var types []string
+	for _, tt := range t.Types {
+		types = append(types, tt.String())
 	}
-	sort.Strings(stringTypes)
-	return strings.Join(stringTypes, "|")
+	sort.Strings(types)
+	return strings.Join(types, "|")
 }
 
 func (t UnionType) Simplify() Type {
@@ -355,32 +369,32 @@ type ListType struct {
 	Type Type
 }
 
-func (t ListType) Equal(rideType Type) bool {
-	T, ok := rideType.(ListType)
+func (t ListType) Equal(other Type) bool {
+	o, ok := other.(ListType)
 	if !ok {
 		return false
 	}
-	if t.Type == nil && T.Type == nil {
+	if t.Type == nil && o.Type == nil {
 		return true
 	}
-	if t.Type == nil || T.Type == nil {
+	if t.Type == nil || o.Type == nil {
 		return false
 	}
-	return t.Type.Equal(T.Type)
+	return t.Type.Equal(o.Type)
 }
 
-func (t ListType) EqualWithEntry(rideType Type) bool {
-	if T, ok := rideType.(ListType); ok {
-		if t.Type == nil && T.Type == nil {
+func (t ListType) EqualWithEntry(other Type) bool {
+	if o, ok := other.(ListType); ok {
+		if t.Type == nil && o.Type == nil {
 			return true
 		}
 		if t.Type == nil {
 			return false
 		}
-		if T.Type == nil {
+		if o.Type == nil {
 			return true
 		}
-		return t.Type.EqualWithEntry(T.Type)
+		return t.Type.EqualWithEntry(o.Type)
 	}
 	return false
 }
@@ -404,10 +418,10 @@ func (t *ListType) AppendType(rideType Type) {
 }
 
 func (t *ListType) AppendList(rideType Type) {
-	T := rideType.(ListType)
+	o := rideType.(ListType)
 	union := UnionType{Types: []Type{}}
 	union.AppendType(t.Type)
-	union.AppendType(T.Type)
+	union.AppendType(o.Type)
 	if len(union.Types) == 1 {
 		t.Type = union.Types[0]
 	} else {
@@ -419,38 +433,38 @@ type TupleType struct {
 	Types []Type
 }
 
-func (t TupleType) Equal(rideType Type) bool {
-	T, ok := rideType.(TupleType)
+func (t TupleType) Equal(other Type) bool {
+	o, ok := other.(TupleType)
 	if !ok {
 		return false
 	}
-	if len(T.Types) != len(t.Types) {
+	if len(o.Types) != len(t.Types) {
 		return false
 	}
 	for i := 0; i < len(t.Types); i++ {
-		if t.Types[i] == nil || T.Types[i] == nil {
+		if t.Types[i] == nil || o.Types[i] == nil {
 			continue
 		}
-		if !t.Types[i].Equal(T.Types[i]) {
+		if !t.Types[i].Equal(o.Types[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func (t TupleType) EqualWithEntry(rideType Type) bool {
-	T, ok := rideType.(TupleType)
+func (t TupleType) EqualWithEntry(other Type) bool {
+	o, ok := other.(TupleType)
 	if !ok {
 		return false
 	}
-	if len(T.Types) != len(t.Types) {
+	if len(o.Types) != len(t.Types) {
 		return false
 	}
 	for i := 0; i < len(t.Types); i++ {
-		if t.Types[i] == nil || T.Types[i] == nil {
+		if t.Types[i] == nil || o.Types[i] == nil {
 			continue
 		}
-		if !t.Types[i].EqualWithEntry(T.Types[i]) {
+		if !t.Types[i].EqualWithEntry(o.Types[i]) {
 			return false
 		}
 	}
@@ -475,7 +489,7 @@ func (t TupleType) String() string {
 }
 
 func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
-	for v := ast.LibV1; v <= ast.LibV6; v++ {
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["Int"] = IntType
 		res[v]["String"] = StringType
 		res[v]["Boolean"] = BooleanType
@@ -492,16 +506,16 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		res[v]["HalfDown"] = SimpleType{Type: "HalfDown"}
 		res[v]["Up"] = SimpleType{Type: "Up"}
 	}
-	for v := ast.LibV2; v <= ast.LibV6; v++ {
+	for v := ast.LibV2; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["OrderType"] = SimpleType{Type: "OrderType"}
 	}
-	for v := ast.LibV3; v <= ast.LibV6; v++ {
+	for v := ast.LibV3; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["DigestAlgorithmType"] = SimpleType{Type: "DigestAlgorithmType"}
 	}
-	for v := ast.LibV4; v <= ast.LibV6; v++ {
+	for v := ast.LibV4; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["BlockInfo"] = SimpleType{Type: "BlockInfo"}
 	}
-	for v := ast.LibV5; v <= ast.LibV6; v++ {
+	for v := ast.LibV5; v <= ast.CurrentMaxLibraryVersion(); v++ {
 		res[v]["BigInt"] = BigIntType
 
 	}
@@ -574,6 +588,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		SimpleType{"SponsorFeeTransaction"},
 		SimpleType{"DataTransaction"},
 	}}
+	res[ast.LibV7]["Transaction"] = res[ast.LibV6]["Transaction"]
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
@@ -594,6 +609,9 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 			"Transaction": UnionType{Types: []Type{}},
 		},
 		ast.LibV6: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV7: {
 			"Transaction": UnionType{Types: []Type{}},
 		},
 	}
