@@ -1015,7 +1015,7 @@ type EvaluationEnvironment struct {
 	isBlockV5Activated                 bool
 	isRideV6Activated                  bool
 	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
-	isBlockRewardDistributionActivated bool // isBlockRewardDistributionActivated => nodeVersion >= 1.5.0 (TODO:check version node)
+	isBlockRewardDistributionActivated bool // isBlockRewardDistributionActivated => nodeVersion >= 1.4.16
 	isInvokeExpressionActivated        bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
 	isProtobufTransaction              bool
 	mds                                int

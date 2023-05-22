@@ -253,31 +253,37 @@ func TestUnpackPayment(t *testing.T) {
 	tests := []struct {
 		hexInput        string
 		expectedPayment Payment
+		slotsRead       int
 	}{
 		{
 			"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
 			Payment{PresentAssetID: false, AssetID: crypto.Digest{}, Amount: 1},
+			2,
 		},
 		{
 			"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a",
 			Payment{PresentAssetID: false, AssetID: crypto.Digest{}, Amount: 10},
+			2,
 		},
 		{
 			"0x06000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001",
 			Payment{PresentAssetID: true, AssetID: crypto.Digest{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1}, Amount: 1},
+			2,
 		},
 		{
 			"0x01000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000009",
 			Payment{PresentAssetID: true, AssetID: crypto.Digest{0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x5}, Amount: 9},
+			2,
 		},
 	}
 	for _, tc := range tests {
 		bts, err := hex.DecodeString(strings.TrimPrefix(tc.hexInput, "0x"))
 		require.NoError(t, err)
-		actualPayment, err := unpackPayment(bts)
+		actualPayment, slotsRead, err := unpackPayment(bts)
 		require.NoError(t, err)
 
 		require.Equal(t, tc.expectedPayment, actualPayment)
+		require.Equal(t, tc.slotsRead, slotsRead)
 	}
 }
 
@@ -285,11 +291,13 @@ func TestUnpackPayments(t *testing.T) {
 	tests := []struct {
 		hexCallData         string
 		paymentsSliceOffset int
+		slotsRead           int
 		expectedPayments    []Payment
 	}{
 		{
 			hexCallData:         "0x3e08c22800000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000573616664730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 			paymentsSliceOffset: 32,
+			slotsRead:           2,
 			expectedPayments:    make([]Payment, 0),
 		},
 	}
@@ -297,8 +305,9 @@ func TestUnpackPayments(t *testing.T) {
 		bts, err := hex.DecodeString(strings.TrimPrefix(tc.hexCallData, "0x"))
 		require.NoError(t, err)
 
-		payments, err := unpackPayments(tc.paymentsSliceOffset, bts[SelectorSize:])
+		payments, slotsRead, err := unpackPayments(tc.paymentsSliceOffset, bts[SelectorSize:])
 		require.NoError(t, err)
 		require.Equal(t, tc.expectedPayments, payments)
+		require.Equal(t, tc.slotsRead, slotsRead)
 	}
 }
