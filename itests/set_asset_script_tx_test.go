@@ -24,16 +24,17 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smartAsset, v, waitForTx)
 		tdmatrix := testdata.GetSetAssetScriptPositiveData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.SendSetAssetScriptTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Set Asset Script: "+tx.TxID.String(),
-					utl.GetTestcaseNameWithVersion(name, v))
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -48,17 +49,19 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smartAsset, v, waitForTx)
 		tdmatrix := testdata.GetSetAssetScriptNegativeData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.SendSetAssetScriptTxAndGetBalances(
 					&suite.BaseSuite, td, v, !waitForTx)
+				errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
-					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala)
+					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -75,17 +78,19 @@ func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
 		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, asset, v, waitForTx)
 		name := "Set script for not scripted asset"
 		td := testdata.GetSimpleSmartAssetNegativeData(&suite.BaseSuite, itx.TxID)
-		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+		caseName := utl.GetTestcaseNameWithVersion(name, v)
+		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := set_asset_script_utilities.SendSetAssetScriptTxAndGetBalances(
 				&suite.BaseSuite, td, v, !waitForTx)
+			errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
 
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
-				tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala)
+				tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-				actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+				actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-				actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+				actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 		})
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)

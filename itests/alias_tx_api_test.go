@@ -23,17 +23,19 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, waitForTx)
+				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Alias: "+tx.TxID.String())
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Alias: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
-					"Alias: "+tx.TxID.String())
+					errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Alias: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			})
 		}
 	}
@@ -47,17 +49,19 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 			utl.DefaultAccountForLoanFunds, 10000000000)
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, waitForTx)
+				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Alias: "+tx.TxID.String())
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Alias: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
-					"Alias: "+tx.TxID.String())
+					errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Alias: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			})
 		}
 	}
@@ -70,20 +74,20 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, waitForTx)
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, "Alias: "+tx.TxID.String())
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, "Alias: "+tx.TxID.String())
-
 				txIds[name] = &tx.TxID
+				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, "Alias: "+tx.TxID.String())
+					tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Alias: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			})
 		}
 	}
@@ -100,33 +104,36 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 	for _, v := range versions {
 		tdslice := testdata.GetSameAliasNegativeDataMatrix(&suite.BaseSuite)
 		for _, td := range tdslice {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//first alias tx should be successful
 				tx1, _, actualDiffBalanceInWaves1 := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, waitForTx)
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, "Alias: "+tx1.TxID.String())
+				errMsg := caseName + "Broadcast Alias Tx1: " + tx1.TxID.String()
 
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
 				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, "Alias: "+tx1.TxID.String())
 				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddressAfterFirstTx.Bytes(), addrByAliasGo,
-					addrByAliasScala, "Alias: "+tx1.TxID.String())
+					addrByAliasScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceAfterFirstTx,
 					actualDiffBalanceInWaves1.BalanceInWavesGo, actualDiffBalanceInWaves1.BalanceInWavesScala,
-					"Alias: "+tx1.TxID.String())
+					errMsg)
 
 				//second alias tx with same alias had same ID for v1 and v2
 				tx2, _, actualDiffBalanceInWaves2 := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, !waitForTx)
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx2,
-					"Alias: "+tx2.TxID.String())
+				errMsg = caseName + "Broadcast Alias Tx2: " + tx2.TxID.String()
 				//already there for v1 and v2, and should be new for v3
 				txIds[name] = &tx2.TxID
 
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx2,
+					errMsg)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx2.BrdCstErr.ErrorBrdCstGo, tx2.BrdCstErr.ErrorBrdCstScala, "Alias: "+tx2.TxID.String())
+					tx2.BrdCstErr.ErrorBrdCstGo, tx2.BrdCstErr.ErrorBrdCstScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves2.BalanceInWavesGo,
-					actualDiffBalanceInWaves2.BalanceInWavesScala, "Alias: "+tx2.TxID.String())
+					actualDiffBalanceInWaves2.BalanceInWavesScala, errMsg)
 			})
 		}
 	}
@@ -143,16 +150,18 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdSlice := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
-		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+		caseName := utl.GetTestcaseNameWithVersion(name, v)
+		suite.Run(caseName, func() {
 			//send alias tx from account that is in first element of testdata slice
 			tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 				tdSlice[0], v, waitForTx)
+			errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 
-			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Alias: "+tx.TxID.String())
-			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Alias: "+tx.TxID.String())
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
 				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala,
-				"Alias: "+tx.TxID.String())
+				errMsg)
 			//send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
 				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
@@ -160,17 +169,16 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 				txIds[name] = &tx.TxID
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
-					"Alias: "+tx.TxID.String())
-
+					errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
 					actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesGo,
-					"Alias: "+tx.TxID.String())
+					errMsg)
 				//because of new IDs for v3
 				if v == 3 {
 					idsCount = 0
 					utl.ErrorMessageCheck(suite.T(), tdSlice[j].Expected.ErrBrdCstGoMsg, tdSlice[j].Expected.ErrBrdCstScalaMsg,
 						tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala,
-						"Alias: "+tx.TxID.String())
+						errMsg)
 				}
 			}
 		})

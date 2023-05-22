@@ -26,16 +26,18 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		tdmatrix := testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Sponsorship: "+tx.TxID.String())
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -52,16 +54,18 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
 		transfer_utilities.TransferAssetAmount(&suite.BaseSuite, v, utl.TestChainID, itxID, utl.DefaultSenderNotMiner, n)
 		tdmatrix := testdata.GetSponsorshipMaxValuesPositive(&suite.BaseSuite, itxID, n)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Sponsorship: "+tx.TxID.String())
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -75,28 +79,31 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		sponsorship := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
-		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+		caseName := utl.GetTestcaseNameWithVersion(name, v)
+		suite.Run(caseName, func() {
 			//switch on sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 				&suite.BaseSuite, sponsorship.Enabled, v, waitForTx)
+			errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
 
-			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Sponsorship: "+tx.TxID.String())
-			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String())
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Enabled.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-				actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship: "+tx.TxID.String())
+				actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Enabled.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-				actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship: "+tx.TxID.String())
+				actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 
 			//switch off sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset = sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 				&suite.BaseSuite, sponsorship.Disabled, v, waitForTx)
+			errMsg = caseName + "Broadcast Sponsorship Disabled tx: " + tx.TxID.String()
 
-			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Sponsorship Disabled: "+tx.TxID.String())
-			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Sponsorship Disabled: "+tx.TxID.String())
+			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), sponsorship.Disabled.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-				actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship Disabled: "+tx.TxID.String())
+				actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			utl.AssetDiffBalanceCheck(suite.T(), sponsorship.Disabled.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-				actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship Disabled: "+tx.TxID.String())
+				actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 		})
 	}
 }
@@ -110,22 +117,24 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
 		tdmatrix := testdata.GetSponsorshipNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 					&suite.BaseSuite, td, v, !waitForTx)
+				errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, "Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, "Sponsorship: "+tx.TxID.String())
+					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 
 				txIds[name] = &tx.TxID
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String())
+					tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship: "+tx.TxID.String())
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -142,21 +151,22 @@ func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
 		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smart, v, waitForTx)
 		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
 		name := "Check sponsorship for smart asset"
-		suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+		caseName := utl.GetTestcaseNameWithVersion(name, v)
+		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := sponsor_utilities.BroadcastSponsorshipTxAndGetBalances(
 				&suite.BaseSuite, td, v, !waitForTx)
-			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, "Sponsorship: "+tx.TxID.String())
-			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-				tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, "Sponsorship: "+tx.TxID.String())
-
+			errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
 
+			utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+				tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 			utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-				tx.WtErr.ErrWtScala, "Sponsorship: "+tx.TxID.String())
+				tx.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-				actualDiffBalanceInWaves.BalanceInWavesScala, "Sponsorship: "+tx.TxID.String())
+				actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-				actualDiffBalanceInAsset.BalanceInAssetScala, "Sponsorship: "+tx.TxID.String())
+				actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 		})
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)

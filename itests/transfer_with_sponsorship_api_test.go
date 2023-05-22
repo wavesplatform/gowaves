@@ -41,14 +41,16 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 		tdmatrix := testdata.GetSponsoredTransferPositiveData(&suite.BaseSuite, assetId, sponsoredAssetId)
 
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
 				//RecipientSender balance in Waves does not change because of fee in sponsored asset
 				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
@@ -56,41 +58,41 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Recipient balance in Waves changes if Waves were transferred
 				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
 				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 			})
 		}
@@ -114,51 +116,53 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 		tdmatrix := testdata.GetSposoredTransferBySponsorAsSender(&suite.BaseSuite, sponsoredAssetId, assetId)
 
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//Sponsor transfers assets to himself, sponsored asset is used as fee asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
 				//Sponsor asset balance does not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 			})
 		}
 	}
@@ -185,7 +189,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 			sponsoredAssetId, assetId)
 
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//Sponsor set up sponsorship for the token
 				sponsor_utilities.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
@@ -193,10 +198,11 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
 				//RecipientSender balance in Waves does not change because of fee in sponsored asset
 				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
@@ -204,41 +210,41 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Recipient balance in Waves changes if Waves were transferred
 				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
 				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 			})
 		}
 	}
@@ -265,7 +271,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 			assetId, testdata.Sponsor, testdata.RecipientSender)
 		tdmatrix := testdata.GetTransferWithSponsorshipMaxAmountPositive(&suite.BaseSuite, sponsoredAssetId, assetId)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//Sponsor set up sponsorship for the token
 				sponsor_utilities.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
@@ -273,10 +280,10 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
 				//RecipientSender balance in Waves does not change because of fee in sponsored asset
 				//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
@@ -284,41 +291,41 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Recipient balance in Waves changes if Waves were transferred
 				//Recipient Asset balance increases by the asset amount being transferred
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
 				//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 			})
 		}
 	}
@@ -344,7 +351,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 			assetId, testdata.Sponsor, testdata.RecipientSender)
 		tdmatrix := testdata.GetTransferWithSponsorshipMaxValuesDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//Sponsor set up sponsorship for the token
 				sponsor_utilities.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
@@ -352,51 +360,51 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, !waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
 
 				utl.ErrorMessageCheck(suite.T(), td.TransferTestData.Expected.ErrBrdCstGoMsg,
 					td.TransferTestData.Expected.ErrBrdCstScalaMsg, tx.BrdCstErr.ErrorBrdCstGo,
-					tx.BrdCstErr.ErrorBrdCstScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 				//Balances of RecipientSender do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Balances of Recipient do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Balances of Sponsor do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 			})
 		}
 	}
@@ -425,7 +433,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestSponsoredTransferFeeApiNegat
 			assetId, testdata.Sponsor, testdata.RecipientSender)
 		tdmatrix := testdata.GetTransferWithSponsorshipDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				//Sponsor set up sponsorship for the token
 				sponsor_utilities.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
 					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
@@ -433,51 +442,51 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestSponsoredTransferFeeApiNegat
 				//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 				tx, diffBalances := transfer_utilities.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, !waitForTx)
+				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
 
 				utl.ErrorMessageCheck(suite.T(), td.TransferTestData.Expected.ErrBrdCstGoMsg,
 					td.TransferTestData.Expected.ErrBrdCstScalaMsg, tx.BrdCstErr.ErrorBrdCstGo,
-					tx.BrdCstErr.ErrorBrdCstScala, "Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 				//Balances of RecipientSender do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.FeeAssetDiffBalanceSender,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Balances of Recipient do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceRecipient,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				//Balances of Sponsor do not change
 				utl.WavesDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 
 				utl.AssetDiffBalanceCheck(suite.T(), td.TransferTestData.Expected.AssetDiffBalanceSponsor,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetGo,
 					diffBalances.DiffBalancesSponsor.DiffBalanceAsset.BalanceInAssetScala,
-					"Broadcast Transfer with Sponsorship: "+tx.TxID.String())
+					errMsg)
 			})
 		}
 	}
