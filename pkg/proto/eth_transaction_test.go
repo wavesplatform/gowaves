@@ -2,11 +2,16 @@ package proto
 
 import (
 	"encoding/json"
+	"math/big"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
 func TestEthereumTransaction_GetID(t *testing.T) {
@@ -120,4 +125,132 @@ func TestEthereumTransactionFromScalaJSON(t *testing.T) {
 	pk, err := senderPK.MarshalBinary()
 	require.NoError(t, err)
 	assert.Equal(t, expSenderPK, pk)
+}
+
+func TestEthABIDataTypeToArgument(t *testing.T) {
+	hugeInt, ok := new(big.Int).SetString("123454323456434285767546723400991456870502323864587234659828639850098161345465903596567", 10)
+	require.True(t, ok)
+
+	tests := []struct {
+		inputDataType    ethabi.DataType
+		expectedRideType Argument
+		err              string
+	}{
+		{ethabi.Int(5345345), &IntegerArgument{Value: 5345345}, ""},
+		{ethabi.Bool(true), &BooleanArgument{Value: true}, ""},
+		{ethabi.Bool(false), &BooleanArgument{Value: false}, ""},
+		{ethabi.Bytes("#This is Test bytes!"), &BinaryArgument{Value: []byte("#This is Test bytes!")}, ""},
+		{ethabi.String("This is @ Test string!"), &StringArgument{Value: "This is @ Test string!"}, ""},
+		{
+			inputDataType: ethabi.List{
+				ethabi.Int(453),
+				ethabi.Bool(true),
+				ethabi.String("the best test string ever!"),
+				ethabi.Bytes("command and conquer!"),
+				ethabi.List{
+					ethabi.Bytes("one more"),
+					ethabi.Bool(false),
+				},
+			},
+			expectedRideType: &ListArgument{Items: Arguments{
+				&IntegerArgument{Value: 453},
+				&BooleanArgument{Value: true},
+				&StringArgument{Value: "the best test string ever!"},
+				&BinaryArgument{Value: []byte("command and conquer!")},
+				&ListArgument{Items: Arguments{
+					&BinaryArgument{Value: []byte("one more")},
+					&BooleanArgument{Value: false},
+				}},
+			}},
+			err: "",
+		},
+		{ethabi.BigInt{V: hugeInt}, nil, "ethabi.DataType (ethabi.BigInt) to Argument conversion is not supported"},
+	}
+	for _, tc := range tests {
+		actualRideType, err := ethABIDataTypeToArgument(tc.inputDataType)
+		if tc.err == "" {
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectedRideType, actualRideType)
+		} else {
+			assert.EqualError(t, err, tc.err)
+		}
+	}
+}
+
+func TestEthereumInvokeScriptTxKind_ValidateCallData(t *testing.T) {
+	exampleDapp := MustAddressFromString("3MXLD5eVtKEswHWD5p841dKSzqYgBBV1jeA")
+	repeatArg := func(arg ethabi.DecodedArg, cnt int) []ethabi.DecodedArg {
+		args := make([]ethabi.DecodedArg, cnt)
+		for i := range args {
+			args[i] = arg
+		}
+		return args
+	}
+	tests := []struct {
+		callData ethabi.DecodedCallData
+		err      string
+	}{
+		{
+			callData: ethabi.DecodedCallData{
+				Name: "ok",
+				Inputs: []ethabi.DecodedArg{
+					{Soltype: ethabi.Argument{}, Value: ethabi.Int(100500)},
+					{Soltype: ethabi.Argument{}, Value: ethabi.Bool(true)},
+					{Soltype: ethabi.Argument{}, Value: ethabi.Bool(false)},
+					{Soltype: ethabi.Argument{}, Value: ethabi.String("kekekekek")},
+					{Soltype: ethabi.Argument{}, Value: ethabi.Bytes([]byte{1, 2, 3, 42, 21})},
+					{Soltype: ethabi.Argument{}, Value: ethabi.List{ethabi.Int(100500), ethabi.Bool(true)}},
+				},
+				Payments: []ethabi.Payment{{Amount: 21}, {PresentAssetID: true, AssetID: crypto.Digest{1, 2, 3}, Amount: 42}},
+			},
+			err: "",
+		},
+		{
+			callData: ethabi.DecodedCallData{
+				Name: "fail",
+				Inputs: []ethabi.DecodedArg{
+					{Soltype: ethabi.Argument{}, Value: ethabi.Bool(true)},
+					{Soltype: ethabi.Argument{}, Value: ethabi.Bool(false)},
+					{Soltype: ethabi.Argument{}, Value: ethabi.BigInt{V: big.NewInt(100500)}},
+				},
+				Payments: []ethabi.Payment{{Amount: 42}, {PresentAssetID: true, AssetID: crypto.Digest{1, 2, 3}, Amount: 21}},
+			},
+			err: "failed to convert decoded data inputs: failed to convert ethabi.DataType (ethabi.BigInt) to Argument at 2 inputs position: ethabi.DataType (ethabi.BigInt) to Argument conversion is not supported",
+		},
+		{
+			callData: ethabi.DecodedCallData{
+				Name:     "fail",
+				Inputs:   []ethabi.DecodedArg{{Soltype: ethabi.Argument{}, Value: ethabi.String(strings.Repeat("F", 5050))}},
+				Payments: []ethabi.Payment{{Amount: 11}, {PresentAssetID: true, AssetID: crypto.Digest{1, 2, 3}, Amount: 22}},
+			},
+			err: "ethereum tx calldata too big: max 5120, got 5139",
+		},
+		{
+			callData: ethabi.DecodedCallData{
+				Name:     strings.Repeat("F", maxFunctionNameBytes+1),
+				Inputs:   []ethabi.DecodedArg{{Soltype: ethabi.Argument{}, Value: ethabi.String(strings.Repeat("F", 5050))}},
+				Payments: []ethabi.Payment{{Amount: 11}, {PresentAssetID: true, AssetID: crypto.Digest{1, 2, 3}, Amount: 22}},
+			},
+			err: "function call validation failed: function name is too big",
+		},
+		{
+			callData: ethabi.DecodedCallData{
+				Name:     "fail",
+				Inputs:   repeatArg(ethabi.DecodedArg{Soltype: ethabi.Argument{}, Value: ethabi.String(strings.Repeat("F", 5050))}, maxArguments+1),
+				Payments: []ethabi.Payment{{Amount: 11}, {PresentAssetID: true, AssetID: crypto.Digest{1, 2, 3}, Amount: 22}},
+			},
+			err: "function call validation failed: too many arguments",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			kind := NewEthereumInvokeScriptTxKind(tc.callData)
+			err := kind.ValidateCallData(exampleDapp)
+			if tc.err == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.err)
+			}
+		})
+	}
 }

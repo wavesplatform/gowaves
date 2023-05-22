@@ -17,12 +17,12 @@ var (
 
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
-	for _, b := range word[:31] {
+	for _, b := range word[:abiSlotSize-1] {
 		if b != 0 {
 			return false, errors.New("abi: improperly encoded boolean value")
 		}
 	}
-	switch word[31] {
+	switch word[abiSlotSize-1] {
 	case 0:
 		return false, nil
 	case 1:
@@ -88,19 +88,18 @@ func tryAsInt64(dataT DataType) (int64, error) {
 }
 
 // forEachUnpack iteratively unpack elements.
-func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error) {
-	if size < 0 {
-		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
+func forEachUnpackRideList(t Type, output []byte, start, size int) (_ List, slotsReadTotal int, err error) {
+	if t.T != SliceType { // here we can only handle slice type
+		return nil, 0, errors.Errorf("abi: invalid type in slice unpacking stage")
 	}
-	if start+32*size > len(output) {
-		return nil, errors.Errorf(
+	if size < 0 { // size is positive
+		return nil, 0, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
+	}
+	if start+abiSlotSize*size > len(output) { // check that we can read size slots
+		return nil, 0, errors.Errorf(
 			"abi: cannot marshal in to go array: offset %d would go over slice boundary (len=%d)",
-			len(output), start+32*size,
+			len(output), start+abiSlotSize*size,
 		)
-	}
-	if t.T != SliceType {
-		return nil, errors.Errorf("abi: invalid type in slice unpacking stage")
-
 	}
 
 	// this value will become our slice or our array, depending on the type
@@ -111,64 +110,72 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error)
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
-		inter, err := toDataType(i, *t.Elem, output)
+		inter, slotsRead, err := toDataType(i, *t.Elem, output)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		slice = append(slice, inter)
+		slotsReadTotal += slotsRead
 	}
-	return slice, nil
+	return slice, slotsReadTotal, nil
 }
 
-func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, error) {
+func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (_ int64, slotsRead int, _ error) {
 	if t.T != IntType && t.T != UintType {
-		return 0, errors.New(
+		return 0, 0, errors.New(
 			"abi: failed to convert eth tuple to ride union, first element of eth tuple must be a number",
 		)
 	}
-	rideT, err := toDataType(index, t, output)
+	rideT, slotsRead, err := toDataType(index, t, output)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return tryAsInt64(rideT)
+	idx, err := tryAsInt64(rideT)
+	if err != nil {
+		return 0, 0, err
+	}
+	return idx, slotsRead, nil
 
 }
 
-func forUnionTupleUnpackToDataType(t Type, output []byte) (DataType, error) {
-	if t.T != TupleType {
-		return nil, errors.New("abi: type in forTupleUnpack must be TupleTy")
+func forUnionTupleUnpackToDataType(t Type, output []byte) (_ DataType, slotsReadTotal int, _ error) {
+	if t.T != TupleType { // here we can only handle slice type
+		return nil, 0, errors.New("abi: type in forTupleUnpack must be TupleTy")
 	}
-	if len(t.TupleFields) < 2 {
-		return nil, errors.New(
+	if len(t.TupleFields) < 2 { // tuple is reasonable
+		return nil, 0, errors.New(
 			"abi: failed to convert eth tuple to ride union, elements count of eth tuple must greater than 2",
 		)
 	}
-	unionIndex, err := extractIndexFromFirstElemOfTuple(0, t.TupleFields[0].Type, output)
+	// first slot is an index with necessary and present value
+	unionIndex, slotsRead, err := extractIndexFromFirstElemOfTuple(0, t.TupleFields[0].Type, output)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	fields := t.TupleFields[1:]
-	if unionIndex >= int64(len(fields)) {
-		return nil, errors.Errorf(
+	slotsReadTotal += slotsRead
+
+	fields := t.TupleFields[1:]           // first slot is an index, other slots are slots with field values
+	if unionIndex >= int64(len(fields)) { // check that index is correct, i.e. we don't violate fields slice boundaries
+		return nil, 0, errors.Errorf(
 			"abi: failed to convert eth tuple to ride union, union index (%d) greater than tuple fields count (%d)",
 			unionIndex, len(fields),
 		)
 	}
 	retval := make([]DataType, 0, len(fields))
 	virtualArgs := 0
-	for index := 1; index < len(fields); index++ {
+	for index := 1; index < len(fields); index++ { // start with 1 because we've already read first slot
 		field := fields[index]
-		marshalledValue, err := toDataType((index+virtualArgs)*32, field.Type, output)
+		marshalledValue, slotsRead, err := toDataType((index+virtualArgs)*abiSlotSize, field.Type, output)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if field.Type.T == TupleType && !isDynamicType(field.Type) {
-
-			virtualArgs += getTypeSize(field.Type)/32 - 1
+			virtualArgs += getTypeSize(field.Type)/abiSlotSize - 1
 		}
 		retval = append(retval, marshalledValue)
+		slotsReadTotal += slotsRead
 	}
-	return retval[unionIndex], nil
+	return retval[unionIndex], slotsReadTotal, nil
 }
 
 // readFixedBytes creates a Bytes with length 1..32 to be read from.
@@ -178,10 +185,10 @@ func readFixedBytes(t Type, word []byte) (Bytes, error) {
 		return nil, errors.Errorf("abi: invalid type in call to make fixed byte array")
 	}
 	// size check
-	if t.Size < 1 || t.Size > 32 {
+	if t.Size < 1 || t.Size > abiSlotSize {
 		return nil, errors.Errorf(
-			"abi: invalid type size in call to make fixed byte array, want 0 < size <= 32, actual size=%d",
-			t.Size,
+			"abi: invalid type size in call to make fixed byte array, want 0 < size <= %d, actual size=%d",
+			abiSlotSize, t.Size,
 		)
 	}
 	array := word[0:t.Size]
@@ -212,14 +219,15 @@ var (
 	}
 )
 
-func unpackPayment(output []byte) (Payment, error) {
+func unpackPayment(output []byte) (_ Payment, slotsReadTotal int, _ error) {
 	assetIDType := paymentType.TupleFields[0].Type
 	amountType := paymentType.TupleFields[1].Type
 
-	assetRideValue, err := toDataType(0, assetIDType, output)
+	assetRideValue, slotsRead, err := toDataType(0, assetIDType, output)
 	if err != nil {
-		return Payment{}, errors.Wrap(err, "failed to decode payment, failed to parse fullAssetID")
+		return Payment{}, 0, errors.Wrap(err, "failed to decode payment, failed to parse fullAssetID")
 	}
+	slotsReadTotal += slotsRead
 
 	fullAssetIDBytes, ok := assetRideValue.(Bytes)
 	if !ok {
@@ -227,16 +235,22 @@ func unpackPayment(output []byte) (Payment, error) {
 	}
 	fullAssetID, err := crypto.NewDigestFromBytes(fullAssetIDBytes)
 	if err != nil {
-		return Payment{}, errors.Wrapf(err, "abi: failed extract asset from bytes")
+		return Payment{}, 0, errors.Wrapf(err, "abi: failed extract asset from bytes")
 	}
 
-	amountRideValue, err := toDataType(getTypeSize(assetIDType), amountType, output)
+	amountRideValue, slotsRead, err := toDataType(getTypeSize(assetIDType), amountType, output)
 	if err != nil {
-		return Payment{}, errors.Wrap(err, "failed to decode payment, failed to parse amount")
+		return Payment{}, 0, errors.Wrap(err, "failed to decode payment, failed to parse amount")
 	}
+	slotsReadTotal += slotsRead
+
 	amount, err := tryAsInt64(amountRideValue)
 	if err != nil {
-		return Payment{}, errors.Wrapf(err, "failed to parse payment, amountRideValue type MUST be representable as int64")
+		return Payment{}, 0, errors.Wrapf(err,
+			"failed to parse payment, amountRideValue type MUST be representable as int64")
+	}
+	if amount < 0 {
+		return Payment{}, 0, errors.New("negative payment amount")
 	}
 
 	payment := Payment{
@@ -244,163 +258,200 @@ func unpackPayment(output []byte) (Payment, error) {
 		AssetID:        fullAssetID,
 		Amount:         amount,
 	}
-	return payment, nil
+	return payment, slotsReadTotal, nil
 }
 
 // unpackPayments unpacks payments from call data without selector
-func unpackPayments(paymentsSliceOffset int, output []byte) ([]Payment, error) {
+func unpackPayments(paymentsSliceIndex int, output []byte) (_ []Payment, slotsReadTotal int, _ error) {
 	if len(output) == 0 {
-		return nil, errors.Errorf("empty payments bytes")
+		return nil, 0, errors.Errorf("empty payments bytes")
 	}
 
-	begin, size, err := lengthPrefixPointsTo(paymentsSliceOffset, output)
+	begin, size, slotsRead, err := lengthPrefixPointsTo(paymentsSliceIndex, output)
 	if err != nil {
-		return nil, err
+		return nil, 0, errors.Wrap(err, "failed to read offset and length")
 	}
-	// jumping to the data section
-	output = output[begin:]
+	output = output[begin:]     // jumping to the data section
+	slotsReadTotal += slotsRead // count offset and length slots
 
-	if size < 0 {
-		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
+	if size < 0 { // size is positive
+		return nil, 0, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
-	if 32*size > len(output) {
-		return nil, errors.Errorf(
+	if abiSlotSize*size > len(output) { // check that we don't violate slice boundaries
+		return nil, 0, errors.Errorf(
 			"abi: cannot marshal in to go array: offset %d would go over slice boundary (len=%d)",
-			len(output), 32*size,
+			len(output), abiSlotSize*size,
 		)
 	}
 
-	elemSize := getTypeSize(*paymentsType.Elem)
+	elemSize := getTypeSize(*paymentsType.Elem) // we know that elem size here is fixed (and equal 32)
 	payments := make([]Payment, 0, size)
 	for i := 0; i < size; i++ {
-		payment, err := unpackPayment(output[i*elemSize:])
+		payment, slotsRead, err := unpackPayment(output[i*elemSize:])
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to unpack payment")
+			return nil, 0, errors.Wrap(err, "failed to unpack payment")
 		}
 		payments = append(payments, payment)
+		slotsReadTotal += slotsRead
 	}
-	return payments, nil
+	return payments, slotsReadTotal, nil
 }
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
-func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetBytes := output[index : index+32]
+func lengthPrefixPointsTo(index int, output []byte) (start, length, slotsReadTotal int, err error) {
+	// read offset bytes
+	bigOffsetBytes := output[index : index+abiSlotSize]
 	bigOffsetEnd := new(big.Int).SetBytes(bigOffsetBytes)
+	// validate offset bytes
 	bigOffsetEnd.Add(bigOffsetEnd, big32)
 
 	outputLength := new(big.Int).SetUint64(uint64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
-		return 0, 0, errors.Errorf(
+		return 0, 0, 0, errors.Errorf(
 			"abi: cannot marshal in to go slice: offset %v would go over slice boundary (len=%v)",
 			bigOffsetEnd, outputLength,
 		)
 	}
 
 	if bigOffsetEnd.BitLen() > 63 {
-		return 0, 0, errors.Errorf("abi offset larger than int64: %v", bigOffsetEnd)
+		return 0, 0, 0, errors.Errorf("abi offset larger than int64: %v", bigOffsetEnd)
 	}
-
 	offsetEnd := bigOffsetEnd.Uint64()
-	lengthBig := new(big.Int).SetBytes(output[offsetEnd-32 : offsetEnd])
 
-	totalSize := big.NewInt(0)
-	totalSize.Add(totalSize, bigOffsetEnd)
-	totalSize.Add(totalSize, lengthBig)
-	if totalSize.BitLen() > 63 {
-		return 0, 0, errors.Errorf("abi: length larger than int64: %v", totalSize)
+	// read length
+	bigLengthBytes := output[offsetEnd-abiSlotSize : offsetEnd]
+	lengthBig := new(big.Int).SetBytes(bigLengthBytes)
+
+	//validate length
+	totalSize := big.NewInt(0)             // init with sero
+	totalSize.Add(totalSize, bigOffsetEnd) // add offset
+	totalSize.Add(totalSize, lengthBig)    // add length
+	if totalSize.BitLen() > 63 {           // compare whether it's int64 or not
+		return 0, 0, 0, errors.Errorf("abi: length larger than int64: %v", totalSize)
 	}
 
-	if totalSize.Cmp(outputLength) > 0 {
-		return 0, 0, errors.Errorf(
+	if totalSize.Cmp(outputLength) > 0 { // now compare it with output length, check bounds os slice
+		return 0, 0, 0, errors.Errorf(
 			"abi: cannot marshal in to go type: length insufficient %v require %v",
 			outputLength, totalSize,
 		)
 	}
-	start = int(bigOffsetEnd.Uint64())
-	length = int(lengthBig.Uint64())
-	return
+	start = int(bigOffsetEnd.Uint64()) // count first slot
+	length = int(lengthBig.Uint64())   // count second slot
+	return start, length, 2, nil
 }
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
-func tuplePointsTo(index int, output []byte) (start int, err error) {
-	offset := new(big.Int).SetBytes(output[index : index+32])
+func tuplePointsTo(index int, output []byte) (start int, slotsReadTotal int, err error) {
+	offset := new(big.Int).SetBytes(output[index : index+abiSlotSize]) // read exactly one slot
 	outputLen := big.NewInt(int64(len(output)))
 
-	if offset.Cmp(big.NewInt(int64(len(output)))) > 0 {
-		return 0, errors.Errorf(
+	if offset.Cmp(outputLen) > 0 {
+		return 0, 0, errors.Errorf(
 			"abi: cannot marshal in to go slice: offset %v would go over slice boundary (len=%v)",
 			offset, outputLen,
 		)
 	}
 	if offset.BitLen() > 63 {
-		return 0, errors.Errorf("abi offset larger than int64: %v", offset)
+		return 0, 0, errors.Errorf("abi offset larger than int64: %v", offset)
 	}
-	return int(offset.Uint64()), nil
+	return int(offset.Uint64()), 1, nil
 }
 
-func toDataType(index int, t Type, output []byte) (DataType, error) {
-	if index+32 > len(output) {
-		return nil, errors.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d",
-			len(output), index+32,
-		)
+func slotsSizeForBytes(b []byte) int {
+	l := len(b)
+	size := l / abiSlotSize
+	if l%abiSlotSize != 0 { // doesn't fit in slots
+		size += 1 // add slot
 	}
+	return size // slots size for data
+}
 
-	var (
-		returnOutput  []byte
-		begin, length int
-		err           error
-	)
-
-	// if we require a length prefix, find the beginning word and size returned.
-	if requiresLengthPrefix(t) {
-		begin, length, err = lengthPrefixPointsTo(index, output)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		returnOutput = output[index : index+32]
+func toDataType(index int, t Type, output []byte) (_ DataType, slotsReadTotal int, _ error) {
+	if l := len(output); index+abiSlotSize > l { // check that we can read at least one slot
+		return nil, 0, errors.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d",
+			l, index+abiSlotSize,
+		)
 	}
 
 	switch t.T {
 	case TupleType:
 		if isDynamicType(t) {
-			begin, err := tuplePointsTo(index, output)
+			begin, slotsRead, err := tuplePointsTo(index, output) // read offset for dynamic tuple
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
-			return forUnionTupleUnpackToDataType(t, output[begin:])
+			slotsReadTotal += slotsRead // count offset slot
+			union, slotsRead, err := forUnionTupleUnpackToDataType(t, output[begin:])
+			if err != nil {
+				return nil, 0, err
+			}
+			slotsReadTotal += slotsRead // count data slots
+			return union, slotsReadTotal, nil
 		}
 		return forUnionTupleUnpackToDataType(t, output[index:])
 	case SliceType:
-		return forEachUnpackRideList(t, output[begin:], 0, length)
-	case StringType: // variable arrays are written at the end of the return bytes
-		return String(output[begin : begin+length]), nil
-	case IntType, UintType:
-		return readInteger(t, returnOutput), nil
-	case BoolType:
-		boolean, err := readBool(returnOutput)
+		begin, length, slotsRead, err := lengthPrefixPointsTo(index, output)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return Bool(boolean), nil
+		slotsReadTotal += slotsRead // count offset and length slots
+		list, slotsRead, err := forEachUnpackRideList(t, output[begin:], 0, length)
+		if err != nil {
+			return nil, 0, err
+		}
+		slotsReadTotal += slotsRead // count data slots
+		return list, slotsReadTotal, err
+	case StringType: // variable arrays are written at the end of the return bytes
+		begin, length, slotsRead, err := lengthPrefixPointsTo(index, output)
+		if err != nil {
+			return nil, 0, err
+		}
+		slotsReadTotal += slotsRead // count offset and length slots
+		s := output[begin : begin+length]
+		slotsReadTotal += slotsSizeForBytes(s) // count data slots
+		return String(s), slotsReadTotal, nil
+	case BytesType:
+		begin, length, slotsRead, err := lengthPrefixPointsTo(index, output)
+		if err != nil {
+			return nil, 0, err
+		}
+		slotsReadTotal += slotsRead // count offset and length slots
+		s := output[begin : begin+length]
+		slotsReadTotal += slotsSizeForBytes(s) // count data slots
+		return Bytes(output[begin : begin+length]), slotsReadTotal, nil
+	case IntType, UintType:
+		slot := output[index : index+abiSlotSize] // read exactly one slot for simple types
+		slotsReadTotal += 1
+		return readInteger(t, slot), slotsReadTotal, nil
+	case BoolType:
+		slot := output[index : index+abiSlotSize] // read exactly one slot for simple types
+		slotsReadTotal += 1
+		boolean, err := readBool(slot)
+		if err != nil {
+			return nil, 0, err
+		}
+		return Bool(boolean), slotsReadTotal, nil
 	case AddressType:
-		if len(returnOutput) == 0 {
-			return nil, errors.Errorf(
+		slot := output[index : index+abiSlotSize] // read exactly one slot for simple types
+		slotsReadTotal += 1
+		if len(slot) == 0 {
+			return nil, 0, errors.Errorf(
 				"invalid etherum address size, expected %d, actual %d",
-				EthereumAddressSize, len(returnOutput),
+				EthereumAddressSize, len(slot),
 			)
 		}
-		return Bytes(returnOutput[len(returnOutput)-EthereumAddressSize:]), nil
-	case BytesType:
-		return Bytes(output[begin : begin+length]), nil
+		return Bytes(slot[len(slot)-EthereumAddressSize:]), slotsReadTotal, nil
 	case FixedBytesType:
-		fixedBytes, err := readFixedBytes(t, returnOutput)
+		slot := output[index : index+abiSlotSize] // read exactly one slot for simple types
+		slotsReadTotal += 1
+		fixedBytes, err := readFixedBytes(t, slot)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return fixedBytes, err
+		return fixedBytes, slotsReadTotal, err
 	default:
-		return nil, errors.Errorf("abi: unknown type %v", t.T)
+		return nil, 0, errors.Errorf("abi: unknown type %v", t.T)
 	}
 }

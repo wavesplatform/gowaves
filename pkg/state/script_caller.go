@@ -379,7 +379,7 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		}
 
 		decodedData := transaction.TxKind.DecodedData()
-		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+		arguments, err := proto.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}

@@ -485,7 +485,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 		applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 		if err != nil {
-			return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
+			return errors.Wrap(err, "failed to handle invoke or exchange transaction")
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
@@ -497,15 +497,14 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		}
 		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
 		if err != nil {
-			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+			return errors.Wrap(err, "failed to guess ethereum transaction kind")
 		}
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
-				)
+				return errors.Wrapf(err, "failed to handle ethereum transaction (type %s) with id %s, on height %d",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
 			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
@@ -517,10 +516,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			}
 			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {
-				return errors.Errorf(
-					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
-				)
+				return errors.Wrapf(err, "failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
 			}
 		}
 	default:
@@ -577,13 +574,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
 	checkerInfo := &checkerInfo{
-		currentTimestamp: params.block.Timestamp,
-		blockID:          params.block.BlockID(),
-		blockVersion:     params.block.Version,
-		height:           params.height,
-		rideV5Activated:  rideV5Activated,
-		rideV6Activated:  rideV6Activated,
+		currentTimestamp:        params.block.Timestamp,
+		blockID:                 params.block.BlockID(),
+		blockVersion:            params.block.Version,
+		height:                  params.height,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
 	}
 	hasParent := params.parent != nil
 	if hasParent {
@@ -838,15 +840,20 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'RideV6' is activated")
 	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
+	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
-		currentTimestamp: currentTimestamp,
-		parentTimestamp:  parentTimestamp,
-		blockID:          block.BlockID(),
-		blockVersion:     version,
-		height:           blockInfo.Height,
-		rideV5Activated:  rideV5Activated,
-		rideV6Activated:  rideV6Activated,
+		currentTimestamp:        currentTimestamp,
+		parentTimestamp:         parentTimestamp,
+		blockID:                 block.BlockID(),
+		blockVersion:            version,
+		height:                  blockInfo.Height,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
