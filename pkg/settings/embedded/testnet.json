@@ -33,6 +33,10 @@
   "initial_block_reward": 600000000,
   "block_reward_increment": 50000000,
   "block_reward_voting_period": 10000,
+  "reward_addresses": [
+    "3Myb6G8DkdBb8YcZzhrky65HrmiNuac3kvS",
+    "3N13KQpdY3UU7JkWUBD9kN7t7xuUgeyYMTT"
+  ],
   "min_update_asset_info_interval": 100000,
   "type": 1,
   "genesis": {
