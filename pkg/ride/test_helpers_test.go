@@ -139,6 +139,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		consensusImprovementsActivatedFunc: func() bool {
 			return false
 		},
+		blockRewardDistributionActivatedFunc: func() bool {
+			return false
+		},
 		invokeExpressionActivatedFunc: func() bool {
 			return false
 		},
@@ -406,6 +409,13 @@ func (e *testEnv) withMessageLengthV3() *testEnv {
 
 func (e *testEnv) withRideV6Activated() *testEnv {
 	e.me.rideV6ActivatedFunc = func() bool {
+		return true
+	}
+	return e
+}
+
+func (e *testEnv) withBlockRewardDistribution() *testEnv {
+	e.me.blockRewardDistributionActivatedFunc = func() bool {
 		return true
 	}
 	return e

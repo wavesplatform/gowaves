@@ -391,6 +391,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.blockV5Activated(),
 		env.rideV6Activated(),
 		env.consensusImprovementsActivated(),
+		env.blockRewardDistributionActivated(),
 		env.invokeExpressionActivated(),
 	)
 	if err != nil {
@@ -739,8 +740,14 @@ func (ws *WrappedState) ApplyToState(
 		Scheme:                ws.scheme,
 		ScriptAddress:         ws.callee(),
 	}
+	var libVersion ast.LibraryVersion
+	if env.blockRewardDistributionActivated() {
+		libVersion = ws.rootScriptLibVersion
+	} else {
+		libVersion = currentLibVersion
+	}
 	if len(actions) == 0 {
-		if err := ws.rootActionsCountValidator.ValidateCounts(currentLibVersion, env.rideV6Activated()); err != nil {
+		if err := ws.rootActionsCountValidator.ValidateCounts(libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 	}
@@ -748,7 +755,7 @@ func (ws *WrappedState) ApplyToState(
 		if err := localActionsCountValidator.CountAction(action, currentLibVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate local actions count")
 		}
-		if err := ws.countActionTotal(action, currentLibVersion, env.rideV6Activated()); err != nil {
+		if err := ws.countActionTotal(action, libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 		switch a := action.(type) {
@@ -988,26 +995,27 @@ func (ws *WrappedState) ApplyToState(
 }
 
 type EvaluationEnvironment struct {
-	sch                              proto.Scheme
-	st                               types.SmartState
-	h                                rideInt
-	tx                               rideType
-	id                               rideType
-	th                               rideType
-	time                             uint64
-	b                                rideType
-	check                            func(int) bool
-	takeStr                          func(s string, n int) rideString
-	inv                              rideType
-	ver                              ast.LibraryVersion
-	validatePaymentsAfter            uint64
-	isBlockV5Activated               bool
-	isRideV6Activated                bool
-	isConsensusImprovementsActivated bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
-	isInvokeExpressionActivated      bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
-	isProtobufTransaction            bool
-	mds                              int
-	cc                               complexityCalculator
+	sch                                proto.Scheme
+	st                                 types.SmartState
+	h                                  rideInt
+	tx                                 rideType
+	id                                 rideType
+	th                                 rideType
+	time                               uint64
+	b                                  rideType
+	check                              func(int) bool
+	takeStr                            func(s string, n int) rideString
+	inv                                rideType
+	ver                                ast.LibraryVersion
+	validatePaymentsAfter              uint64
+	isBlockV5Activated                 bool
+	isRideV6Activated                  bool
+	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
+	isBlockRewardDistributionActivated bool // isBlockRewardDistributionActivated => nodeVersion >= 1.4.16
+	isInvokeExpressionActivated        bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
+	isProtobufTransaction              bool
+	mds                                int
+	cc                                 complexityCalculator
 }
 
 func bytesSizeCheckV1V2(l int) bool {
@@ -1019,24 +1027,25 @@ func bytesSizeCheckV3V6(l int) bool {
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
-	blockV5, rideV6, consensusImprovements, invokeExpression bool,
+	blockV5, rideV6, consensusImprovements, blockRewardDistribution, invokeExpression bool,
 ) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 	return &EvaluationEnvironment{
-		sch:                              scheme,
-		st:                               state,
-		h:                                rideInt(height),
-		check:                            bytesSizeCheckV1V2, // By default almost unlimited
-		takeStr:                          func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
-		validatePaymentsAfter:            internalPaymentsValidationHeight,
-		isBlockV5Activated:               blockV5,
-		isRideV6Activated:                rideV6,
-		isInvokeExpressionActivated:      invokeExpression,
-		isConsensusImprovementsActivated: consensusImprovements,
-		cc:                               newComplexityCalculatorByRideV6Activation(rideV6),
+		sch:                                scheme,
+		st:                                 state,
+		h:                                  rideInt(height),
+		check:                              bytesSizeCheckV1V2, // By default almost unlimited
+		takeStr:                            func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		validatePaymentsAfter:              internalPaymentsValidationHeight,
+		isBlockV5Activated:                 blockV5,
+		isRideV6Activated:                  rideV6,
+		isBlockRewardDistributionActivated: blockRewardDistribution,
+		isInvokeExpressionActivated:        invokeExpression,
+		isConsensusImprovementsActivated:   consensusImprovements,
+		cc:                                 newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
 }
 
@@ -1096,6 +1105,10 @@ func NewEnvironmentWithWrappedState(
 
 func (e *EvaluationEnvironment) consensusImprovementsActivated() bool {
 	return e.isConsensusImprovementsActivated
+}
+
+func (e *EvaluationEnvironment) blockRewardDistributionActivated() bool {
+	return e.isBlockRewardDistributionActivated
 }
 
 func (e *EvaluationEnvironment) invokeExpressionActivated() bool {
