@@ -18,8 +18,11 @@ type blockDifferTestObjects struct {
 }
 
 func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
-	sets := settings.TestNetSettings
-	stor := createStorageObjects(t, false)
+	return createBlockDifferWithSettings(t, settings.TestNetSettings)
+}
+
+func createBlockDifferWithSettings(t *testing.T, sets *settings.BlockchainSettings) *blockDifferTestObjects {
+	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: false, Settings: sets})
 	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
@@ -189,4 +192,95 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctMinerDiff := txDiff{testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff}
 	assert.Equal(t, correctMinerDiff, minerDiff)
+}
+
+func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
+	sets := settings.TestNetSettings
+	// Add some addresses for reward distribution
+	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	sets.InitialBlockReward = 800000000
+	to := createBlockDifferWithSettings(t, sets)
+
+	// Activate NG and BlockReward
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.BlockReward))
+	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
+
+	sig := genRandBlockIds(t, 1)[0]
+	gs := crypto.MustBytesFromBase58(defaultGenSig)
+
+	// First block
+	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
+	to.stor.addBlock(t, block1.BlockID())
+	txs := block1.Transactions
+	for _, tx := range txs {
+		err := to.blockDiffer.countMinerFee(tx)
+		require.NoError(t, err)
+	}
+	err := to.blockDiffer.saveCurFeeDistr(&block1.BlockHeader)
+	require.NoError(t, err)
+
+	// Second block
+	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
+	to.stor.addBlock(t, block2.BlockID())
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true)
+	require.NoError(t, err)
+
+	fee := int64(defaultFee - defaultFee/5*2)
+	reward := int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward)
+	additionalAddressReward := reward / 3
+	correctFirstRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
+	correctSecondRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(fee+reward-2*additionalAddressReward, 0, 0, false)
+	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
+	correctFirstRewardAddressBalanceDiff.blockID = block2.BlockID()
+	correctSecondRewardAddressBalanceDiff.blockID = block2.BlockID()
+	correctDiff := txDiff{
+		testGlobal.minerInfo.wavesKey:     correctMinerWavesBalanceDiff,
+		testGlobal.senderInfo.wavesKey:    correctFirstRewardAddressBalanceDiff,
+		testGlobal.recipientInfo.wavesKey: correctSecondRewardAddressBalanceDiff,
+	}
+	assert.Equal(t, correctDiff, minerDiff)
+}
+
+func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
+	to := createBlockDiffer(t)
+	// Add some addresses for reward distribution
+	to.blockDiffer.settings.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
+
+	// Activate NG and BlockReward
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.BlockReward))
+	to.stor.activateFeature(t, int16(settings.BlockRewardDistribution))
+
+	sig := genRandBlockIds(t, 1)[0]
+	gs := crypto.MustBytesFromBase58(defaultGenSig)
+
+	// First block
+	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
+	to.stor.addBlock(t, block1.BlockID())
+	txs := block1.Transactions
+	for _, tx := range txs {
+		err := to.blockDiffer.countMinerFee(tx)
+		require.NoError(t, err)
+	}
+	err := to.blockDiffer.saveCurFeeDistr(&block1.BlockHeader)
+	require.NoError(t, err)
+
+	// Second block
+	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
+	to.stor.addBlock(t, block2.BlockID())
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true)
+	require.NoError(t, err)
+
+	fee := defaultFee - defaultFee/5*2
+	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/2)), 0, 0, false)
+	correctRewardAddressBalanceDiff := newBalanceDiff(int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/2), 0, 0, false)
+	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
+	correctRewardAddressBalanceDiff.blockID = block2.BlockID()
+	correctDiff := txDiff{
+		testGlobal.minerInfo.wavesKey:  correctMinerWavesBalanceDiff,
+		testGlobal.senderInfo.wavesKey: correctRewardAddressBalanceDiff,
+	}
+	assert.Equal(t, correctDiff, minerDiff)
 }
