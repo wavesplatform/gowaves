@@ -123,15 +123,15 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 		to.state.appender.ia.sc.resetComplexity()
 	}()
 
-	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
+	_, applicationRes, err := to.state.appender.ia.applyInvokeScript(tx, info)
 	require.NoError(t, err)
-	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
+	err = to.state.appender.diffStor.saveTxDiff(applicationRes.changes.diff)
 	assert.NoError(t, err)
-	if res.status {
+	if applicationRes.status {
 		err = to.state.stor.commitUncertain(info.checkerInfo.blockID)
 		assert.NoError(t, err)
 	}
-	return res
+	return applicationRes
 }
 
 func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
@@ -189,7 +189,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
-		_, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
+		_, _, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
 		assert.Error(t, err)
 		return
 	}

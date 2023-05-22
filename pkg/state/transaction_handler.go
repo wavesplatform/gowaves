@@ -8,7 +8,7 @@ import (
 )
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
-type txPerformFunc func(proto.Transaction, *performerInfo) (TransactionSnapshot, error)
+type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, *applicationResult) (TransactionSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -31,19 +31,20 @@ type transactionHandler struct {
 }
 
 // TODO: see TODO on GetTypeInfo() in proto/transactions.go.
+// performer builds snapshots
 func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
 	return handles{
 		proto.TransactionTypeInfo{Type: proto.GenesisTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
-			tc.checkGenesis, nil, td.createDiffGenesis, nil,
+			tc.checkGenesis, tp.performGenesis, td.createDiffGenesis, nil,
 		},
 		proto.TransactionTypeInfo{Type: proto.PaymentTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
-			tc.checkPayment, nil, td.createDiffPayment, tf.minerFeePayment,
+			tc.checkPayment, tp.performPayment, td.createDiffPayment, tf.minerFeePayment,
 		},
 		proto.TransactionTypeInfo{Type: proto.TransferTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
-			tc.checkTransferWithSig, nil, td.createDiffTransferWithSig, tf.minerFeeTransferWithSig,
+			tc.checkTransferWithSig, tp.performTransferWithSig, td.createDiffTransferWithSig, tf.minerFeeTransferWithSig,
 		},
 		proto.TransactionTypeInfo{Type: proto.TransferTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
-			tc.checkTransferWithProofs, nil, td.createDiffTransferWithProofs, tf.minerFeeTransferWithProofs,
+			tc.checkTransferWithProofs, tp.performTransferWithProofs, td.createDiffTransferWithProofs, tf.minerFeeTransferWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.IssueTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
 			tc.checkIssueWithSig, tp.performIssueWithSig, td.createDiffIssueWithSig, tf.minerFeeIssueWithSig,
@@ -154,7 +155,7 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([
 	return funcs.check(tx, info)
 }
 
-func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo) (TransactionSnapshot, error) {
+func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
@@ -165,7 +166,7 @@ func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo
 		return nil, nil
 	}
 
-	return funcs.perform(tx, info)
+	return funcs.perform(tx, info, invocationRes, applicationRes)
 }
 
 func (h *transactionHandler) createDiffTx(tx proto.Transaction, info *differInfo) (txBalanceChanges, error) {
