@@ -431,6 +431,7 @@ type environment interface {
 	blockV5Activated() bool
 	rideV6Activated() bool
 	consensusImprovementsActivated() bool
+	blockRewardDistributionActivated() bool
 	invokeExpressionActivated() bool // TODO: check naming
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int

@@ -23,6 +23,9 @@ var _ environment = &mockRideEnvironment{}
 //			blockFunc: func() rideType {
 //				panic("mock out the block method")
 //			},
+//			blockRewardDistributionActivatedFunc: func() bool {
+//				panic("mock out the blockRewardDistributionActivated method")
+//			},
 //			blockV5ActivatedFunc: func() bool {
 //				panic("mock out the blockV5Activated method")
 //			},
@@ -102,6 +105,9 @@ type mockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideType
 
+	// blockRewardDistributionActivatedFunc mocks the blockRewardDistributionActivated method.
+	blockRewardDistributionActivatedFunc func() bool
+
 	// blockV5ActivatedFunc mocks the blockV5Activated method.
 	blockV5ActivatedFunc func() bool
 
@@ -175,6 +181,9 @@ type mockRideEnvironment struct {
 	calls struct {
 		// block holds details about calls to the block method.
 		block []struct {
+		}
+		// blockRewardDistributionActivated holds details about calls to the blockRewardDistributionActivated method.
+		blockRewardDistributionActivated []struct {
 		}
 		// blockV5Activated holds details about calls to the blockV5Activated method.
 		blockV5Activated []struct {
@@ -259,6 +268,7 @@ type mockRideEnvironment struct {
 		}
 	}
 	lockblock                            sync.RWMutex
+	lockblockRewardDistributionActivated sync.RWMutex
 	lockblockV5Activated                 sync.RWMutex
 	lockcheckMessageLength               sync.RWMutex
 	lockcomplexityCalculator             sync.RWMutex
@@ -308,6 +318,33 @@ func (mock *mockRideEnvironment) blockCalls() []struct {
 	mock.lockblock.RLock()
 	calls = mock.calls.block
 	mock.lockblock.RUnlock()
+	return calls
+}
+
+// blockRewardDistributionActivated calls blockRewardDistributionActivatedFunc.
+func (mock *mockRideEnvironment) blockRewardDistributionActivated() bool {
+	if mock.blockRewardDistributionActivatedFunc == nil {
+		panic("mockRideEnvironment.blockRewardDistributionActivatedFunc: method is nil but environment.blockRewardDistributionActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockblockRewardDistributionActivated.Lock()
+	mock.calls.blockRewardDistributionActivated = append(mock.calls.blockRewardDistributionActivated, callInfo)
+	mock.lockblockRewardDistributionActivated.Unlock()
+	return mock.blockRewardDistributionActivatedFunc()
+}
+
+// blockRewardDistributionActivatedCalls gets all the calls that were made to blockRewardDistributionActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.blockRewardDistributionActivatedCalls())
+func (mock *mockRideEnvironment) blockRewardDistributionActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockblockRewardDistributionActivated.RLock()
+	calls = mock.calls.blockRewardDistributionActivated
+	mock.lockblockRewardDistributionActivated.RUnlock()
 	return calls
 }
 

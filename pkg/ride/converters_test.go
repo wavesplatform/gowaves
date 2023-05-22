@@ -3238,7 +3238,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data())
+	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
 	assert.NoError(t, err)
 	makeLessDataAmount(t, decodedData)
 
