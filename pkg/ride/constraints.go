@@ -24,7 +24,7 @@ func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (uint32, erro
 		return maxChainInvokeComplexityV3V4, nil
 	case ast.LibV5:
 		return maxChainInvokeComplexityV5, nil
-	case ast.LibV6:
+	case ast.LibV6, ast.LibV7:
 		return maxChainInvokeComplexityV6, nil
 	default:
 		return 0, errors.Errorf("unsupported library version %d", version)

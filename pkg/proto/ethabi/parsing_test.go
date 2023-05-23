@@ -1,6 +1,7 @@
 package ethabi
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -27,7 +28,7 @@ func TestERC20EthereumTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	erc20Db := NewErc20MethodsMap()
-	callData, err := erc20Db.ParseCallDataRide(data)
+	callData, err := erc20Db.ParseCallDataRide(data, true)
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature.String())
@@ -52,7 +53,7 @@ func TestGetERC20TransferArguments(t *testing.T) {
 	require.NoError(t, err)
 
 	erc20Db := NewErc20MethodsMap()
-	callData, err := erc20Db.ParseCallDataRide(data)
+	callData, err := erc20Db.ParseCallDataRide(data, true)
 	require.NoError(t, err)
 
 	transferArgs, err := GetERC20TransferArguments(callData)
@@ -91,7 +92,7 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 		methods:       customDB,
 		parsePayments: false,
 	}
-	callData, err := db.ParseCallDataRide(data)
+	callData, err := db.ParseCallDataRide(data, true)
 	require.NoError(t, err)
 
 	require.Equal(t, "minta", callData.Name)
@@ -335,7 +336,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, tc.parsePayments)
 		require.NoError(t, err)
 
-		decodedCallData, err := db.ParseCallDataRide(data)
+		decodedCallData, err := db.ParseCallDataRide(data, true)
 		require.NoError(t, err)
 
 		values := make([]DataType, 0, len(decodedCallData.Inputs))
@@ -348,4 +349,55 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			require.Equal(t, tc.payments, decodedCallData.Payments)
 		}
 	}
+}
+
+func TestMethodsMap_ParseCallDataRide_GarbageTal(t *testing.T) {
+	const invalidCallData = "0xa9059cbb000000000000000000000000d0ba6c90e23ffe63049fa4fff4e0c4d3ad79e83a0000000000000000000000000000000000000000000000000000000000d59f806273632c307836443230613564416543324233433531353038383631393166343744383866394266343234413031"
+	callData, err := hex.DecodeString(strings.TrimPrefix(invalidCallData, "0x"))
+	require.NoError(t, err)
+	mm := NewErc20MethodsMap()
+
+	_, err = mm.ParseCallDataRide(callData, false)
+	require.NoError(t, err)
+
+	_, err = mm.ParseCallDataRide(callData, true)
+	require.EqualError(t, err, "transaction data is not valid ABI (length should be a multiple of 32 (was 110))")
+}
+
+func TestMethodsMap_ParseCallDataRide_GarbageMiddle(t *testing.T) {
+	var (
+		intData    = Int(21)
+		stringData = String(strings.Repeat("f", 42))
+		fnSelector = Signature("foo(int64,string)").Selector()
+	)
+	type slot [abiSlotSize]byte
+	var (
+		one   = (&slot{1})[:]
+		two   = (&slot{2})[:]
+		slots = [][]byte{two, one, two, one, two, one, two, one, two, one, two, one}
+	)
+	offset := Int((1 + 1 + len(slots)) * abiSlotSize).EncodeToABI() // 1 slot for intData + 1 slot for offsetItself + garbage
+	length := Int(len(stringData)).EncodeToABI()
+	stringSlots := make([]byte, abiSlotSize*slotsSizeForBytes([]byte(stringData)))
+	copy(stringSlots, stringData)
+
+	callData := bytes.Join([][]byte{fnSelector[:], intData.EncodeToABI(), offset, bytes.Join(slots, nil), length, stringSlots}, nil)
+
+	dAppMeta := meta.DApp{
+		Version:   1,
+		Functions: []meta.Function{{Name: "foo", Arguments: []meta.Type{meta.Int, meta.String}}},
+	}
+
+	mm, err := newMethodsMapFromRideDAppMeta(dAppMeta, false)
+	require.NoError(t, err)
+
+	res, err := mm.ParseCallDataRide(callData, false)
+	require.NoError(t, err)
+	require.Equal(t, "foo", res.Name)
+	require.Len(t, res.Inputs, 2)
+	require.Equal(t, intData, res.Inputs[0].Value)
+	require.Equal(t, stringData, res.Inputs[1].Value)
+
+	_, err = mm.ParseCallDataRide(callData, true)
+	require.EqualError(t, err, "transaction abi contains garbage data: read 160, len 544")
 }

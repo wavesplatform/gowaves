@@ -1,0 +1,438 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let revisionNum = ""
+
+let SEP = "__"
+let LISTSEP = ":"
+let DEFAULTQUORUM = 500_000 # 0.5 * 10^6 = 50%
+let URLPATTERN = "https://forum.neutrino.at/"
+let MAXTITLE = 250
+let MAXURL = 250
+let MAXVOTINGTIME = 1_209_600_000 # 2*7*24*60*60*1000ms
+let MULT6 = 1_000_000
+let DEFAULTPAYMENT = 10_0000_0000
+let DEFAULTCREATIONGNSBT = 1000_000000
+let PASTMARGIN = 7200_000 # 2*60*60*1000ms
+let FUTUREMARGIN = 5400_000 # 1.5*60*60*1000ms
+let DEFAULTFIRSTPROPOSAL = 111
+
+# indices to access proposal data fields (static)
+let govIdxProposalTxId = 1
+let govIdxType         = 2
+let govIdxAuthor       = 3
+let govIdxUrl          = 4
+let govIdxTitle        = 5
+let govIdxCreationTime = 6
+let govIdxStart        = 7
+let govIdxEnd          = 8
+let govIdxTxIds        = 9
+let govIdxQuorum       = 10
+let govIdxOptions      = 11
+
+#indices to access dynamic status data
+let govStatusIdxIsValid    = 1
+let govStatusIdxWinOpt     = 2
+let govStatusIdxWinVotes   = 3
+let govStatusIdxTotalVotes = 4
+let govStatusIdxScApplied  = 5
+let govStatusIdxScTime     = 6
+let govStatusIdxIsCanceled = 7
+
+func getStringOrFail(address: Address, key: String) = address.getString(key)
+    .valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getIntOrElse(key: String, defaultVal: Int) = this.getInteger(key).valueOrElse(defaultVal)
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp = 11
+let IdxControlCfgRestV2Dapp       = 12
+let IdxControlCfgGovernanceDapp   = 13
+
+func keyControlAddress() = "%s%s__config__controlAddress"
+func keyControlCfg() = "%s__controlConfig"
+
+func readControlCfgOrFail(control: Address) = split_4C(control.getStringOrFail(keyControlCfg()), SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP").addressFromStringValue()
+let controlCfg = controlContract.readControlCfgOrFail()
+let neutrinoContract = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let gnsbtControllerContract = controlCfg.getContractAddressOrFail(IdxControlCfgGnsbtControllerDapp)
+
+func keyQuorumRequiredPercent(type: String) = "%s%s__quorumRequired__" + type
+func keyPaymentRequired() = "%s__paymentRequired"
+func keyGnsbtRequired() = "%s__gNsbtRequired"
+func keyLastProposalId() = "%s__proposalId"
+func keyFirstProposalId() = "%s__firstProposalId"
+func keyLastUpdateVersion() = "%s__updateVersion"
+func keyProposalStatusDataById(proposalId: Int) = "%s%d__proposalStatusData__" + proposalId.toString()
+func keyProposalDataById(proposalId: Int) = "%s%d__proposalData__" + proposalId.toString()
+func keyProposalVotesByIdAndOption(proposalId: Int, opt: Int) = makeString(["%s%d%d", "votesByOpt", proposalId.toString(), opt.toString()], SEP)
+func keyProposalVotesByIdAndUser(proposalId: Int, userAddr: String) = makeString(["%s%d%s", "votesByUser", proposalId.toString(), userAddr], SEP)
+func keyProposalChoiceByIdAndUser(proposalId: Int, userAddr: String) = makeString(["%s%d%s", "optionByUser", proposalId.toString(), userAddr], SEP)
+func keyApplyInProgress() = "%s__applyInProgress"
+func keyProposalIdByTopicId(topicId: Int) = "%s%d__proposalIdByTopicId__" + topicId.toString()
+func keyUserGnsbtReleaseTime(userAddr: String) = "%s%s_userGnsbtReleaseTime__" + userAddr
+# stats
+func keyNumUniqueVotersByProposalId(proposalId: Int) = "%s%d__numVoters__" + proposalId.toString()
+func keyStatsAverUniqueVoters() = "%s%s%s__stats__avg__uniqueVoters" # 6 decimals
+func keyStatsAverGnsbtVoted() = "%s%s%s__stats__avg__gnsbtVoted" # 6 decimals
+func keyStatsUniqueAuthors() = "%s%s__stats__uniqueAuthors"
+func keyNumProposalsByAuthor(addressStr: String) = "%s%s__numProposalsByAuthor__" + addressStr
+func keyApplyHistory(timestamp: Int) = "%s%d__applyHistory__" + timestamp.toString()
+
+func asAnyList(v: Any) = {
+  match v {
+    case l: List[Any] => l
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(v: Any) = {
+  match v {
+    case i: Int => i
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func statusData(isVotingValid: Boolean, winOption: Int, winOptionVotes: Int, totalVotes: Int, 
+    areScriptsApplied: Boolean, scriptsTimestamp: Int, canceledByTeam: Boolean) = {
+    makeString(["%b%d%d%d%b%d%b",
+      isVotingValid.toString(),     # 1 true|false
+      winOption.toString(),         # 2 Int
+      winOptionVotes.toString(),    # 3 Int
+      totalVotes.toString(),        # 4 Int
+      areScriptsApplied.toString(), # 5 true|false
+      scriptsTimestamp.toString(),  # 6 Long
+      canceledByTeam.toString()     # 7 true|false
+      ], SEP)
+}
+
+func proposalData(proposalTxId: String, type: String, author: String, forumLink: String, 
+    title: String, proposalTime: Int, votingStartTime: Int, votingEndTime: Int, txIds: String, quorumInGnsbt: Int, options: String) = {
+    makeString(["%s%s%s%s%s%d%d%d%s%d%s",
+      proposalTxId,               # 1
+      type,                       # 2 IDEA|UPDATE
+      author,                     # 3 AddrStr
+      forumLink,                  # 4
+      title,                      # 5
+      proposalTime.toString(),    # 6
+      votingStartTime.toString(), # 7
+      votingEndTime.toString(),   # 8
+      txIds,                      # 9
+      quorumInGnsbt.toString(),   # 10
+      options                     # 11 "NO:YES"
+      ], SEP)
+}
+
+# Before creating an UPDATE voting, one should prepare the transactions with sender = neutrinoContract 
+# and timestamp after voting finishing time. We need txIds only, no need to broadcast
+func checkTxList(txList: List[String]) = {
+    if (txList.size() > 20) then throw("Too many transactions: " + txList.size().toString()) else
+
+    func combiner(acc: String, tx: String) = {
+        if (tx.fromBase58String().size() != 32) then throw("Wrong txId: " + tx) else
+        if (acc == "") then tx else acc + LISTSEP + tx
+    }
+
+    FOLD<20>(txList, "", combiner)
+}
+
+# data indices to access effective gNsbt array
+let IdxEffTotal = 0
+let IdxEffUser  = 1
+
+func getEffectiveGnsbt(userAddrStrOrEmpty: String) = {
+  let gnsbtData = gnsbtControllerContract.invoke("gnsbtInfoSYSREADONLY", [userAddrStrOrEmpty, 0, 0], []).asAnyList()
+  let nsbtData = gnsbtData[2].asAnyList()
+  let userFromNsbt = nsbtData[2].asInt()
+  let totalFromNsbt = nsbtData[3].asInt()
+  let userMatureFromSurf = gnsbtData[9].asInt()
+  let totalMatureFromSurf = gnsbtData[6].asInt()
+
+  [totalFromNsbt + totalMatureFromSurf, userFromNsbt + userMatureFromSurf]
+}
+
+func validateLink(url: String) = {
+    if (url.indexOf(URLPATTERN).value() != 0) then throw("Invalid url") else
+    if (url.size() > MAXURL) then throw("Url too long!") else
+    let topicId = url.drop(url.lastIndexOf("/").value() + 1).parseInt().valueOrErrorMessage("Wrong topicId")
+    let registeredId = getInteger(keyProposalIdByTopicId(topicId))
+    if (registeredId.isDefined()) then throw("Voting with such forum link is already registered by id=" + registeredId.value().toString()) else
+    topicId
+}
+
+func initiateVoting(payment: AttachedPayment, proposalTxId: String, type: String, author: String, forumLink: String, title: String, 
+        votingStartTime: Int, votingEndTime: Int, status: String, txList: List[String], optionsList: List[String]) = {
+
+    if (payment.assetId != unit) then throw("Allowed WAVES payment only!") else
+    let pmtReq = getIntOrElse(keyPaymentRequired(), DEFAULTPAYMENT)
+    if (payment.amount < pmtReq) then throw("Payment attached should be at least " + pmtReq.toString()) else
+    let topicId = validateLink(forumLink)
+    if (title == "") then throw("Title is empty") else
+    if (title.size() > MAXTITLE) then throw("Too long title") else
+    let proposalTime = lastBlock.timestamp
+    if (votingStartTime < proposalTime) then throw("votingStartTime=" + votingStartTime.toString() + " < proposalTime=" + proposalTime.toString()) else
+    if (votingEndTime < votingStartTime) then throw("votingEndTime=" + votingEndTime.toString() + " < votingStartTime=" + votingStartTime.toString()) else
+    if (votingEndTime - votingStartTime > MAXVOTINGTIME) then throw("Voting period exceeds max: " + (votingEndTime - votingStartTime).toString() + " > " + MAXVOTINGTIME.toString()) else
+    let txIds = if (type == "IDEA") then "" else checkTxList(txList)
+    if (optionsList.size() <= 1) then throw("Too few choices to vote") else
+    let eff = getEffectiveGnsbt(author)
+    let gnsbtTotal = eff[IdxEffTotal]
+    let gNsbtUser = eff[IdxEffUser]
+    let gnsbtReq = getIntOrElse(keyGnsbtRequired(), DEFAULTCREATIONGNSBT)
+    if (gNsbtUser < gnsbtReq) then throw("You need at least " + gnsbtReq.toString() + " gNsbt to create voting") else
+
+    strict amountLeased = invoke(neutrinoContract, "acceptWaves", nil, [payment])
+
+    let quorum = getIntOrElse(keyQuorumRequiredPercent(type), DEFAULTQUORUM)
+    let quorumInGnsbt = fraction(quorum, gnsbtTotal, MULT6)
+
+    let proposalId = getIntOrElse(keyLastProposalId(), 0) + 1
+    let numProposalsByAuthor = getIntOrElse(keyNumProposalsByAuthor(author), 0) + 1
+    let uniqAuthors = getIntOrElse(keyStatsUniqueAuthors(), 0) + (if (numProposalsByAuthor == 1) then 1 else 0)
+    let optionsStr = makeString(optionsList, LISTSEP) # TODO: check options for length and special chars
+    ([
+        IntegerEntry(keyLastProposalId(), proposalId),
+        IntegerEntry(keyProposalIdByTopicId(topicId), proposalId),
+        StringEntry(keyProposalStatusDataById(proposalId), statusData(false, 0, 0, 0, false, 0, false)),
+        StringEntry(keyProposalDataById(proposalId), 
+          proposalData(proposalTxId, type, author, forumLink.toBytes().toBase58String(), title.toBytes().toBase58String(), 
+            proposalTime, votingStartTime, votingEndTime, txIds, quorumInGnsbt, optionsStr)),
+        IntegerEntry(keyNumProposalsByAuthor(author), numProposalsByAuthor),
+        IntegerEntry(keyStatsUniqueAuthors(), uniqAuthors)
+    ], proposalTxId)
+}
+
+# we can't rely on oldUserChoice, newUserChoice and currentWinner only, as some new leader can appear
+func calcWinOption(proposalId: Int, optionsList: List[String], isPrevOptional: Boolean, oldChoice: Int|Unit, optionalTotalOld: Int, 
+    newChoice: Int, newTotalByNewChoice: Int) = {
+
+    func findBest(acc: (Int, Int), elem: String) = {
+        let idx = optionsList.indexOf(elem).value()
+        # check if idx is one of (oldChoice, newchoice)
+        let val = if (isPrevOptional) then {
+            # only check newChoice
+            if (idx == newChoice) then newTotalByNewChoice else getIntOrElse(keyProposalVotesByIdAndOption(proposalId, idx), 0)
+        } else {
+            # check both oldChoice and newChoice
+            if (idx == oldChoice.value()) then {
+                optionalTotalOld
+            } else {
+                if (idx == newChoice) then newTotalByNewChoice else getIntOrElse(keyProposalVotesByIdAndOption(proposalId, idx), 0)
+            }
+        }
+        if (acc._2 > val) then acc else (idx, val)
+    }
+    
+    FOLD<10>(optionsList, (0, 0), findBest) # returns tuple (winning index, win votes)
+}
+
+func updateStatusData(oldData: List[String], isValid: Boolean, newWinOpt: (Int, Int), newTotalVotes: Int) = {
+    makeString(["%b%d%d%d%b%d%b",
+      isValid.toString(),
+      newWinOpt._1.toString(), # winning option index
+      newWinOpt._2.toString(), # winning option votes
+      newTotalVotes.toString(),
+      oldData[govStatusIdxScApplied],
+      oldData[govStatusIdxScTime],
+      oldData[govStatusIdxIsCanceled]
+      ], SEP)
+}
+
+func statusApplyScript(oldData: List[String]) = {
+    makeString(["%b%d%d%d%b%d%b",
+      oldData[govStatusIdxIsValid],
+      oldData[govStatusIdxWinOpt],
+      oldData[govStatusIdxWinVotes],
+      oldData[govStatusIdxTotalVotes],
+      "true",
+      oldData[govStatusIdxScTime],
+      oldData[govStatusIdxIsCanceled]
+      ], SEP)
+}
+
+func ExecutionHistory(updateVersion: Int, title: String, url: String, proposalId: Int) = {
+    let gnsbtTotal = getEffectiveGnsbt("")[IdxEffTotal]
+    let turnout = 500_000 # TODO: hardcoded 50% for now
+    
+    StringEntry(keyApplyHistory(lastBlock.timestamp),
+        ["%d%d%d%s%s%d",
+            updateVersion.toString(),
+            gnsbtTotal.toString(),
+            turnout.toString(),
+            title,
+            url,
+            proposalId.toString()
+        ].makeString(SEP)
+    )
+}
+
+# gNsbtReqToInit=1000000, wavesReqToInit=200000000, quorumReqPercIdea=500000, quorumReqPercUpdate=500000
+@Callable(i)
+func constructorV1(controlAddr: String, gNsbtReqToInit: Int, wavesReqToInit: Int, quorumReqPercIdea: Int, quorumReqPercUpdate: Int) = {
+    if (i.caller != this) then throw("Permission denied") else
+    [StringEntry(keyControlAddress(), controlAddr),
+    IntegerEntry(keyGnsbtRequired(), gNsbtReqToInit),
+    IntegerEntry(keyPaymentRequired(), wavesReqToInit),
+    IntegerEntry(keyQuorumRequiredPercent("IDEA"), quorumReqPercIdea),
+    IntegerEntry(keyQuorumRequiredPercent("UPDATE"), quorumReqPercUpdate)]
+}
+
+#               2nd time different option              #   first time                                         #   2nd time the same option
+# oldTotalOldChoice ; oldUserVotes (oldChoice==0)      # (oldChoice undefined)                                # oldUserVotes, newUserVotes (oldChoice==choice==0)
+# oldTotalNewChoice ; newUserVotes (choice==1)         # newUserVotes (choice==1)
+# oldTotal = oldTotal0 + oldTotal1 + ...
+# newTotalOldChoice = oldTotalOldChoice - oldUserVotes # (don't save newTotalOldChoice)                       # newTotal0 = oldTotal0 - oldUserVotes + newUserVotes
+# newTotalnewChoice = oldTotalNewChoice + newUserVotes # newTotalNewChoice = oldTotalNewChoice + newUserVotes # 
+# newTotal = oldTotal - oldUserVotes + newUserVotes    # newTotal = oldTotal + newUserVotes                   # newTotal = oldTotal - oldUserVotes + newUserVotes
+@Callable(i)
+func castVote(proposalId: Int, choice: Int) = {
+    let userAddressStr = i.caller.toString()
+    let dynamicData = this.getStringOrFail(keyProposalStatusDataById(proposalId)).split(SEP)
+    if (dynamicData[govStatusIdxIsCanceled] == "true") then throw("Voting is canceled by team") else
+    let propData = this.getStringOrFail(keyProposalDataById(proposalId)).split(SEP)
+    let start = propData[govIdxStart].parseIntValue()
+    let end = propData[govIdxEnd].parseIntValue()
+    let now = lastBlock.timestamp
+    if (now < start) then throw("Voting not started yet") else
+    if (now >= end) then throw("Voting already finished") else
+    let availableOptions = propData[govIdxOptions].split(LISTSEP)
+    let numOptions = availableOptions.size()
+    if (numOptions <= 1) then throw("Too few choices to vote") else
+    if (choice >= numOptions) then throw("Unknown choice! Must be 0.." + (numOptions - 1).toString()) else
+
+    let eff = getEffectiveGnsbt(userAddressStr)
+    let gnsbtAmt = eff[IdxEffUser]
+    if (gnsbtAmt <= 0) then throw("no gnsbt to vote") else
+    let gnsbtTotal = eff[IdxEffTotal]
+
+    let oldChoice = getInteger(keyProposalChoiceByIdAndUser(proposalId, userAddressStr))
+    let oldUserVotes = if (!oldChoice.isDefined()) then 0 
+        else getIntOrElse(keyProposalVotesByIdAndUser(proposalId, userAddressStr), 0)
+
+    let oldTotalByOldChoice = if (oldChoice.isDefined())
+        then getIntOrElse(keyProposalVotesByIdAndOption(proposalId, oldChoice.value()), 0) # left and right cases
+        else 0 # mid case
+
+    let oldTotalByNewChoice = getIntOrElse(keyProposalVotesByIdAndOption(proposalId, choice), 0)
+    let oldTotal = dynamicData[govStatusIdxTotalVotes].parseIntValue()
+
+    let newTotalByOldChoice = if (!oldChoice.isDefined()) then 0 # mid case (don't save)
+        else (oldTotalByOldChoice - oldUserVotes + if (oldChoice.value() == choice) then gnsbtAmt else 0) # right case (don't save), left case (save)
+        
+    let newTotalByNewChoice = if (oldChoice.isDefined() && oldChoice.value() == choice) then newTotalByOldChoice else (oldTotalByNewChoice + gnsbtAmt)
+
+    let newTotal = oldTotal - oldUserVotes + gnsbtAmt
+    let isQuorumReached = newTotal >= propData[govIdxQuorum].parseIntValue()
+
+    let numVotersByProposalId = getIntOrElse(keyNumUniqueVotersByProposalId(proposalId), 0)
+    let oldAverUniqueVoters6 = getIntOrElse(keyStatsAverUniqueVoters(), 0) # 6 decimals
+    let numProposals = getIntegerValue(keyLastProposalId()) - getInteger(keyFirstProposalId()).valueOrElse(DEFAULTFIRSTPROPOSAL) + 1
+    let uniqueDiff = if (oldUserVotes == 0) then 1 else 0
+    let newAverUniqueVoters6 = oldAverUniqueVoters6 + fraction(uniqueDiff, MULT6, numProposals)
+
+    let oldAverGnsbt = getIntOrElse(keyStatsAverGnsbtVoted(), 0)
+    let newAverGnsbt = oldAverGnsbt + (gnsbtAmt - oldUserVotes) / numProposals
+
+    let isPrevOptional = !oldChoice.isDefined() || oldChoice.value() == choice
+    let optionalTotalOld = if (isPrevOptional) then []
+        else [IntegerEntry(keyProposalVotesByIdAndOption(proposalId, oldChoice.value()), newTotalByOldChoice)]
+
+    let winOpt = calcWinOption(proposalId, availableOptions, isPrevOptional, oldChoice, newTotalByOldChoice, choice, newTotalByNewChoice)
+    let releaseTime = max([end, getIntOrElse(keyUserGnsbtReleaseTime(userAddressStr), 0)])
+
+    ([  IntegerEntry(keyProposalChoiceByIdAndUser(proposalId, userAddressStr), choice),
+        IntegerEntry(keyProposalVotesByIdAndUser(proposalId, userAddressStr), gnsbtAmt),
+        IntegerEntry(keyProposalVotesByIdAndOption(proposalId, choice), newTotalByNewChoice),
+        IntegerEntry(keyNumUniqueVotersByProposalId(proposalId), numVotersByProposalId + uniqueDiff),
+        IntegerEntry(keyUserGnsbtReleaseTime(userAddressStr), releaseTime),
+        IntegerEntry(keyStatsAverUniqueVoters(), newAverUniqueVoters6),
+        IntegerEntry(keyStatsAverGnsbtVoted(), newAverGnsbt),
+        StringEntry(keyProposalStatusDataById(proposalId), updateStatusData(dynamicData, isQuorumReached, winOpt, newTotal))
+    ] ++ optionalTotalOld, unit)
+}
+
+@Callable(i)
+func initiateIdeaVoting(forumLink: String, title: String, votingStartTime: Int, votingEndTime: Int, optionsList: List[String]) = {
+    if (i.payments.size() != 1)  then throw("Exactly one payment required") else
+    if (optionsList.size() != 2) then throw("Exactly 2 option ['NO', 'YES'] are expected") else
+    if (optionsList[0] != "NO")  then throw("Option NO should be the first") else
+    if (optionsList[1] != "YES") then throw("Option YES should be the second") else
+    initiateVoting(i.payments[0].value(), i.transactionId.toBase58String(), "IDEA", i.caller.toString(), forumLink, title, votingStartTime, votingEndTime, "PENDING", [], optionsList)
+}
+
+@Callable(i)
+func initiateUpdateVoting(forumLink: String, title: String, votingStartTime: Int, votingEndTime: Int, txList: List[String]) = {
+    if (i.payments.size() != 1) then throw("Exactly one payment required") else
+    if (txList.size() < 1) then throw("Transactions list is empty") else
+    if (i.caller != this) then throw("not authorized") else
+    initiateVoting(i.payments[0].value(), i.transactionId.toBase58String(), "UPDATE", i.caller.toString(), forumLink, title, votingStartTime, votingEndTime, "PENDING", txList, ["NO", "YES"])
+}
+
+@Callable(i)
+func cancelVoting(proposalId: Int) = {
+    if (i.caller != this) then throw("not authorized") else
+    let currentData = this.getStringOrFail(keyProposalStatusDataById(proposalId))
+    let updatedData = currentData.take(currentData.lastIndexOf(SEP).value()) + SEP + "true"
+
+    ([StringEntry(keyProposalStatusDataById(proposalId), updatedData)], unit)
+}
+
+@Callable(i)
+func applyUpdate(proposalId: Int) = {
+    let propData = this.getStringOrFail(keyProposalDataById(proposalId)).split(SEP)
+    let end = propData[govIdxEnd].parseIntValue()
+    let now = lastBlock.timestamp
+    if (now < end) then throw("Voting is not finished yet") else
+    if ("UPDATE" != propData[govIdxType]) then throw("Only UPDATE type can be applied") else
+    let dynamicData = this.getStringOrFail(keyProposalStatusDataById(proposalId)).split(SEP)
+    if (dynamicData[govStatusIdxIsCanceled] == "true") then throw("Voting is canceled") else
+    if (dynamicData[govStatusIdxIsValid] != "true") then throw("Voting status invalid") else
+    if (dynamicData[govStatusIdxWinOpt] != "1") then throw("Winner is 'NO' - nothing to apply") else
+    if (dynamicData[govStatusIdxScApplied] == "true") then throw("Scripts are already applied") else
+    let scriptTime = dynamicData[govStatusIdxScTime].parseIntValue()
+    if (scriptTime < now - PASTMARGIN) then throw("Scripts timestamp=" + scriptTime.toString() + " is too far in the past, max 2 hrs allowed") else
+    if (scriptTime > now + FUTUREMARGIN) then throw("Scripts timestamp=" + scriptTime.toString() + " is too far in the future, max 1.5 hrs allowed") else
+    let inProgressId = getIntOrElse(keyApplyInProgress(), -1)
+    if (inProgressId != -1) then throw("proposalId=" + inProgressId.toString() + " is already being applied. Finish it first!") else
+
+    strict shutdown = controlContract.invoke("callEmergencyShutdown", ["Applying Governance UPDATE"], [])
+    # now anyone can broadcast transactions on behalf of neutrino contract, they will be checked by validator
+    ([IntegerEntry(keyApplyInProgress(), proposalId)], unit)
+}
+
+@Callable(i)
+func finishApply() = {
+    let proposalId = getInteger(keyApplyInProgress()).valueOrErrorMessage("No apply in progress, nothing to finish")
+    let propData = this.getStringOrFail(keyProposalDataById(proposalId)).split(SEP)
+    let txList = propData[govIdxTxIds].split(LISTSEP)
+    let dynamicData = this.getStringOrFail(keyProposalStatusDataById(proposalId)).split(SEP)
+    if (dynamicData[govStatusIdxScApplied] == "true") then throw("Scripts are already applied") else
+
+    func checker(acc: Unit, tx: String) = { # check that all tx from the list are applied (exist in blockchain)
+        if (!tx.fromBase58String().transactionHeightById().isDefined()) then throw("NOT applied txId: " + tx) else unit
+    }
+
+    let ignored = FOLD<20>(txList, unit, checker)
+
+    let version = getIntOrElse(keyLastUpdateVersion(), 0) + 1
+
+    ([DeleteEntry(keyApplyInProgress()), 
+        IntegerEntry(keyLastUpdateVersion(), version),
+        StringEntry(keyProposalStatusDataById(proposalId), statusApplyScript(dynamicData)),
+        ExecutionHistory(version, propData[govIdxTitle], propData[govIdxUrl], proposalId)], ignored)
+}

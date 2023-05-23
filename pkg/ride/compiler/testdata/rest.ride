@@ -1,0 +1,686 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SCALE8  = 8
+let MULT8   = 100000000
+let SCALE18 = 18
+let MULT18  = 1000_000_000_000_000_000.toBigInt() # 10^18
+let SEP     = "__"
+let POOLWEIGHTMULT = MULT8
+let zeroBigInt = 0.toBigInt()
+
+# data indexes from pool config stored in factory
+let idxPoolAddress                              = 1
+let idxPoolStatus                               = 2
+let idxPoolLPAssetId                            = 3
+let idxAmtAssetId                               = 4
+let idxPriceAssetId                             = 5
+let idxAmtAssetDcm                              = 6
+let idxPriceAssetDcm                            = 7
+let idxIAmtAssetId                              = 8
+let idxIPriceAssetId                            = 9
+let idxLPAssetDcm                               = 10
+
+func getStringOrFail(key: String) = getString(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+func getStringByAddressOrFail(address: Address, key: String) = address.getString(key).valueOrErrorMessage("mandatory " + address.toString() + "." + key + " is not defined")
+
+func getIntOrZero(address: Address, key: String)      = address.getInteger(key).valueOrElse(0)
+func getIntOrFail(address: Address, key: String)      = address.getInteger(key).valueOrErrorMessage("mandatory this." + key + " is not defined")
+
+func asAnyList(val: Any) = {
+  match val {
+    case valAnyLyst: List[Any] => valAnyLyst
+    case _ => throw("fail to cast into List[Any]")
+  }
+}
+
+func asInt(val: Any) = {
+  match val {
+    case valInt: Int => valInt
+    case _ => throw("fail to cast into Int")
+  }
+}
+
+func asString(val: Any) = {
+  match val {
+    case valStr: String => valStr
+    case _ => throw("fail to cast into String")
+  }
+}
+
+# FACTORY API
+# own factory address key
+func keyFactoryAddress()  = "%s%s__config__factoryAddress"
+
+func keyManagerPublicKey() = "%s__managerPublicKey"
+func keyPendingManagerPublicKey() = {"%s__pendingManagerPublicKey"}
+
+let IdxFactoryCfgStakingDapp    = 1
+let IdxFactoryCfgBoostingDapp   = 2
+let IdxFactoryCfgIdoDapp        = 3
+let IdxFactoryCfgTeamDapp       = 4
+let IdxFactoryCfgEmissionDapp   = 5
+let IdxFactoryCfgRestDapp       = 6
+let IdxFactoryCfgSlippageDapp   = 7
+let IdxFactoryCfgGwxRewardDapp  = 8
+
+func keyFactoryCfg()      = "%s__factoryConfig"
+func keyFactoryLp2AssetsMapping(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryLpList()   = "%s__lpTokensList" # not used anymore
+func keyFactoryLpAssetToPoolContractAddress(lpAssetStr: String) = makeString(["%s%s%s", lpAssetStr, "mappings__lpAsset2PoolContract"], SEP)
+func keyFactoryPoolWeight(contractAddress: String) = { ["%s%s", "poolWeight", contractAddress].makeString(SEP) }
+
+func readFactoryAddressOrFail() = getStringOrFail(keyFactoryAddress()).addressFromStringValue()
+func readLpList()               = readFactoryAddressOrFail().getString(keyFactoryLpList()).valueOrElse("").split(SEP)
+func readFactoryCfgOrFail(factory: Address)     = factory.getStringByAddressOrFail(keyFactoryCfg()).split(SEP)
+func getBoostingAddressOrFail(fCfg: List[String]) = fCfg[IdxFactoryCfgBoostingDapp].addressFromStringValue()
+func getEmissionAddressOrFail(fCfg: List[String]) = fCfg[IdxFactoryCfgEmissionDapp].addressFromStringValue()
+func getStakingAddressOrFail(fCfg: List[String])  = fCfg[IdxFactoryCfgStakingDapp].addressFromStringValue()
+func getGwxRewardAddressOrFail(fCfg: List[String])  = fCfg[IdxFactoryCfgGwxRewardDapp].addressFromStringValue()
+
+# BOOSTING API
+func keyBoostCfg() = "%s__config"
+func keyBoostingLockParamTotalAmount()            = "%s%s__stats__activeTotalLocked"
+func keyBoostingStatsLocksDurationSumInBlocks()   = "%s%s__stats__locksDurationSumInBlocks"
+func keyBoostingStatsLocksCount()                 = "%s%s__stats__locksCount"
+func keyBoostingStatsUsersCount()                 = "%s%s__stats__activeUsersCount"
+
+func keyUser2NumMapping(userAddress: String)                  = makeString(["%s%s%s__mapping__user2num", userAddress], SEP)
+func keyNum2UserMapping(num: String)                          = makeString(["%s%s%s__mapping__num2user", num], SEP)
+
+func keyLockParamUserAmount(userNum: String)                  = makeString(["%s%d%s__paramByUserNum", userNum, "amount"], SEP)
+func keyLockParamStartBlock(userNum: String)                  = makeString(["%s%d%s__paramByUserNum", userNum, "start"], SEP)
+func keyLockParamDuration(userNum: String)                    = makeString(["%s%d%s__paramByUserNum", userNum, "duration"], SEP)
+func keyLockParamK(userNum: String)                           = makeString(["%s%d%s__paramByUserNum", userNum, "k"], SEP)
+func keyLockParamB(userNum: String)                           = makeString(["%s%d%s__paramByUserNum", userNum, "b"], SEP)
+func keyLockParamByPeriodK(userNum: String, period: String)   = makeString(["%s%d%s%d__paramByPeriod", userNum, "k", period], SEP)
+func keyLockParamByPeriodB(userNum: String, period: String)   = makeString(["%s%d%s%d__paramByPeriod", userNum, "b", period], SEP)
+
+# boost integral
+func keyUserBoostEmissionLastINTEGRAL(userNum: String)        = makeString(["%s%d__userBoostEmissionLastInt", userNum], SEP)
+func keyUserMaxBoostINTEGRAL(userNum: String)                 = makeString(["%s%d__maxBoostInt", userNum], SEP)
+func keyTotalMaxBoostINTEGRAL()                               = "%s%s__maxBoostInt__total"
+func keyUserBoostAvalaibleToClaimTotal(userNum: String)       = makeString(["%s%d__userBoostAvaliableToClaimTotal", userNum], SEP)
+func keyUserBoostClaimed(userNum: String)                     = makeString(["%s%d__userBoostClaimed", userNum], SEP)
+func keyTotalCachedGwx()                                      = "%s%s__gwxCached__total"
+
+# LP STAKING API
+func keyStakedByUser(userAddressStr: String, lpAssetIdStr: String) = makeString(["%s%s%s__staked", userAddressStr, lpAssetIdStr], SEP)
+func keyStakedTotal(lpAssetIdStr: String) = "%s%s%s__staked__total__" + lpAssetIdStr
+func keyClaimedByUser(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimed", userAddressStr, lpAssetIdStr], SEP)
+func keyClaimedByUserMinReward(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimedMinReward", userAddressStr, lpAssetIdStr], SEP)
+func keyClaimedByUserBoostReward(lpAssetIdStr: String, userAddressStr: String) = makeString(["%s%s%s__claimedBoostReward", userAddressStr, lpAssetIdStr], SEP)
+func readStaked(stakingDapp: Address, key: String) = stakingDapp.getInteger(key).valueOrElse(0)
+
+# EMISSION API
+func keyEmissionRatePerBlockCurrent() = "%s%s__ratePerBlock__current"
+func keyEmissionRatePerBlockMaxCurrent() = "%s%s__ratePerBlockMax__current"
+func keyEmissionStartBlock() = "%s%s__emission__startBlock"
+func keyEmissionDurationInBlocks() = "%s%s__emission__duration"
+func keyEmissionEndBlock() = "%s%s__emission__endBlock"
+
+# STABLE POOL API
+func keyAddonAddr() = "%s__addonAddr"
+
+# GLOBAL VARIABLES
+# CONSTRUCTOR IS NOT FAILED BECAUSE GLOBAL VARIABLES ARE NOT USED
+let factoryDapp   = readFactoryAddressOrFail()
+let factoryCfg    = factoryDapp.readFactoryCfgOrFail()
+let emissionDapp  = factoryCfg.getEmissionAddressOrFail()
+let stakingDapp   = factoryCfg.getStakingAddressOrFail()
+let gwxRewardDapp = factoryCfg.getGwxRewardAddressOrFail()
+let boostingDapp  = factoryCfg.getBoostingAddressOrFail()
+
+func getPoolInFee(poolAddress: Address) = {
+  factoryDapp.invoke("getInFeeREADONLY", [poolAddress.toString()], []).exactAs[Int]
+}
+
+func getPoolOutFee(poolAddress: Address) = {
+  factoryDapp.invoke("getOutFeeREADONLY", [poolAddress.toString()], []).exactAs[Int]
+}
+
+func internalCurrentRewardRate(lpAssetId: String) = {
+  let poolAddressStr = factoryDapp.getStringByAddressOrFail(lpAssetId.keyFactoryLpAssetToPoolContractAddress())
+  let poolWeightMult = MULT8 # TODO is it config ???
+  let poolWeight = factoryDapp.getIntegerValue(poolAddressStr.keyFactoryPoolWeight())
+
+  let wxEmissionPerBlock = emissionDapp.getIntOrFail(keyEmissionRatePerBlockCurrent())
+  let wxEmissionPerBlockMax = emissionDapp.getIntOrFail(keyEmissionRatePerBlockMaxCurrent())
+
+  let boostMaxCoeff = 3
+  let poolWxEmissionPerBlock = fraction(wxEmissionPerBlock, poolWeight, poolWeightMult) / boostMaxCoeff
+  let poolWxEmissionPerBlockMax = fraction(wxEmissionPerBlockMax, poolWeight, poolWeightMult)
+
+  let maxFactor = boostMaxCoeff * MULT8
+  let totalLpStaked = stakingDapp.getIntOrZero(keyStakedTotal(lpAssetId))
+  [poolWxEmissionPerBlock, maxFactor, totalLpStaked]
+}
+
+# TODO MOVE TO THE gwxREWARD contract
+func calcGwxAmountStartREADONLY(lockAmount: Int, lockDuration: Int, maxLockDuration: Int) = {
+  let coeffX8 = fraction(lockDuration, MULT8, maxLockDuration)
+  let gWxAmountStart = fraction(lockAmount, coeffX8, MULT8)
+  [gWxAmountStart]
+}
+
+func getKey(addr: Address, key: String, type: String) = {
+  if(type == "string") then {
+    addr.getStringValue(key)
+  } else if(type == "integer") then {
+    addr.getIntegerValue(key).toString()
+  } else if(type == "boolean") then {
+    addr.getBooleanValue(key).toString()
+  } else {
+    "unknown type. expected string/integer/boolean".throw()
+  }
+}
+
+func managerPublicKeyOrUnit() = match keyManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func pendingManagerPublicKeyOrUnit() = match keyPendingManagerPublicKey().getString() {
+  case s: String => s.fromBase58String()
+  case _: Unit => unit
+}
+
+func mustManager(i: Invocation) = {
+  let pd = "Permission denied".throw()
+
+  match managerPublicKeyOrUnit() {
+    case pk: ByteVector => i.callerPublicKey == pk || pd
+    case _: Unit => i.caller == this || pd
+  }
+}
+
+@Callable(i)
+func constructor(factoryAddress: String) = {
+  strict checkCaller = i.mustManager()
+  [StringEntry(keyFactoryAddress(), factoryAddress)]
+}
+
+@Callable(i)
+func currentRewardRateREADONLY(lpAssetId: String) = {
+  let rewardData      = internalCurrentRewardRate(lpAssetId)
+
+  let wxEmissionPerBlock  = rewardData[0]
+  let maxFactor           = rewardData[1]
+  let totalLpStaked       = rewardData[2]
+
+  ([], makeString(["%d%d%d",
+          wxEmissionPerBlock.toString(),
+          maxFactor.toString(),
+          totalLpStaked.toString()],
+    SEP))
+}
+
+@Callable(i)
+func currentUserRewardRateREADONLY(lpAssetId: String, userAddress: String) = {
+  let rewardData      = internalCurrentRewardRate(lpAssetId)
+
+  let wxEmissionPerBlock  = rewardData[0]
+  let maxFactor           = rewardData[1]
+  let totalLpStaked       = rewardData[2]
+
+  let lpStakedByUser = stakingDapp.getIntOrZero(keyStakedByUser(userAddress, lpAssetId))
+
+
+  #let claimWxREADONLY(lpAssetId, userAddress)
+  let userClaimInfo = stakingDapp.invoke("claimWxREADONLY", [lpAssetId, userAddress], []).asString().split(SEP)
+  let minRewardPart = userClaimInfo[5].parseInt().valueOrErrorMessage("couldn't parse minRewardPart")
+  let boostRewardPart = userClaimInfo[6].parseInt().valueOrErrorMessage("couldn't parse boostRewardPart")
+  let debug = userClaimInfo[7]
+
+  let boostingPower =  if (boostRewardPart == 0) then 1 * MULT8 else fraction(minRewardPart + boostRewardPart, MULT8, minRewardPart)
+
+  ([], makeString(["%d%d%d%d%d%s",
+        wxEmissionPerBlock.toString(),
+        maxFactor.toString(),
+        totalLpStaked.toString(),
+        lpStakedByUser.toString(),
+        boostingPower.toString(),
+        debug],
+    SEP))
+}
+
+@Callable(i)
+func calcBoostBulkInternalREADONLY(currentIter: Int, deltaWxAmountBulk: List[Int], deltaLockPeriodInBlocksBulk: List[Int], deltaLpAmountBulk: List[Int], lpAssetIdOptBulk: List[String], userAddressOpt: String, resAcc: List[String]) = {
+  if (currentIter == deltaWxAmountBulk.size()) then ([], resAcc) else
+
+  let deltaWxAmount = deltaWxAmountBulk[currentIter]
+  let deltaLockPeriodInBlocks = deltaLockPeriodInBlocksBulk[currentIter]
+  let deltaLpAmount = deltaLpAmountBulk[currentIter]
+  let lpAssetIdOpt = lpAssetIdOptBulk[currentIter]
+  let info = this.invoke("calcBoostREADONLY", [deltaWxAmount, deltaLockPeriodInBlocks, deltaLpAmount, lpAssetIdOpt, userAddressOpt], []).exactAs[String]
+  let res = resAcc :+ info
+  strict inv = this.invoke("calcBoostBulkInternalREADONLY", [currentIter+1, deltaWxAmountBulk, deltaLockPeriodInBlocksBulk, deltaLpAmountBulk, lpAssetIdOptBulk, userAddressOpt, res], []).exactAs[List[Any]]
+  ([], inv)
+}
+
+@Callable(i)
+func calcBoostBulkREADONLY(deltaWxAmount: List[Int], deltaLockPeriodInBlocks: List[Int], deltaLpAmount: List[Int], lpAssetIdOpt: List[String], userAddressOpt: String) = {
+  let res = this.invoke("calcBoostBulkInternalREADONLY", [0, deltaWxAmount, deltaLockPeriodInBlocks, deltaLpAmount, lpAssetIdOpt, userAddressOpt, []], [])
+  ([], res)
+}
+
+@Callable(i)
+func calcBoostREADONLY(deltaWxAmount: Int, deltaLockPeriodInBlocks: Int, deltaLpAmount: Int, lpAssetIdOpt: String, userAddressOpt: String) = {
+  let mathDapp = gwxRewardDapp
+  let EMPTYSTR = "empty"
+
+  let maxLockDurationInBlocks = boostingDapp.getStringByAddressOrFail(keyBoostCfg()).split(SEP)[4].parseIntValue()
+
+  let lpAssetIdStr = if (lpAssetIdOpt == "") then EMPTYSTR else lpAssetIdOpt
+  let userAddressStr = if (userAddressOpt == "") then EMPTYSTR else userAddressOpt
+  let userNumStr = boostingDapp.getString(keyUser2NumMapping(userAddressOpt)).valueOrElse(EMPTYSTR)
+  let userAmount = boostingDapp.getInteger(keyLockParamUserAmount(userNumStr)).valueOrElse(0)
+  let lockStart = boostingDapp.getInteger(keyLockParamStartBlock(userNumStr)).valueOrElse(height)
+  let lockDuration =  boostingDapp.getInteger(keyLockParamDuration(userNumStr)).valueOrElse(0)
+  let lockEnd = lockStart + lockDuration
+  let remainingDuration = max([lockEnd - height, 0])
+
+  let userAmountNew = userAmount + deltaWxAmount
+  let lockDurationNew = min([remainingDuration + deltaLockPeriodInBlocks, maxLockDurationInBlocks])
+
+  #let gWxAmountStart = invoke(mathDapp, "calcGwxAmountStartREADONLY", [userAmountNew, lockDurationNew, maxLockDurationInBlocks], []).asAnyList()[0].asInt()
+  let userCurrgWxAmount = invoke(boostingDapp, "gwxUserInfoREADONLY", [userAddressStr], []).asAnyList()[0].asInt()
+  let gWxAmountStartNew = calcGwxAmountStartREADONLY(userAmountNew, lockDurationNew, maxLockDurationInBlocks)[0]
+  let gWxParamsResultList = invoke(mathDapp, "calcGwxParamsREADONLY", [gWxAmountStartNew, height, lockDurationNew], []).asAnyList()
+  let gWxAmountDiff = gWxAmountStartNew - userCurrgWxAmount
+
+  # if gwxAmountDiff is less then 0 then it means that our gwxAmount has been decreased
+  #if (gWxAmountDiff < 0) then throw("gWxAmountDiff is less then 0") else
+
+
+  # TODO check the following macros: gWxParamsInvokeResult[0].exactAs[Int]
+  let k = gWxParamsResultList[0].asInt()
+  let b = gWxParamsResultList[1].asInt()
+  let period = gWxParamsResultList[2].asInt().toString()
+
+  let totalMaxBoostIntegralKEY = keyTotalMaxBoostINTEGRAL()
+
+  let userMaxBoostIntNew = (gWxAmountStartNew * lockDurationNew) / 2
+
+  let totalMaxBoostInt = boostingDapp.getIntOrZero(totalMaxBoostIntegralKEY)
+  let totalCachedGwx = boostingDapp.invoke("getTotalCachedGwxREADONLY", [], []).exactAs[Int]
+
+  # TODO MOVE TO emission contract
+  let MULT3 = 1000
+  let wxEmissionPerBlockX3  = emissionDapp.getIntOrFail(keyEmissionRatePerBlockCurrent()) * MULT3
+
+  # LP Staking
+  let stakedByUserKEY = keyStakedByUser(userAddressStr, lpAssetIdStr)
+  let stakedTotalKEY = keyStakedTotal(lpAssetIdStr)
+  let stakedByUser = stakingDapp.readStaked(stakedByUserKEY)
+  let stakedTotal = stakingDapp.readStaked(stakedTotalKEY)
+
+  let stakedByUserNew = stakedByUser + deltaLpAmount
+  let stakedTotalNew = stakedTotal + deltaLpAmount
+
+  let poolWeight = if (lpAssetIdStr != EMPTYSTR) then {
+    let poolAddressStr = factoryDapp.getString(keyFactoryLp2AssetsMapping(lpAssetIdStr)).valueOrErrorMessage("unsupported lp asset " + lpAssetIdStr)
+    factoryDapp.getIntegerValue(poolAddressStr.keyFactoryPoolWeight())
+  } else {
+    0
+  }
+
+  # TODO MOVE TO emission contract
+  # TODO 3 is hardcoded
+  let poolWxEmissionPerBlockX3 = fraction(wxEmissionPerBlockX3, poolWeight, POOLWEIGHTMULT * 3) # TODO POOLWEIGHTMULT*3
+  let wxPerLpX3 = if (stakedTotalNew != 0) then fraction(poolWxEmissionPerBlockX3, MULT8, stakedTotalNew) else 0
+  let userWxPerBlockX3 = fraction(wxPerLpX3, stakedByUserNew, MULT8)
+
+  let boostEmissionPerBlockX3 = poolWxEmissionPerBlockX3 * 2
+  #let tmpUserBoostPerBlockX3 = fraction(userMaxBoostIntNew, boostEmissionPerBlockX3, totalMaxBoostInt)
+  let tmpUserBoostPerBlockX3 = fraction(gWxAmountStartNew, boostEmissionPerBlockX3, totalCachedGwx + gWxAmountDiff)
+
+
+  let userBoostPerBlockX3 = min([tmpUserBoostPerBlockX3, userWxPerBlockX3*2])
+
+  let boostCoeff = if (userWxPerBlockX3 == 0) then 1*MULT8 else fraction(userBoostPerBlockX3 + userWxPerBlockX3, MULT8, userWxPerBlockX3)
+
+  ([], makeString(["%d%d%s", gWxAmountStartNew.toString(), boostCoeff.toString(), "d"], SEP))
+}
+
+@Callable(i)
+func wxEmissionStatsREADONLY() = {
+  let ONEMULT = MULT8.toString()
+  let ONE = "1"
+
+  let wxEmissionPerBlock = emissionDapp.getIntOrFail(keyEmissionRatePerBlockCurrent())
+  let emissionStartBlock = emissionDapp.getIntOrFail(keyEmissionStartBlock())
+  let passedBlocks = if (height < emissionStartBlock) then 0 else height - emissionStartBlock
+
+  let teamEmDuration = 1440*365
+  let teamEmMax = 201_000_000 * MULT8
+  let teamEm = if (passedBlocks > teamEmDuration) then teamEmMax else fraction(teamEmMax, passedBlocks, teamEmDuration)
+  let totalWxReleased           = wxEmissionPerBlock * passedBlocks + teamEm # TODO confirm with Dima and Boris - possible need to count ALL released including team contracts
+  let totalWxLocked             = boostingDapp.getIntOrZero(keyBoostingLockParamTotalAmount())
+  let locksDurationSumInBlocks  = boostingDapp.getIntOrZero(keyBoostingStatsLocksDurationSumInBlocks())
+  let locksCount                = boostingDapp.getIntOrZero(keyBoostingStatsLocksCount())
+  ([], makeString(["%d%d%d%d",
+          totalWxReleased.toString(),
+          totalWxLocked.toString(),
+          locksDurationSumInBlocks.toString(),
+          locksCount.toString()],
+    SEP))
+}
+
+@Callable(i)
+func poolStatsREADONLY(lpAsset: String) = {
+  let poolAddress = factoryDapp.getStringByAddressOrFail(lpAsset.keyFactoryLpAssetToPoolContractAddress()).addressFromStringValue()
+  # data from pool config
+  let status = factoryDapp.invoke("getPoolStatusREADONLY", [poolAddress.toString()], []).exactAs[Int]
+  let tpl = "%d%d%d%d%d%d%d%d%d%s"
+  if (status == 4) then {
+    (
+      [],
+      makeString([
+        tpl,
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        0.toString(),
+        false.toString()
+      ],
+      SEP)
+    )
+  } else {
+    let cfg = poolAddress.invoke("getPoolConfigWrapperREADONLY", [], []).asAnyList()
+    let lpAssetId = cfg[idxPoolLPAssetId].asString().fromBase58String()
+    let amtAssetId = cfg[idxAmtAssetId].asString()
+    let priceAssetId = cfg[idxPriceAssetId].asString()
+    let iAmtAssetId = cfg[idxIAmtAssetId].asString()
+    let iPriceAssetId = cfg[idxIPriceAssetId].asString()
+    let amtAssetDcm = cfg[idxAmtAssetDcm].asString().parseIntValue()
+    let priceAssetDcm = cfg[idxPriceAssetDcm].asString().parseIntValue()
+
+    let poolLPBalance = lpAssetId.assetInfo().valueOrErrorMessage("Asset " + lpAssetId.toBase58String() + " doesn't exist").quantity
+
+    # get current balances from acc
+    let accAmtAssetBalance = poolAddress.invoke("getAccBalanceWrapperREADONLY", [amtAssetId], []).asInt()
+    let accPriceAssetBalance = poolAddress.invoke("getAccBalanceWrapperREADONLY", [priceAssetId], []).asInt()
+
+    let pricesList = if(poolLPBalance == 0) then [zeroBigInt.toString(), zeroBigInt.toString(), zeroBigInt.toString()] else poolAddress.invoke("calcPricesWrapperREADONLY", [accAmtAssetBalance, accPriceAssetBalance, poolLPBalance], []).asAnyList()
+    let curPrice          = 0 #pricesList[0].fromX18(scale8) # !!! currently not used by clients and for test purpose is 0. we are planning to remove it
+    let lpAmtAssetShare   = poolAddress.invoke("fromX18WrapperREADONLY", [pricesList[1], MULT8], []).asInt()
+    let lpPriceAssetShare = poolAddress.invoke("fromX18WrapperREADONLY", [pricesList[2], MULT8], []).asInt()
+
+    let poolWeight = factoryDapp.getIntegerValue(poolAddress.toString().keyFactoryPoolWeight())
+    let inFee = poolAddress.getPoolInFee()
+    let outFee = poolAddress.getPoolOutFee()
+
+    let poolOneTokenOperationsDisabled = factoryDapp.invoke("isPoolOneTokenOperationsDisabledREADONLY", [poolAddress.toString()], []).exactAs[Boolean]
+    let poolOneTokenOperationsEnabled = !poolOneTokenOperationsDisabled
+    (
+      [],
+      makeString([
+        tpl,
+        accAmtAssetBalance.toString(),
+        accPriceAssetBalance.toString(),
+        poolLPBalance.toString(),
+        curPrice.toString(),
+        lpAmtAssetShare.toString(),
+        lpPriceAssetShare.toString(),
+        poolWeight.toString(),
+        inFee.toString(),
+        outFee.toString(),
+        poolOneTokenOperationsEnabled.toString()
+      ],
+      SEP)
+    )
+  }
+}
+
+@Callable(i)
+func poolEvaluatePutByAmountAssetREADONLY(lpAsset: String, inAmAssetAmt: Int) = {
+  let poolAddress = factoryDapp.getStringByAddressOrFail(lpAsset.keyFactoryLpAssetToPoolContractAddress()).addressFromStringValue()
+  # data from pool config
+  let cfg = poolAddress.invoke("getPoolConfigWrapperREADONLY", [], []).asAnyList()
+  let lpAssetId = cfg[idxPoolLPAssetId].asString().fromBase58String()
+  let amAssetIdStr = cfg[idxAmtAssetId].asString()
+  let amAssetId = amAssetIdStr.fromBase58String()
+  let prAssetIdStr = cfg[idxPriceAssetId].asString()
+  let prAssetId = prAssetIdStr.fromBase58String()
+  let amtAssetDcm = cfg[idxAmtAssetDcm].asString().parseIntValue()
+  let priceAssetDcm = cfg[idxPriceAssetDcm].asString().parseIntValue()
+  let poolStatus = cfg[idxPoolStatus].asString()
+
+  let poolLPBalance = assetInfo(lpAssetId).valueOrErrorMessage("Asset " + lpAssetId.toBase58String() + " doesn't exist").quantity
+
+  # get current balances from acc
+  let accAmtAssetBalance = poolAddress.invoke("getAccBalanceWrapperREADONLY", [amAssetIdStr], []).asInt()
+  let accPriceAssetBalance = poolAddress.invoke("getAccBalanceWrapperREADONLY", [prAssetIdStr], []).asInt()
+
+  let amtAssetAmtX18 = poolAddress.invoke("toX18WrapperREADONLY", [accAmtAssetBalance, amtAssetDcm], []).asString().parseBigIntValue()
+  let priceAssetAmtX18 = poolAddress.invoke("toX18WrapperREADONLY", [accPriceAssetBalance, priceAssetDcm], []).asString().parseBigIntValue()
+
+  let curPriceX18 = if (poolLPBalance == 0) then {
+    zeroBigInt
+  } else {
+    poolAddress.invoke("calcPriceBigIntWrapperREADONLY", [priceAssetAmtX18.toString(), amtAssetAmtX18.toString()], []).asString().parseBigIntValue()
+  }
+  let curPrice = poolAddress.invoke("fromX18WrapperREADONLY", [curPriceX18.toString(), MULT8], []).asInt()
+
+  let inAmAssetAmtX18 = poolAddress.invoke("toX18WrapperREADONLY", [inAmAssetAmt, amtAssetDcm], []).asString().parseBigIntValue()
+  let inPrAssetAmtX18 = fraction(inAmAssetAmtX18, curPriceX18, MULT18)
+  let inPrAssetAmt    = poolAddress.invoke("fromX18WrapperREADONLY", [inPrAssetAmtX18.toString(), priceAssetDcm], []).asInt()
+
+  let res = poolAddress
+    .invoke(
+      "estimatePutOperationWrapperREADONLY",
+      ["", 500000, inAmAssetAmt, amAssetId, inPrAssetAmt, prAssetId, "", true, false],
+      []
+    )
+
+  let (calcLpAmt, curPriceCalc, amBalance, prBalance, lpEmission) = match res {
+    case (
+      calcLpAmt: Int,
+      _,
+      curPriceCalc: Int,
+      amBalance: Int,
+      prBalance: Int,
+      lpEmission: Int,
+      _, _, _, _, _, _, _
+    ) => (calcLpAmt, curPriceCalc, amBalance, prBalance, lpEmission)
+    case _ => throw("Couldn't cast types")
+  }
+
+  (
+    [],
+    [
+      "%d%d%d%d%d%d%d%d",
+      calcLpAmt.toString(),
+      curPrice.toString(),
+      amBalance.toString(),
+      prBalance.toString(),
+      lpEmission.toString(),
+      poolStatus,
+      inAmAssetAmt.toString(),
+      inPrAssetAmt.toString()
+    ].makeString(SEP)
+  )
+}
+
+@Callable(i)
+func poolEvaluatePutByPriceAssetREADONLY(lpAsset: String, inPrAssetAmt: Int) = {
+  let poolAddress = factoryDapp.getStringByAddressOrFail(lpAsset.keyFactoryLpAssetToPoolContractAddress()).addressFromStringValue()
+  # data from pool config
+  let cfg = poolAddress.invoke("getPoolConfigWrapperREADONLY", [], []).asAnyList()
+  let lpAssetId = cfg[idxPoolLPAssetId].asString().fromBase58String()
+  let amAssetIdStr = cfg[idxAmtAssetId].asString()
+  let amAssetId = amAssetIdStr.fromBase58String()
+  let prAssetIdStr = cfg[idxPriceAssetId].asString()
+  let prAssetId = prAssetIdStr.fromBase58String()
+  let amtAssetDcm = cfg[idxAmtAssetDcm].asString().parseIntValue()
+  let priceAssetDcm = cfg[idxPriceAssetDcm].asString().parseIntValue()
+  let poolStatus = cfg[idxPoolStatus].asString()
+
+  let poolLPBalance = assetInfo(lpAssetId).valueOrErrorMessage("Asset " + lpAssetId.toBase58String() + " doesn't exist").quantity
+
+  # get current balances from acc
+  let amBalanceRaw = poolAddress.invoke("getAccBalanceWrapperREADONLY", [amAssetIdStr], []).asInt()
+  let prBalanceRaw = poolAddress.invoke("getAccBalanceWrapperREADONLY", [prAssetIdStr], []).asInt()
+
+  let amBalanceRawX18 = poolAddress.invoke("toX18WrapperREADONLY", [amBalanceRaw, amtAssetDcm], []).asString().parseBigIntValue()
+  let prBalanceRawX18 = poolAddress.invoke("toX18WrapperREADONLY", [prBalanceRaw, priceAssetDcm], []).asString().parseBigIntValue()
+
+  let curPriceX18 = if (poolLPBalance == 0) then {
+    zeroBigInt
+  } else {
+    poolAddress.invoke("calcPriceBigIntWrapperREADONLY", [prBalanceRawX18.toString(), amBalanceRawX18.toString()], []).asString().parseBigIntValue()
+  }
+  let curPrice = poolAddress.invoke("fromX18WrapperREADONLY", [curPriceX18.toString(), MULT8], []).asInt()
+
+  let inPrAssetAmtX18 = poolAddress.invoke("toX18WrapperREADONLY", [inPrAssetAmt, priceAssetDcm], []).asString().parseBigIntValue()
+  let inAmAssetAmtX18 = fraction(inPrAssetAmtX18, MULT18, curPriceX18)
+  let inAmAssetAmt    = poolAddress.invoke("fromX18WrapperREADONLY", [inAmAssetAmtX18.toString(), amtAssetDcm], []).asInt()
+
+  let res = poolAddress
+    .invoke(
+      "estimatePutOperationWrapperREADONLY",
+      ["", 500000, inAmAssetAmt, amAssetId, inPrAssetAmt, prAssetId, "", true, false],
+      []
+    )
+
+  let (calcLpAmt, curPriceCalc, amBalance, prBalance, lpEmission) = match res {
+    case (
+      calcLpAmt: Int,
+      _,
+      curPriceCalc: Int,
+      amBalance: Int,
+      prBalance: Int,
+      lpEmission: Int,
+      _, _, _, _, _, _, _
+    ) => (calcLpAmt, curPriceCalc, amBalance, prBalance, lpEmission)
+    case _ => throw("Couldn't cast types")
+  }
+
+  (
+    [],
+    [
+      "%d%d%d%d%d%d%d%d",
+      calcLpAmt.toString(),
+      curPrice.toString(),
+      amBalance.toString(),
+      prBalance.toString(),
+      lpEmission.toString(),
+      poolStatus,
+      inAmAssetAmt.toString(),
+      inPrAssetAmt.toString()
+    ].makeString(SEP)
+  )
+}
+
+@Callable(i)
+func poolEvaluateGetREADONLY(paymentLpAssetId: String, paymentLpAmt: Int) = {
+  let poolAddress = factoryDapp.getStringByAddressOrFail(paymentLpAssetId.keyFactoryLpAssetToPoolContractAddress()).addressFromStringValue()
+
+  let res = poolAddress
+    .invoke(
+      "estimateGetOperationWrapperREADONLY",
+      ["", paymentLpAssetId, paymentLpAmt, poolAddress.toString()],
+      []
+    )
+
+  let (outAmAmt, outPrAmt, amBalance, prBalance, lpEmission, curPrice, poolStatus) = match res {
+    case (
+      outAmAmt: Int,
+      outPrAmt: Int,
+      _, _,
+      amBalance: Int,
+      prBalance: Int,
+      lpEmission: Int,
+      curPrice: String,
+      poolStatus: String,
+      _
+    ) => (outAmAmt, outPrAmt, amBalance, prBalance, lpEmission, curPrice, poolStatus)
+    case _ => throw("Couldn't cast types")
+  }
+
+  (
+    [],
+    [
+      "%d%d%d%d%d%d%d",
+      outAmAmt.toString(),
+      outPrAmt.toString(),
+      amBalance.toString(),
+      prBalance.toString(),
+      lpEmission.toString(),
+      curPrice,
+      poolStatus
+    ].makeString(SEP)
+  )
+}
+
+@Callable(i)
+func gwxUserInfoREADONLY(userAddress: String) = {
+  let gwxUserInfoLIST = boostingDapp.invoke("gwxUserInfoREADONLY", [userAddress], []).asAnyList()
+  let gwxAmount = gwxUserInfoLIST[0].asInt()
+  ([], ["%d", gwxAmount.toString()].makeString(SEP))
+}
+
+@Callable(i)
+func unstakeAndGetOneTknV2(poolAddress: String, unstakeAmount: Int, outAssetId: String, minOutAmount: Int) = {
+  strict inv = poolAddress.addressFromStringValue().invoke("unstakeAndGetOneTknV2", [unstakeAmount, outAssetId, minOutAmount], [])
+  ([], unit)
+}
+
+@Callable(i)
+func getKeysBulkInternal(currentIter: Int, keys: List[String], resAcc: List[String]) = {
+  if(currentIter == keys.size()) then ([], resAcc) else
+
+  let k = keys[currentIter].split("++")
+  let addr = k[0].addressFromStringValue()
+  let key = k[1]
+  let type = k[2]
+  let val = getKey(addr, key, type)
+  let res = resAcc :+ val
+  strict inv = this.invoke("getKeysBulkInternal", [currentIter + 1, keys, res], [])
+  ([], inv)
+}
+
+# Get keys from addresses
+# keys: address++key++string/integer/boolean
+# returns list of values (casted to string)
+@Callable(i)
+func getKeysBulk(keys: List[String]) = {
+  let res = this.invoke("getKeysBulkInternal", [0, keys, []], [])
+  ([], res)
+}
+
+@Callable(i)
+func setManager(pendingManagerPublicKey: String) = {
+  strict checkCaller = i.mustManager()
+  strict checkManagerPublicKey = pendingManagerPublicKey.fromBase58String()
+
+  [StringEntry(keyPendingManagerPublicKey(), pendingManagerPublicKey)]
+}
+
+@Callable(i)
+func confirmManager() = {
+  let pm = pendingManagerPublicKeyOrUnit()
+  strict hasPM = pm.isDefined() || throw("No pending manager")
+  strict checkPM = i.callerPublicKey == pm.value() || throw("You are not pending manager")
+
+  [
+    StringEntry(keyManagerPublicKey(), pm.value().toBase58String()),
+    DeleteEntry(keyPendingManagerPublicKey())
+  ]
+}
+
+@Verifier(tx)
+func verify() = {
+  let targetPublicKey = match managerPublicKeyOrUnit() {
+    case pk: ByteVector => pk
+    case _: Unit => tx.senderPublicKey
+  }
+  sigVerify(tx.bodyBytes, tx.proofs[0], targetPublicKey)
+}

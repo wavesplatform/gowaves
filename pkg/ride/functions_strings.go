@@ -164,7 +164,7 @@ func stringToBytes(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBytes")
 	}
-	return rideBytes(s), nil
+	return rideByteVector(s), nil
 }
 
 func dropRightString(_ environment, args ...rideType) (rideType, error) {
@@ -305,7 +305,7 @@ func looseStringList(list []rideType) ([]string, int, error) {
 		switch ti := item.(type) {
 		case rideString:
 			str = string(ti)
-		case rideBytes:
+		case rideByteVector:
 			str = ti.scalaString()
 		default:
 			str = ti.String()

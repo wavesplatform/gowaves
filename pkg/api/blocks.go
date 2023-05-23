@@ -2,12 +2,11 @@ package api
 
 import (
 	"github.com/pkg/errors"
+	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
-
-const blocksSequenceLimit = 100
 
 type Score struct {
 	Score string `json:"score"`
@@ -84,8 +83,8 @@ func (a *App) BlocksHeadersByID(id proto.BlockID) (*Block, error) {
 }
 
 func (a *App) BlocksHeadersFromTo(from, to proto.Height) ([]*Block, error) {
-	if from > to || to-from >= blocksSequenceLimit {
-		return nil, errors.Errorf("invalid 'from'=%d and 'to'=%d params", from, to)
+	if from > to || to-from >= a.settings.BlockRequestLimit {
+		return nil, apiErrs.TooBigArrayAllocation
 	}
 	if from == 0 {
 		if to == 0 {

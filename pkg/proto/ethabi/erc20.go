@@ -8,12 +8,13 @@ const (
 	erc20TransferSignature         Signature = "transfer(address,uint256)"
 	EthereumAddressSize            int       = 20
 	NumberOfERC20TransferArguments int       = 2
+	ERC20TransferCallDataSize                = SelectorSize + 2*abiSlotSize // selector + _to + _value
 )
 
 var (
 	erc20TransferSelector = erc20TransferSignature.Selector()
 
-	erc20Methods = map[Selector]Method{
+	methods = map[Selector]Method{
 		erc20TransferSelector: {
 			RawName: "transfer",
 			Inputs: Arguments{

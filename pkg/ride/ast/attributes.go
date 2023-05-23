@@ -47,17 +47,18 @@ const (
 	LibV4
 	LibV5
 	LibV6
+	LibV7
 )
 
 // CurrentMaxLibraryVersion reports the max lib version. Update it when a new version was added.
 func CurrentMaxLibraryVersion() LibraryVersion {
-	return LibV6
+	return LibV7
 }
 
 func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	lv := LibraryVersion(b)
 	switch lv {
-	case LibV1, LibV2, LibV3, LibV4, LibV5, LibV6:
+	case LibV1, LibV2, LibV3, LibV4, LibV5, LibV6, LibV7:
 		return lv, nil
 	default:
 		return 0, errors.Errorf("unsupported library version '%d'", b)

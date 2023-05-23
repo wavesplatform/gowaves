@@ -19,6 +19,7 @@ const (
 	assetBalanceKeySize     = 1 + proto.AddressIDSize + proto.AssetIDSize
 	leaseKeySize            = 1 + crypto.DigestSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
+	addressToAliasesKeySize = 1 + proto.AddressIDSize
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
@@ -27,8 +28,9 @@ const (
 
 // Primary prefixes for storage keys
 const (
+	_ byte = iota // this is a placeholder for a zero value
 	// Balances.
-	wavesBalanceKeyPrefix byte = iota
+	wavesBalanceKeyPrefix
 	assetBalanceKeyPrefix
 
 	// Unique block num of the last block.
@@ -63,6 +65,7 @@ const (
 
 	// Aliases.
 	aliasKeyPrefix
+	addressToAliasesPrefix
 	disabledAliasKeyPrefix
 
 	// Features.
@@ -131,6 +134,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 	switch entity {
 	case alias:
 		return []byte{aliasKeyPrefix}, nil
+	case addressToAliases:
+		return []byte{addressToAliasesPrefix}, nil
 	case asset:
 		return []byte{assetHistKeyPrefix}, nil
 	case lease:
@@ -370,6 +375,17 @@ func (k *aliasKey) unmarshal(data []byte) error {
 	var err error
 	k.alias, err = proto.StringWithUInt16Len(data[1:])
 	return err
+}
+
+type addressToAliasesKey struct {
+	addressID proto.AddressID
+}
+
+func (k *addressToAliasesKey) bytes() []byte {
+	buf := make([]byte, addressToAliasesKeySize)
+	buf[0] = addressToAliasesPrefix
+	copy(buf[1:], k.addressID[:])
+	return buf
 }
 
 type disabledAliasKey struct {

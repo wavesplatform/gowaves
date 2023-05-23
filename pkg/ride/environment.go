@@ -20,6 +20,7 @@ type WrappedState struct {
 	diff                      diffState
 	cle                       rideAddress
 	scheme                    proto.Scheme
+	height                    proto.Height
 	act                       []proto.ScriptAction
 	blocklist                 []proto.WavesAddress
 	invocationCount           int
@@ -33,6 +34,7 @@ func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.Librar
 		diff:                      newDiffState(env.st),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
+		height:                    proto.Height(env.height()),
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
 	}
@@ -87,7 +89,7 @@ func (ws *WrappedState) NewestScriptBytesByAccount(account proto.Recipient) (pro
 	return ws.diff.state.NewestScriptBytesByAccount(account)
 }
 
-func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	return ws.diff.state.NewestRecipientToAddress(recipient)
 }
 
@@ -154,11 +156,11 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, *address); intDataEntry != nil {
+	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, address); intDataEntry != nil {
 		return intDataEntry, nil
 	}
 
@@ -170,11 +172,11 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, *address); boolDataEntry != nil {
+	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, address); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBooleanEntry(account, key)
@@ -185,11 +187,11 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, *address); stringDataEntry != nil {
+	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, address); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestStringEntry(account, key)
@@ -200,11 +202,11 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-	if ws.isNewestDataEntryDeleted(key, *address) {
+	if ws.isNewestDataEntryDeleted(key, address) {
 		return nil, errDeletedEntry
 	}
 
-	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, *address); binaryDataEntry != nil {
+	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, address); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBinaryEntry(account, key)
@@ -227,6 +229,7 @@ func (ws *WrappedState) NewestAssetIsSponsored(asset crypto.Digest) (bool, error
 
 func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(asset)
+	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestAssetInfo(asset)
 		if err != nil {
@@ -240,6 +243,7 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		}
 		return assetFromStore, nil
 	}
+	// it's a new asset
 	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
@@ -261,12 +265,13 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     ws.height,
 	}, nil
 }
 
 func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(asset)
-
+	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestFullAssetInfo(asset)
 		if err != nil {
@@ -284,7 +289,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		}
 		return assetFromStore, nil
 	}
-
+	// it's a new asset
 	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
@@ -309,6 +314,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     ws.height,
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,
@@ -334,6 +340,10 @@ func (ws *WrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockH
 
 func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	return ws.diff.state.BlockVRF(blockHeader, height)
+}
+
+func (ws *WrappedState) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+	return ws.diff.state.BlockRewards(blockHeader, height)
 }
 
 func (ws *WrappedState) EstimatorVersion() (int, error) {
@@ -371,7 +381,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	if !assetInfo.Scripted {
 		return true, nil
 	}
-	txID, err := crypto.NewDigestFromBytes(env.txID().(rideBytes))
+	txID, err := crypto.NewDigestFromBytes(env.txID().(rideByteVector))
 	if err != nil {
 		return false, err
 	}
@@ -385,6 +395,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.blockV5Activated(),
 		env.rideV6Activated(),
 		env.consensusImprovementsActivated(),
+		env.blockRewardDistributionActivated(),
 		env.invokeExpressionActivated(),
 	)
 	if err != nil {
@@ -733,8 +744,14 @@ func (ws *WrappedState) ApplyToState(
 		Scheme:                ws.scheme,
 		ScriptAddress:         ws.callee(),
 	}
+	var libVersion ast.LibraryVersion
+	if env.blockRewardDistributionActivated() {
+		libVersion = ws.rootScriptLibVersion
+	} else {
+		libVersion = currentLibVersion
+	}
 	if len(actions) == 0 {
-		if err := ws.rootActionsCountValidator.ValidateCounts(currentLibVersion, env.rideV6Activated()); err != nil {
+		if err := ws.rootActionsCountValidator.ValidateCounts(libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 	}
@@ -742,7 +759,7 @@ func (ws *WrappedState) ApplyToState(
 		if err := localActionsCountValidator.CountAction(action, currentLibVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate local actions count")
 		}
-		if err := ws.countActionTotal(action, currentLibVersion, env.rideV6Activated()); err != nil {
+		if err := ws.countActionTotal(action, libVersion, env.rideV6Activated()); err != nil {
 			return nil, errors.Wrap(err, "failed to validate total actions count")
 		}
 		switch a := action.(type) {
@@ -944,7 +961,7 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
-			if err := ws.diff.lease(senderAddress, *receiver, a.Amount, a.ID); err != nil {
+			if err := ws.diff.lease(senderAddress, receiver, a.Amount, a.ID); err != nil {
 				return nil, errors.Wrap(err, "failed to apply Lease action")
 			}
 
@@ -982,26 +999,27 @@ func (ws *WrappedState) ApplyToState(
 }
 
 type EvaluationEnvironment struct {
-	sch                              proto.Scheme
-	st                               types.SmartState
-	h                                rideInt
-	tx                               rideType
-	id                               rideType
-	th                               rideType
-	time                             uint64
-	b                                rideType
-	check                            func(int) bool
-	takeStr                          func(s string, n int) rideString
-	inv                              rideType
-	ver                              ast.LibraryVersion
-	validatePaymentsAfter            uint64
-	isBlockV5Activated               bool
-	isRideV6Activated                bool
-	isConsensusImprovementsActivated bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
-	isInvokeExpressionActivated      bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
-	isProtobufTransaction            bool
-	mds                              int
-	cc                               complexityCalculator
+	sch                                proto.Scheme
+	st                                 types.SmartState
+	h                                  rideInt
+	tx                                 rideType
+	id                                 rideType
+	th                                 rideType
+	time                               uint64
+	b                                  rideType
+	check                              func(int) bool
+	takeStr                            func(s string, n int) rideString
+	inv                                rideType
+	ver                                ast.LibraryVersion
+	validatePaymentsAfter              uint64
+	isBlockV5Activated                 bool
+	isRideV6Activated                  bool
+	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
+	isBlockRewardDistributionActivated bool // isBlockRewardDistributionActivated => nodeVersion >= 1.4.16
+	isInvokeExpressionActivated        bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
+	isProtobufTransaction              bool
+	mds                                int
+	cc                                 complexityCalculator
 }
 
 func bytesSizeCheckV1V2(l int) bool {
@@ -1013,24 +1031,25 @@ func bytesSizeCheckV3V6(l int) bool {
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
-	blockV5, rideV6, consensusImprovements, invokeExpression bool,
+	blockV5, rideV6, consensusImprovements, blockRewardDistribution, invokeExpression bool,
 ) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 	return &EvaluationEnvironment{
-		sch:                              scheme,
-		st:                               state,
-		h:                                rideInt(height),
-		check:                            bytesSizeCheckV1V2, // By default almost unlimited
-		takeStr:                          func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
-		validatePaymentsAfter:            internalPaymentsValidationHeight,
-		isBlockV5Activated:               blockV5,
-		isRideV6Activated:                rideV6,
-		isInvokeExpressionActivated:      invokeExpression,
-		isConsensusImprovementsActivated: consensusImprovements,
-		cc:                               newComplexityCalculatorByRideV6Activation(rideV6),
+		sch:                                scheme,
+		st:                                 state,
+		h:                                  rideInt(height),
+		check:                              bytesSizeCheckV1V2, // By default almost unlimited
+		takeStr:                            func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		validatePaymentsAfter:              internalPaymentsValidationHeight,
+		isBlockV5Activated:                 blockV5,
+		isRideV6Activated:                  rideV6,
+		isBlockRewardDistributionActivated: blockRewardDistribution,
+		isInvokeExpressionActivated:        invokeExpression,
+		isConsensusImprovementsActivated:   consensusImprovements,
+		cc:                                 newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
 }
 
@@ -1092,6 +1111,10 @@ func (e *EvaluationEnvironment) consensusImprovementsActivated() bool {
 	return e.isConsensusImprovementsActivated
 }
 
+func (e *EvaluationEnvironment) blockRewardDistributionActivated() bool {
+	return e.isBlockRewardDistributionActivated
+}
+
 func (e *EvaluationEnvironment) invokeExpressionActivated() bool {
 	return e.isInvokeExpressionActivated
 }
@@ -1146,7 +1169,7 @@ func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
-	e.id = rideBytes(transfer.ID.Bytes())
+	e.id = rideByteVector(transfer.ID.Bytes())
 	e.tx = scriptTransferToTransferTransactionObject(transfer)
 }
 
@@ -1174,7 +1197,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	e.id = rideBytes(id)
+	e.id = rideByteVector(id)
 
 	ver, err := e.libVersion()
 	if err != nil {

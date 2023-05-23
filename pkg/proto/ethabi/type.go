@@ -68,11 +68,6 @@ func (t *Type) String() string {
 	return t.stringKind
 }
 
-// requiresLengthPrefix returns whether the type requires any sort of length prefixing.
-func requiresLengthPrefix(t Type) bool {
-	return t.T == StringType || t.T == BytesType || t.T == SliceType
-}
-
 // getTypeSize returns the size that this type needs to occupy.
 // We distinguish static and dynamic types. Static types are encoded in-place
 // and dynamic types are encoded at a separately allocated location after the

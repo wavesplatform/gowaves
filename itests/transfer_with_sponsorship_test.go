@@ -19,7 +19,7 @@ type TransferWithSponsorshipTxSuite struct {
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive() {
 	waitForTx := true
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -96,7 +96,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOneselfPositive() {
 	waitForTx := true
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -161,7 +161,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOnesel
 
 func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsoredAssetPositive() {
 	waitForTx := true
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		//Sponsor creates a new token
 		sponsoredAssetId := issue_utilities.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -239,7 +239,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsored
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValuesPositive() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		//Fill Sponsor's Waves balance
@@ -320,7 +320,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		//Sponsor creates a new token
@@ -400,7 +400,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() {
-	versions := transfer_utilities.GetVersions()
+	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		//Sponsor creates a new token

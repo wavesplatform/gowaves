@@ -54,7 +54,7 @@ type SmartState interface {
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
 	NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error)
-	NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error)
+	NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)
@@ -71,6 +71,7 @@ type SmartState interface {
 	NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+	BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error)
 
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool

@@ -1,0 +1,61 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+
+func getStrOrElse(address: Address, key: String, defaultVal: String) = {
+  address.getString(key).valueOrElse(defaultVal)
+}
+
+func getStringOrFail(address: Address, key: String) = {
+  address.getString(key).valueOrErrorMessage("Mandatory this." + key + " is not defined")
+}
+
+func validateAddressOrFail(addressStr: String) = {
+  let address = addressStr.addressFromString().valueOrErrorMessage("fail to convert into address " + addressStr)
+  if (wavesBalance(address).available < 0) then throw() else addressStr
+}
+
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp = 11
+let IdxControlCfgRestV2Dapp       = 12
+let IdxControlCfgGovernanceDapp   = 13
+
+func keyControlAddress()  = "%s%s__config__controlAddress"
+func keyControlCfg()      = "%s__controlConfig"
+func keyUsdnAssetId()     = "neutrino_asset_id"
+
+func readControlCfgOrFail(control: Address) = split_4C(control.getStringOrFail(keyControlCfg()), SEP)
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+
+# GLOBAL VARIABLES
+let controlContract = this.getString(keyControlAddress()).valueOrElse("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+    .addressFromStringValue()
+let controlCfg        = controlContract.readControlCfgOrFail()
+let neutrinoDapp      = controlCfg.getContractAddressOrFail(IdxControlCfgNeutrinoDapp)
+let nodeRegistryDapp  = controlCfg.getContractAddressOrFail(IdxControlCfgNodeRegistryDapp)
+
+@Callable(i)
+func constructor(controlAddressStr: String) = {
+  if (i.caller != this) then throw("permissions denied") else
+  [StringEntry(keyControlAddress(), controlAddressStr.validateAddressOrFail())]
+}
+
+@Callable(i)
+func withdraw(origAmt: Int) = {
+  if (i.caller != nodeRegistryDapp) then throw("permissions denied: only nodeRegistry is allowed to allocate extra funds") else
+  let amt = origAmt
+  ([ScriptTransfer(nodeRegistryDapp, amt, unit)], amt)
+}

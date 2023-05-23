@@ -139,6 +139,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		consensusImprovementsActivatedFunc: func() bool {
 			return false
 		},
+		blockRewardDistributionActivatedFunc: func() bool {
+			return false
+		},
 		invokeExpressionActivatedFunc: func() bool {
 			return false
 		},
@@ -162,11 +165,11 @@ func newTestEnv(t *testing.T) *testEnv {
 	r.me.stateFunc = func() types.SmartState {
 		return r.ms
 	}
-	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (proto.WavesAddress, error) {
 		if a, ok := r.recipients[recipient.String()]; ok {
-			return &a, nil
+			return a, nil
 		}
-		return nil, errors.Errorf("unknown recipient '%s'", recipient.String())
+		return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", recipient.String())
 	}
 	r.ms.NewestScriptPKByAddrFunc = func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 		if acc, ok := r.accounts[addr]; ok {
@@ -385,6 +388,27 @@ func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
 	return e
 }
 
+func (e *testEnv) withBlockHeader(blockHeader *proto.BlockHeader) *testEnv {
+	e.ms.NewestHeaderByHeightFunc = func(height uint64) (*proto.BlockHeader, error) {
+		return blockHeader, nil
+	}
+	return e
+}
+
+func (e *testEnv) withBlockVRF(vrf []byte) *testEnv {
+	e.ms.BlockVRFFunc = func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
+		return vrf, nil
+	}
+	return e
+}
+
+func (e *testEnv) withBlockRewards(rewards proto.Rewards) *testEnv {
+	e.ms.BlockRewardsFunc = func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
+		return rewards, nil
+	}
+	return e
+}
+
 func (e *testEnv) withProtobufTx() *testEnv {
 	e.me.isProtobufTxFunc = func() bool {
 		return true
@@ -406,6 +430,13 @@ func (e *testEnv) withMessageLengthV3() *testEnv {
 
 func (e *testEnv) withRideV6Activated() *testEnv {
 	e.me.rideV6ActivatedFunc = func() bool {
+		return true
+	}
+	return e
+}
+
+func (e *testEnv) withBlockRewardDistribution() *testEnv {
+	e.me.blockRewardDistributionActivatedFunc = func() bool {
 		return true
 	}
 	return e
@@ -485,11 +516,7 @@ func withPayments(payments ...proto.ScriptPayment) testInvocationOption {
 }
 
 func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testEnv {
-	call := proto.FunctionCall{
-		Default:   false,
-		Name:      fn,
-		Arguments: proto.Arguments{},
-	}
+	call := proto.NewFunctionCall(fn, proto.Arguments{})
 	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
@@ -533,14 +560,14 @@ func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
 	id, err := tx.GetID(e.me.scheme())
 	require.NoError(e.t, err)
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id)
+		return rideByteVector(id)
 	}
 	return e
 }
 
 func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(id.Bytes())
+		return rideByteVector(id.Bytes())
 	}
 	return e
 }
@@ -761,7 +788,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 		e.inv = inv
 	}
 	e.me.txIDFunc = func() rideType {
-		return rideBytes(tx.ID.Bytes())
+		return rideByteVector(tx.ID.Bytes())
 	}
 	return e
 }

@@ -1,0 +1,74 @@
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Current script is mandatory for Neutrino generators.
+# Steps to install:
+#  * Compile and send SetScriptTransaction to the your generating account.
+#  * Invoke constructor method passing your beneficiaryAddress in Base58 encoding as a parameter.
+#    Passed address will be kept in account state and will receive 5% reward.
+#    BE CAREFUL!!! It is possible to change beneficiaryAddress only once per week (10080 blocks).
+#
+# IMPORTANT NOTES
+# Script introduces incentive for the community to support the Neutrino infrastructure.
+# Any user (not only the node owner) can execute distributeMinerReward method
+# and receive 0.015 WAVES reward to the address passed as argument.
+# Please note that distributeMinerReward can be called with success result only if Node's balance is greater than 24 WAVES.
+#
+# Generators, do not worry! You will still receive your 5% to the specified address in your account state
+# (see constructor invocation above)
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let SEP = "__"
+let MULT8 = 1_0000_0000
+
+func keyBeneficiaryAddress()    = "%s%s__cfg__beneficiaryAddress"
+func keyConstructorInterval()   = "%s%s__cfg__nodeContructorInterval"
+func keyLastUpdateHeight()      = "%s__lastUpdatedHeight"
+func keyScriptUpdateHash()      = "%s%s__miner__scriptUpdateHash"
+func keyScriptUpdateAllowance() = "%s%s__miner__scriptUpdateAllowance"
+
+let nodeRegistry = addressFromStringValue("3P9vKqQKjUdmpXAfiWau8krREYAY1Xr69pE")
+
+@Callable(i)
+func constructor(beneficiaryAddressStr58: String) = {
+  if (this != i.caller) then throw("permissions denied") else
+  let beneficiaryAddress = beneficiaryAddressStr58.addressFromStringValue()
+  if (beneficiaryAddress == this) then throw("mining node address is not allowed as a beneficiaryAddress") else
+
+  [StringEntry(keyBeneficiaryAddress(), beneficiaryAddress.toString()),
+  IntegerEntry(keyLastUpdateHeight(), height)]
+}
+
+@Verifier(tx)
+func verify() = {
+  match (tx) {
+      case inv:InvokeScriptTransaction => {
+        if (inv.fee > 5 * MULT8 / 1000) then throw("InvokeScriptTransaction - fee amount is greater than max allowed: " + inv.fee.toString()) else
+        if (isDefined(inv.feeAssetId)) then throw("InvokeScriptTransaction - only WAVES is allowed as feeAssetId") else
+
+        if (inv.dApp.addressFromRecipient() == nodeRegistry) then {
+          true
+        } else if (inv.dApp.addressFromRecipient() == this) then {
+          let lastUpdatedHeight = this.getInteger(keyLastUpdateHeight()).valueOrElse(0)
+          let constrInterval = nodeRegistry.getInteger(keyConstructorInterval()).valueOrElse(10080)
+          if (height - lastUpdatedHeight < constrInterval) then throw("InvokeScriptTransaction - impossible to call constructor very often") else
+
+          sigVerify_32Kb(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+        } else {
+          throw("InvokeScriptTransaction - invalid dapp address")
+        }
+      }
+      case stx:SetScriptTransaction => {
+        if (stx.fee > 2 * MULT8 / 100) then throw("SetScriptTransaction - fee amount is greater than max allowed: " + stx.fee.toString()) else
+        let scriptBytes = stx.script.value()
+        let hash = blake2b256_32Kb(scriptBytes).toBase58String()
+        let allowedHash = nodeRegistry.getString(keyScriptUpdateHash()).valueOrElse("")
+        let validByHash = allowedHash != "" && allowedHash == hash
+        let allowToUpdate = nodeRegistry.getBoolean(keyScriptUpdateAllowance()).valueOrElse(false)
+        allowToUpdate && validByHash
+      }
+      case _ => throw("not allowed")
+    }
+}

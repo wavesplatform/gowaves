@@ -1,0 +1,306 @@
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+#
+# Smart Contract for Price Oracles and Emergency Oracles of Neutrino Protocol
+#
+let revisionNum = ""
+
+let SEP = "__"
+
+#------------------------
+# CONTRACT FUNCTIONS
+#------------------------
+# data indices from controlConfig
+let IdxControlCfgNeutrinoDapp     = 1
+let IdxControlCfgAuctionDapp      = 2
+let IdxControlCfgRpdDapp          = 3
+let IdxControlCfgMathDapp         = 4
+let IdxControlCfgLiquidationDapp  = 5
+let IdxControlCfgRestDapp         = 6
+let IdxControlCfgNodeRegistryDapp = 7
+let IdxControlCfgNsbtStakingDapp  = 8
+let IdxControlCfgMediatorDapp     = 9
+let IdxControlCfgSurfStakingDapp  = 10
+let IdxControlCfgGnsbtControllerDapp = 11
+let IdxControlCfgRestV2Dapp       = 12
+let IdxControlCfgGovernanceDapp   = 13
+
+func keyControlConfig() = "%s__controlConfig"
+
+func dataControlCfg(neutrinoContract: String, auctionContract: String, rpdContract: String, mathContract: String,
+                    liquidationContract: String, restContract: String, nodeRegistryContract: String, nsbtStakingContract: String,
+                    mediatorContract: String, surfStakingContract: String, gnsbtControllerContract: String, restV2Contract: String,
+                    governanceContract: String) = {
+  makeString(
+    ["%s%s%s%s%s%s%s%s%s%s%s%s%s",
+    neutrinoContract,         #1
+    auctionContract,          #2
+    rpdContract,              #3
+    mathContract,             #4
+    liquidationContract,      #5
+    restContract,             #6
+    nodeRegistryContract,     #7
+    nsbtStakingContract,      #8
+    mediatorContract,         #9
+    surfStakingContract,      #10
+    gnsbtControllerContract,  #11
+    restV2Contract,           #12
+    governanceContract        #13
+    ],
+    SEP)
+}
+
+#-------------------Functions----------------------
+func convertWavesToNeutrino(amount: Int, price: Int) = fraction(fraction(amount, price, 1000000), 1000000, 100000000)
+
+func getNumberByAddressAndKey(address: String, key: String) = {
+    getInteger(addressFromStringValue(address), key).valueOrElse(0)
+}
+
+func getStringByAddressAndKey(address: Address, key: String) = {
+     getString(address, key).valueOrElse("")
+}
+
+func convertJsonArrayToList(jsonArray: String) = {
+   jsonArray.split(",") #jsonArray.take(size(jsonArray)-1).drop(1).split(",")
+}
+
+#-------------------Constants---------------------------
+
+#-------------------Constructor-------------------------
+
+#-------------------Keys---------------------------------
+#------This contract----------
+
+#-------------------Global vars-------------------------
+let price = getInteger(this, "price").valueOrElse(0)
+
+#let priceIndex = getNumberByKey("price_index")
+let priceIndex = getInteger(this, "price_index").valueOrElse(0)
+
+let isBlocked = getBoolean(this, "is_blocked").valueOrElse(false)
+
+let percentPriceOffset = 7
+
+let pubKeyOracles = getString(this, "oracles").valueOrElse("")
+let pubKeyOraclesList = convertJsonArrayToList(pubKeyOracles)
+
+#-------------------Get func----------------------------
+
+#-------------------Other func--------------------------
+
+
+let neutrinoAddress     = Address(base58'3PC9BfRwJWWiw9AREE2B3eWzCks3CYtg4yo')
+let liquidationAddress  = Address(base58'3P4PCxsJqMzQBALo8zANHtBDZRRquobHQp7')
+let neutrinoAsset       = base58'DG2xFkPdDwKUoBkzGAhQtLpSGzfXLiCYPEzeKH2Ad24p'
+let controlContract     = this
+func getStringOrFail(address: Address, key: String)  = address.getString(key).valueOrErrorMessage(makeString(["mandatory ", address.toString(), ".", key, " is not defined"], ""))
+func getContractAddressOrFail(controlCfg: List[String], idx: Int) = controlCfg[idx].addressFromString()
+  .valueOrErrorMessage("Control cfg doesn't contain address at index " + idx.toString())
+let controlCfg = split(this.getStringOrFail(keyControlConfig()), SEP)
+let governanceContract = controlCfg.getContractAddressOrFail(IdxControlCfgGovernanceDapp)
+
+#locked balance from USDN -> WAVES swap
+let neutrinoLockedBalance = getInteger(neutrinoAddress, "balance_lock_neutrino").valueOrElse(0)
+
+#locked balance from WAVES -> USDN swap
+let wavesLockedBalance = getInteger(neutrinoAddress, "balance_lock_waves").valueOrElse(0)
+
+let reserve = wavesBalance(neutrinoAddress).regular - wavesLockedBalance #waves reserves to cover USDN supply
+let neutrinoSupply = neutrinoLockedBalance + assetInfo(neutrinoAsset).value().quantity - assetBalance(neutrinoAddress, neutrinoAsset)
+    - assetBalance(liquidationAddress, neutrinoAsset) # supply outside main sc or liquidation contract
+let deficit = neutrinoSupply - convertWavesToNeutrino(reserve, price)
+
+
+func findPricesInRange(prices: List[Int]) = {
+    let minPercentBound = 90
+    let maxPercentBound = 110
+    let p0 = prices[0]
+
+    let check0 = if (prices[0] <= 0) then [0] else {
+        let p01 = prices[1] * 100 / p0
+        let p02 = prices[2] * 100 / p0
+        let p03 = prices[3] * 100 / p0
+        let p04 = prices[4] * 100 / p0
+
+        let array1 = if(p01 < maxPercentBound && p01 > minPercentBound) then 1::[0] else [0]
+        let array2 = if(p02 < maxPercentBound && p02 > minPercentBound) then 2::array1 else array1
+        let array3 = if(p03 < maxPercentBound && p03 > minPercentBound) then 3::array2 else array2
+        if(p04 < maxPercentBound && p04 > minPercentBound) then 4::array3 else array3
+    }
+
+    let check1 = if (check0.size() >= 3) then check0 else {
+        let p1 = prices[1]
+        if (p1 <= 0) then [1] else {
+            let p10 = prices[0] * 100 / p1
+            let p12 = prices[2] * 100 / p1
+            let p13 = prices[3] * 100 / p1
+            let p14 = prices[4] * 100 / p1
+
+            let array1 = if(p10 < maxPercentBound && p10 > minPercentBound) then 0::[1] else [1]
+            let array2 = if(p12 < maxPercentBound && p12 > minPercentBound) then 2::array1 else array1
+            let array3 = if(p13 < maxPercentBound && p13 > minPercentBound) then 3::array2 else array2
+            if(p14 < maxPercentBound && p14 > minPercentBound) then 4::array3 else array3
+        }
+    }
+
+    let check2 = if (check1.size() >= 3) then check1 else {
+        let p2 = prices[2]
+        if (p2 <= 0) then [2] else {
+            let p20 = prices[0] * 100 / p2
+            let p21 = prices[1] * 100 / p2
+            let p23 = prices[3] * 100 / p2
+            let p24 = prices[4] * 100 / p2
+
+            let array1 = if (p20 < maxPercentBound && p20 > minPercentBound) then 0::[2] else [2]
+            let array2 = if(p21 < maxPercentBound && p21 > minPercentBound) then 1::array1 else array1
+            let array3 = if(p23 < maxPercentBound && p23 > minPercentBound) then 3::array2 else array2
+            if(p24 < maxPercentBound && p24 > minPercentBound) then 4::array3 else array3
+        }
+    }
+
+    let check3 = if (check2.size() >= 3) then check2 else {
+        let p3 = prices[3]
+        if (p3 <= 0) then [3] else {
+            let p30 = prices[0] * 100 / p3
+            let p31 = prices[1] * 100 / p3
+            let p32 = prices[2] * 100 / p3
+            let p34 = prices[4] * 100 / p3
+
+            let array1 = if (p30 < maxPercentBound && p30 > minPercentBound) then 0::[3] else [3]
+            let array2 = if(p31 < maxPercentBound && p31 > minPercentBound) then 1::array1 else array1
+            let array3 = if(p32 < maxPercentBound && p32 > minPercentBound) then 2::array2 else array2
+            if(p34 < maxPercentBound && p34 > minPercentBound) then 4::array3 else array3
+        }
+    }
+
+    if (check3.size() >= 3) then check3 else {
+        let p4 = prices[4]
+        if (p4 <= 0) then [4] else {
+            let p40 = prices[0] * 100 / p4
+            let p41 = prices[1] * 100 / p4
+            let p42 = prices[2] * 100 / p4
+            let p43 = prices[3] * 100 / p4
+
+            let array1 = if (p40 < maxPercentBound && p40 > minPercentBound) then 0::[4] else [4]
+            let array2 = if(p41 < maxPercentBound && p41 > minPercentBound) then 1::array1 else array1
+            let array3 = if(p42 < maxPercentBound && p42 > minPercentBound) then 2::array2 else array2
+            if(p43 < maxPercentBound && p43 > minPercentBound) then 3::array3 else array3
+        }
+    }
+}
+
+func formattingPriceMsg(price: Int) = {
+    toBytes("WAVESNEUTRINOPREFIX" + "_" + toString(height) + "_" + toString(price))
+}
+
+@Callable(i)
+func constructor(neutrinoContract: String, auctionContract: String, rpdContract: String, mathContract: String,
+                    liquidationContract: String, restContract: String, nodeRegistryContract: String,
+                    nsbtStakingContract: String, mediatorContract: String, surfStakingContract: String, gnsbtControllerContract: String,
+                    restV2Contract: String, governanceContract: String) = {
+   if (i.caller != this) then throw("permissions denied") else
+
+   [StringEntry(keyControlConfig(), dataControlCfg(
+        neutrinoContract, auctionContract, rpdContract, mathContract, liquidationContract,
+        restContract, nodeRegistryContract, nsbtStakingContract, mediatorContract,
+        surfStakingContract, gnsbtControllerContract, restV2Contract, governanceContract
+    ))]
+}
+
+#-------------------Callable----------------------
+# [called by price oracles]
+# only price oracles can block smart contract untill another price oracle will unblock it
+@Callable(i)
+func callEmergencyShutdown(reason: String) = {
+    let AutoEmergencyOracleAddress = "3P7ihFVxBNbHK237TNdPxT1xHEu8pHexXTr"
+    let callerAddress = toString(i.caller)
+    if (AutoEmergencyOracleAddress != callerAddress && governanceContract.toString() != callerAddress) then 
+        throw("caller must be one an emergency oracle or Governance contract") else
+    [BooleanEntry("is_blocked", true),
+      StringEntry("is_blocked_caller", callerAddress),
+      StringEntry("is_blocked_reason", reason)]
+}
+
+# [called by price oracles]
+@Callable(i)
+func finalizeCurrentPrice(price1: Int, sign1: ByteVector, price2: Int, sign2: ByteVector, price3: Int, sign3: ByteVector, price4: Int, sign4: ByteVector, price5: Int, sign5: ByteVector) = {
+    if(isBlocked) then throw("contract is blocked by EMERGENCY SHUTDOWN actions untill reactivation by emergency oracles") else
+    if (getInteger(this, "price_" + toString(height)).valueOrElse(0) != 0) then throw("wait next block") else
+    if (pubKeyOraclesList[height % 5] != toBase58String(i.callerPublicKey)) then throw("Out of turn finalization: "
+             + toString(height) + " block should be finalize by " + pubKeyOraclesList[height % 5]) else
+
+    let prices = [
+        if sigVerify_8Kb(formattingPriceMsg(price1), sign1, fromBase58String(pubKeyOraclesList[0])) then price1 else 0,
+        if sigVerify_8Kb(formattingPriceMsg(price2), sign2, fromBase58String(pubKeyOraclesList[1])) then price2 else 0,
+        if sigVerify_8Kb(formattingPriceMsg(price3), sign3, fromBase58String(pubKeyOraclesList[2])) then price3 else 0,
+        if sigVerify_8Kb(formattingPriceMsg(price4), sign4, fromBase58String(pubKeyOraclesList[3])) then price4 else 0,
+        if sigVerify_8Kb(formattingPriceMsg(price5), sign5, fromBase58String(pubKeyOraclesList[4])) then price5 else 0
+    ]
+
+    let zeroPriceCount = if (prices[0] == 0) then 1 else 0
+            + if (prices[1] == 0) then 1 else 0
+            + if (prices[2] == 0) then 1 else 0
+            + if (prices[3] == 0) then 1 else 0
+            + if (prices[4] == 0) then 1 else 0
+
+    if (zeroPriceCount >= 3) then throw("3 prices or more are equals to 0") else
+
+    let pricesInRange = findPricesInRange(prices)
+    let priceProvidingCount = pricesInRange.size();
+
+    if (priceProvidingCount < 3) then throw("Could not finalize price because of big variation: height=" + toString(height)
+             + "\n" + pubKeyOraclesList[0]  + "=" + toString(prices[0])
+             + "\n" + pubKeyOraclesList[1] + "=" + toString(prices[1])
+             + "\n" + pubKeyOraclesList[2] + "=" + toString(prices[2])
+             + "\n" + pubKeyOraclesList[3] + "=" + toString(prices[3])
+             + "\n" + pubKeyOraclesList[4] + "=" + toString(prices[4])) else
+
+    let sum1 = prices[pricesInRange[0]] + prices[pricesInRange[1]] + prices[pricesInRange[2]]
+    let sum2 = if (priceProvidingCount >= 4) then sum1 + prices[pricesInRange[3]] else sum1
+    let priceSum = if (priceProvidingCount >= 5) then sum2 + prices[pricesInRange[4]] else sum2
+    if (priceProvidingCount >= 6) then throw("Invalid pricesInRange creation") else
+
+    let newPrice = priceSum/priceProvidingCount
+
+    if(newPrice >= (price + price*percentPriceOffset/100) || newPrice <= (price - price*percentPriceOffset/100)) then {
+        let reason = "automatic emergency shutdown because of large price variability"
+        [BooleanEntry("is_blocked", true),
+          StringEntry("is_blocked_caller", toString(this)),
+          StringEntry("is_blocked_reason", reason),
+          IntegerEntry("black_swarm_price" + "_" + toString(height), newPrice)]
+    } else {
+        let newPriceIndex = priceIndex + 1
+        [IntegerEntry("price", newPrice),
+          IntegerEntry("price_" + toString(height), newPrice),
+          IntegerEntry("price_index", newPriceIndex),
+          IntegerEntry("price_index_" + toString(newPriceIndex), height),
+          IntegerEntry("deficit_" + toString(height), deficit),
+          IntegerEntry("neutrinoSupply_" + toString(height), neutrinoSupply),
+          IntegerEntry("deficit_percent_" + toString(height), if (neutrinoSupply != 0) then deficit * 100 / neutrinoSupply else 0)
+        ]
+    }
+}
+
+@Verifier(tx)
+func verify() = {
+    let pubKeyAdminsListStr = makeString([
+        "GJdLSaLiv5K7xuejac8mcRcHoyo3dPrESrvktG3a6MAR",
+        "EYwZmURd5KKaQRBjsVa6g8DPisFoS6SovRJtFiL5gMHU",
+        "DtmAfuDdCrHK8spdAeAYzq6MsZegeD9gnsrpuTRkCbVA",
+        "5WRXFSjwcTbNfKcJs8ZqXmSSWYsSVJUtMvMqZj5hH4Nc"
+    ], SEP)
+
+    let pubKeyAdminsList = controlContract.getString("%s__multisig")
+          .valueOrElse(pubKeyAdminsListStr)
+          .split(SEP)
+
+    let count =
+        (if(sigVerify(tx.bodyBytes, tx.proofs[0], fromBase58String(pubKeyAdminsList[0]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[1], fromBase58String(pubKeyAdminsList[1]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[2], fromBase58String(pubKeyAdminsList[2]))) then 1 else 0) +
+        (if(sigVerify(tx.bodyBytes, tx.proofs[3], fromBase58String(pubKeyAdminsList[3]))) then 2 else 0)
+
+    count >= 3
+}

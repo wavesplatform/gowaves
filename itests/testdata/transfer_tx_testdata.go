@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	TransferMinVersion = 1
 	TransferMaxVersion = 3
 )
 
@@ -78,6 +79,7 @@ func TransferDataChangedTimestamp[T any](td *TransferTestData[T]) TransferTestDa
 type CommonTransferData struct {
 	Asset TransferTestData[TransferExpectedValuesPositive]
 	NFT   TransferTestData[TransferExpectedValuesPositive]
+	Smart TransferTestData[TransferExpectedValuesPositive]
 }
 
 func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNumbers ...int) CommonTransferData {
@@ -113,6 +115,22 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 			TransferExpectedValuesPositive{
 				WavesDiffBalanceSender:    utl.MinTxFeeWaves,
 				AssetDiffBalance:          1,
+				WavesDiffBalanceRecipient: 0,
+			},
+		),
+		Smart: *NewTransferTestData(
+			utl.GetAccount(suite, from),
+			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
+			assetId,
+			nil,
+			utl.MinTxFeeWavesSmartAsset,
+			uint64(assetAmount/4),
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			nil,
+			TransferExpectedValuesPositive{
+				WavesDiffBalanceSender:    utl.MinTxFeeWavesSmartAsset,
+				AssetDiffBalance:          assetAmount / 4,
 				WavesDiffBalanceRecipient: 0,
 			},
 		),

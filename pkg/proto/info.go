@@ -71,6 +71,7 @@ type AssetInfo struct {
 	Reissuable      bool
 	Scripted        bool
 	Sponsored       bool
+	IssueHeight     Height
 }
 
 func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {
@@ -80,4 +81,9 @@ func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {
 		Reissuable:  ai.Reissuable,
 		TotalVolume: int64(ai.Quantity),
 	}
+}
+
+type EnrichedFullAssetInfo struct {
+	FullAssetInfo
+	SequenceInBlock uint32
 }

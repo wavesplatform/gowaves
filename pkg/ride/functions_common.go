@@ -128,12 +128,12 @@ func sizeTuple(_ environment, args ...rideType) (rideType, error) {
 	return nil, errors.Errorf("sizeTuple: unexpected argument type '%s'", args[0].instanceOf())
 }
 
-func bytesProperty(obj rideType, key string) (rideBytes, error) {
+func bytesProperty(obj rideType, key string) (rideByteVector, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return nil, err
 	}
-	r, ok := p.(rideBytes)
+	r, ok := p.(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
@@ -145,7 +145,7 @@ func digestProperty(obj rideType, key string) (crypto.Digest, error) {
 	if err != nil {
 		return crypto.Digest{}, err
 	}
-	b, ok := p.(rideBytes)
+	b, ok := p.(rideByteVector)
 	if !ok {
 		return crypto.Digest{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
@@ -200,7 +200,7 @@ func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error
 	switch v := p.(type) {
 	case rideUnit:
 		return proto.NewOptionalAssetWaves(), nil
-	case rideBytes:
+	case rideByteVector:
 		a, err := proto.NewOptionalAssetFromBytes(v)
 		if err != nil {
 			return proto.OptionalAsset{}, err

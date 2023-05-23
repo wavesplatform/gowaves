@@ -178,6 +178,8 @@ func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 		return ConstantsV5, nil
 	case ast.LibV6:
 		return ConstantsV6, nil
+	case ast.LibV7:
+		return ConstantsV7, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
 	}
@@ -322,7 +324,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		return rideInt(n.Value), nil
 
 	case *ast.BytesNode:
-		return rideBytes(n.Value), nil
+		return rideByteVector(n.Value), nil
 
 	case *ast.BooleanNode:
 		return rideBoolean(n.Value), nil

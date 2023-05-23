@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -103,7 +102,7 @@ func fullAssetInfoToObject(info *proto.FullAssetInfo) rideType {
 func blockInfoToObject(info *proto.BlockInfo) rideType {
 	var vrf rideType = rideUnit{}
 	if len(info.VRF) > 0 {
-		vrf = rideBytes(common.Dup(info.VRF.Bytes()))
+		vrf = rideByteVector(common.Dup(info.VRF.Bytes()))
 	}
 	return newRideBlockInfoV4(
 		vrf,
@@ -116,14 +115,14 @@ func blockInfoToObject(info *proto.BlockInfo) rideType {
 	)
 }
 
-func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
+func blockHeaderToObjectV1V6(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
 	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
 	}
 	var vf rideType = rideUnit{}
 	if len(vrf) > 0 {
-		vf = rideBytes(common.Dup(vrf))
+		vf = rideByteVector(common.Dup(vrf))
 	}
 	return newRideBlockInfoV4(
 		vf,
@@ -133,6 +132,32 @@ func blockHeaderToObject(scheme byte, height proto.Height, header *proto.BlockHe
 		rideInt(header.Timestamp),
 		rideInt(height),
 		rideAddress(address),
+	), nil
+}
+
+func blockHeaderToObjectV7(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte,
+	rewards proto.Rewards) (rideType, error) {
+	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
+	}
+	var vf rideType = rideUnit{}
+	if len(vrf) > 0 {
+		vf = rideByteVector(common.Dup(vrf))
+	}
+	sr := rewards.Sorted()
+	rl := make(rideList, len(sr))
+	for i, r := range sr {
+		rl[i] = tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())}
+	}
+	return newRideBlockInfoV7(vf,
+		common.Dup(header.GenSignature.Bytes()),
+		common.Dup(header.GeneratorPublicKey.Bytes()),
+		rideInt(header.BaseTarget),
+		rideInt(header.Timestamp),
+		rideInt(height),
+		rideAddress(address),
+		rl,
 	), nil
 }
 
@@ -208,7 +233,7 @@ func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideIssueT
 	}
 	var sf rideType = rideUnit{}
 	if tx.NonEmptyScript() {
-		sf = rideBytes(common.Dup(tx.Script))
+		sf = rideByteVector(common.Dup(tx.Script))
 	}
 	return newRideIssueTransaction(
 		proofs(tx.Proofs),
@@ -239,10 +264,10 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, 
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideBytes(body),
+		rideByteVector(body),
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
-		rideBytes(tx.Attachment),
+		rideByteVector(tx.Attachment),
 		signatureToProofs(tx.Signature),
 		rideInt(tx.Fee),
 		recipientToObject(tx.Recipient),
@@ -265,10 +290,10 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideBytes(body),
+		rideByteVector(body),
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
-		rideBytes(tx.Attachment),
+		rideByteVector(tx.Attachment),
 		proofs(tx.Proofs),
 		rideInt(tx.Fee),
 		recipientToObject(tx.Recipient),
@@ -290,7 +315,7 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideType, er
 		return nil, EvaluationFailure.Wrap(err, "reissueWithSigToObject")
 	}
 	return newRideReissueTransaction(
-		rideBytes(body),
+		rideByteVector(body),
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -314,7 +339,7 @@ func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideRe
 		return rideReissueTransaction{}, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
 	return newRideReissueTransaction(
-		rideBytes(body),
+		rideByteVector(body),
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -338,7 +363,7 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideType, error) {
 		return nil, EvaluationFailure.Wrap(err, "burnWithSigToObject")
 	}
 	return newRideBurnTransaction(
-		rideBytes(body),
+		rideByteVector(body),
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -361,7 +386,7 @@ func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideBurnTran
 		return rideBurnTransaction{}, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
 	return newRideBurnTransaction(
-		rideBytes(body),
+		rideByteVector(body),
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -667,7 +692,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 		body,
 		tx.ID.Bytes(),
 		common.Dup(tx.SenderPK.Bytes()),
-		rideBytes(tx.Attachment),
+		rideByteVector(tx.Attachment),
 		transfers,
 		rideInt(count),
 		rideInt(tx.Timestamp),
@@ -736,7 +761,7 @@ func setScriptWithProofsToObject(scheme byte, consensusImprovementsActivated boo
 	}
 	var sf rideType = rideUnit{}
 	if l := len(tx.Script); l > 0 && (l <= proto.MaxContractScriptSizeV1V5 || consensusImprovementsActivated) {
-		sf = rideBytes(common.Dup(tx.Script))
+		sf = rideByteVector(common.Dup(tx.Script))
 	}
 	return newRideSetScriptTransaction(
 		proofs(tx.Proofs),
@@ -789,7 +814,7 @@ func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithP
 	}
 	var sf rideType = rideUnit{}
 	if len(tx.Script) > 0 {
-		sf = rideBytes(common.Dup(tx.Script))
+		sf = rideByteVector(common.Dup(tx.Script))
 	}
 	return newRideSetAssetScriptTransaction(
 		proofs(tx.Proofs),
@@ -818,8 +843,8 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 	if err != nil {
 		return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
 	}
-	args := make(rideList, len(tx.FunctionCall.Arguments))
-	for i, arg := range tx.FunctionCall.Arguments {
+	args := make(rideList, len(tx.FunctionCall.Arguments()))
+	for i, arg := range tx.FunctionCall.Arguments() {
 		a, err := convertArgument(arg)
 		if err != nil {
 			return rideUnit{}, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
@@ -836,7 +861,7 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			proofs(tx.Proofs),
 			optionalAsset(tx.FeeAsset),
 			recipientToObject(tx.ScriptRecipient),
-			rideString(tx.FunctionCall.Name),
+			rideString(tx.FunctionCall.Name()),
 			body,
 			tx.ID.Bytes(),
 			common.Dup(tx.SenderPK.Bytes()),
@@ -856,7 +881,7 @@ func invokeScriptWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *pro
 			proofs(tx.Proofs),
 			optionalAsset(tx.FeeAsset),
 			recipientToObject(tx.ScriptRecipient),
-			rideString(tx.FunctionCall.Name),
+			rideString(tx.FunctionCall.Name()),
 			body,
 			tx.ID.Bytes(),
 			common.Dup(tx.SenderPK.Bytes()),
@@ -893,51 +918,6 @@ func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionT
 	), nil
 }
 
-func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
-	var arg proto.Argument
-	switch m := decodedArg.(type) {
-	case rideInt:
-		arg = &proto.IntegerArgument{Value: int64(m)}
-	case rideBoolean:
-		arg = &proto.BooleanArgument{Value: bool(m)}
-	case rideBytes:
-		arg = &proto.BinaryArgument{Value: m}
-	case rideString:
-		arg = &proto.StringArgument{Value: string(m)}
-	case rideList:
-		var miniArgs proto.Arguments
-		for _, v := range m {
-			a, err := ConvertEthereumRideArgumentsToSpecificArgument(v)
-			if err != nil {
-				return nil, err
-			}
-			miniArgs = append(miniArgs, a)
-		}
-		arg = &proto.ListArgument{Items: miniArgs}
-	default:
-		return nil, EvaluationFailure.New("unknown argument type")
-	}
-
-	return arg, nil
-}
-
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
-	var arguments []proto.Argument
-	for _, decodedArg := range decodedArgs {
-		value, err := ethABIDataTypeToRideType(decodedArg.Value)
-		if err != nil {
-			return nil, EvaluationFailure.Errorf("failed to convert data type to ride type %v", err)
-		}
-		arg, err := ConvertEthereumRideArgumentsToSpecificArgument(value)
-		if err != nil {
-			return nil, err
-		}
-		arguments = append(arguments, arg)
-
-	}
-	return arguments, nil
-}
-
 func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
@@ -966,13 +946,13 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 		amount := res.Int64()
 		return newRideTransferTransaction(
 			optionalAsset(proto.NewOptionalAssetWaves()),
-			rideBytes(nil),
+			rideByteVector(nil),
 			optionalAsset(proto.NewOptionalAssetWaves()),
 			rideInt(tx.GetVersion()),
-			rideBytes(nil),
+			rideByteVector(nil),
 			proofs(proto.NewProofs()),
 			rideInt(tx.GetFee()),
-			rideAddress(*to),
+			rideAddress(to),
 			tx.ID.Bytes(),
 			callerPK,
 			rideInt(tx.GetTimestamp()),
@@ -987,10 +967,10 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 		}
 		return newRideTransferTransaction(
 			optionalAsset(kind.Asset),
-			rideBytes(nil),
+			rideByteVector(nil),
 			optionalAsset(proto.NewOptionalAssetWaves()),
 			rideInt(tx.GetVersion()),
-			rideBytes(nil),
+			rideByteVector(nil),
 			proofs(proto.NewProofs()),
 			rideInt(tx.GetFee()),
 			rideAddress(recipientAddr),
@@ -1009,17 +989,13 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
-		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
+		arguments, err := proto.ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}
-		args := make(rideList, len(arguments))
-		for i, arg := range arguments {
-			a, err := convertArgument(arg)
-			if err != nil {
-				return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
-			}
-			args[i] = a
+		args, err := convertProtoArguments(arguments)
+		if err != nil {
+			return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 		}
 		switch ver {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -1030,9 +1006,9 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			return newRideInvokeScriptTransactionV3(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
-				rideAddress(*to),
+				rideAddress(to),
 				rideString(tx.TxKind.DecodedData().Name),
-				rideBytes(nil),
+				rideByteVector(nil),
 				tx.ID.Bytes(),
 				callerPK,
 				payment,
@@ -1050,9 +1026,9 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 			return newRideInvokeScriptTransactionV4(
 				proofs(proto.NewProofs()),
 				optionalAsset(proto.NewOptionalAssetWaves()),
-				rideAddress(*to),
+				rideAddress(to),
 				rideString(tx.TxKind.DecodedData().Name),
-				rideBytes(nil),
+				rideByteVector(nil),
 				tx.ID.Bytes(),
 				callerPK,
 				payments,
@@ -1079,7 +1055,7 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	}
 	return newRideUpdateAssetInfoTransaction(
 		proofs(tx.Proofs),
-		rideBytes(tx.AssetID.Bytes()),
+		rideByteVector(tx.AssetID.Bytes()),
 		rideString(tx.Name),
 		rideString(tx.Description),
 		body,
@@ -1107,7 +1083,7 @@ func convertListArguments(args rideList, check bool) ([]rideType, error) {
 
 func checkArgument(arg rideType) error {
 	switch a := arg.(type) {
-	case rideInt, rideBoolean, rideString, rideBytes:
+	case rideInt, rideBoolean, rideString, rideByteVector:
 		return nil
 	case rideList:
 		for _, item := range a {
@@ -1142,7 +1118,7 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	case *proto.StringArgument:
 		return rideString(a.Value), nil
 	case *proto.BinaryArgument:
-		return rideBytes(a.Value), nil
+		return rideByteVector(a.Value), nil
 	case *proto.ListArgument:
 		r := make(rideList, len(a.Items))
 		var err error
@@ -1197,7 +1173,7 @@ func invocationToObject(rideVersion ast.LibraryVersion, scheme byte, tx proto.Tr
 	if err != nil {
 		return rideInvocationV5{}, err
 	}
-	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
+	callerPK := rideByteVector(common.Dup(senderPK.Bytes()))
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
 		return newRideInvocationV3(
@@ -1240,7 +1216,7 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	if err != nil {
 		return rideInvocationV5{}, errors.Errorf("failed to get public key from ethereum transaction %v", err)
 	}
-	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
+	callerPK := rideByteVector(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	wavesAsset := proto.NewOptionalAssetWaves()
 	switch rideVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -1308,7 +1284,7 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideType {
 func scriptTransferToTransferTransactionObject(st *proto.FullScriptTransfer) rideType {
 	return newRideTransferTransaction(
 		optionalAsset(st.Asset),
-		rideBytes{},
+		rideByteVector{},
 		rideUnit{},
 		rideUnit{},
 		rideUnit{},
@@ -1484,7 +1460,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 			return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(tv)}}, nil
 		case rideString:
 			return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(tv)}}, nil
-		case rideBytes:
+		case rideByteVector:
 			return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: tv}}, nil
 		default:
 			return nil, EvaluationFailure.Errorf("unexpected type of DataEntry '%s'", v.instanceOf())
@@ -1651,7 +1627,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	switch a := action.(type) {
 	case *proto.ReissueScriptAction:
 		return newRideReissueTransaction(
-			rideBytes{},
+			rideByteVector{},
 			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),
@@ -1665,7 +1641,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 		), nil
 	case *proto.BurnScriptAction:
 		return newRideBurnTransaction(
-			rideBytes{},
+			rideByteVector{},
 			rideList{},
 			common.Dup(pk.Bytes()),
 			a.AssetID.Bytes(),
@@ -1683,7 +1659,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 
 func optionalAsset(o proto.OptionalAsset) rideType {
 	if o.Present {
-		return rideBytes(o.ID.Bytes())
+		return rideByteVector(o.ID.Bytes())
 	}
 	return rideUnit{}
 }
@@ -1691,12 +1667,12 @@ func optionalAsset(o proto.OptionalAsset) rideType {
 func signatureToProofs(sig *crypto.Signature) rideList {
 	r := make(rideList, 8)
 	if sig != nil {
-		r[0] = rideBytes(sig.Bytes())
+		r[0] = rideByteVector(sig.Bytes())
 	} else {
-		r[0] = rideBytes(nil)
+		r[0] = rideByteVector(nil)
 	}
 	for i := 1; i < 8; i++ {
-		r[i] = rideBytes(nil)
+		r[i] = rideByteVector(nil)
 	}
 	return r
 }
@@ -1706,9 +1682,9 @@ func proofs(proofs *proto.ProofsV1) rideList {
 	proofsLen := len(proofs.Proofs)
 	for i := range r {
 		if i < proofsLen {
-			r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
+			r[i] = rideByteVector(common.Dup(proofs.Proofs[i].Bytes()))
 		} else {
-			r[i] = rideBytes(nil)
+			r[i] = rideByteVector(nil)
 		}
 	}
 	return r

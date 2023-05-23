@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	SponsorshipMinVersion       = 2
 	SponsorshipMaxVersion       = 3
 	DefaultMinSponsoredAssetFee = 100000
 )
@@ -176,7 +177,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Fee for IssueTransaction (10 in WAVES) does not exceed minimal value",
+				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value",
 			}),
 		"Invalid fee (fee = 0)": *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -251,7 +252,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Transaction application leads to negative waves balance",
+				ErrBrdCstScalaMsg: "negative waves balance",
 			}),
 		"Invalid asset ID (asset ID not exist)": *NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -270,4 +271,28 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 			}),
 	}
 	return t
+}
+
+type SponsorshipForSmartAssetData struct {
+	Enabled SponsorshipTestData[SponsorshipExpectedValuesNegative]
+}
+
+func GetSponsorshipForSmartAssetData(suite *f.BaseSuite, assetID crypto.Digest) SponsorshipForSmartAssetData {
+	return SponsorshipForSmartAssetData{
+		Enabled: *NewSponsorshipTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			assetID,
+			500000,
+			utl.MinTxFeeWaves,
+			utl.GetCurrentTimestampInMs(),
+			utl.TestChainID,
+			SponsorshipExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "",
+			}),
+	}
 }
