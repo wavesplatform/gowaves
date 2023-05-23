@@ -10,143 +10,118 @@ import (
 type TransactionSnapshot []AtomicSnapshot
 
 type AtomicSnapshot interface {
-	dummy() error
+	atomicSnapshotMarker()
+	// TODO: add all necessary methods here
 }
 
-type balanceWaves struct {
-	address proto.WavesAddress
-	balance uint64
+type WavesBalanceSnapshot struct {
+	Address proto.WavesAddress
+	Balance uint64
 }
 
-type WavesBalancesSnapshot struct {
-	wavesBalances []balanceWaves
-}
-
-func (s *WavesBalancesSnapshot) dummy() error {
-	return nil
-}
+func (*WavesBalanceSnapshot) atomicSnapshotMarker() {}
 
 // What is address || asset_id?
-type balanceAsset struct {
-	address proto.WavesAddress
-	assetID crypto.Digest
-	balance uint64
+type AssetBalanceSnapshot struct {
+	Address proto.WavesAddress
+	AssetID crypto.Digest
+	Balance uint64
 }
 
-type AssetBalancesSnapshot struct {
-	assetBalances []balanceAsset
+func (*AssetBalanceSnapshot) atomicSnapshotMarker() {}
+
+type DataEntriesSnapshot struct { // AccountData in pb
+	Address     proto.WavesAddress
+	DataEntries []proto.DataEntry
 }
 
-func (s *AssetBalancesSnapshot) dummy() error {
-	return nil
-}
-
-type DataEntriesSnapshot struct {
-	address     proto.WavesAddress
-	dataEntries []proto.DataEntry
-}
-
-func (s *DataEntriesSnapshot) dummy() error {
-	return nil
-}
+func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
 
 type AccountScriptSnapshot struct {
-	address proto.WavesAddress
-	script  proto.Script
+	SenderPublicKey    crypto.PublicKey
+	Script             proto.Script
+	VerifierComplexity uint64
 }
 
-func (s *AccountScriptSnapshot) dummy() error {
-	return nil
-}
+func (*AccountScriptSnapshot) atomicSnapshotMarker() {}
 
 type AssetScriptSnapshot struct {
-	assetID crypto.Digest
-	script  proto.Script
+	AssetID    crypto.Digest
+	Script     proto.Script
+	Complexity uint64
 }
 
-func (s *AssetScriptSnapshot) dummy() error {
-	return nil
-}
+func (*AssetScriptSnapshot) atomicSnapshotMarker() {}
 
 type LeaseBalanceSnapshot struct {
-	address  proto.WavesAddress
-	leaseIn  int64
-	leaseOut int64
+	Address  proto.WavesAddress
+	LeaseIn  uint64
+	LeaseOut uint64
 }
 
-func (s *LeaseBalanceSnapshot) dummy() error {
-	return nil
+func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
+
+type LeaseStateSnapshot struct {
+	LeaseID             crypto.Digest
+	Status              LeaseStatus // TODO(nickeskov): add cancelHeight and cancelTxID info for canceled leases
+	Amount              uint64
+	Sender              proto.WavesAddress
+	Recipient           proto.WavesAddress
+	OriginTransactionID crypto.Digest
+	Height              proto.Height
 }
 
-type LeaseStatusSnapshot struct {
-	leaseID  crypto.Digest
-	isActive bool
-}
-
-func (s *LeaseStatusSnapshot) dummy() error {
-	return nil
-}
+func (*LeaseStateSnapshot) atomicSnapshotMarker() {}
 
 type SponsorshipSnapshot struct {
-	assetID         crypto.Digest
-	minSponsoredFee uint64
+	AssetID         crypto.Digest
+	MinSponsoredFee uint64
 }
 
-func (s *SponsorshipSnapshot) dummy() error {
-	return nil
-}
+func (*SponsorshipSnapshot) atomicSnapshotMarker() {}
 
 type AliasSnapshot struct {
-	alias   proto.Alias
-	address proto.WavesAddress
+	Address proto.WavesAddress
+	Alias   proto.Alias
 }
 
-func (s *AliasSnapshot) dummy() error {
-	return nil
+func (*AliasSnapshot) atomicSnapshotMarker() {}
+
+// FilledVolumeFeeSnapshot Filled Volume and Fee
+type FilledVolumeFeeSnapshot struct { // OrderFill
+	OrderID      crypto.Digest
+	FilledVolume uint64
+	FilledFee    uint64
 }
 
-// FilledVolumeFee Filled Volume and Fee
-type FilledVolumeFeeSnapshot struct {
-	orderID      []byte
-	filledVolume uint64
-	filledFee    uint64
-}
-
-func (s *FilledVolumeFeeSnapshot) dummy() error {
-	return nil
-}
+func (*FilledVolumeFeeSnapshot) atomicSnapshotMarker() {}
 
 type StaticAssetInfoSnapshot struct {
-	assetID  crypto.Digest
-	issuer   proto.WavesAddress
-	decimals int8
-	isNFT    bool
+	AssetID             crypto.Digest
+	SourceTransactionID crypto.Digest
+	IssuerPublicKey     crypto.PublicKey
+	Decimals            uint8
+	IsNFT               bool
 }
 
-func (s *StaticAssetInfoSnapshot) dummy() error {
-	return nil
+func (*StaticAssetInfoSnapshot) atomicSnapshotMarker() {}
+
+type AssetVolumeSnapshot struct { // AssetVolume in pb
+	AssetID       crypto.Digest
+	TotalQuantity big.Int // volume in protobuf
+	IsReissuable  bool
 }
 
-type AssetReissuabilitySnapshot struct {
-	assetID       crypto.Digest
-	totalQuantity big.Int
-	isReissuable  bool
+func (*AssetVolumeSnapshot) atomicSnapshotMarker() {}
+
+type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
+	AssetID          crypto.Digest
+	AssetName        string
+	AssetDescription string
+	ChangeHeight     proto.Height // last_updated in pb
 }
 
-func (s *AssetReissuabilitySnapshot) dummy() error {
-	return nil
-}
-
-type AssetDescriptionSnapshot struct {
-	assetID          crypto.Digest
-	assetName        string
-	assetDescription string
-	changeHeight     uint64
-}
-
-func (s *AssetDescriptionSnapshot) dummy() error {
-	return nil
-}
+func (*AssetDescriptionSnapshot) atomicSnapshotMarker() {}
 
 type SnapshotManager interface {
 	// TODO: add all necessary methods here
