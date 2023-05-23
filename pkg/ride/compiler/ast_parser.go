@@ -497,7 +497,7 @@ func (p *astParser) simpleVariableDeclaration(node *node32) (ast.Node, s.Type) {
 	curNode := skipToNextRule(node.up)
 	// get Variable Name
 	varName := p.nodeValue(curNode)
-	curNode = skipToNextRule(curNode)
+	curNode = skipToNextRule(curNode.next)
 	expr, varType := p.ruleExprHandler(curNode)
 	if expr == nil {
 		return nil, nil
