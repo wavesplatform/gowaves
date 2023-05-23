@@ -11,7 +11,7 @@ func assetV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "assetV3Constructor")
 	}
 
-	id, ok := args_[0].(rideBytes)
+	id, ok := args_[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for id", args_[0].instanceOf())
 	}
@@ -31,9 +31,9 @@ func assetV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuer", args_[3].instanceOf())
 	}
 
-	issuePublicKey, ok := args_[4].(rideBytes)
+	issuerPublicKey, ok := args_[4].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuePublicKey", args_[4].instanceOf())
+		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for issuerPublicKey", args_[4].instanceOf())
 	}
 
 	reissuable, ok := args_[5].(rideBoolean)
@@ -51,7 +51,7 @@ func assetV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV3Constructor: unexpected type '%s' for sponsored", args_[7].instanceOf())
 	}
 
-	return newRideAssetV3(issuePublicKey, id, quantity, decimals, issuer, scripted, sponsored, reissuable), nil
+	return newRideAssetV3(issuerPublicKey, id, quantity, decimals, issuer, scripted, sponsored, reissuable), nil
 }
 
 func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -59,7 +59,7 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "assetV4Constructor")
 	}
 
-	id, ok := args_[0].(rideBytes)
+	id, ok := args_[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for id", args_[0].instanceOf())
 	}
@@ -79,9 +79,9 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuer", args_[3].instanceOf())
 	}
 
-	issuePublicKey, ok := args_[4].(rideBytes)
+	issuerPublicKey, ok := args_[4].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuePublicKey", args_[4].instanceOf())
+		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for issuerPublicKey", args_[4].instanceOf())
 	}
 
 	reissuable, ok := args_[5].(rideBoolean)
@@ -112,7 +112,7 @@ func assetV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("assetV4Constructor: unexpected type '%s' for description", args_[9].instanceOf())
 	}
 
-	return newRideAssetV4(description, name, issuePublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted), nil
+	return newRideAssetV4(description, name, issuerPublicKey, id, minSponsoredFee, decimals, quantity, issuer, reissuable, scripted), nil
 }
 
 func assetPairConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -122,7 +122,7 @@ func assetPairConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var amountAsset rideType
 	switch v := args_[0].(type) {
-	case rideUnit, rideBytes:
+	case rideUnit, rideByteVector:
 		amountAsset = v
 	default:
 		return nil, errors.Errorf("assetPairConstructor: unexpected type '%s' for amountAsset", args_[0].instanceOf())
@@ -130,7 +130,7 @@ func assetPairConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var priceAsset rideType
 	switch v := args_[1].(type) {
-	case rideUnit, rideBytes:
+	case rideUnit, rideByteVector:
 		priceAsset = v
 	default:
 		return nil, errors.Errorf("assetPairConstructor: unexpected type '%s' for priceAsset", args_[1].instanceOf())
@@ -144,12 +144,12 @@ func attachedPaymentConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Wrap(err, "attachedPaymentConstructor")
 	}
 
-	var assetID rideType
+	var assetId rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
-		assetID = v
+	case rideByteVector, rideUnit:
+		assetId = v
 	default:
-		return nil, errors.Errorf("attachedPaymentConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("attachedPaymentConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	amount, ok := args_[1].(rideInt)
@@ -157,7 +157,7 @@ func attachedPaymentConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("attachedPaymentConstructor: unexpected type '%s' for amount", args_[1].instanceOf())
 	}
 
-	return newRideAttachedPayment(assetID, amount), nil
+	return newRideAttachedPayment(assetId, amount), nil
 }
 
 func balanceDetailsConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -198,7 +198,7 @@ func binaryEntryConstructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("binaryEntryConstructor: unexpected type '%s' for key", args_[0].instanceOf())
 	}
 
-	value, ok := args_[1].(rideBytes)
+	value, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("binaryEntryConstructor: unexpected type '%s' for value", args_[1].instanceOf())
 	}
@@ -226,7 +226,7 @@ func blockInfoV3Constructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("blockInfoV3Constructor: unexpected type '%s' for baseTarget", args_[2].instanceOf())
 	}
 
-	generationSignature, ok := args_[3].(rideBytes)
+	generationSignature, ok := args_[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("blockInfoV3Constructor: unexpected type '%s' for generationSignature", args_[3].instanceOf())
 	}
@@ -236,7 +236,7 @@ func blockInfoV3Constructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("blockInfoV3Constructor: unexpected type '%s' for generator", args_[4].instanceOf())
 	}
 
-	generatorPublicKey, ok := args_[5].(rideBytes)
+	generatorPublicKey, ok := args_[5].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("blockInfoV3Constructor: unexpected type '%s' for generatorPublicKey", args_[5].instanceOf())
 	}
@@ -264,7 +264,7 @@ func blockInfoV4Constructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("blockInfoV4Constructor: unexpected type '%s' for baseTarget", args_[2].instanceOf())
 	}
 
-	generationSignature, ok := args_[3].(rideBytes)
+	generationSignature, ok := args_[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("blockInfoV4Constructor: unexpected type '%s' for generationSignature", args_[3].instanceOf())
 	}
@@ -274,20 +274,85 @@ func blockInfoV4Constructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("blockInfoV4Constructor: unexpected type '%s' for generator", args_[4].instanceOf())
 	}
 
-	generatorPublicKey, ok := args_[5].(rideBytes)
+	generatorPublicKey, ok := args_[5].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("blockInfoV4Constructor: unexpected type '%s' for generatorPublicKey", args_[5].instanceOf())
 	}
 
 	var vrf rideType
 	switch v := args_[6].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		vrf = v
 	default:
 		return nil, errors.Errorf("blockInfoV4Constructor: unexpected type '%s' for vrf", args_[6].instanceOf())
 	}
 
 	return newRideBlockInfoV4(vrf, generationSignature, generatorPublicKey, baseTarget, timestamp, height, generator), nil
+}
+
+func blockInfoV7Constructor(_ environment, args_ ...rideType) (rideType, error) {
+	if err := checkArgs(args_, 8); err != nil {
+		return nil, errors.Wrap(err, "blockInfoV7Constructor")
+	}
+
+	timestamp, ok := args_[0].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for timestamp", args_[0].instanceOf())
+	}
+
+	height, ok := args_[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for height", args_[1].instanceOf())
+	}
+
+	baseTarget, ok := args_[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for baseTarget", args_[2].instanceOf())
+	}
+
+	generationSignature, ok := args_[3].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for generationSignature", args_[3].instanceOf())
+	}
+
+	generator, ok := args_[4].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for generator", args_[4].instanceOf())
+	}
+
+	generatorPublicKey, ok := args_[5].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for generatorPublicKey", args_[5].instanceOf())
+	}
+
+	var vrf rideType
+	switch v := args_[6].(type) {
+	case rideByteVector, rideUnit:
+		vrf = v
+	default:
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for vrf", args_[6].instanceOf())
+	}
+
+	rewards, ok := args_[7].(rideList)
+	if !ok {
+		return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' for rewards", args_[7].instanceOf())
+	}
+	// checks for list elements
+	for _, el := range rewards {
+		switch te := el.(type) {
+		case tuple2:
+			if _, ok := te.el1.(rideAddress); !ok {
+				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 1 in rewards list tuple", te.el1.instanceOf())
+			}
+			if _, ok := te.el2.(rideInt); !ok {
+				return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' of element 2 in rewards list tuple", te.el2.instanceOf())
+			}
+		default:
+			return nil, errors.Errorf("blockInfoV7Constructor: unexpected type '%s' in rewards list", te.instanceOf())
+		}
+	}
+
+	return newRideBlockInfoV7(vrf, generationSignature, generatorPublicKey, baseTarget, timestamp, height, generator, rewards), nil
 }
 
 func booleanEntryConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -313,9 +378,9 @@ func burnConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "burnConstructor")
 	}
 
-	assetID, ok := args_[0].(rideBytes)
+	assetId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("burnConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("burnConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	quantity, ok := args_[1].(rideInt)
@@ -323,7 +388,7 @@ func burnConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("burnConstructor: unexpected type '%s' for quantity", args_[1].instanceOf())
 	}
 
-	return newRideBurn(assetID, quantity), nil
+	return newRideBurn(assetId, quantity), nil
 }
 
 func dataEntryConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -338,7 +403,7 @@ func dataEntryConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var value rideType
 	switch v := args_[1].(type) {
-	case rideInt, rideBytes, rideBoolean, rideString:
+	case rideInt, rideByteVector, rideBoolean, rideString:
 		value = v
 	default:
 		return nil, errors.Errorf("dataEntryConstructor: unexpected type '%s' for value", args_[1].instanceOf())
@@ -396,14 +461,14 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for caller", args_[1].instanceOf())
 	}
 
-	callerPublicKey, ok := args_[2].(rideBytes)
+	callerPublicKey, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for callerPublicKey", args_[2].instanceOf())
 	}
 
-	transactionID, ok := args_[3].(rideBytes)
+	transactionId, ok := args_[3].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for transactionID", args_[3].instanceOf())
+		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for transactionId", args_[3].instanceOf())
 	}
 
 	fee, ok := args_[4].(rideInt)
@@ -411,15 +476,15 @@ func invocationV3Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for fee", args_[4].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[5].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
+		return nil, errors.Errorf("invocationV3Constructor: unexpected type '%s' for feeAssetId", args_[5].instanceOf())
 	}
 
-	return newRideInvocationV3(payment, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
+	return newRideInvocationV3(payment, callerPublicKey, feeAssetId, transactionId, caller, fee), nil
 }
 
 func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -432,11 +497,11 @@ func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range payments {
-		switch t := elem.(type) {
+	for _, el := range payments {
+		switch te := el.(type) {
 		case rideAttachedPayment:
 		default:
-			return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' in payments list", t.instanceOf())
+			return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' in payments list", te.instanceOf())
 		}
 	}
 
@@ -445,14 +510,14 @@ func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for caller", args_[1].instanceOf())
 	}
 
-	callerPublicKey, ok := args_[2].(rideBytes)
+	callerPublicKey, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for callerPublicKey", args_[2].instanceOf())
 	}
 
-	transactionID, ok := args_[3].(rideBytes)
+	transactionId, ok := args_[3].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for transactionID", args_[3].instanceOf())
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for transactionId", args_[3].instanceOf())
 	}
 
 	fee, ok := args_[4].(rideInt)
@@ -460,15 +525,15 @@ func invocationV4Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for fee", args_[4].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[5].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
+		return nil, errors.Errorf("invocationV4Constructor: unexpected type '%s' for feeAssetId", args_[5].instanceOf())
 	}
 
-	return newRideInvocationV4(payments, callerPublicKey, feeAssetID, transactionID, caller, fee), nil
+	return newRideInvocationV4(payments, callerPublicKey, feeAssetId, transactionId, caller, fee), nil
 }
 
 func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -481,11 +546,11 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for payments", args_[0].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range payments {
-		switch t := elem.(type) {
+	for _, el := range payments {
+		switch te := el.(type) {
 		case rideAttachedPayment:
 		default:
-			return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' in payments list", t.instanceOf())
+			return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' in payments list", te.instanceOf())
 		}
 	}
 
@@ -494,14 +559,14 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for caller", args_[1].instanceOf())
 	}
 
-	callerPublicKey, ok := args_[2].(rideBytes)
+	callerPublicKey, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for callerPublicKey", args_[2].instanceOf())
 	}
 
-	transactionID, ok := args_[3].(rideBytes)
+	transactionId, ok := args_[3].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for transactionID", args_[3].instanceOf())
+		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for transactionId", args_[3].instanceOf())
 	}
 
 	fee, ok := args_[4].(rideInt)
@@ -509,12 +574,12 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for fee", args_[4].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[5].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for feeAssetID", args_[5].instanceOf())
+		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for feeAssetId", args_[5].instanceOf())
 	}
 
 	originCaller, ok := args_[6].(rideAddress)
@@ -524,13 +589,13 @@ func invocationV5Constructor(_ environment, args_ ...rideType) (rideType, error)
 
 	var originCallerPublicKey rideType
 	switch v := args_[7].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		originCallerPublicKey = v
 	default:
 		return nil, errors.Errorf("invocationV5Constructor: unexpected type '%s' for originCallerPublicKey", args_[7].instanceOf())
 	}
 
-	return newRideInvocationV5(originCaller, payments, callerPublicKey, feeAssetID, originCallerPublicKey, transactionID, caller, fee), nil
+	return newRideInvocationV5(originCaller, payments, callerPublicKey, feeAssetId, originCallerPublicKey, transactionId, caller, fee), nil
 }
 
 func issueConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -565,7 +630,7 @@ func issueConstructor(_ environment, args_ ...rideType) (rideType, error) {
 
 	var compiledScript rideType
 	switch v := args_[5].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		compiledScript = v
 	default:
 		return nil, errors.Errorf("issueConstructor: unexpected type '%s' for compiledScript", args_[5].instanceOf())
@@ -584,12 +649,12 @@ func leaseCancelConstructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Wrap(err, "leaseCancelConstructor")
 	}
 
-	leaseID, ok := args_[0].(rideBytes)
+	leaseId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("leaseCancelConstructor: unexpected type '%s' for leaseID", args_[0].instanceOf())
+		return nil, errors.Errorf("leaseCancelConstructor: unexpected type '%s' for leaseId", args_[0].instanceOf())
 	}
 
-	return newRideLeaseCancel(leaseID), nil
+	return newRideLeaseCancel(leaseId), nil
 }
 
 func leaseConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -623,12 +688,12 @@ func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "orderConstructor")
 	}
 
-	id, ok := args_[0].(rideBytes)
+	id, ok := args_[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for id", args_[0].instanceOf())
 	}
 
-	matcherPublicKey, ok := args_[1].(rideBytes)
+	matcherPublicKey, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherPublicKey", args_[1].instanceOf())
 	}
@@ -668,12 +733,12 @@ func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherFee", args_[8].instanceOf())
 	}
 
-	var matcherFeeAssetID rideType
+	var matcherFeeAssetId rideType
 	switch v := args_[9].(type) {
-	case rideBytes, rideUnit:
-		matcherFeeAssetID = v
+	case rideByteVector, rideUnit:
+		matcherFeeAssetId = v
 	default:
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherFeeAssetID", args_[9].instanceOf())
+		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherFeeAssetId", args_[9].instanceOf())
 	}
 
 	sender, ok := args_[10].(rideAddress)
@@ -681,12 +746,12 @@ func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for sender", args_[10].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[11].(rideBytes)
+	senderPublicKey, ok := args_[11].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
 	}
 
-	bodyBytes, ok := args_[12].(rideBytes)
+	bodyBytes, ok := args_[12].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
 	}
@@ -696,15 +761,15 @@ func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for proofs", args_[13].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("orderConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("orderConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideOrder(assetPair, orderType, matcherFeeAssetID, proofs, bodyBytes, id, senderPublicKey, matcherPublicKey, amount, timestamp, expiration, matcherFee, price, sender), nil
+	return newRideOrder(assetPair, orderType, matcherFeeAssetId, proofs, bodyBytes, id, senderPublicKey, matcherPublicKey, amount, timestamp, expiration, matcherFee, price, sender), nil
 }
 
 func reissueConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -712,9 +777,9 @@ func reissueConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "reissueConstructor")
 	}
 
-	assetID, ok := args_[0].(rideBytes)
+	assetId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("reissueConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("reissueConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	quantity, ok := args_[1].(rideInt)
@@ -727,7 +792,7 @@ func reissueConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("reissueConstructor: unexpected type '%s' for isReissuable", args_[2].instanceOf())
 	}
 
-	return newRideReissue(assetID, quantity, isReissuable), nil
+	return newRideReissue(assetId, quantity, isReissuable), nil
 }
 
 func scriptResultConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -768,7 +833,7 @@ func scriptTransferConstructor(_ environment, args_ ...rideType) (rideType, erro
 
 	var asset rideType
 	switch v := args_[2].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		asset = v
 	default:
 		return nil, errors.Errorf("scriptTransferConstructor: unexpected type '%s' for asset", args_[2].instanceOf())
@@ -782,9 +847,9 @@ func sponsorFeeConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "sponsorFeeConstructor")
 	}
 
-	assetID, ok := args_[0].(rideBytes)
+	assetId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("sponsorFeeConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("sponsorFeeConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	minSponsoredAssetFee, ok := args_[1].(rideInt)
@@ -792,7 +857,7 @@ func sponsorFeeConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("sponsorFeeConstructor: unexpected type '%s' for minSponsoredAssetFee", args_[1].instanceOf())
 	}
 
-	return newRideSponsorFee(assetID, minSponsoredAssetFee), nil
+	return newRideSponsorFee(assetId, minSponsoredAssetFee), nil
 }
 
 func stringEntryConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -844,11 +909,11 @@ func transferSetConstructor(_ environment, args_ ...rideType) (rideType, error) 
 		return nil, errors.Errorf("transferSetConstructor: unexpected type '%s' for transfers", args_[0].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range transfers {
-		switch t := elem.(type) {
+	for _, el := range transfers {
+		switch te := el.(type) {
 		case rideScriptTransfer:
 		default:
-			return nil, errors.Errorf("transferSetConstructor: unexpected type '%s' in transfers list", t.instanceOf())
+			return nil, errors.Errorf("transferSetConstructor: unexpected type '%s' in transfers list", te.instanceOf())
 		}
 	}
 
@@ -865,11 +930,11 @@ func writeSetConstructor(_ environment, args_ ...rideType) (rideType, error) {
 		return nil, errors.Errorf("writeSetConstructor: unexpected type '%s' for data", args_[0].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range data {
-		switch t := elem.(type) {
+	for _, el := range data {
+		switch te := el.(type) {
 		case rideDataEntry:
 		default:
-			return nil, errors.Errorf("writeSetConstructor: unexpected type '%s' in data list", t.instanceOf())
+			return nil, errors.Errorf("writeSetConstructor: unexpected type '%s' in data list", te.instanceOf())
 		}
 	}
 
@@ -886,12 +951,12 @@ func burnTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for quantity", args_[0].instanceOf())
 	}
 
-	assetID, ok := args_[1].(rideBytes)
+	assetId, ok := args_[1].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for assetID", args_[1].instanceOf())
+		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for assetId", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -916,12 +981,12 @@ func burnTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -931,15 +996,15 @@ func burnTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("burnTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideBurnTransaction(bodyBytes, proofs, senderPublicKey, assetID, id, timestamp, version, quantity, fee, sender), nil
+	return newRideBurnTransaction(bodyBytes, proofs, senderPublicKey, assetId, id, timestamp, version, quantity, fee, sender), nil
 }
 
 func createAliasTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -952,7 +1017,7 @@ func createAliasTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for alias", args_[0].instanceOf())
 	}
 
-	id, ok := args_[1].(rideBytes)
+	id, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for id", args_[1].instanceOf())
 	}
@@ -977,12 +1042,12 @@ func createAliasTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for sender", args_[5].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[6].(rideBytes)
+	senderPublicKey, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[6].instanceOf())
 	}
 
-	bodyBytes, ok := args_[7].(rideBytes)
+	bodyBytes, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for bodyBytes", args_[7].instanceOf())
 	}
@@ -992,11 +1057,11 @@ func createAliasTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' for proofs", args_[8].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("createAliasTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1013,15 +1078,15 @@ func dataTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for data", args_[0].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range data {
-		switch t := elem.(type) {
+	for _, el := range data {
+		switch te := el.(type) {
 		case rideBinaryEntry, rideBooleanEntry, rideDeleteEntry, rideIntegerEntry, rideStringEntry:
 		default:
-			return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' in data list", t.instanceOf())
+			return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' in data list", te.instanceOf())
 		}
 	}
 
-	id, ok := args_[1].(rideBytes)
+	id, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for id", args_[1].instanceOf())
 	}
@@ -1046,12 +1111,12 @@ func dataTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for sender", args_[5].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[6].(rideBytes)
+	senderPublicKey, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[6].instanceOf())
 	}
 
-	bodyBytes, ok := args_[7].(rideBytes)
+	bodyBytes, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for bodyBytes", args_[7].instanceOf())
 	}
@@ -1061,11 +1126,11 @@ func dataTransactionConstructor(_ environment, args_ ...rideType) (rideType, err
 		return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' for proofs", args_[8].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("dataTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1107,7 +1172,7 @@ func exchangeTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for sellMatcherFee", args_[5].instanceOf())
 	}
 
-	id, ok := args_[6].(rideBytes)
+	id, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for id", args_[6].instanceOf())
 	}
@@ -1132,12 +1197,12 @@ func exchangeTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for sender", args_[10].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[11].(rideBytes)
+	senderPublicKey, ok := args_[11].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
 	}
 
-	bodyBytes, ok := args_[12].(rideBytes)
+	bodyBytes, ok := args_[12].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
 	}
@@ -1147,11 +1212,11 @@ func exchangeTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' for proofs", args_[13].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("exchangeTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1176,7 +1241,7 @@ func genesisTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("genesisTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("genesisTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -1204,20 +1269,20 @@ func invokeExpressionTransactionConstructor(_ environment, args_ ...rideType) (r
 		return nil, errors.Wrap(err, "invokeExpressionTransactionConstructor")
 	}
 
-	expression, ok := args_[0].(rideBytes)
+	expression, ok := args_[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for expression", args_[0].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[1].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
+		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for feeAssetId", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -1242,12 +1307,12 @@ func invokeExpressionTransactionConstructor(_ environment, args_ ...rideType) (r
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -1257,15 +1322,15 @@ func invokeExpressionTransactionConstructor(_ environment, args_ ...rideType) (r
 		return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("invokeExpressionTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideInvokeExpressionTransaction(proofs, feeAssetID, bodyBytes, id, expression, senderPublicKey, timestamp, version, fee, sender), nil
+	return newRideInvokeExpressionTransaction(proofs, feeAssetId, bodyBytes, id, expression, senderPublicKey, timestamp, version, fee, sender), nil
 }
 
 func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1281,12 +1346,12 @@ func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[1].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for feeAssetId", args_[1].instanceOf())
 	}
 
 	function, ok := args_[2].(rideString)
@@ -1299,23 +1364,23 @@ func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for args", args_[3].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range args {
-		switch t := elem.(type) {
+	for _, el := range args {
+		switch te := el.(type) {
 		case rideList:
-			for _, elem := range t {
-				switch t := elem.(type) {
-				case rideBoolean, rideBytes, rideInt, rideString:
+			for _, el := range te {
+				switch te := el.(type) {
+				case rideBoolean, rideByteVector, rideInt, rideString:
 				default:
-					return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", t.instanceOf())
+					return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", te.instanceOf())
 				}
 			}
-		case rideBoolean, rideBytes, rideInt, rideString:
+		case rideBoolean, rideByteVector, rideInt, rideString:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in args list", te.instanceOf())
 		}
 	}
 
-	id, ok := args_[4].(rideBytes)
+	id, ok := args_[4].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for id", args_[4].instanceOf())
 	}
@@ -1340,12 +1405,12 @@ func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for sender", args_[8].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[9].(rideBytes)
+	senderPublicKey, ok := args_[9].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for senderPublicKey", args_[9].instanceOf())
 	}
 
-	bodyBytes, ok := args_[10].(rideBytes)
+	bodyBytes, ok := args_[10].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for bodyBytes", args_[10].instanceOf())
 	}
@@ -1363,15 +1428,15 @@ func invokeScriptTransactionV3Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' for proofs", args_[12].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV3Constructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideInvokeScriptTransactionV3(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payment, args, timestamp, fee, version, sender), nil
+	return newRideInvokeScriptTransactionV3(proofs, feeAssetId, dApp, function, bodyBytes, id, senderPublicKey, payment, args, timestamp, fee, version, sender), nil
 }
 
 func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1387,12 +1452,12 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for dApp", args_[0].instanceOf())
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[1].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for feeAssetID", args_[1].instanceOf())
+		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for feeAssetId", args_[1].instanceOf())
 	}
 
 	function, ok := args_[2].(rideString)
@@ -1405,23 +1470,23 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for args", args_[3].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range args {
-		switch t := elem.(type) {
+	for _, el := range args {
+		switch te := el.(type) {
 		case rideList:
-			for _, elem := range t {
-				switch t := elem.(type) {
-				case rideBoolean, rideBytes, rideInt, rideString:
+			for _, el := range te {
+				switch te := el.(type) {
+				case rideBoolean, rideByteVector, rideInt, rideString:
 				default:
-					return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", t.instanceOf())
+					return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", te.instanceOf())
 				}
 			}
-		case rideBoolean, rideBytes, rideInt, rideString:
+		case rideBoolean, rideByteVector, rideInt, rideString:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in args list", te.instanceOf())
 		}
 	}
 
-	id, ok := args_[4].(rideBytes)
+	id, ok := args_[4].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for id", args_[4].instanceOf())
 	}
@@ -1446,12 +1511,12 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for sender", args_[8].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[9].(rideBytes)
+	senderPublicKey, ok := args_[9].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for senderPublicKey", args_[9].instanceOf())
 	}
 
-	bodyBytes, ok := args_[10].(rideBytes)
+	bodyBytes, ok := args_[10].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for bodyBytes", args_[10].instanceOf())
 	}
@@ -1461,11 +1526,11 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for payments", args_[11].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range payments {
-		switch t := elem.(type) {
+	for _, el := range payments {
+		switch te := el.(type) {
 		case rideAttachedPayment:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in payments list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in payments list", te.instanceOf())
 		}
 	}
 
@@ -1474,15 +1539,15 @@ func invokeScriptTransactionV4Constructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' for proofs", args_[12].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("invokeScriptTransactionV4Constructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideInvokeScriptTransactionV4(proofs, feeAssetID, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
+	return newRideInvokeScriptTransactionV4(proofs, feeAssetId, dApp, function, bodyBytes, id, senderPublicKey, payments, args, timestamp, fee, version, sender), nil
 }
 
 func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1517,13 +1582,13 @@ func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 
 	var script rideType
 	switch v := args_[5].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		script = v
 	default:
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for script", args_[5].instanceOf())
 	}
 
-	id, ok := args_[6].(rideBytes)
+	id, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for id", args_[6].instanceOf())
 	}
@@ -1548,12 +1613,12 @@ func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for sender", args_[10].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[11].(rideBytes)
+	senderPublicKey, ok := args_[11].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
 	}
 
-	bodyBytes, ok := args_[12].(rideBytes)
+	bodyBytes, ok := args_[12].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
 	}
@@ -1563,11 +1628,11 @@ func issueTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 		return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' for proofs", args_[13].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("issueTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1579,12 +1644,12 @@ func leaseCancelTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Wrap(err, "leaseCancelTransactionConstructor")
 	}
 
-	leaseID, ok := args_[0].(rideBytes)
+	leaseId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for leaseID", args_[0].instanceOf())
+		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for leaseId", args_[0].instanceOf())
 	}
 
-	id, ok := args_[1].(rideBytes)
+	id, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for id", args_[1].instanceOf())
 	}
@@ -1609,12 +1674,12 @@ func leaseCancelTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for sender", args_[5].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[6].(rideBytes)
+	senderPublicKey, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[6].instanceOf())
 	}
 
-	bodyBytes, ok := args_[7].(rideBytes)
+	bodyBytes, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for bodyBytes", args_[7].instanceOf())
 	}
@@ -1624,15 +1689,15 @@ func leaseCancelTransactionConstructor(_ environment, args_ ...rideType) (rideTy
 		return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' for proofs", args_[8].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("leaseCancelTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideLeaseCancelTransaction(proofs, bodyBytes, senderPublicKey, id, leaseID, timestamp, version, fee, sender), nil
+	return newRideLeaseCancelTransaction(proofs, bodyBytes, senderPublicKey, id, leaseId, timestamp, version, fee, sender), nil
 }
 
 func leaseTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1653,7 +1718,7 @@ func leaseTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -1678,12 +1743,12 @@ func leaseTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -1693,11 +1758,11 @@ func leaseTransactionConstructor(_ environment, args_ ...rideType) (rideType, er
 		return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("leaseTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1709,12 +1774,12 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		return nil, errors.Wrap(err, "massTransferTransactionConstructor")
 	}
 
-	var assetID rideType
+	var assetId rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
-		assetID = v
+	case rideByteVector, rideUnit:
+		assetId = v
 	default:
-		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	totalAmount, ok := args_[1].(rideInt)
@@ -1727,25 +1792,25 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for transfers", args_[2].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range transfers {
-		switch t := elem.(type) {
+	for _, el := range transfers {
+		switch te := el.(type) {
 		case rideTransfer:
 		default:
-			return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' in transfers list", t.instanceOf())
+			return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' in transfers list", te.instanceOf())
 		}
 	}
 
-	transfersCount, ok := args_[3].(rideInt)
+	transferCount, ok := args_[3].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for transfersCount", args_[3].instanceOf())
+		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for transferCount", args_[3].instanceOf())
 	}
 
-	attachment, ok := args_[4].(rideBytes)
+	attachment, ok := args_[4].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for attachment", args_[4].instanceOf())
 	}
 
-	id, ok := args_[5].(rideBytes)
+	id, ok := args_[5].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for id", args_[5].instanceOf())
 	}
@@ -1770,12 +1835,12 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for sender", args_[9].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[10].(rideBytes)
+	senderPublicKey, ok := args_[10].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[10].instanceOf())
 	}
 
-	bodyBytes, ok := args_[11].(rideBytes)
+	bodyBytes, ok := args_[11].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for bodyBytes", args_[11].instanceOf())
 	}
@@ -1785,15 +1850,15 @@ func massTransferTransactionConstructor(_ environment, args_ ...rideType) (rideT
 		return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' for proofs", args_[12].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("massTransferTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideMassTransferTransaction(proofs, assetID, bodyBytes, id, senderPublicKey, attachment, transfers, transfersCount, timestamp, fee, totalAmount, version, sender), nil
+	return newRideMassTransferTransaction(proofs, assetId, bodyBytes, id, senderPublicKey, attachment, transfers, transferCount, timestamp, fee, totalAmount, version, sender), nil
 }
 
 func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1814,7 +1879,7 @@ func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for recipient", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -1839,12 +1904,12 @@ func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -1854,11 +1919,11 @@ func paymentTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("paymentTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -1875,9 +1940,9 @@ func reissueTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for quantity", args_[0].instanceOf())
 	}
 
-	assetID, ok := args_[1].(rideBytes)
+	assetId, ok := args_[1].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for assetID", args_[1].instanceOf())
+		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for assetId", args_[1].instanceOf())
 	}
 
 	reissuable, ok := args_[2].(rideBoolean)
@@ -1885,7 +1950,7 @@ func reissueTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for reissuable", args_[2].instanceOf())
 	}
 
-	id, ok := args_[3].(rideBytes)
+	id, ok := args_[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for id", args_[3].instanceOf())
 	}
@@ -1910,12 +1975,12 @@ func reissueTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for sender", args_[7].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[8].(rideBytes)
+	senderPublicKey, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[8].instanceOf())
 	}
 
-	bodyBytes, ok := args_[9].(rideBytes)
+	bodyBytes, ok := args_[9].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for bodyBytes", args_[9].instanceOf())
 	}
@@ -1925,15 +1990,15 @@ func reissueTransactionConstructor(_ environment, args_ ...rideType) (rideType, 
 		return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' for proofs", args_[10].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("reissueTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideReissueTransaction(bodyBytes, proofs, senderPublicKey, assetID, id, timestamp, version, quantity, fee, sender, reissuable), nil
+	return newRideReissueTransaction(bodyBytes, proofs, senderPublicKey, assetId, id, timestamp, version, quantity, fee, sender, reissuable), nil
 }
 
 func setAssetScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -1943,18 +2008,18 @@ func setAssetScriptTransactionConstructor(_ environment, args_ ...rideType) (rid
 
 	var script rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		script = v
 	default:
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for script", args_[0].instanceOf())
 	}
 
-	assetID, ok := args_[1].(rideBytes)
+	assetId, ok := args_[1].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for assetID", args_[1].instanceOf())
+		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for assetId", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -1979,12 +2044,12 @@ func setAssetScriptTransactionConstructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -1994,15 +2059,15 @@ func setAssetScriptTransactionConstructor(_ environment, args_ ...rideType) (rid
 		return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("setAssetScriptTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideSetAssetScriptTransaction(proofs, script, bodyBytes, assetID, id, senderPublicKey, timestamp, version, fee, sender), nil
+	return newRideSetAssetScriptTransaction(proofs, script, bodyBytes, assetId, id, senderPublicKey, timestamp, version, fee, sender), nil
 }
 
 func setScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -2012,13 +2077,13 @@ func setScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType
 
 	var script rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		script = v
 	default:
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for script", args_[0].instanceOf())
 	}
 
-	id, ok := args_[1].(rideBytes)
+	id, ok := args_[1].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for id", args_[1].instanceOf())
 	}
@@ -2043,12 +2108,12 @@ func setScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for sender", args_[5].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[6].(rideBytes)
+	senderPublicKey, ok := args_[6].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[6].instanceOf())
 	}
 
-	bodyBytes, ok := args_[7].(rideBytes)
+	bodyBytes, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for bodyBytes", args_[7].instanceOf())
 	}
@@ -2058,11 +2123,11 @@ func setScriptTransactionConstructor(_ environment, args_ ...rideType) (rideType
 		return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' for proofs", args_[8].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("setScriptTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
@@ -2074,9 +2139,9 @@ func sponsorFeeTransactionConstructor(_ environment, args_ ...rideType) (rideTyp
 		return nil, errors.Wrap(err, "sponsorFeeTransactionConstructor")
 	}
 
-	assetID, ok := args_[0].(rideBytes)
+	assetId, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	var minSponsoredAssetFee rideType
@@ -2087,7 +2152,7 @@ func sponsorFeeTransactionConstructor(_ environment, args_ ...rideType) (rideTyp
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for minSponsoredAssetFee", args_[1].instanceOf())
 	}
 
-	id, ok := args_[2].(rideBytes)
+	id, ok := args_[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for id", args_[2].instanceOf())
 	}
@@ -2112,12 +2177,12 @@ func sponsorFeeTransactionConstructor(_ environment, args_ ...rideType) (rideTyp
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for sender", args_[6].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[7].(rideBytes)
+	senderPublicKey, ok := args_[7].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[7].instanceOf())
 	}
 
-	bodyBytes, ok := args_[8].(rideBytes)
+	bodyBytes, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for bodyBytes", args_[8].instanceOf())
 	}
@@ -2127,15 +2192,15 @@ func sponsorFeeTransactionConstructor(_ environment, args_ ...rideType) (rideTyp
 		return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' for proofs", args_[9].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("sponsorFeeTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideSponsorFeeTransaction(proofs, minSponsoredAssetFee, bodyBytes, assetID, id, senderPublicKey, timestamp, version, fee, sender), nil
+	return newRideSponsorFeeTransaction(proofs, minSponsoredAssetFee, bodyBytes, assetId, id, senderPublicKey, timestamp, version, fee, sender), nil
 }
 
 func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -2143,12 +2208,12 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Wrap(err, "transferTransactionConstructor")
 	}
 
-	var feeAssetID rideType
+	var feeAssetId rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
-		feeAssetID = v
+	case rideByteVector, rideUnit:
+		feeAssetId = v
 	default:
-		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for feeAssetID", args_[0].instanceOf())
+		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for feeAssetId", args_[0].instanceOf())
 	}
 
 	amount, ok := args_[1].(rideInt)
@@ -2156,12 +2221,12 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for amount", args_[1].instanceOf())
 	}
 
-	var assetID rideType
+	var assetId rideType
 	switch v := args_[2].(type) {
-	case rideBytes, rideUnit:
-		assetID = v
+	case rideByteVector, rideUnit:
+		assetId = v
 	default:
-		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for assetID", args_[2].instanceOf())
+		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for assetId", args_[2].instanceOf())
 	}
 
 	var recipient rideType
@@ -2174,13 +2239,13 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 
 	var attachment rideType
 	switch v := args_[4].(type) {
-	case rideBytes, rideUnit:
+	case rideByteVector, rideUnit:
 		attachment = v
 	default:
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for attachment", args_[4].instanceOf())
 	}
 
-	id, ok := args_[5].(rideBytes)
+	id, ok := args_[5].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for id", args_[5].instanceOf())
 	}
@@ -2211,12 +2276,12 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for sender", args_[9].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[10].(rideBytes)
+	senderPublicKey, ok := args_[10].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[10].instanceOf())
 	}
 
-	bodyBytes, ok := args_[11].(rideBytes)
+	bodyBytes, ok := args_[11].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for bodyBytes", args_[11].instanceOf())
 	}
@@ -2226,15 +2291,15 @@ func transferTransactionConstructor(_ environment, args_ ...rideType) (rideType,
 		return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' for proofs", args_[12].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("transferTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideTransferTransaction(assetID, bodyBytes, feeAssetID, version, attachment, proofs, fee, recipient, id, senderPublicKey, timestamp, amount, sender), nil
+	return newRideTransferTransaction(assetId, bodyBytes, feeAssetId, version, attachment, proofs, fee, recipient, id, senderPublicKey, timestamp, amount, sender), nil
 }
 
 func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (rideType, error) {
@@ -2242,12 +2307,12 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		return nil, errors.Wrap(err, "updateAssetInfoTransactionConstructor")
 	}
 
-	var assetID rideType
+	var assetId rideType
 	switch v := args_[0].(type) {
-	case rideBytes, rideUnit:
-		assetID = v
+	case rideByteVector, rideUnit:
+		assetId = v
 	default:
-		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for assetID", args_[0].instanceOf())
+		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for assetId", args_[0].instanceOf())
 	}
 
 	name, ok := args_[1].(rideString)
@@ -2260,7 +2325,7 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for description", args_[2].instanceOf())
 	}
 
-	id, ok := args_[3].(rideBytes)
+	id, ok := args_[3].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for id", args_[3].instanceOf())
 	}
@@ -2285,12 +2350,12 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for sender", args_[7].instanceOf())
 	}
 
-	senderPublicKey, ok := args_[8].(rideBytes)
+	senderPublicKey, ok := args_[8].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for senderPublicKey", args_[8].instanceOf())
 	}
 
-	bodyBytes, ok := args_[9].(rideBytes)
+	bodyBytes, ok := args_[9].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for bodyBytes", args_[9].instanceOf())
 	}
@@ -2300,13 +2365,13 @@ func updateAssetInfoTransactionConstructor(_ environment, args_ ...rideType) (ri
 		return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' for proofs", args_[10].instanceOf())
 	}
 	// checks for list elements
-	for _, elem := range proofs {
-		switch t := elem.(type) {
-		case rideBytes:
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
 		default:
-			return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' in proofs list", t.instanceOf())
+			return nil, errors.Errorf("updateAssetInfoTransactionConstructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideUpdateAssetInfoTransaction(proofs, assetID, name, description, bodyBytes, id, senderPublicKey, timestamp, version, fee, sender), nil
+	return newRideUpdateAssetInfoTransaction(proofs, assetId, name, description, bodyBytes, id, senderPublicKey, timestamp, version, fee, sender), nil
 }

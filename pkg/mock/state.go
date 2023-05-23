@@ -148,6 +148,21 @@ func (mr *MockStateInfoMockRecorder) AddrByAlias(alias interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockStateInfo)(nil).AddrByAlias), alias)
 }
 
+// AliasesByAddr mocks base method.
+func (m *MockStateInfo) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AliasesByAddr indicates an expected call of AliasesByAddr.
+func (mr *MockStateInfoMockRecorder) AliasesByAddr(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AliasesByAddr", reflect.TypeOf((*MockStateInfo)(nil).AliasesByAddr), addr)
+}
+
 // AllFeatures mocks base method.
 func (m *MockStateInfo) AllFeatures() ([]int16, error) {
 	m.ctrl.T.Helper()
@@ -311,6 +326,21 @@ func (m *MockStateInfo) EffectiveBalance(account proto.Recipient, startHeight, e
 func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
+}
+
+// EnrichedFullAssetInfo mocks base method.
+func (m *MockStateInfo) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnrichedFullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.EnrichedFullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnrichedFullAssetInfo indicates an expected call of EnrichedFullAssetInfo.
+func (mr *MockStateInfoMockRecorder) EnrichedFullAssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnrichedFullAssetInfo", reflect.TypeOf((*MockStateInfo)(nil).EnrichedFullAssetInfo), assetID)
 }
 
 // EstimatorVersion mocks base method.
@@ -521,6 +551,21 @@ func (m *MockStateInfo) IsApprovedAtHeight(featureID int16, height proto.Height)
 func (mr *MockStateInfoMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsApprovedAtHeight), featureID, height)
+}
+
+// IsAssetExist mocks base method.
+func (m *MockStateInfo) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAssetExist", assetID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsAssetExist indicates an expected call of IsAssetExist.
+func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockStateInfo)(nil).IsAssetExist), assetID)
 }
 
 // MapR mocks base method.
@@ -1283,6 +1328,21 @@ func (mr *MockStateMockRecorder) AddrByAlias(alias interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddrByAlias", reflect.TypeOf((*MockState)(nil).AddrByAlias), alias)
 }
 
+// AliasesByAddr mocks base method.
+func (m *MockState) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AliasesByAddr", addr)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AliasesByAddr indicates an expected call of AliasesByAddr.
+func (mr *MockStateMockRecorder) AliasesByAddr(addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AliasesByAddr", reflect.TypeOf((*MockState)(nil).AliasesByAddr), addr)
+}
+
 // AllFeatures mocks base method.
 func (m *MockState) AllFeatures() ([]int16, error) {
 	m.ctrl.T.Helper()
@@ -1460,6 +1520,21 @@ func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHe
 func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
+}
+
+// EnrichedFullAssetInfo mocks base method.
+func (m *MockState) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnrichedFullAssetInfo", assetID)
+	ret0, _ := ret[0].(*proto.EnrichedFullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnrichedFullAssetInfo indicates an expected call of EnrichedFullAssetInfo.
+func (mr *MockStateMockRecorder) EnrichedFullAssetInfo(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnrichedFullAssetInfo", reflect.TypeOf((*MockState)(nil).EnrichedFullAssetInfo), assetID)
 }
 
 // EstimatorVersion mocks base method.
@@ -1670,6 +1745,21 @@ func (m *MockState) IsApprovedAtHeight(featureID int16, height proto.Height) (bo
 func (mr *MockStateMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockState)(nil).IsApprovedAtHeight), featureID, height)
+}
+
+// IsAssetExist mocks base method.
+func (m *MockState) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAssetExist", assetID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsAssetExist indicates an expected call of IsAssetExist.
+func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockState)(nil).IsAssetExist), assetID)
 }
 
 // Map mocks base method.

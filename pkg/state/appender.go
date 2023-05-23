@@ -351,6 +351,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 			height:              params.checkerInfo.height,
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
+			stateActionsCounter: params.stateActionsCounterInBlock,
 		}
 		// TODO other snapshots
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes)
@@ -404,19 +405,20 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 // appendTxParams contains params which are necessary for tx or block appending
 // TODO: create features provider instead of passing new params
 type appendTxParams struct {
-	chans                          *verifierChans // can be nil if validatingUtx == true
-	checkerInfo                    *checkerInfo
-	blockInfo                      *proto.BlockInfo
-	block                          *proto.BlockHeader
-	acceptFailed                   bool
-	blockV5Activated               bool
-	rideV5Activated                bool
-	rideV6Activated                bool
-	consensusImprovementsActivated bool
-	invokeExpressionActivated      bool // TODO: check feature naming
-	validatingUtx                  bool // if validatingUtx == false then chans MUST be initialized with non nil value
-	currentMinerPK                 crypto.PublicKey
-	previousMinerPK                crypto.PublicKey
+	chans                            *verifierChans // can be nil if validatingUtx == true
+	checkerInfo                      *checkerInfo
+	blockInfo                        *proto.BlockInfo
+	block                            *proto.BlockHeader
+	acceptFailed                     bool
+	blockV5Activated                 bool
+	rideV5Activated                  bool
+	rideV6Activated                  bool
+	consensusImprovementsActivated   bool
+	blockRewardDistributionActivated bool
+	invokeExpressionActivated        bool // TODO: check feature naming
+	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
+	stateActionsCounterInBlock       *proto.StateActionsCounter
+	currentMinerPK                   crypto.PublicKey
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
@@ -491,7 +493,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 		invocationResult, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 		if err != nil {
-			return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
+			return errors.Wrap(err, "failed to handle invoke or exchange transaction")
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
@@ -503,15 +505,14 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		}
 		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
 		if err != nil {
-			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+			return errors.Wrap(err, "failed to guess ethereum transaction kind")
 		}
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
-				)
+				return errors.Wrapf(err, "failed to handle ethereum transaction (type %s) with id %s, on height %d",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
 			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
@@ -523,10 +524,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			}
 			invocationResult, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {
-				return errors.Errorf(
-					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
-				)
+				return errors.Wrapf(err, "failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
 			}
 		}
 	default:
@@ -564,7 +563,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return err
 	}
 	{
-		snapshot = snapshot
+		zap.S().Debug(snapshot)
 	}
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
@@ -589,13 +588,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
 	checkerInfo := &checkerInfo{
-		currentTimestamp: params.block.Timestamp,
-		blockID:          params.block.BlockID(),
-		blockVersion:     params.block.Version,
-		height:           params.height,
-		rideV5Activated:  rideV5Activated,
-		rideV6Activated:  rideV6Activated,
+		currentTimestamp:        params.block.Timestamp,
+		blockID:                 params.block.BlockID(),
+		blockVersion:            params.block.Version,
+		height:                  params.height,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
 	}
 	hasParent := params.parent != nil
 	if hasParent {
@@ -625,26 +629,32 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
 	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
 	if err != nil {
 		return err
 	}
+	stateActionsCounterInBlock := new(proto.StateActionsCounter)
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
-			chans:                          params.chans,
-			checkerInfo:                    checkerInfo,
-			blockInfo:                      blockInfo,
-			block:                          params.block,
-			acceptFailed:                   blockV5Activated,
-			blockV5Activated:               blockV5Activated,
-			rideV5Activated:                rideV5Activated,
-			rideV6Activated:                rideV6Activated,
-			consensusImprovementsActivated: consensusImprovementsActivated,
-			invokeExpressionActivated:      invokeExpressionActivated,
-			validatingUtx:                  false,
-			currentMinerPK:                 params.block.GeneratorPublicKey,
-			previousMinerPK:                params.parent.GeneratorPublicKey,
+			chans:                            params.chans,
+			checkerInfo:                      checkerInfo,
+			blockInfo:                        blockInfo,
+			block:                            params.block,
+			acceptFailed:                     blockV5Activated,
+			blockV5Activated:                 blockV5Activated,
+			rideV5Activated:                  rideV5Activated,
+			rideV6Activated:                  rideV6Activated,
+			consensusImprovementsActivated:   consensusImprovementsActivated,
+			blockRewardDistributionActivated: blockRewardDistributionActivated,
+			invokeExpressionActivated:        invokeExpressionActivated,
+			validatingUtx:                    false,
+			stateActionsCounterInBlock:       stateActionsCounterInBlock,
+			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -846,15 +856,20 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'RideV6' is activated")
 	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
+	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
-		currentTimestamp: currentTimestamp,
-		parentTimestamp:  parentTimestamp,
-		blockID:          block.BlockID(),
-		blockVersion:     version,
-		height:           blockInfo.Height,
-		rideV5Activated:  rideV5Activated,
-		rideV6Activated:  rideV6Activated,
+		currentTimestamp:        currentTimestamp,
+		parentTimestamp:         parentTimestamp,
+		blockID:                 block.BlockID(),
+		blockVersion:            version,
+		height:                  blockInfo.Height,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
@@ -864,22 +879,29 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'ConsensusImprovements' is activated")
 	}
+	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
+	}
 	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
 	appendTxArgs := &appendTxParams{
-		chans:                          nil, // nil because validatingUtx == true
-		checkerInfo:                    checkerInfo,
-		blockInfo:                      blockInfo,
-		block:                          block,
-		acceptFailed:                   acceptFailed,
-		blockV5Activated:               blockV5Activated,
-		rideV5Activated:                rideV5Activated,
-		rideV6Activated:                rideV6Activated,
-		consensusImprovementsActivated: consensusImprovementsActivated,
-		invokeExpressionActivated:      invokeExpressionActivated,
-		validatingUtx:                  true,
+		chans:                            nil, // nil because validatingUtx == true
+		checkerInfo:                      checkerInfo,
+		blockInfo:                        blockInfo,
+		block:                            block,
+		acceptFailed:                     acceptFailed,
+		blockV5Activated:                 blockV5Activated,
+		rideV5Activated:                  rideV5Activated,
+		rideV6Activated:                  rideV6Activated,
+		consensusImprovementsActivated:   consensusImprovementsActivated,
+		blockRewardDistributionActivated: blockRewardDistributionActivated,
+		invokeExpressionActivated:        invokeExpressionActivated,
+		validatingUtx:                    true,
+		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {

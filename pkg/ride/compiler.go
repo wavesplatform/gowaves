@@ -194,7 +194,7 @@ func (c *compiler) longNode(bb *bytes.Buffer, node *ast.LongNode) error {
 }
 
 func (c *compiler) bytesNode(bb *bytes.Buffer, node *ast.BytesNode) error {
-	cid, err := c.constants.put(rideBytes(node.Value))
+	cid, err := c.constants.put(rideByteVector(node.Value))
 	if err != nil {
 		return err
 	}

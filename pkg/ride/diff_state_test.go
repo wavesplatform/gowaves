@@ -33,11 +33,11 @@ func TestDataDiffTestSuite(t *testing.T) {
 
 func (s *DataDiffTestSuite) SetupTest() {
 	mock := &MockSmartState{
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (proto.WavesAddress, error) {
 			if recipient.Eq(validRecipient) {
-				return &validAddress, nil
+				return validAddress, nil
 			}
-			return nil, errors.New("not found")
+			return proto.WavesAddress{}, errors.New("not found")
 		},
 	}
 	s.diff = newDiffState(mock)

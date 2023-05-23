@@ -15,7 +15,9 @@ var errEmptyHist = errors.New("empty history for this record")
 type blockchainEntity byte
 
 const (
-	alias blockchainEntity = iota
+	_ blockchainEntity = iota // this is a placeholder for a zero value
+	alias
+	addressToAliases
 	asset
 	lease
 	wavesBalance
@@ -61,6 +63,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    true,
 		recordSize:   aliasRecordSize + 4,
+	},
+	addressToAliases: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
 	},
 	asset: {
 		needToFilter: true,
@@ -340,8 +347,8 @@ func (hr *historyRecord) appendEntry(entry historyEntry) error {
 }
 
 func (hr *historyRecord) topEntry() (historyEntry, error) {
-	if len(hr.entries) < 1 {
-		return historyEntry{}, errors.New("empty history")
+	if len(hr.entries) == 0 {
+		return historyEntry{}, errEmptyHist
 	}
 	return hr.entries[len(hr.entries)-1], nil
 }
@@ -603,7 +610,7 @@ func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
 	if err != nil {
 		return historyEntry{}, err // keyvalue.ErrNotFoundHere
 	}
-	return history.topEntry() // untyped error "empty history" here
+	return history.topEntry() // errEmptyHist here
 }
 
 func (hs *historyStorage) newestTopEntry(key []byte) (historyEntry, error) {
@@ -790,4 +797,8 @@ func (hs *historyStorage) flush() error {
 	}
 	hs.stor.reset()
 	return nil
+}
+
+func isNotFoundInHistoryOrDBErr(err error) bool {
+	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }

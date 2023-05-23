@@ -13,6 +13,7 @@ type performerInfo struct {
 	height              uint64
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
+	stateActionsCounter *proto.StateActionsCounter
 }
 
 type transactionPerformer struct {
@@ -59,25 +60,18 @@ func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWave
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
 }
 
-func constructBalanceDiffFromMinerFee(txFee uint64, currentMinerAddress proto.WavesAddress) addressWavesBalanceDiff {
-	addrBalanceDiff := make(addressWavesBalanceDiff)
-	feeForMiner := calculateCurrentBlockTxFee(txFee, true)
-	addrBalanceDiff[currentMinerAddress] = balanceDiff{balance: int64(feeForMiner)}
-	return addrBalanceDiff
-}
-
-func (firstAddressBalanceDiff addressWavesBalanceDiff) mergeWithAnotherDiff(secondDiff addressWavesBalanceDiff) error {
-	for address, diffBalance := range secondDiff {
-		if _, ok := firstAddressBalanceDiff[address]; ok {
-			oldBalance := firstAddressBalanceDiff[address]
-			err := oldBalance.addCommon(&diffBalance)
-			if err != nil {
-				return errors.Wrap(err, "failed to merge two balance diffs")
-			}
-		}
-	}
-	return nil
-}
+//func (firstAddressBalanceDiff addressWavesBalanceDiff) mergeWithAnotherDiff(secondDiff addressWavesBalanceDiff) error {
+//	for address, diffBalance := range secondDiff {
+//		if _, ok := firstAddressBalanceDiff[address]; ok {
+//			oldBalance := firstAddressBalanceDiff[address]
+//			err := oldBalance.addCommon(&diffBalance)
+//			if err != nil {
+//				return errors.Wrap(err, "failed to merge two balance diffs")
+//			}
+//		}
+//	}
+//	return nil
+//}
 
 func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*transactionPerformer, error) {
 	return &transactionPerformer{stor, settings}, nil
@@ -152,15 +146,18 @@ func (tp *transactionPerformer) performGenesis(transaction proto.Transaction, in
 		return nil, errors.New("failed to convert interface to IssueWithSig transaction")
 	}
 	var snapshot TransactionSnapshot
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	return snapshot, nil
 }
 
@@ -170,30 +167,36 @@ func (tp *transactionPerformer) performPayment(transaction proto.Transaction, in
 		return nil, errors.New("failed to convert interface to IssueWithSig transaction")
 	}
 	var snapshot TransactionSnapshot
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performTransfer(applicationRes *applicationResult) (TransactionSnapshot, error) {
 
 	var snapshot TransactionSnapshot
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	return snapshot, nil
 }
 
@@ -218,9 +221,11 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     proto.DigestTail(assetID),
-			issuer:   tx.SenderPK,
-			decimals: int8(tx.Decimals),
+			tail:                 proto.DigestTail(assetID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          blockHeight,
+			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -236,7 +241,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
 		assetID:  assetID,
 		issuer:   sender,
-		decimals: assetInfo.decimals,
+		decimals: int8(assetInfo.decimals),
 		isNFT:    assetInfo.isNFT(),
 	}
 
@@ -252,16 +257,18 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 		isReissuable: assetInfo.reissuable,
 	}
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
-	}
 	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to issue asset")
 	}
@@ -329,15 +336,18 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, assetReissuability)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to reissue asset")
 	}
@@ -381,15 +391,18 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo,
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, assetReissuability)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	if err := tp.stor.assets.burnAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to burn asset")
 	}
@@ -473,14 +486,16 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, sellOrderSnapshot, buyOrderSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 	return snapshot, nil
 }
@@ -490,19 +505,19 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	if err != nil {
 		return nil, err
 	}
-	var recipientAddr *proto.WavesAddress
+	var recipientAddr proto.WavesAddress
 	if addr := tx.Recipient.Address(); addr == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
 			return nil, errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
-		recipientAddr = addr
+		recipientAddr = *addr
 	}
 	// Add leasing to lease state.
 	l := &leasing{
 		Sender:         senderAddr,
-		Recipient:      *recipientAddr,
+		Recipient:      recipientAddr,
 		Amount:         tx.Amount,
 		Height:         info.height,
 		Status:         LeaseActive,
@@ -528,23 +543,25 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		return nil, errors.Wrap(err, "failed to receive recipient's waves balance")
 	}
 	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
-		address:  *recipientAddr,
+		address:  recipientAddr,
 		leaseIn:  receiverBalanceProfile.leaseIn + int64(tx.Amount),
 		leaseOut: receiverBalanceProfile.leaseOut,
 	}
 
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
-	}
 	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to add leasing")
 	}
@@ -604,15 +621,16 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
-
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 	return snapshot, nil
 }
@@ -639,29 +657,25 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 		return nil, err
 	}
 
-	// Save alias to aliases storage.
-	inf := &aliasInfo{
-		stolen: tp.stor.aliases.exists(tx.Alias.Alias),
-		addr:   senderAddr,
-	}
-
 	aliasSnapshot := &AliasSnapshot{
 		address: senderAddr,
 		alias:   tx.Alias,
 	}
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, aliasSnapshot)
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 
-	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf, info.blockID); err != nil {
+	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, senderAddr, info.blockID); err != nil {
 		return nil, err
 	}
 	return snapshot, nil
@@ -700,15 +714,16 @@ func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transact
 
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, dataEntriesSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
-
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 
 	for _, entry := range tx.Entries {
@@ -730,15 +745,17 @@ func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.T
 	}
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, sponsorshipSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
 	}
 
 	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
@@ -752,25 +769,28 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
+	var snapshot TransactionSnapshot
+
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
 	}
-	sponsorshipSnapshot := &AccountScriptSnapshot{
-		address: senderAddr,
-		script:  tx.Script,
-	}
-	var snapshot TransactionSnapshot
-	snapshot = append(snapshot, sponsorshipSnapshot)
+	if applicationRes != nil {
+		sponsorshipSnapshot := &AccountScriptSnapshot{
+			address: senderAddr,
+			script:  tx.Script,
+		}
+		snapshot = append(snapshot, sponsorshipSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 
 	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
@@ -785,21 +805,23 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 		return nil, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
 
+	var snapshot TransactionSnapshot
 	sponsorshipSnapshot := &AssetScriptSnapshot{
 		assetID: tx.AssetID,
 		script:  tx.Script,
 	}
-	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, sponsorshipSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
@@ -816,32 +838,33 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, errors.Wrap(err, "failed to commit invoke changes")
 	}
 	// TODO
-	for _, action := range invocationRes.actions {
+	if applicationRes != nil {
+		for _, action := range invocationRes.actions {
 
-		switch a := action.(type) {
-		case *proto.DataEntryScriptAction:
+			switch a := action.(type) {
+			case *proto.DataEntryScriptAction:
 
-		case *proto.AttachedPaymentScriptAction:
+			case *proto.AttachedPaymentScriptAction:
 
-		case *proto.TransferScriptAction:
+			case *proto.TransferScriptAction:
 
-		case *proto.SponsorshipScriptAction:
+			case *proto.SponsorshipScriptAction:
 
-		case *proto.IssueScriptAction:
+			case *proto.IssueScriptAction:
 
-		case *proto.ReissueScriptAction:
+			case *proto.ReissueScriptAction:
 
-		case *proto.BurnScriptAction:
+			case *proto.BurnScriptAction:
 
-		case *proto.LeaseScriptAction:
+			case *proto.LeaseScriptAction:
 
-		case *proto.LeaseCancelScriptAction:
+			case *proto.LeaseCancelScriptAction:
 
-		default:
-			return nil, errors.Errorf("unknown script action type %T", a)
+			default:
+				return nil, errors.Errorf("unknown script action type %T", a)
+			}
 		}
 	}
-
 	return nil, nil
 }
 
@@ -867,17 +890,20 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 		}
 	}
 	var snapshot TransactionSnapshot
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
+
 	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
-	return nil, nil
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
@@ -900,15 +926,16 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 	}
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, sponsorshipSnapshot)
+	if applicationRes != nil {
+		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+		snapshot = append(snapshot, wavesBalanceSnapshot)
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(applicationRes.changes.diff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-	snapshot = append(snapshot, wavesBalanceSnapshot)
-
-	if assetBalanceSnapshot != nil {
-		snapshot = append(snapshot, assetBalanceSnapshot)
+		if assetBalanceSnapshot != nil {
+			snapshot = append(snapshot, assetBalanceSnapshot)
+		}
 	}
 
 	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID); err != nil {

@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -77,7 +76,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
 	return &blockchainEntitiesStorage{
 		hs,
-		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
+		newAliases(hs, sets.AddressSchemeCharacter, calcHashes),
 		assets,
 		newLeases(hs, calcHashes),
 		newScores(hs),
@@ -517,7 +516,7 @@ func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
-	tree, err := s.stor.scriptsStorage.newestScriptByAddr(*addr)
+	tree, err := s.stor.scriptsStorage.newestScriptByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script by account '%s'", account.String())
 	}
@@ -529,7 +528,7 @@ func (s *stateManager) NewestScriptBytesByAccount(account proto.Recipient) (prot
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
-	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(*addr)
+	script, err := s.stor.scriptsStorage.newestScriptBytesByAddr(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script bytes by account '%s'", account.String())
 	}
@@ -650,6 +649,31 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 		return nil, errors.New("invalid VRF")
 	}
 	return vrf, nil
+}
+
+func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+	reward, err := s.stor.monetaryPolicy.reward()
+	if err != nil {
+		return nil, err
+	}
+	minerReward := reward
+	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	if !active {
+		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
+	}
+	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
+	r := make(proto.Rewards, 0, numberOfAddresses)
+	for _, a := range s.settings.RewardAddresses {
+		addressReward := reward / numberOfAddresses
+		r = append(r, proto.NewReward(a, addressReward))
+		minerReward -= addressReward
+	}
+	r = append(r, proto.NewReward(minerAddress, minerReward))
+	return r, nil
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
@@ -1006,9 +1030,9 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 }
 
 // rewards and 60% of the fee to the previous miner
-func (s *stateManager) createInitialBlockSnapshot(block *proto.Block, height uint64, previousMinerPK proto.WavesAddress) {
-
-}
+//func (s *stateManager) createInitialBlockSnapshot(block *proto.Block, height uint64, previousMinerPK proto.WavesAddress) {
+//
+//}
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
 	blockHeight := height + 1
@@ -1224,7 +1248,8 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if resetStolenAliases {
-		if err := s.stor.aliases.disableStolenAliases(); err != nil {
+		// we're using nextBlock because it's a current block which we're going to apply
+		if err := s.stor.aliases.disableStolenAliases(nextBlock); err != nil {
 			return err
 		}
 	}
@@ -1560,16 +1585,16 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return score, nil
 }
 
-func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
-		return addr, nil
+		return *addr, nil
 	}
 	return s.stor.aliases.newestAddrByAlias(recipient.Alias().Alias)
 }
 
-func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
+func (s *stateManager) recipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
-		return addr, nil
+		return *addr, nil
 	}
 	return s.stor.aliases.addrByAlias(recipient.Alias().Alias)
 }
@@ -1623,7 +1648,7 @@ func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress,
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
-	return *addr, nil
+	return addr, nil
 }
 
 func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
@@ -1631,7 +1656,15 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 	if err != nil {
 		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
-	return *addr, nil
+	return addr, nil
+}
+
+func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
+	aliases, err := s.stor.aliases.aliasesByAddr(addr)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return aliases, nil
 }
 
 func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
@@ -1883,10 +1916,15 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	return entry, nil
 }
 
+// NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, _, err := s.rw.readNewestTransaction(id)
+	tx, failed, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return tx, nil
 }
@@ -1907,16 +1945,21 @@ func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, 
 	return tx, failed, nil
 }
 
+// NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return txHeight, nil
 }
 
 func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.transactionHeightByID(id)
+	txHeight, _, err := s.rw.transactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1979,12 +2022,13 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 
@@ -2036,6 +2080,18 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 	return res, nil
 }
 
+func (s *stateManager) IsAssetExist(assetID proto.AssetID) (bool, error) {
+	// this is the fastest way to understand whether asset exist or not
+	switch _, err := s.stor.assets.constInfo(assetID); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, errs.UnknownAsset{}):
+		return false, nil
+	default:
+		return false, wrapErr(RetrievalError, err)
+	}
+}
+
 // AssetInfo returns stable (stored in DB) information about an asset by given ID.
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.
@@ -2065,12 +2121,13 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        byte(info.decimals),
+		Decimals:        info.decimals,
 		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+		IssueHeight:     info.issueHeight,
 	}, nil
 }
 
@@ -2083,7 +2140,8 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	tx, _ := s.TransactionByID(assetID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
+	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
+	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,
 		Name:             info.name,
@@ -2121,6 +2179,25 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	return res, nil
 }
 
+func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
+	fa, err := s.FullAssetInfo(assetID)
+	if err != nil {
+		return nil, err
+	}
+	constInfo, err := s.stor.assets.constInfo(assetID)
+	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return nil, err
+		}
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.EnrichedFullAssetInfo{
+		FullAssetInfo:   *fa,
+		SequenceInBlock: constInfo.issueSequenceInBlock,
+	}
+	return res, nil
+}
+
 func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
@@ -2146,7 +2223,7 @@ func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	hasScript, err := s.stor.scriptsStorage.accountHasScript(*addr)
+	hasScript, err := s.stor.scriptsStorage.accountHasScript(addr)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2171,16 +2248,15 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*addr)
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(addr)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	ev, err := s.EstimatorVersion()
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, ev)
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(addr, ev)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2191,7 +2267,6 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2201,7 +2276,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2213,7 +2287,6 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }
@@ -2223,7 +2296,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2235,7 +2307,6 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
-		Base64:     text,
 		Complexity: uint64(est.Estimation),
 	}, nil
 }

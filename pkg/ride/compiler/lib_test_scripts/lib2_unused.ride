@@ -1,0 +1,3 @@
+{-# CONTENT_TYPE LIBRARY #-}
+func bar() = 2
+func baz(a: Int, b: Int) = a - b

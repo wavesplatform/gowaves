@@ -11,14 +11,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func bytesArg(args []rideType) (rideBytes, error) {
+func bytesArg(args []rideType) (rideByteVector, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
 	if args[0] == nil {
 		return nil, errors.Errorf("argument 1 is empty")
 	}
-	b, ok := args[0].(rideBytes)
+	b, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
@@ -35,7 +35,7 @@ func bytesAndIntArgs(args []rideType) ([]byte, int, error) {
 	if args[1] == nil {
 		return nil, 0, errors.Errorf("argument 2 is empty")
 	}
-	b, ok := args[0].(rideBytes)
+	b, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, 0, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
@@ -46,7 +46,7 @@ func bytesAndIntArgs(args []rideType) ([]byte, int, error) {
 	return b, int(i), nil
 }
 
-func bytesArgs2(args []rideType) (rideBytes, rideBytes, error) {
+func bytesArgs2(args []rideType) (rideByteVector, rideByteVector, error) {
 	if len(args) != 2 {
 		return nil, nil, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -56,11 +56,11 @@ func bytesArgs2(args []rideType) (rideBytes, rideBytes, error) {
 	if args[1] == nil {
 		return nil, nil, errors.Errorf("argument 2 is empty")
 	}
-	b1, ok := args[0].(rideBytes)
+	b1, ok := args[0].(rideByteVector)
 	if !ok {
 		return nil, nil, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
-	b2, ok := args[1].(rideBytes)
+	b2, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, nil, errors.Errorf("argument 2 is not of type 'ByteVector' but '%s'", args[1].instanceOf())
 	}
@@ -75,7 +75,7 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 		return nil, errors.Errorf("argument is empty")
 	}
 	switch arg := args[0].(type) {
-	case rideBytes:
+	case rideByteVector:
 		return arg, nil
 	case rideUnit:
 		return nil, nil
@@ -125,7 +125,7 @@ func concatBytes(env environment, args ...rideType) (rideType, error) {
 	out := make([]byte, l)
 	copy(out, b1)
 	copy(out[len(b1):], b2)
-	return rideBytes(out), nil
+	return rideByteVector(out), nil
 }
 
 func toBase58(_ environment, args ...rideType) (rideType, error) {
@@ -145,13 +145,13 @@ func fromBase58(_ environment, args ...rideType) (rideType, error) {
 	}
 	str := string(s)
 	if str == "" {
-		return rideBytes{}, nil
+		return rideByteVector{}, nil
 	}
 	r, err := base58.Decode(str)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
 	}
-	return rideBytes(r), nil
+	return rideByteVector(r), nil
 }
 
 func toBase64(_ environment, args ...rideType) (rideType, error) {
@@ -176,9 +176,9 @@ func fromBase64(_ environment, args ...rideType) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "fromBase64")
 		}
-		return rideBytes(decoded), nil
+		return rideByteVector(decoded), nil
 	}
-	return rideBytes(decoded), nil
+	return rideByteVector(decoded), nil
 }
 
 func toBase16(_ environment, args ...rideType) (rideType, error) {
@@ -199,7 +199,7 @@ func fromBase16(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
 	}
-	return rideBytes(decoded), nil
+	return rideByteVector(decoded), nil
 }
 
 func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
@@ -255,7 +255,7 @@ func bytesToIntWithOffset(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(binary.BigEndian.Uint64(b[n:])), nil
 }
 
-func takeRideBytes(b []byte, n int) rideBytes {
+func takeRideBytes(b []byte, n int) rideByteVector {
 	l := n
 	if bl := len(b); l > bl {
 		l = bl
@@ -263,12 +263,12 @@ func takeRideBytes(b []byte, n int) rideBytes {
 	if l < 0 {
 		l = 0
 	}
-	r := make(rideBytes, l)
+	r := make(rideByteVector, l)
 	copy(r, b[:l])
 	return r
 }
 
-func dropRideBytes(b []byte, n int) rideBytes {
+func dropRideBytes(b []byte, n int) rideByteVector {
 	l := n
 	bl := len(b)
 	if l > bl {
@@ -277,7 +277,7 @@ func dropRideBytes(b []byte, n int) rideBytes {
 	if l < 0 {
 		l = 0
 	}
-	r := make(rideBytes, bl-l)
+	r := make(rideByteVector, bl-l)
 	copy(r, b[l:])
 	return r
 }

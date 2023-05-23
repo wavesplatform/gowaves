@@ -22,9 +22,9 @@ func booleanToBytes(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "booleanToBytes")
 	}
 	if b {
-		return rideBytes([]byte{1}), nil
+		return rideByteVector([]byte{1}), nil
 	} else {
-		return rideBytes([]byte{0}), nil
+		return rideByteVector([]byte{0}), nil
 	}
 }
 

@@ -66,7 +66,7 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	assert.NoError(t, err, "failed to receive an address from public key")
 
 	txPerformerInfo := &performerInfo{blockID: blockID2}
-	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
@@ -98,7 +98,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	assert.NoError(t, err, "failed to receive an address from public key")
 
 	txPerformerInfo := &performerInfo{blockID: blockID2}
-	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
