@@ -1,8 +1,11 @@
 package state_fsm
 
 import (
-	"errors"
+	"context"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/qmuntal/stateless"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -41,9 +44,6 @@ type BaseInfo struct {
 	invRequester  InvRequester
 	blocksApplier BlocksApplier
 
-	// default behaviour
-	d Default
-
 	// scheduler
 	types.Scheduler
 
@@ -73,38 +73,51 @@ func (a *BaseInfo) CleanUtx() {
 	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
 }
 
-type FromBaseInfo interface {
-	FromBaseInfo(b BaseInfo) FSM
+// States
+const (
+	IdleStateName    = "Idle"
+	NGStateName      = "NG"
+	PersistStateName = "Persist"
+	SyncStateName    = "Sync"
+	HaltStateName    = "Halt"
+)
+
+// Events
+const (
+	NewPeerEvent       = "NewPeer"
+	PeerErrorEvent     = "PeerError"
+	ScoreEvent         = "Score"
+	BlockEvent         = "Block"
+	MinedBlockEvent    = "MinedBlock"
+	BlockIDsEvent      = "BlockIDs"
+	TaskEvent          = "Task"
+	MicroBlockEvent    = "MicroBlock"
+	MicroBlockInvEvent = "MicroBlockInv"
+	TransactionEvent   = "Transaction"
+	HaltEvent          = "Halt"
+)
+
+type FSM struct {
+	fsm      *stateless.StateMachine
+	baseInfo BaseInfo
+	State    *StateData
 }
 
-type FSM interface {
-	NewPeer(p peer.Peer) (FSM, Async, error)
-	PeerError(p peer.Peer, e error) (FSM, Async, error)
-	Score(p peer.Peer, score *proto.Score) (FSM, Async, error)
-	Block(p peer.Peer, block *proto.Block) (FSM, Async, error)
-	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error)
-
-	// BlockIDs receives signatures that was requested by GetSignatures
-	BlockIDs(peer.Peer, []proto.BlockID) (FSM, Async, error)
-	Task(task AsyncTask) (FSM, Async, error)
-
-	MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error)
-	MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error)
-
-	Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error)
-
-	Halt() (FSM, Async, error)
-
+type State interface {
 	String() string
-
-	Errorf(err error) error
+	Errorf(error) error
 }
 
-func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, Async, error) {
+type StateData struct {
+	Name  stateless.State
+	State State
+}
+
+func NewFSM(services services.Services, microblockInterval time.Duration) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
-	b := BaseInfo{
+	info := BaseInfo{
 		peers:   services.Peers,
 		storage: services.State,
 		tm:      services.Time,
@@ -113,9 +126,6 @@ func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, 
 		//
 		invRequester:  ng.NewInvRequester(),
 		blocksApplier: services.BlocksApplier,
-
-		// TODO: need better way
-		d: DefaultImpl{},
 
 		Scheduler: services.Scheduler,
 
@@ -134,14 +144,102 @@ func NewFsm(services services.Services, microblockInterval time.Duration) (FSM, 
 		skipMessageList: services.SkipMessageList,
 	}
 
-	b.Scheduler.Reschedule()
+	info.Scheduler.Reschedule()
+
+	state := &StateData{
+		Name:  IdleStateName,
+		State: newIdleState(info),
+	}
 
 	// default tasks
-	tasks := Async{
+	t := Async{
 		// ask about peers for every 5 minutes
 		NewAskPeersTask(askPeersInterval),
 		NewPingTask(),
 	}
+	fsm := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
+		return state.Name, nil
+	}, func(_ context.Context, s stateless.State) error {
+		state.Name = s
+		return nil
+	}, stateless.FiringQueued)
 
-	return NewIdleFsm(b), tasks, nil
+	initIdleStateInFSM(state, fsm, info)
+	initHaltStateInFSM(state, fsm, info)
+	initNGStateInFSM(state, fsm, info)
+	initPersistStateInFSM(state, fsm, info)
+	initSyncStateInFSM(state, fsm, info)
+
+	return &FSM{
+		fsm:      fsm,
+		baseInfo: info,
+		State:    state,
+	}, t, nil
+}
+
+func (f *FSM) NewPeer(p peer.Peer) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(NewPeerEvent, asyncRes, p)
+	return *asyncRes, err
+}
+
+func (f *FSM) PeerError(p peer.Peer, e error) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(PeerErrorEvent, asyncRes, p, e)
+	return *asyncRes, err
+}
+
+func (f *FSM) Score(p peer.Peer, score *proto.Score) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(ScoreEvent, asyncRes, p, score)
+	return *asyncRes, err
+}
+
+func (f *FSM) Task(task AsyncTask) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(TaskEvent, asyncRes, task)
+	return *asyncRes, err
+}
+
+func (f *FSM) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(MinedBlockEvent, asyncRes, block, limits, keyPair, vrf)
+	return *asyncRes, err
+}
+
+func (f *FSM) Block(p peer.Peer, block *proto.Block) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockEvent, asyncRes, p, block)
+	return *asyncRes, err
+}
+
+// BlockIDs receives signatures that was requested by GetSignatures
+func (f *FSM) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockIDsEvent, asyncRes, peer, signatures)
+	return *asyncRes, err
+}
+
+func (f *FSM) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(MicroBlockEvent, asyncRes, p, micro)
+	return *asyncRes, err
+}
+
+func (f *FSM) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(MicroBlockInvEvent, asyncRes, p, inv)
+	return *asyncRes, err
+}
+
+func (f *FSM) Transaction(p peer.Peer, t proto.Transaction) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(TransactionEvent, asyncRes, p, t)
+	return *asyncRes, err
+}
+
+func (f *FSM) Halt() (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(HaltEvent, asyncRes)
+	return *asyncRes, err
 }

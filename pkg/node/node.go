@@ -166,7 +166,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFsm(a.services, a.microblockInterval)
+	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return
@@ -174,19 +174,17 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 	actions := createActions()
 
-	// TODO: implement graceful shutdown
-	_ = fmt.Stringer(fsm) // check that fsm implements fmt.Stringer interface
 	for {
 		select {
 		case internalMess := <-internalMessageCh:
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
-				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
+				async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
 			case *messages.HaltMessage:
-				fsm, async, err = fsm.Halt()
+				async, err = fsm.Halt()
 				t.Complete()
 			case *messages.BroadcastTransaction:
-				fsm, async, err = fsm.Transaction(nil, t.Transaction)
+				async, err = fsm.Transaction(nil, t.Transaction)
 				select {
 				case t.Response <- err:
 				default:
@@ -196,27 +194,27 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				continue
 			}
 		case task := <-tasksCh:
-			fsm, async, err = fsm.Task(task)
+			async, err = fsm.Task(task)
 		case m := <-p.InfoCh:
 			switch t := m.Value.(type) {
 			case *peer.Connected:
-				fsm, async, err = fsm.NewPeer(t.Peer)
+				async, err = fsm.NewPeer(t.Peer)
 				if err == nil {
-					zap.S().Debugf("[%s] Established connection with %s peer '%s'", fsm, t.Peer.Direction(), t.Peer.ID())
+					zap.S().Debugf("[%s] Established connection with %s peer '%s'", fsm.State.Name, t.Peer.Direction(), t.Peer.ID())
 				}
 			case *peer.InternalErr:
-				fsm, async, err = fsm.PeerError(m.Peer, t.Err)
+				async, err = fsm.PeerError(m.Peer, t.Err)
 			default:
 				zap.S().Warnf("[%s] Unknown info message '%T'", fsm, m)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm, mess.Message, mess.ID.ID())
+			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm, mess.Message, mess.ID.ID())
+				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
 				continue
 			}
-			fsm, async, err = action(a.services, mess, fsm)
+			async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
 			a.logErrors(err)

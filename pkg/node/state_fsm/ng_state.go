@@ -1,71 +1,78 @@
 package state_fsm
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
+	"github.com/qmuntal/stateless"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
-	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
 )
-
-type NGFsm struct {
-	baseInfo    BaseInfo
-	blocksCache blockStatesCache
-}
 
 var (
 	ngSkipMessageList proto.PeerMessageIDs
 )
 
-func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
-	return tryBroadcastTransaction(a, a.baseInfo, p, t)
+type NGState struct {
+	baseInfo    BaseInfo
+	blocksCache blockStatesCache
 }
 
-func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {
-	switch task.TaskType {
-	case Ping:
-		return noop(a)
-	case AskPeers:
-		zap.S().Debug("[NG] Requesting peers")
-		a.baseInfo.peers.AskPeers()
-		return a, nil, nil
-	case MineMicro:
-		t := task.Data.(MineMicroTaskData)
-		return a.mineMicro(t.Block, t.Limits, t.KeyPair, t.Vrf)
-	default:
-		return a, nil, a.Errorf(errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String()))
-	}
-}
-
-func (a *NGFsm) Halt() (FSM, Async, error) {
-	return HaltTransition(a.baseInfo)
-}
-
-func NewNGFsm12(info BaseInfo) *NGFsm {
-	info.skipMessageList.SetList(ngSkipMessageList)
-	return &NGFsm{
-		baseInfo:    info,
+func newNGState(baseInfo BaseInfo) State {
+	return &NGState{
+		baseInfo:    baseInfo,
 		blocksCache: blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}},
 	}
 }
 
-func (a *NGFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
-	fsm, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
+func (a *NGState) Errorf(err error) error {
+	return fsmErrorf(a, err)
+}
+
+func (a *NGState) String() string {
+	return NGStateName
+}
+
+func (a *NGState) Transaction(p peer.Peer, t proto.Transaction) (State, Async, error) {
+	return tryBroadcastTransaction(a, a.baseInfo, p, t)
+}
+
+func (a *NGState) NewPeer(p peer.Peer) (State, Async, error) {
+	state, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
 	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
 		a.baseInfo.Reschedule()
 	}
 	sendScore(p, a.baseInfo.storage)
-	return fsm, as, fsmErr
+	return state, as, fsmErr
 }
 
-func (a *NGFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
-	return a.baseInfo.d.PeerError(a, p, a.baseInfo, e)
+func (a *NGState) PeerError(p peer.Peer, e error) (State, Async, error) {
+	return peerError(a, p, a.baseInfo, e)
 }
 
-func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
+func (a *NGState) Task(task tasks.AsyncTask) (State, Async, error) {
+	switch task.TaskType {
+	case tasks.Ping:
+		return a, nil, nil
+	case tasks.AskPeers:
+		zap.S().Debug("[NG] Requesting peers")
+		a.baseInfo.peers.AskPeers()
+		return a, nil, nil
+	case tasks.MineMicro:
+		t := task.Data.(tasks.MineMicroTaskData)
+		return a.mineMicro(t.Block, t.Limits, t.KeyPair, t.Vrf)
+	default:
+		return a, nil, a.Errorf(errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s State", task.TaskType, task.Data, a.String()))
+	}
+}
+
+func (a *NGState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	metrics.FSMScore("ng", score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
@@ -77,10 +84,10 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	if score.Cmp(nodeScore) == 1 {
 		return syncWithNewPeer(a, a.baseInfo, p)
 	}
-	return noop(a)
+	return a, nil, nil
 }
 
-func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
+func (a *NGState) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	previousBlockID := blockFromCache.Parent
 	err := a.baseInfo.storage.RollbackTo(previousBlockID)
 	if err != nil {
@@ -94,7 +101,7 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	return nil
 }
 
-func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
+func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
@@ -133,10 +140,10 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	return NewNGFsm12(a.baseInfo), nil, nil
+	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+func (a *NGState) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (State, Async, error) {
 	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
@@ -159,16 +166,11 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	// Try to mine micro-block just after key-block generation
-	return NewNGFsm12(a.baseInfo), Tasks(NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
+	a.blocksCache = blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}}
+	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
-	return noop(a)
-}
-
-// MicroBlock handles new microblock message.
-func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
+func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	block, err := a.checkAndAppendMicroblock(micro) // the TopBlock() is used here
 	if err != nil {
@@ -193,16 +195,16 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 }
 
 // New microblock generated by miner
-func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+func (a *NGState) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (State, Async, error) {
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
 	switch {
 	case errors.Is(err, miner.NoTransactionsErr):
 		zap.S().Debugf("[%s] Generating microblock, skip: %v", a, err)
-		return a, Tasks(NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
+		return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
 	case errors.Is(err, miner.StateChangedErr):
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	case err != nil:
-		return a, nil, a.Errorf(errors.Wrap(err, "NGFsm.mineMicro"))
+		return a, nil, a.Errorf(errors.Wrap(err, "NGState.mineMicro"))
 	}
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
@@ -234,11 +236,10 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	a.baseInfo.MicroBlockCache.Add(block.BlockID(), micro)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
 
-	return a, Tasks(NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil
+	return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil
 }
 
-// broadcastMicroBlockInv broadcasts proto.MicroBlockInv message.
-func (a *NGFsm) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
+func (a *NGState) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
 	invBts, err := inv.MarshalBinary()
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal binary '%T'", inv)
@@ -261,7 +262,7 @@ func (a *NGFsm) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
 }
 
 // Check than microblock is appendable and append it
-func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block, error) {
+func (a *NGState) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block, error) {
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'", micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
@@ -290,7 +291,7 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block,
 	}
 	err = newBlock.GenerateBlockID(a.baseInfo.scheme)
 	if err != nil {
-		return nil, errors.Wrap(err, "NGFsm microBlockByID: failed generate block id")
+		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
 	}
 	err = a.baseInfo.storage.Map(func(state state.State) error {
 		_, err := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
@@ -304,7 +305,7 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block,
 	return newBlock, nil
 }
 
-func (a *NGFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
+func (a *NGState) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (State, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
 	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes()) // TODO: add logs about microblock request
 	if existed {
@@ -316,16 +317,8 @@ func (a *NGFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async
 	return a, nil, nil
 }
 
-func (a *NGFsm) String() string {
-	return "NG"
-}
-
-func (a *NGFsm) Errorf(err error) error {
-	return fsmErrorf(a, err)
-}
-
-func MinedBlockNgTransition(info BaseInfo, block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
-	return NewNGFsm12(info).MinedBlock(block, limits, keyPair, vrf)
+func (a *NGState) Halt() (State, Async, error) {
+	return newHaltState(a.baseInfo)
 }
 
 type blockStatesCache struct {
@@ -348,4 +341,53 @@ func (c *blockStatesCache) Get(blockID proto.BlockID) (*proto.Block, bool) {
 		return nil, false
 	}
 	return &block, true
+}
+
+func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {
+	fsm.Configure(NGStateName).
+		OnEntry(func(ctx context.Context, args ...interface{}) error {
+			info.skipMessageList.SetList(ngSkipMessageList)
+			return nil
+		}).
+		Ignore(BlockIDsEvent).
+		PermitDynamic(NewPeerEvent, createPermitDynamicCallback(NewPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.NewPeer(convertToInterface[peer.Peer](args[0]))
+		})).
+		PermitDynamic(PeerErrorEvent, createPermitDynamicCallback(PeerErrorEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.PeerError(convertToInterface[peer.Peer](args[0]), args[1].(error))
+		})).
+		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.Transaction(convertToInterface[peer.Peer](args[0]), convertToInterface[proto.Transaction](args[1]))
+		})).
+		PermitDynamic(TaskEvent, createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.Task(args[0].(tasks.AsyncTask))
+		})).
+		PermitDynamic(ScoreEvent, createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
+		})).
+		PermitDynamic(BlockEvent, createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
+		})).
+		PermitDynamic(MinedBlockEvent, createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.MinedBlock(args[0].(*proto.Block), args[1].(proto.MiningLimits), args[2].(proto.KeyPair), args[3].([]byte))
+		})).
+		PermitDynamic(MicroBlockEvent, createPermitDynamicCallback(MicroBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.MicroBlock(convertToInterface[peer.Peer](args[0]), args[1].(*proto.MicroBlock))
+		})).
+		PermitDynamic(MicroBlockInvEvent, createPermitDynamicCallback(MicroBlockInvEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.MicroBlockInv(convertToInterface[peer.Peer](args[0]), args[1].(*proto.MicroBlockInv))
+		})).
+		PermitDynamic(HaltEvent, createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+			a := state.State.(*NGState)
+			return a.Halt()
+		}))
 }

@@ -1,29 +1,83 @@
 package state_fsm
 
 import (
+	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/qmuntal/stateless"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
 )
 
-func newPeer(fsm FSM, p peer.Peer, peers peer_manager.PeerManager) (FSM, Async, error) {
+const (
+	askPeersInterval = 5 * time.Minute
+)
+
+// Set args types for events
+// First arg is Async - return value of event handler
+var (
+	eventsArgsTypes = map[stateless.Trigger][]reflect.Type{
+		PeerErrorEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*error)(nil)).Elem()},
+		NewPeerEvent:       {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		ScoreEvent:         {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
+		BlockEvent:         {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
+		MinedBlockEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
+		BlockIDsEvent:      {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
+		TaskEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
+		MicroBlockEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
+		MicroBlockInvEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
+		TransactionEvent:   {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
+		HaltEvent:          {reflect.TypeOf(&Async{})},
+	}
+)
+
+func newPeer(state State, p peer.Peer, peers peer_manager.PeerManager) (State, Async, error) {
 	err := peers.NewConnection(p)
 	if err != nil {
-		return fsm, nil, fsm.Errorf(proto.NewInfoMsg(err))
+		return state, nil, state.Errorf(proto.NewInfoMsg(err))
 	}
-	return fsm, nil, nil
+	return state, nil, nil
 }
 
-func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (_ FSM, _ Async, err error) {
+func peerError(state State, p peer.Peer, baseInfo BaseInfo, _ error) (State, Async, error) {
+	baseInfo.peers.Disconnect(p)
+	if baseInfo.peers.ConnectedCount() == 0 {
+		return newIdleState(baseInfo), nil, nil
+	}
+	return state, nil, nil
+}
+
+func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async, error) {
+	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
+	if err != nil {
+		return state, nil, err
+	}
+	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
+	c := conf{
+		peerSyncWith: p,
+		timeout:      30 * time.Second,
+	}
+	zap.S().Debugf("[%s] Starting synchronization with peer '%s'", state.String(), p.ID())
+	return &SyncState{
+		baseInfo: baseInfo,
+		conf:     c.Now(baseInfo.tm),
+		internal: internal,
+	}, nil, nil
+}
+
+func tryBroadcastTransaction(fsm State, baseInfo BaseInfo, p peer.Peer, t proto.Transaction) (_ State, _ Async, err error) {
 	defer func() {
 		if err != nil {
 			err = fsm.Errorf(proto.NewInfoMsg(err))
@@ -64,10 +118,6 @@ func tryBroadcastTransaction(fsm FSM, baseInfo BaseInfo, p peer.Peer, t proto.Tr
 	return fsm, nil, nil
 }
 
-func noop(fsm FSM) (FSM, Async, error) {
-	return fsm, nil, nil
-}
-
 func sendScore(p peer.Peer, storage state.State) {
 	curScore, err := storage.CurrentScore()
 	if err != nil {
@@ -79,28 +129,56 @@ func sendScore(p peer.Peer, storage state.State) {
 	p.SendMessage(&proto.ScoreMessage{Score: bts})
 }
 
-func syncWithNewPeer(fsm FSM, baseInfo BaseInfo, p peer.Peer) (FSM, Async, error) {
-	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
-	if err != nil {
-		return fsm, nil, err
-	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
-	c := conf{
-		peerSyncWith: p,
-		timeout:      30 * time.Second,
-	}
-	zap.S().Debugf("[%s] Starting synchronization with peer '%s'", fsm.String(), p.ID())
-	return NewSyncFsm(baseInfo, c.Now(baseInfo.tm), internal)
-}
-
-func fsmErrorf(fsm FSM, err error) error {
-	if err == nil {
-		return nil
-	}
+func fsmErrorf(state State, err error) error {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		return proto.NewInfoMsg(errors.Errorf("[%s] %s", fsm.String(), e.Error()))
+		return proto.NewInfoMsg(errors.Errorf("[%s] %s", state.String(), e.Error()))
 	default:
-		return errors.Errorf("[%s] %s", fsm.String(), e.Error())
+		return errors.Errorf("[%s] %s", state.String(), e.Error())
+	}
+}
+
+func createPermitDynamicCallback(event stateless.Trigger, state *StateData, actionFunc func(...interface{}) (State, Async, error)) stateless.DestinationSelectorFunc {
+	return func(ctx context.Context, args ...interface{}) (stateless.State, error) {
+		validateEventArgs(event, args...)
+		newState, asyncNew, err := actionFunc(args[1:]...)
+		async := args[0].(*Async)
+		*async = asyncNew
+		state.State = newState
+		return newState.String(), err
+	}
+}
+
+func convertToInterface[T any](arg interface{}) T {
+	var res T
+	if arg == nil {
+		return res
+	}
+	return arg.(T)
+}
+
+func isCanBeNil(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Map, reflect.Slice, reflect.Interface, reflect.Chan, reflect.Func, reflect.Ptr:
+		return true
+	default:
+		return false
+	}
+}
+
+func validateEventArgs(event stateless.Trigger, args ...interface{}) {
+	if len(args) != len(eventsArgsTypes[event]) {
+		panic(fmt.Sprintf("Invalid number of arguments for event %q: expected %d, got %d", event, len(eventsArgsTypes[event]), len(args)))
+	}
+
+	for i, arg := range args {
+		want := eventsArgsTypes[event][i]
+		tp := reflect.TypeOf(arg)
+		if tp == nil && isCanBeNil(want) {
+			continue
+		}
+		if !tp.ConvertibleTo(want) {
+			panic(fmt.Sprintf("The argument in position '%d' for event %s is of type '%v' but must be convertible to '%v'.", i, event, tp, want))
+		}
 	}
 }
