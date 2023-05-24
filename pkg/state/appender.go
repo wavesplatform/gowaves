@@ -562,6 +562,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
+	// a temporary dummy for linters
 	if len(snapshot) > 1000 {
 		zap.S().Debug(snapshot)
 	}
@@ -572,6 +573,29 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		}
 	}
 	return nil
+}
+
+// rewards and 60% of the fee to the previous miner
+func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (TransactionSnapshot, error) {
+	addrWavesBalanceDiff, _, err := addressBalanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
+	}
+	// add miner address to the diff
+	var snapshot TransactionSnapshot
+	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
+
+		fullBalance, err := a.stor.balances.wavesBalance(wavesAddress.ID())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+		}
+		newBalance := &WavesBalanceSnapshot{
+			Address: wavesAddress,
+			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
+		}
+		snapshot = append(snapshot, newBalance)
+	}
+	return snapshot, nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -609,12 +633,21 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent)
+	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
 	if err != nil {
 		return err
 	}
+	// create the initial snapshot
+	initialSnapshot, err := a.createInitialBlockSnapshot(minerAndRewardDiff)
+	if err != nil {
+		return errors.Wrap(err, "failed to create initial snapshot")
+	}
+	// a temporary dummy for linters
+	if len(initialSnapshot) > 100 {
+		zap.S().Debug(initialSnapshot)
+	}
 	// Save miner diff first.
-	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
+	if err := a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
 	blockInfo, err := a.currentBlockInfo()
@@ -661,7 +694,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 	}
 	// Save fee distribution of this block.
-	// This will be needed for createMinerDiff() of next block due to NG.
+	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
 		return err
 	}

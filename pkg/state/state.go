@@ -1029,11 +1029,6 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
 }
 
-// rewards and 60% of the fee to the previous miner
-//func (s *stateManager) createInitialBlockSnapshot(block *proto.Block, height uint64, previousMinerPK proto.WavesAddress) {
-//
-//}
-
 func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
 	blockHeight := height + 1
 	// Add score.
