@@ -21,16 +21,17 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
+				errMsg := caseName + "Issue tx:" + tx.TxID.String()
 
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-					utl.GetTestcaseNameWithVersion(name, v), tx.TxID.String())
+				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
 	}
@@ -43,17 +44,18 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				for j := 0; j < 2; j++ {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(&suite.BaseSuite,
 						testdata.DataChangedTimestamp(&td), v, waitForTx)
+					errMsg := caseName + "Issue tx:" + tx.TxID.String()
 
-					utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-						utl.GetTestcaseNameWithVersion(name, v), tx.TxID.String())
+					utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 					utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-						actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+						actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 					utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-						actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+						actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 				}
 			})
 		}
@@ -67,22 +69,24 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
-			suite.Run(utl.GetTestcaseNameWithVersion(name, v), func() {
+			caseName := utl.GetTestcaseNameWithVersion(name, v)
+			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(&suite.BaseSuite,
 					td, v, !waitForTx)
 				txIds[name] = &tx.TxID
+				errMsg := caseName + "Issue tx:" + tx.TxID.String()
 
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, utl.GetTestcaseNameWithVersion(name, v))
+					tx.WtErr.ErrWtScala, errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, utl.GetTestcaseNameWithVersion(name, v))
+					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 			})
 		}
-		actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-		suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestIssueTxSuite(t *testing.T) {
