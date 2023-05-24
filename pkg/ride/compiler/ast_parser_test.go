@@ -73,9 +73,9 @@ func TestDirectivesCompileFail(t *testing.T) {
 		errorMsg []string
 	}{
 		{`
-{-# STDLIB_VERSION 7 #-}
+{-# STDLIB_VERSION 8 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '7'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '8'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -991,6 +991,36 @@ func verify() = {
   foo() + bar() == 42
 }`,
 			false, "BgICCAICAQNmb28AACgBA2JhcgAAAgABAnR4AQZ2ZXJpZnkACQAAAgkAZAIJAQNmb28ACQEDYmFyAAAqeoOlqQ=="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, false, true)
+		})
+	}
+}
+
+func TestStrangeComment(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func foo(a: (Int,
+ Int # comment
+ )) = {
+  a._1 + a._2
+}
+
+@Callable(i)
+func call() = {
+  let a = foo((1, 2))
+  ([], a)
+}`,
+			false, "AAIFAAAAAAAAAAQIAhIAAAAAAQEAAAADZm9vAAAAAQAAAAFhCQAAZAAAAAIIBQAAAAFhAAAAAl8xCAUAAAABYQAAAAJfMgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAQAAAANmb28AAAABCQAFFAAAAAIAAAAAAAAAAAEAAAAAAAAAAAIJAAUUAAAAAgUAAAADbmlsBQAAAAFhAAAAAOHevw4="},
 	}
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {

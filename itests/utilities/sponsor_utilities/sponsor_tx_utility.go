@@ -51,13 +51,13 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Spons
 
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceInWavesGo, initBalanceInWavesScala)
-	actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
+	actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
 		testdata.Account.Address, testdata.AssetID, initBalanceInAssetGo, initBalanceInAssetScala)
 
 	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
 			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
 		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
-		*utl.NewBalanceInAsset(actuallDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
+		*utl.NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
 func SponsorshipSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.SponsorshipTestData[T], version byte,
@@ -96,6 +96,6 @@ func SponsorshipEnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.S
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 
-func GetVersions() []byte {
-	return utl.GetAvailableVersions(proto.SponsorshipTransaction, testdata.SponsorshipMaxVersion).Sum
+func GetVersions(suite *f.BaseSuite) []byte {
+	return utl.GetAvailableVersions(suite.T(), proto.SponsorshipTransaction, testdata.SponsorshipMinVersion, testdata.SponsorshipMaxVersion).Sum
 }

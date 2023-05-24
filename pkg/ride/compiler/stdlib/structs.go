@@ -9,9 +9,9 @@ import (
 )
 
 type actionField struct {
-	Name             string   `json:"name"`
-	Types            []string `json:"types"`
-	ConstructorOrder int      `json:"constructorOrder"` // order for constructor
+	Name             string `json:"name"`
+	Type             string `json:"type"`
+	ConstructorOrder int    `json:"constructorOrder"` // order for constructor
 }
 
 type actionsObject struct {
@@ -119,21 +119,6 @@ func ObjectsByVersion() map[ast.LibraryVersion]ObjectsSignatures {
 	return objectsByVersion
 }
 
-func parseObjectFieldsTypes(rawTypes []string) Type {
-	var types []string
-	for _, t := range rawTypes {
-		// AddressLike Type doesn't exist in ride, it only uses in evaluator
-		if t == "AddressLike" {
-			continue
-		}
-		types = append(types, t)
-	}
-
-	resRawType := strings.Join(types, "|")
-
-	return ParseType(resRawType)
-}
-
 func appendRemainingStructs(s *rideObjects) {
 	remainingObjects := []rideObject{
 		{
@@ -144,8 +129,8 @@ func appendRemainingStructs(s *rideObjects) {
 					Deleted:    nil,
 					Fields: []actionField{
 						{
-							Name:  "bytes",
-							Types: []string{"ByteVector"},
+							Name: "bytes",
+							Type: "ByteVector",
 						},
 					},
 				},
@@ -159,8 +144,8 @@ func appendRemainingStructs(s *rideObjects) {
 					Deleted:    nil,
 					Fields: []actionField{
 						{
-							Name:  "alias",
-							Types: []string{"String"},
+							Name: "alias",
+							Type: "String",
 						},
 					},
 				},
@@ -177,16 +162,16 @@ func changeRideTypeFields(name string, fields []actionField) []actionField {
 		for i := range fields {
 			switch fields[i].Name {
 			case "assetPair":
-				fields[i].Types = []string{"AssetPair"}
+				fields[i].Type = "AssetPair"
 			case "orderType":
-				fields[i].Types = []string{"Buy", "Sell"}
+				fields[i].Type = "Buy|Sell"
 			}
 		}
 	case "ExchangeTransaction":
 		for i := range fields {
 			switch fields[i].Name {
 			case "sellOrder", "buyOrder":
-				fields[i].Types = []string{"Order"}
+				fields[i].Type = "Order"
 			}
 		}
 	}
@@ -210,6 +195,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 		ast.LibV4: {map[string]ObjectInfo{}},
 		ast.LibV5: {map[string]ObjectInfo{}},
 		ast.LibV6: {map[string]ObjectInfo{}},
+		ast.LibV7: {map[string]ObjectInfo{}},
 	}
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
@@ -224,7 +210,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 			for _, f := range ver.Fields {
 				resInfo.Fields = append(resInfo.Fields, ObjectField{
 					Name: f.Name,
-					Type: parseObjectFieldsTypes(f.Types),
+					Type: ParseType(f.Type),
 				})
 			}
 			if strings.HasSuffix(obj.Name, "Transaction") {

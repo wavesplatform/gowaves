@@ -651,6 +651,31 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
+func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+	reward, err := s.stor.monetaryPolicy.reward()
+	if err != nil {
+		return nil, err
+	}
+	minerReward := reward
+	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	if !active {
+		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
+	}
+	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
+	r := make(proto.Rewards, 0, numberOfAddresses)
+	for _, a := range s.settings.RewardAddresses {
+		addressReward := reward / numberOfAddresses
+		r = append(r, proto.NewReward(a, addressReward))
+		minerReward -= addressReward
+	}
+	r = append(r, proto.NewReward(minerAddress, minerReward))
+	return r, nil
+}
+
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
@@ -1886,10 +1911,15 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	return entry, nil
 }
 
+// NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, _, err := s.rw.readNewestTransaction(id)
+	tx, failed, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return tx, nil
 }
@@ -1910,16 +1940,21 @@ func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, 
 	return tx, failed, nil
 }
 
+// NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
+// WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
+	}
+	if failed {
+		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
 	}
 	return txHeight, nil
 }
 
 func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, err := s.rw.transactionHeightByID(id)
+	txHeight, _, err := s.rw.transactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

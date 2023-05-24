@@ -97,11 +97,11 @@ func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
 	return &EthereumTransferWavesTxKind{}
 }
 
-func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
+func (k *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
 	return nil
 }
 
-func (tx *EthereumTransferWavesTxKind) String() string {
+func (k *EthereumTransferWavesTxKind) String() string {
 	return "EthereumTransferWavesTxKind"
 }
 
@@ -115,11 +115,11 @@ func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, as
 	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData, Arguments: arguments}
 }
 
-func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
-	return &tx.decodedData
+func (k *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
+	return &k.decodedData
 }
 
-func (tx *EthereumTransferAssetsErc20TxKind) String() string {
+func (k *EthereumTransferAssetsErc20TxKind) String() string {
 	return "EthereumTransferAssetsErc20TxKind"
 }
 
@@ -131,12 +131,91 @@ func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *Ethereum
 	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
 }
 
-func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
-	return &tx.decodedData
+func (k *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
+	return &k.decodedData
 }
 
-func (tx *EthereumInvokeScriptTxKind) String() string {
+func (k *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
+}
+
+// ethABIDataTypeToArgument perform conversion of ethabi.DataType to Argument type.
+// Note that this function doesn't copy ethabi.Bytes. It only copies a pointer to type.
+func ethABIDataTypeToArgument(dataType ethabi.DataType) (argument Argument, _ error) {
+	switch t := dataType.(type) {
+	case ethabi.Int:
+		argument = &IntegerArgument{Value: int64(t)}
+	case ethabi.Bool:
+		argument = &BooleanArgument{Value: bool(t)}
+	case ethabi.Bytes:
+		argument = &BinaryArgument{Value: t}
+	case ethabi.String:
+		argument = &StringArgument{Value: string(t)}
+	case ethabi.List:
+		arguments := make(Arguments, len(t))
+		for i, ethABIElem := range t {
+			arg, err := ethABIDataTypeToArgument(ethABIElem)
+			if err != nil {
+				return nil, errors.Wrapf(err,
+					"failed to convert ethabi.DataType (%T) to Argument at %d list postition", ethABIElem, i,
+				)
+			}
+			arguments[i] = arg
+		}
+		argument = &ListArgument{Items: arguments}
+	default: // ethabi.BigInt is not supported
+		return nil, errors.Errorf(
+			"ethabi.DataType (%T) to Argument conversion is not supported", dataType,
+		)
+	}
+	return argument, nil
+}
+
+func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) (Arguments, error) {
+	args := make(Arguments, len(decodedArgs))
+	for i, input := range decodedArgs {
+		arg, err := ethABIDataTypeToArgument(input.Value)
+		if err != nil {
+			return nil, errors.Wrapf(err,
+				"failed to convert ethabi.DataType (%T) to Argument at %d inputs position", input.Value, i)
+		}
+		args[i] = arg
+	}
+	return args, nil
+}
+
+func (k *EthereumInvokeScriptTxKind) ValidateCallData(dApp WavesAddress) error {
+	args, err := ConvertDecodedEthereumArgumentsToProtoArguments(k.decodedData.Inputs)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert decoded data inputs")
+	}
+	fc := NewFunctionCall(k.decodedData.Name, args)
+	if err := fc.Valid(); err != nil {
+		return errors.Wrap(err, "function call validation failed")
+	}
+	fcBytes, err := fc.MarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal function call")
+	}
+	rcpPB, err := NewRecipientFromAddress(dApp).ToProtobuf()
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert addr %q to protobuf recipient", dApp.String())
+	}
+	payments := make([]*g.Amount, len(k.decodedData.Payments))
+	for i, pmt := range k.decodedData.Payments {
+		asset := NewOptionalAsset(pmt.PresentAssetID, pmt.AssetID)
+		payments[i] = &g.Amount{AssetId: asset.ToID(), Amount: pmt.Amount}
+	}
+	data := g.InvokeScriptTransactionData{
+		DApp:         rcpPB,
+		FunctionCall: fcBytes,
+		Payments:     payments,
+	}
+	s := data.SizeVT()
+	if s > maxInvokeScriptWithProofsProtobufPayloadBytes {
+		return errors.Errorf("ethereum tx calldata too big: max %d, got %d", maxInvokeScriptWithProofsProtobufPayloadBytes, s)
+	}
+	return nil
 }
 
 type EthereumTransaction struct {

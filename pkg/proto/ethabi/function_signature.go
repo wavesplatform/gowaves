@@ -132,7 +132,7 @@ type fixedBytesTextBuilder struct {
 }
 
 func (fbtb fixedBytesTextBuilder) MarshalText() (text []byte, err error) {
-	if fbtb.size < 1 || fbtb.size > 32 {
+	if fbtb.size < 1 || fbtb.size > abiSlotSize {
 		return nil, errors.Errorf("invalid fixed bytes type size (%d)", fbtb.size)
 	}
 	return []byte(fmt.Sprintf("bytes%d", fbtb.size)), nil
