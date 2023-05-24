@@ -562,7 +562,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
-	{
+	if len(snapshot) > 1000 {
 		zap.S().Debug(snapshot)
 	}
 	// Store additional data for API: transaction by address.
