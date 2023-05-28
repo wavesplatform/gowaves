@@ -60,8 +60,8 @@ func (a AliasExpectedValuesNegative) Positive() bool {
 }
 
 func NewAliasTestData[T any](account config.AccountInfo, alias string, fee uint64, timestamp uint64,
-	chainID proto.Scheme, expected T) *AliasTestData[T] {
-	return &AliasTestData[T]{
+	chainID proto.Scheme, expected T) AliasTestData[T] {
+	return AliasTestData[T]{
 		Account:   account,
 		Alias:     alias,
 		Fee:       fee,
@@ -73,7 +73,7 @@ func NewAliasTestData[T any](account config.AccountInfo, alias string, fee uint6
 
 func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesPositive] {
 	var t = map[string]AliasTestData[AliasExpectedValuesPositive]{
-		"Valid alias 4 bytes": *NewAliasTestData(
+		"Valid alias 4 bytes": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(4, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -83,7 +83,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ExpectedAddress:  utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address,
 				WavesDiffBalance: utl.MinTxFeeWaves,
 			}),
-		"Valid alias 15 bytes, middle values for fee": *NewAliasTestData(
+		"Valid alias 15 bytes, middle values for fee": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			100000000000,
@@ -99,7 +99,7 @@ func GetAliasPositiveDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 
 func GetAliasMaxPositiveDataMatrix(suite *f.BaseSuite, accNumber int) map[string]AliasTestData[AliasExpectedValuesPositive] {
 	var t = map[string]AliasTestData[AliasExpectedValuesPositive]{
-		"Valid alias 30 bytes, max available fee": *NewAliasTestData(
+		"Valid alias 30 bytes, max available fee": NewAliasTestData(
 			utl.GetAccount(suite, accNumber),
 			utl.RandStringBytes(30, AliasSymbolSet),
 			uint64(utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)),
@@ -115,7 +115,7 @@ func GetAliasMaxPositiveDataMatrix(suite *f.BaseSuite, accNumber int) map[string
 
 func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[AliasExpectedValuesNegative] {
 	var t = map[string]AliasTestData[AliasExpectedValuesNegative]{
-		"Invalid alias, 3 bytes": *NewAliasTestData(
+		"Invalid alias, 3 bytes": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(3, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -128,7 +128,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid alias, invalid symbols": *NewAliasTestData(
+		"Invalid alias, invalid symbols": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(4, AliasInvalidSymbolSet),
 			utl.MinTxFeeWaves,
@@ -141,7 +141,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid alias, 31 bytes": *NewAliasTestData(
+		"Invalid alias, 31 bytes": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(31, AliasInvalidSymbolSet),
 			utl.MinTxFeeWaves,
@@ -154,7 +154,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid alias, empty string": *NewAliasTestData(
+		"Invalid alias, empty string": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			"",
 			utl.MinTxFeeWaves,
@@ -167,7 +167,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "length should be between 4 and 30",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid alias, invalid encoding": *NewAliasTestData(
+		"Invalid alias, invalid encoding": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			"\\u0061\\u0073\\u0073\\u0065",
 			utl.MinTxFeeWaves,
@@ -180,7 +180,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid fee (fee=0)": *NewAliasTestData(
+		"Invalid fee (fee=0)": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			0,
@@ -193,7 +193,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "insufficient fee",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid fee (0 < fee < min)": *NewAliasTestData(
+		"Invalid fee (0 < fee < min)": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			10,
@@ -206,7 +206,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value of 100000 WAVES",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid fee (fee > max)": *NewAliasTestData(
+		"Invalid fee (fee > max)": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MaxAmount+1,
@@ -219,7 +219,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "failed to parse json message",
 				WavesDiffBalance:  0,
 			}),
-		"Custom chainID": *NewAliasTestData(
+		"Custom chainID": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -232,7 +232,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "State check failed",
 				WavesDiffBalance:  0,
 			}),
-		"Invalid chainID (value=0)": *NewAliasTestData(
+		"Invalid chainID (value=0)": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -245,7 +245,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "State check failed",
 				WavesDiffBalance:  0,
 			}),
-		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewAliasTestData(
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -258,7 +258,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 				WavesDiffBalance:  0,
 			}),
-		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewAliasTestData(
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -277,7 +277,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 
 func GetSameAliasNegativeDataMatrix(suite *f.BaseSuite) []AliasTestData[SameAliasExpectedValuesNegative] {
 	var t = []AliasTestData[SameAliasExpectedValuesNegative]{
-		*NewAliasTestData(
+		NewAliasTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(15, AliasSymbolSet),
 			utl.MinTxFeeWaves,
@@ -301,7 +301,7 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestDa
 	accCount := 2
 	var t []AliasTestData[SameAliasExpectedValuesNegative]
 	for i := 0; i < accCount; i++ {
-		t = append(t, *NewAliasTestData(
+		t = append(t, NewAliasTestData(
 			utl.GetAccount(suite, i+2),
 			alias,
 			utl.MinTxFeeWaves,

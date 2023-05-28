@@ -11,7 +11,7 @@ const (
 
 func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesPositive] {
 	return map[string]IssueTestData[ExpectedValuesPositive]{
-		"Valid script, true as expression": *NewIssueTestData(
+		"Valid script, true as expression": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -26,7 +26,7 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
-		"Valid script, size 8192 bytes": *NewIssueTestData(
+		"Valid script, size 8192 bytes": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -41,7 +41,7 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance: utl.MinIssueFeeWaves,
 				AssetBalance:     100000000000,
 			}),
-		"Script with complexity 4000": *NewIssueTestData(
+		"Script with complexity 4000": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -61,7 +61,7 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 
 func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
 	return map[string]IssueTestData[ExpectedValuesNegative]{
-		"Complexity more than 4000": *NewIssueTestData(
+		"Complexity more than 4000": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -80,7 +80,7 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
-		"Illegal length of script": *NewIssueTestData(
+		"Illegal length of script": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -99,7 +99,7 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
-		"Invalid content type of script": *NewIssueTestData(
+		"Invalid content type of script": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),
@@ -118,7 +118,7 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
-		"Invalid script version": *NewIssueTestData(
+		"Invalid script version": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),

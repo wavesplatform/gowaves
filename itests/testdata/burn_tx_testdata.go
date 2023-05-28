@@ -40,8 +40,8 @@ type BurnExpectedValuesNegative struct {
 }
 
 func NewBurnTestData[T any](account config.AccountInfo, assetID crypto.Digest, quantity uint64, chainID proto.Scheme,
-	timestamp uint64, fee uint64, expected T) *BurnTestData[T] {
-	return &BurnTestData[T]{
+	timestamp uint64, fee uint64, expected T) BurnTestData[T] {
+	return BurnTestData[T]{
 		Account:   account,
 		AssetID:   assetID,
 		Quantity:  quantity,
@@ -55,7 +55,7 @@ func NewBurnTestData[T any](account config.AccountInfo, assetID crypto.Digest, q
 func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
 	middleAssetValue := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId) / 2
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
-		"Burn zero amount(quantity) of asset": *NewBurnTestData(
+		"Burn zero amount(quantity) of asset": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			0,
@@ -66,7 +66,7 @@ func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 0,
 			}),
-		"Burn valid min values for amount(quantity) of asset": *NewBurnTestData(
+		"Burn valid min values for amount(quantity) of asset": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			1,
@@ -77,7 +77,7 @@ func GetBurnPositiveDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 1,
 			}),
-		"Valid middle values for amount(quantity) of asset": *NewBurnTestData(
+		"Valid middle values for amount(quantity) of asset": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			uint64(middleAssetValue),
@@ -96,7 +96,7 @@ func GetBurnAllAssetWithMaxAvailableFee(suite *f.BaseSuite, assetId crypto.Diges
 	assetValue := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	fee := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
-		"Burn all available asset, max available fee": *NewBurnTestData(
+		"Burn all available asset, max available fee": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			uint64(assetValue),
@@ -113,7 +113,7 @@ func GetBurnAllAssetWithMaxAvailableFee(suite *f.BaseSuite, assetId crypto.Diges
 
 func GetBurnNFTFromOwnerAccount(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesPositive] {
 	var t = map[string]BurnTestData[BurnExpectedValuesPositive]{
-		"Burn NFT from owner account": *NewBurnTestData(
+		"Burn NFT from owner account": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetId,
 			1,
@@ -130,7 +130,7 @@ func GetBurnNFTFromOwnerAccount(suite *f.BaseSuite, assetId crypto.Digest) map[s
 
 func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesNegative] {
 	var t = map[string]BurnTestData[BurnExpectedValuesNegative]{
-		"Burn amount > max of asset": *NewBurnTestData(
+		"Burn amount > max of asset": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			9223372036854775808,
@@ -145,7 +145,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Invalid asset ID (asset ID not exist)": *NewBurnTestData(
+		"Invalid asset ID (asset ID not exist)": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
 			100,
@@ -160,7 +160,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewBurnTestData(
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -175,7 +175,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewBurnTestData(
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -190,7 +190,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Invalid fee (fee = 0)": *NewBurnTestData(
+		"Invalid fee (fee = 0)": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -205,7 +205,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Invalid fee (0 < fee < min)": *NewBurnTestData(
+		"Invalid fee (0 < fee < min)": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -220,7 +220,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Invalid fee (fee > max)": *NewBurnTestData(
+		"Invalid fee (fee > max)": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -235,7 +235,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Burn token when there are not enougth funds on the account balance": *NewBurnTestData(
+		"Burn token when there are not enougth funds on the account balance": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -250,7 +250,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Burn WAVES": *NewBurnTestData(
+		"Burn WAVES": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewOptionalAssetWaves().ID,
 			10000,
@@ -265,7 +265,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Burn from account that not own asset": *NewBurnTestData(
+		"Burn from account that not own asset": NewBurnTestData(
 			utl.GetAccount(suite, 4),
 			assetId,
 			10000,
@@ -286,7 +286,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 
 func GetBurnChainIDNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[string]BurnTestData[BurnExpectedValuesNegative] {
 	var t = map[string]BurnTestData[BurnExpectedValuesNegative]{
-		"Custom chainID": *NewBurnTestData(
+		"Custom chainID": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
@@ -301,7 +301,7 @@ func GetBurnChainIDNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest)
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Invalid chainID (value=0)": *NewBurnTestData(
+		"Invalid chainID (value=0)": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			100000,
