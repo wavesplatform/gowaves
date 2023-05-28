@@ -102,11 +102,11 @@ func (tp *transactionPerformer) constructAssetBalanceSnapshotFromDiff(diff addre
 	// add miner address to the diff
 
 	for wavesAddress, diffAmount := range diff {
-		balance, err := tp.stor.balances.assetBalance(wavesAddress.ID(), diffAmount.asset)
+		balance, err := tp.stor.balances.newestAssetBalance(wavesAddress.ID(), diffAmount.asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		assetInfo, err := tp.stor.assets.assetInfo(diffAmount.asset)
+		assetInfo, err := tp.stor.assets.newestAssetInfo(diffAmount.asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get newest asset info")
 		}
