@@ -41,8 +41,8 @@ type SponsorshipExpectedValuesNegative struct {
 }
 
 func NewSponsorshipTestData[T any](account config.AccountInfo, assetID crypto.Digest,
-	minSponsoredAssetFee, fee, timestamp uint64, chainID proto.Scheme, expected T) *SponsorshipTestData[T] {
-	return &SponsorshipTestData[T]{
+	minSponsoredAssetFee, fee, timestamp uint64, chainID proto.Scheme, expected T) SponsorshipTestData[T] {
+	return SponsorshipTestData[T]{
 		Account:              account,
 		AssetID:              assetID,
 		MinSponsoredAssetFee: minSponsoredAssetFee,
@@ -56,7 +56,7 @@ func NewSponsorshipTestData[T any](account config.AccountInfo, assetID crypto.Di
 func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive] {
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive]{
-		"Min values for fee and MinSponsoredAssetFee": *NewSponsorshipTestData(
+		"Min values for fee and MinSponsoredAssetFee": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			1,
@@ -67,7 +67,7 @@ func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 0,
 			}),
-		"Valid values for fee and MinSponsoredAssetFee": *NewSponsorshipTestData(
+		"Valid values for fee and MinSponsoredAssetFee": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -85,7 +85,7 @@ func GetSponsorshipPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 func GetSponsorshipMaxValuesPositive(suite *f.BaseSuite, assetID crypto.Digest, accNumber int) map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive] {
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)
 	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesPositive]{
-		"Max values for fee and MinSponsoredAssetFee": *NewSponsorshipTestData(
+		"Max values for fee and MinSponsoredAssetFee": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			utl.MaxAmount,
@@ -107,7 +107,7 @@ type SponsorshipEnabledDisabledData struct {
 
 func GetSponsorshipEnabledDisabledData(suite *f.BaseSuite, assetID crypto.Digest) SponsorshipEnabledDisabledData {
 	return SponsorshipEnabledDisabledData{
-		Enabled: *NewSponsorshipTestData(
+		Enabled: NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -118,7 +118,7 @@ func GetSponsorshipEnabledDisabledData(suite *f.BaseSuite, assetID crypto.Digest
 				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 0,
 			}),
-		Disabled: *NewSponsorshipTestData(
+		Disabled: NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			0,
@@ -134,7 +134,7 @@ func GetSponsorshipEnabledDisabledData(suite *f.BaseSuite, assetID crypto.Digest
 
 func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]SponsorshipTestData[SponsorshipExpectedValuesNegative] {
 	var t = map[string]SponsorshipTestData[SponsorshipExpectedValuesNegative]{
-		"Sponsorship off, not issuer": *NewSponsorshipTestData(
+		"Sponsorship off, not issuer": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetID,
 			0,
@@ -149,7 +149,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Asset was issued by other address",
 			}),
-		"Invalid fee (fee > max)": *NewSponsorshipTestData(
+		"Invalid fee (fee > max)": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -164,7 +164,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
-		"Invalid fee (0 < fee < min)": *NewSponsorshipTestData(
+		"Invalid fee (0 < fee < min)": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -179,7 +179,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value",
 			}),
-		"Invalid fee (fee = 0)": *NewSponsorshipTestData(
+		"Invalid fee (fee = 0)": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -194,7 +194,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "insufficient fee",
 			}),
-		"MinSponsoredAssetFee > max value": *NewSponsorshipTestData(
+		"MinSponsoredAssetFee > max value": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			utl.MaxAmount+1,
@@ -209,7 +209,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "failed to parse json message",
 			}),
-		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewSponsorshipTestData(
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -224,7 +224,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
-		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewSponsorshipTestData(
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -239,7 +239,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		"Try to do sponsorship when fee more than funds on the sender balance": *NewSponsorshipTestData(
+		"Try to do sponsorship when fee more than funds on the sender balance": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			100000,
@@ -254,7 +254,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "negative waves balance",
 			}),
-		"Invalid asset ID (asset ID not exist)": *NewSponsorshipTestData(
+		"Invalid asset ID (asset ID not exist)": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
 			100000,
@@ -279,7 +279,7 @@ type SponsorshipForSmartAssetData struct {
 
 func GetSponsorshipForSmartAssetData(suite *f.BaseSuite, assetID crypto.Digest) SponsorshipForSmartAssetData {
 	return SponsorshipForSmartAssetData{
-		Enabled: *NewSponsorshipTestData(
+		Enabled: NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			500000,
