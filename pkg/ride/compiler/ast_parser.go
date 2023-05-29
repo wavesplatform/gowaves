@@ -161,11 +161,8 @@ func (p *astParser) ruleCodeHandler(node *node32) {
 }
 
 func (p *astParser) ruleDAppRootHandler(node *node32) {
-	curNode := node
-	if curNode.pegRule == rule_ {
-		curNode = node.next
-	}
-	if curNode != nil && curNode.pegRule == ruleDirective {
+	curNode := skipToNextRule(node)
+	if isRule(curNode, ruleDirective) {
 		curNode = p.parseDirectives(curNode)
 	}
 	if !p.isLibrary {
@@ -175,17 +172,13 @@ func (p *astParser) ruleDAppRootHandler(node *node32) {
 		p.loadBuildInVarsToStackByVersion()
 	}
 	p.loadImport()
-	if curNode != nil && curNode.pegRule == rule_ {
-		curNode = node.next
-	}
-	if curNode != nil && curNode.pegRule == ruleDeclaration {
+	curNode = skipToNextRule(curNode)
+	if isRule(curNode, ruleDeclaration) {
 		curNode = p.parseDeclarations(curNode)
 	}
-	if curNode != nil && curNode.pegRule == rule_ {
-		curNode = node.next
-	}
+	curNode = skipToNextRule(curNode)
 	if !p.isLibrary {
-		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
+		if isRule(curNode, ruleAnnotatedFunc) {
 			p.parseAnnotatedFunc(curNode)
 		}
 	}
@@ -249,11 +242,8 @@ func (p *astParser) loadImport() {
 }
 
 func (p *astParser) ruleScriptRootHandler(node *node32) {
-	curNode := node
-	if curNode.pegRule == rule_ {
-		curNode = node.next
-	}
-	if curNode != nil && curNode.pegRule == ruleDirective {
+	curNode := skipToNextRule(node)
+	if isRule(curNode, ruleDirective) {
 		curNode = p.parseDirectives(curNode)
 	}
 	if !p.isLibrary {
@@ -263,20 +253,15 @@ func (p *astParser) ruleScriptRootHandler(node *node32) {
 		p.loadBuildInVarsToStackByVersion()
 	}
 	p.loadImport()
-	if curNode != nil && curNode.pegRule == rule_ {
-		curNode = node.next
-	}
 	var decls []ast.Node
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode.pegRule == ruleDeclaration {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleDeclaration) {
 			expr, _ := p.ruleDeclarationHandler(curNode.up, true)
 			decls = append(decls, expr...)
 			curNode = curNode.next
 		}
-		if curNode.pegRule == ruleExpr {
+		if isRule(curNode, ruleExpr) {
 			break
 		}
 	}
@@ -314,13 +299,11 @@ func (p *astParser) parseDirectives(node *node32) *node32 {
 	directiveCnt := make(map[string]int)
 	curNode := node
 	for {
-		if curNode != nil && curNode.pegRule == ruleDirective {
+		if isRule(curNode, ruleDirective) {
 			p.ruleDirectiveHandler(curNode, directiveCnt)
 			curNode = curNode.next
 		}
-		if curNode != nil && curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		if curNode == nil || (curNode.pegRule != rule_ && curNode.pegRule != ruleDirective) {
 			break
 		}
@@ -391,7 +374,7 @@ func (p *astParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 		p.checkDirectiveCnt(node, scriptTypeDirectiveName, directiveCnt)
 
 	case importDirectiveName:
-		if curNode != nil && curNode.pegRule == rulePaths {
+		if isRule(curNode, rulePaths) {
 			curNode = curNode.up
 			for {
 				if curNode == nil {
@@ -432,14 +415,12 @@ func (p *astParser) checkDirectiveCnt(node *node32, name string, directiveCnt ma
 func (p *astParser) parseDeclarations(node *node32) *node32 {
 	curNode := node
 	for {
-		if curNode != nil && curNode.pegRule == ruleDeclaration {
+		if isRule(curNode, ruleDeclaration) {
 			expr, _ := p.ruleDeclarationHandler(curNode.up, false)
 			p.tree.Declarations = append(p.tree.Declarations, expr...)
 			curNode = curNode.next
 		}
-		if curNode != nil && curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		if curNode == nil || (curNode.pegRule != rule_ && curNode.pegRule != ruleDeclaration) {
 			break
 		}
@@ -490,10 +471,7 @@ func (p *astParser) ruleStrictVariableHandler(node *node32) ([]ast.Node, []s.Typ
 }
 
 func (p *astParser) ruleVariableHandler(node *node32) ([]ast.Node, []s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	switch curNode.pegRule {
 	case ruleIdentifier:
 		expr, varType := p.simpleVariableDeclaration(node)
@@ -509,20 +487,10 @@ func (p *astParser) ruleVariableHandler(node *node32) ([]ast.Node, []s.Type) {
 }
 
 func (p *astParser) simpleVariableDeclaration(node *node32) (ast.Node, s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	// get Variable Name
 	varName := p.nodeValue(curNode)
-	curNode = curNode.next
-
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	expr, varType := p.ruleExprHandler(curNode)
 	if expr == nil {
 		return nil, nil
@@ -540,16 +508,11 @@ func (p *astParser) simpleVariableDeclaration(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *astParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	var varNames []string
 	tupleRefNode := curNode.up
 	for {
-		if tupleRefNode.pegRule == rule_ {
-			tupleRefNode = tupleRefNode.next
-		}
+		tupleRefNode = skipToNextRule(tupleRefNode)
 		if tupleRefNode != nil && tupleRefNode.pegRule == ruleIdentifier {
 			name := p.nodeValue(tupleRefNode)
 			if _, ok := p.stack.variable(name); ok {
@@ -563,13 +526,7 @@ func (p *astParser) tupleRefDeclaration(node *node32) ([]ast.Node, []s.Type) {
 			break
 		}
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	expr, varType := p.ruleExprHandler(curNode)
 	if expr == nil {
 		return nil, nil
@@ -664,14 +621,8 @@ func (p *astParser) ruleExprHandler(node *node32) (ast.Node, s.Type) {
 		if !varType.Equal(s.BooleanType) {
 			p.addError(node.up.up.token32, "Unexpected type, required 'Boolean', but '%s' found", varType.String())
 		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		// skip orOp
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
+		curNode = skipToNextRule(curNode.next) // skip orOp
 		nextExpr, nextExprVarType := p.ruleAndOpAtomHandler(curNode)
 
 		varType = s.JoinTypes(varType, nextExprVarType)
@@ -699,14 +650,8 @@ func (p *astParser) ruleAndOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		if !varType.Equal(s.BooleanType) {
 			p.addError(node.up.up.token32, "Unexpected type, required 'Boolean', but '%s' found", varType.String())
 		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		// skip andOp
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
+		curNode = skipToNextRule(curNode.next) // skip andOp
 		nextExpr, nextExprVarType := p.ruleEqualityGroupOpAtomHandler(curNode)
 
 		varType = s.JoinTypes(varType, nextExprVarType)
@@ -731,19 +676,14 @@ func (p *astParser) ruleEqualityGroupOpAtomHandler(node *node32) (ast.Node, s.Ty
 		return expr, varType
 	}
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		var funcId ast.Function
-		if curNode.up.pegRule == ruleEqOp {
+		if isRule(curNode.up, ruleEqOp) {
 			funcId = ast.NativeFunction("0")
 		} else {
 			funcId = ast.UserFunction("!=")
 		}
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		nextExpr, nextExprVarType := p.ruleCompareGroupOpAtomHandler(curNode)
 		if nextExpr == nil {
 			return nil, nil
@@ -775,14 +715,9 @@ func (p *astParser) ruleCompareGroupOpAtomHandler(node *node32) (ast.Node, s.Typ
 		p.addError(node.up.up.token32, "Unexpected type, required 'BigInt' or 'Int', but '%s' found", varType.String())
 	}
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		operator := curNode.up.pegRule
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		nextExpr, nextExprVarType := p.ruleListGroupOpAtomHandler(curNode)
 		if nextExpr == nil {
 			return nil, nil
@@ -830,14 +765,9 @@ func (p *astParser) ruleSumGroupOpAtomHandler(node *node32) (ast.Node, s.Type) {
 		return expr, varType
 	}
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		operator := curNode.up.pegRule
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		nextExpr, nextExprVarType := p.ruleMultGroupOpAtomHandler(curNode)
 		if nextExpr == nil {
 			return nil, nil
@@ -892,14 +822,9 @@ func (p *astParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 		resListType = s.ListType{Type: varType}
 	}
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		operator := curNode.up.pegRule
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		nextExpr, nextVarType := p.ruleSumGroupOpAtomHandler(curNode)
 		if nextExpr == nil {
 			return nil, nil
@@ -1005,14 +930,9 @@ func (p *astParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 		return expr, varType
 	}
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		operator := curNode.up.pegRule
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		nextExpr, nextExprVarType := p.ruleAtomExprHandler(curNode)
 		var funcId string
 		switch operator {
@@ -1053,7 +973,7 @@ func (p *astParser) ruleMultGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 func (p *astParser) ruleAtomExprHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	var unaryOp pegRule
-	if curNode.pegRule == ruleUnaryOp {
+	if isRule(curNode, ruleUnaryOp) {
 		unaryOp = curNode.up.pegRule
 		curNode = curNode.next
 	}
@@ -1203,9 +1123,7 @@ func (p *astParser) ruleListHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return ast.NewReferenceNode("nil"), s.ListType{}
 	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode)
 	if curNode == nil {
 		return ast.NewReferenceNode("nil"), s.ListType{}
 	}
@@ -1220,9 +1138,7 @@ func (p *astParser) ruleListExprSeqHandler(node *node32) (ast.Node, s.Type) {
 	if curNode == nil {
 		return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, ast.NewReferenceNode("nil")}), listType
 	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode)
 	secondElem, varType := p.ruleListExprSeqHandler(curNode)
 	listType.AppendList(varType)
 	return ast.NewFunctionCallNode(ast.NativeFunction("1100"), []ast.Node{elem, secondElem}), listType
@@ -1241,17 +1157,12 @@ func (p *astParser) ruleBooleanAtomHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *astParser) ruleTupleHandler(node *node32) (ast.Node, s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	var exprs []ast.Node
 	var types []s.Type
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode != nil && curNode.pegRule == ruleExpr {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleExpr) {
 			expr, varType := p.ruleExprHandler(curNode)
 			exprs = append(exprs, expr)
 			types = append(types, varType)
@@ -1270,25 +1181,16 @@ func (p *astParser) ruleTupleHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *astParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
-	if curNode.pegRule == ruleFailedIfWithoutElse {
+	if isRule(curNode, ruleFailedIfWithoutElse) {
 		p.addError(curNode.token32, "If without else")
 		return nil, nil
 	}
-	curNode = curNode.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.up)
 	cond, condType := p.ruleExprHandler(curNode)
 	if condType != s.BooleanType {
 		p.addError(curNode.token32, "Expression must be 'Boolean' but got '%s'", condType)
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	var thenExpr ast.Node
 	var thenType s.Type
 	switch curNode.pegRule {
@@ -1297,13 +1199,7 @@ func (p *astParser) ruleIfWithErrorHandler(node *node32) (ast.Node, s.Type) {
 	case ruleBlockWithoutPar:
 		thenExpr, thenType = p.ruleBlockHandler(curNode)
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	var elseExpr ast.Node
 	var elseType s.Type
 	switch curNode.pegRule {
@@ -1341,24 +1237,12 @@ func (p *astParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 		if curNode == nil {
 			break
 		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		switch curNode.pegRule {
 		case ruleAsType:
-			asNode := curNode.up
-			if asNode.pegRule == rule_ {
-				asNode = asNode.next
-			}
-			if asNode.pegRule == rule_ {
-				asNode = asNode.next
-			}
+			asNode := skipToNextRule(curNode.up)
 			asPegType := asNode.pegRule
-			asNode = asNode.next
-
-			if asNode.pegRule == rule_ {
-				asNode = asNode.next
-			}
+			asNode = skipToNextRule(asNode.next)
 			t := p.ruleTypesHandler(asNode)
 			if t == nil {
 				return nil, nil
@@ -1419,9 +1303,7 @@ func (p *astParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 			if l, ok := varType.(s.ListType); !ok && varType != nil {
 				p.addError(listNode.token32, "Type must be 'List' but got '%s'", varType.String())
 			} else {
-				if listNode.pegRule == rule_ {
-					listNode = listNode.next
-				}
+				listNode = skipToNextRule(listNode)
 				var index ast.Node
 				var indexType s.Type
 				switch listNode.pegRule {
@@ -1514,10 +1396,7 @@ func (p *astParser) ruleIdentifierHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *astParser) ruleParExprHandler(node *node32) (ast.Node, s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	return p.ruleExprHandler(curNode)
 }
 
@@ -1540,15 +1419,7 @@ func (p *astParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, fir
 	curNode := node.up
 	funcName := p.nodeValue(curNode)
 	nameNode := curNode
-	curNode = curNode.next
-
-	if curNode != nil && curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode != nil && curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-
+	curNode = skipToNextRule(curNode.next)
 	argsNodes, argsTypes, astNodes := p.ruleArgSeqHandler(curNode)
 
 	if firstArg != nil {
@@ -1605,9 +1476,7 @@ func (p *astParser) ruleArgSeqHandler(node *node32) ([]ast.Node, []s.Type, []*no
 		if curNode == nil {
 			break
 		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		curNode = curNode.up
 	}
 	return resultNodes, resultTypes, resultAstNodes
@@ -1631,15 +1500,13 @@ func (p *astParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	var decls []ast.Node
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode.pegRule == ruleDeclaration {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleDeclaration) {
 			expr, _ := p.ruleDeclarationHandler(curNode.up, true)
 			decls = append(decls, expr...)
 			curNode = curNode.next
 		}
-		if curNode.pegRule == ruleExpr {
+		if isRule(curNode, ruleExpr) {
 			break
 		}
 	}
@@ -1665,10 +1532,7 @@ func (p *astParser) ruleBlockHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *astParser) ruleFuncHandler(node *node32) (ast.Node, s.Type, []s.Type) {
 	p.stack.addFrame()
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	funcName := p.nodeValue(curNode)
 	if _, ok := p.stack.function(funcName); ok {
 		p.addError(curNode.token32, "Function '%s' already exists", funcName)
@@ -1679,15 +1543,12 @@ func (p *astParser) ruleFuncHandler(node *node32) (ast.Node, s.Type, []s.Type) {
 	curNode = curNode.next
 	var argsNode *node32
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-			continue
-		}
-		if curNode.pegRule == ruleFuncArgSeq {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleFuncArgSeq) {
 			argsNode = curNode
 			curNode = curNode.next
 		}
-		if curNode.pegRule == ruleExpr {
+		if isRule(curNode, ruleExpr) {
 			break
 		}
 	}
@@ -1737,12 +1598,7 @@ func (p *astParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
 	if curNode == nil {
 		return argsNames, argsTypes
 	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode)
 	nextArgsNames, nextArgsTypes := p.ruleFuncArgSeqHandler(curNode)
 	if nextArgsTypes == nil {
 		return nil, nil
@@ -1753,13 +1609,7 @@ func (p *astParser) ruleFuncArgSeqHandler(node *node32) ([]string, []s.Type) {
 func (p *astParser) ruleFuncArgHandler(node *node32) (string, s.Type) {
 	curNode := node.up
 	argName := p.nodeValue(curNode)
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	argType := p.ruleTypesHandler(curNode)
 	if argType == nil {
 		return "", nil
@@ -1797,12 +1647,7 @@ func (p *astParser) ruleTypesHandler(node *node32) s.Type {
 
 	resType := s.UnionType{Types: []s.Type{}}
 	resType.AppendType(T)
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode)
 	T = p.ruleTypesHandler(curNode)
 	if T == nil {
 		return nil
@@ -1815,10 +1660,8 @@ func (p *astParser) ruleTupleTypeHandler(node *node32) s.Type {
 	curNode := node.up
 	var tupleTypes []s.Type
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode.pegRule == ruleTypes {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleTypes) {
 			T := p.ruleTypesHandler(curNode)
 			if T == nil {
 				return nil
@@ -1840,13 +1683,7 @@ func (p *astParser) ruleGenericTypeHandler(node *node32) s.Type {
 		p.addError(curNode.token32, "Generic type should be 'List', but '%s' found", name)
 		return nil
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	T := p.ruleTypesHandler(curNode)
 	if T == nil {
 		return T
@@ -1857,13 +1694,11 @@ func (p *astParser) ruleGenericTypeHandler(node *node32) s.Type {
 func (p *astParser) parseAnnotatedFunc(node *node32) {
 	curNode := node
 	for {
-		if curNode != nil && curNode.pegRule == ruleAnnotatedFunc {
+		if isRule(curNode, ruleAnnotatedFunc) {
 			p.ruleAnnotatedFunc(curNode.up)
 			curNode = curNode.next
 		}
-		if curNode != nil && curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		if curNode == nil || (curNode.pegRule != rule_ && curNode.pegRule != ruleAnnotatedFunc) {
 			break
 		}
@@ -1988,10 +1823,7 @@ func (p *astParser) ruleAnnotatedFunc(node *node32) {
 	if annotation == "" {
 		return
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	expr, retType, types := p.ruleFuncHandler(curNode)
 	if expr == nil || retType == nil {
 		return
@@ -2042,12 +1874,7 @@ func (p *astParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 		p.addError(annotationNode.token32, "Undefined annotation '%s'", name)
 		return "", ""
 	}
-	if annotationNode.pegRule == rule_ {
-		annotationNode = annotationNode.next
-	}
-	if annotationNode.pegRule == rule_ {
-		annotationNode = annotationNode.next
-	}
+	annotationNode = skipToNextRule(annotationNode)
 	annotationNode = annotationNode.next.up
 	varName := p.nodeValue(annotationNode)
 	annotationNode = annotationNode.next
@@ -2078,10 +1905,7 @@ func (p *astParser) ruleAnnotationSeqHandler(node *node32) (string, string) {
 
 func (p *astParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 	p.stack.addFrame()
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	expr, varType := p.ruleExprHandler(curNode)
 	curNode = curNode.next
 	possibleTypes := s.UnionType{Types: []s.Type{}}
@@ -2111,10 +1935,8 @@ func (p *astParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 	var defaultCase ast.Node
 	unionRetType := s.UnionType{Types: []s.Type{}}
 	for {
-		if curNode != nil && curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode != nil && curNode.pegRule == ruleCase {
+		curNode = skipToNextRule(curNode)
+		if isRule(curNode, ruleCase) {
 			// new stack for each case
 			p.stack.addFrame()
 			cond, trueState, caseVarType := p.ruleCaseHandle(curNode, matchName, possibleTypes)
@@ -2147,18 +1969,9 @@ func (p *astParser) ruleMatchHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func (p *astParser) ruleCaseHandle(node *node32, matchName string, possibleTypes s.UnionType) (ast.Node, ast.Node, s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	statementNode := curNode
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	var blockType s.Type
 	var cond, trueState, block ast.Node
 	switch statementNode.pegRule {
@@ -2219,13 +2032,7 @@ func (p *astParser) ruleCaseHandle(node *node32, matchName string, possibleTypes
 func (p *astParser) ruleValuePatternHandler(node *node32, matchName string, possibleTypes s.UnionType) (ast.Node, ast.Node) {
 	curNode := node.up
 	nameNode := curNode
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	t := p.ruleTypesHandler(curNode)
 
 	if !possibleTypes.EqualWithEntry(t) {
@@ -2368,13 +2175,7 @@ func (p *astParser) ruleObjectFieldsPatternHandler(node *node32, matchName strin
 		p.addError(curNode.token32, "Object '%s' doesn't have field '%s'", structName, fieldName)
 		return nil, nil, curNode
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode = skipToNextRule(curNode.next)
 	switch curNode.pegRule {
 	case ruleIdentifier:
 		name := p.nodeValue(curNode)
@@ -2442,9 +2243,7 @@ func (p *astParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 	var shadowDeclarations []ast.Node
 	cnt := 0
 	for {
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 		if curNode == nil || curNode.pegRule != ruleTupleValuesPattern {
 			break
 		}
@@ -2457,12 +2256,7 @@ func (p *astParser) ruleTuplePatternHandler(node *node32, matchName string, poss
 		if curNode.next != nil {
 			curNode = curNode.next
 		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode)
 	}
 	tupleType := s.TupleType{Types: varsTypes}
 	if !possibleTypes.EqualWithEntry(tupleType) {
@@ -2508,13 +2302,7 @@ func (p *astParser) ruleTupleValuesPatternHandler(node *node32, matchName string
 	case ruleValuePattern:
 		curNode = curNode.up
 		nameNode := curNode
-		curNode = curNode.next
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
-		if curNode.pegRule == rule_ {
-			curNode = curNode.next
-		}
+		curNode = skipToNextRule(curNode.next)
 		varType = p.ruleTypesHandler(curNode)
 
 		expr = ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewPropertyNode("_"+strconv.Itoa(cnt+1), ast.NewReferenceNode(matchName)), ast.NewStringNode(varType.String())})
@@ -2557,13 +2345,7 @@ func (p *astParser) ruleTupleValuesPatternHandler(node *node32, matchName string
 }
 
 func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
-	curNode := node.up
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
+	curNode := skipToNextRule(node.up)
 	// parse num in fold macro
 	value := p.nodeValue(curNode)
 	if strings.Contains(value, "_") {
@@ -2573,17 +2355,7 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	if err != nil {
 		p.addError(curNode.token32, "Failed to parse integer value: %v", err)
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-
+	curNode = skipToNextRule(curNode.next)
 	arr, arrVarType := p.ruleExprHandler(curNode)
 	var elemType s.Type
 	if l, ok := arrVarType.(s.ListType); !ok {
@@ -2592,23 +2364,9 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	} else {
 		elemType = l.Type
 	}
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-
+	curNode = skipToNextRule(curNode.next)
 	start, startVarType := p.ruleExprHandler(curNode)
-	curNode = curNode.next
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-	if curNode.pegRule == rule_ {
-		curNode = curNode.next
-	}
-
+	curNode = skipToNextRule(curNode.next)
 	funcName := p.nodeValue(curNode)
 	funcSign, ok := p.stack.function(funcName)
 	if !ok {
@@ -2668,4 +2426,20 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		block = expr
 	}
 	return block, funcSign.ReturnType
+}
+
+func isRule(node *node32, rule pegRule) bool {
+	return node != nil && node.pegRule == rule
+}
+
+func skipToNextRule(node *node32) *node32 {
+	for {
+		if node == nil {
+			return nil
+		}
+		if node.pegRule != rule_ {
+			return node
+		}
+		node = node.next
+	}
 }

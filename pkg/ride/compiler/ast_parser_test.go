@@ -999,6 +999,36 @@ func verify() = {
 	}
 }
 
+func TestStrangeComment(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`{-# STDLIB_VERSION 5 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func foo(a: (Int,
+ Int # comment
+ )) = {
+  a._1 + a._2
+}
+
+@Callable(i)
+func call() = {
+  let a = foo((1, 2))
+  ([], a)
+}`,
+			false, "AAIFAAAAAAAAAAQIAhIAAAAAAQEAAAADZm9vAAAAAQAAAAFhCQAAZAAAAAIIBQAAAAFhAAAAAl8xCAUAAAABYQAAAAJfMgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAQAAAANmb28AAAABCQAFFAAAAAIAAAAAAAAAAAEAAAAAAAAAAAIJAAUUAAAAAgUAAAADbmlsBQAAAAFhAAAAAOHevw4="},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, false, true)
+		})
+	}
+}
+
 //go:embed testdata
 var embedScripts embed.FS
 
