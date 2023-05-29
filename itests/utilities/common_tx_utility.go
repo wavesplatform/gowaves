@@ -88,15 +88,15 @@ type AccountDiffBalancesSponsorshipSender struct {
 	DiffBalanceFeeAsset BalanceInAsset
 }
 
-func NewBalanceInWaves(balanceGo, balanceScala int64) *BalanceInWaves {
-	return &BalanceInWaves{
+func NewBalanceInWaves(balanceGo, balanceScala int64) BalanceInWaves {
+	return BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
 		BalanceInWavesScala: balanceScala,
 	}
 }
 
-func NewBalanceInAsset(balanceGo, balanceScala int64) *BalanceInAsset {
-	return &BalanceInAsset{
+func NewBalanceInAsset(balanceGo, balanceScala int64) BalanceInAsset {
+	return BalanceInAsset{
 		BalanceInAssetGo:    balanceGo,
 		BalanceInAssetScala: balanceScala,
 	}
@@ -111,9 +111,9 @@ type AccountsDiffBalancesTxWithSponsorship struct {
 func NewDiffBalancesTxWithSponsorship(diffBalanceWavesGoSender, diffBalanceWavesScalaSender, diffBalanceAssetGoSender,
 	diffBalanceAssetScalaSender, diffBalanceFeeAssetGoSender, diffBalanceFeeAssetScalaSender, diffBalanceWavesGoRecipient,
 	diffBalanceWavesScalaRecipient, diffBalanceAssetGoRecipient, diffBalanceAssetScalaRecipient, diffBalanceWavesGoSponsor,
-	diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor, diffBalanceAssetScalaSponsor int64) *AccountsDiffBalancesTxWithSponsorship {
+	diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor, diffBalanceAssetScalaSponsor int64) AccountsDiffBalancesTxWithSponsorship {
 
-	return &AccountsDiffBalancesTxWithSponsorship{
+	return AccountsDiffBalancesTxWithSponsorship{
 		DiffBalancesSender: AccountDiffBalancesSponsorshipSender{
 			DiffBalanceWaves: BalanceInWaves{
 				BalanceInWavesGo:    diffBalanceWavesGoSender,
@@ -152,8 +152,8 @@ func NewDiffBalancesTxWithSponsorship(diffBalanceWavesGoSender, diffBalanceWaves
 }
 
 func NewConsideredTransaction(txId crypto.Digest, respGo, respScala *client.Response,
-	errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) *ConsideredTransaction {
-	return &ConsideredTransaction{
+	errWtGo, errWtScala, errBrdCstGo, errBrdCstScala error) ConsideredTransaction {
+	return ConsideredTransaction{
 		TxID: txId,
 		Resp: Response{
 			ResponseGo:    respGo,
@@ -459,7 +459,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	connections.SendToNodes(suite.T(), txMsg, scala)
 
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
-	return *NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
+	return NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
@@ -473,7 +473,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
-	return *NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
+	return NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
 
 func getItestsDir() (string, error) {
