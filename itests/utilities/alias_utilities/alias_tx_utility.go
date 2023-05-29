@@ -18,10 +18,10 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Alias
 	tx := makeTx(suite, testdata, version, waitForTx)
 	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
-	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
+	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
 			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
-		*utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
-		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+		utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
+		utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 }
 
 func NewSignAliasTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK crypto.PublicKey,

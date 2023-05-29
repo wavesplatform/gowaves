@@ -45,7 +45,7 @@ type TransferExpectedValuesNegative struct {
 
 func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recipient, assetID *crypto.Digest,
 	feeAssetID *crypto.Digest, fee, amount, timestamp uint64, chainID proto.Scheme, attachment proto.Attachment,
-	expected T) *TransferTestData[T] {
+	expected T) TransferTestData[T] {
 	var asset, feeAsset proto.OptionalAsset
 	if assetID == nil {
 		asset = proto.NewOptionalAssetWaves()
@@ -57,7 +57,7 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 	} else {
 		feeAsset = *proto.NewOptionalAssetFromDigest(*feeAssetID)
 	}
-	return &TransferTestData[T]{
+	return TransferTestData[T]{
 		Sender:     sender,
 		Recipient:  recipient,
 		Asset:      asset,
@@ -72,7 +72,7 @@ func NewTransferTestData[T any](sender config.AccountInfo, recipient proto.Recip
 }
 
 func TransferDataChangedTimestamp[T any](td *TransferTestData[T]) TransferTestData[T] {
-	return *NewTransferTestData(td.Sender, td.Recipient, td.Asset.ToDigest(), td.FeeAsset.ToDigest(), td.Fee, td.Amount,
+	return NewTransferTestData(td.Sender, td.Recipient, td.Asset.ToDigest(), td.FeeAsset.ToDigest(), td.Fee, td.Amount,
 		utl.GetCurrentTimestampInMs(), td.ChainID, td.Attachment, td.Expected)
 }
 
@@ -86,7 +86,7 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 	from, to, _ := utl.SetFromToAccounts(accountNumbers...)
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, *assetId)
 	return CommonTransferData{
-		Asset: *NewTransferTestData(
+		Asset: NewTransferTestData(
 			utl.GetAccount(suite, from),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
 			assetId,
@@ -102,7 +102,7 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		NFT: *NewTransferTestData(
+		NFT: NewTransferTestData(
 			utl.GetAccount(suite, from),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
 			assetId,
@@ -118,7 +118,7 @@ func GetCommonTransferData(suite *f.BaseSuite, assetId *crypto.Digest, accountNu
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		Smart: *NewTransferTestData(
+		Smart: NewTransferTestData(
 			utl.GetAccount(suite, from),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address),
 			assetId,
@@ -147,7 +147,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
-		"Min values for fee, attachment and amount": *NewTransferTestData(
+		"Min values for fee, attachment and amount": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -163,7 +163,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		"Valid values for fee, amount, attachment, alias": *NewTransferTestData(
+		"Valid values for fee, amount, attachment, alias": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAlias(*proto.NewAlias(utl.TestChainID, alias)),
 			&assetId,
@@ -178,7 +178,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          assetAmount / 8,
 				WavesDiffBalanceRecipient: 0,
 			}),
-		"Waves transfer": *NewTransferTestData(
+		"Waves transfer": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			nil,
@@ -193,7 +193,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          0,
 				WavesDiffBalanceRecipient: wavesAmount / 8,
 			}),
-		"Transfer assets to oneself": *NewTransferTestData(
+		"Transfer assets to oneself": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address),
 			&assetId,
@@ -208,7 +208,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          0,
 				WavesDiffBalanceRecipient: utl.MinTxFeeWaves,
 			}),
-		"Transfer waves to oneself": *NewTransferTestData(
+		"Transfer waves to oneself": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address),
 			nil,
@@ -223,7 +223,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				AssetDiffBalance:          0,
 				WavesDiffBalanceRecipient: utl.MinTxFeeWaves,
 			}),
-		"Address as string": *NewTransferTestData(
+		"Address as string": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			rcpntAddress,
 			&assetId,
@@ -239,7 +239,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		"Alias as string": *NewTransferTestData(
+		"Alias as string": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			rcpntAlias,
 			nil,
@@ -262,7 +262,7 @@ func GetTransferPositiveData(suite *f.BaseSuite, assetId crypto.Digest, alias st
 func GetTransferMaxAmountPositive(suite *f.BaseSuite, assetId crypto.Digest, accNumber int) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, accNumber).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesPositive]{
-		"Max values for amount, attachment": *NewTransferTestData(
+		"Max values for amount, attachment": NewTransferTestData(
 			utl.GetAccount(suite, accNumber),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -287,7 +287,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	wavesAmount := utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
-		"Attachment > max": *NewTransferTestData(
+		"Attachment > max": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -307,7 +307,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "base58-encoded string length (193) exceeds maximum length of 192",
 			},
 		),
-		"Asset amount = 0": *NewTransferTestData(
+		"Asset amount = 0": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -326,7 +326,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
-		"Waves amount = 0": *NewTransferTestData(
+		"Waves amount = 0": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			nil,
@@ -345,7 +345,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "non-positive amount: 0",
 			},
 		),
-		"Asset amount > max": *NewTransferTestData(
+		"Asset amount > max": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -364,7 +364,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstScalaMsg: "failed to parse json message",
 			},
 		),
-		"Timestamp more than 7200000ms in the past relative to previous block timestamp": *NewTransferTestData(
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -382,7 +382,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 7200000ms in the past relative to previous block timestamp",
 			}),
-		"Timestamp more than 5400000ms in the future relative to previous block timestamp": *NewTransferTestData(
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -400,7 +400,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "is more than 5400000ms in the future relative to block timestamp",
 			}),
-		"Transfer token when fee more than funds on the sender balance": *NewTransferTestData(
+		"Transfer token when fee more than funds on the sender balance": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -418,7 +418,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Transaction application leads to negative waves balance",
 			}),
-		"Transfer of a bigger number of tokens than there are on the sender balance": *NewTransferTestData(
+		"Transfer of a bigger number of tokens than there are on the sender balance": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -436,7 +436,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Transaction application leads to negative asset",
 			}),
-		"Transfer all waves, not enough funds for fee": *NewTransferTestData(
+		"Transfer all waves, not enough funds for fee": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			nil,
@@ -461,7 +461,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
-		"Invalid chainID (value=0)": *NewTransferTestData(
+		"Invalid chainID (value=0)": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAddressWithNewSchema(
 				suite, 0, utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address)),
@@ -480,7 +480,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "invalid address",
 			}),
-		"Custom chainID": *NewTransferTestData(
+		"Custom chainID": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAddressWithNewSchema(
 				suite, 'T', utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address)),
@@ -506,7 +506,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 func GetTransferChainIDDataNegative(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesNegative] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	var t = map[string]TransferTestData[TransferExpectedValuesNegative]{
-		"Invalid chainID (value=0),which ignored for v1 and v2": *NewTransferTestData(
+		"Invalid chainID (value=0),which ignored for v1 and v2": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -524,7 +524,7 @@ func GetTransferChainIDDataNegative(suite *f.BaseSuite, assetId crypto.Digest) m
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Proof doesn't validate as signature",
 			}),
-		"Custom chainID, which ignored for v1 and v2": *NewTransferTestData(
+		"Custom chainID, which ignored for v1 and v2": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -549,7 +549,7 @@ func GetTransferChainIDDataNegative(suite *f.BaseSuite, assetId crypto.Digest) m
 func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Digest) map[string]TransferTestData[TransferExpectedValuesPositive] {
 	assetAmount := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address, assetId)
 	return map[string]TransferTestData[TransferExpectedValuesPositive]{
-		"Invalid chainID (value=0),which ignored for v1 and v2": *NewTransferTestData(
+		"Invalid chainID (value=0),which ignored for v1 and v2": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
@@ -565,7 +565,7 @@ func GetTransferChainIDDataBinaryVersions(suite *f.BaseSuite, assetId crypto.Dig
 				WavesDiffBalanceRecipient: 0,
 			},
 		),
-		"Custom chainID, which ignored for v1 and v2": *NewTransferTestData(
+		"Custom chainID, which ignored for v1 and v2": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, utl.DefaultRecipientNotMiner).Address),
 			&assetId,
