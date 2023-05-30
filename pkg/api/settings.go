@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	DefaultMaxConnections = 128
+	DefaultMaxConnections         = 128
+	DefaultRateLimiterStorageSize = 64 * 1024 // 64 KB
 )
 
 type RunOptions struct {
@@ -31,7 +32,11 @@ type RateLimiterOptions struct {
 
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
-		RateLimiterOpts:      nil,
+		RateLimiterOpts: &RateLimiterOptions{
+			MemoryCacheSize:      DefaultRateLimiterStorageSize,
+			MaxRequestsPerSecond: 1,
+			MaxBurst:             1,
+		},
 		LogHttpRequestOpts:   false,
 		EnableHeartbeatRoute: true,
 		UseRealIPMiddleware:  true,
