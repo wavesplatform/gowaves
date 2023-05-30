@@ -836,9 +836,12 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
 	height := proto.Height(i)
+	if height <= 0 {
+		return rideUnit{}, nil
+	}
 	header, err := env.state().NewestHeaderByHeight(height)
 	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
+		return rideUnit{}, nil
 	}
 	vrf, err := env.state().BlockVRF(header, height-1)
 	if err != nil {
