@@ -445,7 +445,7 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
-	timeout := 5 * time.Millisecond
+	timeout := 50 * time.Millisecond
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
 	if waitForTx {
@@ -469,7 +469,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 	var respScala *client.Response = nil
 	var errBrdCstScala error = nil
 	if !waitForTx {
-		timeout = time.Millisecond
+		timeout = 50 * time.Millisecond
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)

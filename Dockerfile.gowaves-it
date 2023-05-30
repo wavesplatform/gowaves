@@ -58,3 +58,4 @@ CMD /app/node \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \
+    -rate-limiter-opts="rps=100&burst=100" \
