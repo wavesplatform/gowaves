@@ -61,19 +61,6 @@ func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWave
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
 }
 
-//func (firstAddressBalanceDiff addressWavesBalanceDiff) mergeWithAnotherDiff(secondDiff addressWavesBalanceDiff) error {
-//	for address, diffBalance := range secondDiff {
-//		if _, ok := firstAddressBalanceDiff[address]; ok {
-//			oldBalance := firstAddressBalanceDiff[address]
-//			err := oldBalance.addCommon(&diffBalance)
-//			if err != nil {
-//				return errors.Wrap(err, "failed to merge two balance diffs")
-//			}
-//		}
-//	}
-//	return nil
-//}
-
 func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*transactionPerformer, error) {
 	return &transactionPerformer{stor, settings}, nil
 }
@@ -361,7 +348,6 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, applicationRes)
 }
 
-// TODO change balance of asset's owner
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetReissueChange{
@@ -424,7 +410,6 @@ func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Trans
 	return tp.performReissue(&tx.Reissue, info, applicationRes)
 }
 
-// TODO change balance of asset's owner
 func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetBurnChange{
