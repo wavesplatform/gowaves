@@ -21,13 +21,13 @@ type transactionPerformer struct {
 	settings *settings.BlockchainSettings
 }
 
-type assetBalanceDiff struct {
-	asset  proto.AssetID
-	amount int64
+type assetBalanceDiffKey struct {
+	address proto.WavesAddress
+	asset   proto.AssetID
 }
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
-type addressAssetBalanceDiff map[proto.WavesAddress]assetBalanceDiff
+type addressAssetBalanceDiff map[assetBalanceDiffKey]int64
 
 func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
@@ -48,7 +48,8 @@ func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWave
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to convert address id to waves address")
 			}
-			addrAssetBalanceDiff[address] = assetBalanceDiff{asset: asset, amount: diffAmount.balance}
+			assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
+			addrAssetBalanceDiff[assetBalKey] = diffAmount.balance
 			continue
 		}
 		address, err := wavesBalanceKey.address.ToWavesAddress(scheme)
@@ -101,19 +102,19 @@ func (tp *transactionPerformer) constructAssetBalanceSnapshotFromDiff(diff addre
 	var assetBalances []AssetBalanceSnapshot
 	// add miner address to the diff
 
-	for wavesAddress, diffAmount := range diff {
-		balance, err := tp.stor.balances.newestAssetBalance(wavesAddress.ID(), diffAmount.asset)
+	for key, diffAmount := range diff {
+		balance, err := tp.stor.balances.newestAssetBalance(key.address.ID(), key.asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		assetInfo, err := tp.stor.assets.newestAssetInfo(diffAmount.asset)
+		assetInfo, err := tp.stor.assets.newestAssetInfo(key.asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get newest asset info")
 		}
 		newBalance := AssetBalanceSnapshot{
-			Address: wavesAddress,
-			AssetID: diffAmount.asset.Digest(assetInfo.tail),
-			Balance: uint64(int64(balance) + diffAmount.amount),
+			Address: key.address,
+			AssetID: key.asset.Digest(assetInfo.tail),
+			Balance: uint64(int64(balance) + diffAmount),
 		}
 		assetBalances = append(assetBalances, newBalance)
 	}
@@ -230,6 +231,30 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 	return tp.performTransfer(applicationRes)
 }
 
+func generateIssueSnapshots(assetID crypto.Digest, txID crypto.Digest, senderPK crypto.PublicKey, assetInfo assetInfo) (*StaticAssetInfoSnapshot, *AssetDescriptionSnapshot, *AssetVolumeSnapshot) {
+	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
+		AssetID:             assetID,
+		IssuerPublicKey:     senderPK,
+		SourceTransactionID: txID,
+		Decimals:            assetInfo.decimals,
+		IsNFT:               assetInfo.isNFT(),
+	}
+
+	assetDescription := &AssetDescriptionSnapshot{
+		AssetID:          assetID,
+		AssetName:        assetInfo.name,
+		AssetDescription: assetInfo.description,
+		ChangeHeight:     assetInfo.lastNameDescChangeHeight,
+	}
+
+	assetReissuability := &AssetVolumeSnapshot{
+		AssetID:       assetID,
+		IsReissuable:  assetInfo.reissuable,
+		TotalQuantity: assetInfo.quantity,
+	}
+	return issueStaticInfoSnapshot, assetDescription, assetReissuability
+}
+
 func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest, assetID crypto.Digest, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
@@ -251,26 +276,8 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	}
 
 	var snapshot TransactionSnapshot
-	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
-		AssetID:             assetID,
-		IssuerPublicKey:     tx.SenderPK,
-		SourceTransactionID: txID,
-		Decimals:            assetInfo.decimals,
-		IsNFT:               assetInfo.isNFT(),
-	}
-
-	assetDescription := &AssetDescriptionSnapshot{
-		AssetID:          assetID,
-		AssetName:        assetInfo.name,
-		AssetDescription: assetInfo.description,
-		ChangeHeight:     assetInfo.lastNameDescChangeHeight,
-	}
-
-	assetReissuability := &AssetVolumeSnapshot{
-		AssetID:       assetID,
-		IsReissuable:  assetInfo.reissuable,
-		TotalQuantity: *big.NewInt(int64(tx.Quantity)),
-	}
+	issueStaticInfoSnapshot, assetDescription, assetReissuability := generateIssueSnapshots(assetID, txID,
+		tx.SenderPK, *assetInfo)
 
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 	if applicationRes != nil {
@@ -280,14 +287,15 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		}
 		// Remove the just issues snapshot from the diff, because it's not in the storage yet, so can't be processed with constructBalancesSnapshotFromDiff
 		var specialAssetSnapshot *AssetBalanceSnapshot
-		for addr, diff := range addrAssetBalanceDiff {
-			if diff.asset == proto.AssetIDFromDigest(assetID) {
+		for key, diffAmount := range addrAssetBalanceDiff {
+			if key.asset == proto.AssetIDFromDigest(assetID) {
 				// remove the element from the array
-				delete(addrAssetBalanceDiff, addr)
+
+				delete(addrAssetBalanceDiff, key)
 				specialAssetSnapshot = &AssetBalanceSnapshot{
-					Address: addr,
+					Address: key.address,
 					AssetID: assetID,
-					Balance: uint64(diff.amount),
+					Balance: uint64(diffAmount),
 				}
 			}
 		}
@@ -353,6 +361,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, applicationRes)
 }
 
+// TODO change balance of asset's owner
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetReissueChange{
@@ -415,6 +424,7 @@ func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Trans
 	return tp.performReissue(&tx.Reissue, info, applicationRes)
 }
 
+// TODO change balance of asset's owner
 func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetBurnChange{
@@ -559,6 +569,41 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 	return snapshot, nil
 }
 
+func (tp *transactionPerformer) generateLeaseSnapshots(leaseID crypto.Digest, l leasing, originalTxID crypto.Digest,
+	senderAddress proto.WavesAddress, receiverAddress proto.WavesAddress, amount int64) (*LeaseStateSnapshot, *LeaseBalanceSnapshot, *LeaseBalanceSnapshot, error) {
+	leaseStatusSnapshot := &LeaseStateSnapshot{
+		LeaseID:             leaseID,
+		Status:              l.Status,
+		Amount:              l.Amount,
+		Sender:              l.Sender,
+		Recipient:           l.Recipient,
+		OriginTransactionID: originalTxID,
+		Height:              l.Height,
+	}
+
+	senderBalanceProfile, err := tp.stor.balances.wavesBalance(senderAddress.ID())
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
+	}
+	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		Address:  senderAddress,
+		LeaseIn:  uint64(senderBalanceProfile.leaseIn),
+		LeaseOut: uint64(senderBalanceProfile.leaseOut + amount),
+	}
+
+	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(receiverAddress.ID())
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "failed to receive recipient's waves balance")
+	}
+	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+		Address:  receiverAddress,
+		LeaseIn:  uint64(receiverBalanceProfile.leaseIn + amount),
+		LeaseOut: uint64(receiverBalanceProfile.leaseOut),
+	}
+
+	return leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, nil
+}
+
 func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -582,36 +627,11 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		Status:         LeaseActive,
 		RecipientAlias: tx.Recipient.Alias(),
 	}
-	leaseStatusSnapshot := &LeaseStateSnapshot{
-		LeaseID:             *id,
-		Status:              l.Status,
-		Amount:              l.Amount,
-		Sender:              l.Sender,
-		Recipient:           l.Recipient,
-		OriginTransactionID: *id,
-		Height:              l.Height,
-	}
-
-	senderBalanceProfile, err := tp.stor.balances.wavesBalance(senderAddr.ID())
+	var amount = int64(tx.Amount)
+	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(*id, *l, *id, senderAddr, recipientAddr, amount)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+		return nil, errors.Wrap(err, "failed to generate snapshots for a lease transaction")
 	}
-	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
-		Address:  senderAddr,
-		LeaseIn:  uint64(senderBalanceProfile.leaseIn),
-		LeaseOut: uint64(senderBalanceProfile.leaseOut + int64(tx.Amount)),
-	}
-
-	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(recipientAddr.ID())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to receive recipient's waves balance")
-	}
-	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
-		Address:  recipientAddr,
-		LeaseIn:  uint64(receiverBalanceProfile.leaseIn + int64(tx.Amount)),
-		LeaseOut: uint64(receiverBalanceProfile.leaseOut),
-	}
-
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
 	if applicationRes != nil {
@@ -659,40 +679,11 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 		return nil, errors.Wrap(err, "failed to receiver leasing info")
 	}
 
-	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID); err != nil {
-		return nil, errors.Wrap(err, "failed to cancel leasing")
-	}
-	leaseStatusSnapshot := &LeaseStateSnapshot{
-		LeaseID:             tx.LeaseID,
-		Status:              LeaseCanceled,
-		Amount:              leasingInfo.Amount,
-		Sender:              leasingInfo.Sender,
-		Recipient:           leasingInfo.Recipient,
-		OriginTransactionID: *txID,
-		Height:              leasingInfo.Height,
-	}
-
-	// TODO check if the balance will be updated immediately after the leasing
-	senderBalanceProfile, err := tp.stor.balances.wavesBalance(leasingInfo.Sender.ID())
+	var amount = -int64(leasingInfo.Amount)
+	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(tx.LeaseID, *leasingInfo, *txID, leasingInfo.Sender, leasingInfo.Recipient, amount)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+		return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel transaction")
 	}
-	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
-		Address:  leasingInfo.Sender,
-		LeaseIn:  uint64(senderBalanceProfile.leaseIn),
-		LeaseOut: uint64(senderBalanceProfile.leaseOut),
-	}
-
-	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(leasingInfo.Recipient.ID())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to receive recipient's waves balance")
-	}
-	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
-		Address:  leasingInfo.Recipient,
-		LeaseIn:  uint64(receiverBalanceProfile.leaseIn),
-		LeaseOut: uint64(receiverBalanceProfile.leaseOut),
-	}
-
 	var snapshot TransactionSnapshot
 	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
 	if applicationRes != nil {
@@ -710,6 +701,10 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 		for _, ab := range assetBalanceSnapshot {
 			snapshot = append(snapshot, &ab)
 		}
+	}
+
+	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID); err != nil {
+		return nil, errors.Wrap(err, "failed to cancel leasing")
 	}
 	return snapshot, nil
 }
@@ -829,6 +824,7 @@ func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.T
 		return nil, errors.New("failed to convert interface to SponsorshipWithProofs transaction")
 	}
 	sponsorshipSnapshot := &SponsorshipSnapshot{
+
 		AssetID:         tx.AssetID,
 		MinSponsoredFee: tx.MinAssetFee,
 	}
@@ -934,6 +930,268 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	return snapshot, nil
 }
 
+func addToWavesBalanceDiff(addrWavesBalanceDiff addressWavesBalanceDiff,
+	senderAddress proto.WavesAddress,
+	recipientAddress proto.WavesAddress,
+	amount int64) {
+	if _, ok := addrWavesBalanceDiff[senderAddress]; ok {
+		prevBalance := addrWavesBalanceDiff[senderAddress]
+		prevBalance.balance -= amount
+		addrWavesBalanceDiff[senderAddress] = prevBalance
+	} else {
+		addrWavesBalanceDiff[senderAddress] = balanceDiff{balance: amount}
+	}
+
+	if _, ok := addrWavesBalanceDiff[recipientAddress]; ok {
+		prevRecipientBalance := addrWavesBalanceDiff[recipientAddress]
+		prevRecipientBalance.balance += amount
+		addrWavesBalanceDiff[recipientAddress] = prevRecipientBalance
+	} else {
+		addrWavesBalanceDiff[recipientAddress] = balanceDiff{balance: amount}
+	}
+}
+
+// subtracts the amount from the sender's balance and add it to the recipient's balane
+func addSenderRecipientToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
+	senderAddress proto.WavesAddress,
+	recipientAddress proto.WavesAddress,
+	asset proto.AssetID,
+	amount int64) {
+	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
+	keyRecipient := assetBalanceDiffKey{address: recipientAddress, asset: asset}
+
+	if _, ok := addrAssetBalanceDiff[keySender]; ok {
+		prevSenderBalance := addrAssetBalanceDiff[keySender]
+		prevSenderBalance -= amount
+		addrAssetBalanceDiff[keySender] = prevSenderBalance
+	} else {
+		addrAssetBalanceDiff[keySender] = amount
+	}
+
+	if _, ok := addrAssetBalanceDiff[keyRecipient]; ok {
+		prevRecipientBalance := addrAssetBalanceDiff[keyRecipient]
+		prevRecipientBalance += amount
+		addrAssetBalanceDiff[keyRecipient] = prevRecipientBalance
+	} else {
+		addrAssetBalanceDiff[keyRecipient] = amount
+	}
+}
+
+// adds/subtracts the amount to the sender balance
+func addSenderToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
+	senderAddress proto.WavesAddress,
+	asset proto.AssetID,
+	amount int64) {
+	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
+
+	if _, ok := addrAssetBalanceDiff[keySender]; ok {
+		prevSenderBalance := addrAssetBalanceDiff[keySender]
+		prevSenderBalance += amount
+		addrAssetBalanceDiff[keySender] = prevSenderBalance
+	} else {
+		addrAssetBalanceDiff[keySender] = amount
+	}
+
+}
+
+func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+
+	blockHeight := info.height + 1
+
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
+	}
+	var snapshot TransactionSnapshot
+	var dataEntries = make(map[proto.WavesAddress]proto.DataEntries)
+	if invocationRes != nil {
+
+		for _, action := range invocationRes.actions {
+
+			switch a := action.(type) {
+			case *proto.DataEntryScriptAction:
+				senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, err
+				}
+				// construct the map first and create the snapshot later for convenience
+				if _, ok := dataEntries[senderAddr]; ok {
+					entries := dataEntries[senderAddr]
+					entries = append(entries, a.Entry)
+					dataEntries[senderAddr] = entries
+				} else {
+					dataEntries[senderAddr] = proto.DataEntries{a.Entry}
+				}
+
+			case *proto.AttachedPaymentScriptAction:
+				senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get an address from a public key")
+				}
+				recipientAddress, err := recipientToAddress(a.Recipient, tp.stor.aliases)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				// No balance validation done below
+				if a.Asset.Present { // Update asset balance
+					addSenderRecipientToAssetBalanceDiff(addrAssetBalanceDiff, senderAddress, recipientAddress, proto.AssetIDFromDigest(a.Asset.ID), a.Amount)
+				} else { // Update Waves balance
+					addToWavesBalanceDiff(addrWavesBalanceDiff, senderAddress, recipientAddress, a.Amount)
+				}
+			case *proto.TransferScriptAction:
+				senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get an address from a public key")
+				}
+				recipientAddress, err := recipientToAddress(a.Recipient, tp.stor.aliases)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to apply attached payment")
+				}
+				// No balance validation done below
+				if a.Asset.Present { // Update asset balance
+					addSenderRecipientToAssetBalanceDiff(addrAssetBalanceDiff, senderAddress, recipientAddress, proto.AssetIDFromDigest(a.Asset.ID), a.Amount)
+				} else { // Update Waves balance
+					addToWavesBalanceDiff(addrWavesBalanceDiff, senderAddress, recipientAddress, a.Amount)
+				}
+			case *proto.SponsorshipScriptAction:
+				sponsorshipSnapshot := &SponsorshipSnapshot{
+					AssetID:         a.AssetID,
+					MinSponsoredFee: uint64(a.MinFee),
+				}
+				snapshot = append(snapshot, sponsorshipSnapshot)
+			case *proto.IssueScriptAction:
+				assetInfo := assetInfo{
+					assetConstInfo: assetConstInfo{
+						tail:                 proto.DigestTail(a.ID),
+						issuer:               *a.Sender,
+						decimals:             uint8(a.Decimals),
+						issueHeight:          blockHeight,
+						issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
+					},
+					assetChangeableInfo: assetChangeableInfo{
+						quantity:                 *big.NewInt(a.Quantity),
+						name:                     a.Name,
+						description:              a.Description,
+						lastNameDescChangeHeight: blockHeight,
+						reissuable:               a.Reissuable,
+					},
+				}
+				issuerAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get an address from a public key")
+				}
+
+				issueStaticInfoSnapshot, assetDescription, assetReissuability := generateIssueSnapshots(a.ID, txID, *a.Sender, assetInfo)
+				snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+
+				addSenderToAssetBalanceDiff(addrAssetBalanceDiff, issuerAddress, proto.AssetIDFromDigest(a.ID), a.Quantity)
+
+			case *proto.ReissueScriptAction:
+
+				assetInfo, err := tp.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(a.AssetID))
+				if err != nil {
+					return nil, err
+				}
+				quantityDiff := big.NewInt(a.Quantity)
+				resQuantity := assetInfo.quantity.Add(&assetInfo.quantity, quantityDiff)
+				assetReissuability := &AssetVolumeSnapshot{
+					AssetID:       a.AssetID,
+					TotalQuantity: *resQuantity,
+					IsReissuable:  a.Reissuable,
+				}
+
+				issueAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get an address from a public key")
+				}
+				addSenderToAssetBalanceDiff(addrAssetBalanceDiff, issueAddress, proto.AssetIDFromDigest(a.AssetID), a.Quantity)
+				snapshot = append(snapshot, assetReissuability)
+
+			case *proto.BurnScriptAction:
+				assetInfo, err := tp.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(a.AssetID))
+				if err != nil {
+					return nil, err
+				}
+				quantityDiff := big.NewInt(a.Quantity)
+				resQuantity := assetInfo.quantity.Sub(&assetInfo.quantity, quantityDiff)
+				assetReissuability := &AssetVolumeSnapshot{
+					AssetID:       a.AssetID,
+					TotalQuantity: *resQuantity,
+					IsReissuable:  assetInfo.reissuable,
+				}
+
+				issueAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get an address from a public key")
+				}
+				addSenderToAssetBalanceDiff(addrAssetBalanceDiff, issueAddress, proto.AssetIDFromDigest(a.AssetID), -a.Quantity)
+				snapshot = append(snapshot, assetReissuability)
+			case *proto.LeaseScriptAction:
+				senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, *a.Sender)
+				if err != nil {
+					return nil, err
+				}
+				var recipientAddr proto.WavesAddress
+				if addr := a.Recipient.Address(); addr == nil {
+					recipientAddr, err = tp.stor.aliases.newestAddrByAlias(a.Recipient.Alias().Alias)
+					if err != nil {
+						return nil, errors.Errorf("invalid alias: %v\n", err)
+					}
+				} else {
+					recipientAddr = *addr
+				}
+				l := &leasing{
+					Sender:         senderAddr,
+					Recipient:      recipientAddr,
+					Amount:         uint64(a.Amount),
+					Height:         info.height,
+					Status:         LeaseActive,
+					RecipientAlias: a.Recipient.Alias(),
+				}
+				var amount = int64(l.Amount)
+				leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(a.ID, *l, txID, senderAddr, recipientAddr, amount)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to generate snapshots for a lease action")
+				}
+				snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+			case *proto.LeaseCancelScriptAction:
+				l, err := tp.stor.leases.leasingInfo(a.LeaseID)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to receiver leasing info")
+				}
+
+				var amount = -int64(l.Amount)
+				leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(a.LeaseID, *l, txID, l.Sender, l.Recipient, amount)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel action")
+				}
+				snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+			default:
+				return nil, errors.Errorf("unknown script action type %T", a)
+			}
+		}
+
+		for address, entries := range dataEntries {
+			dataEntrySnapshot := &DataEntriesSnapshot{Address: address, DataEntries: entries}
+			snapshot = append(snapshot, dataEntrySnapshot)
+		}
+
+	}
+
+	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+	}
+	for _, wb := range wavesBalanceSnapshot {
+		snapshot = append(snapshot, &wb)
+	}
+	for _, ab := range assetBalanceSnapshot {
+		snapshot = append(snapshot, &ab)
+	}
+
+	return snapshot, nil
+}
+
 func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
@@ -941,35 +1199,21 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to commit invoke changes")
 	}
-	// TODO
-	if applicationRes != nil {
-		for _, action := range invocationRes.actions {
-
-			switch a := action.(type) {
-			case *proto.DataEntryScriptAction:
-
-			case *proto.AttachedPaymentScriptAction:
-
-			case *proto.TransferScriptAction:
-
-			case *proto.SponsorshipScriptAction:
-
-			case *proto.IssueScriptAction:
-
-			case *proto.ReissueScriptAction:
-
-			case *proto.BurnScriptAction:
-
-			case *proto.LeaseScriptAction:
-
-			case *proto.LeaseCancelScriptAction:
-
-			default:
-				return nil, errors.Errorf("unknown script action type %T", a)
-			}
-		}
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
-	return nil, nil
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot, err := tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate a snapshot for an invoke transaction")
+	}
+
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
@@ -979,8 +1223,20 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to commit invoke changes")
 	}
-	// TODO
-	return nil, nil
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate a snapshot for an invoke transaction")
+	}
+
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
@@ -993,25 +1249,20 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 			return nil, errors.Wrap(err, "failed to commit invoke changes")
 		}
 	}
-	var snapshot TransactionSnapshot
-	if applicationRes != nil {
-		addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
-		}
-		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-		}
-		for _, wb := range wavesBalanceSnapshot {
-			snapshot = append(snapshot, &wb)
-		}
-		for _, ab := range assetBalanceSnapshot {
-			snapshot = append(snapshot, &ab)
-		}
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
 	}
 
-	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
+	snapshot, err := tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate a snapshot for an invoke transaction")
+	}
+
 	return snapshot, nil
 }
 
