@@ -455,10 +455,11 @@ func apiRunOptsFromCLIFlags() *api.RunOptions {
 	}
 	if *rateLimiterOptions != "" {
 		rlo, err := api.NewRateLimiterOptionsFromString(*rateLimiterOptions)
-		if err != nil {
+		if err == nil {
+			opts.RateLimiterOpts = rlo
+		} else {
 			zap.S().Errorf("Invalid rate limiter options '%s': %v", *rateLimiterOptions, err)
 		}
-		opts.RateLimiterOpts = rlo
 	}
 	return opts
 }

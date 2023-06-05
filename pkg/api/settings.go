@@ -44,11 +44,7 @@ type RateLimiterOptions struct {
 
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
-		RateLimiterOpts: &RateLimiterOptions{
-			MemoryCacheSize:      DefaultRateLimiterCacheSize,
-			MaxRequestsPerSecond: DefaultRateLimiterRPS,
-			MaxBurst:             DefaultRateLimiterBurst,
-		},
+		RateLimiterOpts:      DefaultRateLimiterOptions(),
 		LogHttpRequestOpts:   false,
 		EnableHeartbeatRoute: true,
 		UseRealIPMiddleware:  true,
@@ -64,51 +60,49 @@ func DefaultRunOptions() *RunOptions {
 	}
 }
 
-func NewRateLimiterOptionsFromString(s string) (*RateLimiterOptions, error) {
-	opt := &RateLimiterOptions{
+func DefaultRateLimiterOptions() *RateLimiterOptions {
+	return &RateLimiterOptions{
 		MemoryCacheSize:      DefaultRateLimiterCacheSize,
 		MaxRequestsPerSecond: DefaultRateLimiterRPS,
 		MaxBurst:             DefaultRateLimiterBurst,
 	}
+}
+
+func NewRateLimiterOptionsFromString(s string) (*RateLimiterOptions, error) {
+	opt := DefaultRateLimiterOptions()
 	query, err := url.ParseQuery(strings.TrimSpace(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid rate limiter options")
 	}
-	cacheSize, ok, err := extractFirstIntValue(query, cacheSizeKey)
-	if ok {
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid rate limiter options")
-		}
-		opt.MemoryCacheSize = cacheSize
+	cacheSize, err := extractFirstIntValue(query, cacheSizeKey, DefaultRateLimiterCacheSize)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid rate limiter options")
 	}
-	rps, ok, err := extractFirstIntValue(query, rpsKey)
-	if ok {
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid rate limiter options")
-		}
-		opt.MaxRequestsPerSecond = rps
+	opt.MemoryCacheSize = cacheSize
+	rps, err := extractFirstIntValue(query, rpsKey, DefaultRateLimiterRPS)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid rate limiter options")
 	}
-	burst, ok, err := extractFirstIntValue(query, burstKey)
-	if ok {
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid rate limiter options")
-		}
-		opt.MaxBurst = burst
+	opt.MaxRequestsPerSecond = rps
+	burst, err := extractFirstIntValue(query, burstKey, DefaultRateLimiterBurst)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid rate limiter options")
 	}
+	opt.MaxBurst = burst
 	return opt, nil
 }
 
-func extractFirstIntValue(query url.Values, key string) (int, bool, error) {
+func extractFirstIntValue(query url.Values, key string, dft int) (int, error) {
 	values, ok := query[key]
 	if !ok {
-		return 0, false, nil
+		return dft, nil
 	}
 	if len(values) < 1 {
-		return 0, true, errors.Errorf("no value for key '%s'", key)
+		return 0, errors.Errorf("no value for key '%s'", key)
 	}
 	v, err := strconv.ParseInt(strings.TrimSpace(values[0]), 10, 32)
 	if err != nil {
-		return 0, true, errors.Wrapf(err, "invalid value for key '%s'", key)
+		return 0, errors.Wrapf(err, "invalid value for key '%s'", key)
 	}
-	return int(v), true, nil
+	return int(v), nil
 }
