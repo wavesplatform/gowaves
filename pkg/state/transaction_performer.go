@@ -72,7 +72,7 @@ func (tp *transactionPerformer) constructWavesBalanceSnapshotFromDiff(diff addre
 
 	for wavesAddress, diffAmount := range diff {
 
-		fullBalance, err := tp.stor.balances.wavesBalance(wavesAddress.ID())
+		fullBalance, err := tp.stor.balances.newestWavesBalance(wavesAddress.ID())
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
@@ -566,7 +566,7 @@ func (tp *transactionPerformer) generateLeaseSnapshots(leaseID crypto.Digest, l 
 		Height:              l.Height,
 	}
 
-	senderBalanceProfile, err := tp.stor.balances.wavesBalance(senderAddress.ID())
+	senderBalanceProfile, err := tp.stor.balances.newestWavesBalance(senderAddress.ID())
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 	}
@@ -576,7 +576,7 @@ func (tp *transactionPerformer) generateLeaseSnapshots(leaseID crypto.Digest, l 
 		LeaseOut: uint64(senderBalanceProfile.leaseOut + amount),
 	}
 
-	receiverBalanceProfile, err := tp.stor.balances.wavesBalance(receiverAddress.ID())
+	receiverBalanceProfile, err := tp.stor.balances.newestWavesBalance(receiverAddress.ID())
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to receive recipient's waves balance")
 	}
