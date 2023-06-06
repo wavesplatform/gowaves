@@ -839,34 +839,15 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if height <= 0 {
 		return rideUnit{}, nil
 	}
-	header, err := env.state().NewestHeaderByHeight(height)
+	blockInfo, err := env.state().NewestBlockInfoByHeight(height)
 	if err != nil {
 		return rideUnit{}, nil
-	}
-	vrf, err := env.state().BlockVRF(header, height-1)
-	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
 	v, err := env.libVersion()
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	if v >= ast.LibV7 {
-		rewards, err := env.state().BlockRewards(header, height)
-		if err != nil {
-			return nil, errors.Wrap(err, "blockInfoByHeight")
-		}
-		obj, err := blockHeaderToObjectV7(env.scheme(), height, header, vrf, rewards)
-		if err != nil {
-			return nil, errors.Wrap(err, "blockInfoByHeight")
-		}
-		return obj, nil
-	}
-	obj, err := blockHeaderToObjectV1V6(env.scheme(), height, header, vrf)
-	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
-	}
-	return obj, nil
+	return blockInfoToObject(blockInfo, v), nil
 }
 
 func transferByID(env environment, args ...rideType) (rideType, error) {

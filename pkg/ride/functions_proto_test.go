@@ -736,7 +736,26 @@ func TestAssetInfoV4(t *testing.T) {
 }
 
 func TestBlockInfoByHeight(t *testing.T) {
-	t.SkipNow()
+	bi1 := protobufBlockBuilder()
+	e1 := newTestEnv(t).withBlock(bi1.toBlockInfo())
+	for _, test := range []struct {
+		te   *testEnv
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{e1, []rideType{rideInt(0)}, false, rideUnit{}},
+		{e1, []rideType{rideInt(-1)}, false, rideUnit{}},
+		{e1, []rideType{rideInt(1)}, false, rideUnit{}},
+	} {
+		r, err := blockInfoByHeight(test.te.toEnv(), test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestTransferByID(t *testing.T) {

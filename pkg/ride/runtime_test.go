@@ -428,16 +428,8 @@ func makeFullAssetInfo(digest crypto.Digest, pk crypto.PublicKey, address proto.
 }
 
 func makeBlockInfo(sig []byte, address proto.WavesAddress, pk crypto.PublicKey) rideType {
-	info := &proto.BlockInfo{
-		Timestamp:           1,
-		Height:              2,
-		BaseTarget:          3,
-		GenerationSignature: sig,
-		Generator:           address,
-		GeneratorPublicKey:  pk,
-		VRF:                 sig,
-	}
-	return blockInfoToObject(info)
+	info := proto.NewBlockInfo(proto.ProtobufBlockVersion, 1, 2, 3, address, pk, sig, sig, nil)
+	return blockInfoToObject(info, ast.LibV4)
 }
 
 func TestTypesStrings(t *testing.T) {

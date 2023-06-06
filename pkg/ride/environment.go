@@ -334,18 +334,6 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}, nil
 }
 
-func (ws *WrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
-	return ws.diff.state.NewestHeaderByHeight(height)
-}
-
-func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return ws.diff.state.BlockVRF(blockHeader, height)
-}
-
-func (ws *WrappedState) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
-	return ws.diff.state.BlockRewards(blockHeader, height)
-}
-
 func (ws *WrappedState) EstimatorVersion() (int, error) {
 	return ws.diff.state.EstimatorVersion()
 }
@@ -356,6 +344,10 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 
 func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
+}
+
+func (ws *WrappedState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	return ws.diff.state.NewestBlockInfoByHeight(height)
 }
 
 func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
@@ -1164,8 +1156,13 @@ func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
 	e.th = rideAddress(addr)
 }
 
-func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
-	e.b = blockInfoToObject(info)
+func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) error {
+	v, err := e.libVersion()
+	if err != nil {
+		return err
+	}
+	e.b = blockInfoToObject(info, v)
+	return nil
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
