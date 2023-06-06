@@ -120,6 +120,7 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	cfg.SponsorshipSingleActivationPeriod = true
 	cfg.FeaturesVotingPeriod = 1
 	cfg.VotesForFeatureActivation = 1
+	cfg.MinUpdateAssetInfoInterval = 1
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}

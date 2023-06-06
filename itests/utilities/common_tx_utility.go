@@ -346,6 +346,27 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	return assetInfo
 }
 
+func GetHeightGo(suite *f.BaseSuite) uint64 {
+	return suite.Clients.GoClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeightScala(suite *f.BaseSuite) uint64 {
+	return suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeight(suite *f.BaseSuite) uint64 {
+	goHeight := GetHeightGo(suite)
+	scalaHeight := GetHeightScala(suite)
+	if goHeight < scalaHeight {
+		return goHeight
+	}
+	return scalaHeight
+}
+
+func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.WaitForHeight(suite.T(), height)
+}
+
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
 	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }
