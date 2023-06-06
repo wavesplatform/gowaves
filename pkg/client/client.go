@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"context"
 	"encoding/json"
@@ -21,12 +22,14 @@ type Doer interface {
 
 type Options struct {
 	BaseUrl string
+	ChainID proto.Scheme
 	Client  Doer
 	ApiKey  string
 }
 
 var defaultOptions = Options{
 	BaseUrl: "https://nodes.wavesnodes.com",
+	ChainID: proto.MainNetScheme,
 	Client:  &http.Client{Timeout: 3 * time.Second},
 }
 
