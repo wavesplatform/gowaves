@@ -129,7 +129,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiSmartAssetPositi
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
-	issue_versions := []byte{3} //issue_utilities.GetVersions(&suite.BaseSuite)
+	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		for _, iv := range issue_versions {
@@ -188,9 +188,6 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiWithoutWaitingNe
 						&suite.BaseSuite, td, v, !waitForTx)
 					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 
-					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-						tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
 					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
 						tx.WtErr.ErrWtScala, errMsg)
 					utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
