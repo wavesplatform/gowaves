@@ -211,7 +211,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxSmartAssetNegative() {
 		for _, iv := range issue_versions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
 			itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, iv, waitForTx)
-			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
+			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
 				height := utl.GetHeight(&suite.BaseSuite)
 				caseName := utl.GetTestcaseNameWithVersion(name, v)
