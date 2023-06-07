@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -736,17 +737,21 @@ func TestAssetInfoV4(t *testing.T) {
 }
 
 func TestBlockInfoByHeight(t *testing.T) {
-	bi1 := protobufBlockBuilder()
-	e1 := newTestEnv(t).withBlock(bi1.toBlockInfo())
+	gen := newTestAccount(t, "GENERATOR")
+	rewards := proto.Rewards{proto.NewReward(gen.address(), 12345)}
+	bi := protobufBlockBuilder().withHeight(2).withGenerator(gen).withRewards(rewards)
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlock(bi.toBlockInfo())
+	obj := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
 	for _, test := range []struct {
 		te   *testEnv
 		args []rideType
 		fail bool
 		r    rideType
 	}{
-		{e1, []rideType{rideInt(0)}, false, rideUnit{}},
-		{e1, []rideType{rideInt(-1)}, false, rideUnit{}},
-		{e1, []rideType{rideInt(1)}, false, rideUnit{}},
+		{env, []rideType{rideInt(0)}, false, rideUnit{}},
+		{env, []rideType{rideInt(-1)}, false, rideUnit{}},
+		{env, []rideType{rideInt(1)}, false, rideUnit{}},
+		{env, []rideType{rideInt(2)}, false, obj},
 	} {
 		r, err := blockInfoByHeight(test.te.toEnv(), test.args...)
 		if test.fail {

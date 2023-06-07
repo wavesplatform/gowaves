@@ -12,6 +12,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -20,8 +23,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/atomic"
-	"go.uber.org/zap"
 )
 
 const (
@@ -679,8 +680,6 @@ func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height 
 		return nil, err
 	}
 	generatorReward := reward
-	// TODO: Use this code after activation of feature 20
-	// active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	active, err := s.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return nil, err
