@@ -170,6 +170,92 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNegative() {
 	}
 }
 
+func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxNFTApiNegative() {
+	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
+	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
+	waitForTx := true
+	for _, v := range versions {
+		for _, iv := range issue_versions {
+			nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
+			itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, iv, waitForTx)
+			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
+			for name, td := range tdmatrix {
+				height := utl.GetHeight(&suite.BaseSuite)
+				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+				suite.Run(caseName, func() {
+					//***wait n blocks***
+					utl.WaitForHeight(&suite.BaseSuite, height+1)
+					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						&suite.BaseSuite, td, v, !waitForTx)
+					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
+
+					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+						tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+						tx.WtErr.ErrWtScala, errMsg)
+					utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+						actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+					utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+						actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+
+					assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+					utl.AssetNameCheck(suite.T(), initAssetDetailsGo.GetName(), assetDetailsGo.GetName(), assetDetailsScala.GetName(), errMsg)
+					utl.AssetNameCheck(suite.T(), initAssetDetailsScala.GetName(), assetDetailsGo.GetName(), assetDetailsScala.GetName(), errMsg)
+					utl.AssetDescriptionCheck(suite.T(), initAssetDetailsGo.GetDescription(), assetDetailsGo.GetDescription(),
+						assetDetailsScala.GetDescription(), errMsg)
+					utl.AssetDescriptionCheck(suite.T(), initAssetDetailsScala.GetDescription(), assetDetailsGo.GetDescription(),
+						assetDetailsScala.GetDescription(), errMsg)
+				})
+			}
+		}
+	}
+}
+
+func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxSmartAssetApiNegative() {
+	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
+	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
+	waitForTx := true
+	for _, v := range versions {
+		for _, iv := range issue_versions {
+			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
+			itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smart, iv, waitForTx)
+			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
+			for name, td := range tdmatrix {
+				height := utl.GetHeight(&suite.BaseSuite)
+				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+				suite.Run(caseName, func() {
+					//***wait n blocks***
+					utl.WaitForHeight(&suite.BaseSuite, height+1)
+					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						&suite.BaseSuite, td, v, !waitForTx)
+					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
+
+					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+						tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+						tx.WtErr.ErrWtScala, errMsg)
+					utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+						actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+					utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+						actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+
+					assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+					utl.AssetNameCheck(suite.T(), initAssetDetailsGo.GetName(), assetDetailsGo.GetName(), assetDetailsScala.GetName(), errMsg)
+					utl.AssetNameCheck(suite.T(), initAssetDetailsScala.GetName(), assetDetailsGo.GetName(), assetDetailsScala.GetName(), errMsg)
+					utl.AssetDescriptionCheck(suite.T(), initAssetDetailsGo.GetDescription(), assetDetailsGo.GetDescription(),
+						assetDetailsScala.GetDescription(), errMsg)
+					utl.AssetDescriptionCheck(suite.T(), initAssetDetailsScala.GetDescription(), assetDetailsGo.GetDescription(),
+						assetDetailsScala.GetDescription(), errMsg)
+				})
+			}
+		}
+	}
+}
+
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiWithoutWaitingNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
