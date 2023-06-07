@@ -36,6 +36,7 @@ require (
 	github.com/stretchr/testify v1.8.3
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.11.0
+	github.com/tidwall/sjson v1.2.5
 	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
@@ -92,6 +93,9 @@ require (
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
+	github.com/tidwall/gjson v1.14.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect

@@ -24,6 +24,7 @@ func NewHttpClient(t *testing.T, port string) *HttpClient {
 		BaseUrl: "http://" + d.Localhost + ":" + port + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
+		ChainID: 'L', // I tried to use constant `utilities.TestChainID`, but after all decided that a little duplication is better in this case.
 	})
 	require.NoError(t, err, "couldn't create go node api client")
 	return &HttpClient{
@@ -99,7 +100,7 @@ func (c *HttpClient) AssetBalance(t *testing.T, address proto.WavesAddress, asse
 	return balance
 }
 
-func (c *HttpClient) ConnectedPeers(t *testing.T) ([]*client.PeersConnectedRow, *client.Response, error) {
+func (c *HttpClient) ConnectedPeers() ([]*client.PeersConnectedRow, *client.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	connectedPeers, resp, err := c.cli.Peers.Connected(ctx)
