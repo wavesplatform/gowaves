@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
+	"github.com/tidwall/sjson"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -166,6 +167,12 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 	bts, err := json.Marshal(transaction)
 	if err != nil {
 		return nil, err
+	}
+	if chainID := a.options.ChainID; chainID != 0 { // add chainID if present
+		bts, err = sjson.SetBytes(bts, "chainId", chainID) // replace value if field is present or create a new one
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))

@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -109,16 +110,16 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 	return errGo, errScala
 }
 
-func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration) (error, error) {
+func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, error) {
 	errGo := Retry(timeout, func() error {
-		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
+		cp, _, err := c.GoClients.HttpClient.ConnectedPeers()
 		if len(cp) == 0 && err == nil {
 			err = errors.New("no connected peers")
 		}
 		return err
 	})
 	errScala := Retry(timeout, func() error {
-		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers(t)
+		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers()
 		if len(cp) == 0 && err == nil {
 			err = errors.New("no connected peers")
 		}
