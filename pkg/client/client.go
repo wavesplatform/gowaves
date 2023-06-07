@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"context"
@@ -66,17 +67,17 @@ func NewClient(options ...Options) (*Client, error) {
 
 	if len(options) == 1 {
 		option := options[0]
-
 		if option.BaseUrl != "" {
 			opts.BaseUrl = option.BaseUrl
 		}
-
 		if option.Client != nil {
 			opts.Client = option.Client
 		}
-
 		if option.ApiKey != "" {
 			opts.ApiKey = option.ApiKey
+		}
+		if option.ChainID != 0 {
+			opts.ChainID = option.ChainID
 		}
 	}
 
