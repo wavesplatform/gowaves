@@ -10,6 +10,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -835,13 +836,16 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	height := proto.Height(i)
-	if height <= 0 {
+	if i <= 0 {
 		return rideUnit{}, nil
 	}
+	height := proto.Height(i)
 	blockInfo, err := env.state().NewestBlockInfoByHeight(height)
 	if err != nil {
-		return rideUnit{}, nil
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return rideUnit{}, nil
+		}
+		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
 	v, err := env.libVersion()
 	if err != nil {

@@ -750,8 +750,8 @@ func TestBlockInfoByHeight(t *testing.T) {
 	}{
 		{env, []rideType{rideInt(0)}, false, rideUnit{}},
 		{env, []rideType{rideInt(-1)}, false, rideUnit{}},
-		{env, []rideType{rideInt(1)}, false, rideUnit{}},
 		{env, []rideType{rideInt(2)}, false, obj},
+		{env, []rideType{rideInt(3)}, true, nil},
 	} {
 		r, err := blockInfoByHeight(test.te.toEnv(), test.args...)
 		if test.fail {
