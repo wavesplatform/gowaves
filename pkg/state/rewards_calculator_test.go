@@ -61,3 +61,41 @@ func TestFeature19RewardCalculation(t *testing.T) {
 		assert.ElementsMatch(t, test.rewards, actual)
 	}
 }
+
+func TestFeatures19And21RewardCalculation(t *testing.T) {
+	gpk, err := crypto.NewPublicKeyFromBase58(testPK)
+	require.NoError(t, err)
+	mf := &mockFeaturesState{
+		newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+			switch featureID {
+			case int16(settings.BlockRewardDistribution):
+				return height >= 1000
+			case int16(settings.XTNBuyBackCessation):
+				return height >= 2000
+			default:
+				return false
+			}
+		},
+	}
+	c := newRewardsCalculator(settings.TestNetSettings, mf)
+	header := &proto.BlockHeader{
+		GeneratorPublicKey: gpk,
+	}
+	for _, test := range []struct {
+		height  uint64
+		reward  uint64
+		rewards proto.Rewards
+	}{
+		{999, 6_0000_0000, makeTestNetRewards(t, gpk, 6_0000_0000)},
+		{1000, 6_0000_0000, makeTestNetRewards(t, gpk, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
+		{1999, 6_0000_0000, makeTestNetRewards(t, gpk, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
+		{2000, 6_0000_0000, makeTestNetRewards(t, gpk, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
+		{2999, 6_0000_0000, makeTestNetRewards(t, gpk, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
+		{3000, 6_0000_0000, makeTestNetRewards(t, gpk, 3_0000_0000, 3_0000_0000)},
+		{4000, 6_0000_0000, makeTestNetRewards(t, gpk, 3_0000_0000, 3_0000_0000)},
+	} {
+		actual, err := c.calculateRewards(header, test.height, test.reward)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, test.rewards, actual)
+	}
+}
