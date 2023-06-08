@@ -46,10 +46,14 @@ func (c *NodesClients) SendEndMessage(t *testing.T) {
 }
 
 func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) bool {
+	equal := false
 	goStateHash := c.GoClients.HttpClient.StateHash(t, height)
 	scalaStateHash := c.ScalaClients.HttpClient.StateHash(t, height)
 
-	return assert.Equal(t, scalaStateHash, goStateHash)
+	if *scalaStateHash == *goStateHash {
+		equal = true
+	}
+	return equal
 }
 
 // WaitForNewHeight waits for nodes to generate new block.
@@ -85,14 +89,15 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 }
 
 func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
-	height := c.WaitForNewHeight(t)
-	h := height
-	for h < height+3 {
+	equal := false
+	for i := 0; i < 3; i++ {
+		h := c.WaitForNewHeight(t)
 		if c.StateHashCmp(t, h) {
+			equal = true
 			break
 		}
-		h += 1
 	}
+	assert.True(t, equal)
 }
 
 func Retry(timeout time.Duration, f func() error) error {
