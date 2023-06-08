@@ -1169,6 +1169,26 @@ func (s *stateManager) needToFinishVotingPeriod(blockchainHeight proto.Height) b
 	return votingFinishHeight
 }
 
+func (s *stateManager) needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height) (bool, error) {
+	cappedRewardsActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
+	if !cappedRewardsActivated { // nothing to do
+		return false, nil
+	}
+	cappedRewardsHeight, err := s.stor.features.newestActivationHeight(int16(settings.CappedRewards))
+	if err != nil {
+		return false, err
+	}
+	if height != cappedRewardsHeight { // nothing to do, height is not capped
+		return false, nil
+	}
+	// we're on cappedRewardsHeight, check whether current height is included in voting period or not
+	start, end, err := s.blockRewardTermBoundaries(height)
+	if err != nil {
+		return false, err
+	}
+	return isBlockRewardVotingPeriod(start, end, height), nil
+}
+
 func (s *stateManager) isBlockRewardTermOver(height proto.Height) (bool, error) {
 	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	if activated {
@@ -1278,6 +1298,17 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return err
 		}
 	}
+
+	needToRecalc, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if needToRecalc { // one time action
+		if err := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); err != nil {
+			return errors.Wrap(err, "failed to recalculate monetary policy votes")
+		}
+	}
+
 	termIsOver, err := s.isBlockRewardTermOver(blockchainHeight)
 	if err != nil {
 		return err
@@ -1364,6 +1395,35 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 		}
 		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
+	start, end, err := s.blockRewardTermBoundaries(height)
+	if err != nil {
+		return err
+	}
+	if !isBlockRewardVotingPeriod(start, end, height) { // sanity check
+		return errors.Errorf("height %d is not in voting period %d:%d", height, start, end)
+	}
+	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	for h := start; h <= height; h++ {
+		header, err := s.NewestHeaderByHeight(h)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get newest header by height %d", h)
+		}
+		// rewrite rewardVotes on h == start and count votes for the rest heights
+		if err := s.stor.monetaryPolicy.vote(header.RewardVote, h, blockRewardActivationHeight, isCappedRewardsActivated, lastBlockID); err != nil {
+			return errors.Wrapf(err, "failed to add vote for monetary policy at height %d for block %q", height, lastBlockID.String())
 		}
 	}
 	return nil
