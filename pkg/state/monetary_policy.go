@@ -3,7 +3,6 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -57,20 +56,39 @@ func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+type monetaryPolicySettings struct {
+	bs *settings.BlockchainSettings
+}
+
+func newMonetaryPolicySettings(bs *settings.BlockchainSettings) monetaryPolicySettings {
+	return monetaryPolicySettings{bs: bs}
+}
+
+func (m monetaryPolicySettings) InitialBlockReward() uint64      { return m.bs.InitialBlockReward }
+func (m monetaryPolicySettings) BlockRewardIncrement() uint64    { return m.bs.BlockRewardIncrement }
+func (m monetaryPolicySettings) BlockRewardVotingPeriod() uint64 { return m.bs.BlockRewardVotingPeriod }
+
+func (m monetaryPolicySettings) BlockRewardTerm(isCappedRewardActivated bool) uint64 {
+	if isCappedRewardActivated {
+		return m.bs.BlockRewardTermAfter20
+	}
+	return m.bs.BlockRewardTerm
+}
+
 type monetaryPolicy struct {
-	settings *settings.BlockchainSettings
+	settings monetaryPolicySettings
 	hs       *historyStorage
 }
 
 func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) *monetaryPolicy {
-	return &monetaryPolicy{hs: hs, settings: settings}
+	return &monetaryPolicy{hs: hs, settings: newMonetaryPolicySettings(settings)}
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
 	var record blockRewardRecord
 	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
-		return m.settings.InitialBlockReward, nil
+	if isNotFoundInHistoryOrDBErr(err) {
+		return m.settings.InitialBlockReward(), nil
 	}
 	if err != nil {
 		return 0, err
@@ -84,7 +102,7 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	var record rewardVotesRecord
 	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	if isNotFoundInHistoryOrDBErr(err) {
 		return record, nil
 	}
 	if err != nil {
@@ -96,19 +114,20 @@ func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	return record, nil
 }
 
-func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID proto.BlockID) error {
-	if isStartOfTerm(height, activation, m.settings.FunctionalitySettings) {
+func (m *monetaryPolicy) vote(desired int64, height, blockRewardActivation proto.Height, isCappedRewardsActive bool, blockID proto.BlockID) error {
+	start, end := m.blockRewardTermBoundaries(height, blockRewardActivation, isCappedRewardsActive)
+	if !isBlockRewardVotingPeriod(start, end, height) { // voting is not started, do nothing
+		return nil
+	}
+	if height == start { // initialize votes record in the beginning of the current period
 		rec := rewardVotesRecord{0, 0}
-		recordBytes, err := rec.marshalBinary()
+		recordBytes, err := rec.marshalBinary() // why if it's start of term then
 		if err != nil {
 			return err
 		}
 		return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 	}
 	if desired < 0 { // there is no vote, nothing to count
-		return nil
-	}
-	if !isVotingPeriod(height, activation, m.settings.FunctionalitySettings) { // voting is not started, do nothing
 		return nil
 	}
 	target := uint64(desired)
@@ -126,7 +145,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID 
 	case target < current:
 		rec.decrease++
 	default:
-		return nil
+		return nil // nothing to do, target == current
 	}
 	recordBytes, err := rec.marshalBinary()
 	if err != nil {
@@ -135,7 +154,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID 
 	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 }
 
-func (m *monetaryPolicy) updateBlockReward(h uint64, blockID proto.BlockID) error {
+func (m *monetaryPolicy) updateBlockReward(blockID proto.BlockID) error {
 	votes, err := m.votes()
 	if err != nil {
 		return err
@@ -144,12 +163,14 @@ func (m *monetaryPolicy) updateBlockReward(h uint64, blockID proto.BlockID) erro
 	if err != nil {
 		return err
 	}
-	threshold := uint32(m.settings.BlockRewardVotingPeriod)/2 + 1
+	threshold := uint32(m.settings.BlockRewardVotingPeriod())/2 + 1
 	switch {
 	case votes.increase >= threshold:
-		reward += m.settings.BlockRewardIncrement
+		reward += m.settings.BlockRewardIncrement()
 	case votes.decrease >= threshold:
-		reward -= m.settings.BlockRewardIncrement
+		reward -= m.settings.BlockRewardIncrement()
+	default:
+		return nil // nothing to do, reward remains the same
 	}
 	record := blockRewardRecord{reward}
 	recordBytes, err := record.marshalBinary()
@@ -159,24 +180,15 @@ func (m *monetaryPolicy) updateBlockReward(h uint64, blockID proto.BlockID) erro
 	return m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, blockID)
 }
 
-func blockRewardTermBoundaries(height, activation uint64, settings settings.FunctionalitySettings) (uint64, uint64) {
+func (m *monetaryPolicy) blockRewardTermBoundaries(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
+	blockRewardTerm := m.settings.BlockRewardTerm(isCappedRewardsActivated)
 	diff := height - activation
-	next := activation + ((diff/settings.BlockRewardTerm)+1)*settings.BlockRewardTerm
-	start := next - settings.BlockRewardVotingPeriod
-	end := next - 1
+	next := activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
+	start = next - m.settings.BlockRewardVotingPeriod()
+	end = next - 1
 	return start, end
 }
 
-func isVotingPeriod(height, activation uint64, settings settings.FunctionalitySettings) bool {
-	diff := height - activation
-	next := activation + ((diff/settings.BlockRewardTerm)+1)*settings.BlockRewardTerm
-	start := next - settings.BlockRewardVotingPeriod
-	end := next - 1
+func isBlockRewardVotingPeriod(start, end, height proto.Height) bool {
 	return height >= start && height <= end
-}
-
-func isStartOfTerm(height, activation uint64, settings settings.FunctionalitySettings) bool {
-	diff := height - activation
-	start := activation + (diff/settings.BlockRewardTerm)*settings.BlockRewardTerm
-	return height == start
 }

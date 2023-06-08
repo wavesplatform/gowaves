@@ -55,7 +55,7 @@ func TestAddVote(t *testing.T) {
 	mo, storage := createTestObjects(t, settings.MainNetSettings)
 
 	storage.addBlock(t, blockID0)
-	err := mo.vote(700000000, 99001, 0, blockID0)
+	err := mo.vote(700000000, 99001, 0, false, blockID0)
 	require.NoError(t, err)
 	votes, err := mo.votes()
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestAddVote(t *testing.T) {
 	assert.Equal(t, uint32(0), votes.decrease)
 
 	storage.addBlock(t, blockID1)
-	err = mo.vote(500000000, 99002, 0, blockID1)
+	err = mo.vote(500000000, 99002, 0, false, blockID1)
 	require.NoError(t, err)
 	votes, err = mo.votes()
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestRollbackVote(t *testing.T) {
 	mo, storage := createTestObjects(t, settings.MainNetSettings)
 
 	storage.addBlock(t, blockID0)
-	err := mo.vote(700000000, 99001, 0, blockID0)
+	err := mo.vote(700000000, 99001, 0, false, blockID0)
 	require.NoError(t, err)
 	votes, err := mo.votes()
 	require.NoError(t, err)
@@ -120,27 +120,28 @@ func TestFinishRewardVoting(t *testing.T) {
 	var up int64 = 700000000
 	var down int64 = 500000000
 	for i, step := range []struct {
-		vote     int64
-		increase uint32
-		decrease uint32
-		reward   uint64
+		vote                     int64
+		increase                 uint32
+		decrease                 uint32
+		reward                   uint64
+		isCappedRewardsActivated bool
 	}{
-		{up, 0, 0, initial},              //11
-		{up, 0, 0, initial},              //12
-		{up, 1, 0, initial},              //13
-		{up, 2, 0, initial},              //14 end of term
-		{down, 0, 0, initial + 50000000}, //15 start of term
-		{down, 0, 0, initial + 50000000}, //16
-		{down, 0, 0, initial + 50000000}, //17
-		{down, 0, 1, initial + 50000000}, //18
-		{down, 0, 2, initial + 50000000}, //19 end of term
-		{up, 0, 0, initial},              //20 start of term
+		{up, 0, 0, initial, false},              //11
+		{up, 0, 0, initial, false},              //12
+		{up, 1, 0, initial, false},              //13
+		{up, 2, 0, initial, false},              //14 end of term
+		{down, 0, 0, initial + 50000000, false}, //15 start of term
+		{down, 0, 0, initial + 50000000, false}, //16
+		{down, 0, 0, initial + 50000000, false}, //17
+		{down, 0, 1, initial + 50000000, false}, //18
+		{down, 0, 2, initial + 50000000, false}, //19 end of term
+		{up, 0, 0, initial, false},              //20 start of term
 	} {
 		h := uint64(i + 11)
 		msg := fmt.Sprintf("height %d", h)
 		id := ids[i]
 		storage.addBlock(t, id)
-		err := mo.vote(step.vote, h, 10, id)
+		err := mo.vote(step.vote, h, 10, step.isCappedRewardsActivated, id)
 		require.NoError(t, err, msg)
 		votes, err := mo.votes()
 		require.NoError(t, err, msg)
@@ -150,9 +151,9 @@ func TestFinishRewardVoting(t *testing.T) {
 		reward, err := mo.reward()
 		require.NoError(t, err, msg)
 		assert.Equal(t, step.reward, reward, fmt.Sprintf("unexpected reward %d: %s", reward, msg))
-		_, end := blockRewardTermBoundaries(h, 10, sets.FunctionalitySettings)
+		_, end := mo.blockRewardTermBoundaries(h, 10, step.isCappedRewardsActivated)
 		if h == end {
-			err = mo.updateBlockReward(h, id)
+			err = mo.updateBlockReward(id)
 			require.NoError(t, err)
 		}
 	}

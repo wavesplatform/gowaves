@@ -1033,7 +1033,11 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	if err != nil {
 		return err
 	}
-	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
@@ -1159,24 +1163,35 @@ func (s *stateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Bloc
 	return lastBlock, nil
 }
 
-func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {
+func (s *stateManager) needToFinishVotingPeriod(blockchainHeight proto.Height) bool {
 	nextBlockHeight := blockchainHeight + 1
 	votingFinishHeight := (nextBlockHeight % s.settings.ActivationWindowSize(nextBlockHeight)) == 0
 	return votingFinishHeight
 }
 
-func (s *stateManager) isBlockRewardTermOver(height uint64) (bool, error) {
-	feature := int16(settings.BlockReward)
-	activated := s.stor.features.newestIsActivatedAtHeight(feature, height)
+func (s *stateManager) isBlockRewardTermOver(height proto.Height) (bool, error) {
+	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	if activated {
-		activation, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+		_, end, err := s.blockRewardTermBoundaries(height)
 		if err != nil {
 			return false, err
 		}
-		_, end := blockRewardTermBoundaries(height, activation, s.settings.FunctionalitySettings)
 		return end == height, nil
 	}
 	return false, nil
+}
+
+func (s *stateManager) blockRewardTermBoundaries(height proto.Height) (start, end proto.Height, err error) {
+	activationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return 0, 0, err
+	}
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return 0, 0, err
+	}
+	start, end = s.stor.monetaryPolicy.blockRewardTermBoundaries(height, activationHeight, isCappedRewardsActivated)
+	return start, end, nil
 }
 
 func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
@@ -1268,7 +1283,7 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(blockchainHeight, lastBlock); err != nil {
+		if err := s.updateBlockReward(lastBlock); err != nil {
 			return err
 		}
 	}
@@ -1283,8 +1298,8 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(height uint64, blockID proto.BlockID) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(height, blockID); err != nil {
+func (s *stateManager) updateBlockReward(blockID proto.BlockID) error {
+	if err := s.stor.monetaryPolicy.updateBlockReward(blockID); err != nil {
 		return err
 	}
 	return nil
