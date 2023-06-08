@@ -66,14 +66,14 @@ func (c *rewardCalculator) performCalculation(
 		// To do so we subtract minBuyBackPeriod from the block height and check that feature 19 was activated at the
 		// resulting height. If feature 19 was activated at or before the start of the period it means that we can cease
 		// XTN buy-back.
-		if minBuyBackPeriodStartHeight := int(height) - int(c.settings.MinXTNBuyBackPeriod); minBuyBackPeriodStartHeight > 0 {
+		if minBuyBackPeriodStartHeight := int64(height) - int64(c.settings.MinXTNBuyBackPeriod); minBuyBackPeriodStartHeight > 0 {
 			minBuyBackPeriodPassed := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), uint64(minBuyBackPeriodStartHeight))
 			if minBuyBackPeriodPassed {
 				rewardAddresses = c.settings.RewardAddressesAfter21
 			}
 		}
 	}
-	numberOfAddresses := uint64(len(rewardAddresses) + 1)
+	numberOfAddresses := uint64(len(rewardAddresses) + 1) // len(rewardAddresses) + minerAddr
 	for _, a := range rewardAddresses {
 		addressReward := reward / numberOfAddresses
 		if err := appendAddressReward(a, addressReward); err != nil {
