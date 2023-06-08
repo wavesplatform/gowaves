@@ -46,14 +46,9 @@ func (c *NodesClients) SendEndMessage(t *testing.T) {
 }
 
 func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) bool {
-	equal := false
 	goStateHash := c.GoClients.HttpClient.StateHash(t, height)
 	scalaStateHash := c.ScalaClients.HttpClient.StateHash(t, height)
-
-	if *scalaStateHash == *goStateHash {
-		equal = true
-	}
-	return equal
+	return goStateHash.BlockID == scalaStateHash.BlockID && goStateHash.SumHash == scalaStateHash.SumHash
 }
 
 // WaitForNewHeight waits for nodes to generate new block.
