@@ -12,6 +12,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -20,8 +23,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/atomic"
-	"go.uber.org/zap"
 )
 
 const (
@@ -656,24 +657,8 @@ func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto
 	if err != nil {
 		return nil, err
 	}
-	minerReward := reward
-	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
-	if !active {
-		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
-	}
-	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
-	r := make(proto.Rewards, 0, numberOfAddresses)
-	for _, a := range s.settings.RewardAddresses {
-		addressReward := reward / numberOfAddresses
-		r = append(r, proto.NewReward(a, addressReward))
-		minerReward -= addressReward
-	}
-	r = append(r, proto.NewReward(minerAddress, minerReward))
-	return r, nil
+	c := newRewardsCalculator(s.settings, s.stor.features)
+	return c.calculateRewards(blockHeader, height, reward)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {

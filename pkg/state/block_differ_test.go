@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -195,11 +196,11 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 }
 
 func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
-	sets := settings.TestNetSettings
+	sets := *settings.TestNetSettings
 	// Add some addresses for reward distribution
 	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
 	sets.InitialBlockReward = 800000000
-	to := createBlockDifferWithSettings(t, sets)
+	to := createBlockDifferWithSettings(t, &sets)
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -244,9 +245,10 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 }
 
 func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
-	to := createBlockDiffer(t)
+	sets := *settings.TestNetSettings
 	// Add some addresses for reward distribution
-	to.blockDiffer.settings.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
+	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
+	to := createBlockDifferWithSettings(t, &sets)
 
 	// Activate NG and BlockReward
 	to.stor.activateFeature(t, int16(settings.NG))
