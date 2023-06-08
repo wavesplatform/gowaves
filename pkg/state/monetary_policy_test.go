@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -115,11 +116,12 @@ func TestFinishRewardVoting(t *testing.T) {
 	sets.FunctionalitySettings.BlockRewardVotingPeriod = 2
 	mo, storage := createTestObjects(t, sets)
 
-	ids := genRandBlockIds(t, 10)
-	var initial uint64 = 600000000
-	var up int64 = 700000000
-	var down int64 = 500000000
-	for i, step := range []struct {
+	const (
+		initial = 600000000
+		up      = 700000000
+		down    = 500000000
+	)
+	tests := []struct {
 		vote                     int64
 		increase                 uint32
 		decrease                 uint32
@@ -136,12 +138,20 @@ func TestFinishRewardVoting(t *testing.T) {
 		{down, 0, 1, initial + 50000000, false}, //18
 		{down, 0, 2, initial + 50000000, false}, //19 end of term
 		{up, 0, 0, initial, false},              //20 start of term
-	} {
-		h := uint64(i + 11)
-		msg := fmt.Sprintf("height %d", h)
-		id := ids[i]
+	}
+	ids := genRandBlockIds(t, len(tests)+1)
+	const (
+		blockRewardActivationHeight = 10
+		initialHeight               = 11
+	)
+	for i, step := range tests {
+		var (
+			h   = proto.Height(initialHeight + i)
+			id  = ids[i]
+			msg = fmt.Sprintf("height %d", h)
+		)
 		storage.addBlock(t, id)
-		err := mo.vote(step.vote, h, 10, step.isCappedRewardsActivated, id)
+		err := mo.vote(step.vote, h, blockRewardActivationHeight, step.isCappedRewardsActivated, id)
 		require.NoError(t, err, msg)
 		votes, err := mo.votes()
 		require.NoError(t, err, msg)
@@ -151,9 +161,11 @@ func TestFinishRewardVoting(t *testing.T) {
 		reward, err := mo.reward()
 		require.NoError(t, err, msg)
 		assert.Equal(t, step.reward, reward, fmt.Sprintf("unexpected reward %d: %s", reward, msg))
-		_, end := mo.blockRewardTermBoundaries(h, 10, step.isCappedRewardsActivated)
+		_, end := mo.blockRewardVotingPeriod(h, blockRewardActivationHeight, step.isCappedRewardsActivated)
 		if h == end {
-			err = mo.updateBlockReward(id)
+			nextID := ids[i+1]
+			storage.prepareBlock(t, nextID)
+			err = mo.updateBlockReward(id, nextID)
 			require.NoError(t, err)
 		}
 	}

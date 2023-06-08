@@ -114,18 +114,10 @@ func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	return record, nil
 }
 
-func (m *monetaryPolicy) vote(desired int64, height, blockRewardActivation proto.Height, isCappedRewardsActive bool, blockID proto.BlockID) error {
-	start, end := m.blockRewardTermBoundaries(height, blockRewardActivation, isCappedRewardsActive)
+func (m *monetaryPolicy) vote(desired int64, height, activation proto.Height, isCappedRewardsActive bool, blockID proto.BlockID) error {
+	start, end := m.blockRewardVotingPeriod(height, activation, isCappedRewardsActive)
 	if !isBlockRewardVotingPeriod(start, end, height) { // voting is not started, do nothing
 		return nil
-	}
-	if height == start { // initialize votes record in the beginning of the current period
-		rec := rewardVotesRecord{0, 0}
-		recordBytes, err := rec.marshalBinary() // why if it's start of term then
-		if err != nil {
-			return err
-		}
-		return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 	}
 	if desired < 0 { // there is no vote, nothing to count
 		return nil
@@ -154,7 +146,16 @@ func (m *monetaryPolicy) vote(desired int64, height, blockRewardActivation proto
 	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 }
 
-func (m *monetaryPolicy) updateBlockReward(blockID proto.BlockID) error {
+func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
+	rec := rewardVotesRecord{0, 0}
+	recordBytes, err := rec.marshalBinary()
+	if err != nil {
+		return err
+	}
+	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+}
+
+func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
 	votes, err := m.votes()
 	if err != nil {
 		return err
@@ -170,17 +171,22 @@ func (m *monetaryPolicy) updateBlockReward(blockID proto.BlockID) error {
 	case votes.decrease >= threshold:
 		reward -= m.settings.BlockRewardIncrement()
 	default:
-		return nil // nothing to do, reward remains the same
+		return m.resetBlockRewardVotes(nextBlockID) // nothing to do, reward remains the same, reset votes on the next block
 	}
 	record := blockRewardRecord{reward}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, blockID)
+	// bind block reward to the last applied block
+	if err := m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, lastBlockID); err != nil {
+		return err
+	}
+	// bind votes reset to the next block which is being applied
+	return m.resetBlockRewardVotes(nextBlockID)
 }
 
-func (m *monetaryPolicy) blockRewardTermBoundaries(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
+func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
 	blockRewardTerm := m.settings.BlockRewardTerm(isCappedRewardsActivated)
 	diff := height - activation
 	next := activation + ((diff/blockRewardTerm)+1)*blockRewardTerm

@@ -1182,7 +1182,7 @@ func (s *stateManager) needToRecalculateVotesAfterCappedRewardActivationInVoting
 		return false, nil
 	}
 	// we're on cappedRewardsHeight, check whether current height is included in voting period or not
-	start, end, err := s.blockRewardTermBoundaries(height)
+	start, end, err := s.blockRewardVotingPeriod(height)
 	if err != nil {
 		return false, err
 	}
@@ -1192,7 +1192,7 @@ func (s *stateManager) needToRecalculateVotesAfterCappedRewardActivationInVoting
 func (s *stateManager) isBlockRewardTermOver(height proto.Height) (bool, error) {
 	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	if activated {
-		_, end, err := s.blockRewardTermBoundaries(height)
+		_, end, err := s.blockRewardVotingPeriod(height)
 		if err != nil {
 			return false, err
 		}
@@ -1201,7 +1201,7 @@ func (s *stateManager) isBlockRewardTermOver(height proto.Height) (bool, error) 
 	return false, nil
 }
 
-func (s *stateManager) blockRewardTermBoundaries(height proto.Height) (start, end proto.Height, err error) {
+func (s *stateManager) blockRewardVotingPeriod(height proto.Height) (start, end proto.Height, err error) {
 	activationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return 0, 0, err
@@ -1210,7 +1210,7 @@ func (s *stateManager) blockRewardTermBoundaries(height proto.Height) (start, en
 	if err != nil {
 		return 0, 0, err
 	}
-	start, end = s.stor.monetaryPolicy.blockRewardTermBoundaries(height, activationHeight, isCappedRewardsActivated)
+	start, end = s.stor.monetaryPolicy.blockRewardVotingPeriod(height, activationHeight, isCappedRewardsActivated)
 	return start, end, nil
 }
 
@@ -1314,7 +1314,7 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(lastBlock); err != nil {
+		if err := s.updateBlockReward(lastBlock, nextBlock); err != nil {
 			return err
 		}
 	}
@@ -1329,8 +1329,8 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(blockID proto.BlockID) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(blockID); err != nil {
+func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
+	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID); err != nil {
 		return err
 	}
 	return nil
@@ -1401,7 +1401,7 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 }
 
 func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
-	start, end, err := s.blockRewardTermBoundaries(height)
+	start, end, err := s.blockRewardVotingPeriod(height)
 	if err != nil {
 		return err
 	}
