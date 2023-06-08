@@ -51,6 +51,10 @@
     "3MaFVH1vTv18FjBRugSRebx259D7xtRh9ic",
     "3MbhiRiLFLJ1EVKNP9npRszcLLQDjwnFfZM"
   ],
+  "reward_addresses_after_21": [
+    "3MaFVH1vTv18FjBRugSRebx259D7xtRh9ic"
+  ],
+  "min_xtn_buy_back_period": 1000,
   "min_update_asset_info_interval": 10,
   "type": 2,
   "genesis": {

@@ -89,6 +89,7 @@ type FunctionalitySettings struct {
 	BlockRewardVotingPeriod uint64               `json:"block_reward_voting_period"`
 	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
 	RewardAddressesAfter21  []proto.WavesAddress `json:"reward_addresses_after_21"`
+	MinXTNBuyBackPeriod     uint64               `json:"min_xtn_buy_back_period"`
 
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 }
