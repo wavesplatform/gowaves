@@ -85,8 +85,9 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 
 func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 	equal := false
+	h := c.WaitForNewHeight(t)
 	for i := 0; i < 3; i++ {
-		h := c.WaitForNewHeight(t)
+		c.WaitForNewHeight(t)
 		if c.StateHashCmp(t, h) {
 			equal = true
 			break
