@@ -326,7 +326,6 @@ type MockSmartState struct {
 		}
 	}
 	lockAddingBlockHeight             sync.RWMutex
-
 	lockEstimatorVersion              sync.RWMutex
 	lockIsNotFound                    sync.RWMutex
 	lockIsStateUntouched              sync.RWMutex
@@ -335,9 +334,9 @@ type MockSmartState struct {
 	lockNewestAssetBalanceByAddressID sync.RWMutex
 	lockNewestAssetInfo               sync.RWMutex
 	lockNewestAssetIsSponsored        sync.RWMutex
-	lockNewestBlockInfoByHeight           sync.RWMutex
-	lockNewestFullAssetInfo        sync.RWMutex
-	lockNewestFullWavesBalance          sync.RWMutex
+	lockNewestBlockInfoByHeight       sync.RWMutex
+	lockNewestFullAssetInfo           sync.RWMutex
+	lockNewestFullWavesBalance        sync.RWMutex
 	lockNewestLeasingInfo             sync.RWMutex
 	lockNewestRecipientToAddress      sync.RWMutex
 	lockNewestScriptByAccount         sync.RWMutex
