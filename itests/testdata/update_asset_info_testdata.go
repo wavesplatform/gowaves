@@ -121,19 +121,6 @@ func GetUpdateSmartAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetID crypt
 				WavesDiffBalance: utl.MinTxFeeWavesSmartAsset,
 				AssetDiffBalance: 0,
 			}),
-		"Middle values for name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(8, utl.CommonSymbolSet),
-			utl.RandStringBytes(500, utl.CommonSymbolSet),
-			2*utl.MinTxFeeWavesSmartAsset,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: 2 * utl.MinTxFeeWavesSmartAsset,
-				AssetDiffBalance: 0,
-			}),
 		"Max values for name and desc len": NewUpdateAssetInfoTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
@@ -417,6 +404,23 @@ func GetUpdateAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Dig
 
 func GetUpdateSmartAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedNegative] {
 	return map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedNegative]{
+		"Updating asset info is prohibited for specified name and desc": NewUpdateAssetInfoTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			assetID,
+			"test",
+			"test",
+			1000*utl.MinTxFeeWavesSmartAsset,
+			utl.GetCurrentTimestampInMs(),
+			nil,
+			utl.TestChainID,
+			UpdateAssetInfoExpectedNegative{
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "",
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+			}),
 		"Invalid asset name (len < min)": NewUpdateAssetInfoTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
@@ -558,7 +562,7 @@ func GetUpdateSmartAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypt
 			assetID,
 			utl.RandStringBytes(10, utl.CommonSymbolSet),
 			utl.RandStringBytes(100, utl.CommonSymbolSet),
-			10,
+			utl.MinTxFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			nil,
 			utl.TestChainID,
@@ -566,7 +570,7 @@ func GetUpdateSmartAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypt
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value",
+				ErrBrdCstScalaMsg: "(100000 in WAVES) does not exceed minimal value",
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),

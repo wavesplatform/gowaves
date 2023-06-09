@@ -92,7 +92,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNFTPositive() {
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiSmartAssetPositive() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
-	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
+	issue_versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		for _, iv := range issue_versions {
@@ -215,7 +215,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxNFTApiNegative() {
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxSmartAssetApiNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
-	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
+	issue_versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
 		for _, iv := range issue_versions {
