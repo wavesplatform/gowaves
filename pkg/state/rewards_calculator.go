@@ -51,31 +51,61 @@ func (c *rewardCalculator) performCalculation(
 	reward uint64,
 ) error {
 	minerReward := reward
-	active19 := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
-	if !active19 {
+	feature19Activated := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
+	if !feature19Activated {
 		return appendMinerReward(minerReward)
 	}
+
 	rewardAddresses := c.settings.RewardAddresses
 	feature21Activated := c.features.newestIsActivatedAtHeight(int16(settings.XTNBuyBackCessation), height)
 	if feature21Activated {
-		// If feature 21 activated we have to check that required number of blocks passed since activation of feature 19.
-		// To do so we subtract minBuyBackPeriod from the block height and check that feature 19 was activated at the
-		// resulting height. If feature 19 was activated at or before the start of the period it means that we can cease
-		// XTN buy-back.
-		if minBuyBackPeriodStartHeight := int64(height) - int64(c.settings.MinXTNBuyBackPeriod); minBuyBackPeriodStartHeight > 0 {
-			minBuyBackPeriodPassed := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), uint64(minBuyBackPeriodStartHeight))
-			if minBuyBackPeriodPassed {
-				rewardAddresses = c.settings.RewardAddressesAfter21
-			}
+		rewardAddresses = c.handleFeature21(height, rewardAddresses)
+	}
+
+	addressReward := reward / uint64(len(rewardAddresses)+1) // reward / (len(rewardAddresses) + minerAddr)
+	feature20Activated := c.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
+	if feature20Activated {
+		addressReward = c.handleFeature20(reward, rewardAddresses)
+		if addressReward == 0 {
+			return appendMinerReward(minerReward)
 		}
 	}
-	numberOfAddresses := uint64(len(rewardAddresses) + 1) // len(rewardAddresses) + minerAddr
+
 	for _, a := range rewardAddresses {
-		addressReward := reward / numberOfAddresses
 		if err := appendAddressReward(a, addressReward); err != nil {
 			return err
 		}
 		minerReward -= addressReward
 	}
 	return appendMinerReward(minerReward)
+}
+
+func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses []proto.WavesAddress) []proto.WavesAddress {
+	// If feature 21 activated we have to check that required number of blocks passed since activation of feature 19.
+	// To do so we subtract minBuyBackPeriod from the block height and check that feature 19 was activated at the
+	// resulting height. If feature 19 was activated at or before the start of the period it means that we can cease
+	// XTN buy-back.
+	if minBuyBackPeriodStartHeight := int64(height) - int64(c.settings.MinXTNBuyBackPeriod); minBuyBackPeriodStartHeight > 0 {
+		minBuyBackPeriodPassed := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), uint64(minBuyBackPeriodStartHeight))
+		if minBuyBackPeriodPassed {
+			rewardAddresses = c.settings.RewardAddressesAfter21
+		}
+	}
+	return rewardAddresses
+}
+
+func (c *rewardCalculator) handleFeature20(reward uint64, rewardAddresses []proto.WavesAddress) (addressReward uint64) {
+	const (
+		sixWaves = 6 * proto.PriceConstant
+		twoWaves = 2 * proto.PriceConstant
+	)
+	switch {
+	case reward < twoWaves: // give all reward to the miner if reward value is lower than 2 WAVES
+		return 0
+	case reward < sixWaves: // give miner guaranteed reward with 2 WAVES
+		numberOfAddressesWithoutMiner := uint64(len(rewardAddresses))
+		return (reward - twoWaves) / numberOfAddressesWithoutMiner
+	default: // reward is greater or equal six waves, then give fixed 2 WAVES rewards to addresses
+		return twoWaves
+	}
 }
