@@ -679,23 +679,8 @@ func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height 
 	if err != nil {
 		return nil, err
 	}
-	generatorReward := reward
-	active, err := s.stor.features.newestIsActivated(int16(settings.BlockReward))
-	if err != nil {
-		return nil, err
-	}
-	if !active {
-		return proto.Rewards{proto.NewReward(generatorAddress, generatorReward)}, nil
-	}
-	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
-	r := make(proto.Rewards, 0, numberOfAddresses)
-	for _, a := range s.settings.RewardAddresses {
-		addressReward := reward / numberOfAddresses
-		r = append(r, proto.NewReward(a, addressReward))
-		generatorReward -= addressReward
-	}
-	r = append(r, proto.NewReward(generatorAddress, generatorReward))
-	return r, nil
+	c := newRewardsCalculator(s.settings, s.stor.features)
+	return c.calculateRewards(generatorAddress, height, reward)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
