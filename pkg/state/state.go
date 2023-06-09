@@ -2411,11 +2411,3 @@ func (s *stateManager) Close() error {
 	}
 	return nil
 }
-
-func (s *stateManager) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	info, err := s.stor.scriptsStorage.newestScriptBasicInfoByAddressID(id)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to get script version")
-	}
-	return info.LibraryVersion, nil
-}
