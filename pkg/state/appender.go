@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type vrfGetter interface {
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+type blockInfoProvider interface {
+	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 }
 
 type txAppender struct {
@@ -23,7 +23,7 @@ type txAppender struct {
 	ethInfo *ethInfo
 	rw      *blockReadWriter
 
-	vrf vrfGetter
+	blockInfoProvider blockInfoProvider
 
 	atx      *addressTransactions
 	stor     *blockchainEntitiesStorage
@@ -93,21 +93,21 @@ func newTxAppender(
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
 	ethereumInfo := newEthInfo(stor, settings)
 	return &txAppender{
-		sc:             sc,
-		ia:             ia,
-		rw:             rw,
-		vrf:            state,
-		atx:            atx,
-		stor:           stor,
-		settings:       settings,
-		txHandler:      txHandler,
-		blockDiffer:    blockDiffer,
-		recentTxIds:    make(map[string]struct{}),
-		diffStor:       diffStor,
-		diffStorInvoke: diffStorInvoke,
-		diffApplier:    diffApplier,
-		buildApiData:   buildApiData,
-		ethInfo:        ethereumInfo,
+		sc:                sc,
+		ia:                ia,
+		rw:                rw,
+		blockInfoProvider: state,
+		atx:               atx,
+		stor:              stor,
+		settings:          settings,
+		txHandler:         txHandler,
+		blockDiffer:       blockDiffer,
+		recentTxIds:       make(map[string]struct{}),
+		diffStor:          diffStor,
+		diffStorInvoke:    diffStorInvoke,
+		diffApplier:       diffApplier,
+		buildApiData:      buildApiData,
+		ethInfo:           ethereumInfo,
 	}, nil
 }
 
@@ -170,15 +170,7 @@ func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
 
 func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	curBlockHeight := a.rw.addingBlockHeight()
-	curHeader, err := a.currentBlock()
-	if err != nil {
-		return nil, err
-	}
-	vrf, err := a.vrf.BlockVRF(curHeader, curBlockHeight-1)
-	if err != nil {
-		return nil, err
-	}
-	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, curBlockHeight, vrf)
+	return a.blockInfoProvider.NewestBlockInfoByHeight(curBlockHeight)
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated bool) error {

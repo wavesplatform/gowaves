@@ -66,13 +66,14 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(senderWavesAddr)
-	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
+	if err := env.SetLastBlockFromBlockInfo(lastBlockInfo); err != nil {
+		return errors.Wrap(err, "failed to convert order")
+	}
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	env.SetLimit(ride.MaxVerifierComplexity(info.rideV5Activated))
-	err = env.SetTransactionFromOrder(order)
-	if err != nil {
+	if err := env.SetTransactionFromOrder(order); err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
 	r, err := ride.CallVerifier(env, tree)
@@ -131,10 +132,11 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderWavesAddr)
-	env.SetLastBlock(params.blockInfo)
+	if err := env.SetLastBlockFromBlockInfo(params.blockInfo); err != nil {
+		return errors.Wrapf(err, "failed to call account scritp on transaction '%s'", base58.Encode(id))
+	}
 	env.SetLimit(ride.MaxVerifierComplexity(params.rideV5Activated))
-	err = env.SetTransaction(tx)
-	if err != nil {
+	if err := env.SetTransaction(tx); err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	r, err := ride.CallVerifier(env, tree)
@@ -187,7 +189,9 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 		}
 		env.SetThisFromFullAssetInfo(assetInfo)
 	}
-	env.SetLastBlock(params.blockInfo)
+	if err := env.SetLastBlockFromBlockInfo(params.blockInfo); err != nil {
+		return nil, err
+	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
 		return nil, errs.NewTransactionNotAllowedByScript(err.Error(), assetID.Bytes())
@@ -268,9 +272,11 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(scriptAddress)
-	env.SetLastBlock(info.blockInfo)
-	env.SetTimestamp(tx.GetTimestamp())
 	env.ChooseSizeCheck(tree.LibVersion)
+	if err := env.SetLastBlockFromBlockInfo(info.blockInfo); err != nil {
+		return nil, errors.Wrap(err, "failed to create RIDE environment")
+	}
+	env.SetTimestamp(tx.GetTimestamp())
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	limit, err := ride.MaxChainInvokeComplexityByVersion(tree.LibVersion)

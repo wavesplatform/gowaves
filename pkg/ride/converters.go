@@ -99,66 +99,53 @@ func fullAssetInfoToObject(info *proto.FullAssetInfo) rideType {
 	)
 }
 
-func blockInfoToObject(info *proto.BlockInfo) rideType {
-	var vrf rideType = rideUnit{}
-	if len(info.VRF) > 0 {
-		vrf = rideByteVector(common.Dup(info.VRF.Bytes()))
+// bytesToByteVectorOrUnit checks the emptiness of given byte slice and returns rideByteVector if not empty,
+// otherwise returns rideUnit.
+func bytesToByteVectorOrUnit(b []byte) rideType {
+	if len(b) > 0 {
+		return rideByteVector(b)
 	}
-	return newRideBlockInfoV4(
-		vrf,
-		common.Dup(info.GenerationSignature.Bytes()),
-		common.Dup(info.GeneratorPublicKey.Bytes()),
-		rideInt(info.BaseTarget),
-		rideInt(info.Timestamp),
-		rideInt(info.Height),
-		rideAddress(info.Generator),
-	)
+	return rideUnit{}
 }
 
-func blockHeaderToObjectV1V6(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte) (rideType, error) {
-	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
-	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
-	}
-	var vf rideType = rideUnit{}
-	if len(vrf) > 0 {
-		vf = rideByteVector(common.Dup(vrf))
-	}
-	return newRideBlockInfoV4(
-		vf,
-		common.Dup(header.GenSignature.Bytes()),
-		common.Dup(header.GeneratorPublicKey.Bytes()),
-		rideInt(header.BaseTarget),
-		rideInt(header.Timestamp),
-		rideInt(height),
-		rideAddress(address),
-	), nil
-}
+func blockInfoToObject(info *proto.BlockInfo, v ast.LibraryVersion) rideType {
+	switch v {
+	case ast.LibV1, ast.LibV2, ast.LibV3:
+		return newRideBlockInfoV3(
+			info.CopyGenerationSignature(),
+			info.CopyGeneratorPublicKey(),
+			rideInt(info.BaseTarget),
+			rideInt(info.Timestamp),
+			rideInt(info.Height),
+			rideAddress(info.Generator),
+		)
 
-func blockHeaderToObjectV7(scheme byte, height proto.Height, header *proto.BlockHeader, vrf []byte,
-	rewards proto.Rewards) (rideType, error) {
-	address, err := proto.NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
-	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "blockHeaderToObject")
+	case ast.LibV4, ast.LibV5, ast.LibV6:
+		return newRideBlockInfoV4(
+			bytesToByteVectorOrUnit(info.CopyVRF()),
+			info.CopyGenerationSignature(),
+			info.CopyGeneratorPublicKey(),
+			rideInt(info.BaseTarget),
+			rideInt(info.Timestamp),
+			rideInt(info.Height),
+			rideAddress(info.Generator),
+		)
+	default: // V7 and higher
+		rl := make(rideList, len(info.Rewards))
+		for i, r := range info.Rewards {
+			rl[i] = tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())}
+		}
+		return newRideBlockInfoV7(
+			bytesToByteVectorOrUnit(info.CopyVRF()),
+			info.CopyGenerationSignature(),
+			info.CopyGeneratorPublicKey(),
+			rideInt(info.BaseTarget),
+			rideInt(info.Timestamp),
+			rideInt(info.Height),
+			rideAddress(info.Generator),
+			rl,
+		)
 	}
-	var vf rideType = rideUnit{}
-	if len(vrf) > 0 {
-		vf = rideByteVector(common.Dup(vrf))
-	}
-	sr := rewards.Sorted()
-	rl := make(rideList, len(sr))
-	for i, r := range sr {
-		rl[i] = tuple2{el1: rideAddress(r.Address()), el2: rideInt(r.Amount())}
-	}
-	return newRideBlockInfoV7(vf,
-		common.Dup(header.GenSignature.Bytes()),
-		common.Dup(header.GeneratorPublicKey.Bytes()),
-		rideInt(header.BaseTarget),
-		rideInt(header.Timestamp),
-		rideInt(height),
-		rideAddress(address),
-		rl,
-	), nil
 }
 
 func genesisToObject(_ byte, tx *proto.Genesis) (rideGenesisTransaction, error) {
