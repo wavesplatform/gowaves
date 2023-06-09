@@ -541,6 +541,28 @@ func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, erro
 	return s.stor.scriptsStorage.newestScriptByAsset(assetID)
 }
 
+func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	header, err := s.NewestHeaderByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	generator, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	vrf, err := s.blockVRF(header, height-1)
+	if err != nil {
+		return nil, err
+	}
+	rewards, err := s.blockRewards(generator, height)
+	if err != nil {
+		return nil, err
+	}
+
+	return proto.BlockInfoFromHeader(header, generator, height, vrf, rewards)
+}
+
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
 	s.genesis = genesisBlock
 }
@@ -631,7 +653,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 	return s.lastBlock.Load().(*proto.Block)
 }
 
-func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
@@ -652,13 +674,13 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
-func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
 	reward, err := s.stor.monetaryPolicy.reward()
 	if err != nil {
 		return nil, err
 	}
 	c := newRewardsCalculator(s.settings, s.stor.features)
-	return c.calculateRewards(blockHeader, height, reward)
+	return c.calculateRewards(generatorAddress, height, reward)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {

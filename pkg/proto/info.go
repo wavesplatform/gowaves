@@ -4,24 +4,40 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type BlockInfo struct {
+	Version             BlockVersion
 	Timestamp           uint64
 	Height              uint64
 	BaseTarget          uint64
-	GenerationSignature B58Bytes
 	Generator           WavesAddress
 	GeneratorPublicKey  crypto.PublicKey
+	GenerationSignature B58Bytes
 	VRF                 B58Bytes
+	Rewards             Rewards
 }
 
-func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64, vrf []byte) (*BlockInfo, error) {
-	generator, err := NewAddressFromPublicKey(scheme, header.GeneratorPublicKey)
-	if err != nil {
-		return nil, err
-	}
+func NewBlockInfo(version BlockVersion, timestamp, height, baseTarget uint64,
+	generatorAddress WavesAddress, generatorPK crypto.PublicKey,
+	generationSignature, vrf []byte, rewards Rewards) *BlockInfo {
 	return &BlockInfo{
+		Version:             version,
+		Timestamp:           timestamp,
+		Height:              height,
+		BaseTarget:          baseTarget,
+		Generator:           generatorAddress,
+		GeneratorPublicKey:  generatorPK,
+		GenerationSignature: generationSignature,
+		VRF:                 vrf,
+		Rewards:             rewards,
+	}
+}
+
+func BlockInfoFromHeader(header *BlockHeader, generator WavesAddress, height uint64, vrf []byte, rewards Rewards) (*BlockInfo, error) {
+	return &BlockInfo{
+		Version:             header.Version,
 		Timestamp:           header.Timestamp,
 		Height:              height,
 		BaseTarget:          header.BaseTarget,
@@ -29,7 +45,27 @@ func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64, vrf []
 		Generator:           generator,
 		GeneratorPublicKey:  header.GeneratorPublicKey,
 		VRF:                 vrf,
+		Rewards:             rewards.Sorted(),
 	}, nil
+}
+
+func (bi *BlockInfo) CopyVRF() []byte {
+	if bi.Version >= ProtobufBlockVersion {
+		return common.Dup(bi.VRF)
+	}
+	return nil
+}
+
+func (bi *BlockInfo) CopyGenerationSignature() []byte {
+	return common.Dup(bi.GenerationSignature)
+}
+
+func (bi *BlockInfo) CopyGeneratorPublicKey() []byte {
+	return common.Dup(bi.GeneratorPublicKey.Bytes())
+}
+
+func (bi *BlockInfo) IsEmptyGenerator() bool {
+	return bi.GeneratorPublicKey == crypto.PublicKey{}
 }
 
 type FullAssetInfo struct {

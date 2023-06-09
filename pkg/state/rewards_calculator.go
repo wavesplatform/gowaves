@@ -14,15 +14,11 @@ func newRewardsCalculator(settings *settings.BlockchainSettings, features featur
 	return &rewardCalculator{settings: settings, features: features}
 }
 
-func (c *rewardCalculator) calculateRewards(header *proto.BlockHeader, height proto.Height, reward uint64) (proto.Rewards, error) {
-	minerAddress, err := proto.NewAddressFromPublicKey(c.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
-	if err != nil {
-		return nil, err
-	}
+func (c *rewardCalculator) calculateRewards(generator proto.WavesAddress, height proto.Height, reward uint64) (proto.Rewards, error) {
 	r := make(proto.Rewards, 0, len(c.settings.RewardAddresses)+1)
-	if err = c.performCalculation(
+	if err := c.performCalculation(
 		func(reward uint64) error {
-			r = append(r, proto.NewReward(minerAddress, reward))
+			r = append(r, proto.NewReward(generator, reward))
 			return nil
 		},
 		func(addr proto.WavesAddress, reward uint64) error {
