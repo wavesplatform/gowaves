@@ -44,33 +44,60 @@ func (c *rewardCalculator) applyToDiff(diff txDiff, addr proto.AddressID, height
 		height, reward)
 }
 
+type doMinerReward func(reward uint64) error
+type doAddressReward func(addr proto.WavesAddress, reward uint64) error
+
 func (c *rewardCalculator) performCalculation(
-	appendMinerReward func(reward uint64) error,
-	appendAddressReward func(addr proto.WavesAddress, reward uint64) error,
+	appendMinerReward doMinerReward,
+	appendAddressReward doAddressReward,
 	height proto.Height,
 	reward uint64,
 ) error {
-	minerReward := reward
-	feature19Activated := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
-	if !feature19Activated {
-		return appendMinerReward(minerReward)
+	feature19Activated, err := c.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
+	if !feature19Activated { // pay rewards only to the miner if feature19 is not activated on the CURRENT height
+		return appendMinerReward(reward)
+	}
+
+	feature20Activated, err := c.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	if feature20Activated { // feature 19 activated and feature20 for the CURRENT height
+		feature19ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
+		if !feature19ActivatedAtHeight { // append rewards only to the miner if feature19 is not activated for the given height
+			return appendMinerReward(reward)
+		}
 	}
 
 	rewardAddresses := c.settings.RewardAddresses
-	feature21Activated := c.features.newestIsActivatedAtHeight(int16(settings.XTNBuyBackCessation), height)
-	if feature21Activated {
+	feature21ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.XTNBuyBackCessation), height)
+	if feature21ActivatedAtHeight {
 		rewardAddresses = c.handleFeature21(height, rewardAddresses)
 	}
 
 	addressReward := reward / uint64(len(rewardAddresses)+1) // reward / (len(rewardAddresses) + minerAddr)
-	feature20Activated := c.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
-	if feature20Activated {
+	feature20ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
+	if feature20ActivatedAtHeight {
 		addressReward = c.handleFeature20(reward, rewardAddresses)
 		if addressReward == 0 {
-			return appendMinerReward(minerReward)
+			return appendMinerReward(reward) // give full reward to the miner
 		}
 	}
 
+	return c.appendRewards(appendMinerReward, appendAddressReward, rewardAddresses, reward, addressReward)
+}
+
+func (c *rewardCalculator) appendRewards(
+	appendMinerReward doMinerReward,
+	appendAddressReward doAddressReward,
+	rewardAddresses []proto.WavesAddress,
+	reward uint64,
+	addressReward uint64,
+) error {
+	minerReward := reward
 	for _, a := range rewardAddresses {
 		if err := appendAddressReward(a, addressReward); err != nil {
 			return err
