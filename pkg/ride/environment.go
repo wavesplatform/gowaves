@@ -366,10 +366,6 @@ func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset 
 	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
 }
 
-func (ws *WrappedState) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	return ws.diff.state.NewestScriptVersionByAddressID(id)
-}
-
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
@@ -642,14 +638,6 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 	return nil
 }
 
-func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
-	v, err := ws.NewestScriptVersionByAddressID(ws.callee().ID())
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to get script version on address %q", ws.callee().String())
-	}
-	return v, nil
-}
-
 func (ws *WrappedState) invCount() int {
 	return ws.invocationCount
 }
@@ -731,7 +719,7 @@ func (ws *WrappedState) ApplyToState(
 	env environment,
 	localActionsCountValidator *proto.ActionsCountValidator,
 ) ([]proto.ScriptAction, error) {
-	currentLibVersion, err := ws.getLibVersion()
+	currentLibVersion, err := env.libVersion() // get current version, for more info see usages of env.setLibVersion
 	if err != nil {
 		return nil, err
 	}
