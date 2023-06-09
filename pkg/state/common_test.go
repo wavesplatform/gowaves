@@ -120,14 +120,8 @@ func defaultBlock() *proto.BlockHeader {
 
 func defaultBlockInfo() *proto.BlockInfo {
 	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
-	return &proto.BlockInfo{
-		Timestamp:           defaultTimestamp,
-		Height:              400000,
-		BaseTarget:          943,
-		GenerationSignature: genSig,
-		Generator:           testGlobal.minerInfo.addr,
-		GeneratorPublicKey:  testGlobal.minerInfo.pk,
-	}
+	return proto.NewBlockInfo(proto.ProtobufBlockVersion, defaultTimestamp, 400000, 943,
+		testGlobal.minerInfo.addr, testGlobal.minerInfo.pk, genSig, nil, nil)
 }
 
 func defaultDifferInfo() *differInfo {

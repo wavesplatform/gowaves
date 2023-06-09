@@ -206,6 +206,15 @@ build-compiler-windows:
 
 release-compiler: ver build-compiler-linux build-compiler-darwin build-compiler-windows
 
+build-statehash-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
+build-statehash-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/statehash ./cmd/statehash
+build-statehash-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/statehash.exe ./cmd/statehash
+
+release-statehash: ver build-statehash-linux build-statehash-darwin build-statehash-windows
+
 dist-compiler: release-compiler
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/compiler_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/compiler*
