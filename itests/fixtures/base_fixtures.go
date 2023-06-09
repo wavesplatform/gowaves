@@ -46,9 +46,7 @@ func (suite *BaseSuite) SetupSuite() {
 }
 
 func (suite *BaseSuite) TearDownSuite() {
-	height := suite.Clients.WaitForNewHeight(suite.T())
-	suite.Clients.StateHashCmp(suite.T(), height)
-
+	suite.Clients.WaitForStateHashEquality(suite.T())
 	suite.Docker.Finish(suite.Cancel)
 }
 
