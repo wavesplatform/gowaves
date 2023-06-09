@@ -440,6 +440,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 	localEnv.ChooseSizeCheck(tree.LibVersion)
+	localEnv.setLastBlock(env.block())
 	localEnv.SetLimit(MaxAssetVerifierComplexity(tree.LibVersion))
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -1156,13 +1157,18 @@ func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
 	e.th = rideAddress(addr)
 }
 
-func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) error {
+func (e *EvaluationEnvironment) SetLastBlockFromBlockInfo(info *proto.BlockInfo) error {
 	v, err := e.libVersion()
 	if err != nil {
 		return err
 	}
-	e.b = blockInfoToObject(info, v)
+	block := blockInfoToObject(info, v)
+	e.setLastBlock(block)
 	return nil
+}
+
+func (e *EvaluationEnvironment) setLastBlock(block rideType) {
+	e.b = block
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
