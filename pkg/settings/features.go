@@ -52,7 +52,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	RideV6:                          {true, "Ride V6, MetaMask Support"},
 	ConsensusImprovements:           {true, "Consensus and MetaMask Updates"},
 	BlockRewardDistribution:         {true, "Block Reward Distribution"},
-	CappedRewards:                   {false, "Capped XTN Buy-back and DAO Amounts"},
+	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
 	XTNBuyBackCessation:             {true, "XTN Buy-back cessation"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
