@@ -188,14 +188,6 @@ func newTestEnv(t *testing.T) *testEnv {
 		}
 		return nil, errors.Errorf("unknow address '%s'", addr.String())
 	}
-	r.ms.NewestScriptVersionByAddressIDFunc = func(id proto.AddressID) (ast.LibraryVersion, error) {
-		a, err := id.ToWavesAddress(r.me.scheme())
-		require.NoError(r.t, err, "failed to recreate waves address")
-		if t, ok := r.trees[a]; ok {
-			return t.LibVersion, nil
-		}
-		return 0, errors.Errorf("unknown address '%s'", a.String())
-	}
 	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
 		if err != nil {

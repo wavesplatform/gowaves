@@ -75,9 +75,6 @@ var _ types.SmartState = &MockSmartState{}
 //			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 //				panic("mock out the NewestScriptPKByAddr method")
 //			},
-//			NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-//				panic("mock out the NewestScriptVersionByAddressID method")
-//			},
 //			NewestTransactionByIDFunc: func(bytes []byte) (proto.Transaction, error) {
 //				panic("mock out the NewestTransactionByID method")
 //			},
@@ -162,9 +159,6 @@ type MockSmartState struct {
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.WavesAddress) (crypto.PublicKey, error)
-
-	// NewestScriptVersionByAddressIDFunc mocks the NewestScriptVersionByAddressID method.
-	NewestScriptVersionByAddressIDFunc func(id proto.AddressID) (ast.LibraryVersion, error)
 
 	// NewestTransactionByIDFunc mocks the NewestTransactionByID method.
 	NewestTransactionByIDFunc func(bytes []byte) (proto.Transaction, error)
@@ -282,11 +276,6 @@ type MockSmartState struct {
 			// Addr is the addr argument value.
 			Addr proto.WavesAddress
 		}
-		// NewestScriptVersionByAddressID holds details about calls to the NewestScriptVersionByAddressID method.
-		NewestScriptVersionByAddressID []struct {
-			// ID is the id argument value.
-			ID proto.AddressID
-		}
 		// NewestTransactionByID holds details about calls to the NewestTransactionByID method.
 		NewestTransactionByID []struct {
 			// Bytes is the bytes argument value.
@@ -336,33 +325,32 @@ type MockSmartState struct {
 			ID proto.AddressID
 		}
 	}
-	lockAddingBlockHeight              sync.RWMutex
-	lockEstimatorVersion               sync.RWMutex
-	lockIsNotFound                     sync.RWMutex
-	lockIsStateUntouched               sync.RWMutex
-	lockNewestAddrByAlias              sync.RWMutex
-	lockNewestAssetBalance             sync.RWMutex
-	lockNewestAssetBalanceByAddressID  sync.RWMutex
-	lockNewestAssetInfo                sync.RWMutex
-	lockNewestAssetIsSponsored         sync.RWMutex
-	lockNewestBlockInfoByHeight        sync.RWMutex
-	lockNewestFullAssetInfo            sync.RWMutex
-	lockNewestFullWavesBalance         sync.RWMutex
-	lockNewestLeasingInfo              sync.RWMutex
-	lockNewestRecipientToAddress       sync.RWMutex
-	lockNewestScriptByAccount          sync.RWMutex
-	lockNewestScriptByAsset            sync.RWMutex
-	lockNewestScriptBytesByAccount     sync.RWMutex
-	lockNewestScriptPKByAddr           sync.RWMutex
-	lockNewestScriptVersionByAddressID sync.RWMutex
-	lockNewestTransactionByID          sync.RWMutex
-	lockNewestTransactionHeightByID    sync.RWMutex
-	lockNewestWavesBalance             sync.RWMutex
-	lockRetrieveNewestBinaryEntry      sync.RWMutex
-	lockRetrieveNewestBooleanEntry     sync.RWMutex
-	lockRetrieveNewestIntegerEntry     sync.RWMutex
-	lockRetrieveNewestStringEntry      sync.RWMutex
-	lockWavesBalanceProfile            sync.RWMutex
+	lockAddingBlockHeight             sync.RWMutex
+	lockEstimatorVersion              sync.RWMutex
+	lockIsNotFound                    sync.RWMutex
+	lockIsStateUntouched              sync.RWMutex
+	lockNewestAddrByAlias             sync.RWMutex
+	lockNewestAssetBalance            sync.RWMutex
+	lockNewestAssetBalanceByAddressID sync.RWMutex
+	lockNewestAssetInfo               sync.RWMutex
+	lockNewestAssetIsSponsored        sync.RWMutex
+	lockNewestBlockInfoByHeight       sync.RWMutex
+	lockNewestFullAssetInfo           sync.RWMutex
+	lockNewestFullWavesBalance        sync.RWMutex
+	lockNewestLeasingInfo             sync.RWMutex
+	lockNewestRecipientToAddress      sync.RWMutex
+	lockNewestScriptByAccount         sync.RWMutex
+	lockNewestScriptByAsset           sync.RWMutex
+	lockNewestScriptBytesByAccount    sync.RWMutex
+	lockNewestScriptPKByAddr          sync.RWMutex
+	lockNewestTransactionByID         sync.RWMutex
+	lockNewestTransactionHeightByID   sync.RWMutex
+	lockNewestWavesBalance            sync.RWMutex
+	lockRetrieveNewestBinaryEntry     sync.RWMutex
+	lockRetrieveNewestBooleanEntry    sync.RWMutex
+	lockRetrieveNewestIntegerEntry    sync.RWMutex
+	lockRetrieveNewestStringEntry     sync.RWMutex
+	lockWavesBalanceProfile           sync.RWMutex
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -936,38 +924,6 @@ func (mock *MockSmartState) NewestScriptPKByAddrCalls() []struct {
 	mock.lockNewestScriptPKByAddr.RLock()
 	calls = mock.calls.NewestScriptPKByAddr
 	mock.lockNewestScriptPKByAddr.RUnlock()
-	return calls
-}
-
-// NewestScriptVersionByAddressID calls NewestScriptVersionByAddressIDFunc.
-func (mock *MockSmartState) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	if mock.NewestScriptVersionByAddressIDFunc == nil {
-		panic("MockSmartState.NewestScriptVersionByAddressIDFunc: method is nil but SmartState.NewestScriptVersionByAddressID was just called")
-	}
-	callInfo := struct {
-		ID proto.AddressID
-	}{
-		ID: id,
-	}
-	mock.lockNewestScriptVersionByAddressID.Lock()
-	mock.calls.NewestScriptVersionByAddressID = append(mock.calls.NewestScriptVersionByAddressID, callInfo)
-	mock.lockNewestScriptVersionByAddressID.Unlock()
-	return mock.NewestScriptVersionByAddressIDFunc(id)
-}
-
-// NewestScriptVersionByAddressIDCalls gets all the calls that were made to NewestScriptVersionByAddressID.
-// Check the length with:
-//
-//	len(mockedSmartState.NewestScriptVersionByAddressIDCalls())
-func (mock *MockSmartState) NewestScriptVersionByAddressIDCalls() []struct {
-	ID proto.AddressID
-} {
-	var calls []struct {
-		ID proto.AddressID
-	}
-	mock.lockNewestScriptVersionByAddressID.RLock()
-	calls = mock.calls.NewestScriptVersionByAddressID
-	mock.lockNewestScriptVersionByAddressID.RUnlock()
 	return calls
 }
 
