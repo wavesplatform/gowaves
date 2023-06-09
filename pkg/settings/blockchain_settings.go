@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -48,7 +49,7 @@ type FunctionalitySettings struct {
 	// Window when stolen aliases are valid.
 	StolenAliasesWindowTimeStart uint64 `json:"stolen_aliases_window_time_start"`
 	StolenAliasesWindowTimeEnd   uint64 `json:"stolen_aliases_window_time_end"`
-	// Window when unreissueable assets can be reissued.
+	// Window when non-reissuable assets can be reissued.
 	ReissueBugWindowTimeStart           uint64 `json:"reissue_bug_window_time_start"`
 	ReissueBugWindowTimeEnd             uint64 `json:"reissue_bug_window_time_end"`
 	AllowMultipleLeaseCancelUntilTime   uint64 `json:"allow_multiple_lease_cancel_until_time"`
@@ -82,10 +83,13 @@ type FunctionalitySettings struct {
 
 	// Block Reward
 	BlockRewardTerm         uint64               `json:"block_reward_term"`
+	BlockRewardTermAfter20  uint64               `json:"block_reward_term_after_20"`
 	InitialBlockReward      uint64               `json:"initial_block_reward"`
 	BlockRewardIncrement    uint64               `json:"block_reward_increment"`
 	BlockRewardVotingPeriod uint64               `json:"block_reward_voting_period"`
 	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
+	RewardAddressesAfter21  []proto.WavesAddress `json:"reward_addresses_after_21"`
+	MinXTNBuyBackPeriod     uint64               `json:"min_xtn_buy_back_period"`
 
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 }
@@ -137,14 +141,6 @@ var (
 		},
 	}
 )
-
-func GetIntegrationSetting() *BlockchainSettings {
-	rs, err := loadEmbeddedSettings("embedded/integration.json")
-	if err != nil {
-		panic(err)
-	}
-	return rs
-}
 
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {

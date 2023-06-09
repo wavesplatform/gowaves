@@ -36,10 +36,5 @@ func (r rewardsByAddress) Len() int      { return len(r) }
 func (r rewardsByAddress) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
 
 func (r rewardsByAddress) Less(i, j int) bool {
-	//TODO: Consider adding second sort order by amount, which is not scala implementation compatible for now.
-	// In scala implementation they depend on stability of sort and add miner on the last position.
-	// if r[i].address.Equal(r[j].address) {
-	//	 return r[i].amount < r[j].amount
-	// }
 	return bytes.Compare(r[i].address.Bytes(), r[j].address.Bytes()) < 0
 }
