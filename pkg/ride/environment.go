@@ -334,18 +334,6 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}, nil
 }
 
-func (ws *WrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
-	return ws.diff.state.NewestHeaderByHeight(height)
-}
-
-func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return ws.diff.state.BlockVRF(blockHeader, height)
-}
-
-func (ws *WrappedState) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
-	return ws.diff.state.BlockRewards(blockHeader, height)
-}
-
 func (ws *WrappedState) EstimatorVersion() (int, error) {
 	return ws.diff.state.EstimatorVersion()
 }
@@ -356,6 +344,10 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 
 func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
+}
+
+func (ws *WrappedState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	return ws.diff.state.NewestBlockInfoByHeight(height)
 }
 
 func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
@@ -448,6 +440,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 	localEnv.ChooseSizeCheck(tree.LibVersion)
+	localEnv.setLastBlock(env.block())
 	localEnv.SetLimit(MaxAssetVerifierComplexity(tree.LibVersion))
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -1164,8 +1157,18 @@ func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
 	e.th = rideAddress(addr)
 }
 
-func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
-	e.b = blockInfoToObject(info)
+func (e *EvaluationEnvironment) SetLastBlockFromBlockInfo(info *proto.BlockInfo) error {
+	v, err := e.libVersion()
+	if err != nil {
+		return err
+	}
+	block := blockInfoToObject(info, v)
+	e.setLastBlock(block)
+	return nil
+}
+
+func (e *EvaluationEnvironment) setLastBlock(block rideType) {
+	e.b = block
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
