@@ -153,6 +153,12 @@ func TestFeatures19And20RewardCalculation(t *testing.T) {
 		{1000, 1000, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 		{1999, 1999, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 
+		// test for compatibility with scala node behaviour
+		{999, 1999, 6_3333_3333, makeTestNetRewards(t, gen, 2_1111_1111, 2_1111_1111, 2_1111_1111)},
+		{999, 2000, 6_3333_3333, makeTestNetRewards(t, gen, 6_3333_3333)},
+		{1500, 2000, 6_3333_3333, makeTestNetRewards(t, gen, 2_1111_1111, 2_1111_1111, 2_1111_1111)},
+		{2000, 2000, 6_3333_3333, makeTestNetRewards(t, gen, 2_3333_3333, 2_0000_0000, 2_0000_0000)},
+
 		{2000, 2000, 1_9999_9999, makeTestNetRewards(t, gen, 1_9999_9999)},
 		{2000, 2000, 2_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000)},
 		{2000, 2000, 4_2222_2222, makeTestNetRewards(t, gen, 2_0000_0000, 1_1111_1111, 1_1111_1111)},
