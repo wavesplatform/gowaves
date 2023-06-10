@@ -1416,6 +1416,9 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	if err != nil {
 		return err
 	}
+	if err := s.stor.monetaryPolicy.resetBlockRewardVotes(lastBlockID); err != nil { // reset votes just to be sure that they're equal zero
+		return errors.Wrapf(err, "failed to reset block reward votes for block %q", lastBlockID.String())
+	}
 	for h := start; h <= height; h++ {
 		header, err := s.NewestHeaderByHeight(h)
 		if err != nil {
