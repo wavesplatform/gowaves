@@ -112,7 +112,8 @@ func TestRollbackVote(t *testing.T) {
 
 func TestFinishRewardVoting(t *testing.T) {
 	sets := settings.MainNetSettings
-	sets.FunctionalitySettings.BlockRewardTerm = 5
+	sets.FunctionalitySettings.BlockRewardTerm = 8
+	sets.FunctionalitySettings.BlockRewardTermAfter20 = 4
 	sets.FunctionalitySettings.BlockRewardVotingPeriod = 2
 	mo, storage := createTestObjects(t, sets)
 
@@ -128,16 +129,27 @@ func TestFinishRewardVoting(t *testing.T) {
 		reward                   uint64
 		isCappedRewardsActivated bool
 	}{
+		//10 start of term
 		{up, 0, 0, initial, false},              //11
 		{up, 0, 0, initial, false},              //12
-		{up, 1, 0, initial, false},              //13
-		{up, 2, 0, initial, false},              //14 end of term
-		{down, 0, 0, initial + 50000000, false}, //15 start of term
-		{down, 0, 0, initial + 50000000, false}, //16
-		{down, 0, 0, initial + 50000000, false}, //17
-		{down, 0, 1, initial + 50000000, false}, //18
-		{down, 0, 2, initial + 50000000, false}, //19 end of term
-		{up, 0, 0, initial, false},              //20 start of term
+		{down, 0, 0, initial, false},            //13
+		{down, 0, 0, initial, false},            //14
+		{down, 0, 0, initial, false},            //15
+		{up, 1, 0, initial, false},              //16
+		{up, 2, 0, initial, false},              //17 end of term
+		{down, 0, 0, initial + 50000000, false}, //18 start of term
+		{up, 0, 0, initial + 50000000, false},   //20
+		{down, 0, 0, initial + 50000000, false}, //21
+		{down, 0, 0, initial + 50000000, false}, //22
+		{up, 0, 0, initial + 50000000, false},   //23
+		{down, 0, 0, initial + 50000000, false}, //24
+		{down, 0, 1, initial + 50000000, false}, //25
+		{down, 0, 2, initial + 50000000, false}, //26 end of term
+		{up, 0, 0, initial, false},              //27 start of term
+		{down, 0, 0, initial, false},            //28
+		{up, 1, 0, initial, true},               //29
+		{up, 2, 0, initial, true},               //30 end of term
+		{down, 0, 0, initial + 50000000, true},  //31 start of term
 	}
 	ids := genRandBlockIds(t, len(tests)+1)
 	const (
