@@ -56,6 +56,10 @@ func (a *NGState) PeerError(p peer.Peer, e error) (State, Async, error) {
 	return peerError(a, p, a.baseInfo, e)
 }
 
+func (a *NGState) DisconnectedPeer(_ peer.Peer) (State, Async, error) {
+	return newIdleState(a.baseInfo), nil, nil
+}
+
 func (a *NGState) Task(task tasks.AsyncTask) (State, Async, error) {
 	switch task.TaskType {
 	case tasks.Ping:
@@ -350,13 +354,12 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 			return nil
 		}).
 		Ignore(BlockIDsEvent).
-		PermitDynamic(NewPeerEvent, createPermitDynamicCallback(NewPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		Ignore(ConnectedPeerEvent).
+		Ignore(ConnectedBestPeerEvent).
+		Ignore(DisconnectedBestPeerEvent).
+		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)
-			return a.NewPeer(convertToInterface[peer.Peer](args[0]))
-		})).
-		PermitDynamic(PeerErrorEvent, createPermitDynamicCallback(PeerErrorEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*NGState)
-			return a.PeerError(convertToInterface[peer.Peer](args[0]), args[1].(error))
+			return a.DisconnectedPeer(convertToInterface[peer.Peer](args[0]))
 		})).
 		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)

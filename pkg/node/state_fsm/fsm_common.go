@@ -29,17 +29,19 @@ const (
 // First arg is Async - return value of event handler
 var (
 	eventsArgsTypes = map[stateless.Trigger][]reflect.Type{
-		PeerErrorEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*error)(nil)).Elem()},
-		NewPeerEvent:       {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		ScoreEvent:         {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
-		BlockEvent:         {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
-		MinedBlockEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
-		BlockIDsEvent:      {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
-		TaskEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
-		MicroBlockEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
-		MicroBlockInvEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
-		TransactionEvent:   {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
-		HaltEvent:          {reflect.TypeOf(&Async{})},
+		ConnectedPeerEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		DisconnectedPeerEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		ConnectedBestPeerEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		DisconnectedBestPeerEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		ScoreEvent:                {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
+		BlockEvent:                {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
+		MinedBlockEvent:           {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
+		BlockIDsEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
+		TaskEvent:                 {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
+		MicroBlockEvent:           {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
+		MicroBlockInvEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
+		TransactionEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
+		HaltEvent:                 {reflect.TypeOf(&Async{})},
 	}
 )
 
@@ -145,6 +147,7 @@ func createPermitDynamicCallback(event stateless.Trigger, state *StateData, acti
 		async := args[0].(*Async)
 		*async = asyncNew
 		state.State = newState
+		state.Name = newState.String()
 		return newState.String(), err
 	}
 }

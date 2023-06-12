@@ -70,6 +70,11 @@ func (a *IdleState) NewPeer(p peer.Peer) (State, Async, error) {
 	return state, as, fsmErr
 }
 
+func (a *IdleState) ConnectedNewPeer(_ peer.Peer) (State, Async, error) {
+	a.baseInfo.Reschedule()
+	return a, nil, nil
+}
+
 func (a *IdleState) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (State, Async, error) {
 	newA := newNGState(a.baseInfo).(*NGState)
 	return newA.MinedBlock(block, limits, keyPair, vrf)
@@ -119,13 +124,12 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(MicroBlockInvEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(BlockEvent).
-		PermitDynamic(NewPeerEvent, createPermitDynamicCallback(NewPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		Ignore(DisconnectedPeerEvent).
+		Ignore(ConnectedBestPeerEvent).
+		Ignore(DisconnectedBestPeerEvent).
+		PermitDynamic(ConnectedPeerEvent, createPermitDynamicCallback(ConnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*IdleState)
-			return a.NewPeer(convertToInterface[peer.Peer](args[0]))
-		})).
-		PermitDynamic(PeerErrorEvent, createPermitDynamicCallback(PeerErrorEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*IdleState)
-			return a.PeerError(convertToInterface[peer.Peer](args[0]), args[1].(error))
+			return a.ConnectedNewPeer(convertToInterface[peer.Peer](args[0]))
 		})).
 		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*IdleState)

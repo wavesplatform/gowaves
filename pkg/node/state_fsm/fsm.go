@@ -95,6 +95,11 @@ const (
 	MicroBlockInvEvent = "MicroBlockInv"
 	TransactionEvent   = "Transaction"
 	HaltEvent          = "Halt"
+
+	DisconnectedPeerEvent     = "DisconnectedPeer"
+	ConnectedPeerEvent        = "ConnectedPeer"
+	ConnectedBestPeerEvent    = "ConnectedBestPeer"
+	DisconnectedBestPeerEvent = "DisconnectedBestPeer"
 )
 
 type FSM struct {
@@ -241,5 +246,29 @@ func (f *FSM) Transaction(p peer.Peer, t proto.Transaction) (Async, error) {
 func (f *FSM) Halt() (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(HaltEvent, asyncRes)
+	return *asyncRes, err
+}
+
+func (f *FSM) DisconnectedPeer(p peer.Peer) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(DisconnectedPeerEvent, asyncRes, p)
+	return *asyncRes, err
+}
+
+func (f *FSM) DisconnectedBestPeer(p peer.Peer) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(DisconnectedBestPeerEvent, asyncRes, p)
+	return *asyncRes, err
+}
+
+func (f *FSM) ConnectedPeer(p peer.Peer) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(ConnectedPeerEvent, asyncRes, p)
+	return *asyncRes, err
+}
+
+func (f *FSM) ConnectedBestPeer(p peer.Peer) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(ConnectedBestPeerEvent, asyncRes, p)
 	return *asyncRes, err
 }

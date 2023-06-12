@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"net"
 	"reflect"
 	"time"
@@ -165,6 +166,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 	}()
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
+	networkMsgCh := make(chan network.InfoMessage, 100)
+
+	net := network.NewNetwork(a.services, p, networkMsgCh)
+	go net.Run()
 
 	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval)
 	if err != nil {
@@ -195,17 +200,18 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			}
 		case task := <-tasksCh:
 			async, err = fsm.Task(task)
-		case m := <-p.InfoCh:
-			switch t := m.Value.(type) {
-			case *peer.Connected:
-				async, err = fsm.NewPeer(t.Peer)
-				if err == nil {
-					zap.S().Debugf("[%s] Established connection with %s peer '%s'", fsm.State.Name, t.Peer.Direction(), t.Peer.ID())
-				}
-			case *peer.InternalErr:
-				async, err = fsm.PeerError(m.Peer, t.Err)
+		case m := <-networkMsgCh:
+			switch t := m.(type) {
+			case network.Connected:
+				async, err = fsm.ConnectedPeer(t.Peer)
+			case network.Disconnected:
+				async, err = fsm.DisconnectedPeer(t.Peer)
+			case network.BestPeer:
+				async, err = fsm.ConnectedBestPeer(t.Peer)
+			case network.BestPeerLost:
+				async, err = fsm.DisconnectedBestPeer(t.Peer)
 			default:
-				zap.S().Warnf("[%s] Unknown info message '%T'", fsm, m)
+				zap.S().Warnf("[%s] Unknown network info message '%T'", fsm.State.Name, m)
 			}
 		case mess := <-p.MessageCh:
 			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())

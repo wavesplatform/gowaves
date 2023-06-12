@@ -63,6 +63,10 @@ func (a *PersistState) PeerError(p peer.Peer, e error) (State, Async, error) {
 	return peerError(a, p, a.baseInfo, e)
 }
 
+func (a *PersistState) DisconnectedPeer(_ peer.Peer) (State, Async, error) {
+	return newIdleState(a.baseInfo), nil, nil
+}
+
 func (a *PersistState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	err := a.baseInfo.peers.UpdateScore(p, score)
 	if err != nil {
@@ -92,17 +96,16 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
 		Ignore(TransactionEvent).
+		Ignore(ConnectedPeerEvent).
+		Ignore(ConnectedBestPeerEvent).
+		Ignore(DisconnectedBestPeerEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil
 		}).
-		PermitDynamic(NewPeerEvent, createPermitDynamicCallback(NewPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*PersistState)
-			return a.NewPeer(convertToInterface[peer.Peer](args[0]))
-		})).
-		PermitDynamic(PeerErrorEvent, createPermitDynamicCallback(PeerErrorEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*PersistState)
-			return a.PeerError(convertToInterface[peer.Peer](args[0]), args[1].(error))
+			return a.DisconnectedPeer(convertToInterface[peer.Peer](args[0]))
 		})).
 		PermitDynamic(TaskEvent, createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*PersistState)
