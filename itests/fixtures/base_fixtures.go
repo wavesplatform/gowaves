@@ -46,14 +46,12 @@ func (suite *BaseSuite) SetupSuite() {
 }
 
 func (suite *BaseSuite) TearDownSuite() {
-	height := suite.Clients.WaitForNewHeight(suite.T())
-	suite.Clients.StateHashCmp(suite.T(), height)
-
+	suite.Clients.WaitForStateHashEquality(suite.T())
 	suite.Docker.Finish(suite.Cancel)
 }
 
 func (suite *BaseSuite) SetupTest() {
-	errGo, errScala := suite.Clients.WaitForConnectedPeers(suite.T(), 5*time.Second)
+	errGo, errScala := suite.Clients.WaitForConnectedPeers(5 * time.Second)
 	suite.Require().NoError(errGo, "Go: no connected peers")
 	suite.Require().NoError(errScala, "Scala: no connected peers")
 	suite.Clients.WaitForHeight(suite.T(), 2) // Wait for nodes to start mining

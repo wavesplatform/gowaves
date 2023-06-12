@@ -45,11 +45,10 @@ func (c *NodesClients) SendEndMessage(t *testing.T) {
 	c.ScalaClients.HttpClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
 }
 
-func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) {
+func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) bool {
 	goStateHash := c.GoClients.HttpClient.StateHash(t, height)
 	scalaStateHash := c.ScalaClients.HttpClient.StateHash(t, height)
-
-	assert.Equal(t, scalaStateHash, goStateHash)
+	return goStateHash.BlockID == scalaStateHash.BlockID && goStateHash.SumHash == scalaStateHash.SumHash
 }
 
 // WaitForNewHeight waits for nodes to generate new block.
@@ -84,6 +83,19 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 	return hs
 }
 
+func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
+	equal := false
+	h := c.WaitForNewHeight(t)
+	for i := 0; i < 3; i++ {
+		c.WaitForNewHeight(t)
+		if c.StateHashCmp(t, h) {
+			equal = true
+			break
+		}
+	}
+	assert.True(t, equal)
+}
+
 func Retry(timeout time.Duration, f func() error) error {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = time.Second * 1
@@ -109,16 +121,16 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 	return errGo, errScala
 }
 
-func (c *NodesClients) WaitForConnectedPeers(t *testing.T, timeout time.Duration) (error, error) {
+func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, error) {
 	errGo := Retry(timeout, func() error {
-		cp, _, err := c.GoClients.HttpClient.ConnectedPeers(t)
+		cp, _, err := c.GoClients.HttpClient.ConnectedPeers()
 		if len(cp) == 0 && err == nil {
 			err = errors.New("no connected peers")
 		}
 		return err
 	})
 	errScala := Retry(timeout, func() error {
-		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers(t)
+		cp, _, err := c.ScalaClients.HttpClient.ConnectedPeers()
 		if len(cp) == 0 && err == nil {
 			err = errors.New("no connected peers")
 		}

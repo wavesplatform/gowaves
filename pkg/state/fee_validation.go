@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -58,7 +59,7 @@ func isNFT(features featuresState, params assetParams) (bool, error) {
 	if !nftAsset {
 		return false, nil
 	}
-	nftActivated, err := features.newestIsActivated(int16(settings.ReduceNFTFee))
+	nftActivated, err := features.newestIsActivated(int16(settings.ReducedNFTFee))
 	if err != nil {
 		return false, err
 	}

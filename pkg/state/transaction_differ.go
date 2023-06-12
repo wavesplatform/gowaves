@@ -7,6 +7,7 @@ import (
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -203,7 +204,7 @@ func newDifferInfo(blockInfo *proto.BlockInfo) *differInfo {
 }
 
 func (i *differInfo) hasMiner() bool {
-	return i.blockInfo.GeneratorPublicKey != (crypto.PublicKey{})
+	return !i.blockInfo.IsEmptyGenerator()
 }
 
 type txBalanceChanges struct {
@@ -288,10 +289,7 @@ func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *d
 
 // minerPayout adds current fee part of given tx to txDiff.
 func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differInfo, feeAsset proto.OptionalAsset) error {
-	minerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, info.blockInfo.GeneratorPublicKey)
-	if err != nil {
-		return err
-	}
+	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
 	minerBalanceDiff, err := td.calculateTxFee(fee)
 	if err != nil {

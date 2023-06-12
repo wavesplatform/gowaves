@@ -15,14 +15,16 @@ const (
 	SmartAccountTrading
 	Ride4DApps // RIDE V3
 	OrderV3
-	ReduceNFTFee
-	BlockReward             // 14
-	BlockV5                 // 15
-	RideV5                  // 16
-	RideV6                  // 17
-	ConsensusImprovements   // 18
-	BlockRewardDistribution // 19
-	InvokeExpression        // 20
+	ReducedNFTFee
+	BlockReward           // 14
+	BlockV5               // 15
+	RideV5                // 16
+	RideV6                // 17
+	ConsensusImprovements // 18
+	BlockRewardDistribution
+	CappedRewards
+	XTNBuyBackCessation // 19
+	InvokeExpression    // 20
 )
 
 type FeatureInfo struct {
@@ -41,14 +43,16 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	FairPoS:                         {true, "Fair PoS"},
 	SmartAssets:                     {true, "Smart Assets"},
 	SmartAccountTrading:             {true, "Smart Account Trading"},
-	Ride4DApps:                      {true, "RIDE 4 DAPPS"},
+	Ride4DApps:                      {true, "Ride For DApp"},
 	OrderV3:                         {true, "Order Version 3"},
-	ReduceNFTFee:                    {true, "Reduce NFT fee"},
+	ReducedNFTFee:                   {true, "Reduced NFT Fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
-	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
-	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
-	RideV6:                          {true, "Ride V6, MetaMask support"},
-	ConsensusImprovements:           {true, "Consensus and MetaMask updates"},
+	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed Transactions"},
+	RideV5:                          {true, "Ride V5, DApp-to-DApp Invocations"},
+	RideV6:                          {true, "Ride V6, MetaMask Support"},
+	ConsensusImprovements:           {true, "Consensus and MetaMask Updates"},
 	BlockRewardDistribution:         {true, "Block Reward Distribution"},
+	CappedRewards:                   {false, "Capped XTN Buy-back and DAO Amounts"},
+	XTNBuyBackCessation:             {true, "XTN Buy-back cessation"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }

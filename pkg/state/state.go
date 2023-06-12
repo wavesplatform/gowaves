@@ -12,6 +12,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -20,8 +23,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/atomic"
-	"go.uber.org/zap"
 )
 
 const (
@@ -540,6 +541,28 @@ func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, erro
 	return s.stor.scriptsStorage.newestScriptByAsset(assetID)
 }
 
+func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	header, err := s.NewestHeaderByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	generator, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	vrf, err := s.blockVRF(header, height-1)
+	if err != nil {
+		return nil, err
+	}
+	rewards, err := s.blockRewards(generator, height)
+	if err != nil {
+		return nil, err
+	}
+
+	return proto.BlockInfoFromHeader(header, generator, height, vrf, rewards)
+}
+
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
 	s.genesis = genesisBlock
 }
@@ -630,7 +653,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 	return s.lastBlock.Load().(*proto.Block)
 }
 
-func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
@@ -651,29 +674,13 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
-func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
 	reward, err := s.stor.monetaryPolicy.reward()
 	if err != nil {
 		return nil, err
 	}
-	minerReward := reward
-	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
-	if !active {
-		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
-	}
-	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
-	r := make(proto.Rewards, 0, numberOfAddresses)
-	for _, a := range s.settings.RewardAddresses {
-		addressReward := reward / numberOfAddresses
-		r = append(r, proto.NewReward(a, addressReward))
-		minerReward -= addressReward
-	}
-	r = append(r, proto.NewReward(minerAddress, minerReward))
-	return r, nil
+	c := newRewardsCalculator(s.settings, s.stor.features)
+	return c.calculateRewards(generatorAddress, height, reward)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
@@ -2403,12 +2410,4 @@ func (s *stateManager) Close() error {
 		return wrapErr(ClosureError, err)
 	}
 	return nil
-}
-
-func (s *stateManager) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	info, err := s.stor.scriptsStorage.newestScriptBasicInfoByAddressID(id)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to get script version")
-	}
-	return info.LibraryVersion, nil
 }
