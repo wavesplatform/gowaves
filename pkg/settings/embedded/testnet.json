@@ -37,6 +37,10 @@
     "3Myb6G8DkdBb8YcZzhrky65HrmiNuac3kvS",
     "3N13KQpdY3UU7JkWUBD9kN7t7xuUgeyYMTT"
   ],
+  "reward_addresses_after_21": [
+    "3Myb6G8DkdBb8YcZzhrky65HrmiNuac3kvS"
+  ],
+  "min_xtn_buy_back_period": 2000,
   "min_update_asset_info_interval": 100000,
   "type": 1,
   "genesis": {

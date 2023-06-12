@@ -4943,7 +4943,7 @@ func TestInvokeActionsCountRestrictionsV6ToV5IndirectNegative(t *testing.T) {
 
 	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
-	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of actions (40) produced by script is more than allowed 30")
+	require.EqualError(t, err, "invoke: failed to apply attached payments: failed to validate total actions count: number of actions (40) produced by script is more than allowed 30")
 }
 
 func TestInvokeDappAttachedPaymentsLimitAfterV6(t *testing.T) {
