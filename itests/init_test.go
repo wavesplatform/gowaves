@@ -12,7 +12,7 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 )
 
-const dockerfilePath = "/../Dockerfile.gowaves-it"
+const dockerfilePath = "./../Dockerfile.gowaves-it"
 const keepDanglingEnvKey = "ITESTS_KEEP_DANGLING"
 
 func TestMain(m *testing.M) {
@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create docker pool: %v", err)
 	}
-	dir, file := filepath.Split(pwd + dockerfilePath)
+	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
 	err = pool.Client.BuildImage(dc.BuildImageOptions{
 		Name:           "go-node",
 		Dockerfile:     file,
