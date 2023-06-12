@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	// remove dangling images
 	imgs, err := pool.Client.ListImages(dc.ListImagesOptions{
 		Filters: map[string][]string{
-			"label": {"tmp=true"},
+			"label": {"wavesplatform-gowaves-itests-tmp=true"},
 		},
 	})
 	if err != nil {
