@@ -2,7 +2,6 @@ package docker
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -36,8 +35,6 @@ const (
 )
 
 const (
-	dockerfilePath = "/../Dockerfile.gowaves-it"
-
 	goNodeLogFileName    = "go-node.log"
 	scalaNodeLogFileName = "scala-node.log"
 	logDir               = "../build/logs"
@@ -165,35 +162,10 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	}
 }
 
-func (d *Docker) buildGoNodeImage() error {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	dir, file := filepath.Split(pwd + dockerfilePath)
-	err = d.pool.Client.BuildImage(dc.BuildImageOptions{
-		Name:         "go-node",
-		Dockerfile:   file,
-		ContextDir:   dir,
-		OutputStream: io.Discard,
-		BuildArgs:    nil,
-		Platform:     "",
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string) (*dockertest.Resource, *PortConfig, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, err
-	}
-	err = d.buildGoNodeImage()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to build go-node image")
 	}
 	opt := &dockertest.RunOptions{
 		Repository: "go-node",
