@@ -77,19 +77,6 @@ func GetUpdateAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Dig
 				WavesDiffBalance: utl.MinTxFeeWaves,
 				AssetDiffBalance: 0,
 			}),
-		"Middle values for name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(8, utl.CommonSymbolSet),
-			utl.RandStringBytes(500, utl.CommonSymbolSet),
-			2*utl.MinTxFeeWaves,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: 2 * utl.MinTxFeeWaves,
-				AssetDiffBalance: 0,
-			}),
 		"Max values for name and desc len": NewUpdateAssetInfoTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,

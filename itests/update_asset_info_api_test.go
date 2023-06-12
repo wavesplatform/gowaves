@@ -10,6 +10,7 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/update_asset_info_utilities"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type UpdateAssetInfoTxApiSuite struct {
@@ -131,6 +132,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		for _, iv := range issue_versions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -145,6 +147,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNegative() {
 					utl.WaitForHeight(&suite.BaseSuite, height+1)
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
+					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 
 					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
@@ -168,12 +171,15 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNegative() {
 			}
 		}
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxNFTApiNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		for _, iv := range issue_versions {
 			nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -188,6 +194,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxNFTApiNegative() {
 					utl.WaitForHeight(&suite.BaseSuite, height+1)
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
+					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 
 					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
@@ -211,12 +218,15 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxNFTApiNegative() {
 			}
 		}
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxSmartAssetApiNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	issue_versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
 	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		for _, iv := range issue_versions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -231,6 +241,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxSmartAssetApiNegati
 					utl.WaitForHeight(&suite.BaseSuite, height+1)
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
+					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 
 					utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
@@ -254,12 +265,15 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxSmartAssetApiNegati
 			}
 		}
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiWithoutWaitingNegative() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	issue_versions := issue_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
+	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		for _, iv := range issue_versions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -272,6 +286,7 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiWithoutWaitingNe
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
+					txIds[name] = &tx.TxID
 					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 
 					utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
@@ -292,6 +307,8 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiWithoutWaitingNe
 			}
 		}
 	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestUpdateAssetInfoTxApiSuite(t *testing.T) {
