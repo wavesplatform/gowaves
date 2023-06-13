@@ -6,11 +6,13 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"golang.org/x/exp/maps"
 )
 
 const (
 	UpdateAssetInfoMinVersion = 1
 	UpdateAssetInfoMaxVersion = 1
+	PositiveCasesCount        = 2
 )
 
 type UpdateAssetInfoTestData[T any] struct {
@@ -62,66 +64,82 @@ func NewUpdateAssetInfoTestData[T any](account config.AccountInfo, assetID crypt
 	}
 }
 
-func GetUpdateAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive] {
-	return map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
-		"Min values for fee, name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(4, utl.CommonSymbolSet),
-			"",
-			utl.MinTxFeeWaves,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: utl.MinTxFeeWaves,
-				AssetDiffBalance: 0,
-			}),
-		"Max values for name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(16, utl.CommonSymbolSet),
-			utl.RandStringBytes(1000, utl.CommonSymbolSet),
-			1000*utl.MinTxFeeWaves,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: 1000 * utl.MinTxFeeWaves,
-				AssetDiffBalance: 0,
-			}),
+func GetUpdateAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]crypto.Digest) map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive] {
+	result := make(map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive])
+	t := make(map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive])
+	for i := 0; i < len(assetIDs); i++ {
+		for j := 0; j < len(assetIDs[i])-1; j++ {
+			t = map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
+				"Min values for fee, name and desc len, asset " + assetIDs[i][j].String(): NewUpdateAssetInfoTestData(
+					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+					assetIDs[i][j],
+					utl.RandStringBytes(4, utl.CommonSymbolSet),
+					"",
+					utl.MinTxFeeWaves,
+					utl.GetCurrentTimestampInMs(),
+					nil,
+					utl.TestChainID,
+					UpdateAssetInfoExpectedPositive{
+						WavesDiffBalance: utl.MinTxFeeWaves,
+						AssetDiffBalance: 0,
+					}),
+				"Max values for name and desc len, asset " + assetIDs[i][j+1].String(): NewUpdateAssetInfoTestData(
+					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+					assetIDs[i][j+1],
+					utl.RandStringBytes(16, utl.CommonSymbolSet),
+					utl.RandStringBytes(1000, utl.CommonSymbolSet),
+					1000*utl.MinTxFeeWaves,
+					utl.GetCurrentTimestampInMs(),
+					nil,
+					utl.TestChainID,
+					UpdateAssetInfoExpectedPositive{
+						WavesDiffBalance: 1000 * utl.MinTxFeeWaves,
+						AssetDiffBalance: 0,
+					}),
+			}
+		}
+		maps.Copy(result, t)
 	}
+	return result
 }
 
-func GetUpdateSmartAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive] {
-	return map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
-		"Min values for fee, name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(4, utl.CommonSymbolSet),
-			"",
-			utl.MinTxFeeWavesSmartAsset,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: utl.MinTxFeeWavesSmartAsset,
-				AssetDiffBalance: 0,
-			}),
-		"Max values for name and desc len": NewUpdateAssetInfoTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			assetID,
-			utl.RandStringBytes(16, utl.CommonSymbolSet),
-			utl.RandStringBytes(1000, utl.CommonSymbolSet),
-			1000*utl.MinTxFeeWavesSmartAsset,
-			utl.GetCurrentTimestampInMs(),
-			nil,
-			utl.TestChainID,
-			UpdateAssetInfoExpectedPositive{
-				WavesDiffBalance: 1000 * utl.MinTxFeeWavesSmartAsset,
-				AssetDiffBalance: 0,
-			}),
+func GetUpdateSmartAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]crypto.Digest) map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive] {
+	result := make(map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive])
+	t := make(map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive])
+	for i := 0; i < len(assetIDs); i++ {
+		for j := 0; j < len(assetIDs[i])-1; j++ {
+			t = map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
+				"Min values for fee, name and desc len, smart asset " + assetIDs[i][j].String(): NewUpdateAssetInfoTestData(
+					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+					assetIDs[i][j],
+					utl.RandStringBytes(4, utl.CommonSymbolSet),
+					"",
+					utl.MinTxFeeWavesSmartAsset,
+					utl.GetCurrentTimestampInMs(),
+					nil,
+					utl.TestChainID,
+					UpdateAssetInfoExpectedPositive{
+						WavesDiffBalance: utl.MinTxFeeWavesSmartAsset,
+						AssetDiffBalance: 0,
+					}),
+				"Max values for name and desc len, smart asset " + assetIDs[i][j+1].String(): NewUpdateAssetInfoTestData(
+					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+					assetIDs[i][j+1],
+					utl.RandStringBytes(16, utl.CommonSymbolSet),
+					utl.RandStringBytes(1000, utl.CommonSymbolSet),
+					1000*utl.MinTxFeeWavesSmartAsset,
+					utl.GetCurrentTimestampInMs(),
+					nil,
+					utl.TestChainID,
+					UpdateAssetInfoExpectedPositive{
+						WavesDiffBalance: 1000 * utl.MinTxFeeWavesSmartAsset,
+						AssetDiffBalance: 0,
+					}),
+			}
+		}
+		maps.Copy(result, t)
 	}
+	return result
 }
 
 func GetUpdateAssetInfoWithoutWaitingNegativeData(suite *f.BaseSuite, assetID crypto.Digest) []UpdateAssetInfoTestData[UpdateAssetInfoExpectedNegative] {

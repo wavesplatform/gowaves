@@ -1,6 +1,8 @@
 package issue_utilities
 
 import (
+	"strings"
+
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -99,4 +101,29 @@ func GetVersions(suite *f.BaseSuite) []byte {
 
 func GetVersionsSmartAsset(suite *f.BaseSuite) []byte {
 	return utl.GetAvailableVersions(suite.T(), proto.IssueTransaction, testdata.IssueSmartAssetMinVersion, testdata.IssueMaxVersion).Sum
+}
+
+func GetAssetMatrix(suite *f.BaseSuite, assetType string, caseCount int) [][]crypto.Digest {
+	var data testdata.IssueTestData[testdata.ExpectedValuesPositive]
+	var versions []byte
+	switch strings.ToLower(assetType) {
+	case "smart":
+		data = testdata.GetCommonIssueData(suite).Smart
+		versions = GetVersionsSmartAsset(suite)
+	case "nft":
+		data = testdata.GetCommonIssueData(suite).NFT
+		versions = GetVersions(suite)
+	default:
+		data = testdata.GetCommonIssueData(suite).Reissuable
+		versions = GetVersions(suite)
+	}
+	matrix := make([][]crypto.Digest, len(versions))
+	for i := 0; i < len(versions); i++ {
+		matrix[i] = make([]crypto.Digest, caseCount)
+		for j := 0; j < caseCount; j++ {
+			itx := IssueSendWithTestData(suite, testdata.DataChangedTimestamp(&data), versions[i], true)
+			matrix[i][j] = itx.TxID
+		}
+	}
+	return matrix
 }
