@@ -1073,14 +1073,16 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 	if err := s.rw.finishBlock(block.BlockID()); err != nil {
 		return err
 	}
+	// when block is finished blockchain height is incremented, so we should use 'blockHeight' as height value in actions below
+
 	// Count features votes.
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), blockHeight)
 	// Count reward vote.
 	if blockRewardActivated {
-		err := s.addRewardVote(block, height)
+		err := s.addRewardVote(block, blockHeight)
 		if err != nil {
 			return err
 		}
