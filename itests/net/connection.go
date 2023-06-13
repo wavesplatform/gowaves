@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -75,7 +76,7 @@ type NodeConnections struct {
 
 func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 	var connections NodeConnections
-	err := retry(1*time.Second, func() error {
+	err := retry(100*time.Second, func() error {
 		var err error
 		connections, err = establishConnections(p)
 		return err

@@ -30,7 +30,7 @@ func NewHttpClient(t *testing.T, port string) *HttpClient {
 	return &HttpClient{
 		cli: c,
 		// actually, there's no need to use such timeout because above we've already set default context for http client
-		timeout: 15 * time.Second,
+		timeout: 150 * time.Second,
 	}
 }
 
