@@ -70,7 +70,7 @@ func GetUpdateAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]crypt
 	for i := 0; i < len(assetIDs); i++ {
 		for j := 0; j < len(assetIDs[i])-1; j++ {
 			t = map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
-				"Min values for fee, name and desc len, asset " + assetIDs[i][j].String(): NewUpdateAssetInfoTestData(
+				"Min values for fee, name and desc len" + utl.AssetWithVersion(assetIDs[i][j], i+1): NewUpdateAssetInfoTestData(
 					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 					assetIDs[i][j],
 					utl.RandStringBytes(4, utl.CommonSymbolSet),
@@ -83,7 +83,7 @@ func GetUpdateAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]crypt
 						WavesDiffBalance: utl.MinTxFeeWaves,
 						AssetDiffBalance: 0,
 					}),
-				"Max values for name and desc len, asset " + assetIDs[i][j+1].String(): NewUpdateAssetInfoTestData(
+				"Max values for name and desc len" + utl.AssetWithVersion(assetIDs[i][j+1], i+1): NewUpdateAssetInfoTestData(
 					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 					assetIDs[i][j+1],
 					utl.RandStringBytes(16, utl.CommonSymbolSet),
@@ -109,7 +109,7 @@ func GetUpdateSmartAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]
 	for i := 0; i < len(assetIDs); i++ {
 		for j := 0; j < len(assetIDs[i])-1; j++ {
 			t = map[string]UpdateAssetInfoTestData[UpdateAssetInfoExpectedPositive]{
-				"Min values for fee, name and desc len, smart asset " + assetIDs[i][j].String(): NewUpdateAssetInfoTestData(
+				"Min values for fee, name and desc len" + utl.AssetWithVersion(assetIDs[i][j], i+2): NewUpdateAssetInfoTestData(
 					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 					assetIDs[i][j],
 					utl.RandStringBytes(4, utl.CommonSymbolSet),
@@ -122,7 +122,7 @@ func GetUpdateSmartAssetInfoPositiveDataMatrix(suite *f.BaseSuite, assetIDs [][]
 						WavesDiffBalance: utl.MinTxFeeWavesSmartAsset,
 						AssetDiffBalance: 0,
 					}),
-				"Max values for name and desc len, smart asset " + assetIDs[i][j+1].String(): NewUpdateAssetInfoTestData(
+				"Max values for name and desc len" + utl.AssetWithVersion(assetIDs[i][j+1], i+2): NewUpdateAssetInfoTestData(
 					utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 					assetIDs[i][j+1],
 					utl.RandStringBytes(16, utl.CommonSymbolSet),

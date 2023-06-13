@@ -236,7 +236,11 @@ func GetCurrentTimestampInMs() uint64 {
 }
 
 func GetTestcaseNameWithVersion(name string, v byte) string {
-	return fmt.Sprintf("%s (version %d)", name, v)
+	return fmt.Sprintf("%s (v %d)", name, v)
+}
+
+func AssetWithVersion(assetID crypto.Digest, v int) string {
+	return fmt.Sprintf(" asset %s (v %d)", assetID, v)
 }
 
 // Abs returns the absolute value of x.

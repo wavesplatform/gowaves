@@ -118,7 +118,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxReissuableTokenNegativ
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
-				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.SendUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
@@ -159,7 +159,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxNFTNegative() {
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
-				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.SendUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
@@ -200,7 +200,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxSmartAssetNegative() {
 			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
-				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.SendUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
@@ -242,7 +242,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxWithoutWaitingNegative
 			tdstruct := testdata.GetUpdateAssetInfoWithoutWaitingNegativeData(&suite.BaseSuite, itx.TxID)
 			initAssetDetailsGo, initAssetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for _, td := range tdstruct {
-				caseName := utl.GetTestcaseNameWithVersion(name, v)
+				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := update_asset_info_utilities.SendUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, !waitForTx)
