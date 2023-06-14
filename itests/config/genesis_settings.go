@@ -59,14 +59,14 @@ type GenesisSettings struct {
 	PreactivatedFeatures []FeatureInfo      `json:"preactivated_features"`
 }
 
-type ScalaCustomOptions struct {
+type scalaCustomOptions struct {
 	Features     []FeatureInfo
 	EnableMining bool
 }
 
-type Config struct {
+type config struct {
 	BlockchainSettings *settings.BlockchainSettings
-	ScalaOpts          *ScalaCustomOptions
+	ScalaOpts          *scalaCustomOptions
 }
 
 func parseGenesisSettings() (*GenesisSettings, error) {
@@ -88,7 +88,7 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func NewBlockchainConfig() (*Config, []AccountInfo, error) {
+func newBlockchainConfig() (*config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
@@ -124,9 +124,9 @@ func NewBlockchainConfig() (*Config, []AccountInfo, error) {
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}
-	return &Config{
+	return &config{
 		BlockchainSettings: cfg,
-		ScalaOpts:          &ScalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
+		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
 	}, acc, nil
 }
 

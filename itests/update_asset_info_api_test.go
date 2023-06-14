@@ -24,7 +24,8 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiReissuableTokenP
 		assets := issue_utilities.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
 		//***wait n blocks***
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
+		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -55,7 +56,8 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiNFTPositive() {
 		nft := issue_utilities.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
 		//***wait n blocks***
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
+		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -86,7 +88,8 @@ func (suite *UpdateAssetInfoTxApiSuite) TestUpdateAssetInfoTxApiSmartAssetPositi
 		smart := issue_utilities.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
 		//***wait n blocks***
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
+		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {

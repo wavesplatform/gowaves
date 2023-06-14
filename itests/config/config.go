@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/xenolf/lego/log"
 )
 
@@ -19,7 +20,8 @@ const (
 )
 
 type TestConfig struct {
-	Accounts []AccountInfo
+	Accounts           []AccountInfo
+	BlockchainSettings *settings.BlockchainSettings
 }
 
 func createConfigDir(suiteName string) (string, error) {
@@ -34,7 +36,7 @@ func createConfigDir(suiteName string) (string, error) {
 	return configDir, nil
 }
 
-func createScalaNodeConfig(cfg *Config, configDir string) error {
+func createScalaNodeConfig(cfg *config, configDir string) error {
 	configPath := filepath.Join(configDir, scalaConfigFilename)
 	f, err := os.Create(configPath)
 	if err != nil {
@@ -61,7 +63,7 @@ func createScalaNodeConfig(cfg *Config, configDir string) error {
 	return t.Execute(f, cfg)
 }
 
-func createGoNodeConfig(cfg *Config, configDir string) error {
+func createGoNodeConfig(cfg *config, configDir string) error {
 	configPath := filepath.Join(configDir, goConfigFilename)
 	f, err := os.Create(configPath)
 	if err != nil {
@@ -90,7 +92,7 @@ type ConfigPaths struct {
 }
 
 func CreateFileConfigs(suiteName string, enableScalaMining bool) (ConfigPaths, TestConfig, error) {
-	cfg, acc, err := NewBlockchainConfig()
+	cfg, acc, err := newBlockchainConfig()
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
 	}
@@ -105,5 +107,6 @@ func CreateFileConfigs(suiteName string, enableScalaMining bool) (ConfigPaths, T
 	if err := createGoNodeConfig(cfg, configDir); err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
 	}
-	return ConfigPaths{ScalaConfigPath: configDir, GoConfigPath: configDir}, TestConfig{Accounts: acc}, nil
+	return ConfigPaths{ScalaConfigPath: configDir, GoConfigPath: configDir},
+		TestConfig{Accounts: acc, BlockchainSettings: cfg.BlockchainSettings}, nil
 }
