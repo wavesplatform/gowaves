@@ -26,6 +26,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create docker pool: %v", err)
 	}
+	if err := pool.Client.PullImage(dc.PullImageOptions{Repository: "wavesplatform/wavesnode", Tag: "latest"}, dc.AuthConfiguration{}); err != nil {
+		log.Fatalf("Failed to pull node image: %v", err)
+	}
 	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
 	err = pool.Client.BuildImage(dc.BuildImageOptions{
 		Name:           "go-node",
