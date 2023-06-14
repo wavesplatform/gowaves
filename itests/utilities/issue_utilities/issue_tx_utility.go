@@ -106,6 +106,7 @@ func GetVersionsSmartAsset(suite *f.BaseSuite) []byte {
 func GetAssetMatrix(suite *f.BaseSuite, assetType string, caseCount int) [][]crypto.Digest {
 	var data testdata.IssueTestData[testdata.ExpectedValuesPositive]
 	var versions []byte
+	waitForTx := false
 	switch strings.ToLower(assetType) {
 	case "smart":
 		data = testdata.GetCommonIssueData(suite).Smart
@@ -121,7 +122,10 @@ func GetAssetMatrix(suite *f.BaseSuite, assetType string, caseCount int) [][]cry
 	for i := 0; i < len(versions); i++ {
 		matrix[i] = make([]crypto.Digest, caseCount)
 		for j := 0; j < caseCount; j++ {
-			itx := IssueSendWithTestData(suite, testdata.DataChangedTimestamp(&data), versions[i], true)
+			if i == len(versions)-1 && j == caseCount-1 {
+				waitForTx = true
+			}
+			itx := IssueSendWithTestData(suite, testdata.DataChangedTimestamp(&data), versions[i], waitForTx)
 			matrix[i][j] = itx.TxID
 		}
 	}
