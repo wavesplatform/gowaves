@@ -27,17 +27,15 @@ func createConfigDir(suiteName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	configDir := filepath.Clean(filepath.Join(pwd, tmpDir, suiteName))
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
-			return "", err
-		}
+	configDir := filepath.Join(pwd, tmpDir, suiteName)
+	if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
+		return "", err
 	}
 	return configDir, nil
 }
 
 func createScalaNodeConfig(cfg *Config, configDir string) error {
-	configPath := filepath.Clean(filepath.Join(configDir, scalaConfigFilename))
+	configPath := filepath.Join(configDir, scalaConfigFilename)
 	f, err := os.Create(configPath)
 	if err != nil {
 		return err
@@ -55,20 +53,16 @@ func createScalaNodeConfig(cfg *Config, configDir string) error {
 	if err != nil {
 		return err
 	}
-	templatePath := filepath.Clean(filepath.Join(pwd, configFolder, templateScalaCfgFilename))
+	templatePath := filepath.Join(pwd, configFolder, templateScalaCfgFilename)
 	t, err := template.ParseFiles(templatePath)
 	if err != nil {
 		return err
 	}
-	err = t.Execute(f, cfg)
-	if err != nil {
-		return err
-	}
-	return nil
+	return t.Execute(f, cfg)
 }
 
 func createGoNodeConfig(cfg *Config, configDir string) error {
-	configPath := filepath.Clean(filepath.Join(configDir, goConfigFilename))
+	configPath := filepath.Join(configDir, goConfigFilename)
 	f, err := os.Create(configPath)
 	if err != nil {
 		return err
