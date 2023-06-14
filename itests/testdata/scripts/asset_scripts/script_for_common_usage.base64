@@ -1,0 +1,12 @@
+# {-# STDLIB_VERSION 6 #-}
+# {-# CONTENT_TYPE EXPRESSION #-}
+# {-# SCRIPT_TYPE ASSET #-}
+#
+# match (tx) {
+# case t:UpdateAssetInfoTransaction =>
+#        if (t.name == "test" && t.description == "test") then false
+#        else true
+#    case _ => true
+# }
+
+BgEEByRtYXRjaDAFAnR4AwkAAQIFByRtYXRjaDACGlVwZGF0ZUFzc2V0SW5mb1RyYW5zYWN0aW9uBAF0BQckbWF0Y2gwAwMJAAACCAUBdARuYW1lAgR0ZXN0CQAAAggFAXQLZGVzY3JpcHRpb24CBHRlc3QHBwYGqp//xA==
