@@ -1,28 +1,179 @@
 package state
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"math/big"
 	"testing"
 )
 
-// TODO send only txBalanceChanges to perfomer
-func TestIssueTransactionSnapshot(t *testing.T) {
+func defaultAssetInfoTransfer(tail [12]byte, reissuable bool, amount int64) *assetInfo {
+	return &assetInfo{
+		assetConstInfo: assetConstInfo{
+			tail:     tail,
+			issuer:   testGlobal.issuerInfo.pk,
+			decimals: 2,
+		},
+		assetChangeableInfo: assetChangeableInfo{
+			quantity:                 *big.NewInt(amount),
+			name:                     "asset",
+			description:              "description",
+			lastNameDescChangeHeight: 1,
+			reissuable:               reissuable,
+		},
+	}
+}
+
+func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	to := createDifferTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
-	assert.NoError(t, err, "failed to sign issue tx")
-	tx := proto.NewUnsignedIssueWithSig(testGlobal.senderInfo.pk, "asset0", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, uint64(1000*FeeUnit))
-	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedTransferWithSig(testGlobal.issuerInfo.pk, proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), defaultTimestamp, defaultAmount*1000*2, uint64(FeeUnit), testGlobal.recipientInfo.Recipient(), nil)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.issuerInfo.sk)
+	assert.NoError(t, err, "failed to sign transfer tx")
+
+	ch, err := to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffTransferWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performTransferWithSig(tx, defaultPerformerInfo(), nil, applicationRes)
+
+	for _, s := range transactionSnapshot {
+		b, _ := json.Marshal(s)
+		fmt.Println(string(b))
+	}
+
+	assert.NoError(t, err, "performIssueWithProofs() failed")
+	to.stor.flush(t)
+	assert.NotNil(t, transactionSnapshot)
+}
+
+// TODO send only txBalanceChanges to perfomer
+func TestDefaultIssueTransactionSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+	err = to.stor.entities.balances.setAssetBalance(testGlobal.issuerInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 1000000000, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedIssueWithSig(testGlobal.issuerInfo.pk, "asset0", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, uint64(1*FeeUnit))
+	err = tx.Sign(proto.TestNetScheme, testGlobal.issuerInfo.sk)
 	assert.NoError(t, err, "failed to sign issue tx")
 
 	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
 	applicationRes := &applicationResult{true, 0, ch}
 	transactionSnapshot, err := to.tp.performIssueWithSig(tx, defaultPerformerInfo(), nil, applicationRes)
+	assert.NoError(t, err, "performIssueWithProofs() failed")
+	for _, s := range transactionSnapshot {
+		b, _ := json.Marshal(s)
+		fmt.Println(string(b))
+	}
+	fmt.Println(tx.ID.String())
+	expectedSnapshot := TransactionSnapshot{
+		&StaticAssetInfoSnapshot{
+			AssetID:             *tx.ID,
+			SourceTransactionID: *tx.ID,
+			IssuerPublicKey:     testGlobal.issuerInfo.pk,
+			Decimals:            defaultDecimals,
+			IsNFT:               false},
+		&AssetDescriptionSnapshot{
+			AssetID:          *tx.ID,
+			AssetName:        "asset0",
+			AssetDescription: "description",
+			ChangeHeight:     1,
+		},
+		&AssetVolumeSnapshot{
+			AssetID:       *tx.ID,
+			TotalQuantity: *big.NewInt(int64(defaultQuantity)),
+			IsReissuable:  true,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.issuerInfo.addr,
+			Balance: 299900000,
+		},
+		&AssetBalanceSnapshot{
+			Address: testGlobal.issuerInfo.addr,
+			AssetID: *tx.ID,
+			Balance: 1000,
+		},
+	}
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultReissueSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfo(proto.DigestTail(testGlobal.asset0.assetID), true), blockID0)
+	assert.NoError(t, err, "failed to issue asset")
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+	err = to.stor.entities.balances.setAssetBalance(testGlobal.issuerInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 1000, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedReissueWithSig(testGlobal.issuerInfo.pk, testGlobal.asset0.assetID, 50, false, defaultTimestamp, uint64(FeeUnit))
+	err = tx.Sign(proto.TestNetScheme, testGlobal.issuerInfo.sk)
+	assert.NoError(t, err, "failed to sign transfer tx")
+
+	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffTransferWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performReissueWithSig(tx, defaultPerformerInfo(), nil, applicationRes)
+
+	for _, s := range transactionSnapshot {
+		b, _ := json.Marshal(s)
+		fmt.Println(string(b))
+	}
+	assert.NoError(t, err, "performIssueWithProofs() failed")
+	to.stor.flush(t)
+	assert.NotNil(t, transactionSnapshot)
+}
+
+func TestDefaultBurnSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfo(proto.DigestTail(testGlobal.asset0.assetID), true), blockID0)
+	//fmt.Println(testGlobal.issuerInfo.addr.String())
+	//fmt.Println(testGlobal.issuerInfo.pk.String())
+	assert.NoError(t, err, "failed to issue asset")
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+	err = to.stor.entities.balances.setAssetBalance(testGlobal.issuerInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 1000000000, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedBurnWithSig(testGlobal.issuerInfo.pk, testGlobal.asset0.assetID, 50, defaultTimestamp, uint64(1000*FeeUnit))
+	err = tx.Sign(proto.TestNetScheme, testGlobal.issuerInfo.sk)
+	assert.NoError(t, err, "failed to sign transfer tx")
+	fmt.Println(testGlobal.asset0.assetID)
+	ch, err := to.td.createDiffBurnWithSig(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffTransferWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performBurnWithSig(tx, defaultPerformerInfo(), nil, applicationRes)
+
+	for _, s := range transactionSnapshot {
+		b, _ := json.Marshal(s)
+		fmt.Println(string(b))
+	}
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
 	assert.NotNil(t, transactionSnapshot)
