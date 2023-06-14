@@ -67,6 +67,7 @@ func NewDocker(suiteName string) (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+	pool.MaxWait = 5 * time.Minute
 	err = removeExistsContainers(pool, suiteName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to remove old containers")
