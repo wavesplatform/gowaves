@@ -116,6 +116,25 @@ type BlockchainSettings struct {
 	Genesis proto.Block    `json:"genesis"`
 }
 
+func (s *BlockchainSettings) UnmarshalJSON(bytes []byte) error {
+	type shadowed *BlockchainSettings
+	if err := json.Unmarshal(bytes, shadowed(s)); err != nil {
+		return err
+	}
+	return s.validate()
+}
+
+// validate BlockchainSettings according to the scala node rules
+func (s *BlockchainSettings) validate() error {
+	if s.BlockRewardTerm < s.BlockRewardVotingPeriod {
+		return errors.New("'block_reward_term' cannot be greater than 'block_reward_voting_period'")
+	}
+	if s.BlockRewardTermAfter20 < s.BlockRewardVotingPeriod {
+		return errors.New("'block_reward_term_after_20' cannot be greater than 'block_reward_voting_period'")
+	}
+	return nil
+}
+
 var (
 	MainNetSettings  = mustLoadEmbeddedSettings(MainNet)
 	TestNetSettings  = mustLoadEmbeddedSettings(TestNet)

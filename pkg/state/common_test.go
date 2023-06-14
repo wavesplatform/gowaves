@@ -432,10 +432,16 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	s.flush(t)
 }
 
-func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
-	err := s.stateDB.addBlock(blockID)
+// prepareBlock makes test block officially valid (but only after batch is flushed).
+func (s *testStorageObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
+	err := s.stateDB.addBlock(blockID) // Assign unique block number for this block ID, add this number to the list of valid blocks.
 	assert.NoError(t, err, "stateDB.addBlock() failed")
-	err = s.rw.startBlock(blockID)
+}
+
+// addBlock prepares, starts and finishes fake block.
+func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+	s.prepareBlock(t, blockID)
+	err := s.rw.startBlock(blockID)
 	assert.NoError(t, err, "startBlock() failed")
 	err = s.rw.finishBlock(blockID)
 	assert.NoError(t, err, "finishBlock() failed")
