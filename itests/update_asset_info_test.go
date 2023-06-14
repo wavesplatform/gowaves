@@ -20,7 +20,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxReissuableTokenPositiv
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
-		assets := issue_utilities.GetAssetMatrix(&suite.BaseSuite, "reissuable", testdata.PositiveCasesCount)
+		assets := issue_utilities.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
 		//***wait n blocks***
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
@@ -50,7 +50,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxNFTPositive() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
-		nft := issue_utilities.GetAssetMatrix(&suite.BaseSuite, "nft", testdata.PositiveCasesCount)
+		nft := issue_utilities.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
 		//***wait n blocks***
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
@@ -80,7 +80,7 @@ func (suite *UpdateAssetInfoTxSuite) TestUpdateAssetInfoTxSmartAssetPositive() {
 	versions := update_asset_info_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
-		smart := issue_utilities.GetAssetMatrix(&suite.BaseSuite, "smart", testdata.PositiveCasesCount)
+		smart := issue_utilities.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
 		//***wait n blocks***
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+2)
