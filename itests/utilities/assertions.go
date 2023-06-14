@@ -37,12 +37,6 @@ func WavesDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, 
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
 
-func AssetBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
-	errMsg := makeErrorMessage("Asset balance mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
-}
-
 func AssetDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
 	errMsg := makeErrorMessage("Asset balance mismatch", args...)
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
@@ -57,6 +51,18 @@ func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, a
 
 func AssetScriptCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
 	errMsg := makeErrorMessage("Script bytes mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func AssetNameCheck(t *testing.T, expected, actualGo, actualScala string, args ...interface{}) {
+	errMsg := makeErrorMessage("Asset Name mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func AssetDescriptionCheck(t *testing.T, expected, actualGo, actualScala string, args ...interface{}) {
+	errMsg := makeErrorMessage("Asset Description mismatch", args...)
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }

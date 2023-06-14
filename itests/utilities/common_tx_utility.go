@@ -236,7 +236,11 @@ func GetCurrentTimestampInMs() uint64 {
 }
 
 func GetTestcaseNameWithVersion(name string, v byte) string {
-	return fmt.Sprintf("%s (version %d)", name, v)
+	return fmt.Sprintf("%s (v %d)", name, v)
+}
+
+func AssetWithVersion(assetID crypto.Digest, v int) string {
+	return fmt.Sprintf(" asset %s (v %d)", assetID, v)
 }
 
 // Abs returns the absolute value of x.
@@ -346,6 +350,27 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
+}
+
+func GetHeightGo(suite *f.BaseSuite) uint64 {
+	return suite.Clients.GoClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeightScala(suite *f.BaseSuite) uint64 {
+	return suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeight(suite *f.BaseSuite) uint64 {
+	goHeight := GetHeightGo(suite)
+	scalaHeight := GetHeightScala(suite)
+	if goHeight < scalaHeight {
+		return goHeight
+	}
+	return scalaHeight
+}
+
+func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.WaitForHeight(suite.T(), height)
 }
 
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
