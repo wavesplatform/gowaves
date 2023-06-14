@@ -138,6 +138,7 @@ var (
 			MaxBaseTarget:              math.MaxUint64,
 			MinUpdateAssetInfoInterval: 100000,
 			BlockRewardTerm:            100000,
+			BlockRewardTermAfter20:     50000,
 		},
 	}
 )

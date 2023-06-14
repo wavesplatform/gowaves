@@ -22,58 +22,66 @@ type TestConfig struct {
 	Accounts []AccountInfo
 }
 
-func CreateScalaNodeConfig(cfg *Config) (string, error) {
+func createConfigDir(suiteName string) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-	err = os.MkdirAll(filepath.Join(pwd, tmpDir), os.ModePerm)
-	if err != nil {
+	configDir := filepath.Join(pwd, tmpDir, suiteName)
+	if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
 		return "", err
 	}
-	configPath := filepath.Clean(filepath.Join(pwd, tmpDir, scalaConfigFilename))
-	f, err := os.Create(configPath)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Warnf("Failed to close file %s", err)
-		}
-	}()
-	templatePath := filepath.Clean(filepath.Join(pwd, configFolder, templateScalaCfgFilename))
-	t, err := template.ParseFiles(templatePath)
-	if err != nil {
-		return "", err
-	}
-	err = t.Execute(f, cfg)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Clean(filepath.Join(pwd, tmpDir)), nil
+	return configDir, nil
 }
 
-func CreateGoNodeConfig(cfg *Config) (string, error) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	configPath := filepath.Clean(filepath.Join(pwd, tmpDir, goConfigFilename))
+func createScalaNodeConfig(cfg *Config, configDir string) error {
+	configPath := filepath.Join(configDir, scalaConfigFilename)
 	f, err := os.Create(configPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() {
+		if err := f.Sync(); err != nil {
+			log.Warnf("Failed to sync file '%s' to disk: %v", f.Name(), err)
+			return
+		}
 		if err := f.Close(); err != nil {
-			log.Warnf("Failed to close file %s", err)
+			log.Warnf("Failed to close file '%s': %v", f.Name(), err)
+		}
+	}()
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	templatePath := filepath.Join(pwd, configFolder, templateScalaCfgFilename)
+	t, err := template.ParseFiles(templatePath)
+	if err != nil {
+		return err
+	}
+	return t.Execute(f, cfg)
+}
+
+func createGoNodeConfig(cfg *Config, configDir string) error {
+	configPath := filepath.Join(configDir, goConfigFilename)
+	f, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := f.Sync(); err != nil {
+			log.Warnf("Failed to sync file '%s' to disk: %v", f.Name(), err)
+			return
+		}
+		if err := f.Close(); err != nil {
+			log.Warnf("Failed to close file '%s': %v", f.Name(), err)
 		}
 	}()
 	jsonWriter := json.NewEncoder(f)
 	jsonWriter.SetIndent("", "\t")
 	if err := jsonWriter.Encode(cfg.BlockchainSettings); err != nil {
-		return "", errors.Wrap(err, "failed to encode genesis settings")
+		return errors.Wrap(err, "failed to encode genesis settings")
 	}
-	return filepath.Clean(filepath.Join(pwd, tmpDir)), nil
+	return nil
 }
 
 type ConfigPaths struct {
@@ -81,19 +89,21 @@ type ConfigPaths struct {
 	ScalaConfigPath string
 }
 
-func CreateFileConfigs(enableScalaMining bool) (ConfigPaths, TestConfig, error) {
+func CreateFileConfigs(suiteName string, enableScalaMining bool) (ConfigPaths, TestConfig, error) {
 	cfg, acc, err := NewBlockchainConfig()
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
 	}
 	cfg.ScalaOpts.EnableMining = enableScalaMining
-	scalaPath, err := CreateScalaNodeConfig(cfg)
+	configDir, err := createConfigDir(suiteName)
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create scala-node config")
 	}
-	goPath, err := CreateGoNodeConfig(cfg)
-	if err != nil {
+	if err := createScalaNodeConfig(cfg, configDir); err != nil {
+		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create scala-node config")
+	}
+	if err := createGoNodeConfig(cfg, configDir); err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
 	}
-	return ConfigPaths{ScalaConfigPath: scalaPath, GoConfigPath: goPath}, TestConfig{Accounts: acc}, nil
+	return ConfigPaths{ScalaConfigPath: configDir, GoConfigPath: configDir}, TestConfig{Accounts: acc}, nil
 }
