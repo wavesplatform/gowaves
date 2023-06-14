@@ -7,8 +7,10 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type NodeClients struct {
@@ -45,10 +47,10 @@ func (c *NodesClients) SendEndMessage(t *testing.T) {
 	c.ScalaClients.HttpClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
 }
 
-func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) bool {
+func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHash, *proto.StateHash, bool) {
 	goStateHash := c.GoClients.HttpClient.StateHash(t, height)
 	scalaStateHash := c.ScalaClients.HttpClient.StateHash(t, height)
-	return goStateHash.BlockID == scalaStateHash.BlockID && goStateHash.SumHash == scalaStateHash.SumHash
+	return goStateHash, scalaStateHash, goStateHash.BlockID == scalaStateHash.BlockID && goStateHash.SumHash == scalaStateHash.SumHash
 }
 
 // WaitForNewHeight waits for nodes to generate new block.
@@ -84,16 +86,22 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 }
 
 func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
-	equal := false
+	var (
+		equal          bool
+		goStateHash    *proto.StateHash
+		scalaStateHash *proto.StateHash
+	)
 	h := c.WaitForNewHeight(t)
 	for i := 0; i < 3; i++ {
-		c.WaitForNewHeight(t)
-		if c.StateHashCmp(t, h) {
-			equal = true
+		if goStateHash, scalaStateHash, equal = c.StateHashCmp(t, h); equal {
 			break
 		}
+		c.WaitForNewHeight(t)
 	}
-	assert.True(t, equal)
+	assert.True(t, equal,
+		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\nScala:\tBlockID=%s\tStateHash=%s",
+		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(),
+		scalaStateHash.BlockID.String(), goStateHash.SumHash.String())
 }
 
 func Retry(timeout time.Duration, f func() error) error {

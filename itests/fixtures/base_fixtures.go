@@ -2,10 +2,11 @@ package fixtures
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/stoewer/go-strcase"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
@@ -26,12 +27,13 @@ type BaseSuite struct {
 func (suite *BaseSuite) SetupSuite() {
 	const enableScalaMining = true
 
+	suiteName := strcase.KebabCase(suite.T().Name())
+
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
-	paths, cfg, err := config.CreateFileConfigs(enableScalaMining)
+	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining)
 	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
 
-	suiteName := strings.ToLower(suite.T().Name())
 	docker, err := d.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
