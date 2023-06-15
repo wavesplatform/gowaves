@@ -214,11 +214,11 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 	}
 
 	dir := filepath.Join(pwd, logsDir, suiteName)
-	logFile, err := os.Create(filepath.Join(dir, goNodeLogFileName))
+	logFile, err := os.Create(filepath.Clean(filepath.Join(dir, goNodeLogFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
-	errFile, err := os.Create(filepath.Join(dir, goNodeErrFileName))
+	errFile, err := os.Create(filepath.Clean(filepath.Join(dir, goNodeErrFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -309,11 +309,11 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 	}
 
 	dir := filepath.Join(pwd, logsDir, suiteName)
-	logFile, err := os.Create(filepath.Join(dir, scalaNodeLogFileName))
+	logFile, err := os.Create(filepath.Clean(filepath.Join(dir, scalaNodeLogFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
-	errFile, err := os.Create(filepath.Join(dir, scalaNodeErrFileName))
+	errFile, err := os.Create(filepath.Clean(filepath.Join(dir, scalaNodeErrFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
