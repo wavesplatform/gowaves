@@ -145,7 +145,7 @@ var (
 			DelayDelta:   delayDeltaDefault,
 		},
 	}
-	DefaultCustomSettings = &BlockchainSettings{
+	DefaultCustomSettings = BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
 			FeaturesVotingPeriod:       5000,

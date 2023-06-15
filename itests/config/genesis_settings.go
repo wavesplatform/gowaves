@@ -126,7 +126,7 @@ func newBlockchainConfig() (*config, []AccountInfo, error) {
 		cfg.PreactivatedFeatures[i] = f.Feature
 	}
 	return &config{
-		BlockchainSettings: cfg,
+		BlockchainSettings: &cfg,
 		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
 	}, acc, nil
 }
