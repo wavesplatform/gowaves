@@ -12,6 +12,7 @@ type snapshotApplier struct {
 	assets            *assets
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
+	sponsoredAssets   *sponsoredAssets
 }
 
 var _ = (&snapshotApplier{}).applyWavesBalance // TODO: remove it, need for linter for now
@@ -120,4 +121,10 @@ func (a *snapshotApplier) applyAssetScript(blockID proto.BlockID, snapshot Asset
 		return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
 	}
 	return a.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, info.issuer, blockID)
+}
+
+var _ = (&snapshotApplier{}).applySponsorship // TODO: remove it, need for linter for now
+
+func (a *snapshotApplier) applySponsorship(blockID proto.BlockID, snapshot SponsorshipSnapshot) error {
+	return a.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, blockID)
 }
