@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -203,24 +204,8 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *p
 	if reward > math.MaxInt64 {
 		return errors.New("reward overflows int64")
 	}
-	blockRewardDistribution, err := d.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return err
-	}
-	wavesKey := wavesBalanceKey{addr}
-	minerReward := int64(reward)
-	if blockRewardDistribution {
-		numberOfAddresses := uint64(len(d.settings.RewardAddresses) + 1)
-		for _, a := range d.settings.RewardAddresses {
-			balanceKey := wavesBalanceKey{a.ID()}
-			addressReward := int64(reward / numberOfAddresses)
-			if err = diff.appendBalanceDiff(balanceKey.bytes(), balanceDiff{balance: addressReward}); err != nil {
-				return err
-			}
-			minerReward -= addressReward
-		}
-	}
-	if err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: minerReward}); err != nil {
+	c := newRewardsCalculator(d.settings, d.stor.features)
+	if err := c.applyToDiff(diff, addr, d.stor.hs.stateDB.rw.addingBlockHeight(), reward); err != nil {
 		return err
 	}
 	d.appendBlockInfoToTxDiff(diff, block)

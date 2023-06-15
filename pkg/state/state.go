@@ -12,6 +12,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -20,8 +23,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/atomic"
-	"go.uber.org/zap"
 )
 
 const (
@@ -540,6 +541,28 @@ func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, erro
 	return s.stor.scriptsStorage.newestScriptByAsset(assetID)
 }
 
+func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	header, err := s.NewestHeaderByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	generator, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	vrf, err := s.blockVRF(header, height-1)
+	if err != nil {
+		return nil, err
+	}
+	rewards, err := s.blockRewards(generator, height)
+	if err != nil {
+		return nil, err
+	}
+
+	return proto.BlockInfoFromHeader(header, generator, height, vrf, rewards)
+}
+
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
 	s.genesis = genesisBlock
 }
@@ -630,7 +653,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 	return s.lastBlock.Load().(*proto.Block)
 }
 
-func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
@@ -651,29 +674,13 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
-func (s *stateManager) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
+func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
 	reward, err := s.stor.monetaryPolicy.reward()
 	if err != nil {
 		return nil, err
 	}
-	minerReward := reward
-	minerAddress, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, blockHeader.GeneratorPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	active := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
-	if !active {
-		return proto.Rewards{proto.NewReward(minerAddress, minerReward)}, nil
-	}
-	numberOfAddresses := uint64(len(s.settings.RewardAddresses) + 1)
-	r := make(proto.Rewards, 0, numberOfAddresses)
-	for _, a := range s.settings.RewardAddresses {
-		addressReward := reward / numberOfAddresses
-		r = append(r, proto.NewReward(a, addressReward))
-		minerReward -= addressReward
-	}
-	r = append(r, proto.NewReward(minerAddress, minerReward))
-	return r, nil
+	c := newRewardsCalculator(s.settings, s.stor.features)
+	return c.calculateRewards(generatorAddress, height, reward)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
@@ -1026,7 +1033,11 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	if err != nil {
 		return err
 	}
-	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
@@ -1066,14 +1077,16 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 	if err := s.rw.finishBlock(block.BlockID()); err != nil {
 		return err
 	}
+	// when block is finished blockchain height is incremented, so we should use 'blockHeight' as height value in actions below
+
 	// Count features votes.
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), blockHeight)
 	// Count reward vote.
 	if blockRewardActivated {
-		err := s.addRewardVote(block, height)
+		err := s.addRewardVote(block, blockHeight)
 		if err != nil {
 			return err
 		}
@@ -1152,24 +1165,55 @@ func (s *stateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Bloc
 	return lastBlock, nil
 }
 
-func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {
+func (s *stateManager) needToFinishVotingPeriod(blockchainHeight proto.Height) bool {
 	nextBlockHeight := blockchainHeight + 1
 	votingFinishHeight := (nextBlockHeight % s.settings.ActivationWindowSize(nextBlockHeight)) == 0
 	return votingFinishHeight
 }
 
-func (s *stateManager) isBlockRewardTermOver(height uint64) (bool, error) {
-	feature := int16(settings.BlockReward)
-	activated := s.stor.features.newestIsActivatedAtHeight(feature, height)
+func (s *stateManager) needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height) (bool, error) {
+	cappedRewardsActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
+	if !cappedRewardsActivated { // nothing to do
+		return false, nil
+	}
+	cappedRewardsHeight, err := s.stor.features.newestActivationHeight(int16(settings.CappedRewards))
+	if err != nil {
+		return false, err
+	}
+	if height != cappedRewardsHeight { // nothing to do, height is not capped
+		return false, nil
+	}
+	// we're on cappedRewardsHeight, check whether current height is included in voting period or not
+	start, end, err := s.blockRewardVotingPeriod(height)
+	if err != nil {
+		return false, err
+	}
+	return isBlockRewardVotingPeriod(start, end, height), nil
+}
+
+func (s *stateManager) isBlockRewardTermOver(height proto.Height) (bool, error) {
+	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	if activated {
-		activation, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+		_, end, err := s.blockRewardVotingPeriod(height)
 		if err != nil {
 			return false, err
 		}
-		_, end := blockRewardTermBoundaries(height, activation, s.settings.FunctionalitySettings)
 		return end == height, nil
 	}
 	return false, nil
+}
+
+func (s *stateManager) blockRewardVotingPeriod(height proto.Height) (start, end proto.Height, err error) {
+	activationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return 0, 0, err
+	}
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return 0, 0, err
+	}
+	start, end = s.stor.monetaryPolicy.blockRewardVotingPeriod(height, activationHeight, isCappedRewardsActivated)
+	return start, end, nil
 }
 
 func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
@@ -1256,12 +1300,23 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return err
 		}
 	}
+
+	needToRecalc, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if needToRecalc { // one time action
+		if err := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); err != nil {
+			return errors.Wrap(err, "failed to recalculate monetary policy votes")
+		}
+	}
+
 	termIsOver, err := s.isBlockRewardTermOver(blockchainHeight)
 	if err != nil {
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(blockchainHeight, lastBlock); err != nil {
+		if err := s.updateBlockReward(lastBlock, nextBlock); err != nil {
 			return err
 		}
 	}
@@ -1276,8 +1331,8 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(height uint64, blockID proto.BlockID) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(height, blockID); err != nil {
+func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
+	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID); err != nil {
 		return err
 	}
 	return nil
@@ -1342,6 +1397,38 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 		}
 		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
+	start, end, err := s.blockRewardVotingPeriod(height)
+	if err != nil {
+		return err
+	}
+	if !isBlockRewardVotingPeriod(start, end, height) { // sanity check
+		return errors.Errorf("height %d is not in voting period %d:%d", height, start, end)
+	}
+	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	if err := s.stor.monetaryPolicy.resetBlockRewardVotes(lastBlockID); err != nil { // reset votes just to be sure that they're equal zero
+		return errors.Wrapf(err, "failed to reset block reward votes for block %q", lastBlockID.String())
+	}
+	for h := start; h <= height; h++ {
+		header, err := s.NewestHeaderByHeight(h)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get newest header by height %d", h)
+		}
+		// rewrite rewardVotes on h == start and count votes for the rest heights
+		if err := s.stor.monetaryPolicy.vote(header.RewardVote, h, blockRewardActivationHeight, isCappedRewardsActivated, lastBlockID); err != nil {
+			return errors.Wrapf(err, "failed to add vote for monetary policy at height %d for block %q", height, lastBlockID.String())
 		}
 	}
 	return nil
@@ -2403,12 +2490,4 @@ func (s *stateManager) Close() error {
 		return wrapErr(ClosureError, err)
 	}
 	return nil
-}
-
-func (s *stateManager) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	info, err := s.stor.scriptsStorage.newestScriptBasicInfoByAddressID(id)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to get script version")
-	}
-	return info.LibraryVersion, nil
 }

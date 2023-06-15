@@ -39,6 +39,8 @@ const (
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	DefaultInitialTimeout      = 5 * time.Millisecond
+	DefaultWaitTimeout         = 15 * time.Second
 )
 
 var (
@@ -234,7 +236,11 @@ func GetCurrentTimestampInMs() uint64 {
 }
 
 func GetTestcaseNameWithVersion(name string, v byte) string {
-	return fmt.Sprintf("%s (version %d)", name, v)
+	return fmt.Sprintf("%s (v %d)", name, v)
+}
+
+func AssetWithVersion(assetID crypto.Digest, v int) string {
+	return fmt.Sprintf(" asset %s (v %d)", assetID, v)
 }
 
 // Abs returns the absolute value of x.
@@ -346,6 +352,27 @@ func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetai
 	return assetInfo
 }
 
+func GetHeightGo(suite *f.BaseSuite) uint64 {
+	return suite.Clients.GoClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeightScala(suite *f.BaseSuite) uint64 {
+	return suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T()).Height
+}
+
+func GetHeight(suite *f.BaseSuite) uint64 {
+	goHeight := GetHeightGo(suite)
+	scalaHeight := GetHeightScala(suite)
+	if goHeight < scalaHeight {
+		return goHeight
+	}
+	return scalaHeight
+}
+
+func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.WaitForHeight(suite.T(), height)
+}
+
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
 	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }
@@ -445,11 +472,11 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
-	timeout := 5 * time.Millisecond
+	timeout := DefaultInitialTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
 	if waitForTx {
-		timeout = 15 * time.Second
+		timeout = DefaultWaitTimeout
 	}
 	scala := !waitForTx
 
@@ -463,13 +490,13 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 }
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
-	timeout := 15 * time.Second
+	timeout := DefaultWaitTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
 	var respScala *client.Response = nil
 	var errBrdCstScala error = nil
 	if !waitForTx {
-		timeout = time.Millisecond
+		timeout = DefaultInitialTimeout
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
