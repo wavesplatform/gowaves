@@ -45,10 +45,10 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Issue
 		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
 	actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala := utl.GetActualDiffBalanceInAssets(suite,
 		testdata.Account.Address, tx.TxID, 0, 0)
-	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
+	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
 			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
-		*utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
-		*utl.NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
+		utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala),
+		utl.NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
 func NewSignIssueTransactionWithTestData[T any](suite *f.BaseSuite, version byte, testdata testdata.IssueTestData[T]) proto.Transaction {
@@ -99,4 +99,39 @@ func GetVersions(suite *f.BaseSuite) []byte {
 
 func GetVersionsSmartAsset(suite *f.BaseSuite) []byte {
 	return utl.GetAvailableVersions(suite.T(), proto.IssueTransaction, testdata.IssueSmartAssetMinVersion, testdata.IssueMaxVersion).Sum
+}
+
+func GetSmartAssetMatrix(suite *f.BaseSuite, casesCount int) [][]crypto.Digest {
+	smartAssetData := testdata.GetCommonIssueData(suite).Smart
+	issueVersions := GetVersionsSmartAsset(suite)
+	return getAssetsMatrix(suite, smartAssetData, issueVersions, casesCount)
+}
+
+func GetNFTMatrix(suite *f.BaseSuite, casesCount int) [][]crypto.Digest {
+	nftData := testdata.GetCommonIssueData(suite).NFT
+	issueVersions := GetVersions(suite)
+	return getAssetsMatrix(suite, nftData, issueVersions, casesCount)
+}
+
+func GetReissuableMatrix(suite *f.BaseSuite, casesCount int) [][]crypto.Digest {
+	reissuableData := testdata.GetCommonIssueData(suite).Reissuable
+	issueVersions := GetVersions(suite)
+	return getAssetsMatrix(suite, reissuableData, issueVersions, casesCount)
+}
+
+// getAssetsMatrix issues [len(issueVersions)][casesCount]crypto.Digests assets.
+func getAssetsMatrix(suite *f.BaseSuite, data testdata.IssueTestData[testdata.ExpectedValuesPositive], issueVersions []byte, casesCount int) [][]crypto.Digest {
+	waitForTx := false
+	matrix := make([][]crypto.Digest, len(issueVersions))
+	for i := 0; i < len(issueVersions); i++ {
+		matrix[i] = make([]crypto.Digest, casesCount)
+		for j := 0; j < casesCount; j++ {
+			if i == len(issueVersions)-1 && j == casesCount-1 {
+				waitForTx = true
+			}
+			itx := IssueSendWithTestData(suite, testdata.DataChangedTimestamp(&data), issueVersions[i], waitForTx)
+			matrix[i][j] = itx.TxID
+		}
+	}
+	return matrix
 }

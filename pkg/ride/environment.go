@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -334,18 +335,6 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}, nil
 }
 
-func (ws *WrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
-	return ws.diff.state.NewestHeaderByHeight(height)
-}
-
-func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return ws.diff.state.BlockVRF(blockHeader, height)
-}
-
-func (ws *WrappedState) BlockRewards(blockHeader *proto.BlockHeader, height proto.Height) (proto.Rewards, error) {
-	return ws.diff.state.BlockRewards(blockHeader, height)
-}
-
 func (ws *WrappedState) EstimatorVersion() (int, error) {
 	return ws.diff.state.EstimatorVersion()
 }
@@ -358,16 +347,16 @@ func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, err
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
+func (ws *WrappedState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	return ws.diff.state.NewestBlockInfoByHeight(height)
+}
+
 func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 	return ws.diff.state.WavesBalanceProfile(id)
 }
 
 func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
 	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
-}
-
-func (ws *WrappedState) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	return ws.diff.state.NewestScriptVersionByAddressID(id)
 }
 
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
@@ -448,6 +437,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return false, err
 	}
 	localEnv.ChooseSizeCheck(tree.LibVersion)
+	localEnv.setLastBlock(env.block())
 	localEnv.SetLimit(MaxAssetVerifierComplexity(tree.LibVersion))
 	switch tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3:
@@ -642,14 +632,6 @@ func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restri
 	return nil
 }
 
-func (ws *WrappedState) getLibVersion() (ast.LibraryVersion, error) {
-	v, err := ws.NewestScriptVersionByAddressID(ws.callee().ID())
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to get script version on address %q", ws.callee().String())
-	}
-	return v, nil
-}
-
 func (ws *WrappedState) invCount() int {
 	return ws.invocationCount
 }
@@ -731,7 +713,7 @@ func (ws *WrappedState) ApplyToState(
 	env environment,
 	localActionsCountValidator *proto.ActionsCountValidator,
 ) ([]proto.ScriptAction, error) {
-	currentLibVersion, err := ws.getLibVersion()
+	currentLibVersion, err := env.libVersion() // get current version, for more info see usages of env.setLibVersion
 	if err != nil {
 		return nil, err
 	}
@@ -1164,8 +1146,18 @@ func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
 	e.th = rideAddress(addr)
 }
 
-func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
-	e.b = blockInfoToObject(info)
+func (e *EvaluationEnvironment) SetLastBlockFromBlockInfo(info *proto.BlockInfo) error {
+	v, err := e.libVersion()
+	if err != nil {
+		return err
+	}
+	block := blockInfoToObject(info, v)
+	e.setLastBlock(block)
+	return nil
+}
+
+func (e *EvaluationEnvironment) setLastBlock(block rideType) {
+	e.b = block
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -234,7 +235,7 @@ func TestNFTMinFee(t *testing.T) {
 	require.Error(t, checkMinFeeWaves(nftA1, params))
 	require.Error(t, checkMinFeeWaves(nftA2, params))
 
-	storage.activateFeature(t, int16(settings.ReduceNFTFee))
+	storage.activateFeature(t, int16(settings.ReducedNFTFee))
 
 	require.Error(t, checkMinFeeWaves(issueA1, params))
 	require.Error(t, checkMinFeeWaves(issueA2, params))

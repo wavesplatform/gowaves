@@ -14,6 +14,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -120,7 +121,7 @@ func run() error {
 	}
 	var js []byte
 	if config {
-		cfg := *settings.DefaultCustomSettings
+		cfg := settings.DefaultCustomSettings
 		cfg.Genesis = *block
 		cfg.AddressSchemeCharacter = sc
 		var err error

@@ -12,6 +12,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -186,14 +187,6 @@ func newTestEnv(t *testing.T) *testEnv {
 			return t, nil
 		}
 		return nil, errors.Errorf("unknow address '%s'", addr.String())
-	}
-	r.ms.NewestScriptVersionByAddressIDFunc = func(id proto.AddressID) (ast.LibraryVersion, error) {
-		a, err := id.ToWavesAddress(r.me.scheme())
-		require.NoError(r.t, err, "failed to recreate waves address")
-		if t, ok := r.trees[a]; ok {
-			return t.LibVersion, nil
-		}
-		return 0, errors.Errorf("unknown address '%s'", a.String())
 	}
 	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -380,31 +373,20 @@ func (e *testEnv) withBlockV5Activated() *testEnv {
 
 func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
 	e.me.blockFunc = func() rideType {
-		return blockInfoToObject(blockInfo)
+		v, err := e.me.libVersion()
+		if err != nil {
+			panic(err)
+		}
+		return blockInfoToObject(blockInfo, v)
 	}
 	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
 		return blockInfo.Height, nil
 	}
-	return e
-}
-
-func (e *testEnv) withBlockHeader(blockHeader *proto.BlockHeader) *testEnv {
-	e.ms.NewestHeaderByHeightFunc = func(height uint64) (*proto.BlockHeader, error) {
-		return blockHeader, nil
-	}
-	return e
-}
-
-func (e *testEnv) withBlockVRF(vrf []byte) *testEnv {
-	e.ms.BlockVRFFunc = func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
-		return vrf, nil
-	}
-	return e
-}
-
-func (e *testEnv) withBlockRewards(rewards proto.Rewards) *testEnv {
-	e.ms.BlockRewardsFunc = func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
-		return rewards, nil
+	e.ms.NewestBlockInfoByHeightFunc = func(height uint64) (*proto.BlockInfo, error) {
+		if height == blockInfo.Height {
+			return blockInfo, nil
+		}
+		return nil, errors.Errorf("unexpected test height %d", height)
 	}
 	return e
 }
@@ -801,6 +783,56 @@ func (e *testEnv) withLeasing(id crypto.Digest, info *proto.LeaseInfo) *testEnv 
 func (e *testEnv) withScriptBytes(acc *testAccount, script proto.Script) *testEnv {
 	e.scripts[acc.address()] = script
 	return e
+}
+
+type blockBuilder struct {
+	v         proto.BlockVersion
+	ts        uint64
+	h         uint64
+	bt        uint64
+	generator *testAccount
+	gs        []byte
+	vrf       []byte
+	rewards   proto.Rewards
+}
+
+func protobufBlockBuilder() *blockBuilder {
+	return &blockBuilder{v: proto.ProtobufBlockVersion}
+}
+
+func (bb *blockBuilder) toBlockInfo() *proto.BlockInfo {
+	ga := proto.WavesAddress{}
+	gpk := crypto.PublicKey{}
+	if bb.generator != nil {
+		ga = bb.generator.address()
+		gpk = bb.generator.publicKey()
+	}
+	return &proto.BlockInfo{
+		Version:             bb.v,
+		Timestamp:           bb.ts,
+		Height:              bb.h,
+		BaseTarget:          bb.bt,
+		Generator:           ga,
+		GeneratorPublicKey:  gpk,
+		GenerationSignature: bb.gs,
+		VRF:                 bb.vrf,
+		Rewards:             bb.rewards,
+	}
+}
+
+func (bb *blockBuilder) withGenerator(generator *testAccount) *blockBuilder {
+	bb.generator = generator
+	return bb
+}
+
+func (bb *blockBuilder) withRewards(rewards proto.Rewards) *blockBuilder {
+	bb.rewards = rewards
+	return bb
+}
+
+func (bb *blockBuilder) withHeight(h uint64) *blockBuilder {
+	bb.h = h
+	return bb
 }
 
 func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {

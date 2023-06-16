@@ -11,6 +11,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -120,14 +121,8 @@ func defaultBlock() *proto.BlockHeader {
 
 func defaultBlockInfo() *proto.BlockInfo {
 	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
-	return &proto.BlockInfo{
-		Timestamp:           defaultTimestamp,
-		Height:              400000,
-		BaseTarget:          943,
-		GenerationSignature: genSig,
-		Generator:           testGlobal.minerInfo.addr,
-		GeneratorPublicKey:  testGlobal.minerInfo.pk,
-	}
+	return proto.NewBlockInfo(proto.ProtobufBlockVersion, defaultTimestamp, 400000, 943,
+		testGlobal.minerInfo.addr, testGlobal.minerInfo.pk, genSig, nil, nil)
 }
 
 func defaultDifferInfo() *differInfo {
@@ -437,10 +432,16 @@ func (s *testStorageObjects) fullRollbackBlockClearCache(t *testing.T, blockID p
 	s.flush(t)
 }
 
-func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
-	err := s.stateDB.addBlock(blockID)
+// prepareBlock makes test block officially valid (but only after batch is flushed).
+func (s *testStorageObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
+	err := s.stateDB.addBlock(blockID) // Assign unique block number for this block ID, add this number to the list of valid blocks.
 	assert.NoError(t, err, "stateDB.addBlock() failed")
-	err = s.rw.startBlock(blockID)
+}
+
+// addBlock prepares, starts and finishes fake block.
+func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+	s.prepareBlock(t, blockID)
+	err := s.rw.startBlock(blockID)
 	assert.NoError(t, err, "startBlock() failed")
 	err = s.rw.finishBlock(blockID)
 	assert.NoError(t, err, "finishBlock() failed")

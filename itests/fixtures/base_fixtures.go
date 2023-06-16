@@ -2,10 +2,11 @@ package fixtures
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/stoewer/go-strcase"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
@@ -26,12 +27,13 @@ type BaseSuite struct {
 func (suite *BaseSuite) SetupSuite() {
 	const enableScalaMining = true
 
+	suiteName := strcase.KebabCase(suite.T().Name())
+
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
-	paths, cfg, err := config.CreateFileConfigs(enableScalaMining)
+	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining)
 	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
 
-	suiteName := strings.ToLower(suite.T().Name())
 	docker, err := d.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
@@ -46,14 +48,12 @@ func (suite *BaseSuite) SetupSuite() {
 }
 
 func (suite *BaseSuite) TearDownSuite() {
-	height := suite.Clients.WaitForNewHeight(suite.T())
-	suite.Clients.StateHashCmp(suite.T(), height)
-
+	suite.Clients.WaitForStateHashEquality(suite.T())
 	suite.Docker.Finish(suite.Cancel)
 }
 
 func (suite *BaseSuite) SetupTest() {
-	errGo, errScala := suite.Clients.WaitForConnectedPeers(suite.T(), 5*time.Second)
+	errGo, errScala := suite.Clients.WaitForConnectedPeers(5 * time.Second)
 	suite.Require().NoError(errGo, "Go: no connected peers")
 	suite.Require().NoError(errScala, "Scala: no connected peers")
 	suite.Clients.WaitForHeight(suite.T(), 2) // Wait for nodes to start mining

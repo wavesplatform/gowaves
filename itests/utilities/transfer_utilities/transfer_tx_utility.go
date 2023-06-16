@@ -97,9 +97,9 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 			assetDetails.Issuer, testdata.FeeAsset.ID, initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor)
 	}
 
-	return *utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
+	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
 			tx.WtErr.ErrWtScala, tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
-		*utl.NewDiffBalancesTxWithSponsorship(actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender,
+		utl.NewDiffBalancesTxWithSponsorship(actualDiffBalanceWavesGoSender, actualDiffBalanceWavesScalaSender,
 			actualDiffBalanceAssetGoSender, actualDiffBalanceAssetScalaSender,
 			actualDiffBalanceFeeAssetGoSender, actualDiffBalanceFeeAssetScalaSender, actualDiffBalanceWavesGoRecipient,
 			actualDiffBalanceWavesScalaRecipient, actualDiffBalanceAssetGoRecipient, actualDiffBalanceAssetScalaRecipient,
