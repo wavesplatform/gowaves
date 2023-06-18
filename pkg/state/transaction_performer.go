@@ -134,13 +134,11 @@ func (tp *transactionPerformer) transactionSnapshotFromTransactionBalanceDiff(ap
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for _, wb := range wavesBalancesSnapshot {
-		p := wb
-		transactionSnapshot = append(transactionSnapshot, &p)
+	for i, _ := range wavesBalancesSnapshot {
+		transactionSnapshot = append(transactionSnapshot, &wavesBalancesSnapshot[i])
 	}
-	for _, ab := range assetBalancesSnapshot {
-		p := ab
-		transactionSnapshot = append(transactionSnapshot, &p)
+	for i, _ := range assetBalancesSnapshot {
+		transactionSnapshot = append(transactionSnapshot, &assetBalancesSnapshot[i])
 	}
 	return transactionSnapshot, nil
 }
@@ -282,13 +280,12 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 		}
-		for _, wb := range wavesBalancesSnapshot {
-			p := wb
-			snapshot = append(snapshot, &p)
+
+		for i, _ := range wavesBalancesSnapshot {
+			snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 		}
-		for _, ab := range assetBalancesSnapshot {
-			p := ab
-			snapshot = append(snapshot, &p)
+		for i, _ := range assetBalancesSnapshot {
+			snapshot = append(snapshot, &assetBalancesSnapshot[i])
 		}
 		if specialAssetSnapshot != nil {
 			snapshot = append(snapshot, specialAssetSnapshot)
@@ -1072,15 +1069,16 @@ func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info 
 
 	}
 
-	wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
+	wavesBalancesSnapshot, assetBalancesSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for _, wb := range wavesBalanceSnapshot {
-		snapshot = append(snapshot, &wb)
+
+	for i, _ := range wavesBalancesSnapshot {
+		snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 	}
-	for _, ab := range assetBalanceSnapshot {
-		snapshot = append(snapshot, &ab)
+	for i, _ := range assetBalancesSnapshot {
+		snapshot = append(snapshot, &assetBalancesSnapshot[i])
 	}
 
 	return snapshot, nil
@@ -1185,15 +1183,16 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 		}
-		wavesBalanceSnapshot, assetBalanceSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		wavesBalancesSnapshot, assetBalancesSnapshot, err := tp.constructBalancesSnapshotFromDiff(addrWavesBalanceDiff, addrAssetBalanceDiff)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 		}
-		for _, wb := range wavesBalanceSnapshot {
-			snapshot = append(snapshot, &wb)
+
+		for i, _ := range wavesBalancesSnapshot {
+			snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 		}
-		for _, ab := range assetBalanceSnapshot {
-			snapshot = append(snapshot, &ab)
+		for i, _ := range assetBalancesSnapshot {
+			snapshot = append(snapshot, &assetBalancesSnapshot[i])
 		}
 	}
 
