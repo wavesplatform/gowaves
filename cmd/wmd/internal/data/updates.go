@@ -251,14 +251,14 @@ func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChang
 	return accountChanges, nil
 }
 
-func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]AccountChange, error) {
+func FromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeWithProofs) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithProofs to Change") }
 	r := make([]AccountChange, 0, 4)
 	bo, err := tx.GetBuyOrder()
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	ap, buyer, _, err := extractOrderParameters(bo)
+	ap, buyer, _, err := extractOrderParameters(scheme, bo)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -266,18 +266,18 @@ func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]Accoun
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	_, seller, _, err := extractOrderParameters(so)
+	_, seller, _, err := extractOrderParameters(scheme, so)
 	if err != nil {
 		return nil, wrapError(err)
 	}
 	if ap.AmountAsset.Present {
 		ch1 := AccountChange{Asset: ap.AmountAsset.ID, In: tx.Amount}
-		err := ch1.Account.SetFromPublicKey(scheme, buyer)
+		err := ch1.Account.SetFromAddress(scheme, buyer)
 		if err != nil {
 			return nil, wrapError(err)
 		}
 		ch2 := AccountChange{Asset: ap.AmountAsset.ID, Out: tx.Amount}
-		err = ch2.Account.SetFromPublicKey(scheme, seller)
+		err = ch2.Account.SetFromAddress(scheme, seller)
 		if err != nil {
 			return nil, wrapError(err)
 		}
@@ -287,12 +287,12 @@ func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]Accoun
 	if ap.PriceAsset.Present {
 		priceAssetAmount := adjustAmount(tx.Amount, tx.Price)
 		ch1 := AccountChange{Asset: ap.PriceAsset.ID, Out: priceAssetAmount}
-		err := ch1.Account.SetFromPublicKey(scheme, buyer)
+		err := ch1.Account.SetFromAddress(scheme, buyer)
 		if err != nil {
 			return nil, wrapError(err)
 		}
 		ch2 := AccountChange{Asset: ap.PriceAsset.ID, In: priceAssetAmount}
-		err = ch2.Account.SetFromPublicKey(scheme, seller)
+		err = ch2.Account.SetFromAddress(scheme, seller)
 		if err != nil {
 			return nil, wrapError(err)
 		}
@@ -372,46 +372,21 @@ func adjustAmount(amount, price uint64) uint64 {
 	return r.Uint64()
 }
 
-func extractOrderParameters(o proto.Order) (proto.AssetPair, crypto.PublicKey, uint64, error) {
-	var ap proto.AssetPair
-	var spk crypto.PublicKey
-	var ts uint64
+type senderPKGenerator interface {
+	GenerateSenderPK(scheme proto.Scheme) error
+}
 
-	switch o.GetVersion() {
-	case 1:
-		orderV1, ok := o.(*proto.OrderV1)
-		if !ok {
-			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
+var _ = senderPKGenerator((*proto.EthereumOrderV4)(nil)) // compile time check for EthereumOrderV4
+
+func extractOrderParameters(scheme proto.Scheme, o proto.Order) (proto.AssetPair, proto.Address, uint64, error) {
+	if g, ok := o.(senderPKGenerator); ok {
+		if err := g.GenerateSenderPK(scheme); err != nil {
+			return proto.AssetPair{}, nil, 0, errors.Wrap(err, "failed to generate sender public key")
 		}
-		ap = orderV1.AssetPair
-		spk = orderV1.SenderPK
-		ts = orderV1.Timestamp
-	case 2:
-		orderV2, ok := o.(*proto.OrderV2)
-		if !ok {
-			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
-		}
-		ap = orderV2.AssetPair
-		spk = orderV2.SenderPK
-		ts = orderV2.Timestamp
-	case 3:
-		orderV3, ok := o.(*proto.OrderV3)
-		if !ok {
-			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
-		}
-		ap = orderV3.AssetPair
-		spk = orderV3.SenderPK
-		ts = orderV3.Timestamp
-	case 4:
-		orderV4, ok := o.(*proto.OrderV4)
-		if !ok {
-			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
-		}
-		ap = orderV4.AssetPair
-		spk = orderV4.SenderPK
-		ts = orderV4.Timestamp
-	default:
-		return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("unsupported order type")
 	}
-	return ap, spk, ts, nil
+	sender, err := o.GetSender(scheme)
+	if err != nil {
+		return proto.AssetPair{}, nil, 0, errors.Wrapf(err, "failed to extract sender from order")
+	}
+	return o.GetAssetPair(), sender, o.GetTimestamp(), nil
 }
