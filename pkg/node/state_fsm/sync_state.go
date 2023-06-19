@@ -79,41 +79,19 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
-func (a *SyncState) PeerError(p peer.Peer, _ error) (State, Async, error) {
-	a.baseInfo.peers.Disconnect(p)
-	if a.conf.peerSyncWith == p {
-		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
-		if len(blocks) > 0 {
-			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
-				return err
-			})
-			return newIdleState(a.baseInfo), nil, a.Errorf(err)
-		}
-	}
-	return a, nil, nil
-}
-
-func (a *SyncState) NewPeer(p peer.Peer) (State, Async, error) {
-	return newPeer(a, p, a.baseInfo.peers)
-}
-
-func (a *SyncState) DisconnectedBestPeer(p peer.Peer) (State, Async, error) {
-	if a.conf.peerSyncWith == p {
-		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
-		if len(blocks) > 0 {
-			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
-				return err
-			})
-			return newIdleState(a.baseInfo), nil, a.Errorf(err)
-		}
-	}
-	return a, nil, nil
-}
-
 func (a *SyncState) DisconnectedPeer(p peer.Peer) (State, Async, error) {
-	return a.DisconnectedBestPeer(p)
+	if a.conf.peerSyncWith == p {
+		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
+		if len(blocks) > 0 {
+			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
+				return err
+			})
+			return newIdleState(a.baseInfo), nil, a.Errorf(err)
+		}
+		return newIdleState(a.baseInfo), nil, nil
+	}
+	return a, nil, nil
 }
 
 func (a *SyncState) ConnectedBestPeer(p peer.Peer) (State, Async, error) {
@@ -291,6 +269,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
 		Ignore(ConnectedPeerEvent).
+		Ignore(StopMiningEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
@@ -298,10 +277,6 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		PermitDynamic(ConnectedBestPeerEvent, createPermitDynamicCallback(ConnectedBestPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*SyncState)
 			return a.ConnectedBestPeer(convertToInterface[peer.Peer](args[0]))
-		})).
-		PermitDynamic(DisconnectedBestPeerEvent, createPermitDynamicCallback(DisconnectedBestPeerEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.DisconnectedBestPeer(convertToInterface[peer.Peer](args[0]))
 		})).
 		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*SyncState)

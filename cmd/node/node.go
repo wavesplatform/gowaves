@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"flag"
+	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"math"
 	"math/big"
 	"net/http"
@@ -360,8 +361,11 @@ func main() {
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
+	ntw := network.NewNetwork(svs, parent)
+	go ntw.Run()
+
 	n := node.NewNode(svs, declAddr, bindAddr, *microblockInterval)
-	go n.Run(ctx, parent, svs.InternalChannel)
+	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh)
 
 	go minerScheduler.Reschedule()
 

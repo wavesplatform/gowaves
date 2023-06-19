@@ -128,7 +128,7 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage) {
+func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage, networkMsgCh <-chan network.InfoMessage) {
 	go func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
@@ -166,10 +166,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 	}()
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
-	networkMsgCh := make(chan network.InfoMessage, 100)
-
-	net := network.NewNetwork(a.services, p, networkMsgCh)
-	go net.Run()
 
 	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval)
 	if err != nil {
@@ -208,8 +204,8 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 				async, err = fsm.DisconnectedPeer(t.Peer)
 			case network.BestPeer:
 				async, err = fsm.ConnectedBestPeer(t.Peer)
-			case network.BestPeerLost:
-				async, err = fsm.DisconnectedBestPeer(t.Peer)
+			case network.StopMining:
+				async, err = fsm.StopMining()
 			default:
 				zap.S().Warnf("[%s] Unknown network info message '%T'", fsm.State.Name, m)
 			}

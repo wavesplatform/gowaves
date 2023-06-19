@@ -96,10 +96,10 @@ const (
 	TransactionEvent   = "Transaction"
 	HaltEvent          = "Halt"
 
-	DisconnectedPeerEvent     = "DisconnectedPeer"
-	ConnectedPeerEvent        = "ConnectedPeer"
-	ConnectedBestPeerEvent    = "ConnectedBestPeer"
-	DisconnectedBestPeerEvent = "DisconnectedBestPeer"
+	DisconnectedPeerEvent  = "DisconnectedPeer"
+	StopMiningEvent        = "StopMining"
+	ConnectedPeerEvent     = "ConnectedPeer"
+	ConnectedBestPeerEvent = "ConnectedBestPeer"
 )
 
 type FSM struct {
@@ -255,9 +255,9 @@ func (f *FSM) DisconnectedPeer(p peer.Peer) (Async, error) {
 	return *asyncRes, err
 }
 
-func (f *FSM) DisconnectedBestPeer(p peer.Peer) (Async, error) {
+func (f *FSM) StopMining() (Async, error) {
 	asyncRes := &Async{}
-	err := f.fsm.Fire(DisconnectedBestPeerEvent, asyncRes, p)
+	err := f.fsm.Fire(StopMiningEvent, asyncRes)
 	return *asyncRes, err
 }
 

@@ -43,20 +43,7 @@ func (a *NGState) Transaction(p peer.Peer, t proto.Transaction) (State, Async, e
 	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
-func (a *NGState) NewPeer(p peer.Peer) (State, Async, error) {
-	state, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
-	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
-		a.baseInfo.Reschedule()
-	}
-	sendScore(p, a.baseInfo.storage)
-	return state, as, fsmErr
-}
-
-func (a *NGState) PeerError(p peer.Peer, e error) (State, Async, error) {
-	return peerError(a, p, a.baseInfo, e)
-}
-
-func (a *NGState) DisconnectedPeer(_ peer.Peer) (State, Async, error) {
+func (a *NGState) StopMining() (State, Async, error) {
 	return newIdleState(a.baseInfo), nil, nil
 }
 
@@ -356,10 +343,10 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		Ignore(BlockIDsEvent).
 		Ignore(ConnectedPeerEvent).
 		Ignore(ConnectedBestPeerEvent).
-		Ignore(DisconnectedBestPeerEvent).
-		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		Ignore(DisconnectedPeerEvent).
+		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)
-			return a.DisconnectedPeer(convertToInterface[peer.Peer](args[0]))
+			return a.StopMining()
 		})).
 		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)

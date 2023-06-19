@@ -12,13 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -29,37 +27,21 @@ const (
 // First arg is Async - return value of event handler
 var (
 	eventsArgsTypes = map[stateless.Trigger][]reflect.Type{
-		ConnectedPeerEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		DisconnectedPeerEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		ConnectedBestPeerEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		DisconnectedBestPeerEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		ScoreEvent:                {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
-		BlockEvent:                {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
-		MinedBlockEvent:           {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
-		BlockIDsEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
-		TaskEvent:                 {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
-		MicroBlockEvent:           {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
-		MicroBlockInvEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
-		TransactionEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
-		HaltEvent:                 {reflect.TypeOf(&Async{})},
+		ConnectedPeerEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		DisconnectedPeerEvent:  {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		ConnectedBestPeerEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		StopMiningEvent:        {reflect.TypeOf(&Async{})},
+		ScoreEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
+		BlockEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
+		MinedBlockEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
+		BlockIDsEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
+		TaskEvent:              {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
+		MicroBlockEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
+		MicroBlockInvEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
+		TransactionEvent:       {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
+		HaltEvent:              {reflect.TypeOf(&Async{})},
 	}
 )
-
-func newPeer(state State, p peer.Peer, peers peer_manager.PeerManager) (State, Async, error) {
-	err := peers.NewConnection(p)
-	if err != nil {
-		return state, nil, state.Errorf(proto.NewInfoMsg(err))
-	}
-	return state, nil, nil
-}
-
-func peerError(state State, p peer.Peer, baseInfo BaseInfo, _ error) (State, Async, error) {
-	baseInfo.peers.Disconnect(p)
-	if baseInfo.peers.ConnectedCount() == 0 {
-		return newIdleState(baseInfo), nil, nil
-	}
-	return state, nil, nil
-}
 
 func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async, error) {
 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
@@ -118,17 +100,6 @@ func tryBroadcastTransaction(fsm State, baseInfo BaseInfo, p peer.Peer, t proto.
 	}
 	baseInfo.BroadcastTransaction(t, p)
 	return fsm, nil, nil
-}
-
-func sendScore(p peer.Peer, storage state.State) {
-	curScore, err := storage.CurrentScore()
-	if err != nil {
-		zap.S().Errorf("Failed to send current score to peer %q: %v", p.RemoteAddr().String(), err)
-		return
-	}
-
-	bts := curScore.Bytes()
-	p.SendMessage(&proto.ScoreMessage{Score: bts})
 }
 
 func fsmErrorf(state State, err error) error {

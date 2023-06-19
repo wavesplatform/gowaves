@@ -71,5 +71,9 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
 		Ignore(TransactionEvent).
+		Ignore(DisconnectedPeerEvent).
+		Ignore(ConnectedPeerEvent).
+		Ignore(ConnectedBestPeerEvent).
+		Ignore(StopMiningEvent).
 		Ignore(HaltEvent)
 }

@@ -55,15 +55,7 @@ func newPersistState(info BaseInfo) (State, Async, error) {
 	}, tasks.Tasks(t), nil
 }
 
-func (a *PersistState) NewPeer(p peer.Peer) (State, Async, error) {
-	return newPeer(a, p, a.baseInfo.peers)
-}
-
-func (a *PersistState) PeerError(p peer.Peer, e error) (State, Async, error) {
-	return peerError(a, p, a.baseInfo, e)
-}
-
-func (a *PersistState) DisconnectedPeer(_ peer.Peer) (State, Async, error) {
+func (a *PersistState) StopMining() (State, Async, error) {
 	return newIdleState(a.baseInfo), nil, nil
 }
 
@@ -98,14 +90,14 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		Ignore(TransactionEvent).
 		Ignore(ConnectedPeerEvent).
 		Ignore(ConnectedBestPeerEvent).
-		Ignore(DisconnectedBestPeerEvent).
+		Ignore(DisconnectedPeerEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil
 		}).
-		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*PersistState)
-			return a.DisconnectedPeer(convertToInterface[peer.Peer](args[0]))
+			return a.StopMining()
 		})).
 		PermitDynamic(TaskEvent, createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*PersistState)

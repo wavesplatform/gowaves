@@ -57,19 +57,6 @@ func (a *IdleState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
-func (a *IdleState) PeerError(p peer.Peer, e error) (State, Async, error) {
-	return peerError(a, p, a.baseInfo, e)
-}
-
-func (a *IdleState) NewPeer(p peer.Peer) (State, Async, error) {
-	state, as, fsmErr := newPeer(a, p, a.baseInfo.peers)
-	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
-		a.baseInfo.Reschedule()
-	}
-	sendScore(p, a.baseInfo.storage)
-	return state, as, fsmErr
-}
-
 func (a *IdleState) ConnectedNewPeer(_ peer.Peer) (State, Async, error) {
 	a.baseInfo.Reschedule()
 	return a, nil, nil
@@ -126,7 +113,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(BlockEvent).
 		Ignore(DisconnectedPeerEvent).
 		Ignore(ConnectedBestPeerEvent).
-		Ignore(DisconnectedBestPeerEvent).
+		Ignore(StopMiningEvent).
 		PermitDynamic(ConnectedPeerEvent, createPermitDynamicCallback(ConnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*IdleState)
 			return a.ConnectedNewPeer(convertToInterface[peer.Peer](args[0]))
