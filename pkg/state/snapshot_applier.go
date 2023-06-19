@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 type snapshotApplier struct {
@@ -13,6 +14,11 @@ type snapshotApplier struct {
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
 	sponsoredAssets   *sponsoredAssets
+}
+
+type snapshotApplierInfo struct {
+	ci     *checkerInfo
+	scheme proto.Scheme
 }
 
 var _ = (&snapshotApplier{}).applyWavesBalance // TODO: remove it, need for linter for now
@@ -127,4 +133,28 @@ var _ = (&snapshotApplier{}).applySponsorship // TODO: remove it, need for linte
 
 func (a *snapshotApplier) applySponsorship(blockID proto.BlockID, snapshot SponsorshipSnapshot) error {
 	return a.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, blockID)
+}
+
+var _ = (&snapshotApplier{}).applyAccountScript // TODO: remove it, need for linter for now
+
+func (a *snapshotApplier) applyAccountScript(info snapshotApplierInfo, snapshot AccountScriptSnapshot) error {
+	addr, err := proto.NewAddressFromPublicKey(info.scheme, snapshot.SenderPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q", info.scheme, snapshot.SenderPublicKey.String())
+	}
+	var estimations treeEstimations
+	if !snapshot.Script.IsEmpty() {
+		tree, err := serialization.Parse(snapshot.Script)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
+		}
+		estimations, err = makeRideEstimations(tree, info.ci.estimatorVersion(), true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
+		}
+	}
+	if err := a.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.ci.blockID); err != nil {
+		return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
+	}
+	return a.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, info.ci.blockID)
 }
