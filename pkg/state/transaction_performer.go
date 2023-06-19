@@ -143,7 +143,7 @@ func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transact
 }
 
 func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.Exchange, info *performerInfo) error {
-	orderId, err := order.GetID()
+	orderID, err := order.GetID()
 	if err != nil {
 		return err
 	}
@@ -151,13 +151,7 @@ func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.
 	if order.GetOrderType() == proto.Sell {
 		fee = tx.GetSellMatcherFee()
 	}
-	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID); err != nil {
-		return err
-	}
-	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID); err != nil {
-		return err
-	}
-	return nil
+	return tp.stor.ordersVolumes.increaseFilled(orderID, tx.GetAmount(), fee, info.blockID)
 }
 
 func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) error {

@@ -165,44 +165,32 @@ func TestPerformExchange(t *testing.T) {
 	err := to.tp.performExchange(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performExchange() failed")
 
-	sellOrderId, err := tx.GetOrder2().GetID()
+	sellOrderID, err := tx.GetOrder2().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
+	filledAmount, filledFee, err := to.stor.entities.ordersVolumes.newestFilled(sellOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
-
-	filledAmount, err := to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	buyOrderId, err := tx.GetOrder1().GetID()
+	buyOrderID, err := tx.GetOrder1().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(buyOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
 	to.stor.flush(t)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(sellOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(buyOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 }
 
