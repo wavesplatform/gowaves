@@ -14,6 +14,7 @@ type snapshotApplier struct {
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
 	sponsoredAssets   *sponsoredAssets
+	ordersVolumes     *ordersVolumes
 }
 
 type snapshotApplierInfo struct {
@@ -157,4 +158,10 @@ func (a *snapshotApplier) applyAccountScript(info snapshotApplierInfo, snapshot 
 		return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
 	}
 	return a.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, info.ci.blockID)
+}
+
+var _ = (&snapshotApplier{}).applyFilledVolumeAndFee // TODO: remove it, need for linter for now
+
+func (a *snapshotApplier) applyFilledVolumeAndFee(blockID proto.BlockID, snapshot FilledVolumeFeeSnapshot) error {
+	return a.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, blockID)
 }
