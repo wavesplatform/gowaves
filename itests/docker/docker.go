@@ -36,8 +36,10 @@ const (
 
 const (
 	goNodeLogFileName    = "go-node.log"
+	goNodeErrFileName    = "go-node.err"
 	scalaNodeLogFileName = "scala-node.log"
-	logDir               = "../build/logs"
+	scalaNodeErrFileName = "scala-node.err"
+	logsDir              = "../build/logs"
 
 	walletPath = "wallet"
 )
@@ -58,8 +60,10 @@ type Docker struct {
 	network      *dockertest.Network
 	goNode       *dockertest.Resource
 	goLogFile    *os.File
+	goErrFile    *os.File
 	scalaNode    *dockertest.Resource
 	scalaLogFile *os.File
+	scalaErrFile *os.File
 }
 
 func NewDocker(suiteName string) (*Docker, error) {
@@ -112,7 +116,7 @@ func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, su
 	if err != nil {
 		return nil, err
 	}
-	err = os.MkdirAll(filepath.Join(pwd, logDir, suiteName), os.ModePerm)
+	err = os.MkdirAll(filepath.Join(pwd, logsDir, suiteName), os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -155,9 +159,19 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 			log.Warnf("Failed to close go-node logs file: %s", err)
 		}
 	}
+	if d.goErrFile != nil {
+		if err := d.goErrFile.Close(); err != nil {
+			log.Warnf("Failed to close go-node errors file: %s", err)
+		}
+	}
 	if d.scalaLogFile != nil {
 		if err := d.scalaLogFile.Close(); err != nil {
 			log.Warnf("Failed to close scala-node logs file: %s", err)
+		}
+	}
+	if d.scalaErrFile != nil {
+		if err := d.scalaErrFile.Close(); err != nil {
+			log.Warnf("Failed to close scala-node errors file: %s", err)
 		}
 	}
 }
@@ -199,7 +213,12 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 		return nil, nil, err
 	}
 
-	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, suiteName, goNodeLogFileName)))
+	dir := filepath.Join(pwd, logsDir, suiteName)
+	logFile, err := os.Create(filepath.Clean(filepath.Join(dir, goNodeLogFileName)))
+	if err != nil {
+		return nil, nil, err
+	}
+	errFile, err := os.Create(filepath.Clean(filepath.Join(dir, goNodeErrFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,13 +234,15 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 
 			Container: res.Container.ID,
 
-			OutputStream: logfile,
+			OutputStream: logFile,
+			ErrorStream:  errFile,
 		})
 		if err != nil {
 			log.Warnf("Fail to get logs from go-node: %s", err)
 		}
 	}()
-	d.goLogFile = logfile
+	d.goLogFile = logFile
+	d.goErrFile = errFile
 
 	portCfg := &PortConfig{
 		RestApiPort: res.GetPort(RESTApiPort + tcp),
@@ -287,7 +308,12 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 		return nil, nil, err
 	}
 
-	logfile, err := os.Create(filepath.Clean(filepath.Join(pwd, logDir, suiteName, scalaNodeLogFileName)))
+	dir := filepath.Join(pwd, logsDir, suiteName)
+	logFile, err := os.Create(filepath.Clean(filepath.Join(dir, scalaNodeLogFileName)))
+	if err != nil {
+		return nil, nil, err
+	}
+	errFile, err := os.Create(filepath.Clean(filepath.Join(dir, scalaNodeErrFileName)))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -303,13 +329,15 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 
 			Container: res.Container.ID,
 
-			OutputStream: logfile,
+			OutputStream: logFile,
+			ErrorStream:  errFile,
 		})
 		if err != nil {
 			log.Warnf("Fail to get logs from scala-node: %s", err)
 		}
 	}()
-	d.scalaLogFile = logfile
+	d.scalaLogFile = logFile
+	d.scalaErrFile = errFile
 
 	portCfg := &PortConfig{
 		RestApiPort: res.GetPort(RESTApiPort + tcp),
