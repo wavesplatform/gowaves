@@ -10,6 +10,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -835,35 +836,22 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	height := proto.Height(i)
-	header, err := env.state().NewestHeaderByHeight(height)
-	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
+	if i <= 0 {
+		return rideUnit{}, nil
 	}
-	vrf, err := env.state().BlockVRF(header, height-1)
+	height := proto.Height(i)
+	blockInfo, err := env.state().NewestBlockInfoByHeight(height)
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return rideUnit{}, nil
+		}
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
 	v, err := env.libVersion()
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	if v >= ast.LibV7 {
-		rewards, err := env.state().BlockRewards(header, height)
-		if err != nil {
-			return nil, errors.Wrap(err, "blockInfoByHeight")
-		}
-		obj, err := blockHeaderToObjectV7(env.scheme(), height, header, vrf, rewards)
-		if err != nil {
-			return nil, errors.Wrap(err, "blockInfoByHeight")
-		}
-		return obj, nil
-	}
-	obj, err := blockHeaderToObjectV1V6(env.scheme(), height, header, vrf)
-	if err != nil {
-		return nil, errors.Wrap(err, "blockInfoByHeight")
-	}
-	return obj, nil
+	return blockInfoToObject(blockInfo, v), nil
 }
 
 func transferByID(env environment, args ...rideType) (rideType, error) {

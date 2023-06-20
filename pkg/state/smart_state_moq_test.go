@@ -24,12 +24,6 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			AddingBlockHeightFunc: func() (uint64, error) {
 //				panic("mock out the AddingBlockHeight method")
 //			},
-//			BlockRewardsFunc: func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
-//				panic("mock out the BlockRewards method")
-//			},
-//			BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
-//				panic("mock out the BlockVRF method")
-//			},
 //			EstimatorVersionFunc: func() (int, error) {
 //				panic("mock out the EstimatorVersion method")
 //			},
@@ -54,14 +48,14 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 //				panic("mock out the NewestAssetIsSponsored method")
 //			},
+//			NewestBlockInfoByHeightFunc: func(height uint64) (*proto.BlockInfo, error) {
+//				panic("mock out the NewestBlockInfoByHeight method")
+//			},
 //			NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 //				panic("mock out the NewestFullAssetInfo method")
 //			},
 //			NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 //				panic("mock out the NewestFullWavesBalance method")
-//			},
-//			NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
-//				panic("mock out the NewestHeaderByHeight method")
 //			},
 //			NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 //				panic("mock out the NewestLeasingInfo method")
@@ -80,9 +74,6 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			},
 //			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 //				panic("mock out the NewestScriptPKByAddr method")
-//			},
-//			NewestScriptVersionByAddressIDFunc: func(id proto.AddressID) (ast.LibraryVersion, error) {
-//				panic("mock out the NewestScriptVersionByAddressID method")
 //			},
 //			NewestTransactionByIDFunc: func(bytes []byte) (proto.Transaction, error) {
 //				panic("mock out the NewestTransactionByID method")
@@ -118,12 +109,6 @@ type AnotherMockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
-	// BlockRewardsFunc mocks the BlockRewards method.
-	BlockRewardsFunc func(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error)
-
-	// BlockVRFFunc mocks the BlockVRF method.
-	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
-
 	// EstimatorVersionFunc mocks the EstimatorVersion method.
 	EstimatorVersionFunc func() (int, error)
 
@@ -148,14 +133,14 @@ type AnotherMockSmartState struct {
 	// NewestAssetIsSponsoredFunc mocks the NewestAssetIsSponsored method.
 	NewestAssetIsSponsoredFunc func(assetID crypto.Digest) (bool, error)
 
+	// NewestBlockInfoByHeightFunc mocks the NewestBlockInfoByHeight method.
+	NewestBlockInfoByHeightFunc func(height uint64) (*proto.BlockInfo, error)
+
 	// NewestFullAssetInfoFunc mocks the NewestFullAssetInfo method.
 	NewestFullAssetInfoFunc func(assetID crypto.Digest) (*proto.FullAssetInfo, error)
 
 	// NewestFullWavesBalanceFunc mocks the NewestFullWavesBalance method.
 	NewestFullWavesBalanceFunc func(account proto.Recipient) (*proto.FullWavesBalance, error)
-
-	// NewestHeaderByHeightFunc mocks the NewestHeaderByHeight method.
-	NewestHeaderByHeightFunc func(height uint64) (*proto.BlockHeader, error)
 
 	// NewestLeasingInfoFunc mocks the NewestLeasingInfo method.
 	NewestLeasingInfoFunc func(id crypto.Digest) (*proto.LeaseInfo, error)
@@ -174,9 +159,6 @@ type AnotherMockSmartState struct {
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.WavesAddress) (crypto.PublicKey, error)
-
-	// NewestScriptVersionByAddressIDFunc mocks the NewestScriptVersionByAddressID method.
-	NewestScriptVersionByAddressIDFunc func(id proto.AddressID) (ast.LibraryVersion, error)
 
 	// NewestTransactionByIDFunc mocks the NewestTransactionByID method.
 	NewestTransactionByIDFunc func(bytes []byte) (proto.Transaction, error)
@@ -206,20 +188,6 @@ type AnotherMockSmartState struct {
 	calls struct {
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
-		}
-		// BlockRewards holds details about calls to the BlockRewards method.
-		BlockRewards []struct {
-			// BlockHeader is the blockHeader argument value.
-			BlockHeader *proto.BlockHeader
-			// Height is the height argument value.
-			Height uint64
-		}
-		// BlockVRF holds details about calls to the BlockVRF method.
-		BlockVRF []struct {
-			// BlockHeader is the blockHeader argument value.
-			BlockHeader *proto.BlockHeader
-			// Height is the height argument value.
-			Height uint64
 		}
 		// EstimatorVersion holds details about calls to the EstimatorVersion method.
 		EstimatorVersion []struct {
@@ -263,6 +231,11 @@ type AnotherMockSmartState struct {
 			// AssetID is the assetID argument value.
 			AssetID crypto.Digest
 		}
+		// NewestBlockInfoByHeight holds details about calls to the NewestBlockInfoByHeight method.
+		NewestBlockInfoByHeight []struct {
+			// Height is the height argument value.
+			Height uint64
+		}
 		// NewestFullAssetInfo holds details about calls to the NewestFullAssetInfo method.
 		NewestFullAssetInfo []struct {
 			// AssetID is the assetID argument value.
@@ -272,11 +245,6 @@ type AnotherMockSmartState struct {
 		NewestFullWavesBalance []struct {
 			// Account is the account argument value.
 			Account proto.Recipient
-		}
-		// NewestHeaderByHeight holds details about calls to the NewestHeaderByHeight method.
-		NewestHeaderByHeight []struct {
-			// Height is the height argument value.
-			Height uint64
 		}
 		// NewestLeasingInfo holds details about calls to the NewestLeasingInfo method.
 		NewestLeasingInfo []struct {
@@ -307,11 +275,6 @@ type AnotherMockSmartState struct {
 		NewestScriptPKByAddr []struct {
 			// Addr is the addr argument value.
 			Addr proto.WavesAddress
-		}
-		// NewestScriptVersionByAddressID holds details about calls to the NewestScriptVersionByAddressID method.
-		NewestScriptVersionByAddressID []struct {
-			// ID is the id argument value.
-			ID proto.AddressID
 		}
 		// NewestTransactionByID holds details about calls to the NewestTransactionByID method.
 		NewestTransactionByID []struct {
@@ -362,35 +325,32 @@ type AnotherMockSmartState struct {
 			ID proto.AddressID
 		}
 	}
-	lockAddingBlockHeight              sync.RWMutex
-	lockBlockRewards                   sync.RWMutex
-	lockBlockVRF                       sync.RWMutex
-	lockEstimatorVersion               sync.RWMutex
-	lockIsNotFound                     sync.RWMutex
-	lockIsStateUntouched               sync.RWMutex
-	lockNewestAddrByAlias              sync.RWMutex
-	lockNewestAssetBalance             sync.RWMutex
-	lockNewestAssetBalanceByAddressID  sync.RWMutex
-	lockNewestAssetInfo                sync.RWMutex
-	lockNewestAssetIsSponsored         sync.RWMutex
-	lockNewestFullAssetInfo            sync.RWMutex
-	lockNewestFullWavesBalance         sync.RWMutex
-	lockNewestHeaderByHeight           sync.RWMutex
-	lockNewestLeasingInfo              sync.RWMutex
-	lockNewestRecipientToAddress       sync.RWMutex
-	lockNewestScriptByAccount          sync.RWMutex
-	lockNewestScriptByAsset            sync.RWMutex
-	lockNewestScriptBytesByAccount     sync.RWMutex
-	lockNewestScriptPKByAddr           sync.RWMutex
-	lockNewestScriptVersionByAddressID sync.RWMutex
-	lockNewestTransactionByID          sync.RWMutex
-	lockNewestTransactionHeightByID    sync.RWMutex
-	lockNewestWavesBalance             sync.RWMutex
-	lockRetrieveNewestBinaryEntry      sync.RWMutex
-	lockRetrieveNewestBooleanEntry     sync.RWMutex
-	lockRetrieveNewestIntegerEntry     sync.RWMutex
-	lockRetrieveNewestStringEntry      sync.RWMutex
-	lockWavesBalanceProfile            sync.RWMutex
+	lockAddingBlockHeight             sync.RWMutex
+	lockEstimatorVersion              sync.RWMutex
+	lockIsNotFound                    sync.RWMutex
+	lockIsStateUntouched              sync.RWMutex
+	lockNewestAddrByAlias             sync.RWMutex
+	lockNewestAssetBalance            sync.RWMutex
+	lockNewestAssetBalanceByAddressID sync.RWMutex
+	lockNewestAssetInfo               sync.RWMutex
+	lockNewestAssetIsSponsored        sync.RWMutex
+	lockNewestBlockInfoByHeight       sync.RWMutex
+	lockNewestFullAssetInfo           sync.RWMutex
+	lockNewestFullWavesBalance        sync.RWMutex
+	lockNewestLeasingInfo             sync.RWMutex
+	lockNewestRecipientToAddress      sync.RWMutex
+	lockNewestScriptByAccount         sync.RWMutex
+	lockNewestScriptByAsset           sync.RWMutex
+	lockNewestScriptBytesByAccount    sync.RWMutex
+	lockNewestScriptPKByAddr          sync.RWMutex
+	lockNewestTransactionByID         sync.RWMutex
+	lockNewestTransactionHeightByID   sync.RWMutex
+	lockNewestWavesBalance            sync.RWMutex
+	lockRetrieveNewestBinaryEntry     sync.RWMutex
+	lockRetrieveNewestBooleanEntry    sync.RWMutex
+	lockRetrieveNewestIntegerEntry    sync.RWMutex
+	lockRetrieveNewestStringEntry     sync.RWMutex
+	lockWavesBalanceProfile           sync.RWMutex
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -417,78 +377,6 @@ func (mock *AnotherMockSmartState) AddingBlockHeightCalls() []struct {
 	mock.lockAddingBlockHeight.RLock()
 	calls = mock.calls.AddingBlockHeight
 	mock.lockAddingBlockHeight.RUnlock()
-	return calls
-}
-
-// BlockRewards calls BlockRewardsFunc.
-func (mock *AnotherMockSmartState) BlockRewards(blockHeader *proto.BlockHeader, height uint64) (proto.Rewards, error) {
-	if mock.BlockRewardsFunc == nil {
-		panic("AnotherMockSmartState.BlockRewardsFunc: method is nil but SmartState.BlockRewards was just called")
-	}
-	callInfo := struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}{
-		BlockHeader: blockHeader,
-		Height:      height,
-	}
-	mock.lockBlockRewards.Lock()
-	mock.calls.BlockRewards = append(mock.calls.BlockRewards, callInfo)
-	mock.lockBlockRewards.Unlock()
-	return mock.BlockRewardsFunc(blockHeader, height)
-}
-
-// BlockRewardsCalls gets all the calls that were made to BlockRewards.
-// Check the length with:
-//
-//	len(mockedSmartState.BlockRewardsCalls())
-func (mock *AnotherMockSmartState) BlockRewardsCalls() []struct {
-	BlockHeader *proto.BlockHeader
-	Height      uint64
-} {
-	var calls []struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}
-	mock.lockBlockRewards.RLock()
-	calls = mock.calls.BlockRewards
-	mock.lockBlockRewards.RUnlock()
-	return calls
-}
-
-// BlockVRF calls BlockVRFFunc.
-func (mock *AnotherMockSmartState) BlockVRF(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
-	if mock.BlockVRFFunc == nil {
-		panic("AnotherMockSmartState.BlockVRFFunc: method is nil but SmartState.BlockVRF was just called")
-	}
-	callInfo := struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}{
-		BlockHeader: blockHeader,
-		Height:      height,
-	}
-	mock.lockBlockVRF.Lock()
-	mock.calls.BlockVRF = append(mock.calls.BlockVRF, callInfo)
-	mock.lockBlockVRF.Unlock()
-	return mock.BlockVRFFunc(blockHeader, height)
-}
-
-// BlockVRFCalls gets all the calls that were made to BlockVRF.
-// Check the length with:
-//
-//	len(mockedSmartState.BlockVRFCalls())
-func (mock *AnotherMockSmartState) BlockVRFCalls() []struct {
-	BlockHeader *proto.BlockHeader
-	Height      uint64
-} {
-	var calls []struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}
-	mock.lockBlockVRF.RLock()
-	calls = mock.calls.BlockVRF
-	mock.lockBlockVRF.RUnlock()
 	return calls
 }
 
@@ -751,6 +639,38 @@ func (mock *AnotherMockSmartState) NewestAssetIsSponsoredCalls() []struct {
 	return calls
 }
 
+// NewestBlockInfoByHeight calls NewestBlockInfoByHeightFunc.
+func (mock *AnotherMockSmartState) NewestBlockInfoByHeight(height uint64) (*proto.BlockInfo, error) {
+	if mock.NewestBlockInfoByHeightFunc == nil {
+		panic("AnotherMockSmartState.NewestBlockInfoByHeightFunc: method is nil but SmartState.NewestBlockInfoByHeight was just called")
+	}
+	callInfo := struct {
+		Height uint64
+	}{
+		Height: height,
+	}
+	mock.lockNewestBlockInfoByHeight.Lock()
+	mock.calls.NewestBlockInfoByHeight = append(mock.calls.NewestBlockInfoByHeight, callInfo)
+	mock.lockNewestBlockInfoByHeight.Unlock()
+	return mock.NewestBlockInfoByHeightFunc(height)
+}
+
+// NewestBlockInfoByHeightCalls gets all the calls that were made to NewestBlockInfoByHeight.
+// Check the length with:
+//
+//	len(mockedSmartState.NewestBlockInfoByHeightCalls())
+func (mock *AnotherMockSmartState) NewestBlockInfoByHeightCalls() []struct {
+	Height uint64
+} {
+	var calls []struct {
+		Height uint64
+	}
+	mock.lockNewestBlockInfoByHeight.RLock()
+	calls = mock.calls.NewestBlockInfoByHeight
+	mock.lockNewestBlockInfoByHeight.RUnlock()
+	return calls
+}
+
 // NewestFullAssetInfo calls NewestFullAssetInfoFunc.
 func (mock *AnotherMockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	if mock.NewestFullAssetInfoFunc == nil {
@@ -812,38 +732,6 @@ func (mock *AnotherMockSmartState) NewestFullWavesBalanceCalls() []struct {
 	mock.lockNewestFullWavesBalance.RLock()
 	calls = mock.calls.NewestFullWavesBalance
 	mock.lockNewestFullWavesBalance.RUnlock()
-	return calls
-}
-
-// NewestHeaderByHeight calls NewestHeaderByHeightFunc.
-func (mock *AnotherMockSmartState) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	if mock.NewestHeaderByHeightFunc == nil {
-		panic("AnotherMockSmartState.NewestHeaderByHeightFunc: method is nil but SmartState.NewestHeaderByHeight was just called")
-	}
-	callInfo := struct {
-		Height uint64
-	}{
-		Height: height,
-	}
-	mock.lockNewestHeaderByHeight.Lock()
-	mock.calls.NewestHeaderByHeight = append(mock.calls.NewestHeaderByHeight, callInfo)
-	mock.lockNewestHeaderByHeight.Unlock()
-	return mock.NewestHeaderByHeightFunc(height)
-}
-
-// NewestHeaderByHeightCalls gets all the calls that were made to NewestHeaderByHeight.
-// Check the length with:
-//
-//	len(mockedSmartState.NewestHeaderByHeightCalls())
-func (mock *AnotherMockSmartState) NewestHeaderByHeightCalls() []struct {
-	Height uint64
-} {
-	var calls []struct {
-		Height uint64
-	}
-	mock.lockNewestHeaderByHeight.RLock()
-	calls = mock.calls.NewestHeaderByHeight
-	mock.lockNewestHeaderByHeight.RUnlock()
 	return calls
 }
 
@@ -1036,38 +924,6 @@ func (mock *AnotherMockSmartState) NewestScriptPKByAddrCalls() []struct {
 	mock.lockNewestScriptPKByAddr.RLock()
 	calls = mock.calls.NewestScriptPKByAddr
 	mock.lockNewestScriptPKByAddr.RUnlock()
-	return calls
-}
-
-// NewestScriptVersionByAddressID calls NewestScriptVersionByAddressIDFunc.
-func (mock *AnotherMockSmartState) NewestScriptVersionByAddressID(id proto.AddressID) (ast.LibraryVersion, error) {
-	if mock.NewestScriptVersionByAddressIDFunc == nil {
-		panic("AnotherMockSmartState.NewestScriptVersionByAddressIDFunc: method is nil but SmartState.NewestScriptVersionByAddressID was just called")
-	}
-	callInfo := struct {
-		ID proto.AddressID
-	}{
-		ID: id,
-	}
-	mock.lockNewestScriptVersionByAddressID.Lock()
-	mock.calls.NewestScriptVersionByAddressID = append(mock.calls.NewestScriptVersionByAddressID, callInfo)
-	mock.lockNewestScriptVersionByAddressID.Unlock()
-	return mock.NewestScriptVersionByAddressIDFunc(id)
-}
-
-// NewestScriptVersionByAddressIDCalls gets all the calls that were made to NewestScriptVersionByAddressID.
-// Check the length with:
-//
-//	len(mockedSmartState.NewestScriptVersionByAddressIDCalls())
-func (mock *AnotherMockSmartState) NewestScriptVersionByAddressIDCalls() []struct {
-	ID proto.AddressID
-} {
-	var calls []struct {
-		ID proto.AddressID
-	}
-	mock.lockNewestScriptVersionByAddressID.RLock()
-	calls = mock.calls.NewestScriptVersionByAddressID
-	mock.lockNewestScriptVersionByAddressID.RUnlock()
 	return calls
 }
 

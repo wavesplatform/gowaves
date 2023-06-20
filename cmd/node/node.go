@@ -62,6 +62,7 @@ var (
 	apiAddr                    = flag.String("api-address", "", "Address for REST API.")
 	apiKey                     = flag.String("api-key", "", "Api key.")
 	apiMaxConnections          = flag.Int("api-max-connections", api.DefaultMaxConnections, "Max number of simultaneous connections for REST API.")
+	rateLimiterOptions         = flag.String("rate-limiter-opts", "", "Rate limiter options in form of URL query options, e.g. \"cache=1024&rps=10&burst=5\", keys 'cache' - rate limiter cache size in bytes, 'rps' - requests per second, 'burst' - available burst")
 	grpcAddr                   = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API.")
 	grpcApiMaxConnections      = flag.Int("grpc-api-max-connections", server.DefaultMaxConnections, "Max number of simultaneous connections for gRPC API.")
 	enableMetaMaskAPI          = flag.Bool("enable-metamask", true, "Enables/disables metamask API.")
@@ -112,7 +113,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("peers: %s", *peerAddresses)
 	zap.S().Debugf("declared-address: %s", *declAddr)
 	zap.S().Debugf("api-address: %s", *apiAddr)
-	zap.S().Debugf("api-key: %s", *apiKey)
+	zap.S().Debugf("api-key: %s", crypto.MustKeccak256([]byte(*apiKey)).Hex())
 	zap.S().Debugf("grpc-address: %s", *grpcAddr)
 	zap.S().Debugf("enable-grpc-api: %t", *enableGrpcApi)
 	zap.S().Debugf("black-list-residence-time: %s", *blackListResidenceTime)
@@ -125,7 +126,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("obsolescence: %s", *obsolescencePeriod)
 	zap.S().Debugf("disable-miner %t", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
-	zap.S().Debugf("hashed wallet-password: %s", crypto.MustFastHash([]byte(*walletPassword)))
+	zap.S().Debugf("hashed wallet-password: %s", crypto.MustKeccak256([]byte(*walletPassword)).Hex())
 	zap.S().Debugf("limit-connections: %d", *limitAllConnections)
 	zap.S().Debugf("profiler: %t", *profiler)
 	zap.S().Debugf("disable-bloom: %t", *disableBloomFilter)
@@ -454,6 +455,14 @@ func apiRunOptsFromCLIFlags() *api.RunOptions {
 			opts.EnableMetaMaskAPILog = *enableMetaMaskAPILog
 		} else {
 			zap.S().Warn("'enable-metamask' flag requires activated 'build-extended-api' flag")
+		}
+	}
+	if *rateLimiterOptions != "" {
+		rlo, err := api.NewRateLimiterOptionsFromString(*rateLimiterOptions)
+		if err == nil {
+			opts.RateLimiterOpts = rlo
+		} else {
+			zap.S().Errorf("Invalid rate limiter options '%s': %v", *rateLimiterOptions, err)
 		}
 	}
 	return opts

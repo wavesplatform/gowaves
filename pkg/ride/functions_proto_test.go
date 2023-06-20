@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -736,7 +737,30 @@ func TestAssetInfoV4(t *testing.T) {
 }
 
 func TestBlockInfoByHeight(t *testing.T) {
-	t.SkipNow()
+	gen := newTestAccount(t, "GENERATOR")
+	rewards := proto.Rewards{proto.NewReward(gen.address(), 12345)}
+	bi := protobufBlockBuilder().withHeight(2).withGenerator(gen).withRewards(rewards)
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlock(bi.toBlockInfo())
+	obj := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
+	for _, test := range []struct {
+		te   *testEnv
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{env, []rideType{rideInt(0)}, false, rideUnit{}},
+		{env, []rideType{rideInt(-1)}, false, rideUnit{}},
+		{env, []rideType{rideInt(2)}, false, obj},
+		{env, []rideType{rideInt(3)}, true, nil},
+	} {
+		r, err := blockInfoByHeight(test.te.toEnv(), test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestTransferByID(t *testing.T) {
