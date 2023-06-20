@@ -56,6 +56,11 @@ func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWave
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to convert address id to waves address")
 		}
+		// if the waves balance diff is 0, it means it did not change. Though the record might occur when LeaseIn and LeaseOut change,
+		// but they are handled separately in snapshots
+		if diffAmount.balance == 0 {
+			continue
+		}
 		addrWavesBalanceDiff[address] = diffAmount
 	}
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
@@ -98,6 +103,7 @@ func (tp *transactionPerformer) constructAssetBalanceSnapshotFromDiff(diff addre
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get newest asset info")
 		}
+
 		newBalance := AssetBalanceSnapshot{
 			Address: key.address,
 			AssetID: key.asset.Digest(assetInfo.tail),
@@ -134,10 +140,10 @@ func (tp *transactionPerformer) transactionSnapshotFromTransactionBalanceDiff(ap
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for i, _ := range wavesBalancesSnapshot {
+	for i := range wavesBalancesSnapshot {
 		transactionSnapshot = append(transactionSnapshot, &wavesBalancesSnapshot[i])
 	}
-	for i, _ := range assetBalancesSnapshot {
+	for i := range assetBalancesSnapshot {
 		transactionSnapshot = append(transactionSnapshot, &assetBalancesSnapshot[i])
 	}
 	return transactionSnapshot, nil
@@ -281,10 +287,10 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 		}
 
-		for i, _ := range wavesBalancesSnapshot {
+		for i := range wavesBalancesSnapshot {
 			snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 		}
-		for i, _ := range assetBalancesSnapshot {
+		for i := range assetBalancesSnapshot {
 			snapshot = append(snapshot, &assetBalancesSnapshot[i])
 		}
 		if specialAssetSnapshot != nil {
@@ -620,6 +626,7 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to receiver leasing info")
 	}
+
 	var snapshot TransactionSnapshot
 	if applicationRes != nil {
 		var err error
@@ -630,7 +637,8 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 	}
 
 	var amount = -int64(leasingInfo.Amount)
-	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(tx.LeaseID, *leasingInfo, *txID, leasingInfo.Sender, leasingInfo.Recipient, amount)
+	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(tx.LeaseID, *leasingInfo, *leasingInfo.OriginTransactionID, leasingInfo.Sender, leasingInfo.Recipient, amount)
+	leaseStatusSnapshot.Status = LeaseCanceled
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel transaction")
 	}
@@ -885,6 +893,7 @@ func addSenderToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
 
 }
 
+// TODO optimize this
 func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
 
 	blockHeight := info.height + 1
@@ -1074,10 +1083,10 @@ func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info 
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
 
-	for i, _ := range wavesBalancesSnapshot {
+	for i := range wavesBalancesSnapshot {
 		snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 	}
-	for i, _ := range assetBalancesSnapshot {
+	for i := range assetBalancesSnapshot {
 		snapshot = append(snapshot, &assetBalancesSnapshot[i])
 	}
 
@@ -1188,10 +1197,10 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 		}
 
-		for i, _ := range wavesBalancesSnapshot {
+		for i := range wavesBalancesSnapshot {
 			snapshot = append(snapshot, &wavesBalancesSnapshot[i])
 		}
-		for i, _ := range assetBalancesSnapshot {
+		for i := range assetBalancesSnapshot {
 			snapshot = append(snapshot, &assetBalancesSnapshot[i])
 		}
 	}
