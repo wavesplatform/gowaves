@@ -344,7 +344,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		Ignore(ConnectedPeerEvent).
 		Ignore(ConnectedBestPeerEvent).
 		Ignore(DisconnectedPeerEvent).
-		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(StopMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)
 			return a.StopMining()
 		})).

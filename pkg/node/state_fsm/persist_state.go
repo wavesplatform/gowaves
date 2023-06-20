@@ -95,7 +95,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil
 		}).
-		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(StopMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*PersistState)
 			return a.StopMining()
 		})).
