@@ -345,6 +345,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
 			stateActionsCounter: params.stateActionsCounterInBlock,
+			checkerInfo:         params.checkerInfo, // performer needs to know the estimator version which is stored in checker info
 		}
 		// TODO other snapshots
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes)

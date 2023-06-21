@@ -89,7 +89,7 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 			tc.checkCreateAliasWithProofs, tp.performCreateAliasWithProofs, td.createDiffCreateAliasWithProofs, tf.minerFeeCreateAliasWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.MassTransferTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
-			tc.checkMassTransferWithProofs, nil, td.createDiffMassTransferWithProofs, tf.minerFeeMassTransferWithProofs,
+			tc.checkMassTransferWithProofs, tp.performMassTransferWithProofs, td.createDiffMassTransferWithProofs, tf.minerFeeMassTransferWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.DataTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
 			tc.checkDataWithProofs, tp.performDataWithProofs, td.createDiffDataWithProofs, tf.minerFeeDataWithProofs,

@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -26,6 +27,29 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool, amount int64, issu
 			reissuable:               reissuable,
 		},
 	}
+}
+
+func defaultPerformerInfoWithChecker(checker *checkerInfo) *performerInfo {
+	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), checker}
+}
+
+func defaultCheckerInfoHeight() *checkerInfo {
+	defaultBlockInfo := defaultBlockInfo()
+	return &checkerInfo{
+		currentTimestamp: defaultBlockInfo.Timestamp,
+		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		blockID:          blockID0,
+		blockVersion:     defaultBlockInfo.Version,
+		height:           defaultBlockInfo.Height,
+	}
+}
+
+func createCheckerCustomTestObjects(t *testing.T, stor *testStorageObjects) *checkerTestObjects {
+	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
+	require.NoError(t, err, "newTransactionChecker() failed")
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
+	require.NoError(t, err, "newTransactionPerformer() failed")
+	return &checkerTestObjects{stor, tc, tp}
 }
 
 func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
@@ -569,6 +593,246 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 		&AliasSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Alias:   *proto.NewAlias(proto.TestNetScheme, "aliasForSender"),
+		},
+	}
+
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultDataSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedDataWithProofs(1, testGlobal.senderInfo.pk, uint64(1*FeeUnit), defaultTimestamp)
+	stringEntry := &proto.StringDataEntry{Key: "key_str", Value: "value_str"}
+	intEntry := &proto.IntegerDataEntry{Key: "key_int", Value: 2}
+	err = tx.AppendEntry(stringEntry)
+	require.NoError(t, err)
+	err = tx.AppendEntry(intEntry)
+	require.NoError(t, err)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign burn tx")
+	ch, err := to.td.createDiffDataWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performDataWithProofs(tx, defaultPerformerInfo(), nil, applicationRes)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&DataEntriesSnapshot{
+			Address:     testGlobal.senderInfo.addr,
+			DataEntries: []proto.DataEntry{&proto.StringDataEntry{Key: "key_str", Value: "value_str"}, &proto.IntegerDataEntry{Key: "key_int", Value: 2}},
+		},
+	}
+
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultSponsorshipSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedSponsorshipWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.assetID, uint64(5*FeeUnit), uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign burn tx")
+	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo(), nil, applicationRes)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&SponsorshipSnapshot{
+			AssetID:         testGlobal.asset0.assetID,
+			MinSponsoredFee: 500000,
+		},
+	}
+
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultSetScriptSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk, testGlobal.scriptBytes, uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign set script tx")
+
+	co := createCheckerCustomTestObjects(t, to.stor)
+	checkerInfo := defaultCheckerInfoHeight()
+	co.stor = to.stor
+	_, err = co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check set script tx")
+
+	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), nil, applicationRes)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&AccountScriptSnapshot{
+			SenderPublicKey:    testGlobal.senderInfo.pk,
+			Script:             testGlobal.scriptBytes,
+			VerifierComplexity: 340,
+		},
+	}
+
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfoTransfer(proto.DigestTail(testGlobal.asset0.assetID), true, 1000, testGlobal.senderInfo.pk, "asset0"), blockID0)
+	assert.NoError(t, err, "failed to issue asset")
+
+	err = to.stor.entities.scriptsStorage.setAssetScript(testGlobal.asset0.assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	assert.NoError(t, err, "failed to issue asset")
+
+	tx := proto.NewUnsignedSetAssetScriptWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.assetID, testGlobal.scriptBytes, uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign burn tx")
+
+	co := createCheckerCustomTestObjects(t, to.stor)
+	checkerInfo := defaultCheckerInfoHeight()
+	co.stor = to.stor
+	_, err = co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check set script tx")
+
+	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), nil, applicationRes)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&AssetScriptSnapshot{
+			AssetID:    testGlobal.asset0.assetID,
+			Script:     testGlobal.scriptBytes,
+			Complexity: 340,
 		},
 	}
 

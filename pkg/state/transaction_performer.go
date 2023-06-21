@@ -14,6 +14,7 @@ type performerInfo struct {
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
 	stateActionsCounter *proto.StateActionsCounter
+	checkerInfo         *checkerInfo
 }
 
 type transactionPerformer struct {
@@ -709,6 +710,23 @@ func (tp *transactionPerformer) performCreateAliasWithProofs(transaction proto.T
 	return tp.performCreateAlias(&tx.CreateAlias, info, applicationRes)
 }
 
+func (tp *transactionPerformer) performMassTransferWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+	_, ok := transaction.(*proto.MassTransferWithProofs)
+	if !ok {
+		return nil, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
+	}
+	var snapshot TransactionSnapshot
+	if applicationRes != nil {
+		var err error
+		snapshot, err = tp.transactionSnapshotFromTransactionBalanceDiff(applicationRes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
+		}
+	}
+
+	return snapshot, nil
+}
+
 func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
@@ -787,10 +805,16 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 			return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 		}
 
+		treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, info.checkerInfo.estimatorVersion())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
+		}
+		complexity := treeEstimation.Verifier
+
 		sponsorshipSnapshot := &AccountScriptSnapshot{
 			SenderPublicKey:    tx.SenderPK,
 			Script:             tx.Script,
-			VerifierComplexity: 0, // TODO fix it
+			VerifierComplexity: uint64(complexity),
 		}
 		snapshot = append(snapshot, sponsorshipSnapshot)
 	}
@@ -816,10 +840,17 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 			return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 		}
 	}
+
+	treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(tx.AssetID))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
+	}
+	complexity := treeEstimation.Verifier
+
 	sponsorshipSnapshot := &AssetScriptSnapshot{
 		AssetID:    tx.AssetID,
 		Script:     tx.Script,
-		Complexity: 0, // TDODO fix it
+		Complexity: uint64(complexity), // TDODO fix it
 	}
 	snapshot = append(snapshot, sponsorshipSnapshot)
 
