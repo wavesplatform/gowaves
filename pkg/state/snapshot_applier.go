@@ -15,6 +15,7 @@ type snapshotApplier struct {
 	scriptsComplexity *scriptsComplexity
 	sponsoredAssets   *sponsoredAssets
 	ordersVolumes     *ordersVolumes
+	accountsDataStor  *accountsDataStorage
 }
 
 type snapshotApplierInfo struct {
@@ -164,4 +165,15 @@ var _ = (&snapshotApplier{}).applyFilledVolumeAndFee // TODO: remove it, need fo
 
 func (a *snapshotApplier) applyFilledVolumeAndFee(blockID proto.BlockID, snapshot FilledVolumeFeeSnapshot) error {
 	return a.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, blockID)
+}
+
+var _ = (&snapshotApplier{}).applyDataEntry // TODO: remove it, need for linter for now
+
+func (a *snapshotApplier) applyDataEntry(blockID proto.BlockID, snapshot DataEntriesSnapshot) error {
+	for _, entry := range snapshot.DataEntries {
+		if err := a.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
+			return errors.Wrapf(err, "failed to add entry (%T) for address %q", entry, snapshot.Address)
+		}
+	}
+	return nil
 }
