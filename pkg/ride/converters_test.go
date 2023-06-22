@@ -1570,6 +1570,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 		10000,
 		a.matcherFeeAssetID,
 		proto.OrderPriceModeDefault,
+		proto.Attachment{},
 	)
 	sellOrder.Proofs = proto.NewProofs()
 

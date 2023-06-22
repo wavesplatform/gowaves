@@ -44,6 +44,7 @@ const (
 	stringArgumentMinLen                     = 1 + 4
 	listArgumentMinLen                       = 1 + 4
 	PriceConstant                            = 100000000
+	MaxAttachmentSize                        = 1024
 	MaxOrderAmount                           = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	MaxKeySize                               = 100
@@ -1629,6 +1630,7 @@ type OrderV4 struct {
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
 	PriceMode       OrderPriceMode `json:"priceMode"`
+	Attachment      Attachment     `json:"attachment,omitempty"`
 	OrderBody
 }
 
@@ -1679,7 +1681,7 @@ func (o OrderV4) GetProofs() (*ProofsV1, error) {
 }
 
 // NewUnsignedOrderV4 creates the new unsigned order.
-func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *OrderV4 {
+func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode, attachment Attachment) *OrderV4 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
 		MatcherPK: matcherPK,
@@ -1693,7 +1695,7 @@ func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV4{Version: 4, MatcherFeeAsset: matcherFeeAsset, PriceMode: priceMode, OrderBody: ob}
+	return &OrderV4{Version: 4, MatcherFeeAsset: matcherFeeAsset, PriceMode: priceMode, Attachment: attachment, OrderBody: ob}
 }
 
 func (o *OrderV4) GetVersion() byte {
@@ -1777,6 +1779,9 @@ func (o *OrderV4) Valid() (bool, error) {
 	if ok, err := o.OrderBody.Valid(); !ok {
 		return false, err
 	}
+	if o.Attachment.Size() > MaxAttachmentSize {
+		return false, errors.New("attachment size should be <= 1024 bytes")
+	}
 	if ok, err := o.GetPriceMode().Valid(o.GetVersion()); !ok {
 		return false, err
 	}
@@ -1784,8 +1789,8 @@ func (o *OrderV4) Valid() (bool, error) {
 }
 
 // NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
-func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
-	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode)
+func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode, attachment Attachment) *EthereumOrderV4 {
+	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode, attachment)
 	return &EthereumOrderV4{
 		SenderPK:        ethereumPublicKeyBase58Wrapper{inner: senderPK},
 		Eip712Signature: EthereumSignature{},

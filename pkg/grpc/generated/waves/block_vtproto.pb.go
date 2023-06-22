@@ -47,6 +47,13 @@ func (m *Block_Header) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.StateHash) > 0 {
+		i -= len(m.StateHash)
+		copy(dAtA[i:], m.StateHash)
+		i = encodeVarint(dAtA, i, uint64(len(m.StateHash)))
+		i--
+		dAtA[i] = 0x5a
+	}
 	if len(m.TransactionsRoot) > 0 {
 		i -= len(m.TransactionsRoot)
 		copy(dAtA[i:], m.TransactionsRoot)
@@ -215,6 +222,13 @@ func (m *MicroBlock) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.StateHash) > 0 {
+		i -= len(m.StateHash)
+		copy(dAtA[i:], m.StateHash)
+		i = encodeVarint(dAtA, i, uint64(len(m.StateHash)))
+		i--
+		dAtA[i] = 0x32
+	}
 	if len(m.Transactions) > 0 {
 		for iNdEx := len(m.Transactions) - 1; iNdEx >= 0; iNdEx-- {
 			size, err := m.Transactions[iNdEx].MarshalToSizedBufferVTStrict(dAtA[:i])
@@ -357,6 +371,10 @@ func (m *Block_Header) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
+	l = len(m.StateHash)
+	if l > 0 {
+		n += 1 + l + sov(uint64(l))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -411,6 +429,10 @@ func (m *MicroBlock) SizeVT() (n int) {
 			l = e.SizeVT()
 			n += 1 + l + sov(uint64(l))
 		}
+	}
+	l = len(m.StateHash)
+	if l > 0 {
+		n += 1 + l + sov(uint64(l))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -774,6 +796,40 @@ func (m *Block_Header) UnmarshalVT(dAtA []byte) error {
 				m.TransactionsRoot = []byte{}
 			}
 			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateHash = append(m.StateHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateHash == nil {
+				m.StateHash = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
@@ -1133,6 +1189,40 @@ func (m *MicroBlock) UnmarshalVT(dAtA []byte) error {
 			m.Transactions = append(m.Transactions, &SignedTransaction{})
 			if err := m.Transactions[len(m.Transactions)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateHash = append(m.StateHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateHash == nil {
+				m.StateHash = []byte{}
 			}
 			iNdEx = postIndex
 		default:

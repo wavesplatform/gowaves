@@ -2409,12 +2409,12 @@ func newSignedOrderV1(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
-func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string, priceMode OrderPriceMode) OrderV4 {
+func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string, priceMode OrderPriceMode, attachment Attachment) OrderV4 {
 	id, err := crypto.NewDigestFromBase58(sID)
 	require.NoError(t, err)
 	sig, err := crypto.NewSignatureFromBase58(sSig)
 	require.NoError(t, err)
-	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
+	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode, attachment)
 	o.ID = &id
 	o.Proofs = NewProofsFromSignature(&sig)
 	return *o
@@ -2442,7 +2442,7 @@ func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPK
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
+	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode, Attachment{})
 	ethereumOrderV4.Eip712Signature = ethSig
 	return *ethereumOrderV4
 }
@@ -2796,8 +2796,8 @@ func TestExchangeV3PriceValidation(t *testing.T) {
 	mpk, _ := crypto.NewPublicKeyFromBase58("BvJEWY79uQEFetuyiZAF5U4yjPioMj9J6ZrF9uTNfe3E")
 	aa, _ := NewOptionalAssetFromString("3JmaWyFqWo8YSA8x3DXCBUW7veesxacvKx19dMv7wTMg")
 	pa, _ := NewOptionalAssetFromString("25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT")
-	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR", OrderPriceModeDefault)
-	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU", OrderPriceModeDefault)
+	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR", OrderPriceModeDefault, Attachment{})
+	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU", OrderPriceModeDefault, Attachment{})
 	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
 	_, err := tx.Validate(TestNetScheme)
 	assert.NoError(t, err)
@@ -3403,7 +3403,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [
 					  "2FekVM3s2CUf79uaG92MqdzyCzr9dhrG4jtXzbAQNxW3B9LGWwtFmMdgHCVuKWqhdAgUfV6PTsZwDxFKrejeT4vu"
 					],
-					"matcherFeeAssetId": null
+					"matcherFeeAssetId": null,
+					"attachment": null
 				  },
 				  "order2": {
 					"version": 4,
@@ -3425,7 +3426,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "amount": 1,
 				  "price": 100,
@@ -3474,7 +3476,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x0a897d382e4e4a066e1d98e5c3c1051864a557c488571ff71e036c0f5a2c7204274cb293cd4aa7ad40f8c2f650e1a2770ecca6aa14a1da883388fa3b5b9fa8b71c",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "order2": {
 					"version": 4,
@@ -3496,7 +3499,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "amount": 1,
 				  "price": 100,

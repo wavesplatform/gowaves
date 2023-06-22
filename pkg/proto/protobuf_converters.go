@@ -420,6 +420,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 			PriceMode:       priceMode,
+			Attachment:      c.attachment(o.Attachment),
 		}
 		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
 			ethOrder := EthereumOrderV4{
