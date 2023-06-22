@@ -113,14 +113,21 @@ func newBlockchainConfig() (*config, []AccountInfo, error) {
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.MinBlockTime = genSettings.MinBlockTime
 	cfg.DelayDelta = genSettings.DelayDelta
-	cfg.BlockRewardIncrement = 100000
-	cfg.BlockRewardVotingPeriod = 1000
-	cfg.InitialBlockReward = 600000000
 	cfg.DoubleFeaturesPeriodsAfterHeight = 1000000
 	cfg.SponsorshipSingleActivationPeriod = true
+	cfg.MinUpdateAssetInfoInterval = 2
+
 	cfg.FeaturesVotingPeriod = 1
 	cfg.VotesForFeatureActivation = 1
-	cfg.MinUpdateAssetInfoInterval = 2
+
+	cfg.InitialBlockReward = 600000000
+	cfg.BlockRewardIncrement = 100000
+
+	cfg.BlockRewardVotingPeriod = 5
+	cfg.BlockRewardTermAfter20 = 5
+	cfg.BlockRewardTerm = 10
+	cfg.RewardAddresses = []proto.WavesAddress{acc[5].Address, acc[6].Address}
+
 	for _, feature := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
 	}

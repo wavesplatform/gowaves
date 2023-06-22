@@ -27,9 +27,13 @@ import (
 )
 
 const (
+	DefaultMinerGo             = 0
+	DefaultMinerScala          = 1
 	DefaultSenderNotMiner      = 2
 	DefaultRecipientNotMiner   = 3
 	FirstRecipientNotMiner     = 4
+	DAOAccount                 = 5
+	XTNBuyBackAccount          = 6
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
 	MinIssueFeeWaves           = 100000000
@@ -371,6 +375,47 @@ func GetHeight(suite *f.BaseSuite) uint64 {
 
 func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
 	return suite.Clients.WaitForHeight(suite.T(), height)
+}
+
+func GetActivationFeaturesStatusInfoGo(suite *f.BaseSuite, h uint64) *g.ActivationStatusResponse {
+	return suite.Clients.GoClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
+}
+
+func GetActivationFeaturesStatusInfoScala(suite *f.BaseSuite, h uint64) *g.ActivationStatusResponse {
+	return suite.Clients.ScalaClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
+}
+
+func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, featureId int) (string, error) {
+	var status string
+	var err error
+	for _, feature := range statusResponse.GetFeatures() {
+		if feature.GetId() == int32(featureId) {
+			status = feature.GetBlockchainStatus().String()
+			break
+		}
+	}
+	if status == "" {
+		err = errors.Errorf("Feature with Id %s not found", featureId)
+	}
+	return status, err
+}
+
+func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
+	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+	return status
+}
+
+func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64) string {
+	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
+	return status
+}
+
+func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, h uint64) bool {
+	return GetFeatureBlockchainStatusGo(suite, featureId, h) == "ACTIVATED"
+}
+
+func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, h uint64) bool {
+	return GetFeatureBlockchainStatusScala(suite, featureId, h) == "ACTIVATED"
 }
 
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
