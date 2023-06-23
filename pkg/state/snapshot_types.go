@@ -9,10 +9,7 @@ import (
 
 type TransactionSnapshot []AtomicSnapshot
 
-type AtomicSnapshot interface {
-	atomicSnapshotMarker()
-	// TODO: add all necessary methods here
-}
+type AtomicSnapshot interface{ atomicSnapshotMarker() }
 
 type WavesBalanceSnapshot struct {
 	Address proto.WavesAddress
@@ -21,7 +18,6 @@ type WavesBalanceSnapshot struct {
 
 func (*WavesBalanceSnapshot) atomicSnapshotMarker() {}
 
-// What is address || asset_id?
 type AssetBalanceSnapshot struct {
 	Address proto.WavesAddress
 	AssetID crypto.Digest
@@ -61,13 +57,19 @@ type LeaseBalanceSnapshot struct {
 
 func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
 
+type LeaseStateStatus struct {
+	Status              LeaseStatus // can be only LeaseActive or LeaseCanceled
+	CancelHeight        proto.Height
+	CancelTransactionID *crypto.Digest
+}
+
 type LeaseStateSnapshot struct {
 	LeaseID             crypto.Digest
-	Status              LeaseStatus // TODO(nickeskov): add cancelHeight and cancelTxID info for canceled leases
+	Status              LeaseStateStatus
 	Amount              uint64
 	Sender              proto.WavesAddress
 	Recipient           proto.WavesAddress
-	OriginTransactionID crypto.Digest
+	OriginTransactionID *crypto.Digest
 	Height              proto.Height
 }
 
