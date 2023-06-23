@@ -16,6 +16,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -24,8 +27,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -76,7 +77,7 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.
 	sets.AddressSchemeCharacter = settings.MainNetSettings.AddressSchemeCharacter
 	sets.BlockRewardTerm = 100000
-	return sets
+	return &sets
 }
 
 func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {

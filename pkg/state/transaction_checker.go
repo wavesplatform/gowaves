@@ -928,9 +928,10 @@ func (tc *transactionChecker) checkExchangeWithProofs(transaction proto.Transact
 	if err != nil {
 		return nil, err
 	}
-	if (tx.Order1.GetVersion() != 3) && (tx.Order2.GetVersion() != 3) {
+	if (tx.Order1.GetVersion() < 3) && (tx.Order2.GetVersion() < 3) { // it's not necessary to check OrderV3 feature activation
 		return smartAssets, nil
 	}
+	// one or both order versions greater or equal 3, we have to check OrderV3 activation
 	activated, err = tc.stor.features.newestIsActivated(int16(settings.OrderV3))
 	if err != nil {
 		return nil, err

@@ -128,11 +128,12 @@ func newBlockchainConfig() (*config, []AccountInfo, error) {
 	cfg.BlockRewardTerm = 10
 	cfg.RewardAddresses = []proto.WavesAddress{acc[5].Address, acc[6].Address}
 
-	for _, feature := range genSettings.PreactivatedFeatures {
-		cfg.PreactivatedFeatures = append(cfg.PreactivatedFeatures, feature.Feature)
+	cfg.PreactivatedFeatures = make([]int16, len(genSettings.PreactivatedFeatures))
+	for i, f := range genSettings.PreactivatedFeatures {
+		cfg.PreactivatedFeatures[i] = f.Feature
 	}
 	return &config{
-		BlockchainSettings: cfg,
+		BlockchainSettings: &cfg,
 		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
 	}, acc, nil
 }
