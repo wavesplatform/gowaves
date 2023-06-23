@@ -22,7 +22,8 @@
     {"feature": 16, "height": 0},
     {"feature": 17, "height": 0},
     {"feature": 18, "height": 0},
-    {"feature": 19, "height": 2}
+    {"feature": 19, "height": 2},
+    {"feature": 20, "height": 2}
   ],
   "distributions": [
     {
