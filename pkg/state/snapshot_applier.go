@@ -16,6 +16,7 @@ type snapshotApplier struct {
 	sponsoredAssets   *sponsoredAssets
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
+	leases            *leases
 }
 
 type snapshotApplierInfo struct {
@@ -176,4 +177,20 @@ func (a *snapshotApplier) applyDataEntry(blockID proto.BlockID, snapshot DataEnt
 		}
 	}
 	return nil
+}
+
+var _ = (&snapshotApplier{}).applyLeaseState // TODO: remove it, need for linter for now
+
+func (a *snapshotApplier) applyLeaseState(blockID proto.BlockID, snapshot LeaseStateSnapshot) error {
+	l := &leasing{
+		Sender:              snapshot.Sender,
+		Recipient:           snapshot.Recipient,
+		Amount:              snapshot.Amount,
+		Height:              snapshot.Height,
+		Status:              snapshot.Status.Value,
+		OriginTransactionID: snapshot.OriginTransactionID,
+		CancelHeight:        snapshot.Status.CancelHeight,
+		CancelTransactionID: snapshot.Status.CancelTransactionID,
+	}
+	return a.leases.addLeasing(snapshot.LeaseID, l, blockID)
 }
