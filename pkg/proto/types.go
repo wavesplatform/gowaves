@@ -1779,8 +1779,8 @@ func (o *OrderV4) Valid() (bool, error) {
 	if ok, err := o.OrderBody.Valid(); !ok {
 		return false, err
 	}
-	if o.Attachment.Size() > MaxAttachmentSize {
-		return false, errors.New("attachment size should be <= 1024 bytes")
+	if l := o.Attachment.Size(); l > MaxAttachmentSize {
+		return false, errors.Errorf("attachment size should be <= 1024 bytes, got %d", l)
 	}
 	if ok, err := o.GetPriceMode().Valid(o.GetVersion()); !ok {
 		return false, err

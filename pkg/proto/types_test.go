@@ -2104,17 +2104,22 @@ func TestStateHashDebutUnmarshalJSON(t *testing.T) {
 }
 
 func TestAttachmentInOrder(t *testing.T) {
-	seed := "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-	matcher := "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
-	amountAsset := "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
-	priceAsset := "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
-	s, _ := base58.Decode(seed)
+	const (
+		seed        = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
+		matcher     = "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
+		amountAsset = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
+		priceAsset  = "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
+	)
+	s, err := base58.Decode(seed)
+	require.NoError(t, err)
 	_, pk, err := crypto.GenerateKeyPair(s)
-	assert.NoError(t, err)
-	mpk, _ := crypto.NewPublicKeyFromBase58(matcher)
-	aa, _ := NewOptionalAssetFromString(amountAsset)
-	pa, _ := NewOptionalAssetFromString(priceAsset)
-	ts := uint64(time.Now().UnixNano() / 1000000)
+	require.NoError(t, err)
+	mpk := crypto.MustPublicKeyFromBase58(matcher)
+	aa, err := NewOptionalAssetFromString(amountAsset)
+	require.NoError(t, err)
+	pa, err := NewOptionalAssetFromString(priceAsset)
+	require.NoError(t, err)
+	ts := uint64(time.Now().UnixMilli())
 	oV4 := OrderV4{
 		Version:         4,
 		MatcherFeeAsset: OptionalAsset{},
@@ -2136,17 +2141,16 @@ func TestAttachmentInOrder(t *testing.T) {
 	}
 	oV4.Attachment = make([]byte, 0)
 	ok, err := oV4.Valid()
-	require.NoError(t, err)
-	require.True(t, ok)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 
 	oV4.Attachment = make([]byte, MaxAttachmentSize)
 	ok, err = oV4.Valid()
-	require.NoError(t, err)
-	require.True(t, ok)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 
 	oV4.Attachment = make([]byte, MaxAttachmentSize+1)
 	ok, err = oV4.Valid()
-	require.Error(t, err)
-	require.False(t, ok)
-
+	assert.EqualError(t, err, "attachment size should be <= 1024 bytes, got 1025")
+	assert.False(t, ok)
 }
