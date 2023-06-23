@@ -58,7 +58,7 @@ type LeaseBalanceSnapshot struct {
 func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
 
 type LeaseStateStatus struct {
-	Status              LeaseStatus // can be only LeaseActive or LeaseCanceled
+	Value               LeaseStatus // can be only LeaseActive or LeaseCanceled
 	CancelHeight        proto.Height
 	CancelTransactionID *crypto.Digest
 }
