@@ -2108,11 +2108,6 @@ func TestAttachmentInOrder(t *testing.T) {
 	matcher := "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
 	amountAsset := "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
 	priceAsset := "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
-	orderType := Sell
-	amount := uint64(1000)
-	price := uint64(100)
-	fee := uint64(10)
-
 	s, _ := base58.Decode(seed)
 	_, pk, err := crypto.GenerateKeyPair(s)
 	assert.NoError(t, err)
@@ -2120,29 +2115,38 @@ func TestAttachmentInOrder(t *testing.T) {
 	aa, _ := NewOptionalAssetFromString(amountAsset)
 	pa, _ := NewOptionalAssetFromString(priceAsset)
 	ts := uint64(time.Now().UnixNano() / 1000000)
-	exp := ts + 100*1000
-	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, orderType, price, amount, ts, exp, fee)
+	oV4 := OrderV4{
+		Version:         4,
+		MatcherFeeAsset: OptionalAsset{},
+		PriceMode:       OrderPriceModeDefault,
+		OrderBody: OrderBody{
+			SenderPK:  pk,
+			MatcherPK: mpk,
+			AssetPair: AssetPair{
+				AmountAsset: *aa,
+				PriceAsset:  *pa,
+			},
+			OrderType:  Sell,
+			Price:      uint64(100),
+			Amount:     uint64(1000),
+			Timestamp:  ts,
+			Expiration: ts + 100*1000,
+			MatcherFee: uint64(10),
+		},
+	}
+	oV4.Attachment = make([]byte, 0)
+	ok, err := oV4.Valid()
+	require.NoError(t, err)
+	require.True(t, ok)
 
-	t.Run("version >= V4", func(t *testing.T) {
-		oV4 := OrderV4{
-			Version:         4,
-			MatcherFeeAsset: OptionalAsset{},
-			PriceMode:       OrderPriceModeDefault,
-			OrderBody:       o.OrderBody,
-		}
-		oV4.Attachment = make([]byte, 0)
-		ok, err := oV4.Valid()
-		require.NoError(t, err)
-		require.True(t, ok)
+	oV4.Attachment = make([]byte, MaxAttachmentSize)
+	ok, err = oV4.Valid()
+	require.NoError(t, err)
+	require.True(t, ok)
 
-		oV4.Attachment = make([]byte, MaxAttachmentSize)
-		ok, err = oV4.Valid()
-		require.NoError(t, err)
-		require.True(t, ok)
+	oV4.Attachment = make([]byte, MaxAttachmentSize+1)
+	ok, err = oV4.Valid()
+	require.Error(t, err)
+	require.False(t, ok)
 
-		oV4.Attachment = make([]byte, MaxAttachmentSize+1)
-		ok, err = oV4.Valid()
-		require.Error(t, err)
-		require.False(t, ok)
-	})
 }
