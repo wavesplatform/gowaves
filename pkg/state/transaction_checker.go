@@ -576,16 +576,12 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	if err != nil {
 		return out, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
-	assetID := *tx.ID
-	// Save complexities to storage, so we won't have to calculate it every time the script is called.
-	complexity, ok := estimations[currentEstimatorVersion]
-	if !ok {
-		return out, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
-	}
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
-		return out, err
-	}
-	return out, nil
+	return txCheckerData{
+		scriptEstimations: &scriptsEstimations{
+			currentEstimatorVersion: currentEstimatorVersion,
+			estimations:             estimations,
+		},
+	}, nil
 }
 
 func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo) error {
@@ -1265,27 +1261,20 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		return out, err
 	}
 
-	addr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return out, err
-	}
-	if len(tx.Script) == 0 {
-		// No script checks / actions are needed.
-		if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, nil, info.blockID); err != nil {
-			return out, err
+	currentEstimatorVersion := info.estimatorVersion()
+	var estimations map[int]ride.TreeEstimation
+	if !tx.Script.IsEmpty() {
+		estimations, err = tc.checkScript(tx.Script, currentEstimatorVersion, info.blockVersion == proto.ProtobufBlockVersion, true)
+		if err != nil {
+			return out, errors.Wrapf(err, "checkScript() tx %s", tx.ID.String())
 		}
-		return out, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), info.blockVersion == proto.ProtobufBlockVersion, true)
-	if err != nil {
-		return out, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
-	}
-	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
-		return out, err
-	}
-
-	return out, nil
+	return txCheckerData{
+		scriptEstimations: &scriptsEstimations{
+			currentEstimatorVersion: currentEstimatorVersion,
+			estimations:             estimations,
+		},
+	}, nil
 }
 
 func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Transaction, info *checkerInfo) (out txCheckerData, err error) {
@@ -1328,15 +1317,13 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err != nil {
 		return out, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
-	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	estimation, ok := estimations[currentEstimatorVersion]
-	if !ok {
-		return out, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
-	}
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimation, info.blockID); err != nil {
-		return out, errs.Extend(err, "saveComplexityForAsset")
-	}
-	return txCheckerData{smartAssets: smartAssets}, nil
+	return txCheckerData{
+		smartAssets: smartAssets,
+		scriptEstimations: &scriptsEstimations{
+			currentEstimatorVersion: currentEstimatorVersion,
+			estimations:             estimations,
+		},
+	}, nil
 }
 
 const maxPaymentsCountSinceRideV5Activation = 10

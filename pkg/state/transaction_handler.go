@@ -4,13 +4,22 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type txCheckerData struct {
-	_           struct{}
-	smartAssets []crypto.Digest
+	_                 struct{}
+	smartAssets       []crypto.Digest
+	scriptEstimations *scriptsEstimations
 }
+
+type scriptsEstimations struct {
+	currentEstimatorVersion int
+	estimations             map[int]ride.TreeEstimation
+}
+
+func (e *scriptsEstimations) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error
