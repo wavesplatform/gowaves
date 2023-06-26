@@ -19,7 +19,7 @@ type SnapshotApplier interface {
 	ApplySponsorship(snapshot SponsorshipSnapshot) error
 	ApplyAccountScript(snapshot AccountScriptSnapshot) error
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
-	ApplyDataEntry(snapshot DataEntriesSnapshot) error
+	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
 }
 
@@ -223,7 +223,7 @@ func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFee
 	return a.stor.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyDataEntry(snapshot DataEntriesSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) error {
 	blockID := a.info.BlockID()
 	for _, entry := range snapshot.DataEntries {
 		if err := a.stor.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
