@@ -47,7 +47,6 @@ type leasing struct {
 	Height              uint64             `cbor:"3,keyasint"`
 	Status              LeaseStatus        `cbor:"4,keyasint"`
 	OriginTransactionID *crypto.Digest     `cbor:"5,keyasint,omitempty"`
-	RecipientAlias      *proto.Alias       `cbor:"6,keyasint,omitempty"`
 	CancelHeight        uint64             `cbor:"7,keyasint,omitempty"`
 	CancelTransactionID *crypto.Digest     `cbor:"8,keyasint,omitempty"`
 }
