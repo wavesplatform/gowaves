@@ -7,14 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
-type SnapshotApplierInfo interface {
-	BlockID() proto.BlockID
-	Height() proto.Height
-	EstimatorVersion() int
-	Scheme() proto.Scheme
-	StateActionsCounter() *proto.StateActionsCounter
-}
-
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -32,7 +24,7 @@ type SnapshotApplier interface {
 }
 
 type blockSnapshotsApplier struct {
-	info SnapshotApplierInfo
+	info blockSnapshotsApplierInfo
 
 	balances          *balances
 	aliases           *aliases
@@ -52,8 +44,6 @@ type blockSnapshotsApplierInfo struct {
 	scheme              proto.Scheme
 	stateActionsCounter *proto.StateActionsCounter
 }
-
-var _ = SnapshotApplierInfo(blockSnapshotsApplierInfo{})
 
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
