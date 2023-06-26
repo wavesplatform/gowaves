@@ -15,6 +15,22 @@ type SnapshotApplierInfo interface {
 	StateActionsCounter() *proto.StateActionsCounter
 }
 
+type SnapshotApplier interface {
+	ApplyWavesBalance(info SnapshotApplierInfo, snapshot WavesBalanceSnapshot) error
+	ApplyLeaseBalance(info SnapshotApplierInfo, snapshot LeaseBalanceSnapshot) error
+	ApplyAssetBalance(info SnapshotApplierInfo, snapshot AssetBalanceSnapshot) error
+	ApplyAlias(info SnapshotApplierInfo, snapshot AliasSnapshot) error
+	ApplyStaticAssetInfo(info SnapshotApplierInfo, snapshot StaticAssetInfoSnapshot) error
+	ApplyAssetDescription(info SnapshotApplierInfo, snapshot AssetDescriptionSnapshot) error
+	ApplyAssetVolume(info SnapshotApplierInfo, snapshot AssetVolumeSnapshot) error
+	ApplyAssetScript(info SnapshotApplierInfo, snapshot AssetScriptSnapshot) error
+	ApplySponsorship(info SnapshotApplierInfo, snapshot SponsorshipSnapshot) error
+	ApplyAccountScript(info SnapshotApplierInfo, snapshot AccountScriptSnapshot) error
+	ApplyFilledVolumeAndFee(info SnapshotApplierInfo, snapshot FilledVolumeFeeSnapshot) error
+	ApplyDataEntry(info SnapshotApplierInfo, snapshot DataEntriesSnapshot) error
+	ApplyLeaseState(info SnapshotApplierInfo, snapshot LeaseStateSnapshot) error
+}
+
 type snapshotApplier struct {
 	balances          *balances
 	aliases           *aliases
@@ -26,6 +42,8 @@ type snapshotApplier struct {
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
 }
+
+var _ = SnapshotApplier((*snapshotApplier)(nil))
 
 type snapshotApplierInfo struct {
 	ci                  *checkerInfo
@@ -55,9 +73,7 @@ func (s snapshotApplierInfo) StateActionsCounter() *proto.StateActionsCounter {
 	return s.stateActionsCounter
 }
 
-var _ = (&snapshotApplier{}).applyWavesBalance // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyWavesBalance(info SnapshotApplierInfo, snapshot WavesBalanceSnapshot) error {
+func (a *snapshotApplier) ApplyWavesBalance(info SnapshotApplierInfo, snapshot WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.balances.wavesBalance(addrID)
 	if err != nil {
@@ -72,9 +88,7 @@ func (a *snapshotApplier) applyWavesBalance(info SnapshotApplierInfo, snapshot W
 	return nil
 }
 
-var _ = (&snapshotApplier{}).applyLeaseBalance // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyLeaseBalance(info SnapshotApplierInfo, snapshot LeaseBalanceSnapshot) error {
+func (a *snapshotApplier) ApplyLeaseBalance(info SnapshotApplierInfo, snapshot LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.balances.wavesBalance(addrID)
 	if err != nil {
@@ -90,23 +104,17 @@ func (a *snapshotApplier) applyLeaseBalance(info SnapshotApplierInfo, snapshot L
 	return nil
 }
 
-var _ = (&snapshotApplier{}).applyAssetBalance // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAssetBalance(info SnapshotApplierInfo, snapshot AssetBalanceSnapshot) error {
+func (a *snapshotApplier) ApplyAssetBalance(info SnapshotApplierInfo, snapshot AssetBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	return a.balances.setAssetBalance(addrID, assetID, snapshot.Balance, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyAlias // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAlias(info SnapshotApplierInfo, snapshot AliasSnapshot) error {
+func (a *snapshotApplier) ApplyAlias(info SnapshotApplierInfo, snapshot AliasSnapshot) error {
 	return a.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyStaticAssetInfo // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyStaticAssetInfo(info SnapshotApplierInfo, snapshot StaticAssetInfoSnapshot) error {
+func (a *snapshotApplier) ApplyStaticAssetInfo(info SnapshotApplierInfo, snapshot StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -121,9 +129,7 @@ func (a *snapshotApplier) applyStaticAssetInfo(info SnapshotApplierInfo, snapsho
 	return a.assets.issueAsset(assetID, assetFullInfo, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyAssetDescription // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAssetDescription(info SnapshotApplierInfo, snapshot AssetDescriptionSnapshot) error {
+func (a *snapshotApplier) ApplyAssetDescription(info SnapshotApplierInfo, snapshot AssetDescriptionSnapshot) error {
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
@@ -132,9 +138,7 @@ func (a *snapshotApplier) applyAssetDescription(info SnapshotApplierInfo, snapsh
 	return a.assets.updateAssetInfo(snapshot.AssetID, change, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyAssetVolume // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAssetVolume(info SnapshotApplierInfo, snapshot AssetVolumeSnapshot) error {
+func (a *snapshotApplier) ApplyAssetVolume(info SnapshotApplierInfo, snapshot AssetVolumeSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo, err := a.assets.newestAssetInfo(assetID)
 	if err != nil {
@@ -145,9 +149,7 @@ func (a *snapshotApplier) applyAssetVolume(info SnapshotApplierInfo, snapshot As
 	return a.assets.storeAssetInfo(assetID, assetFullInfo, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyAssetScript // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAssetScript(info SnapshotApplierInfo, snapshot AssetScriptSnapshot) error {
+func (a *snapshotApplier) ApplyAssetScript(info SnapshotApplierInfo, snapshot AssetScriptSnapshot) error {
 	estimation := ride.TreeEstimation{ // TODO: use uint in TreeEstimation
 		Estimation: int(snapshot.Complexity),
 		Verifier:   int(snapshot.Complexity),
@@ -163,15 +165,11 @@ func (a *snapshotApplier) applyAssetScript(info SnapshotApplierInfo, snapshot As
 	return a.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, constInfo.issuer, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applySponsorship // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applySponsorship(info SnapshotApplierInfo, snapshot SponsorshipSnapshot) error {
+func (a *snapshotApplier) ApplySponsorship(info SnapshotApplierInfo, snapshot SponsorshipSnapshot) error {
 	return a.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyAccountScript // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyAccountScript(info SnapshotApplierInfo, snapshot AccountScriptSnapshot) error {
+func (a *snapshotApplier) ApplyAccountScript(info SnapshotApplierInfo, snapshot AccountScriptSnapshot) error {
 	addr, err := proto.NewAddressFromPublicKey(info.Scheme(), snapshot.SenderPublicKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
@@ -194,15 +192,11 @@ func (a *snapshotApplier) applyAccountScript(info SnapshotApplierInfo, snapshot 
 	return a.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyFilledVolumeAndFee // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyFilledVolumeAndFee(info SnapshotApplierInfo, snapshot FilledVolumeFeeSnapshot) error {
+func (a *snapshotApplier) ApplyFilledVolumeAndFee(info SnapshotApplierInfo, snapshot FilledVolumeFeeSnapshot) error {
 	return a.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, info.BlockID())
 }
 
-var _ = (&snapshotApplier{}).applyDataEntry // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyDataEntry(info SnapshotApplierInfo, snapshot DataEntriesSnapshot) error {
+func (a *snapshotApplier) ApplyDataEntry(info SnapshotApplierInfo, snapshot DataEntriesSnapshot) error {
 	blockID := info.BlockID()
 	for _, entry := range snapshot.DataEntries {
 		if err := a.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
@@ -212,9 +206,7 @@ func (a *snapshotApplier) applyDataEntry(info SnapshotApplierInfo, snapshot Data
 	return nil
 }
 
-var _ = (&snapshotApplier{}).applyLeaseState // TODO: remove it, need for linter for now
-
-func (a *snapshotApplier) applyLeaseState(info SnapshotApplierInfo, snapshot LeaseStateSnapshot) error {
+func (a *snapshotApplier) ApplyLeaseState(info SnapshotApplierInfo, snapshot LeaseStateSnapshot) error {
 	l := &leasing{
 		Sender:              snapshot.Sender,
 		Recipient:           snapshot.Recipient,
