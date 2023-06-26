@@ -9,14 +9,14 @@ import (
 
 type TransactionSnapshot []AtomicSnapshot
 
-type AtomicSnapshot interface{ atomicSnapshotMarker() }
+type AtomicSnapshot interface{ Apply(SnapshotManager) error }
 
 type WavesBalanceSnapshot struct {
 	Address proto.WavesAddress
 	Balance uint64
 }
 
-func (*WavesBalanceSnapshot) atomicSnapshotMarker() {}
+func (s WavesBalanceSnapshot) Apply(m SnapshotManager) error { return m.ApplyWavesBalance(s) }
 
 type AssetBalanceSnapshot struct {
 	Address proto.WavesAddress
@@ -24,14 +24,14 @@ type AssetBalanceSnapshot struct {
 	Balance uint64
 }
 
-func (*AssetBalanceSnapshot) atomicSnapshotMarker() {}
+func (s AssetBalanceSnapshot) Apply(m SnapshotManager) error { return m.ApplyAssetBalance(s) }
 
 type DataEntriesSnapshot struct { // AccountData in pb
 	Address     proto.WavesAddress
 	DataEntries []proto.DataEntry
 }
 
-func (*DataEntriesSnapshot) atomicSnapshotMarker() {}
+func (s DataEntriesSnapshot) Apply(m SnapshotManager) error { return m.ApplyDataEntries(s) }
 
 type AccountScriptSnapshot struct {
 	SenderPublicKey    crypto.PublicKey
@@ -39,7 +39,7 @@ type AccountScriptSnapshot struct {
 	VerifierComplexity uint64
 }
 
-func (*AccountScriptSnapshot) atomicSnapshotMarker() {}
+func (s AccountScriptSnapshot) Apply(m SnapshotManager) error { return m.ApplyAccountScript(s) }
 
 type AssetScriptSnapshot struct {
 	AssetID    crypto.Digest
@@ -47,7 +47,7 @@ type AssetScriptSnapshot struct {
 	Complexity uint64
 }
 
-func (*AssetScriptSnapshot) atomicSnapshotMarker() {}
+func (s AssetScriptSnapshot) Apply(m SnapshotManager) error { return m.ApplyAssetScript(s) }
 
 type LeaseBalanceSnapshot struct {
 	Address  proto.WavesAddress
@@ -55,7 +55,7 @@ type LeaseBalanceSnapshot struct {
 	LeaseOut uint64
 }
 
-func (*LeaseBalanceSnapshot) atomicSnapshotMarker() {}
+func (s LeaseBalanceSnapshot) Apply(m SnapshotManager) error { return m.ApplyLeaseBalance(s) }
 
 type LeaseStateStatus struct {
 	Value               LeaseStatus // can be only LeaseActive or LeaseCanceled
@@ -73,21 +73,21 @@ type LeaseStateSnapshot struct {
 	Height              proto.Height
 }
 
-func (*LeaseStateSnapshot) atomicSnapshotMarker() {}
+func (s LeaseStateSnapshot) Apply(m SnapshotManager) error { return m.ApplyLeaseState(s) }
 
 type SponsorshipSnapshot struct {
 	AssetID         crypto.Digest
 	MinSponsoredFee uint64
 }
 
-func (*SponsorshipSnapshot) atomicSnapshotMarker() {}
+func (s SponsorshipSnapshot) Apply(m SnapshotManager) error { return m.ApplySponsorship(s) }
 
 type AliasSnapshot struct {
 	Address proto.WavesAddress
 	Alias   proto.Alias
 }
 
-func (*AliasSnapshot) atomicSnapshotMarker() {}
+func (s AliasSnapshot) Apply(m SnapshotManager) error { return m.ApplyAlias(s) }
 
 // FilledVolumeFeeSnapshot Filled Volume and Fee
 type FilledVolumeFeeSnapshot struct { // OrderFill
@@ -96,7 +96,7 @@ type FilledVolumeFeeSnapshot struct { // OrderFill
 	FilledFee    uint64
 }
 
-func (*FilledVolumeFeeSnapshot) atomicSnapshotMarker() {}
+func (s FilledVolumeFeeSnapshot) Apply(m SnapshotManager) error { return m.ApplyFilledVolumeAndFee(s) }
 
 type StaticAssetInfoSnapshot struct {
 	AssetID             crypto.Digest
@@ -106,7 +106,7 @@ type StaticAssetInfoSnapshot struct {
 	IsNFT               bool
 }
 
-func (*StaticAssetInfoSnapshot) atomicSnapshotMarker() {}
+func (s StaticAssetInfoSnapshot) Apply(m SnapshotManager) error { return m.ApplyStaticAssetInfo(s) }
 
 type AssetVolumeSnapshot struct { // AssetVolume in pb
 	AssetID       crypto.Digest
@@ -114,7 +114,7 @@ type AssetVolumeSnapshot struct { // AssetVolume in pb
 	IsReissuable  bool
 }
 
-func (*AssetVolumeSnapshot) atomicSnapshotMarker() {}
+func (s AssetVolumeSnapshot) Apply(m SnapshotManager) error { return m.ApplyAssetVolume(s) }
 
 type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	AssetID          crypto.Digest
@@ -123,8 +123,20 @@ type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	ChangeHeight     proto.Height // last_updated in pb
 }
 
-func (*AssetDescriptionSnapshot) atomicSnapshotMarker() {}
+func (s AssetDescriptionSnapshot) Apply(m SnapshotManager) error { return m.ApplyAssetDescription(s) }
 
 type SnapshotManager interface {
-	// TODO: add all necessary methods here
+	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
+	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
+	ApplyAssetBalance(snapshot AssetBalanceSnapshot) error
+	ApplyAlias(snapshot AliasSnapshot) error
+	ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error
+	ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error
+	ApplyAssetVolume(snapshot AssetVolumeSnapshot) error
+	ApplyAssetScript(snapshot AssetScriptSnapshot) error
+	ApplySponsorship(snapshot SponsorshipSnapshot) error
+	ApplyAccountScript(snapshot AccountScriptSnapshot) error
+	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
+	ApplyDataEntries(snapshot DataEntriesSnapshot) error
+	ApplyLeaseState(snapshot LeaseStateSnapshot) error
 }
