@@ -16,22 +16,24 @@ type SnapshotApplierInfo interface {
 }
 
 type SnapshotApplier interface {
-	ApplyWavesBalance(info SnapshotApplierInfo, snapshot WavesBalanceSnapshot) error
-	ApplyLeaseBalance(info SnapshotApplierInfo, snapshot LeaseBalanceSnapshot) error
-	ApplyAssetBalance(info SnapshotApplierInfo, snapshot AssetBalanceSnapshot) error
-	ApplyAlias(info SnapshotApplierInfo, snapshot AliasSnapshot) error
-	ApplyStaticAssetInfo(info SnapshotApplierInfo, snapshot StaticAssetInfoSnapshot) error
-	ApplyAssetDescription(info SnapshotApplierInfo, snapshot AssetDescriptionSnapshot) error
-	ApplyAssetVolume(info SnapshotApplierInfo, snapshot AssetVolumeSnapshot) error
-	ApplyAssetScript(info SnapshotApplierInfo, snapshot AssetScriptSnapshot) error
-	ApplySponsorship(info SnapshotApplierInfo, snapshot SponsorshipSnapshot) error
-	ApplyAccountScript(info SnapshotApplierInfo, snapshot AccountScriptSnapshot) error
-	ApplyFilledVolumeAndFee(info SnapshotApplierInfo, snapshot FilledVolumeFeeSnapshot) error
-	ApplyDataEntry(info SnapshotApplierInfo, snapshot DataEntriesSnapshot) error
-	ApplyLeaseState(info SnapshotApplierInfo, snapshot LeaseStateSnapshot) error
+	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
+	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
+	ApplyAssetBalance(snapshot AssetBalanceSnapshot) error
+	ApplyAlias(snapshot AliasSnapshot) error
+	ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error
+	ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error
+	ApplyAssetVolume(snapshot AssetVolumeSnapshot) error
+	ApplyAssetScript(snapshot AssetScriptSnapshot) error
+	ApplySponsorship(snapshot SponsorshipSnapshot) error
+	ApplyAccountScript(snapshot AccountScriptSnapshot) error
+	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
+	ApplyDataEntry(snapshot DataEntriesSnapshot) error
+	ApplyLeaseState(snapshot LeaseStateSnapshot) error
 }
 
-type snapshotApplier struct {
+type blockSnapshotsApplier struct {
+	info SnapshotApplierInfo
+
 	balances          *balances
 	aliases           *aliases
 	assets            *assets
@@ -43,37 +45,37 @@ type snapshotApplier struct {
 	leases            *leases
 }
 
-var _ = SnapshotApplier((*snapshotApplier)(nil))
+var _ = SnapshotApplier((*blockSnapshotsApplier)(nil))
 
-type snapshotApplierInfo struct {
+type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
 	scheme              proto.Scheme
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-var _ = SnapshotApplierInfo(snapshotApplierInfo{})
+var _ = SnapshotApplierInfo(blockSnapshotsApplierInfo{})
 
-func (s snapshotApplierInfo) BlockID() proto.BlockID {
+func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
 }
 
-func (s snapshotApplierInfo) Height() proto.Height {
+func (s blockSnapshotsApplierInfo) Height() proto.Height {
 	return s.ci.height
 }
 
-func (s snapshotApplierInfo) EstimatorVersion() int {
+func (s blockSnapshotsApplierInfo) EstimatorVersion() int {
 	return s.ci.estimatorVersion()
 }
 
-func (s snapshotApplierInfo) Scheme() proto.Scheme {
+func (s blockSnapshotsApplierInfo) Scheme() proto.Scheme {
 	return s.scheme
 }
 
-func (s snapshotApplierInfo) StateActionsCounter() *proto.StateActionsCounter {
+func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCounter {
 	return s.stateActionsCounter
 }
 
-func (a *snapshotApplier) ApplyWavesBalance(info SnapshotApplierInfo, snapshot WavesBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.balances.wavesBalance(addrID)
 	if err != nil {
@@ -82,13 +84,13 @@ func (a *snapshotApplier) ApplyWavesBalance(info SnapshotApplierInfo, snapshot W
 	newProfile := profile
 	newProfile.balance = snapshot.Balance
 	value := newWavesValue(profile, newProfile)
-	if err := a.balances.setWavesBalance(addrID, value, info.BlockID()); err != nil {
+	if err := a.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
 	return nil
 }
 
-func (a *snapshotApplier) ApplyLeaseBalance(info SnapshotApplierInfo, snapshot LeaseBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.balances.wavesBalance(addrID)
 	if err != nil {
@@ -98,47 +100,47 @@ func (a *snapshotApplier) ApplyLeaseBalance(info SnapshotApplierInfo, snapshot L
 	newProfile.leaseIn = int64(snapshot.LeaseIn)
 	newProfile.leaseOut = int64(snapshot.LeaseOut)
 	value := newWavesValue(profile, newProfile)
-	if err := a.balances.setWavesBalance(addrID, value, info.BlockID()); err != nil {
+	if err := a.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
 	return nil
 }
 
-func (a *snapshotApplier) ApplyAssetBalance(info SnapshotApplierInfo, snapshot AssetBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot AssetBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	return a.balances.setAssetBalance(addrID, assetID, snapshot.Balance, info.BlockID())
+	return a.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyAlias(info SnapshotApplierInfo, snapshot AliasSnapshot) error {
-	return a.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, info.BlockID())
+func (a *blockSnapshotsApplier) ApplyAlias(snapshot AliasSnapshot) error {
+	return a.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyStaticAssetInfo(info SnapshotApplierInfo, snapshot StaticAssetInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:                 proto.DigestTail(snapshot.AssetID),
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
-			issueHeight:          info.Height(),
-			issueSequenceInBlock: info.StateActionsCounter().NextIssueActionNumber(),
+			issueHeight:          a.info.Height(),
+			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
-	return a.assets.issueAsset(assetID, assetFullInfo, info.BlockID())
+	return a.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyAssetDescription(info SnapshotApplierInfo, snapshot AssetDescriptionSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error {
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
 		newHeight:      snapshot.ChangeHeight,
 	}
-	return a.assets.updateAssetInfo(snapshot.AssetID, change, info.BlockID())
+	return a.assets.updateAssetInfo(snapshot.AssetID, change, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyAssetVolume(info SnapshotApplierInfo, snapshot AssetVolumeSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo, err := a.assets.newestAssetInfo(assetID)
 	if err != nil {
@@ -146,34 +148,34 @@ func (a *snapshotApplier) ApplyAssetVolume(info SnapshotApplierInfo, snapshot As
 	}
 	assetFullInfo.assetChangeableInfo.reissuable = snapshot.IsReissuable
 	assetFullInfo.assetChangeableInfo.quantity = snapshot.TotalQuantity
-	return a.assets.storeAssetInfo(assetID, assetFullInfo, info.BlockID())
+	return a.assets.storeAssetInfo(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyAssetScript(info SnapshotApplierInfo, snapshot AssetScriptSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) error {
 	estimation := ride.TreeEstimation{ // TODO: use uint in TreeEstimation
 		Estimation: int(snapshot.Complexity),
 		Verifier:   int(snapshot.Complexity),
 		Functions:  nil,
 	}
-	if err := a.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID, estimation, info.BlockID()); err != nil {
+	if err := a.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to store asset script estimation for asset %q", snapshot.AssetID.String())
 	}
 	constInfo, err := a.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
 	if err != nil {
 		return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
 	}
-	return a.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, constInfo.issuer, info.BlockID())
+	return a.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, constInfo.issuer, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplySponsorship(info SnapshotApplierInfo, snapshot SponsorshipSnapshot) error {
-	return a.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, info.BlockID())
+func (a *blockSnapshotsApplier) ApplySponsorship(snapshot SponsorshipSnapshot) error {
+	return a.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyAccountScript(info SnapshotApplierInfo, snapshot AccountScriptSnapshot) error {
-	addr, err := proto.NewAddressFromPublicKey(info.Scheme(), snapshot.SenderPublicKey)
+func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapshot) error {
+	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
-			info.Scheme(), snapshot.SenderPublicKey.String())
+			a.info.Scheme(), snapshot.SenderPublicKey.String())
 	}
 	var estimations treeEstimations
 	if !snapshot.Script.IsEmpty() {
@@ -181,23 +183,23 @@ func (a *snapshotApplier) ApplyAccountScript(info SnapshotApplierInfo, snapshot 
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
 		}
-		estimations, err = makeRideEstimations(tree, info.EstimatorVersion(), true)
+		estimations, err = makeRideEstimations(tree, a.info.EstimatorVersion(), true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
 		}
 	}
-	if err := a.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.BlockID()); err != nil {
+	if err := a.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
 	}
-	return a.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, info.BlockID())
+	return a.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyFilledVolumeAndFee(info SnapshotApplierInfo, snapshot FilledVolumeFeeSnapshot) error {
-	return a.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, info.BlockID())
+func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
+	return a.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
 }
 
-func (a *snapshotApplier) ApplyDataEntry(info SnapshotApplierInfo, snapshot DataEntriesSnapshot) error {
-	blockID := info.BlockID()
+func (a *blockSnapshotsApplier) ApplyDataEntry(snapshot DataEntriesSnapshot) error {
+	blockID := a.info.BlockID()
 	for _, entry := range snapshot.DataEntries {
 		if err := a.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
 			return errors.Wrapf(err, "failed to add entry (%T) for address %q", entry, snapshot.Address)
@@ -206,7 +208,7 @@ func (a *snapshotApplier) ApplyDataEntry(info SnapshotApplierInfo, snapshot Data
 	return nil
 }
 
-func (a *snapshotApplier) ApplyLeaseState(info SnapshotApplierInfo, snapshot LeaseStateSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot LeaseStateSnapshot) error {
 	l := &leasing{
 		Sender:              snapshot.Sender,
 		Recipient:           snapshot.Recipient,
@@ -217,5 +219,5 @@ func (a *snapshotApplier) ApplyLeaseState(info SnapshotApplierInfo, snapshot Lea
 		CancelHeight:        snapshot.Status.CancelHeight,
 		CancelTransactionID: snapshot.Status.CancelTransactionID,
 	}
-	return a.leases.addLeasing(snapshot.LeaseID, l, info.BlockID())
+	return a.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
