@@ -47,7 +47,6 @@ type leasing struct {
 	Height              uint64             `cbor:"3,keyasint"`
 	Status              LeaseStatus        `cbor:"4,keyasint"`
 	OriginTransactionID *crypto.Digest     `cbor:"5,keyasint,omitempty"`
-	RecipientAlias      *proto.Alias       `cbor:"6,keyasint,omitempty"`
 	CancelHeight        uint64             `cbor:"7,keyasint,omitempty"`
 	CancelTransactionID *crypto.Digest     `cbor:"8,keyasint,omitempty"`
 }
@@ -116,52 +115,35 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 	return nil
 }
 
-func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) (map[proto.WavesAddress]balanceDiff, error) {
-	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
+func (l *leases) cancelLeasesToDisabledAliases(scheme proto.Scheme, height proto.Height, blockID proto.BlockID) (map[proto.WavesAddress]balanceDiff, error) {
+	if scheme != proto.MainNetScheme { // no-op
+		return nil, nil
 	}
-	defer func() {
-		leaseIter.Release()
-		if err := leaseIter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-
-	// Iterate all the leases.
 	zap.S().Info("Started cancelling leases to disabled aliases")
-	changes := make(map[proto.WavesAddress]balanceDiff)
-	for leaseIter.Next() {
-		keyBytes := keyvalue.SafeKey(leaseIter)
-		var key leaseKey
-		if err := key.unmarshal(keyBytes); err != nil {
-			return nil, errors.Wrap(err, "failed ot unmarshal leasing key")
+	leasesToCancelMainnet := leasesToDisabledAliasesMainnet()
+	changes := make(map[proto.WavesAddress]balanceDiff, len(leasesToCancelMainnet))
+	for _, leaseID := range leasesToCancelMainnet {
+		record, err := l.newestLeasingInfo(leaseID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
 		}
-		leaseBytes := keyvalue.SafeValue(leaseIter)
-		record := new(leasing)
-		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal lease")
+		zap.S().Infof("State: canceling lease %s", leaseID)
+		record.Status = LeaseCanceled
+		record.CancelHeight = height
+		if err := l.addLeasing(leaseID, record, blockID); err != nil {
+			return nil, errors.Wrapf(err, "failed to save leasing %q to storage", leaseID)
 		}
-		if record.isActive() && record.RecipientAlias != nil {
-			if _, ok := aliases[record.RecipientAlias.Alias]; ok {
-				zap.S().Infof("State: canceling lease %s", key.leaseID.String())
-				record.Status = LeaseCanceled
-				if err := l.addLeasing(key.leaseID, record, blockID); err != nil {
-					return nil, errors.Wrap(err, "failed to save lease to storage")
-				}
-				if diff, ok := changes[record.Sender]; ok {
-					diff.leaseOut += -int64(record.Amount)
-					changes[record.Sender] = diff
-				} else {
-					changes[record.Sender] = newBalanceDiff(0, 0, -int64(record.Amount), false)
-				}
-				if diff, ok := changes[record.Recipient]; ok {
-					diff.leaseIn += -int64(record.Amount)
-					changes[record.Recipient] = diff
-				} else {
-					changes[record.Recipient] = newBalanceDiff(0, -int64(record.Amount), 0, false)
-				}
-			}
+		if diff, ok := changes[record.Sender]; ok {
+			diff.leaseOut += -int64(record.Amount)
+			changes[record.Sender] = diff
+		} else {
+			changes[record.Sender] = newBalanceDiff(0, 0, -int64(record.Amount), false)
+		}
+		if diff, ok := changes[record.Recipient]; ok {
+			diff.leaseIn += -int64(record.Amount)
+			changes[record.Recipient] = diff
+		} else {
+			changes[record.Recipient] = newBalanceDiff(0, -int64(record.Amount), 0, false)
 		}
 	}
 	zap.S().Info("Finished cancelling leases to disabled aliases")

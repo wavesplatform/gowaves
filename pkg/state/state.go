@@ -1387,11 +1387,7 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 			return err
 		}
 	} else if rideV5Activated && height == rideV5Height {
-		disabledAliases, err := s.stor.aliases.disabledAliases()
-		if err != nil {
-			return err
-		}
-		changes, err := s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID)
+		changes, err := s.stor.leases.cancelLeasesToDisabledAliases(s.settings.AddressSchemeCharacter, height, blockID)
 		if err != nil {
 			return err
 		}

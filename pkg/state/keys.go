@@ -399,21 +399,6 @@ func (k *disabledAliasKey) bytes() []byte {
 	return buf
 }
 
-func (k *disabledAliasKey) unmarshal(data []byte) error {
-	if len(data) != disabledAliasKeySize {
-		return errInvalidDataSize
-	}
-	if data[0] != disabledAliasKeyPrefix {
-		return errInvalidPrefix
-	}
-	var err error
-	k.alias, err = proto.StringWithUInt16Len(data[1:])
-	if err != nil {
-		return errors.Wrap(err, "StringWithUInt16Len() failed")
-	}
-	return nil
-}
-
 type activatedFeaturesKey struct {
 	featureID int16
 }
