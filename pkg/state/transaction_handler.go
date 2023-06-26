@@ -7,7 +7,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
+type txCheckerData struct {
+	_           struct{}
+	smartAssets []crypto.Digest
+}
+
+type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
@@ -141,15 +146,15 @@ func newTransactionHandler(
 	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHandles(tc, tp, td, tf)}, nil
 }
 
-func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (txCheckerData, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return nil, errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
+		return txCheckerData{}, errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.check == nil {
 		// No check func for this combination of transaction type and version.
-		return nil, nil
+		return txCheckerData{}, nil
 	}
 	return funcs.check(tx, info)
 }

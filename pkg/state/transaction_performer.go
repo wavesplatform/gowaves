@@ -13,6 +13,7 @@ type performerInfo struct {
 	height              uint64
 	stateActionsCounter *proto.StateActionsCounter
 	blockID             proto.BlockID
+	checkerData         txCheckerData
 }
 
 type transactionPerformer struct {
