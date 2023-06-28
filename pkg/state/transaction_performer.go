@@ -576,12 +576,11 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		Sender:         senderAddr,
-		Recipient:      recipientAddr,
-		Amount:         tx.Amount,
-		Height:         info.height,
-		Status:         LeaseActive,
-		RecipientAlias: tx.Recipient.Alias(),
+		Sender:    senderAddr,
+		Recipient: recipientAddr,
+		Amount:    tx.Amount,
+		Height:    info.height,
+		Status:    LeaseActive,
 	}
 	var snapshot TransactionSnapshot
 	if applicationRes != nil {
