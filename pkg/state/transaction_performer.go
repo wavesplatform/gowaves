@@ -528,12 +528,14 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 func (tp *transactionPerformer) generateLeaseSnapshots(leaseID crypto.Digest, l leasing, originalTxID crypto.Digest,
 	senderAddress proto.WavesAddress, receiverAddress proto.WavesAddress, amount int64) (*LeaseStateSnapshot, *LeaseBalanceSnapshot, *LeaseBalanceSnapshot, error) {
 	leaseStatusSnapshot := &LeaseStateSnapshot{
-		LeaseID:             leaseID,
-		Status:              l.Status,
+		LeaseID: leaseID,
+		Status: LeaseStateStatus{
+			Value: l.Status,
+		},
 		Amount:              l.Amount,
 		Sender:              l.Sender,
 		Recipient:           l.Recipient,
-		OriginTransactionID: originalTxID,
+		OriginTransactionID: &originalTxID,
 		Height:              l.Height,
 	}
 
@@ -638,7 +640,11 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 
 	var amount = -int64(leasingInfo.Amount)
 	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(tx.LeaseID, *leasingInfo, *leasingInfo.OriginTransactionID, leasingInfo.Sender, leasingInfo.Recipient, amount)
-	leaseStatusSnapshot.Status = LeaseCanceled
+	leaseStatusSnapshot.Status = LeaseStateStatus{
+		Value:               LeaseCanceled,
+		CancelHeight:        info.height,
+		CancelTransactionID: txID,
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel transaction")
 	}
@@ -1071,12 +1077,11 @@ func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info 
 					recipientAddr = *addr
 				}
 				l := &leasing{
-					Sender:         senderAddr,
-					Recipient:      recipientAddr,
-					Amount:         uint64(a.Amount),
-					Height:         info.height,
-					Status:         LeaseActive,
-					RecipientAlias: a.Recipient.Alias(),
+					Sender:    senderAddr,
+					Recipient: recipientAddr,
+					Amount:    uint64(a.Amount),
+					Height:    info.height,
+					Status:    LeaseActive,
 				}
 				var amount = int64(l.Amount)
 				leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err := tp.generateLeaseSnapshots(a.ID, *l, txID, senderAddr, recipientAddr, amount)

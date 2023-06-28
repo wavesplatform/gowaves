@@ -444,12 +444,14 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			Balance: 299900000,
 		},
 		&LeaseStateSnapshot{
-			LeaseID:             *tx.ID,
-			Status:              LeaseActive,
+			LeaseID: *tx.ID,
+			Status: LeaseStateStatus{
+				Value: LeaseActive,
+			},
 			Amount:              50,
 			Sender:              testGlobal.senderInfo.addr,
 			Recipient:           testGlobal.recipientInfo.addr,
-			OriginTransactionID: *tx.ID,
+			OriginTransactionID: tx.ID,
 			Height:              0,
 		},
 		&LeaseBalanceSnapshot{
@@ -497,7 +499,6 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		Amount:              50,
 		Height:              1,
 		Status:              LeaseActive,
-		RecipientAlias:      testGlobal.recipientInfo.Recipient().Alias(),
 		OriginTransactionID: &leaseID,
 	}
 	err := to.stor.entities.leases.addLeasing(leaseID, leasing, blockID0)
@@ -527,12 +528,16 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			Balance: 299900000,
 		},
 		&LeaseStateSnapshot{
-			LeaseID:             leaseID,
-			Status:              LeaseCanceled,
+			LeaseID: leaseID,
+			Status: LeaseStateStatus{
+				Value:               LeaseCanceled,
+				CancelHeight:        1,
+				CancelTransactionID: tx.ID,
+			},
 			Amount:              50,
 			Sender:              testGlobal.senderInfo.addr,
 			Recipient:           testGlobal.recipientInfo.addr,
-			OriginTransactionID: leaseID,
+			OriginTransactionID: &leaseID,
 			Height:              1,
 		},
 		&LeaseBalanceSnapshot{
