@@ -1,22 +1,148 @@
 package network
 
 import (
+	"container/heap"
+	"math/rand"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type group struct {
+	score *proto.Score
+	peers []peer.ID
+	index int
+}
+
+type groupsHeap struct {
+	groups []*group
+}
+
+func newGroupsHeap() *groupsHeap {
+	return &groupsHeap{groups: make([]*group, 0)}
+}
+
+func (h *groupsHeap) Len() int {
+	return len(h.groups)
+}
+
+func (h *groupsHeap) Less(i, j int) bool {
+	// Pop selects the group with the largest size
+	return len(h.groups[i].peers) > len(h.groups[j].peers)
+}
+
+func (h *groupsHeap) Swap(i, j int) {
+	h.groups[i], h.groups[j] = h.groups[j], h.groups[i]
+	h.groups[i].index = i
+	h.groups[j].index = j
+}
+
+func (h *groupsHeap) Push(x any) {
+	switch g := x.(type) {
+	case *group:
+		g.index = len(h.groups)
+		h.groups = append(h.groups, g)
+	}
+}
+
+func (h *groupsHeap) Pop() any {
+	n := len(h.groups)
+	g := h.groups[n-1]
+	h.groups[n-1] = nil
+	g.index = -1 // for safety
+	h.groups = h.groups[:n-1]
+	return g
+}
+
 type scoreSelector struct {
-	m map[proto.Score][]peer.ID
+	scoreKeyToGroup map[string]*group // key made of score's string points to the group of peers
+	peerToScoreKey  map[peer.ID]string
+	groups          *groupsHeap
 }
 
 func newScoreSelector() *scoreSelector {
-	return &scoreSelector{}
+	return &scoreSelector{
+		scoreKeyToGroup: make(map[string]*group),
+		peerToScoreKey:  make(map[peer.ID]string),
+		groups:          newGroupsHeap(),
+	}
 }
 
-func (s *scoreSelector) push(peer peer.ID, score *proto.Score) {
-
+func (s *scoreSelector) push(p peer.ID, score *proto.Score) {
+	sk := score.String()
+	if prevScoreKey, ok := s.peerToScoreKey[p]; ok {
+		// The peer was added before
+		if sk == prevScoreKey { // Do nothing, if the score of the peer hasn't changed.
+			return
+		}
+		// Remove the peer from the previous score group
+		s.remove(prevScoreKey, p)
+		s.append(sk, score, p)
+	} else {
+		s.append(sk, score, p)
+	}
 }
 
-func (s *scoreSelector) pop() (peer.ID, *proto.Score) {
+func (s *scoreSelector) append(sk string, score *proto.Score, p peer.ID) {
+	g, ok := s.scoreKeyToGroup[sk]
+	if ok {
+		// New peer comes to the existent group, just update the peers slice of the group
+		g.peers = append(g.peers, p)
+	} else {
+		// New peer with a new score creates the new group
+		g = &group{
+			score: score,
+			peers: []peer.ID{p},
+		}
+		heap.Push(s.groups, g)
+	}
+	// Update heap and all the maps
+	heap.Fix(s.groups, g.index)
+	s.scoreKeyToGroup[sk] = g
+	s.peerToScoreKey[p] = sk
+}
+
+func (s *scoreSelector) remove(sk string, p peer.ID) {
+	g, ok := s.scoreKeyToGroup[sk]
+	if !ok {
+		panic("inconsistent state of score selector")
+	}
+	for i := range g.peers {
+		if g.peers[i] == p {
+			r := make([]peer.ID, len(g.peers)-1)
+			copy(r, g.peers[:i])
+			copy(r[i:], g.peers[i+1:])
+			if len(r) == 0 { // List is empty after removal of the last element, delete key
+				delete(s.scoreKeyToGroup, sk)  // Remove group from map
+				heap.Remove(s.groups, g.index) // Remove group from heap
+				return
+			}
+			g.peers = r // Update peers in group
+			heap.Fix(s.groups, g.index)
+			return
+		}
+	}
+}
+
+func (s *scoreSelector) selectBestPeer(currentBest *peer.ID) (peer.ID, *proto.Score) {
+	if s.groups.Len() > 0 {
+		if g, ok := heap.Pop(s.groups).(*group); ok { // Take out group the largest group
+			if currentBest != nil {
+				for i := range g.peers {
+					if g.peers[i] == *currentBest { // The peer is in the group, just return the peer and it's score
+						heap.Push(s.groups, g) // Put back the group
+						return g.peers[i], g.score
+					}
+				}
+			}
+			// The peer was not found in the larges group, time to change the peer.
+			// Select the random peer from the group and return it along with a new score value.
+			i := rand.Intn(len(g.peers))
+			heap.Push(s.groups, g)
+			return g.peers[i], g.score
+		} else {
+			panic("invalid element type of score selector")
+		}
+	}
 	return nil, nil
 }
