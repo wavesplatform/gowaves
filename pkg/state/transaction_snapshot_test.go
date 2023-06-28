@@ -1,11 +1,14 @@
 package state
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/big"
 	"sort"
@@ -833,6 +836,122 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 			AssetID:    testGlobal.asset0.assetID,
 			Script:     testGlobal.scriptBytes,
 			Complexity: 340,
+		},
+	}
+
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err := json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err := json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func setScript(t *testing.T, to *differTestObjects, addr proto.WavesAddress, pk crypto.PublicKey, script proto.Script) {
+	tree, err := serialization.Parse(script)
+	require.NoError(t, err)
+	estimation, err := ride.EstimateTree(tree, 1)
+	require.NoError(t, err)
+	err = to.stor.entities.scriptsComplexity.saveComplexitiesForAddr(addr, map[int]ride.TreeEstimation{1: estimation}, blockID0)
+	assert.NoError(t, err, "failed to save complexity for address")
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
+	assert.NoError(t, err, "failed to set account script")
+}
+
+func TestDefaultInvokeScriptSnapshot(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func call() = {
+		  [
+		    BooleanEntry("bool", true),
+		    IntegerEntry("int", 1),
+		    StringEntry("str", "")
+		  ]
+		}
+	*/
+	script := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAFAAAAA25pbAAAAADr9Rv/"
+	scriptsBytes, err := base64.StdEncoding.DecodeString(script)
+	assert.NoError(t, err, "failed to set decode base64 script")
+
+	to := createDifferTestObjects(t)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.Ride4DApps))
+	to.stor.activateFeature(t, int16(settings.RideV5))
+
+	setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
+
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	functionCall := proto.NewFunctionCall("call", nil)
+	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	feeAsset = proto.NewOptionalAssetWaves()
+
+	tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), functionCall, []proto.ScriptPayment{}, feeAsset, invokeFee, defaultTimestamp)
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	co := createCheckerCustomTestObjects(t, to.stor)
+	checkerInfo := defaultCheckerInfoHeight()
+	co.stor = to.stor
+	_, err = co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check invoke script tx")
+
+	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed")
+
+	actions := []proto.ScriptAction{
+		&proto.DataEntryScriptAction{
+			Entry:  &proto.BooleanDataEntry{Key: "bool", Value: true},
+			Sender: &testGlobal.recipientInfo.pk},
+		&proto.DataEntryScriptAction{
+			Entry:  &proto.IntegerDataEntry{Key: "int", Value: 1},
+			Sender: &testGlobal.recipientInfo.pk},
+		&proto.DataEntryScriptAction{
+			Entry:  &proto.StringDataEntry{Key: "int", Value: ""},
+			Sender: &testGlobal.recipientInfo.pk},
+	}
+
+	invocationResult := &invocationResult{actions: actions, changes: ch}
+
+	applicationRes := &applicationResult{true, 0, ch}
+	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), invocationResult, applicationRes)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 200000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299500000,
+		},
+		&DataEntriesSnapshot{
+			Address: testGlobal.recipientInfo.addr,
+			DataEntries: []proto.DataEntry{
+				&proto.BooleanDataEntry{Key: "bool", Value: true},
+				&proto.IntegerDataEntry{Key: "int", Value: 1},
+				&proto.StringDataEntry{Key: "int", Value: ""},
+			},
 		},
 	}
 
