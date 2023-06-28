@@ -531,7 +531,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			LeaseID: leaseID,
 			Status: LeaseStateStatus{
 				Value:               LeaseCanceled,
-				CancelHeight:        1,
+				CancelHeight:        0,
 				CancelTransactionID: tx.ID,
 			},
 			Amount:              50,

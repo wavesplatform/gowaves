@@ -844,20 +844,19 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 		}
-	}
+		treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(tx.AssetID))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
+		}
+		complexity := treeEstimation.Verifier
 
-	treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(tx.AssetID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
+		sponsorshipSnapshot := &AssetScriptSnapshot{
+			AssetID:    tx.AssetID,
+			Script:     tx.Script,
+			Complexity: uint64(complexity), // TDODO fix it
+		}
+		snapshot = append(snapshot, sponsorshipSnapshot)
 	}
-	complexity := treeEstimation.Verifier
-
-	sponsorshipSnapshot := &AssetScriptSnapshot{
-		AssetID:    tx.AssetID,
-		Script:     tx.Script,
-		Complexity: uint64(complexity), // TDODO fix it
-	}
-	snapshot = append(snapshot, sponsorshipSnapshot)
 
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to set asset script")
