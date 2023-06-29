@@ -197,7 +197,7 @@ type diffState struct {
 	data            map[dataEntryKey]proto.DataEntry
 	wavesBalances   map[proto.AddressID]diffBalance
 	assetBalances   map[assetBalanceKey]assetBalance
-	sponsorships    map[crypto.Digest]diffSponsorship
+	sponsorships    map[proto.AssetID]diffSponsorship
 	newAssetsInfo   map[proto.AssetID]diffNewAssetInfo
 	oldAssetsInfo   map[proto.AssetID]diffOldAssetInfo
 	leases          map[crypto.Digest]lease
@@ -210,7 +210,7 @@ func newDiffState(state types.SmartState) diffState {
 		data:            map[dataEntryKey]proto.DataEntry{},
 		wavesBalances:   map[proto.AddressID]diffBalance{},
 		assetBalances:   map[assetBalanceKey]assetBalance{},
-		sponsorships:    map[crypto.Digest]diffSponsorship{},
+		sponsorships:    map[proto.AssetID]diffSponsorship{},
 		newAssetsInfo:   map[proto.AssetID]diffNewAssetInfo{},
 		oldAssetsInfo:   map[proto.AssetID]diffOldAssetInfo{},
 		leases:          map[crypto.Digest]lease{},
@@ -436,11 +436,13 @@ func (ds *diffState) putDataEntry(entry proto.DataEntry, address proto.WavesAddr
 	ds.data[k] = entry
 }
 
-func (ds *diffState) findSponsorship(assetID crypto.Digest) *int64 {
-	if sponsorship, ok := ds.sponsorships[assetID]; ok {
-		return &sponsorship.minFee
-	}
-	return nil
+func (ds *diffState) findSponsorshipByAssetID(assetID proto.AssetID) (diffSponsorship, bool) {
+	sponsorship, ok := ds.sponsorships[assetID]
+	return sponsorship, ok
+}
+
+func (ds *diffState) setSponsorshipByAssetID(assetID proto.AssetID, sponsorship diffSponsorship) {
+	ds.sponsorships[assetID] = sponsorship
 }
 
 func (ds *diffState) findNewAssetByAssetID(assetID proto.AssetID) *diffNewAssetInfo {

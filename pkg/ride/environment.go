@@ -219,11 +219,9 @@ func (ws *WrappedState) isNewestDataEntryDeleted(key string, address proto.Waves
 }
 
 func (ws *WrappedState) NewestAssetIsSponsored(asset crypto.Digest) (bool, error) {
-	if cost := ws.diff.findSponsorship(asset); cost != nil {
-		if *cost == 0 {
-			return false, nil
-		}
-		return true, nil
+	assetID := proto.AssetIDFromDigest(asset)
+	if sponsorship, ok := ws.diff.findSponsorshipByAssetID(assetID); ok {
+		return sponsorship.minFee != 0, nil
 	}
 	return ws.diff.state.NewestAssetIsSponsored(asset)
 }
@@ -346,8 +344,8 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}
 
 	sponsorshipCost := int64(0)
-	if sponsorship := ws.diff.findSponsorship(asset); sponsorship != nil {
-		sponsorshipCost = *sponsorship
+	if sponsorship, ok := ws.diff.findSponsorshipByAssetID(assetID); ok {
+		sponsorshipCost = sponsorship.minFee
 	}
 
 	return &proto.FullAssetInfo{
@@ -843,10 +841,11 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
+			assetID := proto.AssetIDFromDigest(a.AssetID)
 			sponsorship := diffSponsorship{
 				minFee: a.MinFee,
 			}
-			ws.diff.sponsorships[a.AssetID] = sponsorship
+			ws.diff.setSponsorshipByAssetID(assetID, sponsorship)
 
 		case *proto.IssueScriptAction:
 			if err := ws.validateIssueAction(a); err != nil {
