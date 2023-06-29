@@ -7,22 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
-type SnapshotApplier interface {
-	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
-	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
-	ApplyAssetBalance(snapshot AssetBalanceSnapshot) error
-	ApplyAlias(snapshot AliasSnapshot) error
-	ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error
-	ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error
-	ApplyAssetVolume(snapshot AssetVolumeSnapshot) error
-	ApplyAssetScript(snapshot AssetScriptSnapshot) error
-	ApplySponsorship(snapshot SponsorshipSnapshot) error
-	ApplyAccountScript(snapshot AccountScriptSnapshot) error
-	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
-	ApplyDataEntries(snapshot DataEntriesSnapshot) error
-	ApplyLeaseState(snapshot LeaseStateSnapshot) error
-}
-
 type blockSnapshotsApplier struct {
 	info blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
