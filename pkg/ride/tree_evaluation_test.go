@@ -81,22 +81,22 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 
 func TestFunctionsEvaluation(t *testing.T) {
 	te := newTestEnv(t).withProtobufTx()
+	transfer := newTransferTransaction()
 	d := crypto.MustDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
-	acc1 := &testAccount{wa: proto.MustAddressFromString("3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3")}
+	sender := &testAccount{wa: proto.MustAddressFromPublicKey(proto.MainNetScheme, transfer.SenderPK)}
 	acc2 := &testAccount{wa: proto.MustAddressFromString("3N6ZR2Vy4XDXm56UuphrdNCoYKo2zb8jWtc")}
 	acc3 := &testAccount{wa: proto.MustAddressFromString("3MpTdGipgBYYVH5AS6DHWXWZEbuqn7TSSoU")}
-	transfer := newTransferTransaction()
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withLibVersion(ast.LibV3).
 		withComplexityLimit(ast.LibV3, 4000).withMessageLengthV3().withTakeStringV5().
 		withHeight(5).withTransaction(transfer).
-		withDataEntries(acc1,
+		withDataEntries(sender,
 			&proto.IntegerDataEntry{Key: "integer", Value: 100500},
 			&proto.BooleanDataEntry{Key: "boolean", Value: true},
 			&proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")},
 			&proto.StringDataEntry{Key: "string", Value: "world"},
 		).
 		withNoTransactionAtHeight().
-		withAssetBalance(acc2, d, 5).withAssetBalance(acc3, d, 5).
+		withAssetBalance(sender, d, 42).withAssetBalance(acc2, d, 5).withAssetBalance(acc3, d, 5).
 		withWavesBalance(acc2, 5)
 
 	data := newDataTransaction()
@@ -218,7 +218,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 
 		{`GETTRANSACTIONBYID`, `V2: match transactionById(tx.id) {case _: TransferTransaction => true; case _ => false}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24GB9Sc8FA=`, env, true, false},
 		{`TRANSACTIONHEIGHTBYID`, `transactionHeightById(base58'aaaa') == 5`, `AQkAAAAAAAACCQAD6QAAAAEBAAAAA2P4ZwAAAAAAAAAABSLhRM4=`, env, false, false},
-		{`ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 5`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAFjp6PBg==`, env, true, false},
+		{`ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 42`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAqr9/d5A==`, env, true, false},
 		{`ADDRESSTOSTRING`, `toString(Address(base58'3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg')) == "3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg"`, `AwkAAAAAAAACCQAEJQAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcMIZxOsk2Gw5Avd0ztqi+phtb1Bb83MiUCAAAAIzNQMzMzNnJOU1NVOGJEQXFEYjZTNWpOczhESmIyYmZObXBnkXj7Cg==`, env, true, false},
 		{`ADDRESSTOSTRING`, `toString(Address(base58'3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg')) == "3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpf"`, `AwkAAAAAAAACCQAEJQAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcMIZxOsk2Gw5Avd0ztqi+phtb1Bb83MiUCAAAAIzNQMzMzNnJOU1NVOGJEQXFEYjZTNWpOczhESmIyYmZObXBmb/6mcg==`, env, false, false},
 		{`CONS`, `size([1, "2"]) == 2`, `AwkAAAAAAAACCQABkAAAAAEJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAgAAAAEyBQAAAANuaWwAAAAAAAAAAAKuUcc0`, env, true, false},
