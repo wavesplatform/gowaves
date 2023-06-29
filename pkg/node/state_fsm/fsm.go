@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
+	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -59,6 +60,8 @@ type BaseInfo struct {
 	minPeersMining int
 
 	skipMessageList *messages.SkipMessageList
+
+	syncPeer *network.SyncPeer
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -96,10 +99,10 @@ const (
 	TransactionEvent   = "Transaction"
 	HaltEvent          = "Halt"
 
-	DisconnectedPeerEvent  = "DisconnectedPeer"
-	StopMiningEvent        = "StopMining"
-	ConnectedPeerEvent     = "ConnectedPeer"
-	ConnectedBestPeerEvent = "ConnectedBestPeer"
+	StopSyncEvent       = "StopSync"
+	StopMiningEvent     = "StopMining"
+	StartMiningEvent    = "StartMining"
+	ChangeSyncPeerEvent = "ChangeSyncPeer"
 )
 
 type FSM struct {
@@ -118,7 +121,7 @@ type StateData struct {
 	State State
 }
 
-func NewFSM(services services.Services, microblockInterval time.Duration) (*FSM, Async, error) {
+func NewFSM(services services.Services, microblockInterval time.Duration, syncPeer *network.SyncPeer) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
@@ -147,6 +150,7 @@ func NewFSM(services services.Services, microblockInterval time.Duration) (*FSM,
 		minPeersMining: services.MinPeersMining,
 
 		skipMessageList: services.SkipMessageList,
+		syncPeer:        syncPeer,
 	}
 
 	info.Scheduler.Reschedule()
@@ -249,9 +253,9 @@ func (f *FSM) Halt() (Async, error) {
 	return *asyncRes, err
 }
 
-func (f *FSM) DisconnectedPeer(p peer.Peer) (Async, error) {
+func (f *FSM) StopSync() (Async, error) {
 	asyncRes := &Async{}
-	err := f.fsm.Fire(DisconnectedPeerEvent, asyncRes, p)
+	err := f.fsm.Fire(StopSyncEvent, asyncRes)
 	return *asyncRes, err
 }
 
@@ -261,14 +265,14 @@ func (f *FSM) StopMining() (Async, error) {
 	return *asyncRes, err
 }
 
-func (f *FSM) ConnectedPeer(p peer.Peer) (Async, error) {
+func (f *FSM) StartMining() (Async, error) {
 	asyncRes := &Async{}
-	err := f.fsm.Fire(ConnectedPeerEvent, asyncRes, p)
+	err := f.fsm.Fire(StartMiningEvent, asyncRes)
 	return *asyncRes, err
 }
 
-func (f *FSM) ConnectedBestPeer(p peer.Peer) (Async, error) {
+func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 	asyncRes := &Async{}
-	err := f.fsm.Fire(ConnectedBestPeerEvent, asyncRes, p)
+	err := f.fsm.Fire(ChangeSyncPeerEvent, asyncRes, p)
 	return *asyncRes, err
 }

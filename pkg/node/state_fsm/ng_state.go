@@ -25,6 +25,7 @@ type NGState struct {
 }
 
 func newNGState(baseInfo BaseInfo) State {
+	clearSyncPeer(baseInfo)
 	return &NGState{
 		baseInfo:    baseInfo,
 		blocksCache: blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}},
@@ -341,9 +342,9 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 			return nil
 		}).
 		Ignore(BlockIDsEvent).
-		Ignore(ConnectedPeerEvent).
-		Ignore(ConnectedBestPeerEvent).
-		Ignore(DisconnectedPeerEvent).
+		Ignore(StartMiningEvent).
+		Ignore(ChangeSyncPeerEvent).
+		Ignore(StopSyncEvent).
 		PermitDynamic(StopMiningEvent, createPermitDynamicCallback(StopMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*NGState)
 			return a.StopMining()

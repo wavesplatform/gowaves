@@ -366,7 +366,7 @@ func main() {
 	go ntw.Run()
 
 	n := node.NewNode(svs, declAddr, bindAddr, *microblockInterval)
-	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh)
+	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh, &ntw.SyncPeer)
 
 	go minerScheduler.Reschedule()
 
