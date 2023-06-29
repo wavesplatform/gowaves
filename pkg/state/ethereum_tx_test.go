@@ -44,6 +44,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 		},
 	}
 	sett := *settings.MainNetSettings
+	sett.AddressSchemeCharacter = scheme
 	sett.SponsorshipSingleActivationPeriod = true
 	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{
 		Settings: &sett,
@@ -54,17 +55,36 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 	}
 	newAssets.uncertainAssetInfo = assetsUncertain
 
-	store := blockchainEntitiesStorage{features: feat, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feat, settings: &sett}, assets: newAssets}
-	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1, AddressSchemeCharacter: scheme}}
+	store := blockchainEntitiesStorage{
+		features:        feat,
+		scriptsStorage:  storage,
+		sponsoredAssets: &sponsoredAssets{features: feat, settings: &sett},
+		assets:          newAssets,
+	}
+	blockchainSettings := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			CheckTempNegativeAfterTime:          1,
+			AllowLeasedBalanceTransferUntilTime: 1,
+			AddressSchemeCharacter:              scheme,
+		},
+	}
 	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
 	assert.NoError(t, err)
 	blockchainEntitiesStor := blockchainEntitiesStorage{scriptsStorage: storage}
 	txAppender := txAppender{
 		txHandler:         txHandler,
 		stor:              &store,
-		ethTxKindResolver: proto.NewEthereumTransactionKindResolver(state, proto.TestNetScheme),
-		blockDiffer:       &blockDiffer{handler: txHandler, settings: &settings.BlockchainSettings{}},
-		ia:                &invokeApplier{sc: &scriptCaller{stor: &store, state: state, settings: blockchainSettings}, blockDiffer: &blockDiffer{stor: &store, handler: txHandler, settings: blockchainSettings}, state: state, txHandler: txHandler, settings: blockchainSettings, stor: &blockchainEntitiesStor, invokeDiffStor: &diffStorageWrapped{invokeDiffsStor: &diffStorage{changes: []balanceChanges{}}}},
+		ethTxKindResolver: proto.NewEthereumTransactionKindResolver(state, blockchainSettings.AddressSchemeCharacter),
+		blockDiffer:       &blockDiffer{handler: txHandler, settings: blockchainSettings},
+		ia: &invokeApplier{
+			sc:             &scriptCaller{stor: &store, state: state, settings: blockchainSettings},
+			blockDiffer:    &blockDiffer{stor: &store, handler: txHandler, settings: blockchainSettings},
+			state:          state,
+			txHandler:      txHandler,
+			settings:       blockchainSettings,
+			stor:           &blockchainEntitiesStor,
+			invokeDiffStor: &diffStorageWrapped{invokeDiffsStor: &diffStorage{changes: []balanceChanges{}}},
+		},
 	}
 	return txAppender
 }
