@@ -182,7 +182,9 @@ func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated
 	return nil
 }
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
+type treeEstimations map[int]ride.TreeEstimation
+
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (treeEstimations, error) {
 	tree, err := serialization.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
@@ -207,20 +209,28 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 		}
 	}
 
-	estimations := make(map[int]ride.TreeEstimation)
+	estimations, err := makeRideEstimations(tree, estimatorVersion, expandEstimations)
+	if err != nil {
+		return nil, errs.Extend(err, "failed to make ride estimations")
+	}
+	if err := tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion], tree.IsDApp(), reducedVerifierComplexity); err != nil {
+		return nil, errors.Wrap(err, "failed to check script complexity")
+	}
+	return estimations, nil
+}
+
+func makeRideEstimations(tree *ast.Tree, estimatorVersion int, expandEstimations bool) (treeEstimations, error) {
 	maxVersion := maxEstimatorVersion
 	if !expandEstimations {
 		maxVersion = estimatorVersion
 	}
+	estimations := make(map[int]ride.TreeEstimation, maxVersion-estimatorVersion+1)
 	for ev := estimatorVersion; ev <= maxVersion; ev++ {
 		est, err := ride.EstimateTree(tree, ev)
 		if err != nil {
 			return nil, errs.Extend(err, "failed to estimate script complexity")
 		}
 		estimations[ev] = est
-	}
-	if err := tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion], tree.IsDApp(), reducedVerifierComplexity); err != nil {
-		return nil, errors.Wrap(err, "failed to check script complexity")
 	}
 	return estimations, nil
 }
@@ -752,8 +762,8 @@ func (tc *transactionChecker) orderScriptedAccount(order proto.Order) (bool, err
 	return tc.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 }
 
-func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64, info *checkerInfo) error {
-	orderId, err := order.GetID()
+func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64) error {
+	orderID, err := order.GetID()
 	if err != nil {
 		return err
 	}
@@ -765,16 +775,12 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	if newFee > fullFee {
 		return errors.New("current fee exceeds total order fee")
 	}
-	filledAmount, err := tc.stor.ordersVolumes.newestFilledAmount(orderId)
+	filledAmount, filledFee, err := tc.stor.ordersVolumes.newestFilled(orderID)
 	if err != nil {
 		return err
 	}
 	if fullAmount-newAmount < filledAmount {
 		return errors.New("order amount volume is overflowed")
-	}
-	filledFee, err := tc.stor.ordersVolumes.newestFilledFee(orderId)
-	if err != nil {
-		return err
 	}
 	if fullFee-newFee < filledFee {
 		return errors.New("order fee volume is overflowed")
@@ -817,14 +823,14 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, errs.Extend(err, "sell order")
 	}
-	if err := tc.checkEnoughVolume(so, tx.GetSellMatcherFee(), tx.GetAmount(), info); err != nil {
+	if err := tc.checkEnoughVolume(so, tx.GetSellMatcherFee(), tx.GetAmount()); err != nil {
 		return nil, errs.Extend(err, "exchange transaction; sell order")
 	}
 	bo, err := tx.GetBuyOrder()
 	if err != nil {
 		return nil, errs.Extend(err, "buy order")
 	}
-	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
+	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount()); err != nil {
 		return nil, errs.Extend(err, "exchange transaction; buy order")
 	}
 	o1 := tx.GetOrder1()

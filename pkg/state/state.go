@@ -811,11 +811,11 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 	return balance, nil
 }
 
-func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balanceProfile, error) {
+func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceProfile, error) {
 	// Retrieve the latest balance from historyStorage.
 	profile, err := s.stor.balances.newestWavesBalance(addr)
 	if err != nil {
-		return nil, err
+		return balanceProfile{}, err
 	}
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := wavesBalanceKey{address: addr}
@@ -825,11 +825,11 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balance
 		return profile, nil
 	} else if err != nil {
 		// Something weird happened.
-		return nil, err
+		return balanceProfile{}, err
 	}
 	newProfile, err := diff.applyTo(profile)
 	if err != nil {
-		return nil, errors.Errorf("given account has negative balance at this point: %v", err)
+		return balanceProfile{}, errors.Errorf("given account has negative balance at this point: %v", err)
 	}
 	return newProfile, nil
 }
