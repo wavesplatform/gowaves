@@ -488,10 +488,12 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		ethTx.TxKind, err = a.ethTxKindResolver.ResolveTxKind(ethTx, params.blockRewardDistributionActivated)
+		kind, err := a.ethTxKindResolver.ResolveTxKind(ethTx, params.blockRewardDistributionActivated)
 		if err != nil {
 			return errors.Wrap(err, "failed to guess ethereum transaction kind")
 		}
+		ethTx.TxKind = kind
+
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
