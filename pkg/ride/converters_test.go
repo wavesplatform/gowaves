@@ -1,7 +1,7 @@
 package ride
 
 import (
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -16,6 +16,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
@@ -24,7 +25,12 @@ var (
 	_asset                              = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
 	_empty                              = rideByteVector(nil)
 	transactionToObjectWithSchemeTestFn = func(ver ast.LibraryVersion, scheme proto.Scheme, tx proto.Transaction) (rideType, error) {
-		return transactionToObject(ver, scheme, false, tx)
+		env := &mockRideEnvironment{
+			libVersionFunc:                     func() (ast.LibraryVersion, error) { return ver, nil },
+			schemeFunc:                         func() byte { return scheme },
+			consensusImprovementsActivatedFunc: func() bool { return false },
+		}
+		return transactionToObject(env, tx)
 	}
 	transactionToObjectTestFn = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
 		return transactionToObjectWithSchemeTestFn(ver, proto.TestNetScheme, tx)
@@ -3184,9 +3190,17 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
 	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumTransferWavesTxKind(), &crypto.Digest{}, &senderPK, 0)
+	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 
-	rideObj, err := transactionToObject(ast.LibV6, proto.TestNetScheme, false, &tx)
+	env := &mockRideEnvironment{
+		libVersionFunc:                       func() (ast.LibraryVersion, error) { return ast.LibV6, nil },
+		schemeFunc:                           func() byte { return proto.TestNetScheme },
+		consensusImprovementsActivatedFunc:   func() bool { return false },
+		blockRewardDistributionActivatedFunc: func() bool { return false },
+		stateFunc:                            func() types.SmartState { return &MockSmartState{} },
+	}
+
+	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
 
 	sender, err := tx.WavesAddressFrom(proto.TestNetScheme)
@@ -3210,49 +3224,52 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideInt(100000), fee)
 }
 
-func makeLessDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
-	v, ok := decodedData.Inputs[1].Value.(ethabi.BigInt)
-	assert.True(t, ok)
-	res := new(big.Int).Div(v.V, big.NewInt(int64(proto.DiffEthWaves)))
-	decodedData.Inputs[1].Value = ethabi.BigInt{V: res}
-}
-
 func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	//var TxSeveralData []proto.EthereumTxData
-	//TxSeveralData = append(TxSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth), defaultEthereumAccessListTx(1000000000000000, &recipientEth))
 	/*
 		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 		transfer(address,uint256)
 		1 = 0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c
-		2 = 209470300000000000000000
+		2 = 20947030000000 (converted 18 decimals to 8)
 	*/
-	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
-	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c0000000000000000000000000000000000000000000000000000130d1c484180"
+	data, err := proto.DecodeFromHexString(hexdata)
 	require.NoError(t, err)
 	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
-	assert.NotNil(t, tx.Data())
+	assert.NotEmpty(t, tx.Data())
 	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
 	assert.NoError(t, err)
-	makeLessDataAmount(t, decodedData)
-
-	assetID := (*proto.AssetID)(tx.To())
-	var r crypto.Digest
-	copy(r[:20], assetID[:])
-	asset := &proto.AssetInfo{ID: r}
 
 	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
+	state := &MockSmartState{
+		NewestAssetConstInfoFunc: func(id proto.AssetID) (*proto.AssetConstInfo, error) {
+			assetID := (*proto.AssetID)(tx.To())
+			if id == *assetID {
+				var r crypto.Digest
+				copy(r[:20], assetID[:])
+				return &proto.AssetConstInfo{ID: r}, nil
+			}
+			return nil, errors.New("asset doesn't exist")
+		},
+	}
 
-	rideObj, err := transactionToObject(ast.LibV6, proto.TestNetScheme, false, &tx)
+	env := &mockRideEnvironment{
+		libVersionFunc:                       func() (ast.LibraryVersion, error) { return ast.LibV6, nil },
+		schemeFunc:                           func() byte { return proto.TestNetScheme },
+		consensusImprovementsActivatedFunc:   func() bool { return false },
+		blockRewardDistributionActivatedFunc: func() bool { return false },
+		stateFunc:                            func() types.SmartState { return state },
+	}
+
+	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
 
 	sender, err := tx.WavesAddressFrom(proto.TestNetScheme)

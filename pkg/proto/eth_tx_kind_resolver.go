@@ -1,10 +1,9 @@
-package state
+package proto
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
 const (
@@ -12,15 +11,6 @@ const (
 	EthereumTransferAssetsKind
 	EthereumInvokeKind
 )
-
-type ethInfo struct {
-	stor     *blockchainEntitiesStorage
-	settings *settings.BlockchainSettings
-}
-
-func newEthInfo(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) *ethInfo {
-	return &ethInfo{stor: stor, settings: settings}
-}
 
 func GuessEthereumTransactionKind(data []byte) (int64, error) {
 	if len(data) == 0 {
@@ -43,7 +33,25 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 	return EthereumInvokeKind, nil
 }
 
-func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
+type EthereumTransactionKindResolver interface {
+	ResolveTxKind(ethTx *EthereumTransaction, isBlockRewardDistributionActivated bool) (EthereumTransactionKind, error)
+}
+
+type ethKindResolverState interface {
+	NewestScriptByAccount(address Recipient) (*ast.Tree, error)
+	NewestAssetConstInfo(assetID AssetID) (*AssetConstInfo, error)
+}
+
+type ethTxKindResolver struct {
+	state  ethKindResolverState
+	scheme Scheme
+}
+
+func NewEthereumTransactionKindResolver(resolver ethKindResolverState, scheme Scheme) EthereumTransactionKindResolver {
+	return &ethTxKindResolver{state: resolver, scheme: scheme}
+}
+
+func (e *ethTxKindResolver) ResolveTxKind(ethTx *EthereumTransaction, isBlockRewardDistributionActivated bool) (EthereumTransactionKind, error) {
 	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
@@ -51,34 +59,33 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 
 	switch txKind {
 	case EthereumTransferWavesKind:
-		return proto.NewEthereumTransferWavesTxKind(), nil
+		return NewEthereumTransferWavesTxKind(), nil
 	case EthereumTransferAssetsKind:
 		db := ethabi.NewErc20MethodsMap()
-		decodedData, err := db.ParseCallDataRide(ethTx.Data(), params.blockRewardDistributionActivated)
+		decodedData, err := db.ParseCallDataRide(ethTx.Data(), isBlockRewardDistributionActivated)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}
 		if len(decodedData.Inputs) != ethabi.NumberOfERC20TransferArguments {
 			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20TransferArguments)
 		}
-		assetID := (*proto.AssetID)(ethTx.To())
+		assetID := (*AssetID)(ethTx.To())
 
-		assetInfo, err := e.stor.assets.newestAssetInfo(*assetID)
+		assetInfo, err := e.state.NewestAssetConstInfo(*assetID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset info")
 		}
-		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
 		erc20Arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get erc20 arguments from decoded data")
 		}
-		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20Arguments), nil
+		return NewEthereumTransferAssetsErc20TxKind(*decodedData, *NewOptionalAssetFromDigest(assetInfo.ID), erc20Arguments), nil
 	case EthereumInvokeKind:
-		scriptAddr, err := ethTx.WavesAddressTo(e.settings.AddressSchemeCharacter)
+		scriptAddr, err := ethTx.WavesAddressTo(e.scheme)
 		if err != nil {
 			return nil, err
 		}
-		tree, err := e.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
+		tree, err := e.state.NewestScriptByAccount(NewRecipientFromAddress(scriptAddr))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 		}
@@ -86,12 +93,12 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		if err != nil {
 			return nil, err
 		}
-		decodedData, err := db.ParseCallDataRide(ethTx.Data(), params.blockRewardDistributionActivated)
+		decodedData, err := db.ParseCallDataRide(ethTx.Data(), isBlockRewardDistributionActivated)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}
 
-		return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
+		return NewEthereumInvokeScriptTxKind(*decodedData), nil
 
 	default:
 		return nil, errors.New("unexpected ethereum tx kind")

@@ -526,13 +526,8 @@ func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
 }
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
-	// TODO: hardcoded scheme
 	e.me.transactionFunc = func() rideType {
-		v, err := e.me.libVersion()
-		if err != nil {
-			panic(err)
-		}
-		txo, err := transactionToObject(v, proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
+		txo, err := transactionToObject(e.me, tx)
 		require.NoError(e.t, err, "failed to set transaction")
 		return txo
 	}
@@ -761,7 +756,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	e.me.invocationFunc = func() rideType {
 		return e.inv
 	}
-	txo, err := transactionToObject(v, e.me.scheme(), e.me.invokeExpressionActivated(), tx)
+	txo, err := transactionToObject(e.me, tx)
 	require.NoError(e.t, err)
 	e.me.transactionFunc = func() rideType {
 		return txo
