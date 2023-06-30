@@ -125,10 +125,6 @@ type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 
 func (s AssetDescriptionSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetDescription(s) }
 
-// SnapshotManager is an alias for SnapshotApplier.
-// Deprecated: Exists only for compatibility. Will be removed later.
-type SnapshotManager = SnapshotApplier
-
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
