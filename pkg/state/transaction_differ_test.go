@@ -865,7 +865,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 	leaseTx := createLeaseWithSig(t)
 	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
-	err := to.tp.performLeaseWithSig(leaseTx, info)
+	_, err := to.tp.performLeaseWithSig(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
@@ -898,7 +898,7 @@ func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
 	leaseTx := createLeaseWithProofs(t)
 	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
-	err := to.tp.performLeaseWithProofs(leaseTx, info)
+	_, err := to.tp.performLeaseWithProofs(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
