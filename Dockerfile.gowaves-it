@@ -35,6 +35,8 @@ USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
 
+STOPSIGNAL SIGINT
+
 CMD /app/node \
     -cfg-path=$CONFIG_PATH \
     -peers=$PEERS \
@@ -54,6 +56,7 @@ CMD /app/node \
     -log-level=debug \
     -obsolescence=1h \
     -reward=$DESIRED_REWARD \
+    -vote=14,20 \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \

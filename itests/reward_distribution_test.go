@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/reward_utilities"
@@ -20,6 +21,7 @@ type RewardDistributionSuite struct {
 // after Capped XTN buy-back & DAO amounts Feature activated (feature 20)
 func (suite *RewardDistributionSuite) Test_RewardDistributionPositive() {
 	h := utl.GetHeight(&suite.BaseSuite)
+	h = utl.WaitForHeight(&suite.BaseSuite, 6)
 	//feature 14 should be activated
 	utl.FeatureShouldBeActivated(&suite.BaseSuite, 14, h)
 	//feature 19 should be activated
@@ -30,7 +32,7 @@ func (suite *RewardDistributionSuite) Test_RewardDistributionPositive() {
 	fmt.Println("Desired Reward Go: ", reward_utilities.GetDesiredRewardGo(&suite.BaseSuite, h), "Desired Reward Scala: ", reward_utilities.GetDesiredRewardScala(&suite.BaseSuite, h))
 	fmt.Println("Init reward : ", reward_utilities.GetInitReward(&suite.BaseSuite))
 	fmt.Println("Increment: ", reward_utilities.GetRewardIncrement(&suite.BaseSuite))
-	fmt.Println("voiting-interval: ", reward_utilities.GetBlockRewardVotingPeriod(&suite.BaseSuite))
+	fmt.Println("voting-interval: ", reward_utilities.GetBlockRewardVotingPeriod(&suite.BaseSuite))
 	fmt.Println("Max term: ", reward_utilities.GetRewardTerm(&suite.BaseSuite))
 	fmt.Println("Term after f20 : ", reward_utilities.GetRewardTermAfter20(&suite.BaseSuite))
 
@@ -82,7 +84,7 @@ func (suite *RewardDistributionSuite) Test_RewardDistributionPositive() {
 	fmt.Println("Diff XTN balances: ", diffXtnGo, diffXtnScala)
 
 	//wait voting period
-	utl.WaitForHeight(&suite.BaseSuite, h+suite.Cfg.BlockchainSettings.BlockRewardTermAfter20)
+	utl.WaitForHeight(&suite.BaseSuite, h+suite.Cfg.BlockchainSettings.BlockRewardTerm)
 	h = utl.GetHeight(&suite.BaseSuite)
 	fmt.Println("Height after waiting voting period", h)
 	fmt.Println("Desired Reward Go: ", reward_utilities.GetDesiredRewardGo(&suite.BaseSuite, h), "Desired Reward Scala: ", reward_utilities.GetDesiredRewardScala(&suite.BaseSuite, h))

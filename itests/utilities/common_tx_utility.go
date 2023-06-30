@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/net"
@@ -395,18 +396,20 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, feat
 		}
 	}
 	if status == "" {
-		err = errors.Errorf("Feature with Id %s not found", featureId)
+		err = errors.Errorf("Feature with Id %d not found", featureId)
 	}
 	return status, err
 }
 
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
 	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+	fmt.Printf("Go: Status of feature %d @%d: %s\n", featureId, h, status)
 	return status
 }
 
 func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64) string {
 	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
+	fmt.Printf("Scala: Status of feature %d @%d: %s\n", featureId, h, status)
 	return status
 }
 
@@ -421,7 +424,7 @@ func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, h uint64) bool {
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, h uint64) {
 	var err error
 	if !(IsFeatureActivatedGo(suite, featureId, h) && IsFeatureActivatedScala(suite, featureId, h)) {
-		err = errors.Errorf("Feature with Id %s not activated", featureId)
+		err = errors.Errorf("Feature with Id %d not activated", featureId)
 	}
 	require.NoError(suite.T(), err)
 }

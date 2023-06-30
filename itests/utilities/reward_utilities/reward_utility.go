@@ -1,16 +1,21 @@
 package reward_utilities
 
 import (
+	"fmt"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 )
 
 func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
 	block := suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	fmt.Printf("Go Header @%d:\n%v\n", height, block.GetHeader())
 	return block.GetHeader().RewardVote
 }
 
 func GetDesiredRewardScala(suite *f.BaseSuite, height uint64) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock().GetHeader().RewardVote
+	block := suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	fmt.Printf("Scala Header @%d:\n%v\n", height, block.GetHeader())
+	return block.GetHeader().RewardVote
 }
 
 func GetInitReward(suite *f.BaseSuite) uint64 {
