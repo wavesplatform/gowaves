@@ -61,7 +61,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
 
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedTransferWithSig(testGlobal.issuerInfo.pk, proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), defaultTimestamp, defaultAmount*1000*2, uint64(FeeUnit), testGlobal.recipientInfo.Recipient(), nil)
@@ -114,7 +114,7 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 	tx := proto.NewUnsignedIssueWithSig(testGlobal.issuerInfo.pk, "asset0", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, uint64(1*FeeUnit))
 	err = tx.Sign(proto.TestNetScheme, testGlobal.issuerInfo.sk)
@@ -185,7 +185,7 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.NG))
 	err := to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfoTransfer(proto.DigestTail(testGlobal.asset0.assetID), true, 1000, testGlobal.issuerInfo.pk, "asset0"), blockID0)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 	err = to.stor.entities.balances.setAssetBalance(testGlobal.issuerInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 1000, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
@@ -249,7 +249,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 	err := to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfoTransfer(proto.DigestTail(testGlobal.asset0.assetID), true, 1000, testGlobal.issuerInfo.pk, "asset0"), blockID0)
 
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 	err = to.stor.entities.balances.setAssetBalance(testGlobal.issuerInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 1000, blockID0)
 	assert.NoError(t, err, "failed to set asset balance")
@@ -316,13 +316,13 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to issue asset")
 
 	// set waves balance for the seller and the buyer
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 2000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 2000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	// set waves balance for the matcher account
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.matcherInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 3000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.matcherInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 3000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	// set asset balance for the seller and the buyer
@@ -422,7 +422,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
 
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedLeaseWithSig(testGlobal.senderInfo.pk, testGlobal.recipientInfo.Recipient(), 50, uint64(1*FeeUnit), defaultTimestamp)
@@ -504,9 +504,9 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 	err := to.stor.entities.leases.addLeasing(leaseID, leasing, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
 
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3, leaseIn: 0, leaseOut: 50}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3, leaseIn: 0, leaseOut: 50}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3, leaseIn: 50, leaseOut: 0}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3, leaseIn: 50, leaseOut: 0}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedLeaseCancelWithSig(testGlobal.senderInfo.pk, leaseID, uint64(1*FeeUnit), defaultTimestamp)
@@ -576,7 +576,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	alias := proto.NewAlias(proto.TestNetScheme, "aliasForSender")
@@ -629,7 +629,7 @@ func TestDefaultDataSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedDataWithProofs(1, testGlobal.senderInfo.pk, uint64(1*FeeUnit), defaultTimestamp)
@@ -688,7 +688,7 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedSponsorshipWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.assetID, uint64(5*FeeUnit), uint64(1*FeeUnit), defaultTimestamp)
@@ -741,7 +741,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk, testGlobal.scriptBytes, uint64(1*FeeUnit), defaultTimestamp)
@@ -802,7 +802,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
-	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID), defaultAssetInfoTransfer(proto.DigestTail(testGlobal.asset0.assetID), true, 1000, testGlobal.senderInfo.pk, "asset0"), blockID0)
@@ -903,7 +903,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 
 	setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
 
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), &wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
 	assert.NoError(t, err, "failed to set waves balance")
 
 	functionCall := proto.NewFunctionCall("call", nil)

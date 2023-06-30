@@ -53,7 +53,11 @@ func TestMain(m *testing.M) {
 			log.Fatalf("Failed to get list of images from docker: %v", err)
 		}
 		for _, i := range imgs {
-			err = pool.Client.RemoveImage(i.ID)
+			err = pool.Client.RemoveImageExtended(i.ID, dc.RemoveImageOptions{
+				Force:   true,
+				NoPrune: false,
+				Context: nil,
+			})
 			if err != nil {
 				log.Fatalf("Failed to remove dangling images: %v", err)
 			}
