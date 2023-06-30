@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
@@ -41,7 +43,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/versioning"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
-	"go.uber.org/zap"
 )
 
 const (

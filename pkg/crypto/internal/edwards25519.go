@@ -834,7 +834,7 @@ func (p *ExtendedGroupElement) FromBytes(s *[32]byte) bool {
 
 		FeToBytes(&tmpX, &p.X)
 		for i, v := range tmpX {
-			tmp2[31-i] = v
+			tmp2[31-i] = v //nolint: govet // For security reasons
 		}
 	}
 
@@ -881,7 +881,7 @@ func (p *ExtendedGroupElement) FromParityAndY(bit byte, y *FieldElement) bool {
 
 		FeToBytes(&tmpX, &p.X)
 		for i, v := range tmpX {
-			tmp2[31-i] = v
+			tmp2[31-i] = v //nolint: govet // For security reasons
 		}
 	}
 	if FeIsNegative(&p.X) != bit {
