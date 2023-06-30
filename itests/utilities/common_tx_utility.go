@@ -418,6 +418,14 @@ func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, h uint64) bool {
 	return GetFeatureBlockchainStatusScala(suite, featureId, h) == "ACTIVATED"
 }
 
+func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, h uint64) {
+	var err error
+	if !(IsFeatureActivatedGo(suite, featureId, h) && IsFeatureActivatedScala(suite, featureId, h)) {
+		err = errors.Errorf("Feature with Id %s not activated", featureId)
+	}
+	require.NoError(suite.T(), err)
+}
+
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
 	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }

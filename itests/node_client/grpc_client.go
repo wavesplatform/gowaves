@@ -46,6 +46,15 @@ func (c *GrpcClient) GetHeight(t *testing.T) *client.BlocksHeight {
 	return &client.BlocksHeight{Height: uint64(h.Value)}
 }
 
+func (c *GrpcClient) GetBlock(t *testing.T, height uint64) *g.BlockWithHeight {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	block, err := g.NewBlocksApiClient(c.conn).GetBlock(ctx,
+		&g.BlockRequest{Request: &g.BlockRequest_Height{Height: int32(height)}, IncludeTransactions: true})
+	assert.NoError(t, err, "(grpc) failed to get block from node")
+	return block
+}
+
 func (c *GrpcClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *g.BalanceResponse_WavesBalances {
 	return getBalance(t, c.conn, c.timeout, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{nil}}).GetWaves()
 }

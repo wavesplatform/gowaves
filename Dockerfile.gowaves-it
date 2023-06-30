@@ -28,7 +28,8 @@ RUN mkdir -p /home/gowaves/config /home/gowaves/wallet
 
 ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
     STATE_PATH=/home/gowaves/  \
-    WALLET_PATH=/home/gowaves/wallet/go.wallet
+    WALLET_PATH=/home/gowaves/wallet/go.wallet \
+    DESIRED_REWARD=700000000
 
 USER $APP_USER
 
@@ -52,7 +53,7 @@ CMD /app/node \
     -serve-extended-api \
     -log-level=debug \
     -obsolescence=1h \
-    -reward=600000000 \
+    -reward=$DESIRED_REWARD \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \
