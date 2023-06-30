@@ -139,6 +139,24 @@ func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, su
 }
 
 func (d *Docker) Finish(cancel context.CancelFunc) {
+	if d.scalaNode != nil {
+		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
+			ID:     d.scalaNode.Container.ID,
+			Signal: dc.SIGINT,
+		})
+		if err != nil {
+			log.Warnf("Failed to stop scala container: %v", err)
+		}
+	}
+	if d.goNode != nil {
+		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
+			ID:     d.goNode.Container.ID,
+			Signal: dc.SIGINT,
+		})
+		if err != nil {
+			log.Warnf("Failed to stop scala container: %v", err)
+		}
+	}
 	cancel()
 	if d.scalaNode != nil {
 		if err := d.pool.Purge(d.scalaNode); err != nil {
