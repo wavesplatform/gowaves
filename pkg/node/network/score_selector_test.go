@@ -246,7 +246,7 @@ func TestSelectionMultiplePeers(t *testing.T) {
 }
 
 // BenchmarkPush100 results (Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz)
-// BenchmarkPush100-12           	   86637	     13853 ns/op
+// BenchmarkPush100-12           	   76368	     14130 ns/op
 func BenchmarkPush100(b *testing.B) {
 	peers := make([]peer.ID, 100)
 	scores := make([]*proto.Score, 100)
@@ -263,7 +263,7 @@ func BenchmarkPush100(b *testing.B) {
 }
 
 // BenchmarkSelect100 results (Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz)
-// BenchmarkSelect100-12         	  172462	      6762 ns/op
+// BenchmarkSelect100-12         	  177643	      6750 ns/op
 func BenchmarkSelect100(b *testing.B) {
 	peers := make([]peer.ID, 100)
 	scores := make([]*proto.Score, 100)
@@ -283,7 +283,7 @@ func BenchmarkSelect100(b *testing.B) {
 }
 
 // BenchmarkPushSelect1000 results (Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz)
-// BenchmarkPushSelect1000-12    	    2462	    479665 ns/op
+// BenchmarkPushSelect1000-12    	    2485	    476733 ns/op
 func BenchmarkPushSelect1000(b *testing.B) {
 	peers := make([]peer.ID, 1000)
 	scores := make([]*proto.Score, 1000)
