@@ -22,7 +22,12 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: latest
-          args: --timeout 10m
+          args: -c .golangci.yml
+      - name: golangci-lint-strict
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+          args: -c .golangci-strict.yml --new-from-rev=origin/master
 
   build:
     name: ubuntu
