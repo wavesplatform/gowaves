@@ -34,6 +34,8 @@ USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
 
+STOPSIGNAL SIGINT
+
 CMD /app/node \
     -cfg-path=$CONFIG_PATH \
     -peers=$PEERS \
