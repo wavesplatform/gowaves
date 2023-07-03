@@ -118,15 +118,13 @@ func (s *scoreSelector) remove(sk scoreKey, p peer.ID) {
 	}
 	for i := range g.peers {
 		if g.peers[i] == p {
-			r := make([]peer.ID, len(g.peers)-1)
-			copy(r, g.peers[:i])
-			copy(r[i:], g.peers[i+1:])
-			if len(r) == 0 { // List is empty after removal of the last element, delete key
+			g.peers[i] = g.peers[len(g.peers)-1] // replace i-th element with the last one
+			g.peers = g.peers[:len(g.peers)-1]   // cut the duplicate of the last element
+			if len(g.peers) == 0 {               // List is empty after removal of the last element, delete key
 				delete(s.scoreKeyToGroup, sk)  // Remove group from map
 				heap.Remove(s.groups, g.index) // Remove group from heap
 				return
 			}
-			g.peers = r // Update peers in group
 			heap.Fix(s.groups, g.index)
 			return
 		}
