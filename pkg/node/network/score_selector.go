@@ -116,8 +116,9 @@ func (s *scoreSelector) remove(sk scoreKey, p peer.ID) {
 	if !ok {
 		panic(fmt.Sprintf("scoreSelector: inconsistent state of score selector: failed to find group by score %s", sk))
 	}
+	peerToRemoveID := p.String()
 	for i := range g.peers {
-		if g.peers[i] == p {
+		if g.peers[i].String() == peerToRemoveID {
 			g.peers[i] = g.peers[len(g.peers)-1] // replace i-th element with the last one
 			g.peers = g.peers[:len(g.peers)-1]   // cut the duplicate of the last element
 			if len(g.peers) == 0 {               // List is empty after removal of the last element, delete key
