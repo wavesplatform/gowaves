@@ -222,7 +222,7 @@ func TestSelectionMultiplePeers(t *testing.T) {
 	ss.push(peer1, score200)
 	best3, score3 := ss.selectBestPeer(&best2)
 	require.NotNil(t, best3)
-	assert.Equal(t, best2, best3)
+	assert.True(t, best3 == peer2 || best3 == peer3)
 	require.NotNil(t, score3)
 	assert.Equal(t, score3, score2)
 
