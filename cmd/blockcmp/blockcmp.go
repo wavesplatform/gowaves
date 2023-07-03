@@ -247,8 +247,9 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 		request := &grpc.TransactionsRequest{
 			TransactionIds: [][]byte{id},
 		}
+		//TODO: Fix method deprecation by replacing with ScriptResult from GetTransaction
 		//goland:noinspection GoDeprecation
-		stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) //nolint:staticcheck //TODO: Method is DEPRECATED replace with ScriptResult from GetTransaction
+		stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) //nolint:staticcheck // fix later
 		if err != nil {
 			return nil, err
 		}

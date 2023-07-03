@@ -123,7 +123,7 @@ func TestFunctions(t *testing.T) {
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	transfer := newTransferTransaction()
 	exchange := newExchangeTransaction()
-	//data := newDataTransaction()
+	// data := newDataTransaction()
 	require.NoError(t, err)
 	env := &mockRideEnvironment{
 		checkMessageLengthFunc: bytesSizeCheckV3V6,
@@ -187,7 +187,7 @@ func TestFunctions(t *testing.T) {
 			}
 		},
 	}
-	//envWithDataTX := &mockRideEnvironment{
+	// envWithDataTX := &mockRideEnvironment{
 	//	transactionFunc: func() rideType {
 	//		obj, err := dataWithProofsToObject('W', data)
 	//		if err != nil {
@@ -195,7 +195,7 @@ func TestFunctions(t *testing.T) {
 	//		}
 	//		return obj
 	//	},
-	//}
+	// }
 	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideType {
 			obj, err := exchangeWithProofsToObject('W', exchange)

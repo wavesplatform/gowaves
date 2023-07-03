@@ -98,7 +98,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
-		if err = apiServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err = apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			zap.S().Fatalf("Failed to start API: %v", err)
 			return
 		}

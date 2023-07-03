@@ -71,6 +71,7 @@ vendor:
 vetcheck:
 	go vet ./...
 	golangci-lint run -c .golangci.yml
+	golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
 
 strict-vet-check:
 	golangci-lint run -c .golangci-strict.yml
