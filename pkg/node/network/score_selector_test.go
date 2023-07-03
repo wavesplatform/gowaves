@@ -20,6 +20,10 @@ func (pid *mockPeerID) String() string {
 	return pid.id
 }
 
+func (pid *mockPeerID) ID() peerID {
+	return peerID(pid.id)
+}
+
 func TestScoreSelectorPushOnce(t *testing.T) {
 	ss := newScoreSelector()
 	peer1 := &mockPeerID{"peer1"}
@@ -30,9 +34,9 @@ func TestScoreSelectorPushOnce(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, []peer.ID{peer1}, g.peers)
 	assert.Equal(t, score100, g.score)
-	sk, ok := ss.peerToScoreKey[peer1]
+	sk, ok := ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 }
 
 func TestScoreSelectorPushTwice(t *testing.T) {
@@ -45,18 +49,18 @@ func TestScoreSelectorPushTwice(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, []peer.ID{peer1}, g.peers)
 	assert.Equal(t, score100, g.score)
-	sk, ok := ss.peerToScoreKey[peer1]
+	sk, ok := ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 
 	ss.push(peer1, score100)
 	g, ok = ss.scoreKeyToGroup["100"]
 	assert.True(t, ok)
 	assert.Equal(t, []peer.ID{peer1}, g.peers)
 	assert.Equal(t, score100, g.score)
-	sk, ok = ss.peerToScoreKey[peer1]
+	sk, ok = ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 }
 
 func TestMultiplePushOneScore(t *testing.T) {
@@ -73,30 +77,30 @@ func TestMultiplePushOneScore(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, []peer.ID{peer1, peer2, peer3}, g.peers)
 	assert.Equal(t, score100, g.score)
-	sk, ok := ss.peerToScoreKey[peer1]
+	sk, ok := ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
-	sk, ok = ss.peerToScoreKey[peer2]
+	assert.Equal(t, scoreKey("100"), sk)
+	sk, ok = ss.peerToScoreKey[peer2.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
-	sk, ok = ss.peerToScoreKey[peer3]
+	assert.Equal(t, scoreKey("100"), sk)
+	sk, ok = ss.peerToScoreKey[peer3.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 
 	ss.push(peer2, score100)
 	g, ok = ss.scoreKeyToGroup["100"]
 	assert.True(t, ok)
 	assert.Equal(t, []peer.ID{peer1, peer2, peer3}, g.peers)
 	assert.Equal(t, score100, g.score)
-	sk, ok = ss.peerToScoreKey[peer1]
+	sk, ok = ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
-	sk, ok = ss.peerToScoreKey[peer2]
+	assert.Equal(t, scoreKey("100"), sk)
+	sk, ok = ss.peerToScoreKey[peer2.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
-	sk, ok = ss.peerToScoreKey[peer3]
+	assert.Equal(t, scoreKey("100"), sk)
+	sk, ok = ss.peerToScoreKey[peer3.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 }
 
 func TestNewScore(t *testing.T) {
@@ -121,15 +125,15 @@ func TestNewScore(t *testing.T) {
 	assert.Equal(t, []peer.ID{peer2}, g.peers)
 	assert.Equal(t, score200, g.score)
 
-	sk, ok := ss.peerToScoreKey[peer1]
+	sk, ok := ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
-	sk, ok = ss.peerToScoreKey[peer2]
+	assert.Equal(t, scoreKey("100"), sk)
+	sk, ok = ss.peerToScoreKey[peer2.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
-	sk, ok = ss.peerToScoreKey[peer3]
+	assert.Equal(t, scoreKey("200"), sk)
+	sk, ok = ss.peerToScoreKey[peer3.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 
 	ss.push(peer1, score200)
 	g, ok = ss.scoreKeyToGroup["100"]
@@ -141,15 +145,15 @@ func TestNewScore(t *testing.T) {
 	assert.Equal(t, []peer.ID{peer2, peer1}, g.peers)
 	assert.Equal(t, score200, g.score)
 
-	sk, ok = ss.peerToScoreKey[peer1]
+	sk, ok = ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
-	sk, ok = ss.peerToScoreKey[peer2]
+	assert.Equal(t, scoreKey("200"), sk)
+	sk, ok = ss.peerToScoreKey[peer2.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
-	sk, ok = ss.peerToScoreKey[peer3]
+	assert.Equal(t, scoreKey("200"), sk)
+	sk, ok = ss.peerToScoreKey[peer3.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "100", sk)
+	assert.Equal(t, scoreKey("100"), sk)
 
 	ss.push(peer3, score200)
 	_, ok = ss.scoreKeyToGroup["100"]
@@ -159,15 +163,15 @@ func TestNewScore(t *testing.T) {
 	assert.Equal(t, []peer.ID{peer2, peer1, peer3}, g.peers)
 	assert.Equal(t, score200, g.score)
 
-	sk, ok = ss.peerToScoreKey[peer1]
+	sk, ok = ss.peerToScoreKey[peer1.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
-	sk, ok = ss.peerToScoreKey[peer2]
+	assert.Equal(t, scoreKey("200"), sk)
+	sk, ok = ss.peerToScoreKey[peer2.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
-	sk, ok = ss.peerToScoreKey[peer3]
+	assert.Equal(t, scoreKey("200"), sk)
+	sk, ok = ss.peerToScoreKey[peer3.ID()]
 	assert.True(t, ok)
-	assert.Equal(t, "200", sk)
+	assert.Equal(t, scoreKey("200"), sk)
 }
 
 func TestSelectionSinglePeer(t *testing.T) {

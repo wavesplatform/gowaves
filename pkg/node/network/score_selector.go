@@ -56,23 +56,29 @@ func (h *groupsHeap) Pop() any {
 	return g
 }
 
+type (
+	peerID   string
+	scoreKey string
+)
+
 type scoreSelector struct {
-	scoreKeyToGroup map[string]*group // key made of score's string points to the group of peers
-	peerToScoreKey  map[peer.ID]string
+	scoreKeyToGroup map[scoreKey]*group // key made of score's string points to the group of peers
+	peerToScoreKey  map[peerID]scoreKey
 	groups          *groupsHeap
 }
 
 func newScoreSelector() *scoreSelector {
 	return &scoreSelector{
-		scoreKeyToGroup: make(map[string]*group),
-		peerToScoreKey:  make(map[peer.ID]string),
+		scoreKeyToGroup: make(map[scoreKey]*group),
+		peerToScoreKey:  make(map[peerID]scoreKey),
 		groups:          newGroupsHeap(),
 	}
 }
 
 func (s *scoreSelector) push(p peer.ID, score *proto.Score) {
-	sk := score.String()
-	if prevScoreKey, ok := s.peerToScoreKey[p]; ok {
+	sk := scoreKey(score.String())
+	pid := peerID(p.String())
+	if prevScoreKey, ok := s.peerToScoreKey[pid]; ok {
 		// The peer was added before
 		if sk == prevScoreKey { // Do nothing, if the score of the peer hasn't changed.
 			return
@@ -85,7 +91,7 @@ func (s *scoreSelector) push(p peer.ID, score *proto.Score) {
 	}
 }
 
-func (s *scoreSelector) append(sk string, score *proto.Score, p peer.ID) {
+func (s *scoreSelector) append(sk scoreKey, score *proto.Score, p peer.ID) {
 	g, ok := s.scoreKeyToGroup[sk]
 	if ok {
 		// New peer comes to the existent group, just update the peers slice of the group
@@ -100,11 +106,12 @@ func (s *scoreSelector) append(sk string, score *proto.Score, p peer.ID) {
 	}
 	// Update heap and all the maps
 	heap.Fix(s.groups, g.index)
+	pid := peerID(p.String())
 	s.scoreKeyToGroup[sk] = g
-	s.peerToScoreKey[p] = sk
+	s.peerToScoreKey[pid] = sk
 }
 
-func (s *scoreSelector) remove(sk string, p peer.ID) {
+func (s *scoreSelector) remove(sk scoreKey, p peer.ID) {
 	g, ok := s.scoreKeyToGroup[sk]
 	if !ok {
 		panic(fmt.Sprintf("scoreSelector: inconsistent state of score selector: failed to find group by score %s", sk))
