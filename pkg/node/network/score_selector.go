@@ -2,6 +2,7 @@ package network
 
 import (
 	"container/heap"
+	"fmt"
 	"math/rand"
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -38,11 +39,12 @@ func (h *groupsHeap) Swap(i, j int) {
 }
 
 func (h *groupsHeap) Push(x any) {
-	switch g := x.(type) {
-	case *group:
-		g.index = len(h.groups)
-		h.groups = append(h.groups, g)
+	g, ok := x.(*group)
+	if !ok {
+		panic(fmt.Sprintf("groupsHeap: invalid element type: expected (*group), got (%T)", x))
 	}
+	g.index = len(h.groups)
+	h.groups = append(h.groups, g)
 }
 
 func (h *groupsHeap) Pop() any {
@@ -105,7 +107,7 @@ func (s *scoreSelector) append(sk string, score *proto.Score, p peer.ID) {
 func (s *scoreSelector) remove(sk string, p peer.ID) {
 	g, ok := s.scoreKeyToGroup[sk]
 	if !ok {
-		panic("inconsistent state of score selector")
+		panic(fmt.Sprintf("scoreSelector: inconsistent state of score selector: failed to find group by score %s", sk))
 	}
 	for i := range g.peers {
 		if g.peers[i] == p {
@@ -126,7 +128,8 @@ func (s *scoreSelector) remove(sk string, p peer.ID) {
 
 func (s *scoreSelector) selectBestPeer(currentBest *peer.ID) (peer.ID, *proto.Score) {
 	if s.groups.Len() > 0 {
-		if g, ok := heap.Pop(s.groups).(*group); ok { // Take out group the largest group
+		e := heap.Pop(s.groups)
+		if g, ok := e.(*group); ok { // Take out group the largest group
 			if currentBest != nil {
 				for i := range g.peers {
 					if g.peers[i] == *currentBest { // The peer is in the group, just return the peer and it's score
@@ -141,7 +144,7 @@ func (s *scoreSelector) selectBestPeer(currentBest *peer.ID) (peer.ID, *proto.Sc
 			heap.Push(s.groups, g)
 			return g.peers[i], g.score
 		} else {
-			panic("invalid element type of score selector")
+			panic(fmt.Sprintf("scoreSelector: invalid element type of score selector: expeted (*group), got (%T)", e))
 		}
 	}
 	return nil, nil
