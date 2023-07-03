@@ -132,13 +132,13 @@ func (s *scoreSelector) remove(sk scoreKey, p peer.ID) {
 	}
 }
 
-func (s *scoreSelector) selectBestPeer(currentBest *peer.ID) (peer.ID, *proto.Score) {
+func (s *scoreSelector) selectBestPeer(currentBest peer.ID) (peer.ID, *proto.Score) {
 	if s.groups.Len() > 0 {
 		e := heap.Pop(s.groups)
 		if g, ok := e.(*group); ok { // Take out group the largest group
 			if currentBest != nil {
 				for i := range g.peers {
-					if g.peers[i] == *currentBest { // The peer is in the group, just return the peer and it's score
+					if g.peers[i] == currentBest { // The peer is in the group, just return the peer and it's score
 						heap.Push(s.groups, g) // Put back the group
 						return g.peers[i], g.score
 					}

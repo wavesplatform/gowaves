@@ -184,7 +184,7 @@ func TestSelectionSinglePeer(t *testing.T) {
 	assert.Equal(t, peer1, best)
 	require.NotNil(t, score)
 	assert.Equal(t, score, score100)
-	best, score = ss.selectBestPeer(&best)
+	best, score = ss.selectBestPeer(best)
 	require.NotNil(t, best)
 	assert.Equal(t, peer1, best)
 	require.NotNil(t, score)
@@ -192,7 +192,7 @@ func TestSelectionSinglePeer(t *testing.T) {
 
 	score200 := big.NewInt(200)
 	ss.push(peer1, score200)
-	best, score = ss.selectBestPeer(&best)
+	best, score = ss.selectBestPeer(best)
 	require.NotNil(t, best)
 	assert.Equal(t, peer1, best)
 	require.NotNil(t, score)
@@ -217,28 +217,28 @@ func TestSelectionMultiplePeers(t *testing.T) {
 	require.NotNil(t, score1)
 	assert.Equal(t, score1, score100)
 
-	best2, score2 := ss.selectBestPeer(&best1)
+	best2, score2 := ss.selectBestPeer(best1)
 	require.NotNil(t, best2)
 	assert.Equal(t, best1, best2)
 	require.NotNil(t, score2)
 	assert.Equal(t, score2, score1)
 
 	ss.push(peer1, score200)
-	best3, score3 := ss.selectBestPeer(&best2)
+	best3, score3 := ss.selectBestPeer(best2)
 	require.NotNil(t, best3)
 	assert.True(t, best3 == peer2 || best3 == peer3)
 	require.NotNil(t, score3)
 	assert.Equal(t, score3, score2)
 
 	ss.push(peer3, score200)
-	best4, score4 := ss.selectBestPeer(&best3)
+	best4, score4 := ss.selectBestPeer(best3)
 	require.NotNil(t, best4)
 	assert.True(t, best4 == peer1 || best4 == peer3)
 	require.NotNil(t, score4)
 	assert.Equal(t, score4, score200)
 
 	ss.push(peer2, score200)
-	best5, score5 := ss.selectBestPeer(&best4)
+	best5, score5 := ss.selectBestPeer(best4)
 	require.NotNil(t, best5)
 	assert.Equal(t, best4, best5)
 	require.NotNil(t, score5)
@@ -275,7 +275,7 @@ func BenchmarkSelect100(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		for _, p := range peers {
-			bp, s := ss.selectBestPeer(&p)
+			bp, s := ss.selectBestPeer(p)
 			_ = bp
 			_ = s
 		}
@@ -295,7 +295,7 @@ func BenchmarkPushSelect1000(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for i, p := range peers {
 			ss.push(p, scores[i])
-			bp, s := ss.selectBestPeer(&p)
+			bp, s := ss.selectBestPeer(p)
 			_ = bp
 			_ = s
 		}
