@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
@@ -3190,13 +3188,8 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 
-	env := &mockRideEnvironment{
-		libVersionFunc:                       func() (ast.LibraryVersion, error) { return ast.LibV6, nil },
-		schemeFunc:                           func() byte { return proto.TestNetScheme },
-		consensusImprovementsActivatedFunc:   func() bool { return false },
-		blockRewardDistributionActivatedFunc: func() bool { return false },
-		stateFunc:                            func() types.SmartState { return &MockSmartState{} },
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(proto.TestNetScheme).
+		withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().toEnv()
 
 	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
@@ -3247,25 +3240,17 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
 
-	state := &MockSmartState{
-		NewestAssetConstInfoFunc: func(id proto.AssetID) (*proto.AssetConstInfo, error) {
-			assetID := (*proto.AssetID)(tx.To())
-			if id == *assetID {
-				var r crypto.Digest
-				copy(r[:20], assetID[:])
-				return &proto.AssetConstInfo{ID: r}, nil
-			}
-			return nil, errors.New("asset doesn't exist")
-		},
-	}
+	assetID := (*proto.AssetID)(tx.To())
+	var fullAssetID crypto.Digest
+	copy(fullAssetID[:20], assetID[:])
 
-	env := &mockRideEnvironment{
-		libVersionFunc:                       func() (ast.LibraryVersion, error) { return ast.LibV6, nil },
-		schemeFunc:                           func() byte { return proto.TestNetScheme },
-		consensusImprovementsActivatedFunc:   func() bool { return false },
-		blockRewardDistributionActivatedFunc: func() bool { return false },
-		stateFunc:                            func() types.SmartState { return state },
-	}
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(proto.TestNetScheme).
+		withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+		withAsset(&proto.FullAssetInfo{
+			AssetInfo: proto.AssetInfo{
+				AssetConstInfo: proto.AssetConstInfo{ID: fullAssetID},
+			},
+		}).toEnv()
 
 	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
