@@ -32,3 +32,13 @@ func makeDiff1() txDiff {
 	}
 	return diff
 }
+
+func leasesToDisabledAliasesMainnet() []crypto.Digest {
+	return []crypto.Digest{
+		crypto.MustDigestFromBase58("56unoFHzWTzosYtqW9jd5Dk7P3YNPGPP7TN4bs4tm95W"),
+		crypto.MustDigestFromBase58("2F95GigvHjSAfhzpcP5UQSkye4PsVvkEnwww622QWpiU"),
+		crypto.MustDigestFromBase58("G7S4thYdMofaE4L33DjMnorsgvUvYBgnhK1yuJDm3Wfe"),
+		crypto.MustDigestFromBase58("7MuFHv68dJASmroXUwav2DTk6fsUq3GYC6znnJ8c4A2w"),
+		crypto.MustDigestFromBase58("GBJhccWynDovWPpnTzUGSB8mLVg7WRriDSjdMPgajwyP"),
+	}
+}

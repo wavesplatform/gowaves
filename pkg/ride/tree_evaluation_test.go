@@ -81,22 +81,22 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 
 func TestFunctionsEvaluation(t *testing.T) {
 	te := newTestEnv(t).withProtobufTx()
+	transfer := newTransferTransaction()
 	d := crypto.MustDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
-	acc1 := &testAccount{wa: proto.MustAddressFromString("3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3")}
+	sender := &testAccount{wa: proto.MustAddressFromPublicKey(proto.MainNetScheme, transfer.SenderPK)}
 	acc2 := &testAccount{wa: proto.MustAddressFromString("3N6ZR2Vy4XDXm56UuphrdNCoYKo2zb8jWtc")}
 	acc3 := &testAccount{wa: proto.MustAddressFromString("3MpTdGipgBYYVH5AS6DHWXWZEbuqn7TSSoU")}
-	transfer := newTransferTransaction()
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withLibVersion(ast.LibV3).
 		withComplexityLimit(ast.LibV3, 4000).withMessageLengthV3().withTakeStringV5().
 		withHeight(5).withTransaction(transfer).
-		withDataEntries(acc1,
+		withDataEntries(sender,
 			&proto.IntegerDataEntry{Key: "integer", Value: 100500},
 			&proto.BooleanDataEntry{Key: "boolean", Value: true},
 			&proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")},
 			&proto.StringDataEntry{Key: "string", Value: "world"},
 		).
 		withNoTransactionAtHeight().
-		withAssetBalance(acc2, d, 5).withAssetBalance(acc3, d, 5).
+		withAssetBalance(sender, d, 42).withAssetBalance(acc2, d, 5).withAssetBalance(acc3, d, 5).
 		withWavesBalance(acc2, 5)
 
 	data := newDataTransaction()
@@ -218,7 +218,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 
 		{`GETTRANSACTIONBYID`, `V2: match transactionById(tx.id) {case _: TransferTransaction => true; case _ => false}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24GB9Sc8FA=`, env, true, false},
 		{`TRANSACTIONHEIGHTBYID`, `transactionHeightById(base58'aaaa') == 5`, `AQkAAAAAAAACCQAD6QAAAAEBAAAAA2P4ZwAAAAAAAAAABSLhRM4=`, env, false, false},
-		{`ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 5`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAFjp6PBg==`, env, true, false},
+		{`ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 42`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAqr9/d5A==`, env, true, false},
 		{`ADDRESSTOSTRING`, `toString(Address(base58'3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg')) == "3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg"`, `AwkAAAAAAAACCQAEJQAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcMIZxOsk2Gw5Avd0ztqi+phtb1Bb83MiUCAAAAIzNQMzMzNnJOU1NVOGJEQXFEYjZTNWpOczhESmIyYmZObXBnkXj7Cg==`, env, true, false},
 		{`ADDRESSTOSTRING`, `toString(Address(base58'3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpg')) == "3P3336rNSSU8bDAqDb6S5jNs8DJb2bfNmpf"`, `AwkAAAAAAAACCQAEJQAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcMIZxOsk2Gw5Avd0ztqi+phtb1Bb83MiUCAAAAIzNQMzMzNnJOU1NVOGJEQXFEYjZTNWpOczhESmIyYmZObXBmb/6mcg==`, env, false, false},
 		{`CONS`, `size([1, "2"]) == 2`, `AwkAAAAAAAACCQABkAAAAAEJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAgAAAAEyBQAAAANuaWwAAAAAAAAAAAKuUcc0`, env, true, false},
@@ -634,7 +634,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		withAdditionalDApp(dApp2).withTree(dApp2, tree2).
 		withInvocation("cancel", withTransactionID(crypto.Digest{})).
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).withWavesBalance(dApp2, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{ID: aid}}).
+		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{AssetConstInfo: proto.AssetConstInfo{ID: aid}}}).
 		withAssetBalance(dApp2, aid, 0).
 		withWrappedState()
 
@@ -746,6 +746,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedDiffResult.data[dataEntryKey{deleteEntry.Key, dApp2.address()}] = deleteEntry
 
 	newAsset := diffNewAssetInfo{
+		asset:       assetIDIssue,
 		dAppIssuer:  dApp2.address(),
 		name:        "CatCoin",
 		description: "",
@@ -755,7 +756,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		script:      nil,
 		nonce:       0,
 	}
-	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
+	expectedDiffResult.setNewAssetByAssetID(proto.AssetIDFromDigest(assetIDIssue), newAsset)
 	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease{recipient: dApp1.address(), sender: dApp2.address(), amount: 10, active: true}
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, env.ws.diff.newAssetsInfo)
@@ -1929,7 +1930,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 		withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo:  proto.AssetInfo{ID: asset, Reissuable: true},
+				AssetInfo:  proto.AssetInfo{AssetConstInfo: proto.AssetConstInfo{ID: asset}, Reissuable: true},
 				ScriptInfo: proto.ScriptInfo{Bytes: asb, Version: int32(ast.LibV5), Complexity: 7}},
 		).
 		withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 10000).
@@ -1970,7 +1971,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	expectedDiffResult.assetBalances[assetBalanceKey{dApp2.address().ID(), asset}] = 10049 // the balance was 9999. reissue + 100. burn - 50. = 10049
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}
-	expectedDiffResult.oldAssetsInfo[asset] = oldAsset
+	expectedDiffResult.setOldAssetByAssetID(proto.AssetIDFromDigest(asset), oldAsset)
 
 	assert.Equal(t, expectedDiffResult.assetBalances, env.ws.diff.assetBalances)
 	assert.Equal(t, expectedDiffResult.sponsorships, env.ws.diff.sponsorships)
@@ -3077,26 +3078,31 @@ func TestLigaDApp1(t *testing.T) {
 	}
 
 	team1AssetInfo := proto.AssetInfo{
-		ID:              team1,
+		AssetConstInfo: proto.AssetConstInfo{
+			ID: team1,
+
+			IssueHeight: 100500,
+			Issuer:      dapp,
+			Decimals:    0,
+		},
 		Quantity:        1000,
-		Decimals:        0,
-		Issuer:          dapp,
 		IssuerPublicKey: pk,
 		Reissuable:      false,
 		Scripted:        false,
 		Sponsored:       false,
-		IssueHeight:     100500,
 	}
 	team2AssetInfo := proto.AssetInfo{
-		ID:              team2,
-		Quantity:        1000,
-		Decimals:        0,
-		Issuer:          dapp,
+		AssetConstInfo: proto.AssetConstInfo{
+			ID:          team2,
+			Decimals:    0,
+			Issuer:      dapp,
+			IssueHeight: 100501,
+		},
 		IssuerPublicKey: pk,
+		Quantity:        1000,
 		Reissuable:      false,
 		Scripted:        false,
 		Sponsored:       false,
-		IssueHeight:     100501,
 	}
 	te2 := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000).
 		withInvokeTransaction(tx2).withThis(acc).
@@ -3396,7 +3402,15 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env := newTestEnv(t).withComplexityLimit(ast.LibV3, 2000).withTree(issuer, treeV3).
 		withAsset(
 			&proto.FullAssetInfo{
-				AssetInfo:   proto.AssetInfo{ID: assetID1, Quantity: 1000, Issuer: issuer.address(), IssuerPublicKey: issuer.publicKey(), IssueHeight: 100500},
+				AssetInfo: proto.AssetInfo{
+					AssetConstInfo: proto.AssetConstInfo{
+						ID:          assetID1,
+						IssueHeight: 100500,
+						Issuer:      issuer.address(),
+					},
+					IssuerPublicKey: issuer.publicKey(),
+					Quantity:        1000,
+				},
 				Name:        "ASSET1",
 				Description: "DESCRIPTION1",
 			}).
@@ -3716,10 +3730,9 @@ func TestRecipientAddressToString(t *testing.T) {
 			Attachment:  nil,
 		},
 	}
-	obj, err := transactionToObject(tree.LibVersion, proto.TestNetScheme, false, tx)
-	require.NoError(t, err)
-	env := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000).
-		withMessageLengthV3().withTransactionObject(obj)
+
+	env := newTestEnv(t).withScheme(proto.TestNetScheme).withLibVersion(tree.LibVersion).
+		withComplexityLimit(tree.LibVersion, 2000).withMessageLengthV3().withTransaction(tx)
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
@@ -3758,8 +3771,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withMessageLengthV3().
-		withTransactionObject(scriptTransferToTransferTransactionObject(tr)).
-		withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000)
+		withFullScriptTransfer(tr).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000)
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
@@ -3939,12 +3951,14 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		withThis(dApp1).withSender(sender).withDApp(dApp1).withAdditionalDApp(dApp2).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:              asset,
+			AssetConstInfo: proto.AssetConstInfo{
+				ID:          asset,
+				Decimals:    2,
+				IssueHeight: 100500,
+				Issuer:      issuer.address(),
+			},
 			Quantity:        1000000,
-			Decimals:        2,
-			Issuer:          issuer.address(),
 			IssuerPublicKey: issuer.publicKey(),
-			IssueHeight:     100500,
 		}}).withAssetBalance(sender, asset, 0).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withInvocation("call", withTransactionID(txID)).
 		withWrappedState()
@@ -4094,7 +4108,11 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		withInvocation("call", withTransactionID(crypto.Digest{})).
 		withTree(dApp1, tree1).withTree(dApp2, tree2).withTree(dApp3, tree3).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(dApp3, 0).withWavesBalance(sender, 0).
-		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{ID: nft, Quantity: 1, Issuer: dApp1.address(), IssuerPublicKey: dApp1.publicKey()}}).
+		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
+			AssetConstInfo:  proto.AssetConstInfo{ID: nft, Issuer: dApp1.address()},
+			Quantity:        1,
+			IssuerPublicKey: dApp1.publicKey(),
+		}}).
 		withAssetBalance(dApp1, nft, 0).withAssetBalance(dApp2, nft, 0).withAssetBalance(dApp3, nft, 0).withAssetBalance(sender, nft, 0).
 		withWrappedState()
 
@@ -4224,13 +4242,15 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).withWavesBalance(sender, 0).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:              asset,
+			AssetConstInfo: proto.AssetConstInfo{
+				ID:          asset,
+				Decimals:    2,
+				IssueHeight: 100500,
+				Issuer:      dApp1.address(),
+			},
 			Quantity:        10,
-			Decimals:        2,
-			Issuer:          dApp1.address(),
 			IssuerPublicKey: dApp1.publicKey(),
 			Reissuable:      true,
-			IssueHeight:     100500,
 		}}).withAssetBalance(dApp1, asset, 1).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
@@ -4286,12 +4306,14 @@ func TestReissueInInvoke(t *testing.T) {
 		withTree(dApp1, tree1).withTree(dApp2, tree2).
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1_00000000).withWavesBalance(sender, 0).
 		withAsset(&proto.FullAssetInfo{AssetInfo: proto.AssetInfo{
-			ID:              asset,
-			Quantity:        10,
-			Issuer:          dApp2.address(),
+			AssetConstInfo: proto.AssetConstInfo{
+				ID:          asset,
+				IssueHeight: 100500,
+				Issuer:      dApp2.address(),
+			},
 			IssuerPublicKey: dApp2.publicKey(),
+			Quantity:        10,
 			Reissuable:      true,
-			IssueHeight:     100500,
 		}}).withAssetBalance(dApp1, asset, 0).withAssetBalance(dApp2, asset, 0).
 		withWrappedState()
 
