@@ -3730,15 +3730,9 @@ func TestRecipientAddressToString(t *testing.T) {
 			Attachment:  nil,
 		},
 	}
-	me := &mockRideEnvironment{
-		schemeFunc:                         func() byte { return proto.TestNetScheme },
-		libVersionFunc:                     func() (ast.LibraryVersion, error) { return tree.LibVersion, nil },
-		consensusImprovementsActivatedFunc: func() bool { return false },
-	}
-	obj, err := transactionToObject(me, tx)
-	require.NoError(t, err)
-	env := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000).
-		withMessageLengthV3().withTransactionObject(obj)
+
+	env := newTestEnv(t).withScheme(proto.TestNetScheme).withLibVersion(tree.LibVersion).
+		withComplexityLimit(tree.LibVersion, 2000).withMessageLengthV3().withTransaction(tx)
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)
@@ -3777,8 +3771,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	env := newTestEnv(t).withScheme(proto.MainNetScheme).withMessageLengthV3().
-		withTransactionObject(scriptTransferToTransferTransactionObject(tr)).
-		withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000)
+		withFullScriptTransfer(tr).withLibVersion(tree.LibVersion).withComplexityLimit(tree.LibVersion, 2000)
 
 	res, err := CallVerifier(env.toEnv(), tree)
 	require.NoError(t, err)

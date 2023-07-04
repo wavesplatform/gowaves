@@ -534,9 +534,9 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 	return e.withInvokeTransaction(tx)
 }
 
-func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
+func (e *testEnv) withFullScriptTransfer(transfer *proto.FullScriptTransfer) *testEnv {
 	e.me.transactionFunc = func() rideType {
-		return txo
+		return scriptTransferToTransferTransactionObject(transfer)
 	}
 	return e
 }
