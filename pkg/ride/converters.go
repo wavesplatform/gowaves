@@ -1,9 +1,8 @@
 package ride
 
 import (
-	"math/big"
-
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/types"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -11,7 +10,20 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, consensusImprovementsActivated bool, tx proto.Transaction) (rideType, error) {
+type reducedReadOnlyEnv interface {
+	scheme() proto.Scheme
+	libVersion() (ast.LibraryVersion, error)
+	state() types.SmartState
+	consensusImprovementsActivated() bool
+	blockRewardDistributionActivated() bool
+}
+
+func transactionToObject(env reducedReadOnlyEnv, tx proto.Transaction) (rideType, error) {
+	scheme := env.scheme()
+	ver, err := env.libVersion()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to getLibVersion")
+	}
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)
@@ -54,7 +66,7 @@ func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, consensusI
 	case *proto.DataWithProofs:
 		return dataWithProofsToObject(scheme, transaction)
 	case *proto.SetScriptWithProofs:
-		return setScriptWithProofsToObject(scheme, consensusImprovementsActivated, transaction)
+		return setScriptWithProofsToObject(scheme, env.consensusImprovementsActivated(), transaction)
 	case *proto.SponsorshipWithProofs:
 		return sponsorshipWithProofsToObject(scheme, transaction)
 	case *proto.SetAssetScriptWithProofs:
@@ -64,7 +76,7 @@ func transactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, consensusI
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
-		return ethereumTransactionToObject(ver, scheme, transaction)
+		return ethereumTransactionToObject(env.state(), env.blockRewardDistributionActivated(), ver, scheme, transaction)
 	case *proto.InvokeExpressionTransactionWithProofs:
 		return invokeExpressionWithProofsToObject(scheme, transaction)
 	default:
@@ -906,7 +918,13 @@ func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionT
 	), nil
 }
 
-func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx *proto.EthereumTransaction) (rideType, error) {
+func ethereumTransactionToObject(
+	state types.SmartState,
+	isBlockRewardDistributionActivated bool,
+	ver ast.LibraryVersion,
+	scheme proto.Scheme,
+	tx *proto.EthereumTransaction,
+) (rideType, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -921,17 +939,21 @@ func ethereumTransactionToObject(ver ast.LibraryVersion, scheme proto.Scheme, tx
 		return nil, EvaluationFailure.Wrap(err, "ethereumTransactionToObject")
 	}
 
+	kind, err := proto.NewEthereumTransactionKindResolver(state, scheme).ResolveTxKind(tx, isBlockRewardDistributionActivated)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "failed to resolve ethereum transaction kind")
+	}
+
 	// TODO: check whether we should resolve eth tx kind first
 	// TODO: we have to fill it according to the spec
-	switch kind := tx.TxKind.(type) {
+	switch kind := kind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-		if ok := res.IsInt64(); !ok {
-			return nil, EvaluationFailure.Errorf(
+		amount, err := proto.EthereumWeiToWavelet(tx.Value())
+		if err != nil {
+			return nil, EvaluationFailure.Wrapf(err,
 				"transferWithProofsToObject: failed to convert amount from ethereum transaction (big int) to int64. value is %s",
 				tx.Value().String())
 		}
-		amount := res.Int64()
 		return newRideTransferTransaction(
 			optionalAsset(proto.NewOptionalAssetWaves()),
 			rideByteVector(nil),

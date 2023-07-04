@@ -436,11 +436,7 @@ func transactionByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transactionByID")
 	}
-	v, err := env.libVersion()
-	if err != nil {
-		return nil, errors.Wrap(err, "transactionByID")
-	}
-	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
+	obj, err := transactionToObject(env, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
 	}
@@ -866,11 +862,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
-	v, err := env.libVersion()
-	if err != nil {
-		return nil, errors.Wrap(err, "transferByID")
-	}
-	obj, err := transactionToObject(v, env.scheme(), env.consensusImprovementsActivated(), tx)
+	obj, err := transactionToObject(env, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
 	}

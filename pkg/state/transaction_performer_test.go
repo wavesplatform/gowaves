@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -25,7 +27,7 @@ func createPerformerTestObjects(t *testing.T) *performerTestObjects {
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return &performerInfo{0, new(proto.StateActionsCounter), blockID0}
+	return &performerInfo{0, new(proto.StateActionsCounter), blockID0, txCheckerData{}}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
@@ -428,7 +430,9 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := createSetScriptWithProofs(t, scriptBytes)
-	err = to.tp.performSetScriptWithProofs(tx, defaultPerformerInfo())
+	pi := *defaultPerformerInfo()
+	pi.checkerData.scriptEstimations = &scriptsEstimations{}
+	err = to.tp.performSetScriptWithProofs(tx, &pi)
 	assert.NoError(t, err, "performSetScriptWithProofs() failed")
 
 	addr := testGlobal.senderInfo.addr
@@ -497,7 +501,21 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 
 	tx := createSetAssetScriptWithProofs(t)
-	err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfo())
+	pi := *defaultPerformerInfo()
+
+	currentEstimatorVersion := 4
+	tree, err := serialization.Parse(tx.Script)
+	require.NoError(t, err)
+	estimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
+	require.NoError(t, err)
+
+	pi.checkerData.scriptEstimations = &scriptsEstimations{
+		currentEstimatorVersion: currentEstimatorVersion,
+		estimations: map[int]ride.TreeEstimation{
+			currentEstimatorVersion: estimation,
+		},
+	}
+	err = to.tp.performSetAssetScriptWithProofs(tx, &pi)
 	assert.NoError(t, err, "performSetAssetScriptWithProofs() failed")
 
 	fullAssetID := tx.AssetID
