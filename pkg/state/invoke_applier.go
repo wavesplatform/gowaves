@@ -817,10 +817,11 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 	}
 	// Basic checks against state.
-	paymentSmartAssets, err := ia.txHandler.checkTx(tx, info.checkerInfo)
+	checkerData, err := ia.txHandler.checkTx(tx, info.checkerInfo)
 	if err != nil {
 		return nil, err
 	}
+	paymentSmartAssets := checkerData.smartAssets
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
