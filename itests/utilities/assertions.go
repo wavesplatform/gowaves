@@ -73,3 +73,24 @@ func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, act
 	assert.ErrorContainsf(t, actualErrGo, expectedErrGo, "Node Go: "+errMsg)
 	assert.ErrorContainsf(t, actualErrScala, expectedErrScala, "Node Scala: "+errMsg)
 }
+
+func MinersSumDiffBalanceInWavesCheck(t *testing.T, expected uint64, actualGo, actualScala uint64,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("Miners Sum Diff Balance mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func DaoDiffBalanceInWavesCheck(t *testing.T, expected uint64, actualGo, actualScala uint64,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("Dao Diff Balance mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func XtnBuyBackDiffBalanceInWavesCheck(t *testing.T, expected uint64, actualGo, actualScala uint64,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("Xtn buy back Diff Balance mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
