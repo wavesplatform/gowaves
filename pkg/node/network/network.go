@@ -1,9 +1,10 @@
 package network
 
 import (
-	"go.uber.org/zap"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -116,8 +117,16 @@ func (n *Network) Run() {
 			}
 			sendScore(t.Peer, n.storage)
 
-			if n.SyncPeer.GetPeer() != m.Peer && n.isNewPeerHasMaxScore(t.Peer) && n.isTimeToSwitchPeerWithMaxScore() {
-				n.NetworkInfoCh <- ChangeSyncPeer{Peer: t.Peer}
+			if n.isTimeToSwitchPeerWithMaxScore() {
+				// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
+				// score every time it updated.
+				if n.SyncPeer.GetPeer() != m.Peer && n.isNewPeerHasMaxScore(t.Peer) {
+					n.NetworkInfoCh <- ChangeSyncPeer{Peer: t.Peer}
+				}
+			} else {
+				// Node better continue synchronization with one node, switching to new node happens only if the larger
+				// group of nodes with the highest score appears.
+				//TODO: implement
 			}
 
 		case *peer.InternalErr:
