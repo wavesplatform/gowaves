@@ -41,6 +41,7 @@ func (a *PersistState) Errorf(err error) error {
 }
 
 func newPersistState(info BaseInfo) (State, Async, error) {
+	clearSyncPeer(info)
 	t := tasks.NewFuncTask(func(ctx context.Context, output chan tasks.AsyncTask) error {
 		err := info.storage.PersistAddressTransactions()
 		tasks.SendAsyncTask(output, tasks.AsyncTask{
@@ -88,9 +89,9 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
 		Ignore(TransactionEvent).
-		Ignore(ConnectedPeerEvent).
-		Ignore(ConnectedBestPeerEvent).
-		Ignore(DisconnectedPeerEvent).
+		Ignore(StartMiningEvent).
+		Ignore(ChangeSyncPeerEvent).
+		Ignore(StopSyncEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil

@@ -51,6 +51,7 @@ func newHaltState(info BaseInfo) (State, Async, error) {
 		return nil, nil, err
 	}
 	zap.S().Debugf("storage closed")
+	clearSyncPeer(info)
 	info.skipMessageList.SetList(haltSkipMessageList)
 	return &HaltState{
 		baseInfo: info,
@@ -71,9 +72,9 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
 		Ignore(TransactionEvent).
-		Ignore(DisconnectedPeerEvent).
-		Ignore(ConnectedPeerEvent).
-		Ignore(ConnectedBestPeerEvent).
+		Ignore(StopSyncEvent).
+		Ignore(StartMiningEvent).
+		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopMiningEvent).
 		Ignore(HaltEvent)
 }

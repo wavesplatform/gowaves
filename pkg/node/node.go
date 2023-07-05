@@ -128,7 +128,7 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage, networkMsgCh <-chan network.InfoMessage) {
+func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage, networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer) {
 	go func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
@@ -167,7 +167,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval)
+	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval, syncPeer)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return
@@ -198,12 +198,12 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			async, err = fsm.Task(task)
 		case m := <-networkMsgCh:
 			switch t := m.(type) {
-			case network.Connected:
-				async, err = fsm.ConnectedPeer(t.Peer)
-			case network.Disconnected:
-				async, err = fsm.DisconnectedPeer(t.Peer)
-			case network.BestPeer:
-				async, err = fsm.ConnectedBestPeer(t.Peer)
+			case network.StartMining:
+				async, err = fsm.StartMining()
+			case network.StopSync:
+				async, err = fsm.StopSync()
+			case network.ChangeSyncPeer:
+				async, err = fsm.ChangeSyncPeer(t.Peer)
 			case network.StopMining:
 				async, err = fsm.StopMining()
 			default:

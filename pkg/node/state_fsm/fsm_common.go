@@ -27,19 +27,19 @@ const (
 // First arg is Async - return value of event handler
 var (
 	eventsArgsTypes = map[stateless.Trigger][]reflect.Type{
-		ConnectedPeerEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		DisconnectedPeerEvent:  {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		ConnectedBestPeerEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
-		StopMiningEvent:        {reflect.TypeOf(&Async{})},
-		ScoreEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
-		BlockEvent:             {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
-		MinedBlockEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
-		BlockIDsEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
-		TaskEvent:              {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
-		MicroBlockEvent:        {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
-		MicroBlockInvEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
-		TransactionEvent:       {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
-		HaltEvent:              {reflect.TypeOf(&Async{})},
+		StartMiningEvent:    {reflect.TypeOf(&Async{})},
+		StopSyncEvent:       {reflect.TypeOf(&Async{})},
+		ChangeSyncPeerEvent: {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()},
+		StopMiningEvent:     {reflect.TypeOf(&Async{})},
+		ScoreEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{})},
+		BlockEvent:          {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{})},
+		MinedBlockEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{})},
+		BlockIDsEvent:       {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{})},
+		TaskEvent:           {reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})},
+		MicroBlockEvent:     {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{})},
+		MicroBlockInvEvent:  {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{})},
+		TransactionEvent:    {reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Transaction)(nil)).Elem()},
+		HaltEvent:           {reflect.TypeOf(&Async{})},
 	}
 )
 
@@ -54,6 +54,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		timeout:      30 * time.Second,
 	}
 	zap.S().Debugf("[%s] Starting synchronization with peer '%s'", state.String(), p.ID())
+	baseInfo.syncPeer.SetPeer(p)
 	return &SyncState{
 		baseInfo: baseInfo,
 		conf:     c.Now(baseInfo.tm),
@@ -155,4 +156,8 @@ func validateEventArgs(event stateless.Trigger, args ...interface{}) {
 			panic(fmt.Sprintf("The argument in position '%d' for event %s is of type '%v' but must be convertible to '%v'.", i, event, tp, want))
 		}
 	}
+}
+
+func clearSyncPeer(info BaseInfo) {
+	info.syncPeer.SetPeer(nil)
 }

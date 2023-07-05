@@ -79,26 +79,20 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
-func (a *SyncState) DisconnectedPeer(p peer.Peer) (State, Async, error) {
-	if a.conf.peerSyncWith == p {
-		_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
-		if len(blocks) > 0 {
-			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
-				return err
-			})
-			return newIdleState(a.baseInfo), nil, a.Errorf(err)
-		}
-		return newIdleState(a.baseInfo), nil, nil
+func (a *SyncState) StopSync() (State, Async, error) {
+	_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
+	if len(blocks) > 0 {
+		err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
+			return err
+		})
+		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
-	return a, nil, nil
+	return newIdleState(a.baseInfo), nil, nil
 }
 
-func (a *SyncState) ConnectedBestPeer(p peer.Peer) (State, Async, error) {
-	if p != a.conf.peerSyncWith {
-		return syncWithNewPeer(a, a.baseInfo, p)
-	}
-	return a, nil, nil
+func (a *SyncState) ChangeSyncPeer(p peer.Peer) (State, Async, error) {
+	return syncWithNewPeer(a, a.baseInfo, p)
 }
 
 func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
@@ -268,19 +262,19 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 	fsm.Configure(SyncStateName).
 		Ignore(MicroBlockEvent).
 		Ignore(MicroBlockInvEvent).
-		Ignore(ConnectedPeerEvent).
+		Ignore(StartMiningEvent).
 		Ignore(StopMiningEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
 		}).
-		PermitDynamic(ConnectedBestPeerEvent, createPermitDynamicCallback(ConnectedBestPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(ChangeSyncPeerEvent, createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*SyncState)
-			return a.ConnectedBestPeer(convertToInterface[peer.Peer](args[0]))
+			return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
 		})).
-		PermitDynamic(DisconnectedPeerEvent, createPermitDynamicCallback(DisconnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(StopSyncEvent, createPermitDynamicCallback(StopSyncEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*SyncState)
-			return a.DisconnectedPeer(convertToInterface[peer.Peer](args[0]))
+			return a.StopSync()
 		})).
 		PermitDynamic(TaskEvent, createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*SyncState)

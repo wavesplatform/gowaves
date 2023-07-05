@@ -48,6 +48,7 @@ func (a *IdleState) Errorf(err error) error {
 }
 
 func newIdleState(info BaseInfo) State {
+	clearSyncPeer(info)
 	return &IdleState{
 		baseInfo: info,
 	}
@@ -57,7 +58,7 @@ func (a *IdleState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 	return tryBroadcastTransaction(a, a.baseInfo, p, t)
 }
 
-func (a *IdleState) ConnectedNewPeer(_ peer.Peer) (State, Async, error) {
+func (a *IdleState) StartMining() (State, Async, error) {
 	a.baseInfo.Reschedule()
 	return a, nil, nil
 }
@@ -111,12 +112,12 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(MicroBlockInvEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(BlockEvent).
-		Ignore(DisconnectedPeerEvent).
-		Ignore(ConnectedBestPeerEvent).
+		Ignore(StopSyncEvent).
+		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopMiningEvent).
-		PermitDynamic(ConnectedPeerEvent, createPermitDynamicCallback(ConnectedPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+		PermitDynamic(StartMiningEvent, createPermitDynamicCallback(StartMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*IdleState)
-			return a.ConnectedNewPeer(convertToInterface[peer.Peer](args[0]))
+			return a.StartMining()
 		})).
 		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
 			a := state.State.(*IdleState)

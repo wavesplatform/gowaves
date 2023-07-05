@@ -2,6 +2,7 @@ package network
 
 import (
 	"go.uber.org/zap"
+	"sync"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -13,27 +14,37 @@ import (
 
 type InfoMessage interface{}
 
-type Disconnected struct {
-	Peer peer.Peer
-}
+type StopSync struct{}
 
 type StopMining struct{}
 
-type Connected struct {
+type StartMining struct{}
+
+type ChangeSyncPeer struct {
 	Peer peer.Peer
 }
 
-type BestPeerLost struct {
-	Peer peer.Peer
+type SyncPeer struct {
+	m    sync.Mutex
+	peer peer.Peer
 }
 
-type BestPeer struct {
-	Peer peer.Peer
+func (s *SyncPeer) SetPeer(peer peer.Peer) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.peer = peer
+}
+
+func (s *SyncPeer) GetPeer() peer.Peer {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.peer
 }
 
 type Network struct {
 	InfoCh        <-chan peer.InfoMessage
 	NetworkInfoCh chan InfoMessage
+	SyncPeer      SyncPeer
 
 	peers         peer_manager.PeerManager
 	storage       state.State
@@ -101,12 +112,12 @@ func (n *Network) Run() {
 				continue
 			}
 			if n.peers.ConnectedCount() == n.minPeerMining {
-				n.NetworkInfoCh <- Connected{t.Peer}
+				n.NetworkInfoCh <- StartMining{}
 			}
 			sendScore(t.Peer, n.storage)
 
-			if n.isNewPeerHasMaxScore(t.Peer) && n.isTimeToSwitchPeerWithMaxScore() {
-				n.NetworkInfoCh <- BestPeer{Peer: t.Peer}
+			if n.SyncPeer.GetPeer() != m.Peer && n.isNewPeerHasMaxScore(t.Peer) && n.isTimeToSwitchPeerWithMaxScore() {
+				n.NetworkInfoCh <- ChangeSyncPeer{Peer: t.Peer}
 			}
 
 		case *peer.InternalErr:
@@ -114,9 +125,11 @@ func (n *Network) Run() {
 			if n.peers.ConnectedCount() < n.minPeerMining {
 				n.NetworkInfoCh <- StopMining{}
 			}
-			n.NetworkInfoCh <- Disconnected{Peer: m.Peer}
+			if n.SyncPeer.GetPeer() == m.Peer {
+				n.NetworkInfoCh <- StopSync{}
+			}
 		default:
-			zap.S().Warnf("[%s] Unknown info message '%T'", m)
+			zap.S().Warnf("Unknown peer info message '%T'", m)
 		}
 	}
 }
