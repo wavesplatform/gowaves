@@ -589,6 +589,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		SimpleType{"DataTransaction"},
 	}}
 	res[ast.LibV7]["Transaction"] = res[ast.LibV6]["Transaction"]
+	res[ast.LibV8]["Transaction"] = res[ast.LibV7]["Transaction"]
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
@@ -612,6 +613,9 @@ func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
 			"Transaction": UnionType{Types: []Type{}},
 		},
 		ast.LibV7: {
+			"Transaction": UnionType{Types: []Type{}},
+		},
+		ast.LibV8: {
 			"Transaction": UnionType{Types: []Type{}},
 		},
 	}

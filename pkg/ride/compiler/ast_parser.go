@@ -136,7 +136,7 @@ func (p *astParser) loadBuildInVarsToStackByVersion() {
 			Type: txType,
 		})
 	}
-	if p.tree.LibVersion >= ast.LibV4 && p.tree.LibVersion <= ast.LibV7 {
+	if p.tree.LibVersion >= ast.LibV4 && p.tree.LibVersion <= ast.LibV8 {
 		if p.scriptType == assetScript {
 			p.stack.pushVariable(s.Variable{
 				Name: "this",
@@ -1714,7 +1714,7 @@ func (p *astParser) loadMeta(name string, argsTypes []s.Type) error {
 	switch p.tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3, ast.LibV4, ast.LibV5:
 		return p.loadMetaBeforeV6(name, argsTypes)
-	case ast.LibV6, ast.LibV7:
+	case ast.LibV6, ast.LibV7, ast.LibV8:
 		return p.loadMetaV6(name, argsTypes)
 	}
 	return nil
@@ -1846,7 +1846,7 @@ func (p *astParser) ruleAnnotatedFunc(node *node32) {
 			if !s.CallableRetV4.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s,but return %s", s.CallableRetV4.String(), retType.String())
 			}
-		case ast.LibV5, ast.LibV6, ast.LibV7:
+		case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8:
 			if !s.CallableRetV5.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s, but return %s", s.CallableRetV5.String(), retType.String())
 			}

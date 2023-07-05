@@ -682,6 +682,7 @@ type Order interface {
 	GetSender(scheme Scheme) (Address, error)
 	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
+	GetAttachment() Attachment
 	Verify(Scheme) (bool, error)
 	ToProtobuf(Scheme) *g.Order
 	ToProtobufSigned(Scheme) *g.Order
@@ -1030,6 +1031,10 @@ func (o *OrderV1) GetExpiration() uint64 {
 	return o.Expiration
 }
 
+func (o *OrderV1) GetAttachment() Attachment {
+	return Attachment{}
+}
+
 func (o OrderV1) BodyMarshalBinary() ([]byte, error) {
 	return o.OrderBody.marshalBinary()
 }
@@ -1235,6 +1240,10 @@ func (o *OrderV2) GetPrice() uint64 {
 
 func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV2) GetAttachment() Attachment {
+	return Attachment{}
 }
 
 func (o *OrderV2) GenerateID(_ Scheme) error {
@@ -1464,6 +1473,10 @@ func (o *OrderV3) GetPrice() uint64 {
 
 func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV3) GetAttachment() Attachment {
+	return Attachment{}
 }
 
 func (o *OrderV3) GenerateID(_ Scheme) error {
@@ -1724,6 +1737,10 @@ func (o *OrderV4) GetPrice() uint64 {
 
 func (o *OrderV4) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV4) GetAttachment() Attachment {
+	return o.Attachment
 }
 
 func (o *OrderV4) GenerateID(scheme Scheme) error {

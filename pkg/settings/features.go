@@ -16,15 +16,16 @@ const (
 	Ride4DApps // RIDE V3
 	OrderV3
 	ReducedNFTFee
-	BlockReward             // 14
-	BlockV5                 // 15
-	RideV5                  // 16
-	RideV6                  // 17
-	ConsensusImprovements   // 18
-	BlockRewardDistribution // 19
-	CappedRewards           // 20
-	XTNBuyBackCessation     // 21
-	InvokeExpression        // 22
+	BlockReward              // 14
+	BlockV5                  // 15
+	RideV5                   // 16
+	RideV6                   // 17
+	ConsensusImprovements    // 18
+	BlockRewardDistribution  // 19
+	CappedRewards            // 20
+	XTNBuyBackCessation      // 21
+	InvokeExpression         // 22
+	TransactionStateSnapshot // 23
 )
 
 type FeatureInfo struct {
@@ -55,4 +56,5 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
 	XTNBuyBackCessation:             {true, "XTN Buy-back cessation"},
 	InvokeExpression:                {false, "InvokeExpression"},
+	TransactionStateSnapshot:        {false, "TransactionStateSnapshot"},
 }

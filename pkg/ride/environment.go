@@ -1203,8 +1203,8 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error {
-	obj, err := orderToObject(e.sch, order)
+func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order, v ast.LibraryVersion) error {
+	obj, err := orderToObject(v, e.sch, order)
 	if err != nil {
 		return err
 	}

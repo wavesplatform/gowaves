@@ -1389,7 +1389,7 @@ func TestNewVariablesFromExchangeWithProofs(t *testing.T) {
 type OrderTestSuite struct {
 	suite.Suite
 	tx proto.Order
-	f  func(scheme proto.Scheme, tx proto.Order) (rideOrder, error)
+	f  func(v ast.LibraryVersion, scheme proto.Scheme, tx proto.Order) (rideType, error)
 	d  crypto.Digest
 	aa proto.OptionalAsset
 	pa proto.OptionalAsset
@@ -1421,7 +1421,7 @@ func (a *OrderTestSuite) SetupTest() {
 }
 
 func (a *OrderTestSuite) Test_id() {
-	rs, err := a.f(proto.TestNetScheme, a.tx)
+	rs, err := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	a.NoError(err)
 	id, err := a.tx.GetID()
 	a.NoError(err)
@@ -1431,7 +1431,7 @@ func (a *OrderTestSuite) Test_id() {
 }
 
 func (a *OrderTestSuite) Test_matcherPublicKey() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	tmp := a.tx.GetMatcherPK()
 	matcherPublicKey, err := rs.get(matcherPublicKeyField)
 	a.NoError(err)
@@ -1439,63 +1439,63 @@ func (a *OrderTestSuite) Test_matcherPublicKey() {
 }
 
 func (a *OrderTestSuite) Test_assetPair() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	assetPair, err := rs.get(assetPairField)
 	a.NoError(err)
 	a.Equal(assetPairToObject(a.aa, a.pa), assetPair)
 }
 
 func (a *OrderTestSuite) Test_orderType() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	orderType, err := rs.get(orderTypeField)
 	a.NoError(err)
 	a.Equal("Sell", orderType.instanceOf())
 }
 
 func (a *OrderTestSuite) Test_price() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	price, err := rs.get(priceField)
 	a.NoError(err)
 	a.Equal(rideInt(100000), price)
 }
 
 func (a *OrderTestSuite) Test_amount() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
 	a.Equal(rideInt(10000), amount)
 }
 
 func (a *OrderTestSuite) Test_timestamp() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
 	a.Equal(rideInt(int64(byte_helpers.TIMESTAMP)), timestamp)
 }
 
 func (a *OrderTestSuite) Test_expiration() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	expiration, err := rs.get(expirationField)
 	a.NoError(err)
 	a.Equal(rideInt(int64(byte_helpers.TIMESTAMP)), expiration)
 }
 
 func (a *OrderTestSuite) Test_matcherFee() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	matcherFee, err := rs.get(matcherFeeField)
 	a.NoError(err)
 	a.Equal(rideInt(10000), matcherFee)
 }
 
 func (a *OrderTestSuite) Test_matcherFeeAssetId() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	matcherFeeAssetId, err := rs.get(matcherFeeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideUnit{}, matcherFeeAssetId)
 }
 
 func (a *OrderTestSuite) Test_sender() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	addr, err := a.tx.GetSender(proto.TestNetScheme)
 	a.NoError(err)
 	wavesAddr, err := addr.ToWavesAddress(proto.TestNetScheme)
@@ -1506,7 +1506,7 @@ func (a *OrderTestSuite) Test_sender() {
 }
 
 func (a *OrderTestSuite) Test_senderPublicKey() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	pkBytes := a.tx.GetSenderPKBytes()
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -1515,7 +1515,7 @@ func (a *OrderTestSuite) Test_senderPublicKey() {
 
 func (a *OrderTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	proofs, _ := a.tx.GetProofs()
 	sig, _ := crypto.NewSignatureFromBytes(proofs.Proofs[0])
 	bodyBytes, err := rs.get(bodyBytesField)
@@ -1525,7 +1525,7 @@ func (a *OrderTestSuite) Test_bodyBytes() {
 }
 
 func (a *OrderTestSuite) Test_proofs() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -1533,7 +1533,7 @@ func (a *OrderTestSuite) Test_proofs() {
 }
 
 func (a *OrderTestSuite) Test_instanceFieldName() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	a.Equal(orderTypeName, rs.instanceOf())
 }
 
@@ -1581,7 +1581,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 }
 
 func (a *EthereumOrderV4TestSuite) Test_proofs() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
 	a.NotNil(p)
 	proofs, err := rs.get(proofsField)
@@ -1590,7 +1590,7 @@ func (a *EthereumOrderV4TestSuite) Test_proofs() {
 }
 
 func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
 	a.IsType(rideByteVector{}, bodyBytes)
@@ -1598,7 +1598,7 @@ func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
 }
 
 func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
-	rs, _ := a.f(proto.TestNetScheme, a.tx)
+	rs, _ := a.f(ast.LibV6, proto.TestNetScheme, a.tx)
 	matcherFeeAssetId, err := rs.get(matcherFeeAssetIDField)
 	a.NoError(err)
 	a.Equal(rideByteVector(a.matcherFeeAssetID.ID.Bytes()), matcherFeeAssetId)

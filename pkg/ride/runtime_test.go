@@ -143,9 +143,11 @@ func makeOrderAndOrderObject(t *testing.T, sig, feeAsset, amountAsset, priceAsse
 	sk := crypto.SecretKey{}
 	err = order.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := orderToObject(proto.TestNetScheme, order)
+	obj, err := orderToObject(ast.LibV6, proto.TestNetScheme, order)
 	require.NoError(t, err)
-	replaceFirstProof(obj, s)
+	objProven, ok := obj.(rideProven)
+	require.True(t, ok)
+	replaceFirstProof(objProven, s)
 	return order, obj
 }
 
@@ -158,7 +160,7 @@ func makeExchangeTransactionObject(t *testing.T, sig, digest string, buy, sell p
 	sk := crypto.SecretKey{}
 	err = tx.Sign(proto.TestNetScheme, sk)
 	require.NoError(t, err)
-	obj, err := exchangeWithProofsToObject(proto.TestNetScheme, tx)
+	obj, err := exchangeWithProofsToObject(ast.LibV6, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	replaceFirstProof(obj, s)
 	obj.id = d.Bytes()

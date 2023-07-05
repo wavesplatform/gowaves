@@ -707,6 +707,13 @@ func (a *txAppender) countExchangeScriptsRuns(scriptsRuns uint64) (uint64, error
 	return scriptsRuns, nil
 }
 
+func checkAttachment(o proto.Order) bool {
+	if ov4, ok := o.(*proto.OrderV4); ok && ov4.Attachment.Size() == 0 {
+		return true
+	}
+	return false
+}
+
 func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
 	exchange, ok := tx.(proto.Exchange)
 	if !ok {
@@ -752,6 +759,19 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 				return nil, errors.Wrap(err, "script failure on second order")
 			}
 			scriptsRuns++
+		}
+	}
+	// check attachment in order
+	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
+	if err != nil {
+		return nil, err
+	}
+	if !txStateSnapshotActivated {
+		if checkAttachment(exchange.GetOrder1()) {
+			return nil, errors.New("Attachment field for orders is not supported yet")
+		}
+		if checkAttachment(exchange.GetOrder2()) {
+			return nil, errors.New("Attachment field for orders is not supported yet")
 		}
 	}
 	// Validate transaction, orders and extract smart assets.

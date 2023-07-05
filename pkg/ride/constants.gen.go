@@ -163,6 +163,29 @@ func checkConstantV7(name string) (uint16, bool) {
 	return 0, false
 }
 
+var ConstantsV8 = []string{"Buy", "CEILING", "DOWN", "FLOOR", "HALFEVEN", "HALFUP", "MD5", "NOALG", "SHA1", "SHA224", "SHA256", "SHA3224", "SHA3256", "SHA3384", "SHA3512", "SHA384", "SHA512", "Sell", "height", "lastBlock", "nil", "this", "tx", "unit"}
+
+const _constants_V8 = "BuyCEILINGDOWNFLOORHALFEVENHALFUPMD5NOALGSHA1SHA224SHA256SHA3224SHA3256SHA3384SHA3512SHA384SHA512SellheightlastBlocknilthistxunit"
+
+var _constructors_V8 = [...]rideConstructor{newBuy, newCeiling, newDown, newFloor, newHalfEven, newHalfUp, newMd5, newNoAlg, newSha1, newSha224, newSha256, newSha3224, newSha3256, newSha3384, newSha3512, newSha384, newSha512, newSell, newHeight, newLastBlock, newNil, newThis, newTx, newUnit}
+var _c_index_V8 = [...]int{0, 3, 10, 14, 19, 27, 33, 36, 41, 45, 51, 57, 64, 71, 78, 85, 91, 97, 101, 107, 116, 119, 123, 125, 129}
+
+func constantV8(id int) rideConstructor {
+	if id < 0 || id > 23 {
+		return nil
+	}
+	return _constructors_V8[id]
+}
+
+func checkConstantV8(name string) (uint16, bool) {
+	for i := 0; i <= 23; i++ {
+		if _constants_V8[_c_index_V8[i]:_c_index_V8[i+1]] == name {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
 func newBuy(environment) rideType {
 	return rideNamedType{name: "Buy"}
 }

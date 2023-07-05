@@ -925,6 +925,30 @@ func evaluationCatalogueV7EvaluatorV2() map[string]int {
 	return m
 }
 
+func functionsV8() map[string]string {
+	m := functionsV7()
+	constructorsFunctions(ast.LibV8, m)
+	return m
+}
+
+func catalogueV8() map[string]int {
+	m := catalogueV7()
+	constructorsCatalogue(ast.LibV8, m)
+	return m
+}
+
+func evaluationCatalogueV8EvaluatorV1() map[string]int {
+	m := evaluationCatalogueV7EvaluatorV1()
+	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV8, m)
+	return m
+}
+
+func evaluationCatalogueV8EvaluatorV2() map[string]int {
+	m := evaluationCatalogueV7EvaluatorV2()
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV8, m)
+	return m
+}
+
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
 	for _, v := range c {
 		if v.constructor == "" {
@@ -1048,6 +1072,7 @@ func GenerateFunctions(fn string) {
 	createFunctionsList(cd, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5EvaluatorV1(), evaluationCatalogueV5EvaluatorV2())
 	createFunctionsList(cd, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6EvaluatorV1(), evaluationCatalogueV6EvaluatorV2())
 	createFunctionsList(cd, "V7", functionsV7(), catalogueV7(), evaluationCatalogueV7EvaluatorV1(), evaluationCatalogueV7EvaluatorV2())
+	createFunctionsList(cd, "V8", functionsV8(), catalogueV8(), evaluationCatalogueV8EvaluatorV1(), evaluationCatalogueV8EvaluatorV2())
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}
