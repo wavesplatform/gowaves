@@ -11,7 +11,7 @@ const (
 	ethereumWei            uint64 = 1
 	ethereumGWei                  = 1e9 * ethereumWei
 	ethereumEther                 = 1e9 * ethereumGWei
-	waveletToWeiMultiplier        = ethereumEther / PriceConstant
+	waveletToWeiMultiplier        = ethereumEther / PriceConstant // ethereum numbers are represented in 10^18, waves 10^8
 )
 
 func WaveletToEthereumWei(waveletAmount uint64) *big.Int {

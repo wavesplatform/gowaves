@@ -101,8 +101,9 @@ func TestCheckTransferWithSig(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AmountAsset.ID)
-	smartAssets, err := to.tc.checkTransferWithSig(tx, info)
+	checkerData, err := to.tc.checkTransferWithSig(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AmountAsset.ID, smartAssets[0])
 
@@ -145,8 +146,9 @@ func TestCheckTransferWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AmountAsset.ID)
-	smartAssets, err := to.tc.checkTransferWithProofs(tx, info)
+	checkerData, err := to.tc.checkTransferWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AmountAsset.ID, smartAssets[0])
 
@@ -225,8 +227,9 @@ func TestCheckReissueWithSig(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkReissueWithSig(tx, info)
+	checkerData, err := to.tc.checkReissueWithSig(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 
@@ -272,8 +275,9 @@ func TestCheckReissueWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkReissueWithProofs(tx, info)
+	checkerData, err := to.tc.checkReissueWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 
@@ -312,8 +316,9 @@ func TestCheckBurnWithSig(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkBurnWithSig(tx, info)
+	checkerData, err := to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 
@@ -350,8 +355,9 @@ func TestCheckBurnWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkBurnWithProofs(tx, info)
+	checkerData, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 
@@ -408,8 +414,9 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithSig failed with valid exchange")
 
 	// Check that smart assets are detected properly.
-	smartAssets, err := to.tc.checkExchangeWithSig(tx, info)
+	checkerData, err := to.tc.checkExchangeWithSig(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
 
@@ -470,8 +477,9 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
 	// Check that smart assets are detected properly.
-	smartAssets, err := to.tc.checkExchangeWithProofs(txOV2, info)
+	checkerData, err := to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
 
@@ -481,8 +489,9 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
-	smartAssets, err = to.tc.checkExchangeWithProofs(txOV2, info)
+	checkerData, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.NoError(t, err)
+	smartAssets = checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
 
@@ -498,8 +507,9 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	_, err = to.tc.checkExchangeWithProofs(txOV3, info)
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
-	smartAssets, err = to.tc.checkExchangeWithProofs(txOV3, info)
+	checkerData, err = to.tc.checkExchangeWithProofs(txOV3, info)
 	assert.NoError(t, err)
+	smartAssets = checkerData.smartAssets
 	assert.Equal(t, 2, len(smartAssets))
 	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
 
@@ -737,8 +747,9 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.Asset.ID)
-	smartAssets, err := to.tc.checkMassTransferWithProofs(tx, info)
+	checkerData, err := to.tc.checkMassTransferWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.Asset.ID, smartAssets[0])
 }
@@ -1354,8 +1365,9 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkSetAssetScriptWithProofs(tx, info)
+	checkerData, err := to.tc.checkSetAssetScriptWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 
@@ -1392,8 +1404,9 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, assetId)
-	smartAssets, err := to.tc.checkInvokeScriptWithProofs(tx, info)
+	checkerData, err := to.tc.checkInvokeScriptWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, assetId, smartAssets[0])
 
@@ -1428,8 +1441,9 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 
 	// Check that smart assets are detected properly.
 	to.stor.createSmartAsset(t, tx.AssetID)
-	smartAssets, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	checkerData, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
 	assert.NoError(t, err)
+	smartAssets := checkerData.smartAssets
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, tx.AssetID, smartAssets[0])
 

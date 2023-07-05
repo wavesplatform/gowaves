@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -25,7 +27,7 @@ func createPerformerTestObjects(t *testing.T) *performerTestObjects {
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), nil}
+	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), nil, txCheckerData{}}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
@@ -416,7 +418,9 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := createSetScriptWithProofs(t, scriptBytes)
-	_, err = to.tp.performSetScriptWithProofs(tx, defaultPerformerInfo(), nil, nil)
+	pi := *defaultPerformerInfo()
+	pi.checkerData.scriptEstimations = &scriptsEstimations{}
+	_, err = to.tp.performSetScriptWithProofs(tx, &pi, nil, nil)
 	assert.NoError(t, err, "performSetScriptWithProofs() failed")
 
 	addr := testGlobal.senderInfo.addr
@@ -486,6 +490,22 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 
 	tx := createSetAssetScriptWithProofs(t)
 	_, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfo(), nil, nil)
+	assert.NoError(t, err, "scriptByAddr() failed after flushing")
+	pi := *defaultPerformerInfo()
+
+	currentEstimatorVersion := 4
+	tree, err := serialization.Parse(tx.Script)
+	require.NoError(t, err)
+	estimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
+	require.NoError(t, err)
+
+	pi.checkerData.scriptEstimations = &scriptsEstimations{
+		currentEstimatorVersion: currentEstimatorVersion,
+		estimations: map[int]ride.TreeEstimation{
+			currentEstimatorVersion: estimation,
+		},
+	}
+	_, err = to.tp.performSetAssetScriptWithProofs(tx, &pi, nil, nil)
 	assert.NoError(t, err, "performSetAssetScriptWithProofs() failed")
 
 	fullAssetID := tx.AssetID

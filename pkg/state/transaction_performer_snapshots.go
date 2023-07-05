@@ -41,7 +41,7 @@ func (tp *transactionPerformer) generateSnapshotForIssueTx(assetID crypto.Digest
 		return nil, nil
 	}
 	var snapshot TransactionSnapshot
-
+	// TODO add asset script snapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")

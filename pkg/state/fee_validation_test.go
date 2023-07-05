@@ -60,14 +60,16 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 
 	to.stor.addBlock(t, blockID1)
 	to.stor.addBlock(t, blockID2)
-	_, err := to.tc.checkSetScriptWithProofs(tx, info)
+	checkerData, err := to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := &performerInfo{blockID: blockID2}
+	txPerformerInfo := &performerInfo{blockID: blockID2, checkerData: checkerData}
+
 	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
@@ -98,8 +100,12 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := &performerInfo{blockID: blockID2}
+	txPerformerInfo := &performerInfo{
+		blockID:     blockID2,
+		checkerData: txCheckerData{scriptEstimations: &scriptsEstimations{}},
+	}
 	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)

@@ -14,7 +14,9 @@ type performerInfo struct {
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
 	stateActionsCounter *proto.StateActionsCounter
-	checkerInfo         *checkerInfo
+	// TODO put one into another
+	checkerInfo *checkerInfo
+	checkerData txCheckerData
 }
 
 type transactionPerformer struct {
@@ -128,6 +130,17 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return nil, err
+	}
+
+	if se := info.checkerData.scriptEstimations; se.isPresent() {
+		// Save complexities to storage, so we won't have to calculate it every time the script is called.
+		complexity, ok := se.estimations[se.currentEstimatorVersion]
+		if !ok {
+			return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", se.currentEstimatorVersion)
+		}
+		if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
+			return nil, err
+		}
 	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, applicationRes)
 }
@@ -412,6 +425,15 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 		return nil, err
 	}
 
+	se := info.checkerData.scriptEstimations
+	if !se.isPresent() {
+		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
+	}
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
+	if err := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se.estimations, info.blockID); err != nil {
+		return nil, err
+	}
+
 	snapshot, err := tp.generateSnapshotForSetScriptTx(senderAddr, tx.SenderPK, tx.Script, info, applicationRes)
 	if err != nil {
 		return nil, err
@@ -419,6 +441,7 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to set account script")
 	}
+
 	return snapshot, nil
 }
 
@@ -428,14 +451,27 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 		return nil, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
 
+	se := info.checkerData.scriptEstimations
+	if !se.isPresent() {
+		return nil, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
+	}
+	estimation, ok := se.estimations[se.currentEstimatorVersion]
+	if !ok {
+		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", se.currentEstimatorVersion)
+	}
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
+
+	if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimation, info.blockID); err != nil {
+		return nil, errors.Wrapf(err, "failed to save script complexity for asset %q", tx.AssetID.String())
+	}
 	snapshot, err := tp.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, applicationRes)
 	if err != nil {
 		return nil, err
 	}
-
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return nil, errors.Wrap(err, "failed to set asset script")
 	}
+
 	return snapshot, nil
 }
 

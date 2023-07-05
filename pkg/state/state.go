@@ -2076,6 +2076,23 @@ func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	return sponsored, nil
 }
 
+func (s *stateManager) NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
+	info, err := s.stor.assets.newestConstInfo(assetID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return &proto.AssetConstInfo{
+		ID:          proto.ReconstructDigest(assetID, info.tail),
+		IssueHeight: info.issueHeight,
+		Issuer:      issuer,
+		Decimals:    info.decimals,
+	}, nil
+}
+
 func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
 	assetID := proto.AssetIDFromDigest(asset)
 	info, err := s.stor.assets.newestAssetInfo(assetID)
@@ -2098,15 +2115,18 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 		return nil, wrapErr(Other, err)
 	}
 	return &proto.AssetInfo{
-		ID:              proto.ReconstructDigest(assetID, info.tail),
+		AssetConstInfo: proto.AssetConstInfo{
+			ID:          proto.ReconstructDigest(assetID, info.tail),
+			IssueHeight: info.issueHeight,
+			Issuer:      issuer,
+			Decimals:    info.decimals,
+		},
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        info.decimals,
-		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
-		Reissuable:      info.reissuable,
-		Scripted:        scripted,
-		Sponsored:       sponsored,
-		IssueHeight:     info.issueHeight,
+
+		Reissuable: info.reissuable,
+		Scripted:   scripted,
+		Sponsored:  sponsored,
 	}, nil
 }
 
@@ -2197,15 +2217,18 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.AssetInfo{
-		ID:              proto.ReconstructDigest(assetID, info.tail),
+		AssetConstInfo: proto.AssetConstInfo{
+			ID:          proto.ReconstructDigest(assetID, info.tail),
+			IssueHeight: info.issueHeight,
+			Issuer:      issuer,
+			Decimals:    info.decimals,
+		},
 		Quantity:        info.quantity.Uint64(),
-		Decimals:        info.decimals,
-		Issuer:          issuer,
 		IssuerPublicKey: info.issuer,
-		Reissuable:      info.reissuable,
-		Scripted:        scripted,
-		Sponsored:       sponsored,
-		IssueHeight:     info.issueHeight,
+
+		Reissuable: info.reissuable,
+		Scripted:   scripted,
+		Sponsored:  sponsored,
 	}, nil
 }
 

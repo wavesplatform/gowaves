@@ -1,8 +1,6 @@
 package state
 
 import (
-	"math/big"
-
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
@@ -483,11 +481,10 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-	if ok := res.IsInt64(); !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
+	amount, err := proto.EthereumWeiToWavelet(tx.Value())
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
 	}
-	amount := res.Int64()
 
 	senderAmountKey := byteKey(senderAddress.ID(), wavesAsset)
 

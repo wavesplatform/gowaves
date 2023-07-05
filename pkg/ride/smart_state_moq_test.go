@@ -42,6 +42,9 @@ var _ types.SmartState = &MockSmartState{}
 //			NewestAssetBalanceByAddressIDFunc: func(id proto.AddressID, asset crypto.Digest) (uint64, error) {
 //				panic("mock out the NewestAssetBalanceByAddressID method")
 //			},
+//			NewestAssetConstInfoFunc: func(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
+//				panic("mock out the NewestAssetConstInfo method")
+//			},
 //			NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
 //				panic("mock out the NewestAssetInfo method")
 //			},
@@ -126,6 +129,9 @@ type MockSmartState struct {
 
 	// NewestAssetBalanceByAddressIDFunc mocks the NewestAssetBalanceByAddressID method.
 	NewestAssetBalanceByAddressIDFunc func(id proto.AddressID, asset crypto.Digest) (uint64, error)
+
+	// NewestAssetConstInfoFunc mocks the NewestAssetConstInfo method.
+	NewestAssetConstInfoFunc func(assetID proto.AssetID) (*proto.AssetConstInfo, error)
 
 	// NewestAssetInfoFunc mocks the NewestAssetInfo method.
 	NewestAssetInfoFunc func(assetID crypto.Digest) (*proto.AssetInfo, error)
@@ -220,6 +226,11 @@ type MockSmartState struct {
 			ID proto.AddressID
 			// Asset is the asset argument value.
 			Asset crypto.Digest
+		}
+		// NewestAssetConstInfo holds details about calls to the NewestAssetConstInfo method.
+		NewestAssetConstInfo []struct {
+			// AssetID is the assetID argument value.
+			AssetID proto.AssetID
 		}
 		// NewestAssetInfo holds details about calls to the NewestAssetInfo method.
 		NewestAssetInfo []struct {
@@ -332,6 +343,7 @@ type MockSmartState struct {
 	lockNewestAddrByAlias             sync.RWMutex
 	lockNewestAssetBalance            sync.RWMutex
 	lockNewestAssetBalanceByAddressID sync.RWMutex
+	lockNewestAssetConstInfo          sync.RWMutex
 	lockNewestAssetInfo               sync.RWMutex
 	lockNewestAssetIsSponsored        sync.RWMutex
 	lockNewestBlockInfoByHeight       sync.RWMutex
@@ -572,6 +584,38 @@ func (mock *MockSmartState) NewestAssetBalanceByAddressIDCalls() []struct {
 	mock.lockNewestAssetBalanceByAddressID.RLock()
 	calls = mock.calls.NewestAssetBalanceByAddressID
 	mock.lockNewestAssetBalanceByAddressID.RUnlock()
+	return calls
+}
+
+// NewestAssetConstInfo calls NewestAssetConstInfoFunc.
+func (mock *MockSmartState) NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
+	if mock.NewestAssetConstInfoFunc == nil {
+		panic("MockSmartState.NewestAssetConstInfoFunc: method is nil but SmartState.NewestAssetConstInfo was just called")
+	}
+	callInfo := struct {
+		AssetID proto.AssetID
+	}{
+		AssetID: assetID,
+	}
+	mock.lockNewestAssetConstInfo.Lock()
+	mock.calls.NewestAssetConstInfo = append(mock.calls.NewestAssetConstInfo, callInfo)
+	mock.lockNewestAssetConstInfo.Unlock()
+	return mock.NewestAssetConstInfoFunc(assetID)
+}
+
+// NewestAssetConstInfoCalls gets all the calls that were made to NewestAssetConstInfo.
+// Check the length with:
+//
+//	len(mockedSmartState.NewestAssetConstInfoCalls())
+func (mock *MockSmartState) NewestAssetConstInfoCalls() []struct {
+	AssetID proto.AssetID
+} {
+	var calls []struct {
+		AssetID proto.AssetID
+	}
+	mock.lockNewestAssetConstInfo.RLock()
+	calls = mock.calls.NewestAssetConstInfo
+	mock.lockNewestAssetConstInfo.RUnlock()
 	return calls
 }
 
