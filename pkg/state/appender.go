@@ -339,12 +339,12 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	// Perform state changes.
 	if res.status {
 		// We only perform tx in case it has not failed.
-		performerInfo := &performerInfo{
-			height:              params.checkerInfo.height,
-			stateActionsCounter: params.stateActionsCounterInBlock,
-			blockID:             params.checkerInfo.blockID,
-			checkerData:         res.checkerData,
-		}
+		performerInfo := newPerformerInfo(
+			params.checkerInfo.height,
+			params.stateActionsCounterInBlock,
+			params.checkerInfo.blockID,
+			res.checkerData,
+		)
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
