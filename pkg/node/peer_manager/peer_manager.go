@@ -11,9 +11,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -55,7 +56,8 @@ type PeerManager interface {
 	// AskPeers sends GetPeersMessage message to all connected nodes.
 	AskPeers()
 
-	GetPeerWithMaxScore() (peer.Peer, error)
+	HasMaxScore(p peer.Peer) (peer.Peer, bool)
+	IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool)
 
 	Disconnect(peer.Peer)
 }
@@ -430,11 +432,27 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) er
 	return nil
 }
 
-func (a *PeerManagerImpl) GetPeerWithMaxScore() (peer.Peer, error) {
-	if info, ok := a.active.getPeerWithMaxScore(); ok {
-		return info.peer, nil
+func (a *PeerManagerImpl) HasMaxScore(p peer.Peer) (peer.Peer, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	currentPeerInfo, ok := a.active.get(p.ID())
+	if !ok {
+		return nil, false
 	}
-	return nil, errors.Errorf("no active peers")
+	maxPeerInfo, ok := a.active.getPeerWithMaxScore()
+	if !ok {
+		return nil, false
+	}
+
+	if currentPeerInfo.score.Cmp(maxPeerInfo.score) < 0 { // maxPeer has a bigger score - switch to it
+		return maxPeerInfo.peer, true
+	}
+	return currentPeerInfo.peer, false // Otherwise stick to currently used peer
+}
+
+func (a *PeerManagerImpl) IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
+	return nil, false
 }
 
 func (a *PeerManagerImpl) connected(p peer.Peer) (peer.Peer, bool) {

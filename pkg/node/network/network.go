@@ -74,26 +74,6 @@ func sendScore(p peer.Peer, storage state.State) {
 	p.SendMessage(&proto.ScoreMessage{Score: bts})
 }
 
-func (n *Network) isNewPeerHasMaxScore(p peer.Peer) bool {
-	newPeerScore, err := n.peers.Score(p)
-	if err != nil {
-		zap.S().Warnf("Failed to get score of new peer '%s': %s", p.ID(), err)
-		return false
-	}
-	maxScorePeer, err := n.peers.GetPeerWithMaxScore()
-	if err != nil {
-		zap.S().Debugf("Failed to get peer with max score %s", err)
-		return false
-	}
-
-	maxScore, err := n.peers.Score(maxScorePeer)
-	if err != nil {
-		zap.S().Warnf("Failed to get score of peer '%s': %s", maxScorePeer.ID(), err)
-		return false
-	}
-	return !(maxScorePeer != p && maxScore == newPeerScore)
-}
-
 func (n *Network) isTimeToSwitchPeerWithMaxScore() bool {
 	now := time.Now()
 	obsolescenceTime := now.Add(-n.obsolescence)
@@ -117,16 +97,20 @@ func (n *Network) Run() {
 			}
 			sendScore(t.Peer, n.storage)
 
+			//TODO: Do we need to check it here after async operation of sending score to the peer. Possibly we don't
+			// know peer's score yet, because we haven't received it yet.
 			if n.isTimeToSwitchPeerWithMaxScore() {
 				// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
 				// score every time it updated.
-				if n.SyncPeer.GetPeer() != m.Peer && n.isNewPeerHasMaxScore(t.Peer) {
-					n.NetworkInfoCh <- ChangeSyncPeer{Peer: t.Peer}
+				if np, ok := n.peers.HasMaxScore(n.SyncPeer.peer); ok {
+					n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
 				}
 			} else {
 				// Node better continue synchronization with one node, switching to new node happens only if the larger
 				// group of nodes with the highest score appears.
-				//TODO: implement
+				if np, ok := n.peers.IsInLargestScoreGroup(n.SyncPeer.peer); ok {
+					n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
+				}
 			}
 
 		case *peer.InternalErr:

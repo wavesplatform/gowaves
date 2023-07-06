@@ -12,12 +12,14 @@ import (
 type activePeers struct {
 	m             map[peer.ID]peerInfo
 	sortedByScore []peer.ID
+	selector      *scoreSelector
 }
 
 func newActivePeers() activePeers {
 	return activePeers{
 		m:             make(map[peer.ID]peerInfo),
 		sortedByScore: make([]peer.ID, 0),
+		selector:      newScoreSelector(),
 	}
 }
 
@@ -39,6 +41,7 @@ func (ap *activePeers) updateScore(peerID peer.ID, score *big.Int) error {
 	info.score = score
 	ap.m[peerID] = info
 	ap.sort()
+	ap.selector.push(peerID, score)
 	return nil
 }
 
@@ -57,6 +60,8 @@ func (ap *activePeers) remove(peerID peer.ID) {
 	}
 
 	ap.sortedByScore = append(ap.sortedByScore[:i], ap.sortedByScore[i+1:]...)
+
+	ap.selector.delete(peerID)
 }
 
 func (ap *activePeers) get(peerID peer.ID) (peerInfo, bool) {
@@ -89,4 +94,13 @@ func (ap *activePeers) sort() {
 			return ap.m[ap.sortedByScore[i]].score.Cmp(ap.m[ap.sortedByScore[j]].score) == 1
 		},
 	)
+}
+
+func (ap *activePeers) getPeerFromLargestPeerGroup(p peer.Peer) (peerInfo, bool) {
+	id, _ := ap.selector.selectBestPeer(p.ID())
+	if id == nil {
+		return peerInfo{}, false
+	}
+	info, ok := ap.m[id]
+	return info, ok
 }

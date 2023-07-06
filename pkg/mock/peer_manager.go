@@ -155,19 +155,34 @@ func (mr *MockPeerManagerMockRecorder) EachConnected(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EachConnected", reflect.TypeOf((*MockPeerManager)(nil).EachConnected), arg0)
 }
 
-// GetPeerWithMaxScore mocks base method.
-func (m *MockPeerManager) GetPeerWithMaxScore() (peer.Peer, error) {
+// HasMaxScore mocks base method.
+func (m *MockPeerManager) HasMaxScore(p peer.Peer) (peer.Peer, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPeerWithMaxScore")
+	ret := m.ctrl.Call(m, "HasMaxScore", p)
 	ret0, _ := ret[0].(peer.Peer)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }
 
-// GetPeerWithMaxScore indicates an expected call of GetPeerWithMaxScore.
-func (mr *MockPeerManagerMockRecorder) GetPeerWithMaxScore() *gomock.Call {
+// HasMaxScore indicates an expected call of HasMaxScore.
+func (mr *MockPeerManagerMockRecorder) HasMaxScore(p interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeerWithMaxScore", reflect.TypeOf((*MockPeerManager)(nil).GetPeerWithMaxScore))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasMaxScore", reflect.TypeOf((*MockPeerManager)(nil).HasMaxScore), p)
+}
+
+// IsInLargestScoreGroup mocks base method.
+func (m *MockPeerManager) IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsInLargestScoreGroup", p)
+	ret0, _ := ret[0].(peer.Peer)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// IsInLargestScoreGroup indicates an expected call of IsInLargestScoreGroup.
+func (mr *MockPeerManagerMockRecorder) IsInLargestScoreGroup(p interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsInLargestScoreGroup", reflect.TypeOf((*MockPeerManager)(nil).IsInLargestScoreGroup), p)
 }
 
 // KnownPeers mocks base method.

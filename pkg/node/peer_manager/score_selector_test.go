@@ -1,4 +1,4 @@
-package network
+package peer_manager
 
 import (
 	"fmt"

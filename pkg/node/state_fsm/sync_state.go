@@ -177,34 +177,11 @@ func (a *SyncState) Halt() (State, Async, error) {
 	return newHaltState(a.baseInfo)
 }
 
-func (a *SyncState) getPeerWithMaxScore() (peer.Peer, error) {
-	maxScorePeer, err := a.baseInfo.peers.GetPeerWithMaxScore()
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get peer with max score")
-	}
-	maxScore, err := a.baseInfo.peers.Score(maxScorePeer)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get score of peer '%s'", maxScorePeer.ID())
-	}
-
-	syncWithPeer := a.conf.peerSyncWith
-	peerSyncWithScore, err := a.baseInfo.peers.Score(syncWithPeer)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get score of peer synced with '%s'", maxScorePeer.ID())
-	}
-
-	if maxScorePeer != syncWithPeer && maxScore == peerSyncWithScore {
-		return syncWithPeer, nil
-	}
-	return maxScorePeer, nil
-}
-
 func (a *SyncState) changePeerSyncWith() (State, Async, error) {
-	peer, err := a.getPeerWithMaxScore()
-	if err != nil {
-		return newIdleState(a.baseInfo), nil, a.Errorf(errors.Wrapf(err, "Failed to change peer for sync"))
+	if np, ok := a.baseInfo.peers.HasMaxScore(a.conf.peerSyncWith); ok { // OK - Switching to new peer
+		return syncWithNewPeer(a, a.baseInfo, np)
 	}
-	return syncWithNewPeer(a, a.baseInfo, peer)
+	return a, nil, nil
 }
 
 // TODO suspend peer on state error
@@ -212,8 +189,8 @@ func (a *SyncState) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_inte
 	internal, blocks, eof, needToChangePeer := internal.Blocks(
 		extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme),
 		func() bool {
-			peer, err := a.getPeerWithMaxScore()
-			return err == nil && peer != a.conf.peerSyncWith
+			_, ok := a.baseInfo.peers.HasMaxScore(a.conf.peerSyncWith)
+			return ok
 		},
 	)
 	if needToChangePeer {

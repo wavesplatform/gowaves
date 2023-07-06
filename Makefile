@@ -233,7 +233,6 @@ mock:
 	mockgen -source pkg/node/peer_manager/peer_storage.go -destination pkg/mock/peer_storage.go -package mock PeerStorage
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
-	mockgen -source pkg/node/state_fsm/default.go -destination pkg/node/state_fsm/default_mock.go -package state_fsm Default
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 
 proto:

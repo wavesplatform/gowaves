@@ -1,4 +1,4 @@
-package network
+package peer_manager
 
 import (
 	"container/heap"
@@ -89,6 +89,13 @@ func (s *scoreSelector) push(p peer.ID, score *proto.Score) {
 		s.append(sk, score, p)
 	} else {
 		s.append(sk, score, p)
+	}
+}
+
+func (s *scoreSelector) delete(p peer.ID) {
+	pid := peerID(p.String())
+	if sk, ok := s.peerToScoreKey[pid]; ok {
+		s.remove(sk, p)
 	}
 }
 
