@@ -24,8 +24,8 @@ const (
 	BlockRewardDistribution  // 19
 	CappedRewards            // 20
 	XTNBuyBackCessation      // 21
-	InvokeExpression         // 22
-	TransactionStateSnapshot // 23
+	TransactionStateSnapshot // 22
+	InvokeExpression         // 23
 )
 
 type FeatureInfo struct {
@@ -55,6 +55,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockRewardDistribution:         {true, "Block Reward Distribution"},
 	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
 	XTNBuyBackCessation:             {true, "XTN Buy-back cessation"},
-	InvokeExpression:                {false, "InvokeExpression"},
 	TransactionStateSnapshot:        {false, "TransactionStateSnapshot"},
+	InvokeExpression:                {false, "InvokeExpression"},
 }
