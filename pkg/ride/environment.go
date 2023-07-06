@@ -219,24 +219,41 @@ func (ws *WrappedState) isNewestDataEntryDeleted(key string, address proto.Waves
 }
 
 func (ws *WrappedState) NewestAssetIsSponsored(asset crypto.Digest) (bool, error) {
-	if cost := ws.diff.findSponsorship(asset); cost != nil {
-		if *cost == 0 {
-			return false, nil
-		}
-		return true, nil
+	assetID := proto.AssetIDFromDigest(asset)
+	if sponsorship, ok := ws.diff.findSponsorshipByAssetID(assetID); ok {
+		return sponsorship.minFee != 0, nil
 	}
 	return ws.diff.state.NewestAssetIsSponsored(asset)
 }
 
+func (ws *WrappedState) NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
+	searchNewAsset := ws.diff.findNewAssetByAssetID(assetID)
+	// it's an old asset which has been issued before current tx
+	if searchNewAsset == nil {
+		assetFromStore, err := ws.diff.state.NewestAssetConstInfo(assetID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get const asset's info from store")
+		}
+		return assetFromStore, nil
+	}
+	return &proto.AssetConstInfo{
+		ID:          searchNewAsset.asset,
+		Issuer:      searchNewAsset.dAppIssuer,
+		IssueHeight: ws.height,
+		Decimals:    uint8(searchNewAsset.decimals),
+	}, nil
+}
+
 func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
-	searchNewAsset := ws.diff.findNewAsset(asset)
+	assetID := proto.AssetIDFromDigest(asset)
+	searchNewAsset := ws.diff.findNewAssetByAssetID(assetID)
 	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestAssetInfo(asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset's info from store")
 		}
-		if oldAssetFromDiff := ws.diff.findOldAsset(asset); oldAssetFromDiff != nil {
+		if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
 			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 			assetFromStore.Quantity = uint64(quantity)
@@ -258,27 +275,30 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 	return &proto.AssetInfo{
-		ID:              asset,
+		AssetConstInfo: proto.AssetConstInfo{
+			ID:          asset,
+			IssueHeight: ws.height,
+			Issuer:      searchNewAsset.dAppIssuer,
+			Decimals:    uint8(searchNewAsset.decimals),
+		},
 		Quantity:        uint64(searchNewAsset.quantity),
-		Decimals:        uint8(searchNewAsset.decimals),
-		Issuer:          searchNewAsset.dAppIssuer,
 		IssuerPublicKey: issuerPK,
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
-		IssueHeight:     ws.height,
 	}, nil
 }
 
 func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
-	searchNewAsset := ws.diff.findNewAsset(asset)
+	assetID := proto.AssetIDFromDigest(asset)
+	searchNewAsset := ws.diff.findNewAssetByAssetID(assetID)
 	// it's an old asset which has been issued before current tx
 	if searchNewAsset == nil {
 		assetFromStore, err := ws.diff.state.NewestFullAssetInfo(asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset's info from store")
 		}
-		if oldAssetFromDiff := ws.diff.findOldAsset(asset); oldAssetFromDiff != nil {
+		if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
 			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 			if quantity >= 0 {
@@ -307,23 +327,25 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 	}
 
 	assetInfo := proto.AssetInfo{
-		ID:              asset,
+		AssetConstInfo: proto.AssetConstInfo{
+			ID:          asset,
+			IssueHeight: ws.height,
+			Issuer:      searchNewAsset.dAppIssuer,
+			Decimals:    uint8(searchNewAsset.decimals),
+		},
 		Quantity:        uint64(searchNewAsset.quantity),
-		Decimals:        uint8(searchNewAsset.decimals),
-		Issuer:          searchNewAsset.dAppIssuer,
 		IssuerPublicKey: issuerPK,
 		Reissuable:      searchNewAsset.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
-		IssueHeight:     ws.height,
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,
 	}
 
 	sponsorshipCost := int64(0)
-	if sponsorship := ws.diff.findSponsorship(asset); sponsorship != nil {
-		sponsorshipCost = *sponsorship
+	if sponsorship, ok := ws.diff.findSponsorshipByAssetID(assetID); ok {
+		sponsorshipCost = sponsorship.minFee
 	}
 
 	return &proto.FullAssetInfo{
@@ -819,10 +841,11 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
+			assetID := proto.AssetIDFromDigest(a.AssetID)
 			sponsorship := diffSponsorship{
 				minFee: a.MinFee,
 			}
-			ws.diff.sponsorships[a.AssetID] = sponsorship
+			ws.diff.setSponsorshipByAssetID(assetID, sponsorship)
 
 		case *proto.IssueScriptAction:
 			if err := ws.validateIssueAction(a); err != nil {
@@ -830,6 +853,7 @@ func (ws *WrappedState) ApplyToState(
 			}
 
 			assetInfo := diffNewAssetInfo{
+				asset:       a.ID,
 				dAppIssuer:  ws.callee(),
 				name:        a.Name,
 				description: a.Description,
@@ -839,7 +863,7 @@ func (ws *WrappedState) ApplyToState(
 				script:      a.Script,
 				nonce:       a.Nonce,
 			}
-			ws.diff.newAssetsInfo[a.ID] = assetInfo
+			ws.diff.setNewAssetByAssetID(proto.AssetIDFromDigest(a.ID), assetInfo)
 
 			// Update sender's Public Key in the action
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
@@ -879,15 +903,16 @@ func (ws *WrappedState) ApplyToState(
 
 			// Update asset info
 			// TODO: Simplify following logic, get rid of separate local storages for two kinds of asset info (old and new)
-			if searchNewAsset := ws.diff.findNewAsset(a.AssetID); searchNewAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(a.AssetID); oldAssetFromDiff != nil {
+			assetID := proto.AssetIDFromDigest(a.AssetID)
+			if searchNewAsset := ws.diff.findNewAssetByAssetID(assetID); searchNewAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
 					oldAssetFromDiff.diffQuantity += a.Quantity
-					ws.diff.oldAssetsInfo[a.AssetID] = *oldAssetFromDiff
+					ws.diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
 					break
 				}
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity += a.Quantity
-				ws.diff.oldAssetsInfo[a.AssetID] = assetInfo
+				ws.diff.setOldAssetByAssetID(assetID, assetInfo)
 				break
 			}
 			ws.diff.reissueNewAsset(a.AssetID, a.Quantity, a.Reissuable)
@@ -913,15 +938,16 @@ func (ws *WrappedState) ApplyToState(
 
 			// Update asset's info
 			// TODO: Simplify following logic, get rid of two separate storages of asset infos
-			if searchAsset := ws.diff.findNewAsset(a.AssetID); searchAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(a.AssetID); oldAssetFromDiff != nil {
+			assetID := proto.AssetIDFromDigest(a.AssetID)
+			if searchAsset := ws.diff.findNewAssetByAssetID(assetID); searchAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAssetByAssetID(assetID); oldAssetFromDiff != nil {
 					oldAssetFromDiff.diffQuantity -= a.Quantity
-					ws.diff.oldAssetsInfo[a.AssetID] = *oldAssetFromDiff
+					ws.diff.setOldAssetByAssetID(assetID, *oldAssetFromDiff)
 					break
 				}
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity -= a.Quantity
-				ws.diff.oldAssetsInfo[a.AssetID] = assetInfo
+				ws.diff.setOldAssetByAssetID(assetID, assetInfo)
 				break
 			}
 			ws.diff.burnNewAsset(a.AssetID, a.Quantity)
@@ -1191,11 +1217,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	}
 	e.id = rideByteVector(id)
 
-	ver, err := e.libVersion()
-	if err != nil {
-		return err
-	}
-	obj, err := transactionToObject(ver, e.sch, e.consensusImprovementsActivated(), tx)
+	obj, err := transactionToObject(e, tx)
 	if err != nil {
 		return err
 	}

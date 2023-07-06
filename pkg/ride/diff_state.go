@@ -132,6 +132,7 @@ type diffSponsorship struct {
 }
 
 type diffNewAssetInfo struct {
+	asset       crypto.Digest
 	dAppIssuer  proto.WavesAddress
 	name        string
 	description string
@@ -196,9 +197,9 @@ type diffState struct {
 	data            map[dataEntryKey]proto.DataEntry
 	wavesBalances   map[proto.AddressID]diffBalance
 	assetBalances   map[assetBalanceKey]assetBalance
-	sponsorships    map[crypto.Digest]diffSponsorship
-	newAssetsInfo   map[crypto.Digest]diffNewAssetInfo
-	oldAssetsInfo   map[crypto.Digest]diffOldAssetInfo
+	sponsorships    map[proto.AssetID]diffSponsorship
+	newAssetsInfo   map[proto.AssetID]diffNewAssetInfo
+	oldAssetsInfo   map[proto.AssetID]diffOldAssetInfo
 	leases          map[crypto.Digest]lease
 	changedAccounts changedAccounts
 }
@@ -209,9 +210,9 @@ func newDiffState(state types.SmartState) diffState {
 		data:            map[dataEntryKey]proto.DataEntry{},
 		wavesBalances:   map[proto.AddressID]diffBalance{},
 		assetBalances:   map[assetBalanceKey]assetBalance{},
-		sponsorships:    map[crypto.Digest]diffSponsorship{},
-		newAssetsInfo:   map[crypto.Digest]diffNewAssetInfo{},
-		oldAssetsInfo:   map[crypto.Digest]diffOldAssetInfo{},
+		sponsorships:    map[proto.AssetID]diffSponsorship{},
+		newAssetsInfo:   map[proto.AssetID]diffNewAssetInfo{},
+		oldAssetsInfo:   map[proto.AssetID]diffOldAssetInfo{},
 		leases:          map[crypto.Digest]lease{},
 		changedAccounts: make(changedAccounts),
 	}
@@ -288,14 +289,16 @@ func (ds *diffState) addAssetBalance(key assetBalanceKey, amount int64) error {
 	return errors.New("diff not found")
 }
 
-func (ds *diffState) reissueNewAsset(assetID crypto.Digest, quantity int64, reissuable bool) {
+func (ds *diffState) reissueNewAsset(asset crypto.Digest, quantity int64, reissuable bool) {
+	assetID := proto.AssetIDFromDigest(asset)
 	assetInfo := ds.newAssetsInfo[assetID]
 	assetInfo.reissuable = reissuable
 	assetInfo.quantity += quantity
 	ds.newAssetsInfo[assetID] = assetInfo
 }
 
-func (ds *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
+func (ds *diffState) burnNewAsset(asset crypto.Digest, quantity int64) {
+	assetID := proto.AssetIDFromDigest(asset)
 	assetInfo := ds.newAssetsInfo[assetID]
 	assetInfo.quantity -= quantity
 	ds.newAssetsInfo[assetID] = assetInfo
@@ -433,25 +436,35 @@ func (ds *diffState) putDataEntry(entry proto.DataEntry, address proto.WavesAddr
 	ds.data[k] = entry
 }
 
-func (ds *diffState) findSponsorship(assetID crypto.Digest) *int64 {
-	if sponsorship, ok := ds.sponsorships[assetID]; ok {
-		return &sponsorship.minFee
-	}
-	return nil
+func (ds *diffState) findSponsorshipByAssetID(assetID proto.AssetID) (diffSponsorship, bool) {
+	sponsorship, ok := ds.sponsorships[assetID]
+	return sponsorship, ok
 }
 
-func (ds *diffState) findNewAsset(assetID crypto.Digest) *diffNewAssetInfo {
+func (ds *diffState) setSponsorshipByAssetID(assetID proto.AssetID, sponsorship diffSponsorship) {
+	ds.sponsorships[assetID] = sponsorship
+}
+
+func (ds *diffState) findNewAssetByAssetID(assetID proto.AssetID) *diffNewAssetInfo {
 	if newAsset, ok := ds.newAssetsInfo[assetID]; ok {
 		return &newAsset
 	}
 	return nil
 }
 
-func (ds *diffState) findOldAsset(assetID crypto.Digest) *diffOldAssetInfo {
+func (ds *diffState) setNewAssetByAssetID(assetID proto.AssetID, info diffNewAssetInfo) {
+	ds.newAssetsInfo[assetID] = info
+}
+
+func (ds *diffState) findOldAssetByAssetID(assetID proto.AssetID) *diffOldAssetInfo {
 	if oldAsset, ok := ds.oldAssetsInfo[assetID]; ok {
 		return &oldAsset
 	}
 	return nil
+}
+
+func (ds *diffState) setOldAssetByAssetID(assetID proto.AssetID, info diffOldAssetInfo) {
+	ds.oldAssetsInfo[assetID] = info
 }
 
 func (ds *diffState) wavesTransfer(sender, recipient proto.AddressID, amount int64) error {

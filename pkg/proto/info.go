@@ -98,16 +98,20 @@ func (i *FullAssetInfo) ToProtobuf(scheme Scheme) (*g.AssetInfoResponse, error) 
 	return res, nil
 }
 
+type AssetConstInfo struct {
+	ID          crypto.Digest
+	IssueHeight Height
+	Issuer      WavesAddress
+	Decimals    uint8
+}
+
 type AssetInfo struct {
-	ID              crypto.Digest
+	AssetConstInfo
 	Quantity        uint64
-	Decimals        byte
-	Issuer          WavesAddress
 	IssuerPublicKey crypto.PublicKey
 	Reissuable      bool
 	Scripted        bool
 	Sponsored       bool
-	IssueHeight     Height
 }
 
 func (ai *AssetInfo) ToProtobuf() *g.AssetInfoResponse {

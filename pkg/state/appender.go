@@ -19,10 +19,10 @@ type blockInfoProvider interface {
 }
 
 type txAppender struct {
-	sc      *scriptCaller
-	ia      *invokeApplier
-	ethInfo *ethInfo
-	rw      *blockReadWriter
+	sc                *scriptCaller
+	ia                *invokeApplier
+	ethTxKindResolver proto.EthereumTransactionKindResolver
+	rw                *blockReadWriter
 
 	blockInfoProvider blockInfoProvider
 
@@ -92,7 +92,7 @@ func newTxAppender(
 		return nil, err
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
-	ethereumInfo := newEthInfo(stor, settings)
+	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
 		ia:                ia,
@@ -108,7 +108,7 @@ func newTxAppender(
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
 		buildApiData:      buildApiData,
-		ethInfo:           ethereumInfo,
+		ethTxKindResolver: ethKindResolver,
 	}, nil
 }
 
@@ -220,32 +220,34 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 }
 
 // This function is used for script validation of transaction that can't fail.
-func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScripted bool, params *appendTxParams) (uint64, error) {
+func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScripted bool, params *appendTxParams) (uint64, txCheckerData, error) {
 	scriptsRuns := uint64(0)
 	if accountScripted {
 		// Check script.
 		if err := a.sc.callAccountScriptWithTx(tx, params); err != nil {
-			return 0, errs.Extend(err, "callAccountScriptWithTx")
+			return 0, txCheckerData{}, errs.Extend(err, "callAccountScriptWithTx")
 		}
 		scriptsRuns++
 	}
 	// Check against state.
-	txSmartAssets, err := a.txHandler.checkTx(tx, params.checkerInfo)
+	checkerData, err := a.txHandler.checkTx(tx, params.checkerInfo)
 	if err != nil {
-		return 0, err
+		return 0, txCheckerData{}, err
 	}
+	txSmartAssets := checkerData.smartAssets
+
 	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
-		return 0, errs.Extend(err, "isActivated")
+		return 0, txCheckerData{}, errs.Extend(err, "isActivated")
 	}
 	for _, smartAsset := range txSmartAssets {
 		// Check smart asset's script.
 		r, err := a.sc.callAssetScript(tx, smartAsset, params)
 		if err != nil {
-			return 0, errs.Extend(err, "callAssetScript")
+			return 0, txCheckerData{}, errs.Extend(err, "callAssetScript")
 		}
 		if !r.Result() {
-			return 0, errs.Extend(errors.New("negative asset script result"), "callAssetScript")
+			return 0, txCheckerData{}, errs.Extend(errors.New("negative asset script result"), "callAssetScript")
 		}
 		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
 			// Exception: don't count before Ride4DApps activation.
@@ -253,7 +255,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 		}
 		scriptsRuns++
 	}
-	return scriptsRuns, nil
+	return scriptsRuns, checkerData, nil
 }
 
 func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockID) error {
@@ -337,11 +339,12 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	// Perform state changes.
 	if res.status {
 		// We only perform tx in case it has not failed.
-		performerInfo := &performerInfo{
-			height:              params.checkerInfo.height,
-			stateActionsCounter: params.stateActionsCounterInBlock,
-			blockID:             params.checkerInfo.blockID,
-		}
+		performerInfo := newPerformerInfo(
+			params.checkerInfo.height,
+			params.stateActionsCounterInBlock,
+			params.checkerInfo.blockID,
+			res.checkerData,
+		)
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
@@ -421,7 +424,7 @@ func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fal
 
 func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) (*applicationResult, error) {
 	// Execute transaction's scripts, check against state.
-	txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
+	txScriptsRuns, checkerData, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +433,7 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 	if err != nil {
 		return nil, errs.Extend(err, "create transaction diff")
 	}
-	return &applicationResult{true, txScriptsRuns, txChanges}, nil
+	return newApplicationResult(true, txScriptsRuns, txChanges, checkerData), nil
 }
 
 func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
@@ -488,10 +491,12 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
+		kind, err := a.ethTxKindResolver.ResolveTxKind(ethTx, params.blockRewardDistributionActivated)
 		if err != nil {
 			return errors.Wrap(err, "failed to guess ethereum transaction kind")
 		}
+		ethTx.TxKind = kind
+
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
@@ -667,6 +672,11 @@ type applicationResult struct {
 	status           bool
 	totalScriptsRuns uint64
 	changes          txBalanceChanges
+	checkerData      txCheckerData
+}
+
+func newApplicationResult(status bool, totalScriptsRuns uint64, changes txBalanceChanges, checkerData txCheckerData) *applicationResult {
+	return &applicationResult{status, totalScriptsRuns, changes, checkerData} // all fields must be initialized
 }
 
 func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
@@ -775,10 +785,12 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		}
 	}
 	// Validate transaction, orders and extract smart assets.
-	txSmartAssets, err := a.txHandler.checkTx(tx, info.checkerInfo)
+	checkerData, err := a.txHandler.checkTx(tx, info.checkerInfo)
 	if err != nil {
 		return nil, err
 	}
+	txSmartAssets := checkerData.smartAssets
+
 	// Count total scripts runs.
 	scriptsRuns += uint64(len(txSmartAssets))
 	scriptsRuns, err = a.countExchangeScriptsRuns(scriptsRuns)
@@ -803,7 +815,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		}
 		if err != nil || !res.Result() {
 			// Smart asset script failed, return failed diff.
-			return &applicationResult{false, scriptsRuns, failedChanges}, nil
+			return newApplicationResult(false, scriptsRuns, failedChanges, checkerData), nil
 		}
 	}
 	if info.acceptFailed {
@@ -811,11 +823,11 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		if err := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor); err != nil {
 			// Not enough balance for successful diff = fail, return failed diff.
 			// We only check successful diff for negative balances, because failed diff is already checked in checkTxFees().
-			return &applicationResult{false, scriptsRuns, failedChanges}, nil
+			return newApplicationResult(false, scriptsRuns, failedChanges, checkerData), nil
 		}
 	}
 	// Return successful diff.
-	return &applicationResult{true, scriptsRuns, successfulChanges}, nil
+	return newApplicationResult(true, scriptsRuns, successfulChanges, checkerData), nil
 }
 
 func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
