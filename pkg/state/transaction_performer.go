@@ -16,6 +16,10 @@ type performerInfo struct {
 	checkerData         txCheckerData
 }
 
+func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter, blockID proto.BlockID, checkerData txCheckerData) *performerInfo {
+	return &performerInfo{height, stateActionsCounter, blockID, checkerData} // all fields must be initialized
+}
+
 type transactionPerformer struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
