@@ -263,8 +263,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	invokeExpressionActivated := env.invokeExpressionActivated()
-	if invokeExpressionActivated { // Check payments result balances here after invoke expression activation.
+	txStateSnapshotsActivated := env.txStateSnapshotsActivated()
+	if txStateSnapshotsActivated { // Check payments result balances here AFTER invoke expression activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -298,7 +298,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
 	}
 
-	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
+	if !txStateSnapshotsActivated { // Check payments result balances here BEFORE transaction state snapshot activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}

@@ -432,7 +432,7 @@ type environment interface {
 	rideV6Activated() bool
 	consensusImprovementsActivated() bool
 	blockRewardDistributionActivated() bool
-	invokeExpressionActivated() bool // TODO: check naming
+	txStateSnapshotsActivated() bool // TODO: check naming
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 	isProtobufTx() bool

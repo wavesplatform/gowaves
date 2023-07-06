@@ -47,9 +47,6 @@ var _ environment = &mockRideEnvironment{}
 //			invocationFunc: func() rideType {
 //				panic("mock out the invocation method")
 //			},
-//			invokeExpressionActivatedFunc: func() bool {
-//				panic("mock out the invokeExpressionActivated method")
-//			},
 //			isProtobufTxFunc: func() bool {
 //				panic("mock out the isProtobufTx method")
 //			},
@@ -92,6 +89,9 @@ var _ environment = &mockRideEnvironment{}
 //			txIDFunc: func() rideType {
 //				panic("mock out the txID method")
 //			},
+//			txStateSnapshotsActivatedFunc: func() bool {
+//				panic("mock out the txStateSnapshotsActivated method")
+//			},
 //			validateInternalPaymentsFunc: func() bool {
 //				panic("mock out the validateInternalPayments method")
 //			},
@@ -128,9 +128,6 @@ type mockRideEnvironment struct {
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideType
-
-	// invokeExpressionActivatedFunc mocks the invokeExpressionActivated method.
-	invokeExpressionActivatedFunc func() bool
 
 	// isProtobufTxFunc mocks the isProtobufTx method.
 	isProtobufTxFunc func() bool
@@ -174,6 +171,9 @@ type mockRideEnvironment struct {
 	// txIDFunc mocks the txID method.
 	txIDFunc func() rideType
 
+	// txStateSnapshotsActivatedFunc mocks the txStateSnapshotsActivated method.
+	txStateSnapshotsActivatedFunc func() bool
+
 	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
 	validateInternalPaymentsFunc func() bool
 
@@ -207,9 +207,6 @@ type mockRideEnvironment struct {
 		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
-		}
-		// invokeExpressionActivated holds details about calls to the invokeExpressionActivated method.
-		invokeExpressionActivated []struct {
 		}
 		// isProtobufTx holds details about calls to the isProtobufTx method.
 		isProtobufTx []struct {
@@ -263,6 +260,9 @@ type mockRideEnvironment struct {
 		// txID holds details about calls to the txID method.
 		txID []struct {
 		}
+		// txStateSnapshotsActivated holds details about calls to the txStateSnapshotsActivated method.
+		txStateSnapshotsActivated []struct {
+		}
 		// validateInternalPayments holds details about calls to the validateInternalPayments method.
 		validateInternalPayments []struct {
 		}
@@ -276,7 +276,6 @@ type mockRideEnvironment struct {
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
-	lockinvokeExpressionActivated        sync.RWMutex
 	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
@@ -291,6 +290,7 @@ type mockRideEnvironment struct {
 	locktimestamp                        sync.RWMutex
 	locktransaction                      sync.RWMutex
 	locktxID                             sync.RWMutex
+	locktxStateSnapshotsActivated        sync.RWMutex
 	lockvalidateInternalPayments         sync.RWMutex
 }
 
@@ -539,33 +539,6 @@ func (mock *mockRideEnvironment) invocationCalls() []struct {
 	mock.lockinvocation.RLock()
 	calls = mock.calls.invocation
 	mock.lockinvocation.RUnlock()
-	return calls
-}
-
-// invokeExpressionActivated calls invokeExpressionActivatedFunc.
-func (mock *mockRideEnvironment) invokeExpressionActivated() bool {
-	if mock.invokeExpressionActivatedFunc == nil {
-		panic("mockRideEnvironment.invokeExpressionActivatedFunc: method is nil but environment.invokeExpressionActivated was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockinvokeExpressionActivated.Lock()
-	mock.calls.invokeExpressionActivated = append(mock.calls.invokeExpressionActivated, callInfo)
-	mock.lockinvokeExpressionActivated.Unlock()
-	return mock.invokeExpressionActivatedFunc()
-}
-
-// invokeExpressionActivatedCalls gets all the calls that were made to invokeExpressionActivated.
-// Check the length with:
-//
-//	len(mockedenvironment.invokeExpressionActivatedCalls())
-func (mock *mockRideEnvironment) invokeExpressionActivatedCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockinvokeExpressionActivated.RLock()
-	calls = mock.calls.invokeExpressionActivated
-	mock.lockinvokeExpressionActivated.RUnlock()
 	return calls
 }
 
@@ -968,6 +941,33 @@ func (mock *mockRideEnvironment) txIDCalls() []struct {
 	mock.locktxID.RLock()
 	calls = mock.calls.txID
 	mock.locktxID.RUnlock()
+	return calls
+}
+
+// txStateSnapshotsActivated calls txStateSnapshotsActivatedFunc.
+func (mock *mockRideEnvironment) txStateSnapshotsActivated() bool {
+	if mock.txStateSnapshotsActivatedFunc == nil {
+		panic("mockRideEnvironment.txStateSnapshotsActivatedFunc: method is nil but environment.txStateSnapshotsActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locktxStateSnapshotsActivated.Lock()
+	mock.calls.txStateSnapshotsActivated = append(mock.calls.txStateSnapshotsActivated, callInfo)
+	mock.locktxStateSnapshotsActivated.Unlock()
+	return mock.txStateSnapshotsActivatedFunc()
+}
+
+// txStateSnapshotsActivatedCalls gets all the calls that were made to txStateSnapshotsActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.txStateSnapshotsActivatedCalls())
+func (mock *mockRideEnvironment) txStateSnapshotsActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locktxStateSnapshotsActivated.RLock()
+	calls = mock.calls.txStateSnapshotsActivated
+	mock.locktxStateSnapshotsActivated.RUnlock()
 	return calls
 }
 

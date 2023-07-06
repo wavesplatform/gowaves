@@ -405,7 +405,7 @@ type appendTxParams struct {
 	rideV6Activated                  bool
 	consensusImprovementsActivated   bool
 	blockRewardDistributionActivated bool
-	invokeExpressionActivated        bool // TODO: check feature naming
+	txStateSnapshotActivated         bool // TODO: check feature naming
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	stateActionsCounterInBlock       *proto.StateActionsCounter
 }
@@ -617,7 +617,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
 	if err != nil {
 		return err
 	}
@@ -635,7 +635,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			rideV6Activated:                  rideV6Activated,
 			consensusImprovementsActivated:   consensusImprovementsActivated,
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			invokeExpressionActivated:        invokeExpressionActivated,
+			txStateSnapshotActivated:         txStateSnapshotActivated,
 			validatingUtx:                    false,
 			stateActionsCounterInBlock:       stateActionsCounterInBlock,
 		}
@@ -892,7 +892,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
@@ -907,7 +907,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV6Activated:                  rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		invokeExpressionActivated:        invokeExpressionActivated,
+		txStateSnapshotActivated:         txStateSnapshotActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 		stateActionsCounterInBlock: new(proto.StateActionsCounter),

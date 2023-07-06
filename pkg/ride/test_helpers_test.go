@@ -143,7 +143,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		blockRewardDistributionActivatedFunc: func() bool {
 			return false
 		},
-		invokeExpressionActivatedFunc: func() bool {
+		txStateSnapshotsActivatedFunc: func() bool {
 			return false
 		},
 	}
@@ -441,7 +441,7 @@ func (e *testEnv) withBlockRewardDistribution() *testEnv {
 }
 
 func (e *testEnv) withInvokeExpressionActivated() *testEnv {
-	e.me.invokeExpressionActivatedFunc = func() bool {
+	e.me.txStateSnapshotsActivatedFunc = func() bool {
 		return true
 	}
 	return e
