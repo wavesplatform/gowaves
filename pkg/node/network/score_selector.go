@@ -3,7 +3,8 @@ package network
 import (
 	"container/heap"
 	"fmt"
-	"math/rand"
+
+	"golang.org/x/exp/rand"
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
