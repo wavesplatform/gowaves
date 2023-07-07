@@ -23,13 +23,14 @@ jobs:
           cache: false # don't save & restore build caches because golangci-lint action does it internally
       - name: Get dependencies
         run: go mod vendor
-      - name: golangci-lint
+      - name: golangci-lint-soft
         uses: golangci/golangci-lint-action@v2
         with:
           version: latest
           args: -c .golangci.yml
       # Strict linter configuration, only checking new code from pull requests.
-      - run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master --out-format=github-actions
+      - name: golangci-lint-strict
+        run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master --out-format=github-actions
 
   build:
     name: ubuntu
