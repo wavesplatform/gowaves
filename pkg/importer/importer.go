@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -136,7 +137,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 	return nil
 }
 
-func CheckBalances(st State, balancesPath string) (err error) {
+func CheckBalances(st State, balancesPath string) error {
 	balances, err := os.Open(filepath.Clean(balancesPath))
 	if err != nil {
 		return errors.Wrapf(err, "failed to open balances file %q", balancesPath)

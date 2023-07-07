@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
@@ -20,21 +19,24 @@ import (
 )
 
 var (
-	_digest                             = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
-	_asset                              = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
-	_empty                              = rideByteVector(nil)
-	transactionToObjectWithSchemeTestFn = func(ver ast.LibraryVersion, scheme proto.Scheme, tx proto.Transaction) (rideType, error) {
-		return transactionToObject(ver, scheme, false, tx)
-	}
-	transactionToObjectTestFn = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, proto.TestNetScheme, tx)
-	}
+	_digest = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
+	_asset  = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
+	_empty  = rideByteVector(nil)
 )
+
+func transactionToObjectTestFn(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+	return transactionToObjectWithSchemeTestFn(t, ver, proto.TestNetScheme, tx)
+}
+
+func transactionToObjectWithSchemeTestFn(t *testing.T, ver ast.LibraryVersion, scheme proto.Scheme, tx proto.Transaction) (rideType, error) {
+	env := newTestEnv(t).withLibVersion(ver).withScheme(scheme).toEnv()
+	return transactionToObject(env, tx)
+}
 
 type TransferWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.TransferWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *TransferWithSigTestSuite) SetupTest() {
@@ -44,7 +46,7 @@ func (a *TransferWithSigTestSuite) SetupTest() {
 
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = _asset
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
@@ -52,7 +54,7 @@ func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 }
 
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Absence() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
@@ -60,7 +62,7 @@ func (a *TransferWithSigTestSuite) Test_feeAssetId_Absence() {
 }
 
 func (a *TransferWithSigTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -69,7 +71,7 @@ func (a *TransferWithSigTestSuite) Test_amount() {
 
 func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = _asset
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -77,7 +79,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 }
 
 func (a *TransferWithSigTestSuite) Test_assetId_absence() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -85,7 +87,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_absence() {
 }
 
 func (a *TransferWithSigTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -93,7 +95,7 @@ func (a *TransferWithSigTestSuite) Test_recipient() {
 }
 
 func (a *TransferWithSigTestSuite) Test_attachment() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	attachmentBytes, err := a.tx.Attachment.Bytes()
 	a.NoError(err)
@@ -103,7 +105,7 @@ func (a *TransferWithSigTestSuite) Test_attachment() {
 }
 
 func (a *TransferWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -111,7 +113,7 @@ func (a *TransferWithSigTestSuite) Test_id() {
 }
 
 func (a *TransferWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -119,7 +121,7 @@ func (a *TransferWithSigTestSuite) Test_fee() {
 }
 
 func (a *TransferWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -127,7 +129,7 @@ func (a *TransferWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *TransferWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -135,7 +137,7 @@ func (a *TransferWithSigTestSuite) Test_version() {
 }
 
 func (a *TransferWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -145,7 +147,7 @@ func (a *TransferWithSigTestSuite) Test_sender() {
 }
 
 func (a *TransferWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -154,7 +156,7 @@ func (a *TransferWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -163,7 +165,7 @@ func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *TransferWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -171,7 +173,7 @@ func (a *TransferWithSigTestSuite) Test_proofs() {
 }
 
 func (a *TransferWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(transferTransactionTypeName, rs.instanceOf())
 }
@@ -183,7 +185,7 @@ func TestNewVariablesFromTransferWithSig(t *testing.T) {
 type TransferWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.TransferWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *TransferWithProofsTestSuite) SetupTest() {
@@ -193,7 +195,7 @@ func (a *TransferWithProofsTestSuite) SetupTest() {
 
 func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = _asset
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
@@ -201,7 +203,7 @@ func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_feeAssetId_Absence() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
 	a.NoError(err)
@@ -209,7 +211,7 @@ func (a *TransferWithProofsTestSuite) Test_feeAssetId_Absence() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -218,7 +220,7 @@ func (a *TransferWithProofsTestSuite) Test_amount() {
 
 func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = _asset
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -226,7 +228,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -234,7 +236,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -242,7 +244,7 @@ func (a *TransferWithProofsTestSuite) Test_recipient() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_attachment() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	attachmentBytes, err := a.tx.Attachment.Bytes()
 	a.NoError(err)
@@ -252,7 +254,7 @@ func (a *TransferWithProofsTestSuite) Test_attachment() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -260,7 +262,7 @@ func (a *TransferWithProofsTestSuite) Test_id() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -268,7 +270,7 @@ func (a *TransferWithProofsTestSuite) Test_fee() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -276,7 +278,7 @@ func (a *TransferWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -284,7 +286,7 @@ func (a *TransferWithProofsTestSuite) Test_version() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -294,7 +296,7 @@ func (a *TransferWithProofsTestSuite) Test_sender() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -303,7 +305,7 @@ func (a *TransferWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -313,7 +315,7 @@ func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -321,7 +323,7 @@ func (a *TransferWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(transferTransactionTypeName, rs.instanceOf())
 }
@@ -333,7 +335,7 @@ func TestNewVariablesFromTransferWithProofs(t *testing.T) {
 type GenesisTestSuite struct {
 	suite.Suite
 	tx *proto.Genesis
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *GenesisTestSuite) SetupTest() {
@@ -346,7 +348,7 @@ func (a *GenesisTestSuite) SetupTest() {
 }
 
 func (a *GenesisTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -354,7 +356,7 @@ func (a *GenesisTestSuite) Test_amount() {
 }
 
 func (a *GenesisTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -362,7 +364,7 @@ func (a *GenesisTestSuite) Test_recipient() {
 }
 
 func (a *GenesisTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := a.tx.GetID(proto.TestNetScheme)
 	a.NoError(err)
@@ -372,7 +374,7 @@ func (a *GenesisTestSuite) Test_id() {
 }
 
 func (a *GenesisTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -380,7 +382,7 @@ func (a *GenesisTestSuite) Test_fee() {
 }
 
 func (a *GenesisTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -388,7 +390,7 @@ func (a *GenesisTestSuite) Test_timestamp() {
 }
 
 func (a *GenesisTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -402,7 +404,7 @@ func TestNewVariablesFromGenesis(t *testing.T) {
 type PaymentTestSuite struct {
 	suite.Suite
 	tx *proto.Payment
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *PaymentTestSuite) SetupTest() {
@@ -415,7 +417,7 @@ func (a *PaymentTestSuite) SetupTest() {
 }
 
 func (a *PaymentTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -423,7 +425,7 @@ func (a *PaymentTestSuite) Test_amount() {
 }
 
 func (a *PaymentTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -431,7 +433,7 @@ func (a *PaymentTestSuite) Test_recipient() {
 }
 
 func (a *PaymentTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := a.tx.GetID(proto.TestNetScheme)
 	a.NoError(err)
@@ -441,7 +443,7 @@ func (a *PaymentTestSuite) Test_id() {
 }
 
 func (a *PaymentTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -449,7 +451,7 @@ func (a *PaymentTestSuite) Test_fee() {
 }
 
 func (a *PaymentTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -457,7 +459,7 @@ func (a *PaymentTestSuite) Test_timestamp() {
 }
 
 func (a *PaymentTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -465,7 +467,7 @@ func (a *PaymentTestSuite) Test_version() {
 }
 
 func (a *PaymentTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -475,7 +477,7 @@ func (a *PaymentTestSuite) Test_sender() {
 }
 
 func (a *PaymentTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -484,7 +486,7 @@ func (a *PaymentTestSuite) Test_senderPublicKey() {
 
 func (a *PaymentTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -493,7 +495,7 @@ func (a *PaymentTestSuite) Test_bodyBytes() {
 }
 
 func (a *PaymentTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -501,7 +503,7 @@ func (a *PaymentTestSuite) Test_proofs() {
 }
 
 func (a *PaymentTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(paymentTransactionTypeName, rs.instanceOf())
 }
@@ -513,7 +515,7 @@ func TestNewVariablesFromPayment(t *testing.T) {
 type ReissueWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.ReissueWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *ReissueWithSigTestSuite) SetupTest() {
@@ -522,7 +524,7 @@ func (a *ReissueWithSigTestSuite) SetupTest() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -530,7 +532,7 @@ func (a *ReissueWithSigTestSuite) Test_quantity() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -538,7 +540,7 @@ func (a *ReissueWithSigTestSuite) Test_assetId() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_reissuable() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	reissuable, err := rs.get(reissuableField)
 	a.NoError(err)
@@ -546,7 +548,7 @@ func (a *ReissueWithSigTestSuite) Test_reissuable() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -555,7 +557,7 @@ func (a *ReissueWithSigTestSuite) Test_id() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -563,7 +565,7 @@ func (a *ReissueWithSigTestSuite) Test_fee() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -571,7 +573,7 @@ func (a *ReissueWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -579,7 +581,7 @@ func (a *ReissueWithSigTestSuite) Test_version() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -589,7 +591,7 @@ func (a *ReissueWithSigTestSuite) Test_sender() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -598,7 +600,7 @@ func (a *ReissueWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -607,7 +609,7 @@ func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -615,7 +617,7 @@ func (a *ReissueWithSigTestSuite) Test_proofs() {
 }
 
 func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(reissueTransactionTypeName, rs.instanceOf())
 }
@@ -629,19 +631,19 @@ type ReissueWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.ReissueWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *ReissueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.ReissueWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *ReissueWithProofsTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -649,7 +651,7 @@ func (a *ReissueWithProofsTestSuite) Test_quantity() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -657,7 +659,7 @@ func (a *ReissueWithProofsTestSuite) Test_assetId() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_reissuable() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	reissuable, err := rs.get(reissuableField)
 	a.NoError(err)
@@ -665,7 +667,7 @@ func (a *ReissueWithProofsTestSuite) Test_reissuable() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -674,7 +676,7 @@ func (a *ReissueWithProofsTestSuite) Test_id() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -682,7 +684,7 @@ func (a *ReissueWithProofsTestSuite) Test_fee() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -690,7 +692,7 @@ func (a *ReissueWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -698,7 +700,7 @@ func (a *ReissueWithProofsTestSuite) Test_version() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -708,7 +710,7 @@ func (a *ReissueWithProofsTestSuite) Test_sender() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -717,7 +719,7 @@ func (a *ReissueWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -727,7 +729,7 @@ func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -735,7 +737,7 @@ func (a *ReissueWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(reissueTransactionTypeName, rs.instanceOf())
 }
@@ -748,7 +750,7 @@ func TestNewVariablesFromReissueWithProofs(t *testing.T) {
 type BurnWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.BurnWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *BurnWithSigTestSuite) SetupTest() {
@@ -757,7 +759,7 @@ func (a *BurnWithSigTestSuite) SetupTest() {
 }
 
 func (a *BurnWithSigTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -765,7 +767,7 @@ func (a *BurnWithSigTestSuite) Test_quantity() {
 }
 
 func (a *BurnWithSigTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -773,7 +775,7 @@ func (a *BurnWithSigTestSuite) Test_assetId() {
 }
 
 func (a *BurnWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -781,7 +783,7 @@ func (a *BurnWithSigTestSuite) Test_id() {
 }
 
 func (a *BurnWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -789,7 +791,7 @@ func (a *BurnWithSigTestSuite) Test_fee() {
 }
 
 func (a *BurnWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -797,7 +799,7 @@ func (a *BurnWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *BurnWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -805,7 +807,7 @@ func (a *BurnWithSigTestSuite) Test_version() {
 }
 
 func (a *BurnWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -815,7 +817,7 @@ func (a *BurnWithSigTestSuite) Test_sender() {
 }
 
 func (a *BurnWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -824,7 +826,7 @@ func (a *BurnWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -833,7 +835,7 @@ func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *BurnWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -841,7 +843,7 @@ func (a *BurnWithSigTestSuite) Test_proofs() {
 }
 
 func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(burnTransactionTypeName, rs.instanceOf())
 }
@@ -855,19 +857,19 @@ type BurnWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.BurnWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *BurnWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.BurnWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *BurnWithProofsTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -875,7 +877,7 @@ func (a *BurnWithProofsTestSuite) Test_quantity() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -883,7 +885,7 @@ func (a *BurnWithProofsTestSuite) Test_assetId() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -891,7 +893,7 @@ func (a *BurnWithProofsTestSuite) Test_id() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -899,7 +901,7 @@ func (a *BurnWithProofsTestSuite) Test_fee() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -907,7 +909,7 @@ func (a *BurnWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -915,7 +917,7 @@ func (a *BurnWithProofsTestSuite) Test_version() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -925,7 +927,7 @@ func (a *BurnWithProofsTestSuite) Test_sender() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -934,7 +936,7 @@ func (a *BurnWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -944,7 +946,7 @@ func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -952,7 +954,7 @@ func (a *BurnWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(burnTransactionTypeName, rs.instanceOf())
 }
@@ -965,7 +967,7 @@ func TestNewVariablesFromBurnWithProofs(t *testing.T) {
 type MassTransferWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.MassTransferWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *MassTransferWithProofsTestSuite) SetupTest() {
@@ -975,7 +977,7 @@ func (a *MassTransferWithProofsTestSuite) SetupTest() {
 
 func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Asset = _asset
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -984,7 +986,7 @@ func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
 
 func (a *MassTransferWithProofsTestSuite) Test_assetId_absence() {
 	a.tx.Asset = proto.OptionalAsset{}
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -992,7 +994,7 @@ func (a *MassTransferWithProofsTestSuite) Test_assetId_absence() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_totalAmount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	totalAmount, err := rs.get(totalAmountField)
 	a.NoError(err)
@@ -1000,7 +1002,7 @@ func (a *MassTransferWithProofsTestSuite) Test_totalAmount() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_transfers() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 
 	m := newRideTransfer(
@@ -1013,7 +1015,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	transfersCount, err := rs.get(transferCountField)
 	a.NoError(err)
@@ -1021,7 +1023,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_attachment() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	attachmentBytes, err := a.tx.Attachment.Bytes()
 	a.NoError(err)
@@ -1031,7 +1033,7 @@ func (a *MassTransferWithProofsTestSuite) Test_attachment() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -1039,7 +1041,7 @@ func (a *MassTransferWithProofsTestSuite) Test_id() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -1047,7 +1049,7 @@ func (a *MassTransferWithProofsTestSuite) Test_fee() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -1055,7 +1057,7 @@ func (a *MassTransferWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -1063,7 +1065,7 @@ func (a *MassTransferWithProofsTestSuite) Test_version() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -1073,7 +1075,7 @@ func (a *MassTransferWithProofsTestSuite) Test_sender() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -1082,7 +1084,7 @@ func (a *MassTransferWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -1092,7 +1094,7 @@ func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -1100,7 +1102,7 @@ func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(massTransferTransactionTypeName, rs.instanceOf())
 }
@@ -1113,7 +1115,7 @@ func TestNewVariablesFromMassTransferWithProofs(t *testing.T) {
 type ExchangeWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.ExchangeWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *ExchangeWithSigTestSuite) SetupTest() {
@@ -1122,7 +1124,7 @@ func (a *ExchangeWithSigTestSuite) SetupTest() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_buyOrder() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	buyOrder, err := rs.get(buyOrderField)
 	a.NoError(err)
@@ -1130,7 +1132,7 @@ func (a *ExchangeWithSigTestSuite) Test_buyOrder() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_sellOrder() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	sellOrder, err := rs.get(sellOrderField)
 	a.NoError(err)
@@ -1138,7 +1140,7 @@ func (a *ExchangeWithSigTestSuite) Test_sellOrder() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_price() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	price, err := rs.get(priceField)
 	a.NoError(err)
@@ -1146,7 +1148,7 @@ func (a *ExchangeWithSigTestSuite) Test_price() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -1154,7 +1156,7 @@ func (a *ExchangeWithSigTestSuite) Test_amount() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_buyMatcherFee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	buyMatcherFee, err := rs.get(buyMatcherFeeField)
 	a.NoError(err)
@@ -1162,7 +1164,7 @@ func (a *ExchangeWithSigTestSuite) Test_buyMatcherFee() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_sellMatcherFee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	sellMatcherFee, err := rs.get(sellMatcherFeeField)
 	a.NoError(err)
@@ -1170,7 +1172,7 @@ func (a *ExchangeWithSigTestSuite) Test_sellMatcherFee() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -1178,7 +1180,7 @@ func (a *ExchangeWithSigTestSuite) Test_id() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -1186,7 +1188,7 @@ func (a *ExchangeWithSigTestSuite) Test_fee() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -1194,7 +1196,7 @@ func (a *ExchangeWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -1202,7 +1204,7 @@ func (a *ExchangeWithSigTestSuite) Test_version() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -1211,7 +1213,7 @@ func (a *ExchangeWithSigTestSuite) Test_sender() {
 	a.Equal(rideAddress(addr), sender)
 }
 func (a *ExchangeWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -1220,7 +1222,7 @@ func (a *ExchangeWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -1229,7 +1231,7 @@ func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -1237,7 +1239,7 @@ func (a *ExchangeWithSigTestSuite) Test_proofs() {
 }
 
 func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(exchangeTransactionTypeName, rs.instanceOf())
 }
@@ -1250,7 +1252,7 @@ func TestNewVariablesFromExchangeWithSig(t *testing.T) {
 type ExchangeWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.ExchangeWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *ExchangeWithProofsTestSuite) SetupTest() {
@@ -1259,7 +1261,7 @@ func (a *ExchangeWithProofsTestSuite) SetupTest() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_price() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	price, err := rs.get(priceField)
 	a.NoError(err)
@@ -1267,7 +1269,7 @@ func (a *ExchangeWithProofsTestSuite) Test_price() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_buyOrder() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	buyOrder, err := rs.get(buyOrderField)
 	a.NoError(err)
@@ -1275,7 +1277,7 @@ func (a *ExchangeWithProofsTestSuite) Test_buyOrder() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_sellOrder() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	sellOrder, err := rs.get(sellOrderField)
 	a.NoError(err)
@@ -1283,7 +1285,7 @@ func (a *ExchangeWithProofsTestSuite) Test_sellOrder() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -1291,7 +1293,7 @@ func (a *ExchangeWithProofsTestSuite) Test_amount() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_buyMatcherFee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	buyMatcherFee, err := rs.get(buyMatcherFeeField)
 	a.NoError(err)
@@ -1299,7 +1301,7 @@ func (a *ExchangeWithProofsTestSuite) Test_buyMatcherFee() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_sellMatcherFee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	sellMatcherFee, err := rs.get(sellMatcherFeeField)
 	a.NoError(err)
@@ -1307,7 +1309,7 @@ func (a *ExchangeWithProofsTestSuite) Test_sellMatcherFee() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -1315,7 +1317,7 @@ func (a *ExchangeWithProofsTestSuite) Test_id() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -1323,7 +1325,7 @@ func (a *ExchangeWithProofsTestSuite) Test_fee() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -1331,7 +1333,7 @@ func (a *ExchangeWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -1339,7 +1341,7 @@ func (a *ExchangeWithProofsTestSuite) Test_version() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -1349,7 +1351,7 @@ func (a *ExchangeWithProofsTestSuite) Test_sender() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -1358,7 +1360,7 @@ func (a *ExchangeWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -1368,7 +1370,7 @@ func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -1376,7 +1378,7 @@ func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(exchangeTransactionTypeName, rs.instanceOf())
 }
@@ -1612,19 +1614,19 @@ type SetAssetScriptWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.SetAssetScriptWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.SetAssetScriptWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	script, err := rs.get(scriptField)
 	a.NoError(err)
@@ -1632,7 +1634,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -1640,7 +1642,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := a.tx.GetID(a.scheme)
 	a.NoError(err)
@@ -1650,7 +1652,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -1658,7 +1660,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_fee() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -1666,7 +1668,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -1674,7 +1676,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_version() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -1684,7 +1686,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_sender() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -1693,7 +1695,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -1703,7 +1705,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -1711,7 +1713,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(setAssetScriptTransactionTypeName, rs.instanceOf())
 }
@@ -1886,19 +1888,19 @@ type InvokeScriptWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.InvokeScriptWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *InvokeScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	dApp, err := rs.get(dAppField)
 	a.NoError(err)
@@ -1906,7 +1908,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
-	rs, err := a.f(ast.LibV3, a.tx)
+	rs, err := a.f(a.T(), ast.LibV3, a.tx)
 	a.NoError(err)
 	payment, err := rs.get(paymentField)
 	a.NoError(err)
@@ -1919,14 +1921,14 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_payment_absence() {
-	rs, err := a.f(ast.LibV4, a.tx)
+	rs, err := a.f(a.T(), ast.LibV4, a.tx)
 	a.NoError(err)
 	_, err = rs.get(paymentField)
 	a.EqualError(err, fmt.Sprintf("type '%s' has no property '%s'", invokeScriptTransactionTypeName, paymentField))
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_payments_presence() {
-	rs, err := a.f(ast.LibV4, a.tx)
+	rs, err := a.f(a.T(), ast.LibV4, a.tx)
 	a.NoError(err)
 	payments, err := rs.get(paymentsField)
 	a.NoError(err)
@@ -1939,14 +1941,14 @@ func (a *InvokeScriptWithProofsTestSuite) Test_payments_presence() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_payments_absence() {
-	rs, err := a.f(ast.LibV3, a.tx)
+	rs, err := a.f(a.T(), ast.LibV3, a.tx)
 	a.NoError(err)
 	_, err = rs.get(paymentsField)
 	a.EqualError(err, fmt.Sprintf("type '%s' has no property '%s'", invokeScriptTransactionTypeName, paymentsField))
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetId, err := rs.get(feeAssetIDField)
 	a.NoError(err)
@@ -1954,7 +1956,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_function() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	function, err := rs.get(functionField)
 	a.NoError(err)
@@ -1962,7 +1964,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_function() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_args() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	args, err := rs.get(argsField)
 	a.NoError(err)
@@ -1970,7 +1972,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_args() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, err := rs.get(idField)
 	a.NoError(err)
@@ -1978,7 +1980,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_id() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -1986,7 +1988,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_fee() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -1994,7 +1996,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2002,7 +2004,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_version() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2012,7 +2014,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_sender() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPK, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2021,7 +2023,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2031,7 +2033,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2039,7 +2041,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(invokeScriptTransactionTypeName, rs.instanceOf())
 }
@@ -2052,7 +2054,7 @@ func TestNewVariablesFromInvokeScriptWithProofs(t *testing.T) {
 type IssueWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.IssueWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *IssueWithSigTestSuite) SetupTest() {
@@ -2061,7 +2063,7 @@ func (a *IssueWithSigTestSuite) SetupTest() {
 }
 
 func (a *IssueWithSigTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -2069,7 +2071,7 @@ func (a *IssueWithSigTestSuite) Test_quantity() {
 }
 
 func (a *IssueWithSigTestSuite) Test_name() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	name, err := rs.get(nameField)
 	a.NoError(err)
@@ -2077,7 +2079,7 @@ func (a *IssueWithSigTestSuite) Test_name() {
 }
 
 func (a *IssueWithSigTestSuite) Test_description() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	description, err := rs.get(descriptionField)
 	a.NoError(err)
@@ -2085,7 +2087,7 @@ func (a *IssueWithSigTestSuite) Test_description() {
 }
 
 func (a *IssueWithSigTestSuite) Test_reissuable() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	reissuable, err := rs.get(reissuableField)
 	a.NoError(err)
@@ -2093,7 +2095,7 @@ func (a *IssueWithSigTestSuite) Test_reissuable() {
 }
 
 func (a *IssueWithSigTestSuite) Test_decimals() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	decimals, err := rs.get(decimalsField)
 	a.NoError(err)
@@ -2101,7 +2103,7 @@ func (a *IssueWithSigTestSuite) Test_decimals() {
 }
 
 func (a *IssueWithSigTestSuite) Test_script() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	script, err := rs.get(scriptField)
 	a.NoError(err)
@@ -2109,7 +2111,7 @@ func (a *IssueWithSigTestSuite) Test_script() {
 }
 
 func (a *IssueWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2118,7 +2120,7 @@ func (a *IssueWithSigTestSuite) Test_id() {
 }
 
 func (a *IssueWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2126,7 +2128,7 @@ func (a *IssueWithSigTestSuite) Test_fee() {
 }
 
 func (a *IssueWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2134,7 +2136,7 @@ func (a *IssueWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *IssueWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2142,7 +2144,7 @@ func (a *IssueWithSigTestSuite) Test_version() {
 }
 
 func (a *IssueWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2152,7 +2154,7 @@ func (a *IssueWithSigTestSuite) Test_sender() {
 }
 
 func (a *IssueWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2161,7 +2163,7 @@ func (a *IssueWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2170,7 +2172,7 @@ func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *IssueWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2178,7 +2180,7 @@ func (a *IssueWithSigTestSuite) Test_proofs() {
 }
 
 func (a *IssueWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(issueTransactionTypeName, rs.instanceOf())
 }
@@ -2191,19 +2193,19 @@ type IssueWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.IssueWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *IssueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.IssueWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *IssueWithProofsTestSuite) Test_quantity() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	quantity, err := rs.get(quantityField)
 	a.NoError(err)
@@ -2211,7 +2213,7 @@ func (a *IssueWithProofsTestSuite) Test_quantity() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_name() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	name, err := rs.get(nameField)
 	a.NoError(err)
@@ -2219,7 +2221,7 @@ func (a *IssueWithProofsTestSuite) Test_name() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_description() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	description, err := rs.get(descriptionField)
 	a.NoError(err)
@@ -2227,7 +2229,7 @@ func (a *IssueWithProofsTestSuite) Test_description() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_reissuable() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	reissuable, err := rs.get(reissuableField)
 	a.NoError(err)
@@ -2235,7 +2237,7 @@ func (a *IssueWithProofsTestSuite) Test_reissuable() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_decimals() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	decimals, err := rs.get(decimalsField)
 	a.NoError(err)
@@ -2243,7 +2245,7 @@ func (a *IssueWithProofsTestSuite) Test_decimals() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_script() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	script, err := rs.get(scriptField)
 	a.NoError(err)
@@ -2251,7 +2253,7 @@ func (a *IssueWithProofsTestSuite) Test_script() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
@@ -2260,7 +2262,7 @@ func (a *IssueWithProofsTestSuite) Test_id() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2268,7 +2270,7 @@ func (a *IssueWithProofsTestSuite) Test_fee() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2276,7 +2278,7 @@ func (a *IssueWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2284,7 +2286,7 @@ func (a *IssueWithProofsTestSuite) Test_version() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2294,7 +2296,7 @@ func (a *IssueWithProofsTestSuite) Test_sender() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2303,7 +2305,7 @@ func (a *IssueWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2313,7 +2315,7 @@ func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2321,7 +2323,7 @@ func (a *IssueWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *IssueWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(issueTransactionTypeName, rs.instanceOf())
 }
@@ -2333,7 +2335,7 @@ func TestNewVariablesFromIssueWithProofs(t *testing.T) {
 type LeaseWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *LeaseWithSigTestSuite) SetupTest() {
@@ -2342,7 +2344,7 @@ func (a *LeaseWithSigTestSuite) SetupTest() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -2350,7 +2352,7 @@ func (a *LeaseWithSigTestSuite) Test_amount() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -2358,7 +2360,7 @@ func (a *LeaseWithSigTestSuite) Test_recipient() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2367,7 +2369,7 @@ func (a *LeaseWithSigTestSuite) Test_id() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2375,7 +2377,7 @@ func (a *LeaseWithSigTestSuite) Test_fee() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2383,7 +2385,7 @@ func (a *LeaseWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2391,7 +2393,7 @@ func (a *LeaseWithSigTestSuite) Test_version() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2401,7 +2403,7 @@ func (a *LeaseWithSigTestSuite) Test_sender() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2410,7 +2412,7 @@ func (a *LeaseWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2419,7 +2421,7 @@ func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2427,7 +2429,7 @@ func (a *LeaseWithSigTestSuite) Test_proofs() {
 }
 
 func (a *LeaseWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(leaseTransactionTypeName, rs.instanceOf())
 }
@@ -2439,7 +2441,7 @@ func TestNewVariablesFromLeaseWithSig(t *testing.T) {
 type LeaseWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *LeaseWithProofsTestSuite) SetupTest() {
@@ -2448,7 +2450,7 @@ func (a *LeaseWithProofsTestSuite) SetupTest() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_amount() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	amount, err := rs.get(amountField)
 	a.NoError(err)
@@ -2456,7 +2458,7 @@ func (a *LeaseWithProofsTestSuite) Test_amount() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_recipient() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	recipient, err := rs.get(recipientField)
 	a.NoError(err)
@@ -2464,7 +2466,7 @@ func (a *LeaseWithProofsTestSuite) Test_recipient() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2473,7 +2475,7 @@ func (a *LeaseWithProofsTestSuite) Test_id() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2481,7 +2483,7 @@ func (a *LeaseWithProofsTestSuite) Test_fee() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2489,7 +2491,7 @@ func (a *LeaseWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2497,7 +2499,7 @@ func (a *LeaseWithProofsTestSuite) Test_version() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2507,7 +2509,7 @@ func (a *LeaseWithProofsTestSuite) Test_sender() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2516,7 +2518,7 @@ func (a *LeaseWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2526,7 +2528,7 @@ func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2534,7 +2536,7 @@ func (a *LeaseWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *LeaseWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(leaseTransactionTypeName, rs.instanceOf())
 }
@@ -2546,7 +2548,7 @@ func TestNewVariablesFromLeaseWithProofs(t *testing.T) {
 type LeaseCancelWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.LeaseCancelWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *LeaseCancelWithSigTestSuite) SetupTest() {
@@ -2555,7 +2557,7 @@ func (a *LeaseCancelWithSigTestSuite) SetupTest() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
@@ -2563,7 +2565,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2572,7 +2574,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_id() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2580,7 +2582,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_fee() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2588,7 +2590,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2596,7 +2598,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_version() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2606,7 +2608,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_sender() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2615,7 +2617,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2624,7 +2626,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2632,7 +2634,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(leaseCancelTransactionTypeName, rs.instanceOf())
 }
@@ -2645,19 +2647,19 @@ type LeaseCancelWithProofsTestSuite struct {
 	suite.Suite
 	tx     *proto.LeaseCancelWithProofs
 	scheme proto.Scheme
-	f      func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f      func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *LeaseCancelWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseCancelWithProofs.Transaction.Clone()
 	a.scheme = proto.MainNetScheme
-	a.f = func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
-		return transactionToObjectWithSchemeTestFn(ver, a.scheme, tx)
+	a.f = func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error) {
+		return transactionToObjectWithSchemeTestFn(t, ver, a.scheme, tx)
 	}
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	leaseId, err := rs.get(leaseIDField)
 	a.NoError(err)
@@ -2665,7 +2667,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(a.scheme)
 	ID, err := rs.get(idField)
@@ -2674,7 +2676,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_id() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2682,7 +2684,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_fee() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2690,7 +2692,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2698,7 +2700,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_version() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(a.scheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2708,7 +2710,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_sender() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2717,7 +2719,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2727,7 +2729,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2735,7 +2737,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(leaseCancelTransactionTypeName, rs.instanceOf())
 }
@@ -2747,7 +2749,7 @@ func TestNewVariablesFromLeaseCancelWithProofs(t *testing.T) {
 type DataWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.DataWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *DataWithProofsTestSuite) SetupTest() {
@@ -2756,7 +2758,7 @@ func (a *DataWithProofsTestSuite) SetupTest() {
 }
 
 func (a *DataWithProofsTestSuite) Test_data() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	listRaw, err := rs.get(dataField)
 	a.NoError(err)
@@ -2768,7 +2770,7 @@ func (a *DataWithProofsTestSuite) Test_data() {
 }
 
 func (a *DataWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2777,7 +2779,7 @@ func (a *DataWithProofsTestSuite) Test_id() {
 }
 
 func (a *DataWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2785,7 +2787,7 @@ func (a *DataWithProofsTestSuite) Test_fee() {
 }
 
 func (a *DataWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2793,7 +2795,7 @@ func (a *DataWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *DataWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2801,7 +2803,7 @@ func (a *DataWithProofsTestSuite) Test_version() {
 }
 
 func (a *DataWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2811,7 +2813,7 @@ func (a *DataWithProofsTestSuite) Test_sender() {
 }
 
 func (a *DataWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2820,7 +2822,7 @@ func (a *DataWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2830,7 +2832,7 @@ func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *DataWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2838,7 +2840,7 @@ func (a *DataWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *DataWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(dataTransactionTypeName, rs.instanceOf())
 }
@@ -2850,7 +2852,7 @@ func TestNewVariablesFromDataWithProofsTestSuite(t *testing.T) {
 type SponsorshipWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.SponsorshipWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *SponsorshipWithProofsTestSuite) SetupTest() {
@@ -2859,7 +2861,7 @@ func (a *SponsorshipWithProofsTestSuite) SetupTest() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetId, err := rs.get(assetIDField)
 	a.NoError(err)
@@ -2867,7 +2869,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_presence() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	minSponsoredAssetFee, err := rs.get(minSponsoredAssetFeeField)
 	a.NoError(err)
@@ -2876,7 +2878,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_presence() {
 
 func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_absence() {
 	a.tx.MinAssetFee = 0
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	field, err := rs.get(minSponsoredAssetFeeField)
 	a.NoError(err)
@@ -2884,7 +2886,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_absence() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2893,7 +2895,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_id() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -2901,7 +2903,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_fee() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -2909,7 +2911,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -2917,7 +2919,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_version() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -2927,7 +2929,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_sender() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -2936,7 +2938,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -2946,7 +2948,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -2954,7 +2956,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(sponsorFeeTransactionTypeName, rs.instanceOf())
 }
@@ -2966,7 +2968,7 @@ func TestNewVariablesFromSponsorshipWithProofs(t *testing.T) {
 type CreateAliasWithSigTestSuite struct {
 	suite.Suite
 	tx *proto.CreateAliasWithSig
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *CreateAliasWithSigTestSuite) SetupTest() {
@@ -2975,7 +2977,7 @@ func (a *CreateAliasWithSigTestSuite) SetupTest() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_alias() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	alias, err := rs.get(aliasField)
 	a.NoError(err)
@@ -2983,7 +2985,7 @@ func (a *CreateAliasWithSigTestSuite) Test_alias() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -2992,7 +2994,7 @@ func (a *CreateAliasWithSigTestSuite) Test_id() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -3000,7 +3002,7 @@ func (a *CreateAliasWithSigTestSuite) Test_fee() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -3008,7 +3010,7 @@ func (a *CreateAliasWithSigTestSuite) Test_timestamp() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -3016,7 +3018,7 @@ func (a *CreateAliasWithSigTestSuite) Test_version() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -3026,7 +3028,7 @@ func (a *CreateAliasWithSigTestSuite) Test_sender() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -3035,7 +3037,7 @@ func (a *CreateAliasWithSigTestSuite) Test_senderPublicKey() {
 
 func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -3044,7 +3046,7 @@ func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -3052,7 +3054,7 @@ func (a *CreateAliasWithSigTestSuite) Test_proofs() {
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(createAliasTransactionTypeName, rs.instanceOf())
 }
@@ -3064,7 +3066,7 @@ func TestNewVariablesFromCreateAliasWithSigTestSuite(t *testing.T) {
 type CreateAliasWithProofsTestSuite struct {
 	suite.Suite
 	tx *proto.CreateAliasWithProofs
-	f  func(ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
+	f  func(t *testing.T, ver ast.LibraryVersion, tx proto.Transaction) (rideType, error)
 }
 
 func (a *CreateAliasWithProofsTestSuite) SetupTest() {
@@ -3073,7 +3075,7 @@ func (a *CreateAliasWithProofsTestSuite) SetupTest() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_alias() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	alias, err := rs.get(aliasField)
 	a.NoError(err)
@@ -3081,7 +3083,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_alias() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_id() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	id, _ := a.tx.GetID(proto.TestNetScheme)
 	ID, err := rs.get(idField)
@@ -3090,7 +3092,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_id() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_fee() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	fee, err := rs.get(feeField)
 	a.NoError(err)
@@ -3098,7 +3100,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_fee() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_timestamp() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	timestamp, err := rs.get(timestampField)
 	a.NoError(err)
@@ -3106,7 +3108,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_timestamp() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_version() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	version, err := rs.get(versionField)
 	a.NoError(err)
@@ -3114,7 +3116,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_version() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_sender() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, a.tx.SenderPK)
 	a.NoError(err)
@@ -3124,7 +3126,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_sender() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_senderPublicKey() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	senderPublicKey, err := rs.get(senderPublicKeyField)
 	a.NoError(err)
@@ -3133,7 +3135,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_senderPublicKey() {
 
 func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	bodyBytes, err := rs.get(bodyBytesField)
 	a.NoError(err)
@@ -3143,7 +3145,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	proofs, err := rs.get(proofsField)
 	a.NoError(err)
@@ -3151,7 +3153,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {
-	rs, err := a.f(ast.LibV1, a.tx)
+	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	a.Equal(createAliasTransactionTypeName, rs.instanceOf())
 }
@@ -3184,9 +3186,12 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
 	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumTransferWavesTxKind(), &crypto.Digest{}, &senderPK, 0)
+	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 
-	rideObj, err := transactionToObject(ast.LibV6, proto.TestNetScheme, false, &tx)
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(proto.TestNetScheme).
+		withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().toEnv()
+
+	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
 
 	sender, err := tx.WavesAddressFrom(proto.TestNetScheme)
@@ -3210,49 +3215,44 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideInt(100000), fee)
 }
 
-func makeLessDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
-	v, ok := decodedData.Inputs[1].Value.(ethabi.BigInt)
-	assert.True(t, ok)
-	res := new(big.Int).Div(v.V, big.NewInt(int64(proto.DiffEthWaves)))
-	decodedData.Inputs[1].Value = ethabi.BigInt{V: res}
-}
-
 func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	//var TxSeveralData []proto.EthereumTxData
-	//TxSeveralData = append(TxSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth), defaultEthereumAccessListTx(1000000000000000, &recipientEth))
 	/*
 		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 		transfer(address,uint256)
 		1 = 0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c
-		2 = 209470300000000000000000
+		2 = 20947030000000 (converted 18 decimals to 8)
 	*/
-	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
-	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c0000000000000000000000000000000000000000000000000000130d1c484180"
+	data, err := proto.DecodeFromHexString(hexdata)
 	require.NoError(t, err)
 	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
-	assert.NotNil(t, tx.Data())
+	assert.NotEmpty(t, tx.Data())
 	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
 	assert.NoError(t, err)
-	makeLessDataAmount(t, decodedData)
-
-	assetID := (*proto.AssetID)(tx.To())
-	var r crypto.Digest
-	copy(r[:20], assetID[:])
-	asset := &proto.AssetInfo{ID: r}
 
 	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
+	assetID := (*proto.AssetID)(tx.To())
+	var fullAssetID crypto.Digest
+	copy(fullAssetID[:20], assetID[:])
 
-	rideObj, err := transactionToObject(ast.LibV6, proto.TestNetScheme, false, &tx)
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(proto.TestNetScheme).
+		withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+		withAsset(&proto.FullAssetInfo{
+			AssetInfo: proto.AssetInfo{
+				AssetConstInfo: proto.AssetConstInfo{ID: fullAssetID},
+			},
+		}).toEnv()
+
+	rideObj, err := transactionToObject(env, &tx)
 	assert.NoError(t, err)
 
 	sender, err := tx.WavesAddressFrom(proto.TestNetScheme)

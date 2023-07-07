@@ -70,7 +70,11 @@ vendor:
 
 vetcheck:
 	go vet ./...
-	golangci-lint run --timeout 5m
+	golangci-lint run -c .golangci.yml
+	golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+
+strict-vet-check:
+	golangci-lint run -c .golangci-strict.yml
 
 build-chaincmp-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp

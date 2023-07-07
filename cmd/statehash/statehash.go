@@ -11,13 +11,14 @@ import (
 	"runtime"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
-	"go.uber.org/zap"
 )
 
 const (

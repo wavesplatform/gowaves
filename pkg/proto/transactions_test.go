@@ -16,10 +16,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func TestGuessTransaction_Genesis(t *testing.T) {
@@ -1455,15 +1456,13 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 
 func BenchmarkTransferWithProofsBinary(t *testing.B) {
 	tc := struct {
-		scheme              byte
-		amountAsset         string
-		expectedAmountAsset string
-		feeAsset            string
-		expectedFeeAsset    string
-		amount              uint64
-		fee                 uint64
-		attachment          string
-	}{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""}
+		scheme      byte
+		amountAsset string
+		feeAsset    string
+		amount      uint64
+		fee         uint64
+		attachment  string
+	}{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", 10, 20, ""}
 
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
