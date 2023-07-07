@@ -11,18 +11,25 @@ jobs:
         os: [ macos-latest, windows-latest, ubuntu-latest ]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Go 1.19
         uses: actions/setup-go@v4.0.1
         with:
           go-version: 1.19.x
           check-latest: true
           cache: false # don't save & restore build caches because golangci-lint action does it internally
+      - name: Get dependencies
+        run: go mod vendor
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
           version: latest
-          args: --timeout 10m
+          args: -c .golangci.yml
+      # Strict linter configuration, only checking new code from pull requests.
+      - run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master --out-format=github-actions
 
   build:
     name: ubuntu
@@ -30,7 +37,6 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'wavesplatform/gowaves'
 
     steps:
-      - uses: actions/checkout@v3
       - name: Set up Go 1.19
         uses: actions/setup-go@v4.0.1
         with:
@@ -39,10 +45,12 @@ jobs:
           cache: true
 
       - name: Set up GolangCI-Lint
-        run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $HOME/bin v1.51.2
+        run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $HOME/bin v1.53.3
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Get dependencies
         run: go mod vendor
@@ -65,7 +73,6 @@ jobs:
     if: github.event_name == 'pull_request' && github.repository == 'wavesplatform/gowaves'
 
     steps:
-      - uses: actions/checkout@v3
       - name: Set up Go 1.19
         uses: actions/setup-go@v4.0.1
         with:

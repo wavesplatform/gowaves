@@ -13,12 +13,13 @@ import (
 
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 func cpuProfile(filename string) func() {
