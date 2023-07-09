@@ -1272,6 +1272,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
+// TODO generate snapshots here too
 func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
