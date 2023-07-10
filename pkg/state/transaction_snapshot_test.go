@@ -32,8 +32,8 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool, amount int64, issu
 	}
 }
 
-func defaultPerformerInfoWithChecker(checker *checkerInfo) *performerInfo {
-	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), checker, txCheckerData{}}
+func defaultPerformerInfoWithChecker(checker *checkerInfo, checkerData txCheckerData) *performerInfo {
+	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), checker, checkerData}
 }
 
 func defaultCheckerInfoHeight() *checkerInfo {
@@ -752,13 +752,13 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 	co := createCheckerCustomTestObjects(t, to.stor)
 	checkerInfo := defaultCheckerInfoHeight()
 	co.stor = to.stor
-	_, err = co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
-	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), nil, applicationRes)
+	applicationRes := &applicationResult{true, 0, ch, checkerData}
+	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo, checkerData), nil, applicationRes)
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := TransactionSnapshot{
@@ -819,13 +819,13 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	co := createCheckerCustomTestObjects(t, to.stor)
 	checkerInfo := defaultCheckerInfoHeight()
 	co.stor = to.stor
-	_, err = co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
-	transactionSnapshot, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), nil, applicationRes)
+	transactionSnapshot, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo, checkerData), nil, applicationRes)
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := TransactionSnapshot{
@@ -917,7 +917,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	co := createCheckerCustomTestObjects(t, to.stor)
 	checkerInfo := defaultCheckerInfoHeight()
 	co.stor = to.stor
-	_, err = co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
+	checkerData, err := co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check invoke script tx")
 
 	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
@@ -938,7 +938,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	invocationResult := &invocationResult{actions: actions, changes: ch}
 
 	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
-	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo), invocationResult, applicationRes)
+	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerInfo, checkerData), invocationResult, applicationRes)
 	assert.NoError(t, err, "failed to perform invoke script tx")
 
 	expectedSnapshot := TransactionSnapshot{

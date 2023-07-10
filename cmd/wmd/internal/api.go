@@ -18,12 +18,13 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/xenolf/lego/log"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/xenolf/lego/log"
-	"go.uber.org/zap"
 )
 
 const (
@@ -97,8 +98,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
-		err := apiServer.ListenAndServe()
-		if err != nil && err != http.ErrServerClosed {
+		if err = apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			zap.S().Fatalf("Failed to start API: %v", err)
 			return
 		}
@@ -107,8 +107,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 		<-a.interrupt
 		zap.S().Info("Shutting down API...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err := apiServer.Shutdown(ctx)
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if err = apiServer.Shutdown(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 		cancel()

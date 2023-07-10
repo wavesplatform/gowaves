@@ -9,18 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	g "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/wavesplatform/gowaves/cmd/blockcmp/internal"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"go.uber.org/zap"
-	g "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type report struct {
@@ -122,11 +123,7 @@ func run() error {
 		return err
 	}
 
-	endpoints, err := parseNodesList(nodes)
-	if err != nil {
-		zap.S().Errorf("Failed to parse nodes' gRPC API addresses: %v", err)
-		return err
-	}
+	endpoints := parseNodesList(nodes)
 	if len(endpoints) < 2 {
 		err := errors.New("not enough nodes to compare")
 		zap.S().Errorf("Failed to initialize: %v", err)
@@ -146,13 +143,13 @@ func run() error {
 	return nil
 }
 
-func parseNodesList(nodes string) ([]string, error) {
+func parseNodesList(nodes string) []string {
 	parts := strings.Split(nodes, ",")
 	r := make([]string, 0, len(parts))
 	for _, p := range parts {
 		r = append(r, strings.TrimSpace(p))
 	}
-	return r, nil
+	return r
 }
 
 func dialEndpoints(endpoints []string) ([]*g.ClientConn, error) {
@@ -202,7 +199,7 @@ func nodeHeight(c *g.ClientConn) (int, error) {
 	defer cancel()
 
 	api := grpc.NewBlocksApiClient(c)
-	h, err := api.GetCurrentHeight(ctx, &empty.Empty{}, g.EmptyCallOption{})
+	h, err := api.GetCurrentHeight(ctx, &emptypb.Empty{}, g.EmptyCallOption{})
 	if err != nil {
 		return 0, err
 	}
@@ -250,8 +247,9 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 		request := &grpc.TransactionsRequest{
 			TransactionIds: [][]byte{id},
 		}
+		//TODO: Fix method deprecation by replacing with ScriptResult from GetTransaction
 		//goland:noinspection GoDeprecation
-		stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
+		stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) //nolint:staticcheck // fix later
 		if err != nil {
 			return nil, err
 		}

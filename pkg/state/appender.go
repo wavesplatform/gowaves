@@ -341,7 +341,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 
 	var snapshot TransactionSnapshot
 	if applicationRes.status {
-		// We only perform tx in case it has not failed.
+		//We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
 			height:              params.checkerInfo.height,
 			blockID:             params.checkerInfo.blockID,
@@ -355,6 +355,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 		if err != nil {
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
+
 	}
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
@@ -441,7 +442,7 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 	if err != nil {
 		return nil, errs.Extend(err, "create transaction diff")
 	}
-	return &applicationResult{true, txScriptsRuns, txChanges, checkerData}, nil
+	return newApplicationResult(true, txScriptsRuns, txChanges, checkerData), nil
 }
 
 func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
@@ -724,7 +725,12 @@ type applicationResult struct {
 	checkerData      txCheckerData
 }
 
+func newApplicationResult(status bool, totalScriptsRuns uint64, changes txBalanceChanges, checkerData txCheckerData) *applicationResult {
+	return &applicationResult{status, totalScriptsRuns, changes, checkerData} // all fields must be initialized
+}
+
 func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
+
 	var ID crypto.Digest
 	switch t := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -840,7 +846,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		}
 		if err != nil || !res.Result() {
 			// Smart asset script failed, return failed diff.
-			return &applicationResult{false, scriptsRuns, failedChanges, checkerData}, nil
+			return newApplicationResult(false, scriptsRuns, failedChanges, checkerData), nil
 		}
 	}
 	if info.acceptFailed {
@@ -848,11 +854,11 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		if err := a.diffApplier.validateTxDiff(successfulChanges.diff, a.diffStor); err != nil {
 			// Not enough balance for successful diff = fail, return failed diff.
 			// We only check successful diff for negative balances, because failed diff is already checked in checkTxFees().
-			return &applicationResult{false, scriptsRuns, failedChanges, checkerData}, nil
+			return newApplicationResult(false, scriptsRuns, failedChanges, checkerData), nil
 		}
 	}
 	// Return successful diff.
-	return &applicationResult{true, scriptsRuns, successfulChanges, checkerData}, nil
+	return newApplicationResult(true, scriptsRuns, successfulChanges, checkerData), nil
 }
 
 func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidationParams) (*invocationResult, *applicationResult, error) {

@@ -858,7 +858,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 				)
 			}
 			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
-			applicationRes, err := ia.handleInvocationResult(txID, info, invocationRes)
+			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes)
 			return invocationRes, applicationRes, err
 		}
 		// Before RideV6 activation in the following cases the transaction is rejected:
@@ -876,10 +876,10 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
 				)
 			}
-
 			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
-			applicationRes, err := ia.handleInvocationResult(txID, info, invocationRes)
+			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes)
 			return invocationRes, applicationRes, err
+
 		case ride.InternalInvocationError:
 			// Special script error produced by internal script invocation or application of results.
 			// Reject transaction after certain height
@@ -891,10 +891,10 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
 				)
 			}
-
 			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
-			applicationRes, err := ia.handleInvocationResult(txID, info, invocationRes)
+			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes)
 			return invocationRes, applicationRes, err
+
 		case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
 			return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 		default:
@@ -960,8 +960,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			changes:    changes,
 		}
 	}
-
-	applicationRes, err := ia.handleInvocationResult(txID, info, invocationRes)
+	applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes)
 	return invocationRes, applicationRes, err
 }
 
@@ -984,7 +983,7 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	return sr, err
 }
 
-func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
+func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
 	if ia.buildApiData && !info.validatingUtx {
 		// Save invoke result for extended API.
 		res, err := toScriptResult(res)
@@ -997,11 +996,7 @@ func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, info *fallib
 	}
 	// Total scripts invoked = scriptRuns + invocation itself.
 	totalScriptsInvoked := res.scriptRuns + 1
-	return &applicationResult{
-		totalScriptsRuns: totalScriptsInvoked,
-		changes:          res.changes,
-		status:           !res.failed,
-	}, nil
+	return newApplicationResult(!res.failed, totalScriptsInvoked, res.changes, checkerData), nil
 }
 
 func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAssetsCount uint64) error {

@@ -66,7 +66,9 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := &performerInfo{blockID: blockID2, checkerData: checkerData}
+	txPerformerInfo := defaultPerformerInfo()
+	txPerformerInfo.blockID = blockID2
+	txPerformerInfo.checkerData = checkerData
 
 	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
 
@@ -100,10 +102,9 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := &performerInfo{
-		blockID:     blockID2,
-		checkerData: txCheckerData{scriptEstimations: &scriptsEstimations{}},
-	}
+	txPerformerInfo := defaultPerformerInfo()
+	txPerformerInfo.blockID = blockID2
+	txPerformerInfo.checkerData.scriptEstimations = &scriptsEstimations{}
 	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
 
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
