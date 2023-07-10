@@ -141,7 +141,8 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	tp, err := newTransactionPerformer(stor, settings)
+	snapshotGenerator := &snapshotGenerator{stor: stor, settings: settings}
+	tp, err := newTransactionPerformer(stor, settings, snapshotGenerator)
 	if err != nil {
 		return nil, err
 	}

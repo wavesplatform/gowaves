@@ -50,7 +50,8 @@ func defaultCheckerInfoHeight() *checkerInfo {
 func createCheckerCustomTestObjects(t *testing.T, stor *testStorageObjects) *checkerTestObjects {
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionChecker() failed")
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
+	snapshotGenerator := &snapshotGenerator{stor: stor.entities, settings: settings.MainNetSettings}
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings, snapshotGenerator)
 	require.NoError(t, err, "newTransactionPerformer() failed")
 	return &checkerTestObjects{stor, tc, tp}
 }
