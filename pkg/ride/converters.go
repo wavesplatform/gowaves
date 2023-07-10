@@ -459,10 +459,6 @@ func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (
 			rideAddress(senderWavesAddr),
 		), nil
 	} else {
-		attachment, err := o.GetAttachment().Bytes()
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "orderToObject")
-		}
 		return newRideOrderV8(
 			assetPairToObject(pair.AmountAsset, pair.PriceAsset),
 			orderType(o.GetOrderType()),
@@ -472,7 +468,7 @@ func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (
 			id,
 			common.Dup(o.GetSenderPKBytes()),
 			common.Dup(matcherPk.Bytes()),
-			attachment,
+			o.GetAttachment().Bytes(),
 			rideInt(o.GetAmount()),
 			rideInt(o.GetTimestamp()),
 			rideInt(o.GetExpiration()),

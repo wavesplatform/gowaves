@@ -97,8 +97,7 @@ func (a *TransferWithSigTestSuite) Test_recipient() {
 func (a *TransferWithSigTestSuite) Test_attachment() {
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
-	attachmentBytes, err := a.tx.Attachment.Bytes()
-	a.NoError(err)
+	attachmentBytes := a.tx.Attachment.Bytes()
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
 	a.Equal(rideByteVector(attachmentBytes), attachment)
@@ -246,8 +245,7 @@ func (a *TransferWithProofsTestSuite) Test_recipient() {
 func (a *TransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
-	attachmentBytes, err := a.tx.Attachment.Bytes()
-	a.NoError(err)
+	attachmentBytes := a.tx.Attachment.Bytes()
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
 	a.Equal(rideByteVector(attachmentBytes), attachment)
@@ -1025,8 +1023,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 func (a *MassTransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
-	attachmentBytes, err := a.tx.Attachment.Bytes()
-	a.NoError(err)
+	attachmentBytes := a.tx.Attachment.Bytes()
 	attachment, err := rs.get(attachmentField)
 	a.NoError(err)
 	a.Equal(rideByteVector(attachmentBytes), attachment)

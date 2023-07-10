@@ -440,8 +440,8 @@ func (a Attachment) Size() int {
 	return len(a)
 }
 
-func (a Attachment) Bytes() ([]byte, error) {
-	return a, nil
+func (a Attachment) Bytes() []byte {
+	return a
 }
 
 func (a Attachment) MarshalJSON() ([]byte, error) {
@@ -1657,6 +1657,7 @@ func (o OrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.PriceMode.ToProtobuf()
 	res.Version = 4
+	res.Attachment = o.Attachment.Bytes()
 	return res
 }
 
@@ -1981,6 +1982,29 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		"priceMode":         priceMode.upperSnakeCaseString(),
 	}
 
+	var domainVer string
+	ethOrderDataType := []ethereumTypedDataType{
+		{Name: "version", Type: "int32"},
+		{Name: "matcherPublicKey", Type: "string"},
+		{Name: "amountAsset", Type: "string"},
+		{Name: "priceAsset", Type: "string"},
+		{Name: "orderType", Type: "string"},
+		{Name: "amount", Type: "int64"},
+		{Name: "price", Type: "int64"},
+		{Name: "timestamp", Type: "int64"},
+		{Name: "expiration", Type: "int64"},
+		{Name: "matcherFee", Type: "int64"},
+		{Name: "matcherFeeAssetId", Type: "string"},
+		{Name: "priceMode", Type: "string"},
+	}
+	if len(o.Attachment) == 0 {
+		domainVer = "1"
+	} else {
+		domainVer = "2"
+		ethOrderDataType = append(ethOrderDataType, ethereumTypedDataType{Name: "attachment", Type: "string"})
+		message["attachment"] = o.Attachment
+	}
+
 	var orderDomain = ethereumTypedData{
 		Types: ethereumTypedDataTypes{
 			"EIP712Domain": []ethereumTypedDataType{
@@ -1988,25 +2012,12 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 				{Name: "version", Type: "string"},
 				{Name: "chainId", Type: "uint256"},
 			},
-			"Order": []ethereumTypedDataType{
-				{Name: "version", Type: "int32"},
-				{Name: "matcherPublicKey", Type: "string"},
-				{Name: "amountAsset", Type: "string"},
-				{Name: "priceAsset", Type: "string"},
-				{Name: "orderType", Type: "string"},
-				{Name: "amount", Type: "int64"},
-				{Name: "price", Type: "int64"},
-				{Name: "timestamp", Type: "int64"},
-				{Name: "expiration", Type: "int64"},
-				{Name: "matcherFee", Type: "int64"},
-				{Name: "matcherFeeAssetId", Type: "string"},
-				{Name: "priceMode", Type: "string"},
-			},
+			"Order": ethOrderDataType,
 		},
 		PrimaryType: "Order",
 		Domain: ethereumTypedDataDomain{
 			Name:    "Waves Order",
-			Version: "1",
+			Version: domainVer,
 			ChainId: newHexOrDecimal256(int64(scheme)),
 		},
 		Message: message,
