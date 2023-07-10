@@ -1,11 +1,12 @@
-package state_fsm
+package fsm
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"go.uber.org/zap"
 )
 
 type currentScorer interface {

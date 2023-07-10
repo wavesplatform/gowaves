@@ -1,4 +1,4 @@
-package state_fsm
+package fsm
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -19,17 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-var (
-	syncSkipMessageList = proto.PeerMessageIDs{
-		proto.ContentIDTransaction,
-		proto.ContentIDInvMicroblock,
-		proto.ContentIDCheckpoint,
-		proto.ContentIDMicroblockRequest,
-		proto.ContentIDMicroblock,
-		proto.ContentIDPBMicroBlock,
-		proto.ContentIDPBTransaction,
-	}
-)
+const defaultMicroblockInterval = 5 * time.Second
 
 type conf struct {
 	peerSyncWith peer.Peer
@@ -105,14 +95,18 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 		zap.S().Debug("[Sync] Checking timeout")
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
-			zap.S().Debugf("[Sync] Timeout (%s) while syncronisation with peer '%s'", a.conf.timeout.String(), a.conf.peerSyncWith.ID())
+			zap.S().Debugf("[Sync] Timeout (%s) while syncronisation with peer '%s'",
+				a.conf.timeout.String(), a.conf.peerSyncWith.ID())
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
 		return a, nil, nil
 	case tasks.MineMicro:
 		return a, nil, nil
 	default:
-		return a, nil, a.Errorf(errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s State", task.TaskType, task.Data, a.String()))
+		return a, nil, a.Errorf(errors.Errorf(
+			"unexpected internal task '%d' with data '%+v' received by %s State",
+			task.TaskType, task.Data, a.String(),
+		))
 	}
 }
 
@@ -157,11 +151,14 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	return a.applyBlocks(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
 }
 
-func (a *SyncState) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (State, Async, error) {
+func (a *SyncState) MinedBlock(
+	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
+) (State, Async, error) {
 	metrics.FSMKeyBlockGenerated("sync", block)
 	zap.S().Infof("New key block '%s' mined", block.ID.String())
 	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
+		zap.S().Warnf("Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.FSMKeyBlockApplied("sync", block)
@@ -170,7 +167,7 @@ func (a *SyncState) MinedBlock(block *proto.Block, limits proto.MiningLimits, ke
 	// first we should send block
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	return a, tasks.Tasks(tasks.NewMineMicroTask(5*time.Second, block, limits, keyPair, vrf)), nil
+	return a, tasks.Tasks(tasks.NewMineMicroTask(defaultMicroblockInterval, block, limits, keyPair, vrf)), nil
 }
 
 func (a *SyncState) Halt() (State, Async, error) {
@@ -185,7 +182,9 @@ func (a *SyncState) changePeerSyncWith() (State, Async, error) {
 }
 
 // TODO suspend peer on state error
-func (a *SyncState) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (State, Async, error) {
+func (a *SyncState) applyBlocks(
+	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
+) (State, Async, error) {
 	internal, blocks, eof, needToChangePeer := internal.Blocks(
 		extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme),
 		func() bool {
@@ -226,8 +225,7 @@ func (a *SyncState) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_inte
 		return newPersistState(a.baseInfo)
 	}
 	if eof {
-		err := a.baseInfo.storage.StartProvidingExtendedApi()
-		if err != nil {
+		if err = a.baseInfo.storage.StartProvidingExtendedApi(); err != nil {
 			return newIdleState(a.baseInfo), nil, a.Errorf(err)
 		}
 		return newNGState(a.baseInfo), nil, nil
@@ -236,49 +234,102 @@ func (a *SyncState) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_inte
 }
 
 func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {
+	syncSkipMessageList := proto.PeerMessageIDs{
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+	}
 	fsm.Configure(SyncStateName).
-		Ignore(MicroBlockEvent).
-		Ignore(MicroBlockInvEvent).
-		Ignore(StartMiningEvent).
-		Ignore(StopMiningEvent).
+		Ignore(MicroBlockEvent).Ignore(MicroBlockInvEvent).Ignore(StartMiningEvent).Ignore(StopMiningEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
 		}).
-		PermitDynamic(ChangeSyncPeerEvent, createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
-		})).
-		PermitDynamic(StopSyncEvent, createPermitDynamicCallback(StopSyncEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.StopSync()
-		})).
-		PermitDynamic(TaskEvent, createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.Task(args[0].(tasks.AsyncTask))
-		})).
-		PermitDynamic(ScoreEvent, createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
-		})).
-		PermitDynamic(BlockEvent, createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
-		})).
-		PermitDynamic(BlockIDsEvent, createPermitDynamicCallback(BlockIDsEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.BlockIDs(convertToInterface[peer.Peer](args[0]), args[1].([]proto.BlockID))
-		})).
-		PermitDynamic(MinedBlockEvent, createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.MinedBlock(args[0].(*proto.Block), args[1].(proto.MiningLimits), args[2].(proto.KeyPair), args[3].([]byte))
-		})).
-		PermitDynamic(TransactionEvent, createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.Transaction(convertToInterface[peer.Peer](args[0]), convertToInterface[proto.Transaction](args[1]))
-		})).
-		PermitDynamic(HaltEvent, createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
-			a := state.State.(*SyncState)
-			return a.Halt()
-		}))
+		PermitDynamic(ChangeSyncPeerEvent,
+			createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
+			})).
+		PermitDynamic(StopSyncEvent,
+			createPermitDynamicCallback(StopSyncEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.StopSync()
+			})).
+		PermitDynamic(TaskEvent,
+			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.Task(args[0].(tasks.AsyncTask))
+			})).
+		PermitDynamic(ScoreEvent,
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
+			})).
+		PermitDynamic(BlockEvent,
+			createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
+			})).
+		PermitDynamic(BlockIDsEvent,
+			createPermitDynamicCallback(BlockIDsEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.BlockIDs(convertToInterface[peer.Peer](args[0]), args[1].([]proto.BlockID))
+			})).
+		PermitDynamic(MinedBlockEvent,
+			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.MinedBlock(args[0].(*proto.Block), args[1].(proto.MiningLimits),
+					args[2].(proto.KeyPair), args[3].([]byte))
+			})).
+		PermitDynamic(TransactionEvent,
+			createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.Transaction(convertToInterface[peer.Peer](args[0]),
+					convertToInterface[proto.Transaction](args[1]))
+			})).
+		PermitDynamic(HaltEvent,
+			createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*SyncState'", state.State))
+				}
+				return a.Halt()
+			}))
 }

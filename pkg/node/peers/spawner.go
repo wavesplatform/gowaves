@@ -1,4 +1,4 @@
-package peer_manager
+package peers
 
 import (
 	"context"

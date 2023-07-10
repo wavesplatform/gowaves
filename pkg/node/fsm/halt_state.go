@@ -1,4 +1,4 @@
-package state_fsm
+package fsm
 
 import (
 	"context"
@@ -7,27 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
-)
-
-var (
-	haltSkipMessageList = proto.PeerMessageIDs{
-		proto.ContentIDGetPeers,
-		proto.ContentIDPeers,
-		proto.ContentIDGetSignatures,
-		proto.ContentIDSignatures,
-		proto.ContentIDGetBlock,
-		proto.ContentIDBlock,
-		proto.ContentIDScore,
-		proto.ContentIDTransaction,
-		proto.ContentIDInvMicroblock,
-		proto.ContentIDCheckpoint,
-		proto.ContentIDMicroblockRequest,
-		proto.ContentIDMicroblock,
-		proto.ContentIDPBBlock,
-		proto.ContentIDPBMicroBlock,
-		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
-	}
 )
 
 type HaltState struct {
@@ -52,13 +31,30 @@ func newHaltState(info BaseInfo) (State, Async, error) {
 	}
 	zap.S().Debugf("storage closed")
 	clearSyncPeer(info)
-	info.skipMessageList.SetList(haltSkipMessageList)
 	return &HaltState{
 		baseInfo: info,
 	}, nil, nil
 }
 
 func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo) {
+	haltSkipMessageList := proto.PeerMessageIDs{
+		proto.ContentIDGetPeers,
+		proto.ContentIDPeers,
+		proto.ContentIDGetSignatures,
+		proto.ContentIDSignatures,
+		proto.ContentIDGetBlock,
+		proto.ContentIDBlock,
+		proto.ContentIDScore,
+		proto.ContentIDTransaction,
+		proto.ContentIDInvMicroblock,
+		proto.ContentIDCheckpoint,
+		proto.ContentIDMicroblockRequest,
+		proto.ContentIDMicroblock,
+		proto.ContentIDPBBlock,
+		proto.ContentIDPBMicroBlock,
+		proto.ContentIDPBTransaction,
+		proto.ContentIDGetBlockIds,
+	}
 	fsm.Configure(HaltStateName).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(haltSkipMessageList)

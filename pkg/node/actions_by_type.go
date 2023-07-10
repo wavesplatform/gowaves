@@ -4,27 +4,28 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
-	"go.uber.org/zap"
 )
 
-type Action func(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error)
+type Action func(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error)
 
-func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	b := new(big.Int)
 	b.SetBytes(mess.Message.(*proto.ScoreMessage).Score)
 	return fsm.Score(mess.ID, b)
 }
 
-func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func GetPeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
 	metricGetPeersMessage.Inc()
 	rs := services.Peers.KnownPeers()
 
@@ -40,7 +41,7 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm *sta
 	return nil, nil
 }
 
-func PeersAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func PeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
 	metricPeersMessage.Inc()
 	rs := services.Peers.KnownPeers()
 
@@ -55,7 +56,7 @@ func PeersAction(services services.Services, mess peer.ProtoMessage, fsm *state_
 	return nil, services.Peers.UpdateKnownPeers(rs)
 }
 
-func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	metricBlockMessage.Inc()
 	b := &proto.Block{}
 	err := b.UnmarshalBinary(mess.Message.(*proto.BlockMessage).BlockBytes, services.Scheme)
@@ -65,7 +66,7 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *state_
 	return fsm.Block(mess.ID, b)
 }
 
-func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
 	metricGetBlockMessage.Inc()
 	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
 	if err != nil {
@@ -80,7 +81,7 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm *sta
 }
 
 // SignaturesAction receives requested earlier signatures
-func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	signatures := mess.Message.(*proto.SignaturesMessage).Signatures
 	blockIDs := make([]proto.BlockID, len(signatures))
 	for i, sig := range signatures {
@@ -90,7 +91,9 @@ func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fs
 }
 
 // GetSignaturesAction replies to signature requests
-func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func GetSignaturesAction(
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+) (fsm.Async, error) {
 	for _, sig := range mess.Message.(*proto.GetSignaturesMessage).Signatures {
 		block, err := services.State.Header(proto.NewBlockIDFromSignature(sig))
 		if err != nil {
@@ -159,7 +162,7 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 }
 
 // MicroBlockInvAction handles notification about new microblock.
-func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	inv := &proto.MicroBlockInv{}
 	err := inv.UnmarshalBinary(mess.Message.(*proto.MicroBlockInvMessage).Body)
 	if err != nil {
@@ -169,7 +172,9 @@ func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *state
 }
 
 // MicroBlockRequestAction handles microblock requests.
-func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func MicroBlockRequestAction(
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+) (fsm.Async, error) {
 	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
 	if err != nil {
 		return nil, err
@@ -181,7 +186,7 @@ func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage,
 	return nil, nil
 }
 
-func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalBinary(mess.Message.(*proto.MicroBlockMessage).Body, services.Scheme)
 	if err != nil {
@@ -191,7 +196,7 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *s
 }
 
 // PBBlockAction handles protobuf block message.
-func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	b := &proto.Block{}
 	err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes)
 	if err != nil {
@@ -202,7 +207,7 @@ func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.F
 	return fsm.Block(mess.ID, b)
 }
 
-func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes)
 	if err != nil {
@@ -211,7 +216,9 @@ func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *state_
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
-func GetBlockIdsAction(services services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func GetBlockIdsAction(
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+) (fsm.Async, error) {
 	for _, sig := range mess.Message.(*proto.GetBlockIdsMessage).Blocks {
 		block, err := services.State.Header(sig)
 		if err != nil {
@@ -223,12 +230,12 @@ func GetBlockIdsAction(services services.Services, mess peer.ProtoMessage, fsm *
 	return nil, nil
 }
 
-func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	return fsm.BlockIDs(mess.ID, mess.Message.(*proto.BlockIdsMessage).Blocks)
 }
 
 // TransactionAction handles new transaction message.
-func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	b := mess.Message.(*proto.TransactionMessage).Transaction
 	tx, err := proto.BytesToTransaction(b, s.Scheme)
 	if err != nil {
@@ -238,7 +245,7 @@ func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *state_f
 }
 
 // PBTransactionAction handles protobuf transaction message.
-func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *state_fsm.FSM) (state_fsm.Async, error) {
+func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	b := mess.Message.(*proto.PBTransactionMessage).Transaction
 	t, err := proto.SignedTxFromProtobuf(b)
 	if err != nil {

@@ -1,4 +1,4 @@
-package state_fsm
+package fsm
 
 import (
 	"errors"

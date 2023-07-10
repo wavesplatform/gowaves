@@ -1,4 +1,4 @@
-package peer_manager
+package peers
 
 import (
 	"math/big"
@@ -83,6 +83,15 @@ func (ap *activePeers) getPeerWithMaxScore() (peerInfo, bool) {
 	return ap.m[ap.sortedByScore[0]], true
 }
 
+func (ap *activePeers) getPeerFromLargestPeerGroup(p peer.Peer) (peerInfo, bool) {
+	id, _ := ap.selector.selectBestPeer(p.ID())
+	if id == nil {
+		return peerInfo{}, false
+	}
+	info, ok := ap.m[id]
+	return info, ok
+}
+
 func (ap *activePeers) size() int {
 	return len(ap.m)
 }
@@ -94,13 +103,4 @@ func (ap *activePeers) sort() {
 			return ap.m[ap.sortedByScore[i]].score.Cmp(ap.m[ap.sortedByScore[j]].score) == 1
 		},
 	)
-}
-
-func (ap *activePeers) getPeerFromLargestPeerGroup(p peer.Peer) (peerInfo, bool) {
-	id, _ := ap.selector.selectBestPeer(p.ID())
-	if id == nil {
-		return peerInfo{}, false
-	}
-	info, ok := ap.m[id]
-	return info, ok
 }

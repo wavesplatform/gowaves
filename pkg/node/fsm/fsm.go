@@ -1,4 +1,4 @@
-package state_fsm
+package fsm
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/ng"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/network"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
-	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -23,7 +23,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-type Async []Task
+type Async []tasks.Task
 
 type BlocksApplier interface {
 	BlockExists(state storage.State, block *proto.Block) (bool, error)
@@ -33,7 +33,7 @@ type BlocksApplier interface {
 
 type BaseInfo struct {
 	// peers
-	peers peer_manager.PeerManager
+	peers peers.PeerManager
 
 	// storage
 	storage storage.State
@@ -76,7 +76,7 @@ func (a *BaseInfo) CleanUtx() {
 	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
 }
 
-// States
+// States.
 const (
 	IdleStateName    = "Idle"
 	NGStateName      = "NG"
@@ -85,7 +85,7 @@ const (
 	HaltStateName    = "Halt"
 )
 
-// Events
+// Events.
 const (
 	NewPeerEvent       = "NewPeer"
 	PeerErrorEvent     = "PeerError"
@@ -121,7 +121,11 @@ type StateData struct {
 	State State
 }
 
-func NewFSM(services services.Services, microblockInterval time.Duration, syncPeer *network.SyncPeer) (*FSM, Async, error) {
+func NewFSM(
+	services services.Services,
+	microblockInterval time.Duration,
+	syncPeer *network.SyncPeer,
+) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
@@ -163,8 +167,8 @@ func NewFSM(services services.Services, microblockInterval time.Duration, syncPe
 	// default tasks
 	t := Async{
 		// ask about peers for every 5 minutes
-		NewAskPeersTask(askPeersInterval),
-		NewPingTask(),
+		tasks.NewAskPeersTask(askPeersInterval),
+		tasks.NewPingTask(),
 	}
 	fsm := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
 		return state.Name, nil
@@ -204,13 +208,18 @@ func (f *FSM) Score(p peer.Peer, score *proto.Score) (Async, error) {
 	return *asyncRes, err
 }
 
-func (f *FSM) Task(task AsyncTask) (Async, error) {
+func (f *FSM) Task(task tasks.AsyncTask) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(TaskEvent, asyncRes, task)
 	return *asyncRes, err
 }
 
-func (f *FSM) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (Async, error) {
+func (f *FSM) MinedBlock(
+	block *proto.Block,
+	limits proto.MiningLimits,
+	keyPair proto.KeyPair,
+	vrf []byte,
+) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(MinedBlockEvent, asyncRes, block, limits, keyPair, vrf)
 	return *asyncRes, err
@@ -222,7 +231,7 @@ func (f *FSM) Block(p peer.Peer, block *proto.Block) (Async, error) {
 	return *asyncRes, err
 }
 
-// BlockIDs receives signatures that was requested by GetSignatures
+// BlockIDs receives signatures that was requested by GetSignatures.
 func (f *FSM) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockIDsEvent, asyncRes, peer, signatures)

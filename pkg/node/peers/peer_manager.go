@@ -1,4 +1,4 @@
-package peer_manager
+package peers
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -441,8 +441,8 @@ func (a *PeerManagerImpl) HasMaxScore(p peer.Peer) (peer.Peer, bool) {
 		return nil, false
 	}
 	maxPeerInfo, ok := a.active.getPeerWithMaxScore()
-	if !ok {
-		return nil, false
+	if !ok { // No need to change peer
+		return p, false
 	}
 
 	if currentPeerInfo.score.Cmp(maxPeerInfo.score) < 0 { // maxPeer has a bigger score - switch to it
@@ -452,7 +452,14 @@ func (a *PeerManagerImpl) HasMaxScore(p peer.Peer) (peer.Peer, bool) {
 }
 
 func (a *PeerManagerImpl) IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
-	return nil, false
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	np, ok := a.active.getPeerFromLargestPeerGroup(p)
+	if !ok { // No need to change peer
+		return p, false
+	}
+	return np.peer, true
 }
 
 func (a *PeerManagerImpl) connected(p peer.Peer) (peer.Peer, bool) {

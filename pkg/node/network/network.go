@@ -6,12 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
+
+const defaultChannelSize = 100
 
 type InfoMessage interface{}
 
@@ -47,7 +49,7 @@ type Network struct {
 	NetworkInfoCh chan InfoMessage
 	SyncPeer      SyncPeer
 
-	peers         peer_manager.PeerManager
+	peers         peers.PeerManager
 	storage       state.State
 	minPeerMining int
 	obsolescence  time.Duration
@@ -56,7 +58,7 @@ type Network struct {
 func NewNetwork(services services.Services, p peer.Parent) Network {
 	return Network{
 		InfoCh:        p.InfoCh,
-		NetworkInfoCh: make(chan InfoMessage, 100),
+		NetworkInfoCh: make(chan InfoMessage, defaultChannelSize),
 		peers:         services.Peers,
 		storage:       services.State,
 		minPeerMining: services.MinPeersMining,
@@ -99,19 +101,7 @@ func (n *Network) Run() {
 
 			//TODO: Do we need to check it here after async operation of sending score to the peer. Possibly we don't
 			// know peer's score yet, because we haven't received it yet.
-			if n.isTimeToSwitchPeerWithMaxScore() {
-				// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
-				// score every time it updated.
-				if np, ok := n.peers.HasMaxScore(n.SyncPeer.peer); ok {
-					n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
-				}
-			} else {
-				// Node better continue synchronization with one node, switching to new node happens only if the larger
-				// group of nodes with the highest score appears.
-				if np, ok := n.peers.IsInLargestScoreGroup(n.SyncPeer.peer); ok {
-					n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
-				}
-			}
+			n.switchToNewPeerIfRequired()
 
 		case *peer.InternalErr:
 			n.peers.Disconnect(m.Peer)
@@ -123,6 +113,22 @@ func (n *Network) Run() {
 			}
 		default:
 			zap.S().Warnf("Unknown peer info message '%T'", m)
+		}
+	}
+}
+
+func (n *Network) switchToNewPeerIfRequired() {
+	if n.isTimeToSwitchPeerWithMaxScore() {
+		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
+		// score every time it updated.
+		if np, ok := n.peers.HasMaxScore(n.SyncPeer.peer); ok {
+			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
+		}
+	} else {
+		// Node better continue synchronization with one node, switching to new node happens only if the larger
+		// group of nodes with the highest score appears.
+		if np, ok := n.peers.IsInLargestScoreGroup(n.SyncPeer.peer); ok {
+			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	}
 }

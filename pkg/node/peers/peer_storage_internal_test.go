@@ -1,12 +1,13 @@
-package peer_manager
+package peers
 
 import (
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+
 	"github.com/wavesplatform/gowaves/pkg/mock"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 

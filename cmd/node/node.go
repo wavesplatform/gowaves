@@ -32,8 +32,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/network"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	peersPersistentStorage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	peersPersistentStorage "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -299,7 +299,8 @@ func main() {
 		zap.S().Errorf("Failed to get node's nonce: %v", err)
 		return
 	}
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), proto.ProtocolVersion)
+	peerSpawnerImpl := peers.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName,
+		nodeNonce.Uint64(), proto.ProtocolVersion)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -313,7 +314,7 @@ func main() {
 		zap.S().Info("Successfully dropped peers storage")
 	}
 
-	peerManager := peer_manager.NewPeerManager(
+	peerManager := peers.NewPeerManager(
 		peerSpawnerImpl,
 		peerStorage,
 		int(*limitAllConnections/2),

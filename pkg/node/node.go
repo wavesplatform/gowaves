@@ -3,23 +3,25 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"net"
 	"reflect"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/node/network"
+
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 const (
@@ -35,7 +37,7 @@ type Config struct {
 }
 
 type Node struct {
-	peers              peer_manager.PeerManager
+	peers              peers.PeerManager
 	state              state.State
 	declAddr           proto.TCPAddr
 	bindAddr           proto.TCPAddr
@@ -128,46 +130,17 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage, networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer) {
-	go func() {
-		for {
-			a.SpawnOutgoingConnections(ctx)
-			timer := time.NewTimer(spawnOutgoingConnectionsInterval)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			case <-timer.C:
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			case <-timer.C:
-				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
-			}
-		}
-	}()
-
-	go func() {
-		if err := a.serveIncomingPeers(ctx); err != nil {
-			return
-		}
-	}()
+func (a *Node) Run(
+	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
+	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
+) {
+	go a.runOutgoingConnections(ctx)
+	go a.runInternalMetrics(ctx, p.MessageCh)
+	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval, syncPeer)
+	fsm, async, err := fsm.NewFSM(a.services, a.microblockInterval, syncPeer)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return
@@ -225,7 +198,49 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 	}
 }
 
-func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a state_fsm.Async) {
+func (a *Node) runIncomingConnections(ctx context.Context) {
+	func() {
+		if err := a.serveIncomingPeers(ctx); err != nil {
+			return
+		}
+	}()
+}
+
+func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
+	func() {
+		for {
+			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				return
+			case <-timer.C:
+				metricInternalChannelSize.Set(float64(len(ch)))
+			}
+		}
+	}()
+}
+
+func (a *Node) runOutgoingConnections(ctx context.Context) {
+	func() {
+		for {
+			a.SpawnOutgoingConnections(ctx)
+			timer := time.NewTimer(spawnOutgoingConnectionsInterval)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				return
+			case <-timer.C:
+			}
+		}
+	}()
+}
+
+func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a fsm.Async) {
 	for _, t := range a {
 		func(t tasks.Task) {
 			r.Named(fmt.Sprintf("Async Task %T", t), func() {

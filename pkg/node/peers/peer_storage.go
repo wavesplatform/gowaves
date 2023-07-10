@@ -1,9 +1,9 @@
-package peer_manager
+package peers
 
 import (
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 )
 
 type PeerStorage interface {
