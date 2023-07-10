@@ -351,7 +351,6 @@ func (a *txAppender) commitTxApplication(
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
 			stateActionsCounter: params.stateActionsCounterInBlock,
-			estimatorVersion:    params.checkerInfo.estimatorVersion(),
 			checkerData:         applicationRes.checkerData,
 		}
 		// TODO other snapshots

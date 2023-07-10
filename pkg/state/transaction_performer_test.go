@@ -27,7 +27,7 @@ func createPerformerTestObjects(t *testing.T) *performerTestObjects {
 }
 
 func defaultPerformerInfo() *performerInfo {
-	return newPerformerInfo(0, new(proto.StateActionsCounter), blockID0, proto.WavesAddress{}, nil, txCheckerData{})
+	return newPerformerInfo(0, new(proto.StateActionsCounter), blockID0, proto.WavesAddress{}, txCheckerData{})
 }
 
 func TestPerformIssueWithSig(t *testing.T) {

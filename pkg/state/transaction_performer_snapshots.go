@@ -277,7 +277,7 @@ func (tp *transactionPerformer) generateSnapshotForSponsorshipTx(assetID crypto.
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress proto.WavesAddress, senderPK crypto.PublicKey, script proto.Script, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script, complexity int, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	if balanceChanges == nil {
 		return nil, nil
 	}
@@ -285,13 +285,6 @@ func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress pro
 	if err != nil {
 		return nil, err
 	}
-	estimatorVersion := info.estimatorVersion
-	// the complexity was saved before when evaluated in checker
-	treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddress, estimatorVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
-	}
-	complexity := treeEstimation.Verifier
 
 	sponsorshipSnapshot := &AccountScriptSnapshot{
 		SenderPublicKey:    senderPK,
@@ -302,7 +295,7 @@ func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress pro
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script, complexity int, balanceChanges txDiff) (TransactionSnapshot, error) {
 	if balanceChanges == nil {
 		return nil, nil
 	}
@@ -310,12 +303,6 @@ func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID cryp
 	if err != nil {
 		return nil, err
 	}
-	// the complexity was saved before when evaluated in checker
-	treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAsset(proto.AssetIDFromDigest(assetID))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get verifier complexity from storage")
-	}
-	complexity := treeEstimation.Verifier
 
 	sponsorshipSnapshot := &AssetScriptSnapshot{
 		AssetID:    assetID,
