@@ -489,8 +489,6 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 
 	tx := createSetAssetScriptWithProofs(t)
-	_, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfo(), nil, nil)
-	assert.NoError(t, err, "scriptByAddr() failed after flushing")
 	pi := *defaultPerformerInfo()
 
 	currentEstimatorVersion := 4

@@ -321,7 +321,11 @@ func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress
 	return nil
 }
 
-func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxParams, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (a *txAppender) commitTxApplication(
+	tx proto.Transaction,
+	params *appendTxParams,
+	invocationRes *invocationResult,
+	applicationRes *applicationResult) (TransactionSnapshot, error) {
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -341,17 +345,17 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 
 	var snapshot TransactionSnapshot
 	if applicationRes.status {
-		//We only perform tx in case it has not failed.
+		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
 			height:              params.checkerInfo.height,
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
 			stateActionsCounter: params.stateActionsCounterInBlock,
-			checkerInfo:         params.checkerInfo, // performer needs to know the estimator version which is stored in checker info
+			estimatorVersion:    params.checkerInfo.estimatorVersion(),
 			checkerData:         applicationRes.checkerData,
 		}
 		// TODO other snapshots
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes)
+		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
@@ -575,7 +579,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	return nil
 }
 
-// rewards and 60% of the fee to the previous miner
+// rewards and 60% of the fee to the previous miner.
 func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (TransactionSnapshot, error) {
 	addrWavesBalanceDiff, _, err := addressBalanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
 	if err != nil {

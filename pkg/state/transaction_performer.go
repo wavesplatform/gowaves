@@ -15,8 +15,8 @@ type performerInfo struct {
 	currentMinerAddress proto.WavesAddress
 	stateActionsCounter *proto.StateActionsCounter
 	// TODO put one into another
-	checkerInfo *checkerInfo
-	checkerData txCheckerData
+	estimatorVersion int
+	checkerData      txCheckerData
 }
 
 func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter, blockID proto.BlockID, currentMinerAddress proto.WavesAddress, checkerInfo *checkerInfo, checkerData txCheckerData) *performerInfo {
@@ -32,7 +32,7 @@ func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings
 	return &transactionPerformer{stor, settings}, nil
 }
 
-func (tp *transactionPerformer) performGenesis(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performGenesis(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	_, ok := transaction.(*proto.Genesis)
 	if !ok {
 		return nil, errors.New("failed to convert interface to genesis transaction")
@@ -40,7 +40,7 @@ func (tp *transactionPerformer) performGenesis(transaction proto.Transaction, in
 	return tp.generateSnapshotForGenesisTx(applicationRes)
 }
 
-func (tp *transactionPerformer) performPayment(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performPayment(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	_, ok := transaction.(*proto.Payment)
 	if !ok {
 		return nil, errors.New("failed to convert interface to payment transaction")
@@ -48,11 +48,11 @@ func (tp *transactionPerformer) performPayment(transaction proto.Transaction, in
 	return tp.generateSnapshotForPaymentTx(applicationRes)
 }
 
-func (tp *transactionPerformer) performTransfer(applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performTransfer(balanceChanges txDiff) (TransactionSnapshot, error) {
 	return tp.generateSnapshotForTransferTx(applicationRes)
 }
 
-func (tp *transactionPerformer) performTransferWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performTransferWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	_, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to transfer with sig transaction")
@@ -60,7 +60,7 @@ func (tp *transactionPerformer) performTransferWithSig(transaction proto.Transac
 	return tp.performTransfer(applicationRes)
 }
 
-func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	_, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to transfer with proofs transaction")
@@ -68,7 +68,7 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 	return tp.performTransfer(applicationRes)
 }
 
-func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest, assetID crypto.Digest, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest, assetID crypto.Digest, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -100,7 +100,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to IssueWithSig transaction")
@@ -119,7 +119,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to IssueWithProofs transaction")
@@ -149,7 +149,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetReissueChange{
 		reissuable: tx.Reissuable,
@@ -167,7 +167,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to ReissueWithSig transaction")
@@ -175,7 +175,7 @@ func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transact
 	return tp.performReissue(&tx.Reissue, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to ReissueWithProofs transaction")
@@ -183,7 +183,7 @@ func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Trans
 	return tp.performReissue(&tx.Reissue, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	// Modify asset.
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
@@ -201,7 +201,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo,
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to BurnWithSig transaction")
@@ -209,7 +209,7 @@ func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction
 	return tp.performBurn(&tx.Burn, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to BurnWithProofs transaction")
@@ -225,7 +225,7 @@ func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, fee uint6
 	return tp.stor.ordersVolumes.increaseFilled(orderID, volume, fee, info.blockID)
 }
 
-func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return nil, errors.New("failed to convert interface to Exchange transaction")
@@ -259,7 +259,7 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLease(tx *proto.Lease, txID crypto.Digest, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLease(tx *proto.Lease, txID crypto.Digest, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -292,7 +292,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID crypto.Digest
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to LeaseWithSig transaction")
@@ -300,7 +300,7 @@ func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transactio
 	return tp.performLease(&tx.Lease, *tx.ID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to LeaseWithProofs transaction")
@@ -308,7 +308,7 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 	return tp.performLease(&tx.Lease, *tx.ID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	oldLease, err := tp.stor.leases.newestLeasingInfo(tx.LeaseID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to receiver leasing info")
@@ -324,7 +324,7 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
@@ -332,7 +332,7 @@ func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Tran
 	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
@@ -340,7 +340,7 @@ func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.T
 	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -356,7 +356,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performCreateAliasWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performCreateAliasWithSig(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.CreateAliasWithSig)
 	if !ok {
 		return nil, errors.New("failed to convert interface to CreateAliasWithSig transaction")
@@ -364,7 +364,7 @@ func (tp *transactionPerformer) performCreateAliasWithSig(transaction proto.Tran
 	return tp.performCreateAlias(&tx.CreateAlias, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performCreateAliasWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performCreateAliasWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.CreateAliasWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
@@ -372,7 +372,7 @@ func (tp *transactionPerformer) performCreateAliasWithProofs(transaction proto.T
 	return tp.performCreateAlias(&tx.CreateAlias, info, applicationRes)
 }
 
-func (tp *transactionPerformer) performMassTransferWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performMassTransferWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	_, ok := transaction.(*proto.MassTransferWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
@@ -380,7 +380,7 @@ func (tp *transactionPerformer) performMassTransferWithProofs(transaction proto.
 	return tp.generateSnapshotForMassTransferTx(applicationRes)
 }
 
-func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 
 	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
@@ -403,7 +403,7 @@ func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transact
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SponsorshipWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to SponsorshipWithProofs transaction")
@@ -419,7 +419,7 @@ func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.T
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetScriptWithProofs transaction")
@@ -449,7 +449,7 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
@@ -500,7 +500,7 @@ func addToWavesBalanceDiff(addrWavesBalanceDiff addressWavesBalanceDiff,
 	}
 }
 
-// subtracts the amount from the sender's balance and add it to the recipient's balane
+// subtracts the amount from the sender's balance and add it to the recipient's balance.
 func addSenderRecipientToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
 	senderAddress proto.WavesAddress,
 	recipientAddress proto.WavesAddress,
@@ -526,7 +526,7 @@ func addSenderRecipientToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalan
 	}
 }
 
-// adds/subtracts the amount to the sender balance
+// adds/subtracts the amount to the sender balance.
 func addSenderToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
 	senderAddress proto.WavesAddress,
 	asset proto.AssetID,
@@ -543,7 +543,7 @@ func addSenderToAssetBalanceDiff(addrAssetBalanceDiff addressAssetBalanceDiff,
 
 }
 
-func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
@@ -567,7 +567,7 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
@@ -586,7 +586,7 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 	return tp.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes, applicationRes)
 }
 
-func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	ethTx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
@@ -613,7 +613,7 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")

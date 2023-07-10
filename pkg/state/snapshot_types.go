@@ -89,7 +89,7 @@ type AliasSnapshot struct {
 
 func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 
-// FilledVolumeFeeSnapshot Filled Volume and Fee
+// FilledVolumeFeeSnapshot Filled Volume and Fee.
 type FilledVolumeFeeSnapshot struct { // OrderFill
 	OrderID      crypto.Digest
 	FilledVolume uint64

@@ -22,7 +22,7 @@ type scriptsEstimations struct {
 func (e *scriptsEstimations) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
-type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, *applicationResult) (TransactionSnapshot, error)
+type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, txDiff) (TransactionSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -45,7 +45,7 @@ type transactionHandler struct {
 }
 
 // TODO: see TODO on GetTypeInfo() in proto/transactions.go.
-// performer builds snapshots
+// performer builds snapshots.
 func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
 	return handles{
 		proto.TransactionTypeInfo{Type: proto.GenesisTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
@@ -169,7 +169,7 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (t
 	return funcs.check(tx, info)
 }
 
-func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
@@ -180,7 +180,7 @@ func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo
 		return nil, nil
 	}
 
-	return funcs.perform(tx, info, invocationRes, applicationRes)
+	return funcs.perform(tx, info, invocationRes, balanceChanges)
 }
 
 func (h *transactionHandler) createDiffTx(tx proto.Transaction, info *differInfo) (txBalanceChanges, error) {

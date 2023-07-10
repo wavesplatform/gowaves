@@ -15,34 +15,34 @@ type assetBalanceDiffKey struct {
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
 type addressAssetBalanceDiff map[assetBalanceDiffKey]int64
 
-func (tp *transactionPerformer) generateSnapshotForGenesisTx(applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForGenesisTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	return tp.generateBalancesSnapshot(applicationRes)
+	return tp.generateBalancesSnapshot(balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForPaymentTx(applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForPaymentTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	return tp.generateBalancesSnapshot(applicationRes)
+	return tp.generateBalancesSnapshot(balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForTransferTx(applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForTransferTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	return tp.generateBalancesSnapshot(applicationRes)
+	return tp.generateBalancesSnapshot(balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest, senderPK crypto.PublicKey, assetInfo assetInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest, senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
 	var snapshot TransactionSnapshot
 	// TODO add asset script snapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(balanceChanges, tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -101,8 +101,8 @@ func (tp *transactionPerformer) generateSnapshotForIssueTx(assetID crypto.Digest
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForReissueTx(assetID crypto.Digest, change assetReissueChange, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForReissueTx(assetID crypto.Digest, change assetReissueChange, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
 	quantityDiff := big.NewInt(change.diff)
@@ -112,7 +112,7 @@ func (tp *transactionPerformer) generateSnapshotForReissueTx(assetID crypto.Dige
 	}
 	resQuantity := assetInfo.quantity.Add(&assetInfo.quantity, quantityDiff)
 
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -125,8 +125,8 @@ func (tp *transactionPerformer) generateSnapshotForReissueTx(assetID crypto.Dige
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForBurnTx(assetID crypto.Digest, change assetBurnChange, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForBurnTx(assetID crypto.Digest, change assetBurnChange, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
 	quantityDiff := big.NewInt(change.diff)
@@ -136,7 +136,7 @@ func (tp *transactionPerformer) generateSnapshotForBurnTx(assetID crypto.Digest,
 	}
 	resQuantity := assetInfo.quantity.Sub(&assetInfo.quantity, quantityDiff)
 
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -149,11 +149,11 @@ func (tp *transactionPerformer) generateSnapshotForBurnTx(assetID crypto.Digest,
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForExchangeTx(sellOrder proto.Order, sellFee uint64, buyOrder proto.Order, buyFee uint64, volume uint64, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForExchangeTx(sellOrder proto.Order, sellFee uint64, buyOrder proto.Order, buyFee uint64, volume uint64, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -179,12 +179,12 @@ func (tp *transactionPerformer) generateSnapshotForExchangeTx(sellOrder proto.Or
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForLeaseTx(lease leasing, leaseID crypto.Digest, originalTxID crypto.Digest, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForLeaseTx(lease leasing, leaseID crypto.Digest, originalTxID crypto.Digest, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
 	var err error
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -198,12 +198,12 @@ func (tp *transactionPerformer) generateSnapshotForLeaseTx(lease leasing, leaseI
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForLeaseCancelTx(txID *crypto.Digest, oldLease leasing, leaseID crypto.Digest, originalTxID crypto.Digest, cancelHeight uint64, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForLeaseCancelTx(txID *crypto.Digest, oldLease leasing, leaseID crypto.Digest, originalTxID crypto.Digest, cancelHeight uint64, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
 	var err error
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -222,11 +222,11 @@ func (tp *transactionPerformer) generateSnapshotForLeaseCancelTx(txID *crypto.Di
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForCreateAliasTx(senderAddress proto.WavesAddress, alias proto.Alias, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForCreateAliasTx(senderAddress proto.WavesAddress, alias proto.Alias, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -238,18 +238,18 @@ func (tp *transactionPerformer) generateSnapshotForCreateAliasTx(senderAddress p
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForMassTransferTx(applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForMassTransferTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	return tp.generateBalancesSnapshot(applicationRes)
+	return tp.generateBalancesSnapshot(balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForDataTx(senderAddress proto.WavesAddress, entries []proto.DataEntry, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForDataTx(senderAddress proto.WavesAddress, entries []proto.DataEntry, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -261,11 +261,11 @@ func (tp *transactionPerformer) generateSnapshotForDataTx(senderAddress proto.Wa
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForSponsorshipTx(assetID crypto.Digest, minAssetFee uint64, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForSponsorshipTx(assetID crypto.Digest, minAssetFee uint64, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -277,15 +277,15 @@ func (tp *transactionPerformer) generateSnapshotForSponsorshipTx(assetID crypto.
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress proto.WavesAddress, senderPK crypto.PublicKey, script proto.Script, info *performerInfo, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress proto.WavesAddress, senderPK crypto.PublicKey, script proto.Script, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	estimatorVersion := info.checkerInfo.estimatorVersion()
+	estimatorVersion := info.estimatorVersion
 	// the complexity was saved before when evaluated in checker
 	treeEstimation, err := tp.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddress, estimatorVersion)
 	if err != nil {
@@ -302,11 +302,11 @@ func (tp *transactionPerformer) generateSnapshotForSetScriptTx(senderAddress pro
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -326,23 +326,24 @@ func (tp *transactionPerformer) generateSnapshotForSetAssetScriptTx(assetID cryp
 	return snapshot, nil
 }
 
-func (tp *transactionPerformer) generateSnapshotForInvokeScriptTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	return tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+func (tp *transactionPerformer) generateSnapshotForInvokeScriptTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+	return tp.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	return tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+func (tp *transactionPerformer) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+	return tp.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	return tp.generateInvokeSnapshot(txID, info, invocationRes, applicationRes)
+func (tp *transactionPerformer) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+	return tp.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges)
 }
 
-func (tp *transactionPerformer) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string, assetDescription string, changeHeight proto.Height, applicationRes *applicationResult) (TransactionSnapshot, error) {
-	if applicationRes == nil {
+func (tp *transactionPerformer) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string, assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
 		return nil, nil
 	}
-	snapshot, err := tp.generateBalancesSnapshot(applicationRes)
+
+	snapshot, err := tp.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -357,11 +358,15 @@ func (tp *transactionPerformer) generateSnapshotForUpdateAssetInfoTx(assetID cry
 }
 
 // TODO optimize this
-func (tp *transactionPerformer) generateInvokeSnapshot(txID crypto.Digest, info *performerInfo, invocationRes *invocationResult, applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) generateInvokeSnapshot(
+	txID crypto.Digest,
+	info *performerInfo,
+	invocationRes *invocationResult,
+	balanceChanges txDiff) (TransactionSnapshot, error) {
 
 	blockHeight := info.height + 1
 
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(balanceChanges, tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -628,9 +633,9 @@ func (tp *transactionPerformer) generateOrderAtomicSnapshot(orderID []byte, volu
 	return orderSnapshot, nil
 }
 
-func (tp *transactionPerformer) generateBalancesSnapshot(applicationRes *applicationResult) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) generateBalancesSnapshot(balanceChanges txDiff) (TransactionSnapshot, error) {
 	var transactionSnapshot TransactionSnapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(applicationRes.changes.diff, tp.settings.AddressSchemeCharacter)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := addressBalanceDiffFromTxDiff(balanceChanges, tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
