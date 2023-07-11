@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -64,9 +65,20 @@ type scalaCustomOptions struct {
 	EnableMining bool
 }
 
+type RewardSettings struct {
+	BlockRewardVotingPeriod uint64               `json:"voting_interval"`
+	BlockRewardTerm         uint64               `json:"term"`
+	BlockRewardTermAfter20  uint64               `json:"term_after_capped_reward_feature"`
+	InitialBlockReward      uint64               `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64               `json:"block_reward_increment"`
+	DesiredBlockReward      uint64               `json:"desired_reward"`
+	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
+}
+
 type config struct {
 	BlockchainSettings *settings.BlockchainSettings
 	ScalaOpts          *scalaCustomOptions
+	GoEnvDesireReward  string
 }
 
 func parseGenesisSettings() (*GenesisSettings, error) {
@@ -88,11 +100,48 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func newBlockchainConfig() (*config, []AccountInfo, error) {
+func parseRewardSettings(additionalArgsPath string) (*RewardSettings, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	additionalSettingsPath := filepath.Clean(filepath.Join(pwd, configFolder, additionalArgsPath))
+	f, err := os.Open(additionalSettingsPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open file")
+	}
+	jsonParser := json.NewDecoder(f)
+	s := &RewardSettings{}
+	if err = jsonParser.Decode(s); err != nil {
+		return nil, errors.Wrap(err, "failed to decode additional settings")
+	}
+	return s, nil
+}
+
+/*func parseSettings(additionalArgsPath string) {}*/
+
+func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	rewardSettings := &RewardSettings{
+		BlockRewardVotingPeriod: 5,
+		BlockRewardTerm:         20,
+		BlockRewardTermAfter20:  10,
+		InitialBlockReward:      600000000,
+		BlockRewardIncrement:    100000000,
+		DesiredBlockReward:      700000000,
+		RewardAddresses:         []proto.WavesAddress{},
+	}
+	if len(additionalArgsPath) == 1 {
+		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	ts := time.Now().UnixMilli()
 	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
 	if err != nil {
@@ -120,21 +169,26 @@ func newBlockchainConfig() (*config, []AccountInfo, error) {
 	cfg.FeaturesVotingPeriod = 1
 	cfg.VotesForFeatureActivation = 1
 
-	cfg.InitialBlockReward = 600000000
-	cfg.BlockRewardIncrement = 100000000
+	//reward settings
+	cfg.InitialBlockReward = rewardSettings.InitialBlockReward
+	cfg.BlockRewardIncrement = rewardSettings.BlockRewardIncrement
+	cfg.BlockRewardVotingPeriod = rewardSettings.BlockRewardVotingPeriod
+	cfg.BlockRewardTermAfter20 = rewardSettings.BlockRewardTermAfter20
+	cfg.BlockRewardTerm = rewardSettings.BlockRewardTerm
 
-	cfg.BlockRewardVotingPeriod = 5
-	cfg.BlockRewardTermAfter20 = 10
-	cfg.BlockRewardTerm = 20
-	cfg.RewardAddresses = []proto.WavesAddress{acc[5].Address, acc[6].Address}
+	//cfg.RewardAddresses = []proto.WavesAddress{acc[5].Address, acc[6].Address}
+	cfg.RewardAddresses = rewardSettings.RewardAddresses
 
+	//preactivated features
 	cfg.PreactivatedFeatures = make([]int16, len(genSettings.PreactivatedFeatures))
 	for i, f := range genSettings.PreactivatedFeatures {
 		cfg.PreactivatedFeatures[i] = f.Feature
 	}
+
 	return &config{
 		BlockchainSettings: &cfg,
 		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
+		GoEnvDesireReward:  strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
 	}, acc, nil
 }
 

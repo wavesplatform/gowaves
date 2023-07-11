@@ -111,7 +111,7 @@ func removeExistsContainers(pool *dockertest.Pool, suiteName string) error {
 	return nil
 }
 
-func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, suiteName string) (*Ports, error) {
+func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, suiteName string, goEnv string) (*Ports, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (d *Docker) RunContainers(ctx context.Context, paths config.ConfigPaths, su
 		return nil, err
 	}
 
-	goNodeRes, goPorts, err := d.runGoNode(ctx, paths.GoConfigPath, suiteName)
+	goNodeRes, goPorts, err := d.runGoNode(ctx, paths.GoConfigPath, suiteName, goEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	}
 }
 
-func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string) (*dockertest.Resource, *PortConfig, error) {
+func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string, desireRewardEnv string) (*dockertest.Resource, *PortConfig, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, err
@@ -211,6 +211,7 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 			"DECLARED_ADDR=" + "go-node:" + BindPort,
 			"PEERS=",
 			"WALLET_PASSWORD=itest",
+			"DESIRED_REWARD=" + desireRewardEnv,
 		},
 		ExposedPorts: []string{
 			GrpcApiPort,

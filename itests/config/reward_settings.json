@@ -1,0 +1,12 @@
+{
+  "term": 20,
+  "term_after_capped_reward_feature": 10,
+  "voting_interval": 5,
+  "initial_block_reward": 600000000,
+  "block_reward_increment": 100000000,
+  "desired_reward": 900000000,
+  "reward_addresses": [
+    "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",
+    "3JdWGi733mWM2kPoUvHqg3uJzMQ5rPCoFWU"
+  ]
+}

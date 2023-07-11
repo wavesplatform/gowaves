@@ -401,29 +401,59 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, feat
 	return status, err
 }
 
+func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureId int) (int32, error) {
+	var err error
+	var activationHeight int32
+	activationHeight = -1
+	for _, feature := range statusResponse.GetFeatures() {
+		if feature.GetId() == int32(featureId) {
+			activationHeight = feature.GetActivationHeight()
+			break
+		}
+	}
+	if activationHeight == -1 {
+		err = errors.Errorf("Feature with Id %d not found", featureId)
+	}
+	return activationHeight, err
+}
+
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
-	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+	require.NoError(suite.T(), err, "Couldn't get feature status info")
 	fmt.Printf("Go: Status of feature %d @%d: %s\n", featureId, h, status)
 	return status
 }
 
 func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64) string {
-	status, _ := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
-	fmt.Printf("Scala: Status of feature %d @%d: %s\n", featureId, h, status)
+	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
+	require.NoError(suite.T(), err, "Couldn't get feature status info")
+	fmt.Printf("Scala: Status of feature %d on height @%d: %s\n", featureId, h, status)
 	return status
 }
 
-func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, h uint64) bool {
-	return GetFeatureBlockchainStatusGo(suite, featureId, h) == "ACTIVATED"
+func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, h uint64) int32 {
+	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+	require.NoError(suite.T(), err)
+	if GetFeatureBlockchainStatusGo(suite, featureId, h) != "ACTIVATED" {
+		activationHeight = -1
+	}
+	return activationHeight
 }
 
-func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, h uint64) bool {
-	return GetFeatureBlockchainStatusScala(suite, featureId, h) == "ACTIVATED"
+func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, h uint64) int32 {
+	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
+	require.NoError(suite.T(), err)
+	if GetFeatureBlockchainStatusScala(suite, featureId, h) != "ACTIVATED" {
+		activationHeight = -1
+	}
+	return activationHeight
 }
 
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, h uint64) {
 	var err error
-	if !(IsFeatureActivatedGo(suite, featureId, h) && IsFeatureActivatedScala(suite, featureId, h)) {
+	activationHeightGo := IsFeatureActivatedGo(suite, featureId, h)
+	activationHeightScala := IsFeatureActivatedScala(suite, featureId, h)
+	if activationHeightGo == -1 && activationHeightScala == -1 {
 		err = errors.Errorf("Feature with Id %d not activated", featureId)
 	}
 	require.NoError(suite.T(), err)
@@ -644,4 +674,24 @@ func GetRewardTermAfter20(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
-//func GetCurrentReward(suite *f.BaseSuite) uint64 {}
+/*func GetCurrentRewardGo(suite *f.BaseSuite, h uint64) uint64 {
+	//get init values
+	votingInterval := GetBlockRewardVotingPeriod(suite)
+	term := GetRewardTerm(suite)
+	termAfter20 := GetRewardTermAfter20(suite)
+	desiredReward := GetDesiredRewardGo(suite, h)
+	initReward := GetInitReward(suite)
+	increment := GetRewardIncrement(suite)
+	//counting of terms starts from feature 14 activation height
+	activationHeight14, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 14)
+	require.NoError(suite.T(), err, "Couldn't get activation height of feature 14")
+	activationHeight19, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 19)
+	require.NoError(suite.T(), err, "Couldn't get activation height of feature 19")
+	activationHeight20, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 20)
+	require.NoError(suite.T(), err, "Couldn't get activation height of feature 20")
+
+	//current reward initially equals init reward from config file
+	currentReward := initReward
+
+	return currentReward
+}*/

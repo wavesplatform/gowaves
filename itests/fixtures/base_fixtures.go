@@ -24,13 +24,9 @@ type BaseSuite struct {
 	Ports   *d.Ports
 }
 
-func (suite *BaseSuite) SetupSuite() {
-	const enableScalaMining = true
-
-	suiteName := strcase.KebabCase(suite.T().Name())
-
+func (suite *BaseSuite) BaseSetup(suiteName string, enableScalaMining bool, additionalArgsPath ...string) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
-	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining)
+	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining, additionalArgsPath...)
 	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
 
@@ -38,13 +34,20 @@ func (suite *BaseSuite) SetupSuite() {
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
-	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName)
+	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName, cfg.Env)
 	if err != nil {
 		docker.Finish(suite.Cancel)
 		suite.Require().NoError(err, "couldn't run Docker containers")
 	}
 	suite.Ports = ports
 	suite.Clients = node_client.NewNodesClients(suite.T(), ports)
+}
+
+func (suite *BaseSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+
+	suite.BaseSetup(suiteName, enableScalaMining)
 }
 
 func (suite *BaseSuite) TearDownSuite() {
