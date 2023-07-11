@@ -1514,7 +1514,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	// wait for all verifier goroutines
-	if verifyError := chans.closeAndWait(); err != nil {
+	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
 

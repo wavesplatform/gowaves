@@ -1,9 +1,10 @@
 package signatures
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
 )
 
 // from small to big by height

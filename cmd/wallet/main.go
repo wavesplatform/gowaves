@@ -17,6 +17,7 @@ import (
 
 	"github.com/howeyc/gopass"
 	"github.com/tyler-smith/go-bip39"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
