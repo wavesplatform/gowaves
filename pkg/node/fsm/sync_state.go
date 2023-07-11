@@ -82,6 +82,7 @@ func (a *SyncState) StopSync() (State, Async, error) {
 }
 
 func (a *SyncState) ChangeSyncPeer(p peer.Peer) (State, Async, error) {
+	zap.S().Debugf("[Sync] Handle 'ChangeSyncPeer', peer '%s'", p.ID().String())
 	return syncWithNewPeer(a, a.baseInfo, p)
 }
 
@@ -198,10 +199,8 @@ func (a *SyncState) applyBlocks(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
 	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
-	if np, ok := a.changePeerIfRequired(); ok {
-		return syncWithNewPeer(a, a.baseInfo, np)
-	}
 	if len(blocks) == 0 {
+		zap.S().Debugf("[Sync][applyBlocks] Zero blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
@@ -220,6 +219,10 @@ func (a *SyncState) applyBlocks(
 	}
 	for _, b := range blocks {
 		metrics.FSMKeyBlockApplied("sync", b)
+	}
+	if np, ok := a.changePeerIfRequired(); ok {
+		zap.S().Debugf("[Sync][applyBlocks] Changing peer to '%s'", np.ID().String())
+		return syncWithNewPeer(a, a.baseInfo, np)
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)

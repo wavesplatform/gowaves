@@ -80,6 +80,7 @@ func (a *NGState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 		return a, nil, a.Errorf(err)
 	}
 	if score.Cmp(nodeScore) == 1 {
+		// received score is larger than local score
 		return syncWithNewPeer(a, a.baseInfo, p)
 	}
 	return a, nil, nil

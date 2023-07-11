@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
