@@ -70,7 +70,7 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 }
 
 func (a *SyncState) StopSync() (State, Async, error) {
-	_, blocks, _, _ := a.internal.Blocks(noopWrapper{}, nil)
+	_, blocks, _ := a.internal.Blocks(noopWrapper{})
 	if len(blocks) > 0 {
 		err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 			_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
@@ -174,26 +174,32 @@ func (a *SyncState) Halt() (State, Async, error) {
 	return newHaltState(a.baseInfo)
 }
 
-func (a *SyncState) changePeerSyncWith() (State, Async, error) {
-	if np, ok := a.baseInfo.peers.HasMaxScore(a.conf.peerSyncWith); ok { // OK - Switching to new peer
-		return syncWithNewPeer(a, a.baseInfo, np)
+func (a *SyncState) isTimeToSwitchPeerWithMaxScore() bool {
+	now := time.Now()
+	obsolescenceTime := now.Add(-a.baseInfo.obsolescence)
+	lastBlock := a.baseInfo.storage.TopBlock()
+	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
+	return !obsolescenceTime.After(lastBlockTime)
+}
+
+func (a *SyncState) changePeerIfRequired() (peer.Peer, bool) {
+	if a.isTimeToSwitchPeerWithMaxScore() {
+		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
+		// score every time it updated.
+		return a.baseInfo.peers.CheckPeerWithMaxScore(a.baseInfo.syncPeer.GetPeer())
 	}
-	return a, nil, nil
+	// Node better continue synchronization with one node, switching to new node happens only if the larger
+	// group of nodes with the highest score appears.
+	return a.baseInfo.peers.CheckPeerInLargestScoreGroup(a.baseInfo.syncPeer.GetPeer())
 }
 
 // TODO suspend peer on state error
 func (a *SyncState) applyBlocks(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
-	internal, blocks, eof, needToChangePeer := internal.Blocks(
-		extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme),
-		func() bool {
-			_, ok := a.baseInfo.peers.HasMaxScore(a.conf.peerSyncWith)
-			return ok
-		},
-	)
-	if needToChangePeer {
-		return a.changePeerSyncWith()
+	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
+	if np, ok := a.changePeerIfRequired(); ok {
+		return syncWithNewPeer(a, a.baseInfo, np)
 	}
 	if len(blocks) == 0 {
 		return newSyncState(baseInfo, conf, internal), nil, nil

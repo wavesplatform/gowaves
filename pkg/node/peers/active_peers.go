@@ -84,12 +84,20 @@ func (ap *activePeers) getPeerWithMaxScore() (peerInfo, bool) {
 }
 
 func (ap *activePeers) getPeerFromLargestPeerGroup(p peer.Peer) (peerInfo, bool) {
-	id, _ := ap.selector.selectBestPeer(p.ID())
+	var pid peer.ID
+	if p != nil {
+		pid = p.ID()
+	}
+	id, _ := ap.selector.selectBestPeer(pid)
 	if id == nil {
 		return peerInfo{}, false
 	}
 	info, ok := ap.m[id]
-	return info, ok
+	if !ok {
+		// TODO: peerInfo for the selected peer is not found, looks like inconsistent state of activePeers, maybe panic?
+		return peerInfo{}, false
+	}
+	return info, id != pid
 }
 
 func (ap *activePeers) size() int {

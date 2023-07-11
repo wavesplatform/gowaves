@@ -364,7 +364,7 @@ func main() {
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	ntw := network.NewNetwork(svs, parent)
+	ntw := network.NewNetwork(svs, parent, *obsolescencePeriod)
 	go ntw.Run()
 
 	n := node.NewNode(svs, declAddr, bindAddr, *microblockInterval)

@@ -71,13 +71,13 @@ func TestSigFSM_Block(t *testing.T) {
 	require.Equal(t, 2, fsm.AvailableCount())
 
 	// no panic, cause `nearEnd` is True
-	_, blocks, _, _ := fsm.Blocks(nil, nil)
+	_, blocks, _ := fsm.Blocks(nil)
 	require.Equal(t, 2, len(blocks))
 }
 
 func TestSigFSM_BlockGetSignatures(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	_, bs, _, _ := NewInternal(or, sigs, false).Blocks(nil, nil)
+	_, bs, _ := NewInternal(or, sigs, false).Blocks(nil)
 	require.Nil(t, bs)
 }

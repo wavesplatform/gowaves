@@ -44,6 +44,7 @@ type BaseInfo struct {
 	scheme        proto.Scheme
 	invRequester  InvRequester
 	blocksApplier BlocksApplier
+	obsolescence  time.Duration
 
 	// scheduler
 	types.Scheduler
@@ -123,17 +124,18 @@ type StateData struct {
 
 func NewFSM(
 	services services.Services,
-	microblockInterval time.Duration,
+	microblockInterval, obsolescence time.Duration,
 	syncPeer *network.SyncPeer,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
 	info := BaseInfo{
-		peers:   services.Peers,
-		storage: services.State,
-		tm:      services.Time,
-		scheme:  services.Scheme,
+		peers:        services.Peers,
+		storage:      services.State,
+		tm:           services.Time,
+		scheme:       services.Scheme,
+		obsolescence: obsolescence,
 
 		//
 		invRequester:  ng.NewInvRequester(),

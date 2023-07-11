@@ -45,6 +45,7 @@ type Node struct {
 	utx                types.UtxPool
 	services           services.Services
 	microblockInterval time.Duration
+	obsolescence       time.Duration
 }
 
 func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration) *Node {
@@ -140,7 +141,7 @@ func (a *Node) Run(
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := fsm.NewFSM(a.services, a.microblockInterval, syncPeer)
+	fsm, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return

@@ -56,8 +56,8 @@ type PeerManager interface {
 	// AskPeers sends GetPeersMessage message to all connected nodes.
 	AskPeers()
 
-	HasMaxScore(p peer.Peer) (peer.Peer, bool)
-	IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool)
+	CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool)
+	CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool)
 
 	Disconnect(peer.Peer)
 }
@@ -432,33 +432,47 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) er
 	return nil
 }
 
-func (a *PeerManagerImpl) HasMaxScore(p peer.Peer) (peer.Peer, bool) {
+func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	currentPeerInfo, ok := a.active.get(p.ID())
+	var pid peer.ID
+	if p != nil {
+		pid = p.ID()
+	}
+	cpi, ok := a.active.get(pid)
 	if !ok {
 		return nil, false
 	}
-	maxPeerInfo, ok := a.active.getPeerWithMaxScore()
+	npi, ok := a.active.getPeerWithMaxScore()
 	if !ok { // No need to change peer
+		if pid != nil {
+			zap.S().Debugf("No need to change peer with max score '%s'", pid.String())
+		}
 		return p, false
 	}
 
-	if currentPeerInfo.score.Cmp(maxPeerInfo.score) < 0 { // maxPeer has a bigger score - switch to it
-		return maxPeerInfo.peer, true
+	if cpi.score.Cmp(npi.score) < 0 { // npi has a bigger score - switch to it
+		zap.S().Debugf("Changing peer with max score from '%s' to '%s'",
+			p.ID().String(), npi.peer.ID().String())
+		return npi.peer, true
 	}
-	return currentPeerInfo.peer, false // Otherwise stick to currently used peer
+	zap.S().Debugf("No need to change peer with max score '%s'", p.ID().String())
+	return p, false // Otherwise stick to currently used peer
 }
 
-func (a *PeerManagerImpl) IsInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
+func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	np, ok := a.active.getPeerFromLargestPeerGroup(p)
 	if !ok { // No need to change peer
+		if p != nil {
+			zap.S().Debugf("No need to change peer '%s'", p.ID().String())
+		}
 		return p, false
 	}
+	zap.S().Debugf("Changing best peer from '%s' to '%s'", p.ID().String(), np.peer.ID().String())
 	return np.peer, true
 }
 

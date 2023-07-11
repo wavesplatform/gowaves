@@ -28,15 +28,19 @@ const (
 // First arg is Async - return value of event handler.
 func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 	switch event {
-	case StartMiningEvent, StopMiningEvent, HaltEvent:
+	case StartMiningEvent, StopSyncEvent, StopMiningEvent, HaltEvent:
 		return []reflect.Type{reflect.TypeOf(&Async{})}
 	case TaskEvent:
 		return []reflect.Type{reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})}
 	case ChangeSyncPeerEvent:
 		return []reflect.Type{reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()}
-	case ScoreEvent, BlockEvent:
+	case ScoreEvent:
 		return []reflect.Type{
 			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{}),
+		}
+	case BlockEvent:
+		return []reflect.Type{
+			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{}),
 		}
 	case MinedBlockEvent:
 		return []reflect.Type{
@@ -128,7 +132,8 @@ func tryBroadcastTransaction(
 }
 
 func fsmErrorf(state State, err error) error {
-	if errors.As(err, &proto.InfoMsg{}) {
+	infoMsg := &proto.InfoMsg{}
+	if errors.As(err, &infoMsg) {
 		return proto.NewInfoMsg(errors.Errorf("[%s] %s", state.String(), err.Error()))
 	}
 	return errors.Errorf("[%s] %s", state.String(), err.Error())

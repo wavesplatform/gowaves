@@ -55,13 +55,14 @@ type Network struct {
 	obsolescence  time.Duration
 }
 
-func NewNetwork(services services.Services, p peer.Parent) Network {
+func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Duration) Network {
 	return Network{
 		InfoCh:        p.InfoCh,
 		NetworkInfoCh: make(chan InfoMessage, defaultChannelSize),
 		peers:         services.Peers,
 		storage:       services.State,
 		minPeerMining: services.MinPeersMining,
+		obsolescence:  obsolescence,
 	}
 }
 
@@ -121,13 +122,13 @@ func (n *Network) switchToNewPeerIfRequired() {
 	if n.isTimeToSwitchPeerWithMaxScore() {
 		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
 		// score every time it updated.
-		if np, ok := n.peers.HasMaxScore(n.SyncPeer.peer); ok {
+		if np, ok := n.peers.CheckPeerWithMaxScore(n.SyncPeer.peer); ok {
 			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	} else {
 		// Node better continue synchronization with one node, switching to new node happens only if the larger
 		// group of nodes with the highest score appears.
-		if np, ok := n.peers.IsInLargestScoreGroup(n.SyncPeer.peer); ok {
+		if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.SyncPeer.peer); ok {
 			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	}
