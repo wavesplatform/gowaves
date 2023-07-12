@@ -5,11 +5,11 @@
 package mock
 
 import (
-	reflect "reflect"
-	time "time"
+	"reflect"
+	"time"
 
-	gomock "github.com/golang/mock/gomock"
-	storage "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
+	"github.com/golang/mock/gomock"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 )
 
 // MockPeerStorage is a mock of PeerStorage interface.

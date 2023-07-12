@@ -5,15 +5,15 @@
 package mock
 
 import (
-	context "context"
-	net "net"
-	reflect "reflect"
-	time "time"
+	"context"
+	"net"
+	"reflect"
+	"time"
 
-	gomock "github.com/golang/mock/gomock"
-	storage "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
-	peer "github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	proto "github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/golang/mock/gomock"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 // MockPeerManager is a mock of PeerManager interface.

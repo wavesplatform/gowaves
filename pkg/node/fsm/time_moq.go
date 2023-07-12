@@ -4,9 +4,10 @@
 package fsm
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 // Ensure, that MockTime does implement types.Time.
