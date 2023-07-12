@@ -105,8 +105,8 @@ func parseRewardSettings(additionalArgsPath string) (*RewardSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	additionalSettingsPath := filepath.Clean(filepath.Join(pwd, configFolder, additionalArgsPath))
-	f, err := os.Open(additionalSettingsPath)
+	rewardSettingsPath := filepath.Clean(filepath.Join(pwd, configFolder, additionalArgsPath))
+	f, err := os.Open(rewardSettingsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
@@ -117,8 +117,6 @@ func parseRewardSettings(additionalArgsPath string) (*RewardSettings, error) {
 	}
 	return s, nil
 }
-
-/*func parseSettings(additionalArgsPath string) {}*/
 
 func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
