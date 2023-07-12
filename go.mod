@@ -8,8 +8,8 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/consensys/gnark v0.8.0
-	github.com/consensys/gnark-crypto v0.9.1
+	github.com/consensys/gnark v0.8.1
+	github.com/consensys/gnark-crypto v0.9.2
 	github.com/coocood/freecache v1.2.3
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
