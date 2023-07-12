@@ -1,0 +1,6 @@
+* text eol=lf
+
+# Windows .bat files are known to have multiple bugs when run with LF
+# endings, and so they are checked in with CRLF endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
