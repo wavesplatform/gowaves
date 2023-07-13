@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -123,7 +124,7 @@ func TestFunctions(t *testing.T) {
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	transfer := newTransferTransaction()
 	exchange := newExchangeTransaction()
-	data := newDataTransaction()
+	// data := newDataTransaction()
 	require.NoError(t, err)
 	env := &mockRideEnvironment{
 		checkMessageLengthFunc: bytesSizeCheckV3V6,
@@ -187,15 +188,15 @@ func TestFunctions(t *testing.T) {
 			}
 		},
 	}
-	_ /*envWithDataTX :*/ = &mockRideEnvironment{
-		transactionFunc: func() rideType {
-			obj, err := dataWithProofsToObject('W', data)
-			if err != nil {
-				panic(err)
-			}
-			return obj
-		},
-	}
+	// envWithDataTX := &mockRideEnvironment{
+	//	transactionFunc: func() rideType {
+	//		obj, err := dataWithProofsToObject('W', data)
+	//		if err != nil {
+	//			panic(err)
+	//		}
+	//		return obj
+	//	},
+	// }
 	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideType {
 			obj, err := exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
