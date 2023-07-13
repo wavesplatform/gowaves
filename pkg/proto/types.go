@@ -472,6 +472,10 @@ func (a *Attachment) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (a Attachment) String() string {
+	return base58.Encode(a)
+}
+
 func NewAttachmentFromBase58(s string) (Attachment, error) {
 	return base58.Decode(s)
 }
@@ -1798,7 +1802,7 @@ func (o *OrderV4) Valid() (bool, error) {
 		return false, err
 	}
 	if l := o.Attachment.Size(); l > MaxAttachmentSize {
-		return false, errors.Errorf("attachment size should be <= 1024 bytes, got %d", l)
+		return false, errors.Errorf("attachment size should be <= %d bytes, got %d", MaxAttachmentSize, l)
 	}
 	if ok, err := o.GetPriceMode().Valid(o.GetVersion()); !ok {
 		return false, err
@@ -2002,7 +2006,7 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 	} else {
 		domainVer = "2"
 		ethOrderDataType = append(ethOrderDataType, ethereumTypedDataType{Name: "attachment", Type: "string"})
-		message["attachment"] = o.Attachment
+		message["attachment"] = o.Attachment.String()
 	}
 
 	var orderDomain = ethereumTypedData{

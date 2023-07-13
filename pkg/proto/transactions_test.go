@@ -2420,7 +2420,7 @@ func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
-func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64, priceMode OrderPriceMode) EthereumOrderV4 {
+func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64, priceMode OrderPriceMode, attachment Attachment) EthereumOrderV4 {
 	var (
 		err       error
 		ethSender EthereumPublicKey
@@ -2442,7 +2442,7 @@ func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPK
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode, Attachment{})
+	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode, attachment)
 	ethereumOrderV4.Eip712Signature = ethSig
 	return *ethereumOrderV4
 }

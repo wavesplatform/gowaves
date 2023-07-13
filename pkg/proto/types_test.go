@@ -1773,7 +1773,7 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 		ts                     uint64
 		exp                    uint64
 		fee                    uint64
-		prideMode              OrderPriceMode
+		priceMode              OrderPriceMode
 	}{
 		{true, 5, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x05c8d63b42b3eb072e16efe40c448d5c7719a5ca84f6f04fff5467032186d9bb222943527e054b979ec037a665323bdaa3f9f299bc90e617fbe9c55c54a73b941b", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
 		{true, 4, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x33499f53db48be48c622245ba19af8135a241b5e6a6ad950380f612c112189782860ebbf42a1f8a1e55264700b4b143cb25f6e6b45168cbd7703252cec0a6f5c1c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
@@ -1807,7 +1807,8 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 			tc.ts,
 			tc.exp,
 			tc.fee,
-			tc.prideMode,
+			tc.priceMode,
+			Attachment{},
 		)
 		// verify check with invalid senderPK
 		valid, err := order.Verify(tc.scheme)
@@ -2153,4 +2154,55 @@ func TestAttachmentInOrder(t *testing.T) {
 	ok, err = oV4.Valid()
 	assert.EqualError(t, err, "attachment size should be <= 1024 bytes, got 1025")
 	assert.False(t, ok)
+}
+
+func TestEthOrderSignWithAndWithoutAttachment(t *testing.T) {
+	const (
+		scheme                 Scheme = 5
+		ethSenderPKHex         string = "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af"
+		ethSenderSKHex         string = "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726"
+		matcherPublicKeyBase58 string = "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA"
+		amountAssetBase58      string = "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6"
+		priceAssetBase58       string = "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA"
+	)
+
+	ethSender, err := NewEthereumPublicKeyFromHexString(ethSenderPKHex)
+	require.NoError(t, err)
+	matcher, err := crypto.NewPublicKeyFromBase58(matcherPublicKeyBase58)
+	require.NoError(t, err)
+	amountAsset, err := NewOptionalAssetFromString(amountAssetBase58)
+	require.NoError(t, err)
+	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
+	require.NoError(t, err)
+
+	for _, test := range []struct {
+		att Attachment
+	}{
+		{make([]byte, 10)},
+		{Attachment{}},
+	} {
+		order := NewUnsignedEthereumOrderV4(
+			&ethSender,
+			matcher,
+			*amountAsset,
+			*priceAsset,
+			Buy,
+			100,
+			100,
+			100,
+			100,
+			100,
+			OptionalAsset{},
+			OrderPriceModeFixedDecimals,
+			test.att)
+
+		secretKey, err := crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
+		require.NoError(t, err)
+		err = order.EthereumSign(scheme, (*EthereumPrivateKey)(secretKey))
+		require.NoError(t, err)
+
+		valid, err := order.Verify(scheme)
+		require.NoError(t, err)
+		require.True(t, valid)
+	}
 }
