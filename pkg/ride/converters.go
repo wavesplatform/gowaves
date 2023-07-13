@@ -458,26 +458,24 @@ func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (
 			rideInt(o.GetPrice()),
 			rideAddress(senderWavesAddr),
 		), nil
-	} else {
-		return newRideOrderV8(
-			assetPairToObject(pair.AmountAsset, pair.PriceAsset),
-			orderType(o.GetOrderType()),
-			optionalAsset(o.GetMatcherFeeAsset()),
-			proofs(p),
-			body,
-			id,
-			common.Dup(o.GetSenderPKBytes()),
-			common.Dup(matcherPk.Bytes()),
-			o.GetAttachment().Bytes(),
-			rideInt(o.GetAmount()),
-			rideInt(o.GetTimestamp()),
-			rideInt(o.GetExpiration()),
-			rideInt(o.GetMatcherFee()),
-			rideInt(o.GetPrice()),
-			rideAddress(senderWavesAddr),
-		), nil
 	}
-
+	return newRideOrderV8(
+		assetPairToObject(pair.AmountAsset, pair.PriceAsset),
+		orderType(o.GetOrderType()),
+		optionalAsset(o.GetMatcherFeeAsset()),
+		proofs(p),
+		body,
+		id,
+		common.Dup(o.GetSenderPKBytes()),
+		common.Dup(matcherPk.Bytes()),
+		o.GetAttachment().Bytes(),
+		rideInt(o.GetAmount()),
+		rideInt(o.GetTimestamp()),
+		rideInt(o.GetExpiration()),
+		rideInt(o.GetMatcherFee()),
+		rideInt(o.GetPrice()),
+		rideAddress(senderWavesAddr),
+	), nil
 }
 
 func exchangeWithSigToObject(ver ast.LibraryVersion, scheme byte, tx *proto.ExchangeWithSig) (rideType, error) {
@@ -515,7 +513,11 @@ func exchangeWithSigToObject(ver ast.LibraryVersion, scheme byte, tx *proto.Exch
 	), nil
 }
 
-func exchangeWithProofsToObject(ver ast.LibraryVersion, scheme byte, tx *proto.ExchangeWithProofs) (rideExchangeTransaction, error) {
+func exchangeWithProofsToObject(
+	ver ast.LibraryVersion,
+	scheme byte,
+	tx *proto.ExchangeWithProofs,
+) (rideExchangeTransaction, error) {
 	buy, err := orderToObject(ver, scheme, tx.Order1)
 	if err != nil {
 		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")

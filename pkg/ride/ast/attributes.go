@@ -60,7 +60,6 @@ func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	lv := LibraryVersion(b)
 	if LibV1 <= lv && lv <= CurrentMaxLibraryVersion() {
 		return lv, nil
-	} else {
-		return 0, errors.Errorf("unsupported library version '%d'", b)
 	}
+	return 0, errors.Errorf("unsupported library version '%d'", b)
 }

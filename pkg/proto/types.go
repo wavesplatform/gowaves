@@ -668,6 +668,13 @@ func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
 	return true, nil
 }
 
+const (
+	OrderVersionV1 byte = iota + 1
+	OrderVersionV2
+	OrderVersionV3
+	OrderVersionV4
+)
+
 type Order interface {
 	GetID() ([]byte, error)
 	GetVersion() byte
@@ -1008,7 +1015,7 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 }
 
 func (o *OrderV1) GetVersion() byte {
-	return 1
+	return OrderVersionV1
 }
 
 func (o *OrderV1) GetPriceMode() OrderPriceMode {
@@ -1163,7 +1170,7 @@ func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.GetPriceMode().ToProtobuf()
-	res.Version = 2
+	res.Version = int32(o.Version)
 	return res
 }
 
@@ -1215,7 +1222,7 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV2{Version: 2, OrderBody: ob}
+	return &OrderV2{Version: OrderVersionV2, OrderBody: ob}
 }
 
 func (o *OrderV2) GetVersion() byte {
@@ -1287,7 +1294,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2FixedBodyLen, l)
 	}
 	o.Version = data[0]
-	if o.Version != 2 {
+	if o.Version != OrderVersionV2 {
 		return errors.Errorf("unexpected version %d for OrderV2, expected 2", o.Version)
 	}
 	var oo OrderBody
@@ -1396,7 +1403,7 @@ func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.GetPriceMode().ToProtobuf()
-	res.Version = 3
+	res.Version = int32(o.Version)
 	return res
 }
 
@@ -1448,7 +1455,7 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
+	return &OrderV3{Version: OrderVersionV3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
 func (o *OrderV3) GetVersion() byte {
@@ -1534,7 +1541,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 	pos := 0
 	o.Version = data[pos]
 	pos++
-	if o.Version != 3 {
+	if o.Version != OrderVersionV3 {
 		return errors.Errorf("unexpected version %d for OrderV3, expected 3", o.Version)
 	}
 	var oo OrderBody
@@ -1660,7 +1667,7 @@ func (o OrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.PriceMode.ToProtobuf()
-	res.Version = 4
+	res.Version = int32(o.Version)
 	res.Attachment = o.Attachment.Bytes()
 	return res
 }
@@ -1699,7 +1706,14 @@ func (o OrderV4) GetProofs() (*ProofsV1, error) {
 }
 
 // NewUnsignedOrderV4 creates the new unsigned order.
-func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode, attachment Attachment) *OrderV4 {
+func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey,
+	amountAsset, priceAsset OptionalAsset,
+	orderType OrderType,
+	price, amount, timestamp, expiration, matcherFee uint64,
+	matcherFeeAsset OptionalAsset,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) *OrderV4 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
 		MatcherPK: matcherPK,
@@ -1713,7 +1727,13 @@ func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV4{Version: 4, MatcherFeeAsset: matcherFeeAsset, PriceMode: priceMode, Attachment: attachment, OrderBody: ob}
+	return &OrderV4{
+		Version:         OrderVersionV4,
+		MatcherFeeAsset: matcherFeeAsset,
+		PriceMode:       priceMode,
+		Attachment:      attachment,
+		OrderBody:       ob,
+	}
 }
 
 func (o *OrderV4) GetVersion() byte {
@@ -1811,8 +1831,30 @@ func (o *OrderV4) Valid() (bool, error) {
 }
 
 // NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
-func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode, attachment Attachment) *EthereumOrderV4 {
-	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode, attachment)
+func NewUnsignedEthereumOrderV4(
+	senderPK *EthereumPublicKey, matcherPK crypto.PublicKey,
+	amountAsset, priceAsset OptionalAsset,
+	orderType OrderType,
+	price, amount, timestamp, expiration, matcherFee uint64,
+	matcherFeeAsset OptionalAsset,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) *EthereumOrderV4 {
+	orderV4 := NewUnsignedOrderV4(
+		crypto.PublicKey{},
+		matcherPK,
+		amountAsset,
+		priceAsset,
+		orderType,
+		price,
+		amount,
+		timestamp,
+		expiration,
+		matcherFee,
+		matcherFeeAsset,
+		priceMode,
+		attachment,
+	)
 	return &EthereumOrderV4{
 		SenderPK:        ethereumPublicKeyBase58Wrapper{inner: senderPK},
 		Eip712Signature: EthereumSignature{},

@@ -14,6 +14,7 @@ import (
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2156,14 +2157,15 @@ func TestAttachmentInOrder(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestEthOrderSignWithAndWithoutAttachment(t *testing.T) {
+func TestRecoverSignerPKForEthOrderWithAndWithoutAttachment(t *testing.T) {
 	const (
-		scheme                 Scheme = 5
-		ethSenderPKHex         string = "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af"
-		ethSenderSKHex         string = "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726"
-		matcherPublicKeyBase58 string = "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA"
-		amountAssetBase58      string = "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6"
-		priceAssetBase58       string = "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA"
+		scheme Scheme = 5
+
+		ethSenderPKHex         = "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af" //nolint:lll
+		ethSenderSKHex         = "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726"
+		matcherPublicKeyBase58 = "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA"
+		amountAssetBase58      = "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6"
+		priceAssetBase58       = "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA"
 	)
 
 	ethSender, err := NewEthereumPublicKeyFromHexString(ethSenderPKHex)
@@ -2175,12 +2177,7 @@ func TestEthOrderSignWithAndWithoutAttachment(t *testing.T) {
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	for _, test := range []struct {
-		att Attachment
-	}{
-		{make([]byte, 10)},
-		{Attachment{}},
-	} {
+	createOrder := func(att Attachment) *EthereumOrderV4 {
 		order := NewUnsignedEthereumOrderV4(
 			&ethSender,
 			matcher,
@@ -2194,15 +2191,23 @@ func TestEthOrderSignWithAndWithoutAttachment(t *testing.T) {
 			100,
 			OptionalAsset{},
 			OrderPriceModeFixedDecimals,
-			test.att)
-
-		secretKey, err := crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
+			att,
+		)
+		var secretKey *btcec.PrivateKey
+		secretKey, err = crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
 		require.NoError(t, err)
 		err = order.EthereumSign(scheme, (*EthereumPrivateKey)(secretKey))
 		require.NoError(t, err)
-
-		valid, err := order.Verify(scheme)
-		require.NoError(t, err)
-		require.True(t, valid)
+		return order
 	}
+
+	orderWithAttachment := createOrder([]byte{1, 2, 3})
+	orderWithoutAttachment := createOrder(Attachment{})
+
+	err = orderWithAttachment.GenerateSenderPK(scheme)
+	require.NoError(t, err)
+	err = orderWithoutAttachment.GenerateSenderPK(scheme)
+	require.NoError(t, err)
+
+	require.Equal(t, orderWithoutAttachment.SenderPK.inner.String(), orderWithAttachment.SenderPK.inner.String())
 }

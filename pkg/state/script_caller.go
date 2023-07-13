@@ -68,13 +68,13 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	}
 	env.SetThisFromAddress(senderWavesAddr)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.SetLastBlockFromBlockInfo(lastBlockInfo); err != nil {
+	if err = env.SetLastBlockFromBlockInfo(lastBlockInfo); err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	env.SetLimit(ride.MaxVerifierComplexity(info.rideV5Activated))
-	if err := env.SetTransactionFromOrder(order, tree.LibVersion); err != nil {
+	if err = env.SetTransactionFromOrder(order, tree.LibVersion); err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
 	r, err := ride.CallVerifier(env, tree)

@@ -1066,13 +1066,20 @@ func createFunctionsList(cd *Coder, ver string, m map[string]string, c, ec1, ec2
 
 func GenerateFunctions(fn string) {
 	cd := NewCoder("ride")
-	createFunctionsList(cd, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2EvaluatorV1(), evaluationCatalogueV2EvaluatorV2())
-	createFunctionsList(cd, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3EvaluatorV1(), evaluationCatalogueV3EvaluatorV2())
-	createFunctionsList(cd, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4EvaluatorV1(), evaluationCatalogueV4EvaluatorV2())
-	createFunctionsList(cd, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5EvaluatorV1(), evaluationCatalogueV5EvaluatorV2())
-	createFunctionsList(cd, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6EvaluatorV1(), evaluationCatalogueV6EvaluatorV2())
-	createFunctionsList(cd, "V7", functionsV7(), catalogueV7(), evaluationCatalogueV7EvaluatorV1(), evaluationCatalogueV7EvaluatorV2())
-	createFunctionsList(cd, "V8", functionsV8(), catalogueV8(), evaluationCatalogueV8EvaluatorV1(), evaluationCatalogueV8EvaluatorV2())
+	createFunctionsList(cd, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2EvaluatorV1(),
+		evaluationCatalogueV2EvaluatorV2())
+	createFunctionsList(cd, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3EvaluatorV1(),
+		evaluationCatalogueV3EvaluatorV2())
+	createFunctionsList(cd, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4EvaluatorV1(),
+		evaluationCatalogueV4EvaluatorV2())
+	createFunctionsList(cd, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5EvaluatorV1(),
+		evaluationCatalogueV5EvaluatorV2())
+	createFunctionsList(cd, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6EvaluatorV1(),
+		evaluationCatalogueV6EvaluatorV2())
+	createFunctionsList(cd, "V7", functionsV7(), catalogueV7(), evaluationCatalogueV7EvaluatorV1(),
+		evaluationCatalogueV7EvaluatorV2())
+	createFunctionsList(cd, "V8", functionsV8(), catalogueV8(), evaluationCatalogueV8EvaluatorV1(),
+		evaluationCatalogueV8EvaluatorV2())
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}

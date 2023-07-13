@@ -199,7 +199,8 @@ func TestFunctions(t *testing.T) {
 	// }
 	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideType {
-			obj, err := exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
+			var obj rideExchangeTransaction
+			obj, err = exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
 			if err != nil {
 				panic(err)
 			}
