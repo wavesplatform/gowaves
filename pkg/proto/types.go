@@ -668,8 +668,10 @@ func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
 	return true, nil
 }
 
+type OrderVersion = byte
+
 const (
-	OrderVersionV1 byte = iota + 1
+	OrderVersionV1 OrderVersion = iota + 1
 	OrderVersionV2
 	OrderVersionV3
 	OrderVersionV4
@@ -677,7 +679,7 @@ const (
 
 type Order interface {
 	GetID() ([]byte, error)
-	GetVersion() byte
+	GetVersion() OrderVersion
 	GetPriceMode() OrderPriceMode
 	GetOrderType() OrderType
 	GetMatcherPK() crypto.PublicKey
@@ -1014,7 +1016,7 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV1{OrderBody: ob}
 }
 
-func (o *OrderV1) GetVersion() byte {
+func (o *OrderV1) GetVersion() OrderVersion {
 	return OrderVersionV1
 }
 
@@ -1156,7 +1158,7 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 
 // OrderV2 is an order created and signed by user. Two matched orders builds up an Exchange transaction. Version 2 with proofs.
 type OrderV2 struct {
-	Version byte           `json:"version"`
+	Version OrderVersion   `json:"version"`
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
@@ -1225,7 +1227,7 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV2{Version: OrderVersionV2, OrderBody: ob}
 }
 
-func (o *OrderV2) GetVersion() byte {
+func (o *OrderV2) GetVersion() OrderVersion {
 	return o.Version
 }
 
@@ -1388,7 +1390,7 @@ func (o *OrderV2) UnmarshalBinary(data []byte) error {
 
 // OrderV3 is an order that supports matcher's fee in assets.
 type OrderV3 struct {
-	Version         byte           `json:"version"`
+	Version         OrderVersion   `json:"version"`
 	ID              *crypto.Digest `json:"id,omitempty"`
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
@@ -1458,7 +1460,7 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV3{Version: OrderVersionV3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
-func (o *OrderV3) GetVersion() byte {
+func (o *OrderV3) GetVersion() OrderVersion {
 	return o.Version
 }
 
@@ -1649,7 +1651,7 @@ func (o *OrderV3) UnmarshalBinary(data []byte) error {
 
 // OrderV4 is for Protobuf.
 type OrderV4 struct {
-	Version         byte           `json:"version"`
+	Version         OrderVersion   `json:"version"`
 	ID              *crypto.Digest `json:"id,omitempty"`
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
@@ -1736,7 +1738,7 @@ func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey,
 	}
 }
 
-func (o *OrderV4) GetVersion() byte {
+func (o *OrderV4) GetVersion() OrderVersion {
 	return o.Version
 }
 
