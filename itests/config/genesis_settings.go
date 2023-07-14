@@ -23,6 +23,8 @@ import (
 const (
 	genesisSettingsFileName = "genesis.json"
 	configFolder            = "config"
+	testdataFolder          = "testdata"
+	rewardConfigFolder      = "reward_settings_testdata"
 
 	maxBaseTarget = 1000000
 )
@@ -61,18 +63,21 @@ type GenesisSettings struct {
 }
 
 type scalaCustomOptions struct {
-	Features     []FeatureInfo
-	EnableMining bool
+	Features          []FeatureInfo
+	EnableMining      bool
+	DaoAddress        string `json:"dao_address"`
+	XtnBuybackAddress string `json:"xtn_buyback_address"`
 }
 
 type RewardSettings struct {
-	BlockRewardVotingPeriod uint64               `json:"voting_interval"`
-	BlockRewardTerm         uint64               `json:"term"`
-	BlockRewardTermAfter20  uint64               `json:"term_after_capped_reward_feature"`
-	InitialBlockReward      uint64               `json:"initial_block_reward"`
-	BlockRewardIncrement    uint64               `json:"block_reward_increment"`
-	DesiredBlockReward      uint64               `json:"desired_reward"`
-	RewardAddresses         []proto.WavesAddress `json:"reward_addresses"`
+	BlockRewardVotingPeriod uint64 `json:"voting_interval"`
+	BlockRewardTerm         uint64 `json:"term"`
+	BlockRewardTermAfter20  uint64 `json:"term_after_capped_reward_feature"`
+	InitialBlockReward      uint64 `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64 `json:"block_reward_increment"`
+	DesiredBlockReward      uint64 `json:"desired_reward"`
+	DaoAddress              string `json:"dao_address"`
+	XtnBuybackAddress       string `json:"xtn_buyback_address"`
 }
 
 type config struct {
@@ -100,12 +105,12 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func parseRewardSettings(additionalArgsPath string) (*RewardSettings, error) {
+func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	rewardSettingsPath := filepath.Clean(filepath.Join(pwd, configFolder, additionalArgsPath))
+	rewardSettingsPath := filepath.Clean(filepath.Join(pwd, testdataFolder, rewardConfigFolder, rewardArgsPath))
 	f, err := os.Open(rewardSettingsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
@@ -118,12 +123,26 @@ func parseRewardSettings(additionalArgsPath string) (*RewardSettings, error) {
 	return s, nil
 }
 
+func getRewardAddresses(rewardSettings *RewardSettings) []proto.WavesAddress {
+	var rewardAddresses []proto.WavesAddress
+
+	if rewardSettings.DaoAddress != "" {
+		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.DaoAddress))
+	}
+
+	if rewardSettings.XtnBuybackAddress != "" {
+		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.XtnBuybackAddress))
+	}
+	return rewardAddresses
+}
+
 func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
 	}
 
+	//default values for some reward parameters
 	rewardSettings := &RewardSettings{
 		BlockRewardVotingPeriod: 5,
 		BlockRewardTerm:         20,
@@ -131,7 +150,6 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		InitialBlockReward:      600000000,
 		BlockRewardIncrement:    100000000,
 		DesiredBlockReward:      700000000,
-		RewardAddresses:         []proto.WavesAddress{},
 	}
 	if len(additionalArgsPath) == 1 {
 		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
@@ -174,8 +192,10 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.BlockRewardTermAfter20 = rewardSettings.BlockRewardTermAfter20
 	cfg.BlockRewardTerm = rewardSettings.BlockRewardTerm
 
-	//cfg.RewardAddresses = []proto.WavesAddress{acc[5].Address, acc[6].Address}
-	cfg.RewardAddresses = rewardSettings.RewardAddresses
+	rewardsAddresses := getRewardAddresses(rewardSettings)
+	if rewardsAddresses != nil {
+		cfg.RewardAddresses = rewardsAddresses
+	}
 
 	//preactivated features
 	cfg.PreactivatedFeatures = make([]int16, len(genSettings.PreactivatedFeatures))
@@ -185,8 +205,9 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 
 	return &config{
 		BlockchainSettings: &cfg,
-		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
-		GoEnvDesireReward:  strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
+		ScalaOpts: &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false,
+			DaoAddress: rewardSettings.DaoAddress, XtnBuybackAddress: rewardSettings.XtnBuybackAddress},
+		GoEnvDesireReward: strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
 	}, acc, nil
 }
 

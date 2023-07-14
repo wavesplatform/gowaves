@@ -10,5 +10,5 @@ func (suite *RewardSuite) SetupSuite() {
 	const enableScalaMining = true
 	suiteName := strcase.KebabCase(suite.T().Name())
 
-	suite.BaseSetup(suiteName, enableScalaMining, "reward_settings.json")
+	suite.BaseSetup(suiteName, enableScalaMining, "reward_settings_increase.json")
 }
