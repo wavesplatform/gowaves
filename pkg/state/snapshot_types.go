@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/pkg/errors"
 	"math/big"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -8,6 +9,16 @@ import (
 )
 
 type TransactionSnapshot []AtomicSnapshot
+
+func (ts TransactionSnapshot) Apply(a SnapshotApplier) error {
+	for _, atomicSnapshot := range ts {
+		err := atomicSnapshot.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply transaction snapshot")
+		}
+	}
+	return nil
+}
 
 type AtomicSnapshot interface{ Apply(SnapshotApplier) error }
 

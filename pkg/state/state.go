@@ -591,7 +591,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 
-	if err := s.appender.applyAllDiffs(); err != nil {
+	if err := s.appender.validateAllDiffs(); err != nil {
 		return err
 	}
 	if err := s.stor.prepareHashes(); err != nil {
@@ -1519,11 +1519,13 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
 
-	// Apply all the balance diffs accumulated from this blocks batch.
+	// Validate all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
-	if err := s.appender.applyAllDiffs(); err != nil {
+
+	if err := s.appender.validateAllDiffs(); err != nil {
 		return nil, err
 	}
+
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
 		return nil, wrapErr(ModificationError, err)
