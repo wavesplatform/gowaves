@@ -68,7 +68,7 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 	return tp.performTransfer(balanceChanges)
 }
 
-func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest, assetID crypto.Digest, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest, assetID crypto.Digest, info *performerInfo, balanceChanges txDiff, scriptInformation *scriptInformation) (TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -88,7 +88,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		},
 	}
 
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK, *assetInfo, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK, *assetInfo, balanceChanges, scriptInformation)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
 		return nil, err
 	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges)
+	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
 
 func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
@@ -136,6 +136,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 		return nil, err
 	}
 
+	var scriptInfo *scriptInformation
 	if se := info.checkerData.scriptEstimations; se.isPresent() {
 		// Save complexities to storage, so we won't have to calculate it every time the script is called.
 		complexity, ok := se.estimations[se.currentEstimatorVersion]
@@ -145,8 +146,12 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 		if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
 			return nil, err
 		}
+		scriptInfo = &scriptInformation{
+			script:     tx.Script,
+			complexity: complexity.Verifier,
+		}
 	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges)
+	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {

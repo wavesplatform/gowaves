@@ -42,7 +42,12 @@ func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
-func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest, senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+type scriptInformation struct {
+	script     proto.Script
+	complexity int
+}
+
+func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest, senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff, scriptInformation *scriptInformation) (TransactionSnapshot, error) {
 	if balanceChanges == nil {
 		return nil, nil
 	}
@@ -87,7 +92,17 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		IsReissuable:  assetInfo.reissuable,
 		TotalQuantity: assetInfo.quantity,
 	}
+
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+
+	if scriptInformation != nil {
+		sponsorshipSnapshot := &AssetScriptSnapshot{
+			AssetID:    assetID,
+			Script:     scriptInformation.script,
+			Complexity: uint64(scriptInformation.complexity),
+		}
+		snapshot = append(snapshot, sponsorshipSnapshot)
+	}
 
 	wavesBalancesSnapshot, assetBalancesSnapshot, err := sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
