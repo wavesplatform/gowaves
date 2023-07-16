@@ -71,7 +71,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 
 	ch, err := to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performTransferWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform transfer tx")
 	expectedSnapshot := TransactionSnapshot{
@@ -123,7 +123,7 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 
 	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performIssueWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform issue tx")
 
@@ -197,7 +197,7 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 
 	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffReissueWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performReissueWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform reissue tx")
 
@@ -260,7 +260,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffBurnWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performBurnWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -344,7 +344,7 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performExchange(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -431,7 +431,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffLeaseWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performLeaseWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -515,7 +515,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffLeaseCancelWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -586,7 +586,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffCreateAliasWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -645,7 +645,7 @@ func TestDefaultDataSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffDataWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performDataWithProofs(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -698,7 +698,7 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to sign burn tx")
 	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo(), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -758,7 +758,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, checkerData}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -825,7 +825,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 
 	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
@@ -938,7 +938,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 
 	invocationResult := &invocationResult{actions: actions}
 
-	applicationRes := &applicationResult{true, 0, ch, txCheckerData{}}
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData), invocationResult, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform invoke script tx")
 

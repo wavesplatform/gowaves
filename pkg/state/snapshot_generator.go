@@ -698,7 +698,7 @@ func addressBalanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWave
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
 }
 
-// from txDiff and fees. no validation needed at this point
+// from txDiff and fees. no validation needed at this point.
 func (sg *snapshotGenerator) constructWavesBalanceSnapshotFromDiff(diff addressWavesBalanceDiff) ([]WavesBalanceSnapshot, error) {
 	var wavesBalances []WavesBalanceSnapshot
 	// add miner address to the diff
