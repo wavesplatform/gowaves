@@ -14,7 +14,6 @@ import (
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2141,20 +2140,25 @@ func TestAttachmentInOrder(t *testing.T) {
 			MatcherFee: uint64(10),
 		},
 	}
-	oV4.Attachment = make([]byte, 0)
-	ok, err := oV4.Valid()
-	assert.NoError(t, err)
-	assert.True(t, ok)
-
-	oV4.Attachment = make([]byte, MaxAttachmentSize)
-	ok, err = oV4.Valid()
-	assert.NoError(t, err)
-	assert.True(t, ok)
-
-	oV4.Attachment = make([]byte, MaxAttachmentSize+1)
-	ok, err = oV4.Valid()
-	assert.EqualError(t, err, "attachment size should be <= 1024 bytes, got 1025")
-	assert.False(t, ok)
+	for _, test := range []struct {
+		att  Attachment
+		fail bool
+		msg  string
+	}{
+		{make([]byte, 0), false, ""},
+		{make([]byte, MaxAttachmentSize), false, ""},
+		{make([]byte, MaxAttachmentSize+1), true, "attachment size should be <= 1024 bytes, got 1025"},
+	} {
+		oV4.Attachment = test.att
+		ok, errValid := oV4.Valid()
+		if test.fail {
+			assert.Error(t, errValid)
+			assert.False(t, ok)
+		} else {
+			assert.NoError(t, errValid)
+			assert.True(t, ok)
+		}
+	}
 }
 
 func TestRecoverSignerPKForEthOrderWithAndWithoutAttachment(t *testing.T) {
@@ -2193,9 +2197,8 @@ func TestRecoverSignerPKForEthOrderWithAndWithoutAttachment(t *testing.T) {
 			OrderPriceModeFixedDecimals,
 			att,
 		)
-		var secretKey *btcec.PrivateKey
-		secretKey, err = crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
-		require.NoError(t, err)
+		secretKey, errPK := crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
+		require.NoError(t, errPK)
 		err = order.EthereumSign(scheme, (*EthereumPrivateKey)(secretKey))
 		require.NoError(t, err)
 		return order
