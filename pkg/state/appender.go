@@ -352,8 +352,7 @@ func (a *txAppender) commitTxApplication(
 			stateActionsCounter: params.stateActionsCounterInBlock,
 			checkerData:         applicationRes.checkerData,
 		}
-		//snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, nil)
+		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
