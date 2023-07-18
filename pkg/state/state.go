@@ -591,7 +591,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 
-	if err := s.appender.validateAllDiffs(); err != nil {
+	if err := s.appender.applyAllDiffs(); err != nil {
 		return err
 	}
 	if err := s.stor.prepareHashes(); err != nil {
@@ -1272,7 +1272,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-// TODO generate snapshots here too
+// TODO what to do with stolen aliases in snapshots?
 func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
@@ -1519,10 +1519,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
 
-	// Validate all the balance diffs accumulated from this blocks batch.
+	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
-
-	if err := s.appender.validateAllDiffs(); err != nil {
+	if err := s.appender.applyAllDiffs(); err != nil {
 		return nil, err
 	}
 

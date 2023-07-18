@@ -337,7 +337,6 @@ func (a *txAppender) commitTxApplication(
 	// Update complexity.
 	a.sc.addRecentTxComplexity()
 	// Save balance diff.
-	// TODO get balances snapshots
 	if err := a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
 		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
@@ -353,8 +352,8 @@ func (a *txAppender) commitTxApplication(
 			stateActionsCounter: params.stateActionsCounterInBlock,
 			checkerData:         applicationRes.checkerData,
 		}
-		// TODO other snapshots
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
+		//snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
+		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, nil)
 		if err != nil {
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
@@ -658,7 +657,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, settings: a.settings}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
 
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -745,13 +744,6 @@ func (a *txAppender) moveChangesToHistoryStorage() error {
 	changes := a.diffStor.allChanges()
 	a.diffStor.reset()
 	return a.diffApplier.applyBalancesChanges(changes)
-}
-
-func (a *txAppender) validateAllDiffs() error {
-	a.recentTxIds = make(map[string]struct{})
-	changes := a.diffStor.allChanges()
-	a.diffStor.reset()
-	return a.diffApplier.validateBalancesChanges(changes)
 }
 
 type fallibleValidationParams struct {
@@ -970,6 +962,27 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
+	actionsCounter := new(proto.StateActionsCounter)
+	snapshotApplier := newBlockSnapshotsApplier(
+		blockSnapshotsApplierInfo{
+			ci:                  checkerInfo,
+			scheme:              a.settings.AddressSchemeCharacter,
+			stateActionsCounter: actionsCounter,
+		},
+		snapshotApplierStorages{
+			balances:          a.stor.balances,
+			aliases:           a.stor.aliases,
+			assets:            a.stor.assets,
+			scriptsStorage:    a.stor.scriptsStorage,
+			scriptsComplexity: a.stor.scriptsComplexity,
+			sponsoredAssets:   a.stor.sponsoredAssets,
+			ordersVolumes:     a.stor.ordersVolumes,
+			accountsDataStor:  a.stor.accountsDataStor,
+			leases:            a.stor.leases,
+		},
+	)
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
+
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
 		checkerInfo:                      checkerInfo,
@@ -984,7 +997,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		invokeExpressionActivated:        invokeExpressionActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-		stateActionsCounterInBlock: new(proto.StateActionsCounter),
+		stateActionsCounterInBlock: actionsCounter,
+		snapshotGenerator:          &snapshotGenerator,
+		snapshotApplier:            &snapshotApplier,
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {

@@ -85,11 +85,10 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(assetID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          blockHeight,
-			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
+			tail:        proto.DigestTail(assetID),
+			issuer:      tx.SenderPK,
+			decimals:    tx.Decimals,
+			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -420,7 +419,7 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	}
 	complexity := estimation.Verifier
 
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, complexity, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, complexity, tx.SenderPK, balanceChanges)
 	if err != nil {
 		return nil, err
 	}
