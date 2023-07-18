@@ -96,6 +96,7 @@ func (s *scoreSelector) delete(p peer.ID) {
 	pid := peerID(p.String())
 	if sk, ok := s.peerToScoreKey[pid]; ok {
 		s.remove(sk, p)
+		delete(s.peerToScoreKey, pid)
 	}
 }
 

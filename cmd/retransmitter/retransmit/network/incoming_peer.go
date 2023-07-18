@@ -8,9 +8,10 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type IncomingPeer struct {
@@ -107,7 +108,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 }
 
 func (a *IncomingPeer) run(ctx context.Context) error {
-	return peer.Handle(ctx, a, a.params.Parent, a.remote, nil)
+	return peer.Handle(ctx, a, a.params.Parent, a.remote)
 }
 
 func (a *IncomingPeer) Close() error {

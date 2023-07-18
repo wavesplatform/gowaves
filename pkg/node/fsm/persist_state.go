@@ -43,8 +43,7 @@ func (a *PersistState) StopMining() (State, Async, error) {
 }
 
 func (a *PersistState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	err := a.baseInfo.peers.UpdateScore(p, score)
-	if err != nil {
+	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
 	return a, nil, nil

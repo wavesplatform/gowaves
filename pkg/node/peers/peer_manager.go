@@ -462,8 +462,8 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 }
 
 func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	pid := "n/a"
 	if p != nil {

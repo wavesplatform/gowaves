@@ -245,6 +245,35 @@ func TestSelectionMultiplePeers(t *testing.T) {
 	assert.Equal(t, score5, score4)
 }
 
+func TestPushDeleteMultiplyTimes(t *testing.T) {
+	ss := newScoreSelector()
+	peer1 := &mockPeerID{"peer1"}
+	peer2 := &mockPeerID{"peer2"}
+	score100 := big.NewInt(100)
+	score200 := big.NewInt(200)
+
+	ss.push(peer1, score100)
+	ss.push(peer2, score100)
+	assert.Equal(t, 2, len(ss.peerToScoreKey))
+	ss.push(peer1, score100)
+	ss.push(peer2, score100)
+	assert.Equal(t, 2, len(ss.peerToScoreKey))
+
+	ss.delete(peer1)
+	ss.delete(peer2)
+	assert.Equal(t, 0, len(ss.peerToScoreKey))
+	ss.delete(peer1)
+	ss.delete(peer2)
+	assert.Equal(t, 0, len(ss.peerToScoreKey))
+
+	ss.push(peer1, score100)
+	ss.push(peer2, score200)
+	assert.Equal(t, 2, len(ss.peerToScoreKey))
+	ss.push(peer1, score100)
+	ss.push(peer2, score200)
+	assert.Equal(t, 2, len(ss.peerToScoreKey))
+}
+
 // BenchmarkPush100 results (Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz)
 // BenchmarkPush100-12           	   76863	     13848 ns/op.
 func BenchmarkPush100(b *testing.B) {

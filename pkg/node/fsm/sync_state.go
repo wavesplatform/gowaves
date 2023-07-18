@@ -112,17 +112,24 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
+	zap.S().Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
+		signatures[0].ShortString(), signatures[len(signatures)-1].ShortString(), peer.ID().String())
 	if a.conf.peerSyncWith != peer {
+		zap.S().Debugf("[Sync] Block IDs received from incorrect peer %s, expected %s",
+			peer.ID().String(), a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
 	}
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
 	if err != nil {
+		zap.S().Debugf("[Sync] ")
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
 	if internal.RequestedCount() > 0 {
 		// Blocks were requested waiting for them to receive and apply
+		zap.S().Debugf("[Sync] Waiting for %d blocks to receive", internal.RequestedCount())
 		return newSyncState(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal), nil, nil
 	}
+	zap.S().Debugf("[Sync] Continue to NG")
 	// No blocks were request, switching to NG working mode
 	err = a.baseInfo.storage.StartProvidingExtendedApi()
 	if err != nil {
@@ -133,6 +140,7 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 
 func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
+	zap.S().Debugf("[Sync] Score message received from peer '%s', score %s", p.ID().String(), score.String())
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
@@ -210,6 +218,8 @@ func (a *SyncState) applyBlocks(
 	})
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
+			zap.S().Debugf("[Sync][applyBlocks] Suspending peer '%s' because of blocks application error: %v",
+				a.baseInfo.syncPeer.GetPeer().ID().String(), err)
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {

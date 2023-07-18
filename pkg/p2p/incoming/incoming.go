@@ -13,20 +13,15 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type DuplicateChecker interface {
-	Add([]byte) bool
-}
-
 type PeerParams struct {
-	WavesNetwork     string
-	Conn             net.Conn
-	Parent           peer.Parent
-	DeclAddr         proto.TCPAddr
-	Skip             conn.SkipFilter
-	NodeName         string
-	NodeNonce        uint64
-	Version          proto.Version
-	DuplicateChecker DuplicateChecker
+	WavesNetwork string
+	Conn         net.Conn
+	Parent       peer.Parent
+	DeclAddr     proto.TCPAddr
+	Skip         conn.SkipFilter
+	NodeName     string
+	NodeNonce    uint64
+	Version      proto.Version
 }
 
 func RunIncomingPeer(ctx context.Context, params PeerParams) error {
@@ -86,5 +81,5 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 		zap.S().Warn("Failed to create new peer impl: ", err)
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
-	return peer.Handle(ctx, peerImpl, params.Parent, remote, params.DuplicateChecker)
+	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }

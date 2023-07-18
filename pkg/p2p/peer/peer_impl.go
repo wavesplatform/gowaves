@@ -2,14 +2,17 @@ package peer
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/netip"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type peerImplID struct {
@@ -78,10 +81,12 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
+	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Sending to network: %s",
+		a.id.String(), base64.StdEncoding.EncodeToString(b))
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		a.remote.ErrCh <- errors.Errorf("remote, chan is full id %s, name %s", a.ID(), a.handshake.NodeName)
+		a.remote.ErrCh <- errors.Errorf("remote channel overflow on peer '%s'", a.id.String())
 	}
 }
 

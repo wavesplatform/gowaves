@@ -15,19 +15,14 @@ import (
 
 const outgoingPeerDialTimeout = 5 * time.Second
 
-type DuplicateChecker interface {
-	Add([]byte) (isNew bool)
-}
-
 type EstablishParams struct {
-	Address          proto.TCPAddr
-	WavesNetwork     string
-	Parent           peer.Parent
-	DeclAddr         proto.TCPAddr
-	Skip             conn.SkipFilter
-	NodeName         string
-	NodeNonce        uint64
-	DuplicateChecker DuplicateChecker
+	Address      proto.TCPAddr
+	WavesNetwork string
+	Parent       peer.Parent
+	DeclAddr     proto.TCPAddr
+	Skip         conn.SkipFilter
+	NodeName     string
+	NodeNonce    uint64
 }
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {
@@ -56,7 +51,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
 	zap.S().Debugf("Connected outgoing peer with addr '%s', id '%s'", addr, peerImpl.ID())
-	return peer.Handle(ctx, peerImpl, params.Parent, remote, params.DuplicateChecker)
+	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }
 
 type connector struct {
