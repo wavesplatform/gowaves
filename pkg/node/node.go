@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/network"
 
 	"github.com/pkg/errors"
@@ -48,7 +49,9 @@ type Node struct {
 	obsolescence       time.Duration
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration) *Node {
+func NewNode(
+	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
+) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
@@ -125,7 +128,7 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 func (a *Node) logErrors(err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		zap.S().Debugf("%s", e.Error())
+		zap.S().Named(logging.FSMNamespace).Debugf("Error: %s", e.Error())
 	default:
 		zap.S().Errorf("%s", e.Error())
 	}
@@ -141,7 +144,7 @@ func (a *Node) Run(
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
+	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
 	if err != nil {
 		zap.S().Errorf("Failed to : %v", err)
 		return
@@ -154,43 +157,45 @@ func (a *Node) Run(
 		case internalMess := <-internalMessageCh:
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
-				async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
+				async, err = m.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
 			case *messages.HaltMessage:
-				async, err = fsm.Halt()
+				async, err = m.Halt()
 				t.Complete()
 			case *messages.BroadcastTransaction:
-				async, err = fsm.Transaction(nil, t.Transaction)
+				async, err = m.Transaction(nil, t.Transaction)
 				select {
 				case t.Response <- err:
 				default:
 				}
 			default:
-				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm, t)
+				zap.S().Errorf("[%s] Unknown internal message '%T'", m.State.Name, t)
 				continue
 			}
 		case task := <-tasksCh:
-			async, err = fsm.Task(task)
-		case m := <-networkMsgCh:
-			switch t := m.(type) {
+			async, err = m.Task(task)
+		case msg := <-networkMsgCh:
+			switch t := msg.(type) {
 			case network.StartMining:
-				async, err = fsm.StartMining()
+				async, err = m.StartMining()
 			case network.StopSync:
-				async, err = fsm.StopSync()
+				async, err = m.StopSync()
 			case network.ChangeSyncPeer:
-				async, err = fsm.ChangeSyncPeer(t.Peer)
+				async, err = m.ChangeSyncPeer(t.Peer)
 			case network.StopMining:
-				async, err = fsm.StopMining()
+				async, err = m.StopMining()
 			default:
-				zap.S().Warnf("[%s] Unknown network info message '%T'", fsm.State.Name, m)
+				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.Name, msg)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
+			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
+				m.State.Name, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
+				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'",
+					m.State.Name, mess.Message, mess.ID.ID())
 				continue
 			}
-			async, err = action(a.services, mess, fsm)
+			async, err = action(a.services, mess, m)
 		}
 		if err != nil {
 			a.logErrors(err)
