@@ -3,6 +3,7 @@ package fsm
 import (
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -10,7 +11,7 @@ import (
 )
 
 type currentScorer interface {
-	// Get current blockchain score (at top height).
+	// CurrentScore gets current blockchain score (at top height).
 	CurrentScore() (*proto.Score, error)
 }
 
@@ -37,7 +38,8 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		peer.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Debugf("Network message '%T' sent to %d peers: currentScore=%s", msg, cnt, curScore)
+	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: currentScore=%s",
+		msg, cnt, curScore)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
@@ -66,5 +68,6 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		p.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Debugf("Network message '%T' sent to %d peers: blockID='%s'", msg, cnt, block.BlockID())
+	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s'",
+		msg, cnt, block.BlockID())
 }

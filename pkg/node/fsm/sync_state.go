@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -82,21 +83,22 @@ func (a *SyncState) StopSync() (State, Async, error) {
 }
 
 func (a *SyncState) ChangeSyncPeer(p peer.Peer) (State, Async, error) {
-	zap.S().Debugf("[Sync] Handle 'ChangeSyncPeer', peer '%s'", p.ID().String())
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changed sync peer to '%s'", p.ID().String())
 	return syncWithNewPeer(a, a.baseInfo, p)
 }
 
 func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 	switch task.TaskType {
 	case tasks.AskPeers:
-		zap.S().Debug("[Sync] Requesting peers")
+		zap.S().Named(logging.FSMNamespace).Debug("[Sync] Requesting peers")
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.Ping:
-		zap.S().Debug("[Sync] Checking timeout")
+		zap.S().Named(logging.FSMNamespace).Debug("[Sync] Checking timeout")
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
-			zap.S().Debugf("[Sync] Timeout (%s) while syncronisation with peer '%s'",
+			zap.S().Named(logging.FSMNamespace).Debugf(
+				"[Sync] Timed out after %s while syncronizing with peer '%s'",
 				a.conf.timeout.String(), a.conf.peerSyncWith.ID())
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
@@ -112,24 +114,26 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
-	zap.S().Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
 		signatures[0].ShortString(), signatures[len(signatures)-1].ShortString(), peer.ID().String())
 	if a.conf.peerSyncWith != peer {
-		zap.S().Debugf("[Sync] Block IDs received from incorrect peer %s, expected %s",
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs received from incorrect peer %s, expected %s",
 			peer.ID().String(), a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
 	}
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
 	if err != nil {
-		zap.S().Debugf("[Sync] ")
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] No signatures expected from peer '%s' but received",
+			peer.ID().String())
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
 	if internal.RequestedCount() > 0 {
 		// Blocks were requested waiting for them to receive and apply
-		zap.S().Debugf("[Sync] Waiting for %d blocks to receive", internal.RequestedCount())
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Waiting for %d blocks to receive",
+			internal.RequestedCount())
 		return newSyncState(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal), nil, nil
 	}
-	zap.S().Debugf("[Sync] Continue to NG")
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Continue to NG state")
 	// No blocks were request, switching to NG working mode
 	err = a.baseInfo.storage.StartProvidingExtendedApi()
 	if err != nil {
@@ -140,7 +144,8 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 
 func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
-	zap.S().Debugf("[Sync] Score message received from peer '%s', score %s", p.ID().String(), score.String())
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Score message received from peer '%s', score %s",
+		p.ID().String(), score.String())
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
@@ -152,7 +157,7 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 		return a, nil, nil
 	}
 	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
-	zap.S().Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
 	internal, err := a.internal.Block(block)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
@@ -164,10 +169,10 @@ func (a *SyncState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
 	metrics.FSMKeyBlockGenerated("sync", block)
-	zap.S().Infof("New key block '%s' mined", block.ID.String())
+	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
 	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
-		zap.S().Warnf("Failed to apply mined block: %v", err)
+		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.FSMKeyBlockApplied("sync", block)
@@ -208,7 +213,7 @@ func (a *SyncState) applyBlocks(
 ) (State, Async, error) {
 	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
 	if len(blocks) == 0 {
-		zap.S().Debugf("[Sync][applyBlocks] Zero blocks to apply")
+		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
@@ -218,7 +223,8 @@ func (a *SyncState) applyBlocks(
 	})
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
-			zap.S().Debugf("[Sync][applyBlocks] Suspending peer '%s' because of blocks application error: %v",
+			zap.S().Named(logging.FSMNamespace).Debugf(
+				"[Sync] Suspending peer '%s' because of blocks application error: %v",
 				a.baseInfo.syncPeer.GetPeer().ID().String(), err)
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
@@ -231,7 +237,7 @@ func (a *SyncState) applyBlocks(
 		metrics.FSMKeyBlockApplied("sync", b)
 	}
 	if np, ok := a.changePeerIfRequired(); ok {
-		zap.S().Debugf("[Sync][applyBlocks] Changing peer to '%s'", np.ID().String())
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changing sync peer to '%s'", np.ID().String())
 		return syncWithNewPeer(a, a.baseInfo, np)
 	}
 	a.baseInfo.Reschedule()

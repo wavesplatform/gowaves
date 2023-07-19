@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -79,7 +80,8 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		peerSyncWith: p,
 		timeout:      defaultSyncTimeout,
 	}
-	zap.S().Debugf("[%s] Starting synchronization with peer '%s'", state.String(), p.ID())
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Starting synchronization with peer '%s'",
+		state.String(), p.ID())
 	baseInfo.syncPeer.SetPeer(p)
 	return &SyncState{
 		baseInfo: baseInfo,
@@ -109,9 +111,10 @@ func tryBroadcastTransaction(
 			}
 			txID := base58.Encode(txIDBytes)
 			if err != nil {
-				err = errors.Wrapf(err, "Failed to broadcast transaction %q", txID)
+				err = errors.Wrapf(err, "failed to broadcast transaction %q", txID)
 			} else {
-				zap.S().Debugf("[%s] Transaction %q broadcasted successfuly", fsm.String(), txID)
+				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Transaction %q broadcasted successfuly",
+					fsm.String(), txID)
 			}
 		}()
 	}

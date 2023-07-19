@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -21,7 +22,7 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:
 	default:
-		zap.S().Debugf("AsyncTask channel is full on task '%T'", task)
+		zap.S().Named(logging.FSMNamespace).Debugf("Tasks channel is full on task '%T'", task)
 	}
 }
 
