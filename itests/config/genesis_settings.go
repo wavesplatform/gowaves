@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -69,21 +70,28 @@ type scalaCustomOptions struct {
 	XtnBuybackAddress string `json:"xtn_buyback_address"`
 }
 
+type goEnvOptions struct {
+	DesiredBlockReward string `json:"desired_reward"`
+	SupportedFeatures  string `json:"supported_features"`
+}
+
 type RewardSettings struct {
-	BlockRewardVotingPeriod uint64 `json:"voting_interval"`
-	BlockRewardTerm         uint64 `json:"term"`
-	BlockRewardTermAfter20  uint64 `json:"term_after_capped_reward_feature"`
-	InitialBlockReward      uint64 `json:"initial_block_reward"`
-	BlockRewardIncrement    uint64 `json:"block_reward_increment"`
-	DesiredBlockReward      uint64 `json:"desired_reward"`
-	DaoAddress              string `json:"dao_address"`
-	XtnBuybackAddress       string `json:"xtn_buyback_address"`
+	BlockRewardVotingPeriod uint64        `json:"voting_interval"`
+	BlockRewardTerm         uint64        `json:"term"`
+	BlockRewardTermAfter20  uint64        `json:"term_after_capped_reward_feature"`
+	InitialBlockReward      uint64        `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64        `json:"block_reward_increment"`
+	DesiredBlockReward      uint64        `json:"desired_reward"`
+	DaoAddress              string        `json:"dao_address"`
+	XtnBuybackAddress       string        `json:"xtn_buyback_address"`
+	PreactivatedFeatures    []FeatureInfo `json:"preactivated_features"`
+	SupportedFeatures       []int16       `json:"supported_features"`
 }
 
 type config struct {
 	BlockchainSettings *settings.BlockchainSettings
 	ScalaOpts          *scalaCustomOptions
-	GoEnvDesireReward  string
+	GoOpts             *goEnvOptions
 }
 
 func parseGenesisSettings() (*GenesisSettings, error) {
@@ -118,7 +126,7 @@ func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
 	jsonParser := json.NewDecoder(f)
 	s := &RewardSettings{}
 	if err = jsonParser.Decode(s); err != nil {
-		return nil, errors.Wrap(err, "failed to decode additional settings")
+		return nil, errors.Wrap(err, "failed to decode reward settings")
 	}
 	return s, nil
 }
@@ -134,6 +142,31 @@ func getRewardAddresses(rewardSettings *RewardSettings) []proto.WavesAddress {
 		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.XtnBuybackAddress))
 	}
 	return rewardAddresses
+}
+
+func getPreactivatedFeatures(genSettings *GenesisSettings, rewardSettings *RewardSettings) ([]FeatureInfo, error) {
+	var initPF, result []FeatureInfo
+	initPF = append(initPF, genSettings.PreactivatedFeatures...)
+	initPF = append(initPF, rewardSettings.PreactivatedFeatures...)
+	for _, pf := range initPF {
+		if pf.Feature <= 0 {
+			err := errors.Errorf("Feature with id %d not exist", pf.Feature)
+			return nil, err
+		} else {
+			result = append(result, pf)
+		}
+	}
+	return result, nil
+}
+
+func getSupportedFeaturesAsString(rewardSettings *RewardSettings) string {
+	values := rewardSettings.SupportedFeatures
+	valuesStr := []string{}
+	for i := range values {
+		valuesStr = append(valuesStr, strconv.FormatInt(int64(values[i]), 10))
+	}
+	result := strings.Join(valuesStr, ",")
+	return result
 }
 
 func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
@@ -198,16 +231,21 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	}
 
 	//preactivated features
-	cfg.PreactivatedFeatures = make([]int16, len(genSettings.PreactivatedFeatures))
-	for i, f := range genSettings.PreactivatedFeatures {
+	preactivatedFeatures, err := getPreactivatedFeatures(genSettings, rewardSettings)
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg.PreactivatedFeatures = make([]int16, len(preactivatedFeatures))
+	for i, f := range preactivatedFeatures {
 		cfg.PreactivatedFeatures[i] = f.Feature
 	}
 
 	return &config{
 		BlockchainSettings: &cfg,
-		ScalaOpts: &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false,
+		ScalaOpts: &scalaCustomOptions{Features: preactivatedFeatures, EnableMining: false,
 			DaoAddress: rewardSettings.DaoAddress, XtnBuybackAddress: rewardSettings.XtnBuybackAddress},
-		GoEnvDesireReward: strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
+		GoOpts: &goEnvOptions{DesiredBlockReward: strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
+			SupportedFeatures: getSupportedFeaturesAsString(rewardSettings)},
 	}, acc, nil
 }
 

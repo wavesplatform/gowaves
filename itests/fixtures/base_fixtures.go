@@ -34,7 +34,7 @@ func (suite *BaseSuite) BaseSetup(suiteName string, enableScalaMining bool, addi
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
-	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName, cfg.Env)
+	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName, cfg.Env.DesiredBlockReward, cfg.Env.SupportedFeatures)
 	if err != nil {
 		docker.Finish(suite.Cancel)
 		suite.Require().NoError(err, "couldn't run Docker containers")

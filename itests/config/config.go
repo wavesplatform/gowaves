@@ -22,7 +22,7 @@ const (
 type TestConfig struct {
 	Accounts           []AccountInfo
 	BlockchainSettings *settings.BlockchainSettings
-	Env                string
+	Env                *goEnvOptions
 }
 
 func createConfigDir(suiteName string) (string, error) {
@@ -109,5 +109,6 @@ func CreateFileConfigs(suiteName string, enableScalaMining bool, additionalArgsP
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create go-node config")
 	}
 	return ConfigPaths{ScalaConfigPath: configDir, GoConfigPath: configDir},
-		TestConfig{Accounts: acc, BlockchainSettings: cfg.BlockchainSettings, Env: cfg.GoEnvDesireReward}, nil
+		TestConfig{Accounts: acc, BlockchainSettings: cfg.BlockchainSettings,
+			Env: &goEnvOptions{DesiredBlockReward: cfg.GoOpts.DesiredBlockReward, SupportedFeatures: cfg.GoOpts.SupportedFeatures}}, nil
 }

@@ -56,7 +56,7 @@ CMD /app/node \
     -log-level=debug \
     -obsolescence=1h \
     -reward=$DESIRED_REWARD \
-    -vote=14,20 \
+    -vote=$SUPPORTED_FEATURES \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \

@@ -420,7 +420,7 @@ func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, feat
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
 	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
 	require.NoError(suite.T(), err, "Couldn't get feature status info")
-	fmt.Printf("Go: Status of feature %d @%d: %s\n", featureId, h, status)
+	fmt.Printf("Go: Status of feature %d on height @%d: %s\n", featureId, h, status)
 	return status
 }
 
@@ -673,25 +673,3 @@ func GetRewardTerm(suite *f.BaseSuite) uint64 {
 func GetRewardTermAfter20(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
-
-/*func GetCurrentRewardGo(suite *f.BaseSuite, h uint64) uint64 {
-	//get init values
-	votingInterval := GetBlockRewardVotingPeriod(suite)
-	term := GetRewardTerm(suite)
-	termAfter20 := GetRewardTermAfter20(suite)
-	desiredReward := GetDesiredRewardGo(suite, h)
-	initReward := GetInitReward(suite)
-	increment := GetRewardIncrement(suite)
-	//counting of terms starts from feature 14 activation height
-	activationHeight14, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 14)
-	require.NoError(suite.T(), err, "Couldn't get activation height of feature 14")
-	activationHeight19, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 19)
-	require.NoError(suite.T(), err, "Couldn't get activation height of feature 19")
-	activationHeight20, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, h), 20)
-	require.NoError(suite.T(), err, "Couldn't get activation height of feature 20")
-
-	//current reward initially equals init reward from config file
-	currentReward := initReward
-
-	return currentReward
-}*/
