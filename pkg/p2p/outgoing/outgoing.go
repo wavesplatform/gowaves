@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -38,7 +39,8 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v)
 	if err != nil {
-		zap.S().Debugf("Outgoing connection to address '%s' failed with error: %v", addr, err)
+		zap.S().Named(logging.NetworkNamespace).Debugf("Outgoing connection to address '%s' failed with error: %v",
+			addr, err)
 		return errors.Wrapf(err, "%q", addr)
 	}
 
@@ -47,10 +49,12 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		if err := connection.Close(); err != nil {
 			zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
 		}
-		zap.S().Debugf("Failed to create new peer impl for outgoing conn to %s: %v", addr, err)
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to create new peer impl for outgoing conn to %s: %v",
+			addr, err)
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
-	zap.S().Debugf("Connected outgoing peer with addr '%s', id '%s'", addr, peerImpl.ID())
+	zap.S().Named(logging.NetworkNamespace).Debugf("Connected outgoing peer with addr '%s', id '%s'",
+		addr, peerImpl.ID())
 	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }
 

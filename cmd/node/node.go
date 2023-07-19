@@ -67,6 +67,7 @@ type config struct {
 	logLevel                   zapcore.Level
 	logDevelopment             bool
 	logNetwork                 bool
+	logNetworkData             bool
 	logFSM                     bool
 	statePath                  string
 	blockchainType             string
@@ -157,9 +158,11 @@ func (c *config) parse() {
 	flag.BoolVar(&c.logDevelopment, "log-dev", false,
 		"Log with development setup for the logger. Switched off by default.")
 	flag.BoolVar(&c.logNetwork, "log-network", false,
+		"Log the operation of network stack. Turned off by default.")
+	flag.BoolVar(&c.logNetworkData, "log-network-data", false,
 		"Log network messages as Base64 strings. Turned off by default.")
 	flag.BoolVar(&c.logFSM, "log-fsm", false,
-		"Log FSM messages. Turned off by default.")
+		"Log the operation of FSM. Turned off by default.")
 	flag.StringVar(&c.statePath, "state-path", "", "Path to node's state directory.")
 	flag.StringVar(&c.blockchainType, "blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet.")
 	flag.StringVar(&c.peerAddresses, "peers", "", "Addresses of peers to connect to.")
@@ -245,6 +248,7 @@ func main() {
 	logger := logging.SetupLogger(nc.logLevel,
 		logging.DevelopmentFlag(nc.logDevelopment),
 		logging.NetworkFilter(nc.logNetwork),
+		logging.NetworkDataFilter(nc.logNetworkData),
 		logging.FSMFilter(nc.logFSM),
 	)
 	defer func() {

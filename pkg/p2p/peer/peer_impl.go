@@ -81,7 +81,7 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Sending to network: %s",
+	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s",
 		a.id.String(), base64.StdEncoding.EncodeToString(b))
 	select {
 	case a.remote.ToCh <- b:

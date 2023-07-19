@@ -1,6 +1,7 @@
 package logging
 
 const (
-	NetworkNamespace = "NET"
-	FSMNamespace     = "FSM"
+	NetworkNamespace     = "NET"
+	NetworkDataNamespace = "NET.DATA"
+	FSMNamespace         = "FSM"
 )

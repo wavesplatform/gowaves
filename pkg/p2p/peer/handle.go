@@ -14,7 +14,7 @@ import (
 )
 
 func logNetworkData(pid ID, data []byte) {
-	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Receiving from network: %s",
+	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
 		pid.String(), base64.StdEncoding.EncodeToString(data),
 	)
 }
@@ -33,7 +33,8 @@ func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Debugf("[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
+		zap.S().Named(logging.NetworkNamespace).Debugf(
+			"[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
 	}
 	return nil
 }

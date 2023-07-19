@@ -4,9 +4,9 @@ import (
 	"math/big"
 	"reflect"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -198,21 +198,21 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *f
 // PBBlockAction handles protobuf block message.
 func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	b := &proto.Block{}
-	err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes)
-	if err != nil {
-		zap.S().Debug(err)
+	if err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes); err != nil {
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserializa protobuf block: %v", err)
 		return nil, err
 	}
-	zap.S().Debugf("Protobuf block received '%s'", b.ID.String())
+	zap.S().Named(logging.NetworkNamespace).Debugf("Protobuf block received '%s'", b.ID.String())
 	return fsm.Block(mess.ID, b)
 }
 
 func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
-	err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes)
-	if err != nil {
-		return nil, errors.Wrap(err, "PBMicroBlockAction")
+	if err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes); err != nil {
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize microblock: %v", err)
+		return nil, err
 	}
+	zap.S().Named(logging.NetworkNamespace).Debugf("Microblock received '%s'", micro.TotalBlockID.String())
 	return fsm.MicroBlock(mess.ID, micro)
 }
 

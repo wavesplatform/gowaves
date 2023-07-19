@@ -56,6 +56,14 @@ func NetworkFilter(flag bool) Option {
 	})
 }
 
+func NetworkDataFilter(flag bool) Option {
+	return optionFunc(func(c *config) {
+		if !flag {
+			c.filter = zapfilter.All(c.filter, zapfilter.Reverse(zapfilter.ByNamespaces(NetworkDataNamespace)))
+		}
+	})
+}
+
 func FSMFilter(flag bool) Option {
 	return optionFunc(func(c *config) {
 		if !flag {

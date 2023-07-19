@@ -118,7 +118,8 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Debugf("Incoming connection failed with addr %q: %v", conn.RemoteAddr().String(), err)
+				zap.S().Named(logging.NetworkNamespace).Debugf("Incoming connection failed with addr %q: %v",
+					conn.RemoteAddr().String(), err)
 				return
 			}
 		}()

@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -92,7 +93,8 @@ func (n *Network) Run() {
 		case *peer.Connected:
 			err := n.peers.NewConnection(t.Peer)
 			if err != nil {
-				zap.S().Debugf("Established connection with %s peer '%s': %s", t.Peer.Direction(), t.Peer.ID(), err)
+				zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s': %s",
+					t.Peer.Direction(), t.Peer.ID(), err)
 				continue
 			}
 			if n.peers.ConnectedCount() == n.minPeerMining {
