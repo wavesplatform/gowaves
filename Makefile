@@ -134,18 +134,16 @@ build-node-native:
 	@CGO_ENABLE=0 go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
-build-node-linux-arm:
-	@GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
-build-node-linux-i386:
-	@GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+build-node-linux-arm64:
+	@GOOS=linux GOARCH=arm64 go build -o build/bin/linux-arm64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-darwin:
 	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-windows:
 	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
-release-node: ver build-node-linux build-node-linux-arm build-node-linux-i386 build-node-darwin build-node-windows
+release-node: ver build-node-linux build-node-linux-arm64 build-node-darwin build-node-windows
 
-dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package build-node-stagenet-deb-package
+dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package build-node-stagenet-deb-package build-node-testnet-arm64-deb-package
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/node_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/node*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-64bit.tar.gz ./node*
@@ -251,7 +249,7 @@ build-wmd-deb-package: release-wmd
 	@mkdir -p build/dist
 
 	@mkdir -p ./build/wmd/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Waves Market Data System Service/g; s/PACKAGE/wmd/g" ./dpkg/control > ./build/wmd/DEBIAN/control
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Waves Market Data System Service/g; s/PACKAGE/wmd/g; s/ARCH/amd64/g" ./dpkg/control > ./build/wmd/DEBIAN/control
 	@sed "s/PACKAGE/wmd/g; s/NAME/wmd/g;" ./dpkg/postinst > ./build/wmd/DEBIAN/postinst
 	@sed "s/PACKAGE/wmd/g" ./dpkg/postrm > ./build/wmd/DEBIAN/postrm
 	@sed "s/PACKAGE/wmd/g" ./dpkg/prerm > ./build/wmd/DEBIAN/prerm
@@ -278,7 +276,7 @@ build-node-mainnet-deb-package: release-node
 	@mkdir -p build/dist
 
 	@mkdir -p ./build/gowaves-mainnet/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for MainNet System Service/g; s/PACKAGE/gowaves-mainnet/g" ./dpkg/control > ./build/gowaves-mainnet/DEBIAN/control
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for MainNet System Service/g; s/PACKAGE/gowaves-mainnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-mainnet/DEBIAN/control
 	@sed "s/PACKAGE/gowaves-mainnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-mainnet/DEBIAN/postinst
 	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/postrm > ./build/gowaves-mainnet/DEBIAN/postrm
 	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/prerm > ./build/gowaves-mainnet/DEBIAN/prerm
@@ -304,7 +302,7 @@ build-node-testnet-deb-package: release-node
 	@mkdir -p build/dist
 
 	@mkdir -p ./build/gowaves-testnet/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
 	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
 	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet/DEBIAN/postrm
 	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet/DEBIAN/prerm
@@ -326,11 +324,37 @@ build-node-testnet-deb-package: release-node
 	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-testnet
 
+build-node-testnet-arm64-deb-package: release-node
+	@mkdir -p build/dist
+
+	@mkdir -p ./build/gowaves-testnet-arm64/DEBIAN
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/arm64/g" ./dpkg/control > ./build/gowaves-testnet-arm64/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet-arm64/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet-arm64/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet-arm64/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-testnet-arm64/DEBIAN/control
+	@chmod 0775 ./build/gowaves-testnet-arm64/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-testnet-arm64/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-testnet-arm64/DEBIAN/prerm
+
+	@mkdir -p ./build/gowaves-testnet-arm64/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet-arm64/lib/systemd/system/gowaves-testnet.service
+
+	@mkdir -p ./build/gowaves-testnet-arm64/usr/share/gowaves-testnet
+	@cp ./build/bin/linux-arm64/node ./build/gowaves-testnet-arm64/usr/share/gowaves-testnet
+
+	@mkdir -p ./build/gowaves-testnet-arm64/var/lib/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet-arm64/var/log/gowaves-testnet/
+
+	@dpkg-deb --build ./build/gowaves-testnet-arm64
+	@mv ./build/gowaves-testnet-arm64.deb ./build/dist/gowaves-testnet-arm64_${VERSION}.deb
+	@rm -rf ./build/gowaves-testnet-arm64
+
 build-node-stagenet-deb-package: release-node
 	@mkdir -p build/dist
 
 	@mkdir -p ./build/gowaves-stagenet/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for StageNet System Service/g; s/PACKAGE/gowaves-stagenet/g" ./dpkg/control > ./build/gowaves-stagenet/DEBIAN/control
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for StageNet System Service/g; s/PACKAGE/gowaves-stagenet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-stagenet/DEBIAN/control
 	@sed "s/PACKAGE/gowaves-stagenet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-stagenet/DEBIAN/postinst
 	@sed "s/PACKAGE/gowaves-stagenet/g" ./dpkg/postrm > ./build/gowaves-stagenet/DEBIAN/postrm
 	@sed "s/PACKAGE/gowaves-stagenet/g" ./dpkg/prerm > ./build/gowaves-stagenet/DEBIAN/prerm
