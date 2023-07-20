@@ -1272,7 +1272,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-// TODO generate snapshots here too
+// TODO what to do with stolen aliases in snapshots?
 func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
@@ -1524,6 +1524,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if err := s.appender.applyAllDiffs(); err != nil {
 		return nil, err
 	}
+
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
 		return nil, wrapErr(ModificationError, err)
