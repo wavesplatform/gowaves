@@ -26,43 +26,19 @@ var (
 )
 
 type differTestObjects struct {
-	stor                *testStorageObjects
-	td                  *transactionDiffer
-	tp                  *transactionPerformer
-	stateActionsCounter *proto.StateActionsCounter
+	stor *testStorageObjects
+	td   *transactionDiffer
+	tp   *transactionPerformer
 }
 
-func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTestObjects {
+func createDifferTestObjects(t *testing.T) *differTestObjects {
 	stor := createStorageObjects(t, true)
 	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionDiffer() failed")
-
-	actionsCounter := new(proto.StateActionsCounter)
-
-	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              settings.MainNetSettings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          stor.entities.balances,
-			aliases:           stor.entities.aliases,
-			assets:            stor.entities.assets,
-			scriptsStorage:    stor.entities.scriptsStorage,
-			scriptsComplexity: stor.entities.scriptsComplexity,
-			sponsoredAssets:   stor.entities.sponsoredAssets,
-			ordersVolumes:     stor.entities.ordersVolumes,
-			accountsDataStor:  stor.entities.accountsDataStor,
-			leases:            stor.entities.leases,
-		},
-	)
-	snapshotGenerator := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGenerator
+	snapshotGenerator := &snapshotGenerator{stor: stor.entities, settings: settings.MainNetSettings}
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings, snapshotGenerator)
 	require.NoError(t, err, "newTransactionPerformer() failed")
-	return &differTestObjects{stor, td, tp, actionsCounter}
+	return &differTestObjects{stor, td, tp}
 }
 
 func createGenesis() *proto.Genesis {
@@ -70,8 +46,7 @@ func createGenesis() *proto.Genesis {
 }
 
 func TestCreateDiffGenesis(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createGenesis()
 	ch, err := to.td.createDiffGenesis(tx, defaultDifferInfo())
@@ -92,8 +67,7 @@ func createPayment(t *testing.T) *proto.Payment {
 }
 
 func TestCreateDiffPayment(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createPayment(t)
 	ch, err := to.td.createDiffPayment(tx, defaultDifferInfo())
@@ -120,8 +94,7 @@ func createTransferWithSig(t *testing.T) *proto.TransferWithSig {
 }
 
 func TestCreateDiffTransferWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createTransferWithSig(t)
 	feeFullAssetID := tx.FeeAsset.ID
@@ -178,8 +151,7 @@ func createTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
 }
 
 func TestCreateDiffTransferWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createTransferWithProofs(t)
 	feeFullAssetID := tx.FeeAsset.ID
@@ -243,8 +215,7 @@ func createNFTIssueWithSig(t *testing.T) *proto.IssueWithSig {
 }
 
 func TestCreateDiffIssueWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createIssueWithSig(t, 1000)
 	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
@@ -278,8 +249,7 @@ func createNFTIssueWithProofs(t *testing.T) *proto.IssueWithProofs {
 }
 
 func TestCreateDiffIssueWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createIssueWithProofs(t, 1000)
 	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo())
@@ -306,8 +276,7 @@ func createReissueWithSig(t *testing.T, feeUnits int) *proto.ReissueWithSig {
 }
 
 func TestCreateDiffReissueWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createReissueWithSig(t, 1000)
 	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo())
@@ -333,8 +302,7 @@ func createReissueWithProofs(t *testing.T, feeUnits int) *proto.ReissueWithProof
 }
 
 func TestCreateDiffReissueWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createReissueWithProofs(t, 1000)
 	ch, err := to.td.createDiffReissueWithProofs(tx, defaultDifferInfo())
@@ -360,8 +328,7 @@ func createBurnWithSig(t *testing.T) *proto.BurnWithSig {
 }
 
 func TestCreateDiffBurnWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createBurnWithSig(t)
 	ch, err := to.td.createDiffBurnWithSig(tx, defaultDifferInfo())
@@ -387,8 +354,7 @@ func createBurnWithProofs(t *testing.T) *proto.BurnWithProofs {
 }
 
 func TestCreateDiffBurnWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createBurnWithProofs(t)
 	ch, err := to.td.createDiffBurnWithProofs(tx, defaultDifferInfo())
@@ -434,8 +400,7 @@ func createExchangeWithSig(t *testing.T) *proto.ExchangeWithSig {
 //}
 
 func TestCreateDiffExchangeWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createExchangeWithSig(t)
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
@@ -488,8 +453,7 @@ func createUnorderedExchangeWithProofs(t *testing.T, v int) *proto.ExchangeWithP
 }
 
 func TestCreateDiffExchangeWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createExchangeWithProofs(t)
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
@@ -598,8 +562,7 @@ func createExchangeV2WithProofsWithOrdersV3(t *testing.T, info orderBuildInfo) *
 }
 
 func TestCreateDiffExchangeV2WithProofsWithOrdersV3(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createExchangeV2WithProofsWithOrdersV3(t, orderBuildInfo{
 		price:  10e8,
@@ -630,8 +593,7 @@ func TestCreateDiffExchangeV2WithProofsWithOrdersV3(t *testing.T) {
 }
 
 func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	const (
 		asset0Decimals = 5
@@ -738,7 +700,7 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 // and produces an incorrect or unexpected diff, should be fixes some how
 //
 //	func TestCreateDiffExchangeWithSignature(t *testing.T) {
-//		to, path := createDifferTestObjects(t, checkerInfo
+//		to, path := createDifferTestObjects(t)
 //
 //		to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 8)
 //		to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
@@ -772,8 +734,7 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 //		assert.Equal(t, correctAddrs, ch.addrs)
 //	}
 func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 0)
 	to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
@@ -846,8 +807,7 @@ func createLeaseWithSig(t *testing.T) *proto.LeaseWithSig {
 }
 
 func TestCreateDiffLeaseWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createLeaseWithSig(t)
 	ch, err := to.td.createDiffLeaseWithSig(tx, defaultDifferInfo())
@@ -874,8 +834,7 @@ func createLeaseWithProofs(t *testing.T) *proto.LeaseWithProofs {
 }
 
 func TestCreateDiffLeaseWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createLeaseWithProofs(t)
 	ch, err := to.td.createDiffLeaseWithProofs(tx, defaultDifferInfo())
@@ -902,11 +861,10 @@ func createLeaseCancelWithSig(t *testing.T, leaseID crypto.Digest) *proto.LeaseC
 }
 
 func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	leaseTx := createLeaseWithSig(t)
-	info := defaultPerformerInfo(to.stateActionsCounter)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	_, err := to.tp.performLeaseWithSig(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
@@ -936,11 +894,10 @@ func createLeaseCancelWithProofs(t *testing.T, leaseID crypto.Digest) *proto.Lea
 }
 
 func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	leaseTx := createLeaseWithProofs(t)
-	info := defaultPerformerInfo(to.stateActionsCounter)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	_, err := to.tp.performLeaseWithProofs(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
@@ -974,8 +931,7 @@ func createCreateAliasWithSig(t *testing.T) *proto.CreateAliasWithSig {
 }
 
 func TestCreateDiffCreateAliasWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createCreateAliasWithSig(t)
 	ch, err := to.td.createDiffCreateAliasWithSig(tx, defaultDifferInfo())
@@ -1004,8 +960,7 @@ func createCreateAliasWithProofs(t *testing.T) *proto.CreateAliasWithProofs {
 }
 
 func TestCreateDiffCreateAliasWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createCreateAliasWithProofs(t)
 	ch, err := to.td.createDiffCreateAliasWithProofs(tx, defaultDifferInfo())
@@ -1041,8 +996,7 @@ func createMassTransferWithProofs(t *testing.T, transfers []proto.MassTransferEn
 }
 
 func TestCreateDiffMassTransferWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	entriesNum := 66
 	entries := generateMassTransferEntries(t, entriesNum)
@@ -1082,8 +1036,7 @@ func createDataWithProofs(t *testing.T, entriesNum int) *proto.DataWithProofs {
 }
 
 func TestCreateDiffDataWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createDataWithProofs(t, 1)
 	ch, err := to.td.createDiffDataWithProofs(tx, defaultDifferInfo())
@@ -1108,8 +1061,7 @@ func createSponsorshipWithProofs(t *testing.T, fee uint64) *proto.SponsorshipWit
 }
 
 func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createSponsorshipWithProofs(t, 1000)
 	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo())
@@ -1141,8 +1093,7 @@ func createSetScriptWithProofs(t *testing.T, customScriptBytes ...[]byte) *proto
 }
 
 func TestCreateDiffSetScriptWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createSetScriptWithProofs(t)
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
@@ -1169,8 +1120,7 @@ func createSetAssetScriptWithProofs(t *testing.T) *proto.SetAssetScriptWithProof
 }
 
 func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createSetAssetScriptWithProofs(t)
 	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
@@ -1195,8 +1145,7 @@ func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc pr
 }
 
 func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	feeConst, ok := feeConstants[proto.InvokeScriptTransaction]
 	assert.Equal(t, ok, true)
@@ -1258,8 +1207,7 @@ func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithPro
 }
 
 func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createDifferTestObjects(t)
 
 	tx := createUpdateAssetInfoWithProofs(t)
 	ch, err := to.td.createDiffUpdateAssetInfoWithProofs(tx, defaultDifferInfo())

@@ -21,43 +21,19 @@ var (
 )
 
 type checkerTestObjects struct {
-	stor                *testStorageObjects
-	tc                  *transactionChecker
-	tp                  *transactionPerformer
-	stateActionsCounter *proto.StateActionsCounter
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   *transactionPerformer
 }
 
-func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTestObjects {
+func createCheckerTestObjects(t *testing.T) *checkerTestObjects {
 	stor := createStorageObjects(t, true)
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionChecker() failed")
-
-	actionsCounter := new(proto.StateActionsCounter)
-	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              settings.MainNetSettings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          stor.entities.balances,
-			aliases:           stor.entities.aliases,
-			assets:            stor.entities.assets,
-			scriptsStorage:    stor.entities.scriptsStorage,
-			scriptsComplexity: stor.entities.scriptsComplexity,
-			sponsoredAssets:   stor.entities.sponsoredAssets,
-			ordersVolumes:     stor.entities.ordersVolumes,
-			accountsDataStor:  stor.entities.accountsDataStor,
-			leases:            stor.entities.leases,
-		},
-	)
-	snapshotGenerator := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
-
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGenerator
+	snapshotGenerator := &snapshotGenerator{stor: stor.entities, settings: settings.MainNetSettings}
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings, snapshotGenerator)
 	require.NoError(t, err, "newTransactionPerformer() failed")
-	return &checkerTestObjects{stor, tc, tp, actionsCounter}
+	return &checkerTestObjects{stor, tc, tp}
 }
 
 func defaultCheckerInfo() *checkerInfo {
@@ -71,11 +47,10 @@ func defaultCheckerInfo() *checkerInfo {
 }
 
 func TestCheckGenesis(t *testing.T) {
-
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createGenesis()
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkGenesis(tx, info)
 	assert.EqualError(t, err, "genesis transaction inside of non-genesis block")
@@ -94,11 +69,10 @@ func TestCheckGenesis(t *testing.T) {
 }
 
 func TestCheckPayment(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createPayment(t)
-
+	info := defaultCheckerInfo()
 	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
@@ -112,10 +86,10 @@ func TestCheckPayment(t *testing.T) {
 }
 
 func TestCheckTransferWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createTransferWithSig(t)
+	info := defaultCheckerInfo()
 
 	assetId := tx.FeeAsset.ID
 
@@ -150,10 +124,10 @@ func TestCheckTransferWithSig(t *testing.T) {
 }
 
 func TestCheckTransferWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createTransferWithProofs(t)
+	info := defaultCheckerInfo()
 
 	assetId := tx.FeeAsset.ID
 
@@ -195,8 +169,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 }
 
 func TestCheckIsValidUtf8(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	err := to.tc.isValidUtf8("just a normal string")
 	assert.NoError(t, err)
@@ -214,11 +187,10 @@ func TestCheckIsValidUtf8(t *testing.T) {
 }
 
 func TestCheckIssueWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createIssueWithSig(t, 1000)
-
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkIssueWithSig(tx, info)
 	assert.NoError(t, err, "checkIssueWithSig failed with valid issue tx")
 
@@ -228,11 +200,10 @@ func TestCheckIssueWithSig(t *testing.T) {
 }
 
 func TestCheckIssueWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createIssueWithProofs(t, 1000)
-
+	info := defaultCheckerInfo()
 	to.stor.addBlock(t, blockID0)
 
 	_, err := to.tc.checkIssueWithProofs(tx, info)
@@ -244,14 +215,13 @@ func TestCheckIssueWithProofs(t *testing.T) {
 }
 
 func TestCheckReissueWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithSig(t, 1000)
 	tx.SenderPK = assetInfo.issuer
-
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	_, err := to.tc.checkReissueWithSig(tx, info)
 	assert.NoError(t, err, "checkReissueWithSig failed with valid reissue tx")
@@ -276,7 +246,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performReissueWithSig failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -287,14 +257,13 @@ func TestCheckReissueWithSig(t *testing.T) {
 }
 
 func TestCheckReissueWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithProofs(t, 1000)
 	tx.SenderPK = assetInfo.issuer
-
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 
 	_, err := to.tc.checkReissueWithProofs(tx, info)
@@ -325,7 +294,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performReissueWithProofs failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -336,12 +305,12 @@ func TestCheckReissueWithProofs(t *testing.T) {
 }
 
 func TestCheckBurnWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
 	tx.SenderPK = assetInfo.issuer
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with valid burn tx")
@@ -370,12 +339,12 @@ func TestCheckBurnWithSig(t *testing.T) {
 }
 
 func TestCheckBurnWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
 	tx.SenderPK = assetInfo.issuer
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.Error(t, err, "checkBurnWithProofs did not fail prior to SmartAccounts activation")
@@ -409,11 +378,10 @@ func TestCheckBurnWithProofs(t *testing.T) {
 }
 
 func TestCheckExchangeWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createExchangeWithSig(t)
-
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange with unknown assets")
 
@@ -476,11 +444,10 @@ func TestCheckExchangeWithSig(t *testing.T) {
 }
 
 func TestCheckExchangeWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	txOV2 := createExchangeWithProofs(t)
-
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange with unknown assets")
 
@@ -572,10 +539,10 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 }
 
 func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createUnorderedExchangeWithProofs(t, 2)
+	info := defaultCheckerInfo()
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
@@ -591,10 +558,10 @@ func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
 }
 
 func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createUnorderedExchangeWithProofs(t, 3)
+	info := defaultCheckerInfo()
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
@@ -610,11 +577,10 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 }
 
 func TestCheckLeaseWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createLeaseWithSig(t)
-
+	info := defaultCheckerInfo()
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	_, err := to.tc.checkLeaseWithSig(tx, info)
 	assert.Error(t, err, "checkLeaseWithSig did not fail when leasing to self")
@@ -625,11 +591,10 @@ func TestCheckLeaseWithSig(t *testing.T) {
 }
 
 func TestCheckLeaseWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createLeaseWithProofs(t)
-
+	info := defaultCheckerInfo()
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	_, err := to.tc.checkLeaseWithProofs(tx, info)
 	assert.Error(t, err, "checkLeaseWithProofs did not fail when leasing to self")
@@ -646,11 +611,10 @@ func TestCheckLeaseWithProofs(t *testing.T) {
 }
 
 func TestCheckLeaseCancelWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	leaseTx := createLeaseWithSig(t)
-
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 
@@ -658,7 +622,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithSig did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 	to.stor.flush(t)
 
@@ -675,11 +639,10 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 }
 
 func TestCheckLeaseCancelWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	leaseTx := createLeaseWithProofs(t)
-
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 
@@ -687,7 +650,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithProofs did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 	to.stor.flush(t)
 
@@ -703,7 +666,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelWithProofs failed with valid leaseCancel tx")
-	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
@@ -711,16 +674,16 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 }
 
 func TestCheckCreateAliasWithSig(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createCreateAliasWithSig(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkCreateAliasWithSig(tx, info)
 	assert.NoError(t, err, "checkCreateAliasWithSig failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig failed")
 	to.stor.flush(t)
 
@@ -734,10 +697,10 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 }
 
 func TestCheckCreateAliasWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createCreateAliasWithProofs(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkCreateAliasWithProofs(tx, info)
 	assert.Error(t, err, "checkCreateAliasWithProofs did not fail prior to SmartAccounts activation")
@@ -748,7 +711,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithProofs failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs failed")
 	to.stor.flush(t)
 
@@ -762,12 +725,12 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 }
 
 func TestCheckMassTransferWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	entriesNum := 50
 	entries := generateMassTransferEntries(t, entriesNum)
 	tx := createMassTransferWithProofs(t, entries)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkMassTransferWithProofs(tx, info)
 	assert.Error(t, err, "checkMassTransferWithProofs did not fail prior to feature activation")
@@ -793,10 +756,10 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 }
 
 func TestCheckDataWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createDataWithProofs(t, 1)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkDataWithProofs(tx, info)
 	assert.Error(t, err, "checkDataWithProofs did not fail prior to feature activation")
@@ -839,12 +802,12 @@ func TestCheckDataWithProofs(t *testing.T) {
 }
 
 func TestCheckSponsorshipWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
 	tx.SenderPK = assetInfo.issuer
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail prior to feature activation")
@@ -882,10 +845,10 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 }
 
 func TestCheckSetScriptWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createSetScriptWithProofs(t)
+	info := defaultCheckerInfo()
 
 	// Activate sponsorship.
 	to.stor.activateSponsorship(t)
@@ -1380,10 +1343,10 @@ func TestCheckSetScriptWithProofsCheckDAppCallables(t *testing.T) {
 }
 
 func TestCheckSetAssetScriptWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createSetAssetScriptWithProofs(t)
+	info := defaultCheckerInfo()
 
 	assetInfo := defaultAssetInfo(proto.DigestTail(tx.AssetID), true)
 	assetInfo.issuer = tx.SenderPK
@@ -1416,14 +1379,13 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func TestCheckInvokeScriptWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	payments := []proto.ScriptPayment{
 		{Amount: 1, Asset: *testGlobal.asset0.asset},
 	}
 	tx := createInvokeScriptWithProofs(t, payments, proto.FunctionCall{}, proto.OptionalAsset{}, 1)
-
+	info := defaultCheckerInfo()
 	to.stor.addBlock(t, blockID0)
 	assetId := tx.Payments[0].Asset.ID
 	to.stor.createAsset(t, assetId)
@@ -1456,8 +1418,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 }
 
 func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createUpdateAssetInfoWithProofs(t)
 	// We create asset using random block here on purpose, this way
@@ -1466,6 +1427,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.createAsset(t, tx.FeeAsset.ID)
 	tx.SenderPK = assetInfo.issuer
 
+	info := defaultCheckerInfo()
 	info.height = 100001
 
 	// Check fail prior to activation.
@@ -1498,10 +1460,10 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 }
 
 func TestCheckInvokeExpressionWithProofs(t *testing.T) {
-	info := defaultCheckerInfo()
-	to := createCheckerTestObjects(t, info)
+	to := createCheckerTestObjects(t)
 
 	tx := createInvokeExpressionWithProofs(t, make([]byte, 1), proto.OptionalAsset{}, 1)
+	info := defaultCheckerInfo()
 
 	// Check activation.
 	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)

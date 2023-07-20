@@ -337,6 +337,7 @@ func (a *txAppender) commitTxApplication(
 	// Update complexity.
 	a.sc.addRecentTxComplexity()
 	// Save balance diff.
+	// TODO get balances snapshots
 	if err := a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
 		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
@@ -352,6 +353,7 @@ func (a *txAppender) commitTxApplication(
 			stateActionsCounter: params.stateActionsCounterInBlock,
 			checkerData:         applicationRes.checkerData,
 		}
+		// TODO other snapshots
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
@@ -418,9 +420,6 @@ type appendTxParams struct {
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	stateActionsCounterInBlock       *proto.StateActionsCounter
 	currentMinerPK                   crypto.PublicKey
-
-	snapshotGenerator *snapshotGenerator
-	snapshotApplier   SnapshotApplier
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
@@ -454,9 +453,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		a.sc.resetRecentTxComplexity()
 		a.stor.dropUncertain()
 	}()
-
-	a.txHandler.tp.snapshotGenerator = params.snapshotGenerator
-	a.txHandler.tp.snapshotApplier = params.snapshotApplier
 
 	blockID := params.checkerInfo.blockID
 	// Check that Protobuf transactions are accepted.
@@ -636,27 +632,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlock := new(proto.StateActionsCounter)
-
-	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: stateActionsCounterInBlock,
-		},
-		snapshotApplierStorages{
-			balances:          a.stor.balances,
-			aliases:           a.stor.aliases,
-			assets:            a.stor.assets,
-			scriptsStorage:    a.stor.scriptsStorage,
-			scriptsComplexity: a.stor.scriptsComplexity,
-			sponsoredAssets:   a.stor.sponsoredAssets,
-			ordersVolumes:     a.stor.ordersVolumes,
-			accountsDataStor:  a.stor.accountsDataStor,
-			leases:            a.stor.leases,
-		},
-	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
 
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -666,15 +641,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// create the initial snapshot
-	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
+	initialSnapshot, err := a.createInitialBlockSnapshot(minerAndRewardDiff)
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
-
-	// TODO apply this snapshot when balances are refatored
-	//err = initialSnapshot.Apply(&snapshotApplier)
-
-	// Save miner diff first (for validation)
+	// a temporary dummy for linters
+	if len(initialSnapshot) > 100 {
+		zap.S().Debug(initialSnapshot)
+	}
+	// Save miner diff first.
 	if err := a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
@@ -698,8 +673,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	stateActionsCounterInBlock := new(proto.StateActionsCounter)
 	// Check and append transactions.
-
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
 			chans:                            params.chans,
@@ -716,8 +691,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			validatingUtx:                    false,
 			stateActionsCounterInBlock:       stateActionsCounterInBlock,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
-			snapshotGenerator:                &snapshotGenerator,
-			snapshotApplier:                  &snapshotApplier,
 		}
 		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
@@ -731,7 +704,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	return nil
 }
 
-// used only in tests now. All diffs are applied in snapshotApplier
 func (a *txAppender) applyAllDiffs() error {
 	a.recentTxIds = make(map[string]struct{})
 	return a.moveChangesToHistoryStorage()
@@ -959,27 +931,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	actionsCounter := new(proto.StateActionsCounter)
-	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          a.stor.balances,
-			aliases:           a.stor.aliases,
-			assets:            a.stor.assets,
-			scriptsStorage:    a.stor.scriptsStorage,
-			scriptsComplexity: a.stor.scriptsComplexity,
-			sponsoredAssets:   a.stor.sponsoredAssets,
-			ordersVolumes:     a.stor.ordersVolumes,
-			accountsDataStor:  a.stor.accountsDataStor,
-			leases:            a.stor.leases,
-		},
-	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
-
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
 		checkerInfo:                      checkerInfo,
@@ -994,9 +945,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		invokeExpressionActivated:        invokeExpressionActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-		stateActionsCounterInBlock: actionsCounter,
-		snapshotGenerator:          &snapshotGenerator,
-		snapshotApplier:            &snapshotApplier,
+		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
 	err = a.appendTx(tx, appendTxArgs)
 	if err != nil {
