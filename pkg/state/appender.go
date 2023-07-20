@@ -666,16 +666,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// create the initial snapshot
-	initialSnapshot, err := a.createInitialBlockSnapshot(minerAndRewardDiff)
+	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
 
-	// apply miner diff snapshot
-	err = initialSnapshot.Apply(&snapshotApplier)
-	if err != nil {
-		return errors.Wrap(err, "failed to apply a snapshot with miner diff")
-	}
+	// TODO apply this snapshot when balances are refatored
+	//err = initialSnapshot.Apply(&snapshotApplier)
+
 	// Save miner diff first (for validation)
 	if err := a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err

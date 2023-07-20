@@ -74,19 +74,16 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to perform transfer tx")
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			Balance:             299700000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			Balance: 299700000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.recipientInfo.addr,
-			Balance:             200000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.recipientInfo.addr,
+			Balance: 200000,
 		},
 	}
 
@@ -148,20 +145,17 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 			IsReissuable:  true,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			Balance: 299900000,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			AssetID:             *tx.ID,
-			Balance:             1000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			AssetID: *tx.ID,
+			Balance: 1000,
 		},
 	}
 	sort.Slice(expectedSnapshot, func(i, j int) bool {
@@ -209,20 +203,17 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			Balance: 299900000,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			AssetID:             testGlobal.asset0.assetID,
-			Balance:             1050,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			AssetID: testGlobal.asset0.assetID,
+			Balance: 1050,
 		},
 		&AssetVolumeSnapshot{
 			AssetID:       testGlobal.asset0.assetID,
@@ -276,20 +267,17 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			Balance: 299900000,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.issuerInfo.addr,
-			AssetID:             testGlobal.asset0.assetID,
-			Balance:             950,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.issuerInfo.addr,
+			AssetID: testGlobal.asset0.assetID,
+			Balance: 950,
 		},
 		&AssetVolumeSnapshot{
 			AssetID:       testGlobal.asset0.assetID,
@@ -364,48 +352,40 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299999999,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299999999,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.recipientInfo.addr,
-			Balance:             599999998,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.recipientInfo.addr,
+			Balance: 599999998,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.matcherInfo.addr,
-			Balance:             899900003,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.matcherInfo.addr,
+			Balance: 899900003,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			AssetID:             testGlobal.asset0.assetID,
-			Balance:             10,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			AssetID: testGlobal.asset0.assetID,
+			Balance: 10,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.recipientInfo.addr,
-			AssetID:             testGlobal.asset0.assetID,
-			Balance:             590,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.recipientInfo.addr,
+			AssetID: testGlobal.asset0.assetID,
+			Balance: 590,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			AssetID:             testGlobal.asset1.assetID,
-			Balance:             400,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			AssetID: testGlobal.asset1.assetID,
+			Balance: 400,
 		},
 		&AssetBalanceSnapshot{
-			Address:             testGlobal.recipientInfo.addr,
-			AssetID:             testGlobal.asset1.assetID,
-			Balance:             100,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.recipientInfo.addr,
+			AssetID: testGlobal.asset1.assetID,
+			Balance: 100,
 		},
 		&FilledVolumeFeeSnapshot{
 			OrderID:      *bo.ID,
@@ -460,14 +440,12 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&LeaseStateSnapshot{
 			LeaseID: *tx.ID,
@@ -547,14 +525,12 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&LeaseStateSnapshot{
 			LeaseID: leaseID,
@@ -621,14 +597,12 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&AliasSnapshot{
 			Address: testGlobal.senderInfo.addr,
@@ -683,14 +657,12 @@ func TestDefaultDataSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&DataEntriesSnapshot{
 			Address:     testGlobal.senderInfo.addr,
@@ -739,14 +711,12 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&SponsorshipSnapshot{
 			AssetID:         testGlobal.asset0.assetID,
@@ -801,14 +771,12 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&AccountScriptSnapshot{
 			SenderPublicKey:    testGlobal.senderInfo.pk,
@@ -870,14 +838,12 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             40000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299900000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
 		},
 		&AssetScriptSnapshot{
 			AssetID:    testGlobal.asset0.assetID,
@@ -986,14 +952,12 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 
 	expectedSnapshot := TransactionSnapshot{
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.minerInfo.addr,
-			Balance:             200000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.minerInfo.addr,
+			Balance: 200000,
 		},
 		&WavesBalanceSnapshot{
-			Address:             testGlobal.senderInfo.addr,
-			Balance:             299500000,
-			isGeneratedByTxDiff: true,
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299500000,
 		},
 		&DataEntriesSnapshot{
 			Address: testGlobal.recipientInfo.addr,

@@ -31,13 +31,10 @@ type AtomicSnapshot interface {
 type WavesBalanceSnapshot struct {
 	Address proto.WavesAddress
 	Balance uint64
-
-	// temporarily
-	isGeneratedByTxDiff bool
 }
 
 func (s WavesBalanceSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return true
 }
 
 func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWavesBalance(s) }
@@ -46,64 +43,58 @@ type AssetBalanceSnapshot struct {
 	Address proto.WavesAddress
 	AssetID crypto.Digest
 	Balance uint64
-	// temporarily
-	isGeneratedByTxDiff bool
 }
 
 func (s AssetBalanceSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return true
 }
 
 func (s AssetBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetBalance(s) }
 
 type DataEntriesSnapshot struct { // AccountData in pb
-	Address             proto.WavesAddress
-	DataEntries         []proto.DataEntry
-	isGeneratedByTxDiff bool
+	Address     proto.WavesAddress
+	DataEntries []proto.DataEntry
 }
 
 func (s DataEntriesSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s DataEntriesSnapshot) Apply(a SnapshotApplier) error { return a.ApplyDataEntries(s) }
 
 type AccountScriptSnapshot struct {
-	SenderPublicKey     crypto.PublicKey
-	Script              proto.Script
-	VerifierComplexity  uint64
-	isGeneratedByTxDiff bool
+	SenderPublicKey    crypto.PublicKey
+	Script             proto.Script
+	VerifierComplexity uint64
 }
 
 func (s AccountScriptSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s AccountScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAccountScript(s) }
 
 type AssetScriptSnapshot struct {
-	AssetID             crypto.Digest
-	Script              proto.Script
-	SenderPK            crypto.PublicKey // should be removed later
-	Complexity          uint64
-	isGeneratedByTxDiff bool
+	AssetID    crypto.Digest
+	Script     proto.Script
+	SenderPK   crypto.PublicKey // should be removed later
+	Complexity uint64
 }
 
 func (s AssetScriptSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s AssetScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetScript(s) }
 
 type LeaseBalanceSnapshot struct {
-	Address             proto.WavesAddress
-	LeaseIn             uint64
-	LeaseOut            uint64
-	isGeneratedByTxDiff bool
+	Address  proto.WavesAddress
+	LeaseIn  uint64
+	LeaseOut uint64
 }
 
 func (s LeaseBalanceSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseBalance(s) }
@@ -122,49 +113,45 @@ type LeaseStateSnapshot struct {
 	Recipient           proto.WavesAddress
 	OriginTransactionID *crypto.Digest
 	Height              proto.Height
-	isGeneratedByTxDiff bool
 }
 
 func (s LeaseStateSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s LeaseStateSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseState(s) }
 
 type SponsorshipSnapshot struct {
-	AssetID             crypto.Digest
-	MinSponsoredFee     uint64
-	isGeneratedByTxDiff bool
+	AssetID         crypto.Digest
+	MinSponsoredFee uint64
 }
 
 func (s SponsorshipSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s SponsorshipSnapshot) Apply(a SnapshotApplier) error { return a.ApplySponsorship(s) }
 
 type AliasSnapshot struct {
-	Address             proto.WavesAddress
-	Alias               proto.Alias
-	isGeneratedByTxDiff bool
+	Address proto.WavesAddress
+	Alias   proto.Alias
 }
 
 func (s AliasSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 
 // FilledVolumeFeeSnapshot Filled Volume and Fee.
 type FilledVolumeFeeSnapshot struct { // OrderFill
-	OrderID             crypto.Digest
-	FilledVolume        uint64
-	FilledFee           uint64
-	isGeneratedByTxDiff bool
+	OrderID      crypto.Digest
+	FilledVolume uint64
+	FilledFee    uint64
 }
 
 func (s FilledVolumeFeeSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s FilledVolumeFeeSnapshot) Apply(a SnapshotApplier) error { return a.ApplyFilledVolumeAndFee(s) }
@@ -175,38 +162,35 @@ type StaticAssetInfoSnapshot struct {
 	IssuerPublicKey     crypto.PublicKey
 	Decimals            uint8
 	IsNFT               bool
-	isGeneratedByTxDiff bool
 }
 
 func (s StaticAssetInfoSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s StaticAssetInfoSnapshot) Apply(a SnapshotApplier) error { return a.ApplyStaticAssetInfo(s) }
 
 type AssetVolumeSnapshot struct { // AssetVolume in pb
-	AssetID             crypto.Digest
-	TotalQuantity       big.Int // volume in protobuf
-	IsReissuable        bool
-	isGeneratedByTxDiff bool
+	AssetID       crypto.Digest
+	TotalQuantity big.Int // volume in protobuf
+	IsReissuable  bool
 }
 
 func (s AssetVolumeSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s AssetVolumeSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetVolume(s) }
 
 type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
-	AssetID             crypto.Digest
-	AssetName           string
-	AssetDescription    string
-	ChangeHeight        proto.Height // last_updated in pb
-	isGeneratedByTxDiff bool
+	AssetID          crypto.Digest
+	AssetName        string
+	AssetDescription string
+	ChangeHeight     proto.Height // last_updated in pb
 }
 
 func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {
-	return s.isGeneratedByTxDiff
+	return false
 }
 
 func (s AssetDescriptionSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetDescription(s) }

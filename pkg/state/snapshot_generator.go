@@ -51,10 +51,9 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 
 			delete(addrAssetBalanceDiff, key)
 			specialAssetSnapshot = &AssetBalanceSnapshot{
-				Address:             key.address,
-				AssetID:             assetID,
-				Balance:             uint64(diffAmount),
-				isGeneratedByTxDiff: true,
+				Address: key.address,
+				AssetID: assetID,
+				Balance: uint64(diffAmount),
 			}
 		}
 	}
@@ -677,9 +676,8 @@ func (sg *snapshotGenerator) constructWavesBalanceSnapshotFromDiff(diff addressW
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		newBalance := WavesBalanceSnapshot{
-			Address:             wavesAddress,
-			Balance:             uint64(int64(fullBalance.balance) + diffAmount.balance),
-			isGeneratedByTxDiff: true,
+			Address: wavesAddress,
+			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
 		}
 		wavesBalances = append(wavesBalances, newBalance)
 	}
@@ -701,10 +699,9 @@ func (sg *snapshotGenerator) constructAssetBalanceSnapshotFromDiff(diff addressA
 		}
 
 		newBalance := AssetBalanceSnapshot{
-			Address:             key.address,
-			AssetID:             key.asset.Digest(assetInfo.tail),
-			Balance:             uint64(int64(balance) + diffAmount),
-			isGeneratedByTxDiff: true,
+			Address: key.address,
+			AssetID: key.asset.Digest(assetInfo.tail),
+			Balance: uint64(int64(balance) + diffAmount),
 		}
 		assetBalances = append(assetBalances, newBalance)
 	}
