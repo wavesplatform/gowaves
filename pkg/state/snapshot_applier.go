@@ -169,11 +169,11 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to store asset script estimation for asset %q", snapshot.AssetID.String())
 	}
-	//constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
-	//if err != nil {
-	//	return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
-	//}
-	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
+	if err != nil {
+		return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
+	}
+	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, constInfo.issuer, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot SponsorshipSnapshot) error {
