@@ -12,7 +12,7 @@ export GO111MODULE=on
 
 .PHONY: vendor vetcheck fmtcheck clean build gotest update-go-deps
 
-all: vendor vetcheck fmtcheck gotest mod-clean
+all: vendor vetcheck fmtcheck gotest mod-clean build-node-native
 
 ci: vendor vetcheck fmtcheck release-node gotest-race-coverage mod-clean
 
