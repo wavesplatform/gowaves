@@ -1,6 +1,6 @@
 Package: PACKAGE
 Version: DEB_VER
-Architecture: amd64
+Architecture: ARCH
 Maintainer: waves.tech
 Section: utils
 Priority: standard

@@ -13,7 +13,7 @@ COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
-RUN make build-node-linux
+RUN make build-node-linux-amd64
 
 FROM alpine:3.18.2
 ENV TZ=Etc/UTC \
