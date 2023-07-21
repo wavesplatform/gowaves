@@ -6,9 +6,10 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 // errAliasDisabled is wrapped keyvalue.ErrNotFound which should be used for disabled aliases.
@@ -374,30 +375,6 @@ func (a *aliases) flush() {
 func (a *aliases) reset() {
 	a.disabled = make(map[string]bool)
 	a.hasher.reset()
-}
-
-func (a *aliases) disabledAliases() (map[string]struct{}, error) {
-	iter, err := a.db.NewKeyIterator([]byte{disabledAliasKeyPrefix})
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-	als := make(map[string]struct{})
-	for iter.Next() {
-		keyBytes := iter.Key()
-		var key disabledAliasKey
-		err := key.unmarshal(keyBytes)
-		if err != nil {
-			return nil, err
-		}
-		als[key.alias] = struct{}{}
-	}
-	return als, nil
 }
 
 func (a *aliases) aliasesByAddr(addr proto.WavesAddress) ([]string, error) {

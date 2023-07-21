@@ -1,4 +1,4 @@
-FROM golang:1.20.5-alpine3.18 as builder
+FROM golang:1.20.6-alpine3.18 as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
-RUN make build-node-linux
+RUN make build-node-linux-amd64
 
 FROM alpine:3.18.2
 ENV TZ=Etc/UTC \
@@ -33,6 +33,8 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
 USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
+
+STOPSIGNAL SIGINT
 
 CMD /app/node \
     -cfg-path=$CONFIG_PATH \

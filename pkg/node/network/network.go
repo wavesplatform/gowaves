@@ -1,16 +1,20 @@
 package network
 
 import (
-	"go.uber.org/zap"
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
+
+const defaultChannelSize = 100
 
 type InfoMessage interface{}
 
@@ -46,19 +50,20 @@ type Network struct {
 	NetworkInfoCh chan InfoMessage
 	SyncPeer      SyncPeer
 
-	peers         peer_manager.PeerManager
+	peers         peers.PeerManager
 	storage       state.State
 	minPeerMining int
 	obsolescence  time.Duration
 }
 
-func NewNetwork(services services.Services, p peer.Parent) Network {
+func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Duration) Network {
 	return Network{
 		InfoCh:        p.InfoCh,
-		NetworkInfoCh: make(chan InfoMessage, 100),
+		NetworkInfoCh: make(chan InfoMessage, defaultChannelSize),
 		peers:         services.Peers,
 		storage:       services.State,
 		minPeerMining: services.MinPeersMining,
+		obsolescence:  obsolescence,
 	}
 }
 
@@ -71,26 +76,6 @@ func sendScore(p peer.Peer, storage state.State) {
 
 	bts := curScore.Bytes()
 	p.SendMessage(&proto.ScoreMessage{Score: bts})
-}
-
-func (n *Network) isNewPeerHasMaxScore(p peer.Peer) bool {
-	newPeerScore, err := n.peers.Score(p)
-	if err != nil {
-		zap.S().Warnf("Failed to get score of new peer '%s': %s", p.ID(), err)
-		return false
-	}
-	maxScorePeer, err := n.peers.GetPeerWithMaxScore()
-	if err != nil {
-		zap.S().Debugf("Failed to get peer with max score %s", err)
-		return false
-	}
-
-	maxScore, err := n.peers.Score(maxScorePeer)
-	if err != nil {
-		zap.S().Warnf("Failed to get score of peer '%s': %s", maxScorePeer.ID(), err)
-		return false
-	}
-	return !(maxScorePeer != p && maxScore == newPeerScore)
 }
 
 func (n *Network) isTimeToSwitchPeerWithMaxScore() bool {
@@ -108,7 +93,8 @@ func (n *Network) Run() {
 		case *peer.Connected:
 			err := n.peers.NewConnection(t.Peer)
 			if err != nil {
-				zap.S().Debugf("Established connection with %s peer '%s': %s", t.Peer.Direction(), t.Peer.ID(), err)
+				zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s': %s",
+					t.Peer.Direction(), t.Peer.ID(), err)
 				continue
 			}
 			if n.peers.ConnectedCount() == n.minPeerMining {
@@ -116,9 +102,9 @@ func (n *Network) Run() {
 			}
 			sendScore(t.Peer, n.storage)
 
-			if n.SyncPeer.GetPeer() != m.Peer && n.isNewPeerHasMaxScore(t.Peer) && n.isTimeToSwitchPeerWithMaxScore() {
-				n.NetworkInfoCh <- ChangeSyncPeer{Peer: t.Peer}
-			}
+			//TODO: Do we need to check it here after async operation of sending score to the peer. Possibly we don't
+			// know peer's score yet, because we haven't received it yet.
+			n.switchToNewPeerIfRequired()
 
 		case *peer.InternalErr:
 			n.peers.Disconnect(m.Peer)
@@ -130,6 +116,22 @@ func (n *Network) Run() {
 			}
 		default:
 			zap.S().Warnf("Unknown peer info message '%T'", m)
+		}
+	}
+}
+
+func (n *Network) switchToNewPeerIfRequired() {
+	if n.isTimeToSwitchPeerWithMaxScore() {
+		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
+		// score every time it updated.
+		if np, ok := n.peers.CheckPeerWithMaxScore(n.SyncPeer.peer); ok {
+			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
+		}
+	} else {
+		// Node better continue synchronization with one node, switching to new node happens only if the larger
+		// group of nodes with the highest score appears.
+		if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.SyncPeer.peer); ok {
+			n.NetworkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	}
 }

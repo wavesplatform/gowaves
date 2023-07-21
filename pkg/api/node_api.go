@@ -13,6 +13,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -20,7 +22,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
-	"go.uber.org/zap"
 )
 
 const (
@@ -545,9 +546,6 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	blockHeader := a.state.TopBlock()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get block header from state by height %d", stateHeight)
-	}
 	updatedTimestampMillis := int64(blockHeader.Timestamp)
 
 	// TODO: meaning of 'UpdatedDate' in scala node  differs from ours

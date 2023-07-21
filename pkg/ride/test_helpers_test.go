@@ -109,8 +109,8 @@ type testEnv struct {
 	trees       map[proto.WavesAddress]*ast.Tree
 	waves       map[proto.WavesAddress]*types.WavesBalanceProfile
 	aliases     map[proto.Alias]proto.WavesAddress
-	assets      map[crypto.Digest]*proto.FullAssetInfo
-	sponsorship map[crypto.Digest]bool
+	assets      map[proto.AssetID]*proto.FullAssetInfo
+	sponsorship map[proto.AssetID]bool
 	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
 	leasings    map[crypto.Digest]*proto.LeaseInfo
 	scripts     map[proto.WavesAddress]proto.Script
@@ -157,8 +157,8 @@ func newTestEnv(t *testing.T) *testEnv {
 		trees:       map[proto.WavesAddress]*ast.Tree{},
 		waves:       map[proto.WavesAddress]*types.WavesBalanceProfile{},
 		aliases:     map[proto.Alias]proto.WavesAddress{},
-		assets:      map[crypto.Digest]*proto.FullAssetInfo{},
-		sponsorship: map[crypto.Digest]bool{},
+		assets:      map[proto.AssetID]*proto.FullAssetInfo{},
+		sponsorship: map[proto.AssetID]bool{},
 		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
 		leasings:    map[crypto.Digest]*proto.LeaseInfo{},
 		scripts:     map[proto.WavesAddress]proto.Script{},
@@ -278,19 +278,28 @@ func newTestEnv(t *testing.T) *testEnv {
 		return proto.WavesAddress{}, errors.Errorf("unknown alias '%s'", alias.String())
 	}
 	r.ms.NewestAssetIsSponsoredFunc = func(assetID crypto.Digest) (bool, error) {
-		if s, ok := r.sponsorship[assetID]; ok {
+		aID := proto.AssetIDFromDigest(assetID)
+		if s, ok := r.sponsorship[aID]; ok {
 			return s, nil
 		}
 		return false, errors.Errorf("unknown asset '%s'", assetID.String())
 	}
-	r.ms.NewestAssetInfoFunc = func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	r.ms.NewestAssetConstInfoFunc = func(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
 		if ai, ok := r.assets[assetID]; ok {
+			return &ai.AssetConstInfo, nil
+		}
+		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+	}
+	r.ms.NewestAssetInfoFunc = func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+		aID := proto.AssetIDFromDigest(assetID)
+		if ai, ok := r.assets[aID]; ok {
 			return &ai.AssetInfo, nil
 		}
 		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
 	}
 	r.ms.NewestFullAssetInfoFunc = func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-		if ai, ok := r.assets[assetID]; ok {
+		aID := proto.AssetIDFromDigest(assetID)
+		if ai, ok := r.assets[aID]; ok {
 			return ai, nil
 		}
 		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
@@ -417,6 +426,13 @@ func (e *testEnv) withRideV6Activated() *testEnv {
 	return e
 }
 
+func (e *testEnv) withConsensusImprovementsActivatedFunc() *testEnv {
+	e.me.consensusImprovementsActivatedFunc = func() bool {
+		return true
+	}
+	return e
+}
+
 func (e *testEnv) withBlockRewardDistribution() *testEnv {
 	e.me.blockRewardDistributionActivatedFunc = func() bool {
 		return true
@@ -518,21 +534,16 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 	return e.withInvokeTransaction(tx)
 }
 
-func (e *testEnv) withTransactionObject(txo rideType) *testEnv {
+func (e *testEnv) withFullScriptTransfer(transfer *proto.FullScriptTransfer) *testEnv {
 	e.me.transactionFunc = func() rideType {
-		return txo
+		return scriptTransferToTransferTransactionObject(transfer)
 	}
 	return e
 }
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
-	// TODO: hardcoded scheme
 	e.me.transactionFunc = func() rideType {
-		v, err := e.me.libVersion()
-		if err != nil {
-			panic(err)
-		}
-		txo, err := transactionToObject(v, proto.TestNetScheme, e.me.invokeExpressionActivated(), tx)
+		txo, err := transactionToObject(e.me, tx)
 		require.NoError(e.t, err, "failed to set transaction")
 		return txo
 	}
@@ -678,8 +689,9 @@ func (e *testEnv) withAlias(acc *testAccount, alias *proto.Alias) *testEnv {
 }
 
 func (e *testEnv) withAsset(info *proto.FullAssetInfo) *testEnv {
-	e.assets[info.ID] = info
-	e.sponsorship[info.ID] = info.Sponsored
+	aID := proto.AssetIDFromDigest(info.ID)
+	e.assets[aID] = info
+	e.sponsorship[aID] = info.Sponsored
 	return e
 }
 
@@ -761,7 +773,7 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	e.me.invocationFunc = func() rideType {
 		return e.inv
 	}
-	txo, err := transactionToObject(v, e.me.scheme(), e.me.invokeExpressionActivated(), tx)
+	txo, err := transactionToObject(e.me, tx)
 	require.NoError(e.t, err)
 	e.me.transactionFunc = func() rideType {
 		return txo

@@ -12,10 +12,11 @@ import (
 
 	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
-	"github.com/wavesplatform/gowaves/pkg/client"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (

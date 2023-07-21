@@ -3,23 +3,26 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"net"
 	"reflect"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/node/network"
+
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm"
+	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 const (
@@ -35,7 +38,7 @@ type Config struct {
 }
 
 type Node struct {
-	peers              peer_manager.PeerManager
+	peers              peers.PeerManager
 	state              state.State
 	declAddr           proto.TCPAddr
 	bindAddr           proto.TCPAddr
@@ -43,9 +46,12 @@ type Node struct {
 	utx                types.UtxPool
 	services           services.Services
 	microblockInterval time.Duration
+	obsolescence       time.Duration
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration) *Node {
+func NewNode(
+	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
+) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
@@ -112,7 +118,8 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Debugf("Incoming connection failed with addr %q: %v", conn.RemoteAddr().String(), err)
+				zap.S().Named(logging.NetworkNamespace).Debugf("Incoming connection failed with addr %q: %v",
+					conn.RemoteAddr().String(), err)
 				return
 			}
 		}()
@@ -122,14 +129,109 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 func (a *Node) logErrors(err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		zap.S().Debugf("%s", e.Error())
+		zap.S().Named(logging.FSMNamespace).Debugf("Error: %s", e.Error())
 	default:
 		zap.S().Errorf("%s", e.Error())
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage, networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer) {
-	go func() {
+func (a *Node) Run(
+	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
+	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
+) {
+	go a.runOutgoingConnections(ctx)
+	go a.runInternalMetrics(ctx, p.MessageCh)
+	go a.runIncomingConnections(ctx)
+
+	tasksCh := make(chan tasks.AsyncTask, 10)
+
+	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
+	if err != nil {
+		zap.S().Errorf("Failed to : %v", err)
+		return
+	}
+	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
+	actions := createActions()
+
+	for {
+		select {
+		case internalMess := <-internalMessageCh:
+			switch t := internalMess.(type) {
+			case *messages.MinedBlockInternalMessage:
+				async, err = m.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
+			case *messages.HaltMessage:
+				async, err = m.Halt()
+				t.Complete()
+			case *messages.BroadcastTransaction:
+				async, err = m.Transaction(nil, t.Transaction)
+				select {
+				case t.Response <- err:
+				default:
+				}
+			default:
+				zap.S().Errorf("[%s] Unknown internal message '%T'", m.State.Name, t)
+				continue
+			}
+		case task := <-tasksCh:
+			async, err = m.Task(task)
+		case msg := <-networkMsgCh:
+			switch t := msg.(type) {
+			case network.StartMining:
+				async, err = m.StartMining()
+			case network.StopSync:
+				async, err = m.StopSync()
+			case network.ChangeSyncPeer:
+				async, err = m.ChangeSyncPeer(t.Peer)
+			case network.StopMining:
+				async, err = m.StopMining()
+			default:
+				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.Name, msg)
+			}
+		case mess := <-p.MessageCh:
+			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
+				m.State.Name, mess.Message, mess.ID.ID())
+			action, ok := actions[reflect.TypeOf(mess.Message)]
+			if !ok {
+				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'",
+					m.State.Name, mess.Message, mess.ID.ID())
+				continue
+			}
+			async, err = action(a.services, mess, m)
+		}
+		if err != nil {
+			a.logErrors(err)
+		}
+		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
+	}
+}
+
+func (a *Node) runIncomingConnections(ctx context.Context) {
+	func() {
+		if err := a.serveIncomingPeers(ctx); err != nil {
+			return
+		}
+	}()
+}
+
+func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
+	func() {
+		for {
+			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				return
+			case <-timer.C:
+				metricInternalChannelSize.Set(float64(len(ch)))
+			}
+		}
+	}()
+}
+
+func (a *Node) runOutgoingConnections(ctx context.Context) {
+	func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
 			timer := time.NewTimer(spawnOutgoingConnectionsInterval)
@@ -143,89 +245,9 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, internalMessageCh <-chan 
 			}
 		}
 	}()
-
-	go func() {
-		for {
-			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			case <-timer.C:
-				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
-			}
-		}
-	}()
-
-	go func() {
-		if err := a.serveIncomingPeers(ctx); err != nil {
-			return
-		}
-	}()
-
-	tasksCh := make(chan tasks.AsyncTask, 10)
-
-	fsm, async, err := state_fsm.NewFSM(a.services, a.microblockInterval, syncPeer)
-	if err != nil {
-		zap.S().Errorf("Failed to : %v", err)
-		return
-	}
-	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-	actions := createActions()
-
-	for {
-		select {
-		case internalMess := <-internalMessageCh:
-			switch t := internalMess.(type) {
-			case *messages.MinedBlockInternalMessage:
-				async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
-			case *messages.HaltMessage:
-				async, err = fsm.Halt()
-				t.Complete()
-			case *messages.BroadcastTransaction:
-				async, err = fsm.Transaction(nil, t.Transaction)
-				select {
-				case t.Response <- err:
-				default:
-				}
-			default:
-				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm, t)
-				continue
-			}
-		case task := <-tasksCh:
-			async, err = fsm.Task(task)
-		case m := <-networkMsgCh:
-			switch t := m.(type) {
-			case network.StartMining:
-				async, err = fsm.StartMining()
-			case network.StopSync:
-				async, err = fsm.StopSync()
-			case network.ChangeSyncPeer:
-				async, err = fsm.ChangeSyncPeer(t.Peer)
-			case network.StopMining:
-				async, err = fsm.StopMining()
-			default:
-				zap.S().Warnf("[%s] Unknown network info message '%T'", fsm.State.Name, m)
-			}
-		case mess := <-p.MessageCh:
-			zap.S().Debugf("[%s] Network message '%T' received from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
-			action, ok := actions[reflect.TypeOf(mess.Message)]
-			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'", fsm.State.Name, mess.Message, mess.ID.ID())
-				continue
-			}
-			async, err = action(a.services, mess, fsm)
-		}
-		if err != nil {
-			a.logErrors(err)
-		}
-		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-	}
 }
 
-func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a state_fsm.Async) {
+func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a fsm.Async) {
 	for _, t := range a {
 		func(t tasks.Task) {
 			r.Named(fmt.Sprintf("Async Task %T", t), func() {
