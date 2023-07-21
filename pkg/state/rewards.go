@@ -1,8 +1,9 @@
-package state
+package state //nolint: dupl //It similar with other records in history storage
 
 import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -36,7 +37,7 @@ func (s *rewardsStorage) reward(height proto.Height) (uint64, error) {
 	}
 	rwRecord := new(rewardRecord)
 	if err = cbor.Unmarshal(recordBytes, rwRecord); err != nil {
-		return 0, errors.Wrap(err, "failed to unmarshal account script complexities record")
+		return 0, errors.Wrap(err, "failed to unmarshal rewards record")
 	}
 	return rwRecord.Reward, nil
 }

@@ -368,6 +368,12 @@ func (a *ThreadSafeReadWrapper) RewardVotes() (RewardVotes, error) {
 	return a.s.RewardVotes()
 }
 
+func (a *ThreadSafeReadWrapper) TotalWavesAmount(height proto.Height) (uint64, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.TotalWavesAmount(height)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,

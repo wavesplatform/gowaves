@@ -25,6 +25,7 @@ const (
 	votesFeaturesKeySize       = 1 + 2
 	invokeResultKeySize        = 1 + crypto.DigestSize
 	blockRewardAtHeightKeySize = 9
+	totalWavesAmountKeySize    = 9
 )
 
 // Primary prefixes for storage keys
@@ -127,6 +128,7 @@ const (
 
 	// Store reward at height.
 	blockRewardAtHeightKeyPrefix
+	totalWavesAmountKeyPrefix
 )
 
 var (
@@ -188,6 +190,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
 	case blockRewardAtHeight:
 		return []byte{blockRewardAtHeightKeyPrefix}, nil
+	case totalWavesAmount:
+		return []byte{totalWavesAmountKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -714,6 +718,17 @@ type blockRewardAtHeightKey struct {
 func (k *blockRewardAtHeightKey) bytes() []byte {
 	buf := make([]byte, blockRewardAtHeightKeySize)
 	buf[0] = blockRewardAtHeightKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type totalWavesAmountKey struct {
+	height uint64
+}
+
+func (k *totalWavesAmountKey) bytes() []byte {
+	buf := make([]byte, totalWavesAmountKeySize)
+	buf[0] = totalWavesAmountKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

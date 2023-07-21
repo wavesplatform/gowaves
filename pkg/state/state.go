@@ -62,6 +62,7 @@ type blockchainEntitiesStorage struct {
 	stateHashes       *stateHashes
 	hitSources        *hitSources
 	rewards           *rewardsStorage
+	amount            *totalWavesAmountStorage
 	calculateHashes   bool
 }
 
@@ -95,6 +96,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newStateHashes(hs),
 		newHitSources(hs),
 		newRewardsStorage(hs),
+		newTotalAmountStorage(hs),
 		calcHashes,
 	}, nil
 }
@@ -172,12 +174,23 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) saveReward(height proto.Height, blockID proto.BlockID) error {
+func (s *blockchainEntitiesStorage) saveRewardAndTotalAmount(height proto.Height, blockID proto.BlockID) error {
+	if height <= 1 {
+		return nil
+	}
 	curReward, err := s.monetaryPolicy.reward()
 	if err != nil {
 		return err
 	}
-	return s.rewards.saveReward(curReward, height, blockID)
+	if err = s.rewards.saveReward(curReward, height, blockID); err != nil {
+		return err
+	}
+
+	prevTotalAmount, getAmountErr := s.amount.totalWavesAmount(height - 1)
+	if getAmountErr != nil {
+		return getAmountErr
+	}
+	return s.amount.saveTotalWavesAmount(prevTotalAmount+curReward, height, blockID)
 }
 
 func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error {
@@ -597,6 +610,9 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
 	}
+	if err := s.putTotalWavesAmountAndRewardsForGenesis(); err != nil {
+		return err
+	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
@@ -619,6 +635,21 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	s.reset()
 	return nil
+}
+
+func (s *stateManager) putTotalWavesAmountAndRewardsForGenesis() error {
+	totalAmount := uint64(0)
+	for _, tx := range s.genesis.Transactions {
+		txG, ok := tx.(*proto.Genesis)
+		if !ok {
+			return errors.New("transaction is not genesis")
+		}
+		totalAmount += txG.Amount
+	}
+	if err := s.stor.amount.saveTotalWavesAmount(totalAmount, 1, s.genesis.BlockID()); err != nil {
+		return err
+	}
+	return s.stor.rewards.saveReward(0, 1, s.genesis.BlockID())
 }
 
 func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto.BlockID) error {
@@ -1084,7 +1115,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		return err
 	}
 	// Save reward
-	if err := s.stor.saveReward(height, block.BlockID()); err != nil {
+	if err := s.stor.saveRewardAndTotalAmount(blockHeight, block.BlockID()); err != nil {
 		return err
 	}
 	// Let block storage know that the current block is over.
@@ -2535,6 +2566,14 @@ func (s *stateManager) RewardVotes() (RewardVotes, error) {
 		return RewardVotes{}, err
 	}
 	return RewardVotes{Increase: v.increase, Decrease: v.decrease}, nil
+}
+
+func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
+	amount, err := s.stor.amount.totalWavesAmount(height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return amount, nil
 }
 
 func (s *stateManager) Close() error {

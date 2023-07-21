@@ -42,6 +42,7 @@ const (
 	feeDistr
 	accountOriginalEstimatorVersion
 	blockRewardAtHeight
+	totalWavesAmount
 )
 
 type blockchainEntityProperties struct {
@@ -196,6 +197,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	blockRewardAtHeight: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	totalWavesAmount: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

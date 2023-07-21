@@ -99,9 +99,13 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 	if err != nil {
 		return RewardInfo{}, err
 	}
+	totalAmount, err := a.state.TotalWavesAmount(height)
+	if err != nil {
+		return RewardInfo{}, err
+	}
 	return RewardInfo{
 		Height:              height,
-		TotalWavesAmount:    0,
+		TotalWavesAmount:    totalAmount,
 		CurrentReward:       reward,
 		MinIncrement:        set.BlockRewardIncrement,
 		Term:                term,

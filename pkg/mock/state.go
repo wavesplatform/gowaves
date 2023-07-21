@@ -897,6 +897,21 @@ func (mr *MockStateInfoMockRecorder) TopBlock() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockStateInfo)(nil).TopBlock))
 }
 
+// TotalWavesAmount mocks base method.
+func (m *MockStateInfo) TotalWavesAmount(height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TotalWavesAmount", height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TotalWavesAmount indicates an expected call of TotalWavesAmount.
+func (mr *MockStateInfoMockRecorder) TotalWavesAmount(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TotalWavesAmount", reflect.TypeOf((*MockStateInfo)(nil).TotalWavesAmount), height)
+}
+
 // TransactionByID mocks base method.
 func (m *MockStateInfo) TransactionByID(id []byte) (proto.Transaction, error) {
 	m.ctrl.T.Helper()
@@ -2201,6 +2216,21 @@ func (m *MockState) TopBlock() *proto.Block {
 func (mr *MockStateMockRecorder) TopBlock() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockState)(nil).TopBlock))
+}
+
+// TotalWavesAmount mocks base method.
+func (m *MockState) TotalWavesAmount(height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TotalWavesAmount", height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TotalWavesAmount indicates an expected call of TotalWavesAmount.
+func (mr *MockStateMockRecorder) TotalWavesAmount(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TotalWavesAmount", reflect.TypeOf((*MockState)(nil).TotalWavesAmount), height)
 }
 
 // TransactionByID mocks base method.
