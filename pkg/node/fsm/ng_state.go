@@ -302,8 +302,8 @@ func (a *NGState) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Bloc
 		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
 	}
 	err = a.baseInfo.storage.Map(func(state state.State) error {
-		_, err = a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
-		return err
+		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
+		return er
 	})
 	if err != nil {
 		metrics.FSMMicroBlockDeclined("ng", micro, err)
