@@ -3,9 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net/http"
 )
 
 type Blockchain struct {
@@ -25,7 +26,7 @@ func (a *Blockchain) Rewards(ctx context.Context) (*api.RewardInfo, *Response, e
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -46,7 +47,7 @@ func (a *Blockchain) RewardsAtHeight(ctx context.Context, height proto.Height) (
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}

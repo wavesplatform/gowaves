@@ -27,6 +27,11 @@ const (
 	delayDeltaDefault   = 8
 )
 
+const (
+	LenWithDaoAddress                = 1
+	LenWithDaoAndXtnBuybackAddresses = 2
+)
+
 var (
 	//go:embed embedded
 	res embed.FS

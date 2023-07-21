@@ -172,15 +172,12 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) saveReward(height proto.Height, ID proto.BlockID) error {
+func (s *blockchainEntitiesStorage) saveReward(height proto.Height, blockID proto.BlockID) error {
 	curReward, err := s.monetaryPolicy.reward()
 	if err != nil {
 		return err
 	}
-	if err = s.rewards.saveReward(curReward, height, ID); err != nil {
-		return err
-	}
-	return nil
+	return s.rewards.saveReward(curReward, height, blockID)
 }
 
 func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error {

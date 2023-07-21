@@ -15,15 +15,16 @@ const (
 	// Key sizes.
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
-	wavesBalanceKeySize     = 1 + proto.AddressIDSize
-	assetBalanceKeySize     = 1 + proto.AddressIDSize + proto.AssetIDSize
-	leaseKeySize            = 1 + crypto.DigestSize
-	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
-	addressToAliasesKeySize = 1 + proto.AddressIDSize
-	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
-	approvedFeaturesKeySize = 1 + 2
-	votesFeaturesKeySize    = 1 + 2
-	invokeResultKeySize     = 1 + crypto.DigestSize
+	wavesBalanceKeySize        = 1 + proto.AddressIDSize
+	assetBalanceKeySize        = 1 + proto.AddressIDSize + proto.AssetIDSize
+	leaseKeySize               = 1 + crypto.DigestSize
+	aliasKeySize               = 1 + 2 + proto.AliasMaxLength
+	addressToAliasesKeySize    = 1 + proto.AddressIDSize
+	disabledAliasKeySize       = 1 + 2 + proto.AliasMaxLength
+	approvedFeaturesKeySize    = 1 + 2
+	votesFeaturesKeySize       = 1 + 2
+	invokeResultKeySize        = 1 + crypto.DigestSize
+	blockRewardAtHeightKeySize = 9
 )
 
 // Primary prefixes for storage keys
@@ -706,12 +707,12 @@ func (k *hitSourceKey) bytes() []byte {
 	return buf
 }
 
-type rewardKey struct {
+type blockRewardAtHeightKey struct {
 	height uint64
 }
 
-func (k *rewardKey) bytes() []byte {
-	buf := make([]byte, 9)
+func (k *blockRewardAtHeightKey) bytes() []byte {
+	buf := make([]byte, blockRewardAtHeightKeySize)
 	buf[0] = blockRewardAtHeightKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf

@@ -28,6 +28,22 @@ type RewardInfo struct {
 	XtnBuybackAddress   string            `json:"xtnBuybackAddress"`
 }
 
+func nearestTermEnd(
+	height, activateAt proto.Height,
+	cappedRewardsActivated bool,
+	set *settings.BlockchainSettings,
+) uint64 {
+	var diff = height - activateAt + 1
+	var modifiedTerm uint64
+	if cappedRewardsActivated {
+		modifiedTerm = set.BlockRewardTermAfter20
+	} else {
+		modifiedTerm = set.BlockRewardTerm
+	}
+	var mul = uint64(math.Ceil(float64(diff) / float64(modifiedTerm)))
+	return activateAt + mul*modifiedTerm - 1
+}
+
 func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 	blockRewardsActiivated, err := a.state.IsActiveAtHeight(int16(settings.BlockReward), height)
 	if err != nil {
@@ -50,15 +66,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 		return RewardInfo{}, err
 	}
 
-	var diff = height - blockRewardHeight + 1
-	var modifiedTerm uint64
-	if cappedRewardsActivated {
-		modifiedTerm = set.BlockRewardTermAfter20
-	} else {
-		modifiedTerm = set.BlockRewardTerm
-	}
-	var mul = uint64(math.Ceil(float64(diff) / float64(modifiedTerm)))
-	nextCheck := blockRewardHeight + mul*modifiedTerm - 1
+	nextCheck := nearestTermEnd(height, blockRewardHeight, cappedRewardsActivated, set)
 
 	var term uint64
 	if cappedRewardsActivated {
@@ -79,10 +87,10 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 	daoAddress := ""
 	xtnBuybackAddress := ""
 	if blockRewardDistributionActivated && len(set.RewardAddresses) > 0 {
-		if len(set.RewardAddresses) >= 1 {
+		if len(set.RewardAddresses) >= settings.LenWithDaoAddress {
 			daoAddress = set.RewardAddresses[0].String()
 		}
-		if len(set.RewardAddresses) >= 2 {
+		if len(set.RewardAddresses) >= settings.LenWithDaoAndXtnBuybackAddresses {
 			xtnBuybackAddress = set.RewardAddresses[1].String()
 		}
 	}
@@ -91,7 +99,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 	if err != nil {
 		return RewardInfo{}, err
 	}
-	resp := RewardInfo{
+	return RewardInfo{
 		Height:              height,
 		TotalWavesAmount:    0,
 		CurrentReward:       reward,
@@ -104,8 +112,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
 		Votes:               votes,
 		DaoAddress:          daoAddress,
 		XtnBuybackAddress:   xtnBuybackAddress,
-	}
-	return resp, nil
+	}, nil
 }
 
 func (a *NodeApi) blockchainRewards(w http.ResponseWriter, _ *http.Request) error {
