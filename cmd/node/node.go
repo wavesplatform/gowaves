@@ -438,11 +438,10 @@ func main() {
 		zap.S().Info("Successfully dropped peers storage")
 	}
 
-	const half = 2
 	peerManager := peers.NewPeerManager(
 		peerSpawnerImpl,
 		peerStorage,
-		int(nc.limitAllConnections/half),
+		int(nc.limitAllConnections/2),
 		proto.ProtocolVersion,
 		conf.WavesNetwork,
 		!nc.disableOutgoingConnections,

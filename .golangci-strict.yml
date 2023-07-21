@@ -109,6 +109,7 @@ linters-settings:
       - prometheus.ExponentialBuckets
       - prometheus.ExponentialBucketsRange
       - prometheus.LinearBuckets
+    ignored-numbers: [ 0, 1, 2 ]
 
   gomodguard:
     blocked:

@@ -94,8 +94,7 @@ func (ap *activePeers) getPeerFromLargestPeerGroup(p peer.Peer) (peerInfo, bool)
 	}
 	info, ok := ap.m[id]
 	if !ok {
-		// TODO: peerInfo for the selected peer is not found, looks like inconsistent state of activePeers, maybe panic?
-		return peerInfo{}, false
+		panic("Inconsistent state of activePeers, no peerInfo for selected peer")
 	}
 	return info, id != pid
 }

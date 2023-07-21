@@ -71,6 +71,7 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 }
 
 func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async, error) {
+	// TODO:LastBlockIDs can be a function.
 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	if err != nil {
 		return state, nil, err

@@ -189,7 +189,7 @@ func (a *SyncState) Halt() (State, Async, error) {
 }
 
 func (a *SyncState) isTimeToSwitchPeerWithMaxScore() bool {
-	now := time.Now()
+	now := a.baseInfo.tm.Now()
 	obsolescenceTime := now.Add(-a.baseInfo.obsolescence)
 	lastBlock := a.baseInfo.storage.TopBlock()
 	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))

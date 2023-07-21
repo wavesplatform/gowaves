@@ -2,7 +2,6 @@ package peer
 
 import (
 	"context"
-	"encoding/base64"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -12,12 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-func logNetworkData(pid ID, data []byte) {
-	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
-		pid.String(), base64.StdEncoding.EncodeToString(data),
-	)
-}
 
 func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
 	m, err := proto.UnmarshalMessage(data)
@@ -82,7 +75,9 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 
 		case bb := <-remote.FromCh:
 			if !errSentToParent {
-				logNetworkData(peer.ID(), bb.Bytes())
+				zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
+					peer.ID(), proto.B64Bytes(bb.Bytes()),
+				)
 				err := bytesToMessage(bb.Bytes(), parent.MessageCh, peer)
 				if err != nil {
 					out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}

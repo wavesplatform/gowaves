@@ -28,7 +28,6 @@ func main() {
 	const (
 		defaultBlocksNumber = 1000
 		defaultBufferSize   = 16
-		double              = 2
 	)
 	var (
 		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
@@ -42,7 +41,7 @@ func main() {
 			"Path to JSON with correct balances after applying blocks.")
 		dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
 		nBlocks                   = flag.Int("blocks-number", defaultBlocksNumber, "Number of blocks to import.")
-		verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*double,
+		verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2,
 			" Number of goroutines that will be run for verification of transactions/blocks signatures.")
 		writeBufferSize         = flag.Int("write-buffer", defaultBufferSize, "Write buffer size in MiB.")
 		buildDataForExtendedAPI = flag.Bool("build-extended-api", false,

@@ -213,8 +213,8 @@ func (a *NGState) mineMicro(
 	}
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-		_, err = a.baseInfo.blocksApplier.ApplyMicro(s, block)
-		return err
+		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
+		return er
 	})
 	if err != nil {
 		return a, nil, a.Errorf(err)

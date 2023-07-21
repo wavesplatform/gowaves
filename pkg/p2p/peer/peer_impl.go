@@ -2,7 +2,6 @@ package peer
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"net/netip"
@@ -81,12 +80,11 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
-	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s",
-		a.id.String(), base64.StdEncoding.EncodeToString(b))
+	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s", a.id, proto.B64Bytes(b))
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		a.remote.ErrCh <- errors.Errorf("remote channel overflow on peer '%s'", a.id.String())
+		a.remote.ErrCh <- errors.Errorf("remote channel overflow on peer '%s'", a.id)
 	}
 }
 
