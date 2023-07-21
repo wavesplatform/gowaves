@@ -642,7 +642,7 @@ func (s *stateManager) putTotalWavesAmountAndRewardsForGenesis() error {
 	for _, tx := range s.genesis.Transactions {
 		txG, ok := tx.(*proto.Genesis)
 		if !ok {
-			return errors.New("transaction is not genesis")
+			continue
 		}
 		totalAmount += txG.Amount
 	}
