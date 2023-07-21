@@ -41,6 +41,7 @@ const (
 	hitSource
 	feeDistr
 	accountOriginalEstimatorVersion
+	blockRewardAtHeight
 )
 
 type blockchainEntityProperties struct {
@@ -190,6 +191,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	accountOriginalEstimatorVersion: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	blockRewardAtHeight: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

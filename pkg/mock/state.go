@@ -763,6 +763,36 @@ func (mr *MockStateInfoMockRecorder) RetrieveStringEntry(account, key interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockStateInfo)(nil).RetrieveStringEntry), account, key)
 }
 
+// RewardAtHeight mocks base method.
+func (m *MockStateInfo) RewardAtHeight(height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RewardAtHeight", height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RewardAtHeight indicates an expected call of RewardAtHeight.
+func (mr *MockStateInfoMockRecorder) RewardAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RewardAtHeight", reflect.TypeOf((*MockStateInfo)(nil).RewardAtHeight), height)
+}
+
+// RewardVotes mocks base method.
+func (m *MockStateInfo) RewardVotes() (state.RewardVotes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RewardVotes")
+	ret0, _ := ret[0].(state.RewardVotes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RewardVotes indicates an expected call of RewardVotes.
+func (mr *MockStateInfoMockRecorder) RewardVotes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RewardVotes", reflect.TypeOf((*MockStateInfo)(nil).RewardVotes))
+}
+
 // ScoreAtHeight mocks base method.
 func (m *MockStateInfo) ScoreAtHeight(height proto.Height) (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -1995,6 +2025,36 @@ func (m *MockState) RetrieveStringEntry(account proto.Recipient, key string) (*p
 func (mr *MockStateMockRecorder) RetrieveStringEntry(account, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveStringEntry", reflect.TypeOf((*MockState)(nil).RetrieveStringEntry), account, key)
+}
+
+// RewardAtHeight mocks base method.
+func (m *MockState) RewardAtHeight(height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RewardAtHeight", height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RewardAtHeight indicates an expected call of RewardAtHeight.
+func (mr *MockStateMockRecorder) RewardAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RewardAtHeight", reflect.TypeOf((*MockState)(nil).RewardAtHeight), height)
+}
+
+// RewardVotes mocks base method.
+func (m *MockState) RewardVotes() (state.RewardVotes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RewardVotes")
+	ret0, _ := ret[0].(state.RewardVotes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RewardVotes indicates an expected call of RewardVotes.
+func (mr *MockStateMockRecorder) RewardVotes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RewardVotes", reflect.TypeOf((*MockState)(nil).RewardVotes))
 }
 
 // RollbackTo mocks base method.

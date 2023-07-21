@@ -132,6 +132,10 @@ type StateInfo interface {
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
 	ShouldPersistAddressTransactions() (bool, error)
+
+	// Rewards
+	RewardAtHeight(height proto.Height) (uint64, error)
+	RewardVotes() (RewardVotes, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

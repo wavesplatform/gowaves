@@ -61,6 +61,7 @@ type blockchainEntitiesStorage struct {
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
 	hitSources        *hitSources
+	rewards           *rewardsStorage
 	calculateHashes   bool
 }
 
@@ -93,6 +94,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs),
+		newRewardsStorage(hs),
 		calcHashes,
 	}, nil
 }
@@ -166,6 +168,17 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 			return err
 		}
 		prevHash = newPrevHash
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) saveReward(height proto.Height, ID proto.BlockID) error {
+	curReward, err := s.monetaryPolicy.reward()
+	if err != nil {
+		return err
+	}
+	if err = s.rewards.saveReward(curReward, height, ID); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1071,6 +1084,10 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
+		return err
+	}
+	// Save reward
+	if err := s.stor.saveReward(height, block.BlockID()); err != nil {
 		return err
 	}
 	// Let block storage know that the current block is over.
@@ -2496,6 +2513,31 @@ func (s *stateManager) PersistAddressTransactions() error {
 
 func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 	return s.atx.shouldPersist()
+}
+
+func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return 0, nil
+	}
+	reward, err := s.stor.rewards.reward(height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return reward, nil
+}
+
+type RewardVotes struct {
+	Increase uint32 `json:"increase"`
+	Decrease uint32 `json:"decrease"`
+}
+
+func (s *stateManager) RewardVotes() (RewardVotes, error) {
+	v, err := s.stor.monetaryPolicy.votes()
+	if err != nil {
+		return RewardVotes{}, err
+	}
+	return RewardVotes{Increase: v.increase, Decrease: v.decrease}, nil
 }
 
 func (s *stateManager) Close() error {

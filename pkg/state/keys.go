@@ -123,6 +123,9 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
+
+	// Store reward at height.
+	blockRewardAtHeightKeyPrefix
 )
 
 var (
@@ -182,6 +185,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{blocksInfoKeyPrefix}, nil
 	case accountOriginalEstimatorVersion:
 		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
+	case blockRewardAtHeight:
+		return []byte{blockRewardAtHeightKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -697,6 +702,17 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type rewardKey struct {
+	height uint64
+}
+
+func (k *rewardKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = blockRewardAtHeightKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
