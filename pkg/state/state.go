@@ -174,23 +174,30 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) saveRewardAndTotalAmount(height proto.Height, blockID proto.BlockID) error {
-	if height <= 1 {
-		return nil
+func (s *blockchainEntitiesStorage) handleRewardsAndTotalWavesAmount(
+	blockchainHeight uint64,
+	blockIds []proto.BlockID,
+	rewards []uint64,
+) error {
+	if blockchainHeight < 1 {
+		return errors.New("bad blockchain height, should be greater than 0")
 	}
-	curReward, err := s.monetaryPolicy.reward()
+	prevTotalAmount, err := s.amount.totalWavesAmount(blockchainHeight)
 	if err != nil {
 		return err
 	}
-	if err = s.rewards.saveReward(curReward, height, blockID); err != nil {
-		return err
+	startHeight := blockchainHeight + 1
+	for i, id := range blockIds {
+		height := startHeight + uint64(i)
+		if err = s.amount.saveTotalWavesAmount(prevTotalAmount+rewards[i], height, id); err != nil {
+			return err
+		}
+		if err = s.rewards.saveReward(rewards[i], height, id); err != nil {
+			return err
+		}
+		prevTotalAmount += rewards[i]
 	}
-
-	prevTotalAmount, getAmountErr := s.amount.totalWavesAmount(height - 1)
-	if getAmountErr != nil {
-		return getAmountErr
-	}
-	return s.amount.saveTotalWavesAmount(prevTotalAmount+curReward, height, blockID)
+	return nil
 }
 
 func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error {
@@ -1114,10 +1121,6 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}
-	// Save reward
-	if err := s.stor.saveRewardAndTotalAmount(blockHeight, block.BlockID()); err != nil {
-		return err
-	}
 	// Let block storage know that the current block is over.
 	if err := s.rw.finishBlock(block.BlockID()); err != nil {
 		return err
@@ -1508,6 +1511,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var ids []proto.BlockID
+	var rewards []uint64
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
@@ -1547,6 +1551,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
 			return nil, err
 		}
+		reward, errReward := s.stor.monetaryPolicy.reward()
+		if errReward != nil {
+			return nil, errReward
+		}
+		rewards = append(rewards, reward)
 		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
@@ -1570,6 +1579,10 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	}
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
+		return nil, wrapErr(ModificationError, err)
+	}
+	// Store total amount and rewards for each of new blocks.
+	if err = s.stor.handleRewardsAndTotalWavesAmount(height, ids, rewards); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
