@@ -9,6 +9,5 @@ type RewardSuite struct {
 func (suite *RewardSuite) SetupSuite() {
 	const enableScalaMining = true
 	suiteName := strcase.KebabCase(suite.T().Name())
-
-	suite.BaseSetup(suiteName, enableScalaMining, "reward_settings_increase.json")
+	suite.BaseSetup(suiteName, enableScalaMining, "rwrd_pf19_20_7W_miners_dao_xtn.json")
 }

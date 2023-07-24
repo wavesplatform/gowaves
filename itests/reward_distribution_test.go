@@ -22,8 +22,8 @@ type RewardDistributionSuite struct {
 func (suite *RewardDistributionSuite) Test_RewardDistributionPositive() {
 	name := "NODE-815. XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
 	suite.Run(name, func() {
-		td := testdata.GetRewardDistributionTestDataPositive(&suite.BaseSuite)
-		h := utl.WaitForHeight(&suite.BaseSuite, 8)
+		td := testdata.GetRewardIncreaseDaoXtnTestDataPositive(&suite.BaseSuite)
+		h := utl.GetHeight(&suite.BaseSuite)
 		//feature 14 should be activated
 		utl.FeatureShouldBeActivated(&suite.BaseSuite, 14, h)
 		//feature 19 should be activated
@@ -31,7 +31,9 @@ func (suite *RewardDistributionSuite) Test_RewardDistributionPositive() {
 		//feature 20 should be activated
 		utl.FeatureShouldBeActivated(&suite.BaseSuite, 20, h)
 
+		//get reward distribution for 1 block
 		rewardDistributions := reward_utilities.GetBlockRewardDistribution(&suite.BaseSuite, td, h)
+
 		utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,
 			uint64(rewardDistributions.MinersSumDiffBalance.BalanceInWavesGo), uint64(rewardDistributions.MinersSumDiffBalance.BalanceInWavesScala))
 		utl.DaoDiffBalanceInWavesCheck(suite.T(), td.Expected.DaoDiffBalance,

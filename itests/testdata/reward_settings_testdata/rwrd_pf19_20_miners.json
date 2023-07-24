@@ -1,0 +1,13 @@
+{
+  "term": 20,
+  "term_after_capped_reward_feature": 10,
+  "voting_interval": 5,
+  "initial_block_reward": 500000000,
+  "block_reward_increment": 100000000,
+  "desired_reward": 300000000,
+  "preactivated_features": [
+    {"feature": 19, "height": 0},
+    {"feature": 20, "height": 0}
+  ],
+  "supported_features": []
+}

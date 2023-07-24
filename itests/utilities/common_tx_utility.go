@@ -673,3 +673,7 @@ func GetRewardTerm(suite *f.BaseSuite) uint64 {
 func GetRewardTermAfter20(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
+
+func GetRewardAddresses(suite *f.BaseSuite) []proto.WavesAddress {
+	return suite.Cfg.BlockchainSettings.RewardAddresses
+}
