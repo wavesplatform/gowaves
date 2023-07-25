@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -946,14 +947,9 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	if err != nil {
 		return err
 	}
-	var recipientAddr proto.WavesAddress
-	if addr := tx.Recipient.Address(); addr == nil {
-		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
-		if err != nil {
-			return errors.Errorf("invalid alias: %v", err)
-		}
-	} else {
-		recipientAddr = *addr
+	recipientAddr, err := recipientToAddress(tx.Recipient, tc.stor.aliases)
+	if err != nil {
+		return errors.Wrap(err, "failed convert recipient to address")
 	}
 	if senderAddr == recipientAddr {
 		return errs.NewToSelf("trying to lease money to self")
