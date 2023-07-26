@@ -1392,6 +1392,13 @@ func (tc *transactionChecker) tryCreateDAppEstimationUpdate(
 	rcp proto.Recipient,
 	currentEstimatorVersion int,
 ) (scriptEstimation, bool, error) {
+	rideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return scriptEstimation{}, false, err
+	}
+	if rideV5Activated { // after rideV5 activation we're using estimating evaluator (see complexityCalculator)
+		return scriptEstimation{}, false, nil // so we don't have to update script estimation
+	}
 	scriptAddr, err := recipientToAddress(rcp, tc.stor.aliases)
 	if err != nil {
 		return scriptEstimation{}, false, err
