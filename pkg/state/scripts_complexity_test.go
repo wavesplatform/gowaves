@@ -131,11 +131,11 @@ func TestSaveComplexityForAsset(t *testing.T) {
 	assert.NoError(t, err)
 	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
-	assert.Equal(t, est, *res1)
+	assert.Equal(t, est.estimation, *res1)
 
 	to.stor.flush(t)
 
 	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	require.NoError(t, err)
-	assert.Equal(t, est, *res1)
+	assert.Equal(t, est.estimation, *res1)
 }
