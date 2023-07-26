@@ -1374,46 +1374,52 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 		return out, err
 	}
 
-	dAppEstimationUpdate, err := tc.tryCreateDAppEstimationUpdate(tx.ScriptRecipient, info.estimatorVersion())
+	dAppEstimationUpdate, ok, err := tc.tryCreateDAppEstimationUpdate(tx.ScriptRecipient, info.estimatorVersion())
 	if err != nil {
 		return out, err
 	}
+	var se *scriptEstimation
+	if ok {
+		se = &dAppEstimationUpdate
+	}
 	return txCheckerData{
 		smartAssets:      smartAssets,
-		scriptEstimation: dAppEstimationUpdate,
+		scriptEstimation: se,
 	}, nil
 }
 
 func (tc *transactionChecker) tryCreateDAppEstimationUpdate(
 	rcp proto.Recipient,
 	currentEstimatorVersion int,
-) (*scriptEstimation, error) {
+) (scriptEstimation, bool, error) {
 	scriptAddr, err := recipientToAddress(rcp, tc.stor.aliases)
 	if err != nil {
-		return nil, err
+		return scriptEstimation{}, false, err
 	}
 	est, err := tc.stor.scriptsComplexity.newestScriptEstimationRecordByAddr(scriptAddr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get newest script estimation record by addr %q", scriptAddr)
+		return scriptEstimation{}, false, errors.Wrapf(err,
+			"failed to get newest script estimation record by addr %q", scriptAddr,
+		)
 	}
 	// we're using == because saved estimator version can't be greater than current, can be only less or equal
 	if estimationIsNotStale := int(est.EstimatorVersion) == currentEstimatorVersion; estimationIsNotStale {
-		return nil, nil // nil value here for scriptEstimation is correct
+		return scriptEstimation{}, false, nil // no updates
 	}
 	// we have to create estimation update
 	tree, err := tc.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get newest script by addr %q", scriptAddr)
+		return scriptEstimation{}, false, errors.Wrapf(err, "failed to get newest script by addr %q", scriptAddr)
 	}
 	treeEstimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
 	if err != nil {
-		return nil, errors.Wrapf(err, "faield to estimate script by addr %q", scriptAddr)
+		return scriptEstimation{}, false, errors.Wrapf(err, "faield to estimate script by addr %q", scriptAddr)
 	}
-	return &scriptEstimation{
+	return scriptEstimation{
 		currentEstimatorVersion: currentEstimatorVersion,
 		scriptIsEmpty:           false,
 		estimation:              treeEstimation,
-	}, nil
+	}, true, nil
 }
 
 func (tc *transactionChecker) checkInvokeExpressionWithProofs(transaction proto.Transaction, info *checkerInfo) (out txCheckerData, err error) {
