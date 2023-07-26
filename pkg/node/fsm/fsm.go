@@ -87,6 +87,7 @@ const (
 )
 
 // Events.
+// TODO: Consider replacing with empty structs with Stringer implemented.
 const (
 	NewPeerEvent       = "NewPeer"
 	PeerErrorEvent     = "PeerError"

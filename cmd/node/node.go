@@ -489,10 +489,10 @@ func main() {
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
 	ntw := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
-	go ntw.Run()
+	go ntw.Run(ctx)
 
 	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval)
-	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh, &ntw.SyncPeer)
+	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh(), ntw.SyncPeer())
 
 	go minerScheduler.Reschedule()
 

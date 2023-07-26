@@ -169,7 +169,7 @@ func (a *Node) Run(
 				default:
 				}
 			default:
-				zap.S().Errorf("[%s] Unknown internal message '%T'", m.State.Name, t)
+				zap.S().Errorf("[%s] Unknown internal message '%T'", m.State.State, t)
 				continue
 			}
 		case task := <-tasksCh:
@@ -185,15 +185,15 @@ func (a *Node) Run(
 			case network.StopMining:
 				async, err = m.StopMining()
 			default:
-				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.Name, msg)
+				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
 			}
 		case mess := <-p.MessageCh:
 			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
-				m.State.Name, mess.Message, mess.ID.ID())
+				m.State.State, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
 				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'",
-					m.State.Name, mess.Message, mess.ID.ID())
+					m.State.State, mess.Message, mess.ID.ID())
 				continue
 			}
 			async, err = action(a.services, mess, m)

@@ -194,7 +194,3 @@ func validateEventArgs(event stateless.Trigger, args ...interface{}) {
 		}
 	}
 }
-
-func clearSyncPeer(info BaseInfo) {
-	info.syncPeer.SetPeer(nil)
-}

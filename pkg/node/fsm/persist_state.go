@@ -24,7 +24,7 @@ func (a *PersistState) Errorf(err error) error {
 }
 
 func newPersistState(info BaseInfo) (State, Async, error) {
-	clearSyncPeer(info)
+	info.syncPeer.Clear()
 	t := tasks.NewFuncTask(func(ctx context.Context, output chan tasks.AsyncTask) error {
 		err := info.storage.PersistAddressTransactions()
 		tasks.SendAsyncTask(output, tasks.AsyncTask{

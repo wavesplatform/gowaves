@@ -22,7 +22,7 @@ type NGState struct {
 }
 
 func newNGState(baseInfo BaseInfo) State {
-	clearSyncPeer(baseInfo)
+	baseInfo.syncPeer.Clear()
 	return &NGState{
 		baseInfo:    baseInfo,
 		blocksCache: blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}},

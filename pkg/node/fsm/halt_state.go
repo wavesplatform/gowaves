@@ -31,7 +31,7 @@ func newHaltState(info BaseInfo) (State, Async, error) {
 		return nil, nil, err
 	}
 	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Storage closed")
-	clearSyncPeer(info)
+	info.syncPeer.Clear()
 	return &HaltState{
 		baseInfo: info,
 	}, nil, nil

@@ -33,7 +33,7 @@ func (a *IdleState) Errorf(err error) error {
 }
 
 func newIdleState(info BaseInfo) State {
-	clearSyncPeer(info)
+	info.syncPeer.Clear()
 	return &IdleState{
 		baseInfo: info,
 	}
