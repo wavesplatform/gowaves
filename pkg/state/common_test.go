@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -340,11 +341,12 @@ func defaultAssetInfo(tail [12]byte, reissuable bool) *assetInfo {
 }
 
 type testStorageObjects struct {
-	db      keyvalue.IterableKeyVal
-	dbBatch keyvalue.Batch
-	rw      *blockReadWriter
-	hs      *historyStorage
-	stateDB *stateDB
+	db       keyvalue.IterableKeyVal
+	dbBatch  keyvalue.Batch
+	rw       *blockReadWriter
+	hs       *historyStorage
+	stateDB  *stateDB
+	settings *settings.BlockchainSettings
 
 	entities *blockchainEntitiesStorage
 }
@@ -355,16 +357,12 @@ func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
 
 type testStorageObjectsOptions struct {
 	Amend    bool
-	Scheme   proto.Scheme
 	Settings *settings.BlockchainSettings
 }
 
 func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
 	if options.Settings == nil {
 		options.Settings = settings.MainNetSettings
-	}
-	if options.Scheme == 0 {
-		options.Scheme = proto.MainNetScheme
 	}
 	db, err := keyvalue.NewKeyVal(t.TempDir(), defaultTestKeyValParams())
 	require.NoError(t, err)
@@ -379,7 +377,7 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 		assert.NoError(t, stateDB.close())
 	})
 
-	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, options.Scheme)
+	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, options.Settings.AddressSchemeCharacter)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, rw.close())
@@ -392,7 +390,7 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, false)
 	require.NoError(t, err)
 
-	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}
+	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, options.Settings, entities}
 }
 
 func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
@@ -495,6 +493,23 @@ func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Diges
 	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
+}
+
+func (s *testStorageObjects) setScript(t *testing.T, pk crypto.PublicKey, script proto.Script, blockID proto.BlockID) {
+	var est ride.TreeEstimation
+	if !script.IsEmpty() {
+		tree, err := serialization.Parse(script)
+		require.NoError(t, err)
+		est, err = ride.EstimateTree(tree, maxEstimatorVersion)
+		require.NoError(t, err)
+	}
+	se := scriptEstimation{
+		currentEstimatorVersion: maxEstimatorVersion,
+		scriptIsEmpty:           script.IsEmpty(),
+		estimation:              est,
+	}
+	err := storeScriptByAddress(s.entities, s.settings.AddressSchemeCharacter, pk, script, se, blockID)
+	require.NoError(t, err)
 }
 
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {

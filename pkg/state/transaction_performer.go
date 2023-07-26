@@ -327,16 +327,29 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 		return errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
 	// script estimation is present and not nil
+	return storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
+}
 
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+func storeScriptByAddress(
+	stor *blockchainEntitiesStorage,
+	scheme proto.Scheme,
+	senderPK crypto.PublicKey,
+	script proto.Script,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create addr from PK %q", senderPK.String())
 	}
-	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to set account script")
+	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
 	}
 	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	return tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID)
+	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
+	return nil
 }
 
 func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
