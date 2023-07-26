@@ -908,9 +908,10 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	if info.senderScripted {
 		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
 		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
-			if err != nil {
-				return nil, errors.Wrap(err, "invoke failed to get verifier complexity")
+			// For account script we use original estimation
+			treeEstimation, scErr := ia.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(info.senderAddress)
+			if scErr != nil {
+				return nil, errors.Wrap(scErr, "invoke failed to get verifier complexity")
 			}
 			if treeEstimation.Verifier > FreeVerifierComplexity {
 				scriptRuns++

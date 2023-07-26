@@ -5,6 +5,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -48,7 +49,9 @@ func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address) (int, 
 	return int(record.Version), nil
 }
 
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.WavesAddress) (*ride.TreeEstimation, error) {
+// newestOriginalScriptComplexityByAddr returns original estimated script complexity by the given address.
+// For account scripts we have to use original estimation.
+func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
 	ev, err := sc.originalEstimatorVersion(addr)
 	if err != nil {
 		return nil, err
