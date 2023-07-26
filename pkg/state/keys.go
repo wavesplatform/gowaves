@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -94,8 +95,8 @@ const (
 	assetScriptKeyPrefix
 	scriptBasicInfoKeyPrefix
 	accountScriptComplexityKeyPrefix
+	accountScriptOriginalComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
-	accountOriginalEstimatorVersionKeyPrefix
 
 	// Block Reward.
 	blockRewardKeyPrefix
@@ -164,6 +165,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{scriptBasicInfoKeyPrefix}, nil
 	case accountScriptComplexity:
 		return []byte{accountScriptComplexityKeyPrefix}, nil
+	case accountScriptOriginalComplexity:
+		return []byte{accountScriptOriginalComplexityKeyPrefix}, nil
 	case assetScriptComplexity:
 		return []byte{assetScriptComplexityKeyPrefix}, nil
 	case rewardVotes:
@@ -180,8 +183,6 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
 		return []byte{blocksInfoKeyPrefix}, nil
-	case accountOriginalEstimatorVersion:
-		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -597,15 +598,13 @@ func (k *scriptBasicInfoKey) bytes() []byte {
 }
 
 type accountScriptComplexityKey struct {
-	ver       int
 	addressID proto.AddressID
 }
 
 func (k *accountScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 2+proto.AddressIDSize)
+	buf := make([]byte, 1+proto.AddressIDSize)
 	buf[0] = accountScriptComplexityKeyPrefix
-	buf[1] = byte(k.ver)
-	copy(buf[2:], k.addressID[:])
+	copy(buf[1:], k.addressID[:])
 	return buf
 }
 
@@ -620,13 +619,13 @@ func (k *assetScriptComplexityKey) bytes() []byte {
 	return buf
 }
 
-type accountOriginalEstimatorVersionKey struct {
+type accountScriptOriginalComplexityKey struct {
 	addressID proto.AddressID
 }
 
-func (k *accountOriginalEstimatorVersionKey) bytes() []byte {
+func (k *accountScriptOriginalComplexityKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressIDSize)
-	buf[0] = accountOriginalEstimatorVersionKeyPrefix
+	buf[0] = accountScriptOriginalComplexityKeyPrefix
 	copy(buf[1:], k.addressID[:])
 	return buf
 }

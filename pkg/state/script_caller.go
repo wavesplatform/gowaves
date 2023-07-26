@@ -258,7 +258,13 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, setTx, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
+func (a *scriptCaller) invokeFunction(
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	tx proto.Transaction,
+	info *fallibleValidationParams,
+	scriptAddress proto.WavesAddress,
+) (ride.Result, error) {
 	env, err := ride.NewEnvironment(
 		a.settings.AddressSchemeCharacter,
 		a.state,
@@ -321,7 +327,9 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		r, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
+			complexity := ride.EvaluationErrorSpentComplexity(err)
+			appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+			if appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -348,7 +356,9 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		r, err = ride.CallVerifier(env, tree)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
+			complexity := ride.EvaluationErrorSpentComplexity(err)
+			appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+			if appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -394,7 +404,9 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 
 		r, err = ride.CallFunction(env, tree, functionCall)
 		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
+			complexity := ride.EvaluationErrorSpentComplexity(err)
+			appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+			if appendErr != nil {
 				return nil, appendErr
 			}
 			return nil, err
@@ -404,13 +416,17 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
-	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionCall, info); err != nil {
-		return nil, err
-	}
-	return r, nil
+	err = a.appendFunctionComplexity(r.Complexity(), scriptAddress, scriptEstimationUpdate, functionCall, info)
+	return r, err
 }
 
-func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, scriptAddress proto.Address, fc proto.FunctionCall, info *fallibleValidationParams) error {
+func (a *scriptCaller) appendFunctionComplexity(
+	evaluationComplexity int,
+	scriptAddress proto.WavesAddress,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	fc proto.FunctionCall,
+	info *fallibleValidationParams,
+) error {
 	// Increase recent complexity
 	if info.rideV5Activated {
 		// After activation of RideV5 we have to add actual execution complexity
@@ -418,13 +434,15 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 	} else {
 		// Estimation based on estimated complexity
 		// For callable (function) we have to use the latest possible estimation
-		ev, err := a.state.EstimatorVersion()
-		if err != nil {
-			return err
-		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev)
-		if err != nil {
-			return err
+		var est *ride.TreeEstimation
+		if se := scriptEstimationUpdate; se.isPresent() { // newest estimation update made by last estimator
+			est = &se.estimation
+		} else { // the estimation
+			var err error
+			est, err = a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get newest script complexity for script %q", scriptAddress)
+			}
 		}
 		functionName := fc.Name()
 		c, ok := est.Functions[functionName]

@@ -41,11 +41,10 @@ var feeConstants = map[proto.TransactionType]uint64{
 }
 
 type feeValidationParams struct {
-	stor             *blockchainEntitiesStorage
-	settings         *settings.BlockchainSettings
-	txAssets         *txAssets
-	rideV5Activated  bool
-	estimatorVersion int
+	stor            *blockchainEntitiesStorage
+	settings        *settings.BlockchainSettings
+	txAssets        *txAssets
+	rideV5Activated bool
 }
 
 type assetParams struct {
