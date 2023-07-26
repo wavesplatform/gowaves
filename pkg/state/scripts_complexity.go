@@ -47,14 +47,6 @@ func (sc *scriptsComplexity) newestScriptEstimationRecordByAddr(addr proto.Addre
 	return r, nil
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
-	r, err := sc.newestScriptEstimationRecordByAddr(addr)
-	if err != nil {
-		return nil, err
-	}
-	return &r.Estimation, nil
-}
-
 // newestOriginalScriptComplexityByAddr returns original estimated script complexity by the given address.
 // For account scripts we have to use original estimation.
 func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {

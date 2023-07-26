@@ -487,11 +487,11 @@ func (a *scriptCaller) appendFunctionComplexity(
 		if se := scriptEstimationUpdate; se.isPresent() { // newest estimation update made by last estimator
 			est = &se.estimation
 		} else { // the estimation
-			var err error
-			est, err = a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress)
+			r, err := a.stor.scriptsComplexity.newestScriptEstimationRecordByAddr(scriptAddress)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get newest script complexity for script %q", scriptAddress)
 			}
+			est = &r.Estimation
 		}
 		functionName := fc.Name()
 		c, ok := est.Functions[functionName]
