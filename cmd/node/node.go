@@ -488,11 +488,11 @@ func main() {
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	ntw := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
+	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
 	go ntw.Run(ctx)
 
 	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval)
-	go n.Run(ctx, parent, svs.InternalChannel, ntw.NetworkInfoCh(), ntw.SyncPeer())
+	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
 
 	go minerScheduler.Reschedule()
 

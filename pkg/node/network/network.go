@@ -54,7 +54,7 @@ func (s *SyncPeer) Clear() {
 
 type Network struct {
 	infoCh        <-chan peer.InfoMessage
-	networkInfoCh chan InfoMessage
+	networkInfoCh chan<- InfoMessage
 	syncPeer      *SyncPeer
 
 	peers         peers.PeerManager
@@ -63,20 +63,17 @@ type Network struct {
 	obsolescence  time.Duration
 }
 
-func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Duration) Network {
+func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Duration) (Network, <-chan InfoMessage) {
+	nch := make(chan InfoMessage, defaultChannelSize)
 	return Network{
 		infoCh:        p.InfoCh,
-		networkInfoCh: make(chan InfoMessage, defaultChannelSize),
+		networkInfoCh: nch,
 		syncPeer:      new(SyncPeer),
 		peers:         services.Peers,
 		storage:       services.State,
 		minPeerMining: services.MinPeersMining,
 		obsolescence:  obsolescence,
-	}
-}
-
-func (n *Network) NetworkInfoCh() <-chan InfoMessage {
-	return n.networkInfoCh
+	}, nch
 }
 
 func (n *Network) SyncPeer() *SyncPeer {
