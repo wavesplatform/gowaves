@@ -129,7 +129,7 @@ func (n *Network) handleInternalErr(msg peer.InfoMessage) {
 		// TODO: Consider handling of duplicate events in consumer
 		n.networkInfoCh <- StopMining{}
 	}
-	if n.syncPeer.GetPeer() != nil && msg.Peer != nil && n.syncPeer.GetPeer().ID() == msg.Peer.ID() {
+	if msg.Peer.Equal(n.syncPeer.GetPeer()) {
 		n.networkInfoCh <- StopSync{}
 	}
 }

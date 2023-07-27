@@ -182,3 +182,10 @@ func (a *OutgoingPeer) Handshake() proto.Handshake {
 func (a *OutgoingPeer) RemoteAddr() proto.TCPAddr {
 	return proto.TCPAddr(*a.connection.Conn().RemoteAddr().(*net.TCPAddr))
 }
+
+func (a *OutgoingPeer) Equal(other peer.Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
+}

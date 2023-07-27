@@ -2,6 +2,7 @@ package peer
 
 import (
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -35,7 +36,7 @@ func NewParent() Parent {
 	}
 }
 
-//go:generate moq -out peer_moq.go ./ Peer:mockPeer
+//go:generate moq -out peer_moq.go . Peer:mockPeer
 type Peer interface {
 	Direction() Direction
 	Close() error
@@ -44,4 +45,5 @@ type Peer interface {
 	Connection() conn.Connection
 	Handshake() proto.Handshake
 	RemoteAddr() proto.TCPAddr
+	Equal(Peer) bool
 }

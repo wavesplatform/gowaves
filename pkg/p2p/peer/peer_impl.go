@@ -104,3 +104,10 @@ func (a *PeerImpl) RemoteAddr() proto.TCPAddr {
 	addr := a.Connection().Conn().RemoteAddr().(*net.TCPAddr)
 	return proto.TCPAddr(*addr)
 }
+
+func (a *PeerImpl) Equal(other Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
+}
