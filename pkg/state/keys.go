@@ -24,8 +24,8 @@ const (
 	approvedFeaturesKeySize    = 1 + 2
 	votesFeaturesKeySize       = 1 + 2
 	invokeResultKeySize        = 1 + crypto.DigestSize
-	blockRewardAtHeightKeySize = 9
-	totalWavesAmountKeySize    = 9
+	blockRewardAtHeightKeySize = 1 + 8
+	totalWavesAmountKeySize    = 1 + 8
 )
 
 // Primary prefixes for storage keys
@@ -707,7 +707,7 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
 
@@ -718,7 +718,7 @@ type blockRewardAtHeightKey struct {
 func (k *blockRewardAtHeightKey) bytes() []byte {
 	buf := make([]byte, blockRewardAtHeightKeySize)
 	buf[0] = blockRewardAtHeightKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
 
@@ -729,6 +729,6 @@ type totalWavesAmountKey struct {
 func (k *totalWavesAmountKey) bytes() []byte {
 	buf := make([]byte, totalWavesAmountKeySize)
 	buf[0] = totalWavesAmountKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

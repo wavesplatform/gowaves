@@ -56,39 +56,20 @@ func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type monetaryPolicySettings struct {
-	bs *settings.BlockchainSettings
-}
-
-func newMonetaryPolicySettings(bs *settings.BlockchainSettings) monetaryPolicySettings {
-	return monetaryPolicySettings{bs: bs}
-}
-
-func (m monetaryPolicySettings) InitialBlockReward() uint64      { return m.bs.InitialBlockReward }
-func (m monetaryPolicySettings) BlockRewardIncrement() uint64    { return m.bs.BlockRewardIncrement }
-func (m monetaryPolicySettings) BlockRewardVotingPeriod() uint64 { return m.bs.BlockRewardVotingPeriod }
-
-func (m monetaryPolicySettings) BlockRewardTerm(isCappedRewardActivated bool) uint64 {
-	if isCappedRewardActivated {
-		return m.bs.BlockRewardTermAfter20
-	}
-	return m.bs.BlockRewardTerm
-}
-
 type monetaryPolicy struct {
-	settings monetaryPolicySettings
+	settings *settings.BlockchainSettings
 	hs       *historyStorage
 }
 
 func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) *monetaryPolicy {
-	return &monetaryPolicy{hs: hs, settings: newMonetaryPolicySettings(settings)}
+	return &monetaryPolicy{hs: hs, settings: settings}
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
 	var record blockRewardRecord
 	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes)
 	if isNotFoundInHistoryOrDBErr(err) {
-		return m.settings.InitialBlockReward(), nil
+		return m.settings.InitialBlockReward, nil
 	}
 	if err != nil {
 		return 0, err
@@ -164,12 +145,12 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 	if err != nil {
 		return err
 	}
-	threshold := uint32(m.settings.BlockRewardVotingPeriod())/2 + 1
+	threshold := uint32(m.settings.BlockRewardVotingThreshold())
 	switch {
 	case votes.increase >= threshold:
-		reward += m.settings.BlockRewardIncrement()
+		reward += m.settings.BlockRewardIncrement
 	case votes.decrease >= threshold:
-		reward -= m.settings.BlockRewardIncrement()
+		reward -= m.settings.BlockRewardIncrement
 	default:
 		return m.resetBlockRewardVotes(nextBlockID) // nothing to do, reward remains the same, reset votes on the next block
 	}
@@ -187,10 +168,8 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
-	blockRewardTerm := m.settings.BlockRewardTerm(isCappedRewardsActivated)
-	diff := height - activation
-	next := activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
-	start = next - m.settings.BlockRewardVotingPeriod()
+	next := m.settings.NextRewardTerm(height, activation, isCappedRewardsActivated)
+	start = next - m.settings.BlockRewardVotingPeriod
 	end = next - 1
 	return start, end
 }

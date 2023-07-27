@@ -28,8 +28,8 @@ const (
 )
 
 const (
-	LenWithDaoAddress                = 1
-	LenWithDaoAndXtnBuybackAddresses = 2
+	LenWithDAOAddress                = 1
+	LenWithDAOAndXTNBuybackAddresses = 2
 )
 
 var (
@@ -113,6 +113,45 @@ func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
 	} else {
 		return f.FeaturesVotingPeriod
 	}
+}
+
+func (f *FunctionalitySettings) CurrentBlockRewardTerm(isCappedRewardActivated bool) uint64 {
+	if isCappedRewardActivated {
+		return f.BlockRewardTermAfter20
+	}
+	return f.BlockRewardTerm
+}
+
+func (f *FunctionalitySettings) BlockRewardVotingThreshold() uint64 {
+	return f.BlockRewardVotingPeriod/2 + 1
+}
+
+func (f *FunctionalitySettings) CurrentRewardAddresses(isXTNBuyBackCessationActivated bool) []proto.WavesAddress {
+	if isXTNBuyBackCessationActivated {
+		return f.RewardAddressesAfter21
+	}
+	return f.RewardAddresses
+}
+
+func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) proto.WavesAddress {
+	addresses := f.CurrentRewardAddresses(isXTNBuyBackCessationActivated)
+	if len(addresses) >= LenWithDAOAddress {
+		return addresses[0]
+	}
+	return proto.WavesAddress{}
+}
+
+func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) proto.WavesAddress {
+	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= LenWithDAOAndXTNBuybackAddresses {
+		return f.RewardAddresses[1]
+	}
+	return proto.WavesAddress{}
+}
+
+func (f *FunctionalitySettings) NextRewardTerm(height, activation proto.Height, isCappedRewardsActivated bool) uint64 {
+	blockRewardTerm := f.CurrentBlockRewardTerm(isCappedRewardsActivated)
+	diff := height - activation
+	return activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
 }
 
 type BlockchainSettings struct {

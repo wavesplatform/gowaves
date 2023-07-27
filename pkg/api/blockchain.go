@@ -1,7 +1,6 @@
 package api
 
 import (
-	"math"
 	"net/http"
 	"strconv"
 
@@ -10,10 +9,9 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
-type RewardInfo struct {
+type rewardInfoResponse struct {
 	Height              proto.Height      `json:"height"`
 	TotalWavesAmount    uint64            `json:"totalWavesAmount"`
 	CurrentReward       uint64            `json:"currentReward"`
@@ -23,99 +21,77 @@ type RewardInfo struct {
 	VotingIntervalStart uint64            `json:"votingIntervalStart"`
 	VotingInterval      uint64            `json:"votingInterval"`
 	VotingThreshold     uint64            `json:"votingThreshold"`
-	Votes               state.RewardVotes `json:"votes"`
-	DaoAddress          string            `json:"daoAddress"`
-	XtnBuybackAddress   string            `json:"xtnBuybackAddress"`
+	Votes               proto.RewardVotes `json:"votes"`
+	DAOAddress          string            `json:"daoAddress,omitempty"`
+	XTNBuybackAddress   string            `json:"xtnBuybackAddress,omitempty"`
 }
 
-func nearestTermEnd(
-	height, activateAt proto.Height,
-	cappedRewardsActivated bool,
-	set *settings.BlockchainSettings,
-) uint64 {
-	var diff = height - activateAt + 1
-	var modifiedTerm uint64
-	if cappedRewardsActivated {
-		modifiedTerm = set.BlockRewardTermAfter20
-	} else {
-		modifiedTerm = set.BlockRewardTerm
-	}
-	var mul = uint64(math.Ceil(float64(diff) / float64(modifiedTerm)))
-	return activateAt + mul*modifiedTerm - 1
-}
-
-func (a *NodeApi) rewardAtHeight(height proto.Height) (RewardInfo, error) {
-	blockRewardsActiivated, err := a.state.IsActiveAtHeight(int16(settings.BlockReward), height)
+func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error) {
+	blockRewardsActivated, err := a.state.IsActiveAtHeight(int16(settings.BlockReward), height)
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
-	if !blockRewardsActiivated || height == 1 {
-		return RewardInfo{}, errors.Wrap(err, "Block reward feature is not activated yet")
+	if !blockRewardsActivated || height == 1 {
+		return rewardInfoResponse{}, errors.Wrap(err, "Block reward feature is not activated yet")
 	}
 
 	cappedRewardsActivated, err := a.state.IsActiveAtHeight(int16(settings.CappedRewards), height)
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
 	set, err := a.state.BlockchainSettings()
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
 	blockRewardHeight, err := a.state.ActivationHeight(int16(settings.BlockReward))
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
 
-	nextCheck := nearestTermEnd(height, blockRewardHeight, cappedRewardsActivated, set)
-
-	var term uint64
-	if cappedRewardsActivated {
-		term = set.BlockRewardTermAfter20
-	} else {
-		term = set.BlockRewardTerm
-	}
+	nextCheck := set.NextRewardTerm(height, blockRewardHeight, cappedRewardsActivated)
 
 	reward, err := a.state.RewardAtHeight(height)
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
 
 	blockRewardDistributionActivated, err := a.state.IsActiveAtHeight(int16(settings.BlockRewardDistribution), height)
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
-	daoAddress := ""
-	xtnBuybackAddress := ""
-	if blockRewardDistributionActivated && len(set.RewardAddresses) > 0 {
-		if len(set.RewardAddresses) >= settings.LenWithDaoAddress {
-			daoAddress = set.RewardAddresses[0].String()
-		}
-		if len(set.RewardAddresses) >= settings.LenWithDaoAndXtnBuybackAddresses {
-			xtnBuybackAddress = set.RewardAddresses[1].String()
-		}
+	xtnBuyBackCessation, err := a.state.IsActiveAtHeight(int16(settings.XTNBuyBackCessation), height)
+	if err != nil {
+		return rewardInfoResponse{}, err
+	}
+
+	var daoAddress string
+	var xtnBuybackAddress string
+	if blockRewardDistributionActivated && len(set.CurrentRewardAddresses(xtnBuyBackCessation)) > 0 {
+		daoAddress = set.DAOAddress(xtnBuyBackCessation).String()
+		xtnBuybackAddress = set.XTNBuybackAddress(xtnBuyBackCessation).String()
 	}
 
 	votes, err := a.state.RewardVotes()
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
 	totalAmount, err := a.state.TotalWavesAmount(height)
 	if err != nil {
-		return RewardInfo{}, err
+		return rewardInfoResponse{}, err
 	}
-	return RewardInfo{
+	return rewardInfoResponse{
 		Height:              height,
 		TotalWavesAmount:    totalAmount,
 		CurrentReward:       reward,
 		MinIncrement:        set.BlockRewardIncrement,
-		Term:                term,
-		NextCheck:           nextCheck,
-		VotingIntervalStart: nextCheck - set.BlockRewardVotingPeriod + 1,
+		Term:                set.CurrentBlockRewardTerm(cappedRewardsActivated),
+		NextCheck:           nextCheck - 1,
+		VotingIntervalStart: nextCheck - set.BlockRewardVotingPeriod,
 		VotingInterval:      set.BlockRewardVotingPeriod,
-		VotingThreshold:     set.BlockRewardVotingPeriod/2 + 1,
+		VotingThreshold:     set.BlockRewardVotingThreshold(),
 		Votes:               votes,
-		DaoAddress:          daoAddress,
-		XtnBuybackAddress:   xtnBuybackAddress,
+		DAOAddress:          daoAddress,
+		XTNBuybackAddress:   xtnBuybackAddress,
 	}, nil
 }
 

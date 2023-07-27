@@ -5,9 +5,23 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
+
+type RewardInfo struct {
+	Height              proto.Height      `json:"height"`
+	TotalWavesAmount    uint64            `json:"totalWavesAmount"`
+	CurrentReward       uint64            `json:"currentReward"`
+	MinIncrement        uint64            `json:"minIncrement"`
+	Term                uint64            `json:"term"`
+	NextCheck           uint64            `json:"nextCheck"`
+	VotingIntervalStart uint64            `json:"votingIntervalStart"`
+	VotingInterval      uint64            `json:"votingInterval"`
+	VotingThreshold     uint64            `json:"votingThreshold"`
+	Votes               proto.RewardVotes `json:"votes"`
+	DAOAddress          string            `json:"daoAddress,omitempty"`
+	XTNBuybackAddress   string            `json:"xtnBuybackAddress,omitempty"`
+}
 
 type Blockchain struct {
 	options Options
@@ -20,7 +34,7 @@ func NewBlockchain(options Options) *Blockchain {
 }
 
 // Rewards returns info about rewards on top of blockchain.
-func (a *Blockchain) Rewards(ctx context.Context) (*api.RewardInfo, *Response, error) {
+func (a *Blockchain) Rewards(ctx context.Context) (*RewardInfo, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/blockchain/rewards")
 	if err != nil {
 		return nil, nil, err
@@ -31,7 +45,7 @@ func (a *Blockchain) Rewards(ctx context.Context) (*api.RewardInfo, *Response, e
 		return nil, nil, err
 	}
 
-	out := new(api.RewardInfo)
+	out := new(RewardInfo)
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
@@ -41,7 +55,7 @@ func (a *Blockchain) Rewards(ctx context.Context) (*api.RewardInfo, *Response, e
 }
 
 // RewardsAtHeight returns info about rewards at height.
-func (a *Blockchain) RewardsAtHeight(ctx context.Context, height proto.Height) (*api.RewardInfo, *Response, error) {
+func (a *Blockchain) RewardsAtHeight(ctx context.Context, height proto.Height) (*RewardInfo, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blockchain/rewards/%d", height))
 	if err != nil {
 		return nil, nil, err
@@ -52,7 +66,7 @@ func (a *Blockchain) RewardsAtHeight(ctx context.Context, height proto.Height) (
 		return nil, nil, err
 	}
 
-	out := new(api.RewardInfo)
+	out := new(RewardInfo)
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err

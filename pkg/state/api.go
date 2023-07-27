@@ -135,7 +135,7 @@ type StateInfo interface {
 
 	// Rewards
 	RewardAtHeight(height proto.Height) (uint64, error)
-	RewardVotes() (RewardVotes, error)
+	RewardVotes() (proto.RewardVotes, error)
 	TotalWavesAmount(height proto.Height) (uint64, error)
 }
 

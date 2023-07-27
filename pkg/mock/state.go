@@ -779,10 +779,10 @@ func (mr *MockStateInfoMockRecorder) RewardAtHeight(height interface{}) *gomock.
 }
 
 // RewardVotes mocks base method.
-func (m *MockStateInfo) RewardVotes() (state.RewardVotes, error) {
+func (m *MockStateInfo) RewardVotes() (proto.RewardVotes, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RewardVotes")
-	ret0, _ := ret[0].(state.RewardVotes)
+	ret0, _ := ret[0].(proto.RewardVotes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2058,10 +2058,10 @@ func (mr *MockStateMockRecorder) RewardAtHeight(height interface{}) *gomock.Call
 }
 
 // RewardVotes mocks base method.
-func (m *MockState) RewardVotes() (state.RewardVotes, error) {
+func (m *MockState) RewardVotes() (proto.RewardVotes, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RewardVotes")
-	ret0, _ := ret[0].(state.RewardVotes)
+	ret0, _ := ret[0].(proto.RewardVotes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
