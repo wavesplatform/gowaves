@@ -66,6 +66,7 @@ type SmartState interface {
 	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+	NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error)
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
 	NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error)

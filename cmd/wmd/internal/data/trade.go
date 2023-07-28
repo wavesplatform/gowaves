@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -57,12 +58,8 @@ func NewTradeFromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) (Trade,
 	}, nil
 }
 
-func NewTradeFromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) (Trade, error) {
+func NewTradeFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeWithProofs) (Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeWithProofs to Trade") }
-	var buyTS, sellTS uint64
-	var buyer, seller, matcher proto.WavesAddress
-	var err error
-	var amountAsset, priceAsset crypto.Digest
 
 	bo, err := tx.GetBuyOrder()
 	if err != nil {
@@ -72,30 +69,30 @@ func NewTradeFromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) (
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	ap, pk, buyTS, err := extractOrderParameters(bo)
+	ap, ba, buyTS, err := extractOrderParameters(scheme, bo)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	buyer, err = proto.NewAddressFromPublicKey(scheme, pk)
+	buyer, err := ba.ToWavesAddress(scheme)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
 
-	ap, pk, sellTS, err = extractOrderParameters(so)
+	ap, sa, sellTS, err := extractOrderParameters(scheme, so)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	seller, err = proto.NewAddressFromPublicKey(scheme, pk)
+	seller, err := sa.ToWavesAddress(scheme)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	amountAsset = ap.AmountAsset.ID
-	priceAsset = ap.PriceAsset.ID
+	amountAsset := ap.AmountAsset.ID
+	priceAsset := ap.PriceAsset.ID
 	orderType := 1
 	if buyTS > sellTS {
 		orderType = 0
 	}
-	matcher, err = proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	matcher, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}

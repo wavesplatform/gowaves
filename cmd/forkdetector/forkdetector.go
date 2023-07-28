@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var (

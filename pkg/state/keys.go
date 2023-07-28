@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -397,21 +398,6 @@ func (k *disabledAliasKey) bytes() []byte {
 	buf[0] = disabledAliasKeyPrefix
 	proto.PutStringWithUInt16Len(buf[1:], k.alias)
 	return buf
-}
-
-func (k *disabledAliasKey) unmarshal(data []byte) error {
-	if len(data) != disabledAliasKeySize {
-		return errInvalidDataSize
-	}
-	if data[0] != disabledAliasKeyPrefix {
-		return errInvalidPrefix
-	}
-	var err error
-	k.alias, err = proto.StringWithUInt16Len(data[1:])
-	if err != nil {
-		return errors.Wrap(err, "StringWithUInt16Len() failed")
-	}
-	return nil
 }
 
 type activatedFeaturesKey struct {

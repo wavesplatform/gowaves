@@ -8,16 +8,16 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"go.uber.org/atomic"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"go.uber.org/atomic"
 )
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
 const EthereumGasPrice = 10 * ethereumGWei
-const DiffEthWaves = waveletToWeiMultiplier // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
