@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const defaultChannelSize = 100
@@ -59,11 +60,16 @@ type Network struct {
 
 	peers         peers.PeerManager
 	storage       state.State
+	tm            types.Time
 	minPeerMining int
 	obsolescence  time.Duration
 }
 
-func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Duration) (Network, <-chan InfoMessage) {
+func NewNetwork(
+	services services.Services,
+	p peer.Parent,
+	obsolescence time.Duration,
+) (Network, <-chan InfoMessage) {
 	nch := make(chan InfoMessage, defaultChannelSize)
 	return Network{
 		infoCh:        p.InfoCh,
@@ -71,6 +77,7 @@ func NewNetwork(services services.Services, p peer.Parent, obsolescence time.Dur
 		syncPeer:      new(SyncPeer),
 		peers:         services.Peers,
 		storage:       services.State,
+		tm:            services.Time,
 		minPeerMining: services.MinPeersMining,
 		obsolescence:  obsolescence,
 	}, nch
@@ -132,7 +139,7 @@ func (n *Network) handleInternalErr(msg peer.InfoMessage) {
 }
 
 func (n *Network) isTimeToSwitchPeerWithMaxScore() bool {
-	now := time.Now()
+	now := n.tm.Now()
 	obsolescenceTime := now.Add(-n.obsolescence)
 	lastBlock := n.storage.TopBlock()
 	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
