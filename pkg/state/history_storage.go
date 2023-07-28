@@ -33,7 +33,6 @@ const (
 	assetScript
 	scriptBasicInfo
 	accountScriptComplexity
-	accountScriptOriginalComplexity
 	assetScriptComplexity
 	rewardVotes
 	blockReward
@@ -143,11 +142,6 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	accountScriptComplexity: {
-		needToFilter: true,
-		needToCut:    true,
-		fixedSize:    false,
-	},
-	accountScriptOriginalComplexity: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

@@ -89,9 +89,9 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
+		if scErr != nil {
+			return errors.Wrapf(scErr, "failed to call account script on order '%s'", base58.Encode(id))
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}
@@ -152,9 +152,9 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
+		if scErr != nil {
+			return errors.Wrapf(scErr, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}

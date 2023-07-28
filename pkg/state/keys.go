@@ -95,7 +95,6 @@ const (
 	assetScriptKeyPrefix
 	scriptBasicInfoKeyPrefix
 	accountScriptComplexityKeyPrefix
-	accountScriptOriginalComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
 
 	// Block Reward.
@@ -165,8 +164,6 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{scriptBasicInfoKeyPrefix}, nil
 	case accountScriptComplexity:
 		return []byte{accountScriptComplexityKeyPrefix}, nil
-	case accountScriptOriginalComplexity:
-		return []byte{accountScriptOriginalComplexityKeyPrefix}, nil
 	case assetScriptComplexity:
 		return []byte{assetScriptComplexityKeyPrefix}, nil
 	case rewardVotes:
@@ -616,17 +613,6 @@ func (k *assetScriptComplexityKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
-	return buf
-}
-
-type accountScriptOriginalComplexityKey struct {
-	addressID proto.AddressID
-}
-
-func (k *accountScriptOriginalComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressIDSize)
-	buf[0] = accountScriptOriginalComplexityKeyPrefix
-	copy(buf[1:], k.addressID[:])
 	return buf
 }
 

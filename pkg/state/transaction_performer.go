@@ -393,8 +393,8 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err != nil {
 		return errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
 	}
-	// save new estimated complexity
-	if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(sender, *se, info.blockID); scErr != nil {
+	// update callable and summary complexity, verifier complexity remains the same
+	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(sender, *se, info.blockID); scErr != nil {
 		return errors.Wrapf(scErr, "failed to save complexity for addr %s", sender.String())
 	}
 	return nil

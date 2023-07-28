@@ -47,31 +47,14 @@ func (sc *scriptsComplexity) newestScriptEstimationRecordByAddr(addr proto.Addre
 	return r, nil
 }
 
-// newestOriginalScriptComplexityByAddr returns original estimated script complexity by the given address.
+// newestScriptComplexityByAddr returns original estimated script complexity by the given address.
 // For account scripts we have to use original estimation.
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
-	key := accountScriptOriginalComplexityKey{addr.ID()}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
+func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
+	r, err := sc.newestScriptEstimationRecordByAddr(addr)
 	if err != nil {
 		return nil, err
 	}
-	r := new(estimationRecord)
-	if err = r.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal original account script complexities record")
-	}
 	return &r.Estimation, nil
-}
-
-func (sc *scriptsComplexity) newestOriginalScriptComplexityExist(addr proto.Address) (bool, error) {
-	key := accountScriptOriginalComplexityKey{addr.ID()}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return len(recordBytes) != 0, nil
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID) (*ride.TreeEstimation, error) {
@@ -118,60 +101,90 @@ func (sc *scriptsComplexity) saveComplexitiesForAddr(
 	se scriptEstimation,
 	blockID proto.BlockID,
 ) error {
-	var (
-		addrID                = addr.ID()
-		complexityKey         = accountScriptComplexityKey{addrID}
-		originalComplexityKey = accountScriptOriginalComplexityKey{addrID}
-	)
-	if se.scriptIsEmpty { // write empty data (nullify) in case when we've received an emtpy script
-		err := sc.hs.addNewEntry(accountScriptComplexity, complexityKey.bytes(), nil, blockID)
+	var recordBytes []byte
+	if !se.scriptIsEmpty { // fill recordBytes if script is not empty
+		var err error
+		// prepare record bytes
+		complexityRecord := estimationRecord{
+			EstimatorVersion: uint8(se.currentEstimatorVersion),
+			Estimation:       se.estimation,
+		}
+		recordBytes, err = complexityRecord.marshalBinary()
 		if err != nil {
-			return errors.Wrapf(err, "failed erase estimation record for address '%s' in block '%s'",
+			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
 				addr.String(), blockID.String(),
 			)
 		}
-		err = sc.hs.addNewEntry(accountScriptOriginalComplexity, originalComplexityKey.bytes(), nil, blockID)
-		if err != nil {
-			return errors.Wrapf(err, "failed erase original estimation record for address '%s' in block '%s'",
-				addr.String(), blockID.String(),
-			)
+	}
+	complexityKey := accountScriptComplexityKey{addr.ID()}
+	// save new estimation record or write zero bytes if script is empty
+	err := sc.hs.addNewEntry(accountScriptComplexity, complexityKey.bytes(), recordBytes, blockID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
+			addr.String(), blockID.String(),
+		)
+	}
+	return nil
+}
+
+func (sc *scriptsComplexity) updateCallableComplexitiesForAddr(
+	addr proto.Address,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	old, err := sc.newestScriptEstimationRecordByAddr(addr)
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return errors.Errorf("failed to update callable complexities for addr '%s', estimation doesn't exist", addr)
 		}
-		return nil
+		return errors.Wrapf(err, "failed to update callable complexities for addr '%s'", addr)
+	}
+	newEst := ride.TreeEstimation{
+		Estimation: maxEstimationWithOldVerifierComplexity(se.estimation, old.Estimation.Verifier),
+		Verifier:   old.Estimation.Verifier,
+		Functions:  se.estimation.Functions,
 	}
 	// prepare record bytes
 	complexityRecord := estimationRecord{
 		EstimatorVersion: uint8(se.currentEstimatorVersion),
-		Estimation:       se.estimation,
+		Estimation:       newEst,
 	}
 	recordBytes, err := complexityRecord.marshalBinary()
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
+		return errors.Wrapf(err, "failed to marshal complexities record for address '%s' in block '%s'",
 			addr.String(), blockID.String(),
 		)
 	}
+	complexityKey := accountScriptComplexityKey{addr.ID()}
 	// save new estimation record
 	err = sc.hs.addNewEntry(accountScriptComplexity, complexityKey.bytes(), recordBytes, blockID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
+		return errors.Wrapf(err, "failed to update complexities record for address '%s' in block '%s'",
 			addr.String(), blockID.String(),
 		)
-	}
-	// save or skip saving estimation record as an original estimation
-	originalEstimationExist, err := sc.newestOriginalScriptComplexityExist(addr)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check original estimator version existence for addr '%s' in block '%s'",
-			addr.String(), blockID.String(),
-		)
-	}
-	if !originalEstimationExist { // this is new account script, we should save provided estimation as original
-		err = sc.hs.addNewEntry(accountScriptOriginalComplexity, originalComplexityKey.bytes(), recordBytes, blockID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to save original estimator version for address '%s' in block '%s'",
-				addr.String(), blockID.String(),
-			)
-		}
 	}
 	return nil
+}
+
+func maxEstimationWithOldVerifierComplexity(update ride.TreeEstimation, oldVerifierComplexity int) int {
+	if update.Verifier < update.Estimation { // fast path: one's callable complexity == max update complexity
+		return max(oldVerifierComplexity, update.Estimation)
+	}
+	// trying to find the hardest callable in the tab of new estimations and determine max complexity
+	maxCallableComplexity := 0
+	for _, complexity := range update.Functions { // for account scripts (verifier) Functions map is empty
+		if complexity > maxCallableComplexity {
+			maxCallableComplexity = complexity
+		}
+	}
+	return max(oldVerifierComplexity, maxCallableComplexity)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (sc *scriptsComplexity) saveComplexitiesForAsset(

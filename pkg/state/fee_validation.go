@@ -264,7 +264,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	complexity := 0
 	if accountScripted && params.rideV5Activated {
 		// For account script we use original estimation
-		treeEstimation, scErr := params.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
+		treeEstimation, scErr := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
 		if scErr != nil {
 			return nil, errors.Wrap(scErr, "failed to get complexity by addr from store")
 		}

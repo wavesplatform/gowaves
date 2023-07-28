@@ -64,45 +64,40 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	require.NoError(t, err)
 	res1, err := to.scriptsComplexity.newestScriptEstimationRecordByAddr(addr)
 	require.NoError(t, err)
-	assert.Equal(t, se1.estimation, res1.Estimation)
 	assert.Equal(t, se1.currentEstimatorVersion, int(res1.EstimatorVersion))
+	assert.Equal(t, se1.estimation, res1.Estimation)
 
 	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, se2, blockID0)
 	require.NoError(t, err)
 	res2, err := to.scriptsComplexity.newestScriptEstimationRecordByAddr(addr)
 	require.NoError(t, err)
-	assert.Equal(t, se2.estimation, res2.Estimation)
 	assert.Equal(t, se2.currentEstimatorVersion, int(res2.EstimatorVersion))
+	assert.Equal(t, se2.estimation, res2.Estimation)
 
 	to.stor.flush(t)
 
 	resFlushed, err := to.scriptsComplexity.newestScriptEstimationRecordByAddr(addr)
 	require.NoError(t, err)
-	assert.Equal(t, se2.estimation, resFlushed.Estimation)
 	assert.Equal(t, se2.currentEstimatorVersion, int(resFlushed.EstimatorVersion))
-	resOrig, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
-	require.NoError(t, err)
-	assert.Equal(t, se1.estimation, *resOrig)
+	assert.Equal(t, se2.estimation, resFlushed.Estimation)
 
-	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, se3, blockID0)
+	err = to.scriptsComplexity.updateCallableComplexitiesForAddr(addr, se3, blockID0)
 	require.NoError(t, err)
 	res3, err := to.scriptsComplexity.newestScriptEstimationRecordByAddr(addr)
 	require.NoError(t, err)
-	assert.Equal(t, se3.estimation, res3.Estimation)
 	assert.Equal(t, se3.currentEstimatorVersion, int(res3.EstimatorVersion))
-	resOrig, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
-	require.NoError(t, err)
-	assert.Equal(t, se1.estimation, *resOrig)
+	assert.Equal(t, se3.estimation.Functions, res3.Estimation.Functions)
+	assert.Equal(t, se3.estimation.Estimation, res3.Estimation.Estimation)
+	assert.Equal(t, se2.estimation.Verifier, res3.Estimation.Verifier)
 
 	to.stor.flush(t)
 
 	resFlushed, err = to.scriptsComplexity.newestScriptEstimationRecordByAddr(addr)
 	require.NoError(t, err)
-	assert.Equal(t, se3.estimation, resFlushed.Estimation)
 	assert.Equal(t, se3.currentEstimatorVersion, int(resFlushed.EstimatorVersion))
-	resOrig, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
-	require.NoError(t, err)
-	assert.Equal(t, se1.estimation, *resOrig)
+	assert.Equal(t, se3.estimation.Functions, resFlushed.Estimation.Functions)
+	assert.Equal(t, se3.estimation.Estimation, res3.Estimation.Estimation)
+	assert.Equal(t, se2.estimation.Verifier, resFlushed.Estimation.Verifier)
 
 	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, seEmpty, blockID0)
 	require.NoError(t, err)
@@ -110,10 +105,11 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	assert.EqualError(t, err,
 		"failed to unmarshal account script complexities record: empty binary data, estimation doesn't exist",
 	)
-	_, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr)
-	assert.EqualError(t, err, "failed to unmarshal original account script complexities record: "+
-		"empty binary data, estimation doesn't exist",
-	)
+
+	failAddr := testGlobal.recipientInfo.addr
+	err = to.scriptsComplexity.updateCallableComplexitiesForAddr(failAddr, se1, blockID0)
+	assert.EqualError(t, err, "failed to update callable complexities for addr '"+failAddr.String()+"', "+
+		"estimation doesn't exist")
 }
 
 func TestSaveComplexityForAsset(t *testing.T) {
