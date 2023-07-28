@@ -127,11 +127,13 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 }
 
 func (a *Node) logErrors(err error) {
-	switch e := err.(type) {
-	case *proto.InfoMsg:
-		zap.S().Named(logging.FSMNamespace).Debugf("Error: %s", e.Error())
+	var infoMsg *proto.InfoMsg
+	_ = error(infoMsg) // compile time check
+	switch {
+	case errors.As(err, &infoMsg):
+		zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", infoMsg)
 	default:
-		zap.S().Errorf("%s", e.Error())
+		zap.S().Errorf("%v", err)
 	}
 }
 
@@ -206,45 +208,39 @@ func (a *Node) Run(
 }
 
 func (a *Node) runIncomingConnections(ctx context.Context) {
-	func() {
-		if err := a.serveIncomingPeers(ctx); err != nil {
-			return
-		}
-	}()
+	if err := a.serveIncomingPeers(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		zap.S().Errorf("Failed to continue serving incoming peers: %v", err)
+	}
 }
 
 func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
-	func() {
-		for {
-			timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			case <-timer.C:
-				metricInternalChannelSize.Set(float64(len(ch)))
+	for {
+		timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
 			}
+			return
+		case <-timer.C:
+			metricInternalChannelSize.Set(float64(len(ch)))
 		}
-	}()
+	}
 }
 
 func (a *Node) runOutgoingConnections(ctx context.Context) {
-	func() {
-		for {
-			a.SpawnOutgoingConnections(ctx)
-			timer := time.NewTimer(spawnOutgoingConnectionsInterval)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			case <-timer.C:
+	for {
+		a.SpawnOutgoingConnections(ctx)
+		timer := time.NewTimer(spawnOutgoingConnectionsInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
 			}
+			return
+		case <-timer.C:
 		}
-	}()
+	}
 }
 
 func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a fsm.Async) {
