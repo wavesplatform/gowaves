@@ -327,7 +327,11 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 		return errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
 	// script estimation is present and not nil
-	return storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
+	err := storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to perform SetScriptWithProofs tx %q", tx.ID.String())
+	}
+	return err
 }
 
 func storeScriptByAddress(
@@ -374,11 +378,12 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 }
 
 func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
-	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
+	if !ok {
 		return errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return errors.Wrap(err, "failed to commit invoke changes")
+		return errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
 	}
 	se := info.checkerData.scriptEstimation
 	if !se.isPresent() { // nothing to do, no estimation to save
@@ -395,7 +400,9 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	}
 	// update callable and summary complexity, verifier complexity remains the same
 	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(sender, *se, info.blockID); scErr != nil {
-		return errors.Wrapf(scErr, "failed to save complexity for addr %s", sender.String())
+		return errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+			sender.String(), tx.ID.String(),
+		)
 	}
 	return nil
 }
