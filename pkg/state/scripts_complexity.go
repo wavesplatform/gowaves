@@ -47,8 +47,8 @@ func (sc *scriptsComplexity) newestScriptEstimationRecordByAddr(addr proto.Addre
 	return r, nil
 }
 
-// newestScriptComplexityByAddr returns original estimated script complexity by the given address.
-// For account scripts we have to use original estimation.
+// newestScriptComplexityByAddr returns estimated script complexity by the given address.
+// Note that verifier complexity remains unchanged even after callables updates.
 func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
 	r, err := sc.newestScriptEstimationRecordByAddr(addr)
 	if err != nil {
