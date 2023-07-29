@@ -394,14 +394,14 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	// we've pulled up an old script which estimation had been done by an old estimator
 	// in txChecker we've estimated script with a new estimator
 	// this is the place where we have to store new estimation
-	sender, err := transaction.GetSender(tp.settings.AddressSchemeCharacter)
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
 	if err != nil {
 		return errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
 	}
 	// update callable and summary complexity, verifier complexity remains the same
-	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(sender, *se, info.blockID); scErr != nil {
+	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
 		return errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-			sender.String(), tx.ID.String(),
+			scriptAddr.String(), tx.ID.String(),
 		)
 	}
 	return nil
