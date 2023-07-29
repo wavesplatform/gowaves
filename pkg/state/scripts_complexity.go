@@ -134,9 +134,6 @@ func (sc *scriptsComplexity) updateCallableComplexitiesForAddr(
 ) error {
 	old, err := sc.newestScriptEstimationRecordByAddr(addr)
 	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return errors.Errorf("failed to update callable complexities for addr '%s', estimation doesn't exist", addr)
-		}
 		return errors.Wrapf(err, "failed to update callable complexities for addr '%s'", addr)
 	}
 	newEst := ride.TreeEstimation{

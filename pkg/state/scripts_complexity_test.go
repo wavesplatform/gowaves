@@ -108,8 +108,8 @@ func TestSaveComplexityForAddr(t *testing.T) {
 
 	failAddr := testGlobal.recipientInfo.addr
 	err = to.scriptsComplexity.updateCallableComplexitiesForAddr(failAddr, se1, blockID0)
-	assert.EqualError(t, err, "failed to update callable complexities for addr '"+failAddr.String()+"', "+
-		"estimation doesn't exist")
+	assert.EqualError(t, err, "failed to update callable complexities for addr '"+failAddr.String()+"': "+
+		"not found")
 }
 
 func TestSaveComplexityForAsset(t *testing.T) {
