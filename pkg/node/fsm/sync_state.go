@@ -116,7 +116,7 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
 		signatures[0].ShortString(), signatures[len(signatures)-1].ShortString(), peer.ID().String())
-	if a.conf.peerSyncWith != peer {
+	if !peer.Equal(a.conf.peerSyncWith) {
 		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs received from incorrect peer %s, expected %s",
 			peer.ID().String(), a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
@@ -153,7 +153,7 @@ func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error)
 }
 
 func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error) {
-	if p != a.conf.peerSyncWith {
+	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
 	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
