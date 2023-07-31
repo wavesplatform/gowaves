@@ -44,7 +44,7 @@ func (a *IdleState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 }
 
 func (a *IdleState) StartMining() (State, Async, error) {
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 	return a, nil, nil
 }
 

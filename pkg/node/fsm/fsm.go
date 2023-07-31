@@ -47,7 +47,7 @@ type BaseInfo struct {
 	obsolescence  time.Duration
 
 	// scheduler
-	types.Scheduler
+	scheduler types.Scheduler
 
 	microMiner         *miner.MicroMiner
 	MicroBlockCache    services.MicroBlockCache
@@ -142,7 +142,7 @@ func NewFSM(
 		invRequester:  ng.NewInvRequester(),
 		blocksApplier: services.BlocksApplier,
 
-		Scheduler: services.Scheduler,
+		scheduler: services.Scheduler,
 
 		microMiner: miner.NewMicroMiner(services),
 
@@ -160,7 +160,7 @@ func NewFSM(
 		syncPeer:        syncPeer,
 	}
 
-	info.Scheduler.Reschedule()
+	info.scheduler.Reschedule()
 
 	state := &StateData{
 		Name:  IdleStateName,

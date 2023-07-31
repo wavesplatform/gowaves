@@ -176,7 +176,7 @@ func (a *SyncState) MinedBlock(
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.FSMKeyBlockApplied("sync", block)
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 
 	// first we should send block
 	a.baseInfo.actions.SendBlock(block)
@@ -240,7 +240,7 @@ func (a *SyncState) applyBlocks(
 		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changing sync peer to '%s'", np.ID().String())
 		return syncWithNewPeer(a, a.baseInfo, np)
 	}
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()
 	if err != nil {

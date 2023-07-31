@@ -136,7 +136,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 
-	a.baseInfo.Scheduler.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
@@ -163,7 +163,7 @@ func (a *NGState) MinedBlock(
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
@@ -185,7 +185,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 	)
 	a.baseInfo.MicroBlockCache.Add(block.BlockID(), micro)
 	a.blocksCache.AddBlockState(block)
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 
 	// Notify all connected peers about new microblock, send them microblock inv network message
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
@@ -224,7 +224,7 @@ func (a *NGState) mineMicro(
 		a, block.BlockID(), micro.Reference,
 	)
 	a.blocksCache.AddBlockState(block)
-	a.baseInfo.Reschedule()
+	a.baseInfo.scheduler.Reschedule()
 	metrics.FSMMicroBlockApplied("ng", micro)
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,

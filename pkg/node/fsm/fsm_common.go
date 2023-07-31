@@ -146,7 +146,7 @@ func fsmErrorf(state State, err error) error {
 func createPermitDynamicCallback(
 	event stateless.Trigger, state *StateData, actionFunc func(...interface{}) (State, Async, error),
 ) stateless.DestinationSelectorFunc {
-	return func(ctx context.Context, args ...interface{}) (stateless.State, error) {
+	return func(_ context.Context, args ...interface{}) (stateless.State, error) {
 		validateEventArgs(event, args...)
 		newState, asyncNew, err := actionFunc(args[1:]...)
 		async, ok := args[0].(*Async)
