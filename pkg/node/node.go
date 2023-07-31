@@ -147,9 +147,10 @@ func (a *Node) Run(
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
+	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
 	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
 	if err != nil {
-		zap.S().Errorf("Failed to : %v", err)
+		zap.S().Errorf("Failed to create FSM: %v", err)
 		return
 	}
 	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
