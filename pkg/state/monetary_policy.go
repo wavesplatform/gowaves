@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	blockRewardRecordSize = 8
 	rewardVotesRecordSize = 4 + 4
 )
 
-var (
-	rewardVotesKeyBytes   = []byte{rewardVotesKeyPrefix}
-	rewardChangesKeyBytes = []byte{rewardChangesKeyPrefix}
-)
+func rewardVotesKeyBytes() []byte {
+	return []byte{rewardVotesKeyPrefix}
+}
+
+func rewardChangesKeyBytes() []byte {
+	return []byte{rewardChangesKeyPrefix}
+}
 
 type rewardVotesRecord struct {
 	increase uint32
@@ -62,7 +64,7 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	var record rewardVotesRecord
-	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes)
+	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes())
 	if isNotFoundInHistoryOrDBErr(err) {
 		return record, nil
 	}
@@ -104,7 +106,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation proto.Height, is
 	if err != nil {
 		return err
 	}
-	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes(), recordBytes, blockID)
 }
 
 func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
@@ -113,7 +115,7 @@ func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
 	if err != nil {
 		return err
 	}
-	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes(), recordBytes, blockID)
 }
 
 func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
@@ -158,7 +160,7 @@ type rewardChangesRecord struct {
 }
 
 func (m *monetaryPolicy) getRewardChanges() ([]rewardChangesRecord, error) {
-	prevRecordBytes, err := m.hs.newestTopEntryData(rewardChangesKeyBytes)
+	prevRecordBytes, err := m.hs.newestTopEntryData(rewardChangesKeyBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +181,7 @@ func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Heig
 	if err != nil {
 		return errors.Wrapf(err, "failed to save reward changes in height '%d' in block '%s'", height, blockID.String())
 	}
-	return m.hs.addNewEntry(rewardChanges, rewardChangesKeyBytes, newRecordBytes, blockID)
+	return m.hs.addNewEntry(rewardChanges, rewardChangesKeyBytes(), newRecordBytes, blockID)
 }
 
 func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivationHeight proto.Height) (uint64, error) {
@@ -187,7 +189,10 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
 		return 0, err
 	}
-	changesRecords = append([]rewardChangesRecord{{blockRewardActivationHeight, m.settings.InitialBlockReward}}, changesRecords...)
+	changesRecords = append([]rewardChangesRecord{{
+		Height: blockRewardActivationHeight,
+		Reward: m.settings.InitialBlockReward,
+	}}, changesRecords...)
 
 	curReward := uint64(0)
 	for _, change := range changesRecords {
@@ -199,12 +204,18 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	return curReward, nil
 }
 
-func (m *monetaryPolicy) totalAmountAtHeight(height, initialTotalAmount uint64, blockRewardActivationHeight proto.Height) (uint64, error) {
+func (m *monetaryPolicy) totalAmountAtHeight(
+	height, initialTotalAmount uint64,
+	blockRewardActivationHeight proto.Height,
+) (uint64, error) {
 	changesRecords, err := m.getRewardChanges()
 	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
 		return 0, err
 	}
-	changesRecords = append([]rewardChangesRecord{{blockRewardActivationHeight, m.settings.InitialBlockReward}}, changesRecords...)
+	changesRecords = append([]rewardChangesRecord{{
+		Height: blockRewardActivationHeight,
+		Reward: m.settings.InitialBlockReward,
+	}}, changesRecords...)
 
 	curTotalAmount := initialTotalAmount
 	prevHeight := uint64(0)

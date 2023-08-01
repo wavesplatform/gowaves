@@ -1340,10 +1340,7 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 }
 
 func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height); err != nil {
-		return err
-	}
-	return nil
+	return s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height)
 }
 
 func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error {
