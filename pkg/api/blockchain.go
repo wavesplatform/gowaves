@@ -37,7 +37,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 
 	cappedRewardsActivated, err := a.state.IsActiveAtHeight(int16(settings.CappedRewards), height)
 	if err != nil {
-		return rewardInfoResponse{}, err
+		return rewardInfoResponse{}, errors.Wrap(err, "Capped rewards feature is not activated yet")
 	}
 	set, err := a.state.BlockchainSettings()
 	if err != nil {
@@ -52,7 +52,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 
 	reward, err := a.state.RewardAtHeight(height)
 	if err != nil {
-		return rewardInfoResponse{}, err
+		return rewardInfoResponse{}, errors.Wrap(err, "Failed get reward at height")
 	}
 
 	blockRewardDistributionActivated, err := a.state.IsActiveAtHeight(int16(settings.BlockRewardDistribution), height)
@@ -71,13 +71,13 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 		xtnBuybackAddress = set.XTNBuybackAddress(xtnBuyBackCessation).String()
 	}
 
-	votes, err := a.state.RewardVotes()
+	votes, err := a.state.RewardVotes(height)
 	if err != nil {
-		return rewardInfoResponse{}, err
+		return rewardInfoResponse{}, errors.Wrap(err, "Failed get reward votes at height")
 	}
 	totalAmount, err := a.state.TotalWavesAmount(height)
 	if err != nil {
-		return rewardInfoResponse{}, err
+		return rewardInfoResponse{}, errors.Wrap(err, "Failed get total waves amount at height")
 	}
 	return rewardInfoResponse{
 		Height:              height,

@@ -11,24 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-func TestBlockRewardRecord(t *testing.T) {
-	for _, test := range []uint64{
-		0,
-		1,
-		1234567890,
-		math.MaxUint64,
-	} {
-		r1 := blockRewardRecord{reward: test}
-		b, err := r1.marshalBinary()
-		require.NoError(t, err)
-		var r2 blockRewardRecord
-		err = r2.unmarshalBinary(b)
-		require.NoError(t, err)
-		assert.Equal(t, r1, r2)
-		assert.Equal(t, test, r2.reward)
-	}
-}
-
 func TestRewardVotesRecord(t *testing.T) {
 	for _, test := range []struct {
 		dec uint32
@@ -177,7 +159,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		if h == end {
 			nextID := ids[i+1]
 			storage.prepareBlock(t, nextID)
-			err = mo.updateBlockReward(id, nextID)
+			err = mo.updateBlockReward(id, nextID, h)
 			require.NoError(t, err)
 		}
 	}

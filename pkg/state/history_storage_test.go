@@ -172,25 +172,3 @@ func TestVariableSizes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1+4+4+4+4+4+5, s2)
 }
-
-func TestFixedRecordSizes(t *testing.T) {
-	to := createStorageObjects(t, true)
-
-	to.addBlock(t, blockID0)
-	val1 := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	err := to.hs.addNewEntry(blockReward, blockRewardKeyBytes, val1, blockID0)
-	assert.NoError(t, err, "addNewEntry() failed")
-	to.flush(t)
-
-	to.addBlock(t, blockID1)
-	val2 := []byte{0, 0, 0, 0, 0, 0, 0, 1}
-	err = to.hs.addNewEntry(blockReward, blockRewardKeyBytes, val2, blockID1)
-	assert.NoError(t, err, "addNewEntry() failed")
-	to.flush(t)
-
-	h, err := to.hs.getHistory(blockRewardKeyBytes, true)
-	assert.NoError(t, err)
-	s, err := h.countTotalSize()
-	assert.NoError(t, err)
-	assert.Equal(t, 1+blockRewardRecordSize+4+blockRewardRecordSize+4, s)
-}

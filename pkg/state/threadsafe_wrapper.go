@@ -362,10 +362,10 @@ func (a *ThreadSafeReadWrapper) RewardAtHeight(height proto.Height) (uint64, err
 	return a.s.RewardAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) RewardVotes() (proto.RewardVotes, error) {
+func (a *ThreadSafeReadWrapper) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.RewardVotes()
+	return a.s.RewardVotes(height)
 }
 
 func (a *ThreadSafeReadWrapper) TotalWavesAmount(height proto.Height) (uint64, error) {

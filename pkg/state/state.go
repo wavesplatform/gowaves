@@ -61,8 +61,6 @@ type blockchainEntitiesStorage struct {
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
 	hitSources        *hitSources
-	rewards           *rewardsStorage
-	amount            *totalWavesAmountStorage
 	calculateHashes   bool
 }
 
@@ -95,8 +93,6 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs),
-		newRewardsStorage(hs),
-		newTotalAmountStorage(hs),
 		calcHashes,
 	}, nil
 }
@@ -591,9 +587,6 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
 		return err
 	}
-	if err := s.putTotalWavesAmountAndRewardsForGenesis(); err != nil {
-		return err
-	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
@@ -616,21 +609,6 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	s.reset()
 	return nil
-}
-
-func (s *stateManager) putTotalWavesAmountAndRewardsForGenesis() error {
-	totalAmount := uint64(0)
-	for _, tx := range s.genesis.Transactions {
-		txG, ok := tx.(*proto.Genesis)
-		if !ok {
-			continue
-		}
-		totalAmount += txG.Amount
-	}
-	if err := s.stor.amount.saveTotalWavesAmount(totalAmount, 1, s.genesis.BlockID()); err != nil {
-		return err
-	}
-	return s.stor.rewards.saveReward(0, 1, s.genesis.BlockID())
 }
 
 func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto.BlockID) error {
@@ -697,7 +675,15 @@ func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 }
 
 func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
-	reward, err := s.stor.monetaryPolicy.reward()
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return proto.Rewards{}, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return nil, err
+	}
+	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -1338,7 +1324,7 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(lastBlock, nextBlock); err != nil {
+		if err = s.updateBlockReward(lastBlock, nextBlock, blockchainHeight); err != nil {
 			return err
 		}
 	}
@@ -1353,8 +1339,8 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID); err != nil {
+func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
+	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height); err != nil {
 		return err
 	}
 	return nil
@@ -1485,10 +1471,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var ids []proto.BlockID
-	curTotalWavesAmount, err := s.stor.amount.totalWavesAmount(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
@@ -1528,11 +1510,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
 			return nil, err
 		}
-		newAmount, errStoreRewards := s.storeTotalWavesAmountAndReward(blockchainCurHeight+1, block.BlockID(), curTotalWavesAmount)
-		if errStoreRewards != nil {
-			return nil, wrapErr(ModificationError, errStoreRewards)
-		}
-		curTotalWavesAmount = newAmount
 
 		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
 			// If we need to finish voting period on the next block (h+1) then
@@ -1575,20 +1552,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		lastAppliedBlock.Timestamp,
 	)
 	return lastAppliedBlock, nil
-}
-
-func (s *stateManager) storeTotalWavesAmountAndReward(height proto.Height, blockID proto.BlockID, curTotalAmount uint64) (uint64, error) {
-	reward, err := s.stor.monetaryPolicy.reward()
-	if err != nil {
-		return 0, err
-	}
-	if err = s.stor.rewards.saveReward(reward, height, blockID); err != nil {
-		return 0, err
-	}
-	if err = s.stor.amount.saveTotalWavesAmount(curTotalAmount+reward, height, blockID); err != nil {
-		return 0, err
-	}
-	return curTotalAmount + reward, nil
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {
@@ -2549,14 +2512,25 @@ func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
 	if !blockRewardActivated {
 		return 0, nil
 	}
-	reward, err := s.stor.rewards.reward(height)
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return 0, err
+	}
+	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return reward, nil
 }
 
-func (s *stateManager) RewardVotes() (proto.RewardVotes, error) {
+func (s *stateManager) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
+	start, end, err := s.blockRewardVotingPeriod(height)
+	if err != nil {
+		return proto.RewardVotes{}, err
+	}
+	if !isBlockRewardVotingPeriod(start, end, height) {
+		return proto.RewardVotes{}, nil
+	}
 	v, err := s.stor.monetaryPolicy.votes()
 	if err != nil {
 		return proto.RewardVotes{}, err
@@ -2564,8 +2538,29 @@ func (s *stateManager) RewardVotes() (proto.RewardVotes, error) {
 	return proto.RewardVotes{Increase: v.increase, Decrease: v.decrease}, nil
 }
 
+func (s *stateManager) getInitialTotalWavesAmount() uint64 {
+	totalAmount := uint64(0)
+	for _, tx := range s.genesis.Transactions {
+		txG, ok := tx.(*proto.Genesis)
+		if !ok {
+			continue
+		}
+		totalAmount += txG.Amount
+	}
+	return totalAmount
+}
+
 func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
-	amount, err := s.stor.amount.totalWavesAmount(height)
+	initialTotalAmount := s.getInitialTotalWavesAmount()
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return initialTotalAmount, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return initialTotalAmount, err
+	}
+	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

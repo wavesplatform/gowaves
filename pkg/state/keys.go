@@ -15,17 +15,15 @@ const (
 	// Key sizes.
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
-	wavesBalanceKeySize        = 1 + proto.AddressIDSize
-	assetBalanceKeySize        = 1 + proto.AddressIDSize + proto.AssetIDSize
-	leaseKeySize               = 1 + crypto.DigestSize
-	aliasKeySize               = 1 + 2 + proto.AliasMaxLength
-	addressToAliasesKeySize    = 1 + proto.AddressIDSize
-	disabledAliasKeySize       = 1 + 2 + proto.AliasMaxLength
-	approvedFeaturesKeySize    = 1 + 2
-	votesFeaturesKeySize       = 1 + 2
-	invokeResultKeySize        = 1 + crypto.DigestSize
-	blockRewardAtHeightKeySize = 1 + 8
-	totalWavesAmountKeySize    = 1 + 8
+	wavesBalanceKeySize     = 1 + proto.AddressIDSize
+	assetBalanceKeySize     = 1 + proto.AddressIDSize + proto.AssetIDSize
+	leaseKeySize            = 1 + crypto.DigestSize
+	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
+	addressToAliasesKeySize = 1 + proto.AddressIDSize
+	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
+	approvedFeaturesKeySize = 1 + 2
+	votesFeaturesKeySize    = 1 + 2
+	invokeResultKeySize     = 1 + crypto.DigestSize
 )
 
 // Primary prefixes for storage keys
@@ -100,8 +98,8 @@ const (
 	accountOriginalEstimatorVersionKeyPrefix
 
 	// Block Reward.
-	blockRewardKeyPrefix
 	rewardVotesKeyPrefix
+	rewardChangesKeyPrefix
 
 	// Batched storage (see batched_storage.go).
 	batchedStorKeyPrefix
@@ -125,10 +123,6 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
-
-	// Store reward at height.
-	blockRewardAtHeightKeyPrefix
-	totalWavesAmountKeyPrefix
 )
 
 var (
@@ -174,8 +168,6 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{assetScriptComplexityKeyPrefix}, nil
 	case rewardVotes:
 		return []byte{rewardVotesKeyPrefix}, nil
-	case blockReward:
-		return []byte{blockRewardKeyPrefix}, nil
 	case invokeResult:
 		return []byte{invokeResultKeyPrefix}, nil
 	case score:
@@ -188,10 +180,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{blocksInfoKeyPrefix}, nil
 	case accountOriginalEstimatorVersion:
 		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
-	case blockRewardAtHeight:
-		return []byte{blockRewardAtHeightKeyPrefix}, nil
-	case totalWavesAmount:
-		return []byte{totalWavesAmountKeyPrefix}, nil
+	case rewardChanges:
+		return []byte{rewardChangesKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -707,28 +697,6 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
-	binary.BigEndian.PutUint64(buf[1:], k.height)
-	return buf
-}
-
-type blockRewardAtHeightKey struct {
-	height uint64
-}
-
-func (k *blockRewardAtHeightKey) bytes() []byte {
-	buf := make([]byte, blockRewardAtHeightKeySize)
-	buf[0] = blockRewardAtHeightKeyPrefix
-	binary.BigEndian.PutUint64(buf[1:], k.height)
-	return buf
-}
-
-type totalWavesAmountKey struct {
-	height uint64
-}
-
-func (k *totalWavesAmountKey) bytes() []byte {
-	buf := make([]byte, totalWavesAmountKeySize)
-	buf[0] = totalWavesAmountKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

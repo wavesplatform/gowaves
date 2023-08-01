@@ -2,6 +2,8 @@ package state
 
 import (
 	"encoding/binary"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -13,27 +15,9 @@ const (
 )
 
 var (
-	rewardVotesKeyBytes = []byte{rewardVotesKeyPrefix}
-	blockRewardKeyBytes = []byte{blockRewardKeyPrefix}
+	rewardVotesKeyBytes   = []byte{rewardVotesKeyPrefix}
+	rewardChangesKeyBytes = []byte{rewardChangesKeyPrefix}
 )
-
-type blockRewardRecord struct {
-	reward uint64
-}
-
-func (r *blockRewardRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, blockRewardRecordSize)
-	binary.BigEndian.PutUint64(res, r.reward)
-	return res, nil
-}
-
-func (r *blockRewardRecord) unmarshalBinary(data []byte) error {
-	if len(data) != blockRewardRecordSize {
-		return errInvalidDataSize
-	}
-	r.reward = binary.BigEndian.Uint64(data)
-	return nil
-}
 
 type rewardVotesRecord struct {
 	increase uint32
@@ -66,18 +50,14 @@ func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
-	var record blockRewardRecord
-	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes)
-	if isNotFoundInHistoryOrDBErr(err) {
+	rewardsChanges, err := m.getRewardChanges()
+	if isNotFoundInHistoryOrDBErr(err) || len(rewardsChanges) == 0 {
 		return m.settings.InitialBlockReward, nil
 	}
 	if err != nil {
 		return 0, err
 	}
-	if err := record.unmarshalBinary(b); err != nil {
-		return 0, err
-	}
-	return record.reward, nil
+	return rewardsChanges[len(rewardsChanges)-1].Reward, nil
 }
 
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
@@ -136,7 +116,7 @@ func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
 	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 }
 
-func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
+func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
 	votes, err := m.votes()
 	if err != nil {
 		return err
@@ -154,13 +134,7 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 	default:
 		return m.resetBlockRewardVotes(nextBlockID) // nothing to do, reward remains the same, reset votes on the next block
 	}
-	record := blockRewardRecord{reward}
-	recordBytes, err := record.marshalBinary()
-	if err != nil {
-		return err
-	}
-	// bind block reward to the last applied block
-	if err := m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, lastBlockID); err != nil {
+	if err = m.saveNewRewardChange(reward, height, lastBlockID); err != nil {
 		return err
 	}
 	// bind votes reset to the next block which is being applied
@@ -176,4 +150,77 @@ func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height
 
 func isBlockRewardVotingPeriod(start, end, height proto.Height) bool {
 	return height >= start && height <= end
+}
+
+type rewardChangesRecord struct {
+	Height uint64 `cbor:"0,keyasint"`
+	Reward uint64 `cbor:"1,keyasint"`
+}
+
+func (m *monetaryPolicy) getRewardChanges() ([]rewardChangesRecord, error) {
+	prevRecordBytes, err := m.hs.newestTopEntryData(rewardChangesKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	var changesRecords []rewardChangesRecord
+	if err = cbor.Unmarshal(prevRecordBytes, &changesRecords); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal reward changes records")
+	}
+	return changesRecords, nil
+}
+
+func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Height, blockID proto.BlockID) error {
+	changesRecords, err := m.getRewardChanges()
+	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+		return err
+	}
+	changesRecords = append(changesRecords, rewardChangesRecord{Height: height, Reward: newReward})
+	newRecordBytes, err := cbor.Marshal(changesRecords)
+	if err != nil {
+		return errors.Wrapf(err, "failed to save reward changes in height '%d' in block '%s'", height, blockID.String())
+	}
+	return m.hs.addNewEntry(rewardChanges, rewardChangesKeyBytes, newRecordBytes, blockID)
+}
+
+func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivationHeight proto.Height) (uint64, error) {
+	changesRecords, err := m.getRewardChanges()
+	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+		return 0, err
+	}
+	changesRecords = append([]rewardChangesRecord{{blockRewardActivationHeight, m.settings.InitialBlockReward}}, changesRecords...)
+
+	curReward := uint64(0)
+	for _, change := range changesRecords {
+		curReward = change.Reward
+		if height < change.Height {
+			break
+		}
+	}
+	return curReward, nil
+}
+
+func (m *monetaryPolicy) totalAmountAtHeight(height, initialTotalAmount uint64, blockRewardActivationHeight proto.Height) (uint64, error) {
+	changesRecords, err := m.getRewardChanges()
+	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+		return 0, err
+	}
+	changesRecords = append([]rewardChangesRecord{{blockRewardActivationHeight, m.settings.InitialBlockReward}}, changesRecords...)
+
+	curTotalAmount := initialTotalAmount
+	prevHeight := uint64(0)
+	isNotLast := false
+	for i := len(changesRecords) - 1; i >= 0; i-- {
+		if height < changesRecords[i].Height {
+			continue
+		}
+		if height > changesRecords[i].Height && !isNotLast {
+			curTotalAmount += changesRecords[i].Reward * (height - changesRecords[i].Height)
+			isNotLast = true
+		} else {
+			curTotalAmount += changesRecords[i].Reward * (prevHeight - changesRecords[i].Height)
+		}
+		prevHeight = changesRecords[i].Height
+	}
+
+	return curTotalAmount, nil
 }
