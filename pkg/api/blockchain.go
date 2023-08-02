@@ -9,21 +9,22 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type rewardInfoResponse struct {
-	Height              proto.Height      `json:"height"`
-	TotalWavesAmount    uint64            `json:"totalWavesAmount"`
-	CurrentReward       uint64            `json:"currentReward"`
-	MinIncrement        uint64            `json:"minIncrement"`
-	Term                uint64            `json:"term"`
-	NextCheck           uint64            `json:"nextCheck"`
-	VotingIntervalStart uint64            `json:"votingIntervalStart"`
-	VotingInterval      uint64            `json:"votingInterval"`
-	VotingThreshold     uint64            `json:"votingThreshold"`
-	Votes               proto.RewardVotes `json:"votes"`
-	DAOAddress          string            `json:"daoAddress,omitempty"`
-	XTNBuybackAddress   string            `json:"xtnBuybackAddress,omitempty"`
+	Height              proto.Height        `json:"height"`
+	TotalWavesAmount    uint64              `json:"totalWavesAmount"`
+	CurrentReward       uint64              `json:"currentReward"`
+	MinIncrement        uint64              `json:"minIncrement"`
+	Term                uint64              `json:"term"`
+	NextCheck           uint64              `json:"nextCheck"`
+	VotingIntervalStart uint64              `json:"votingIntervalStart"`
+	VotingInterval      uint64              `json:"votingInterval"`
+	VotingThreshold     uint64              `json:"votingThreshold"`
+	Votes               proto.RewardVotes   `json:"votes"`
+	DAOAddress          *proto.WavesAddress `json:"daoAddress,omitempty"`
+	XTNBuybackAddress   *proto.WavesAddress `json:"xtnBuybackAddress,omitempty"`
 }
 
 func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error) {
@@ -48,7 +49,7 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 		return rewardInfoResponse{}, err
 	}
 
-	nextCheck := set.NextRewardTerm(height, blockRewardHeight, cappedRewardsActivated)
+	nextCheck := state.NextRewardTerm(height, blockRewardHeight, set, cappedRewardsActivated)
 
 	reward, err := a.state.RewardAtHeight(height)
 	if err != nil {
@@ -64,11 +65,15 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 		return rewardInfoResponse{}, err
 	}
 
-	var daoAddress string
-	var xtnBuybackAddress string
+	var daoAddress *proto.WavesAddress
+	var xtnBuybackAddress *proto.WavesAddress
 	if blockRewardDistributionActivated && len(set.CurrentRewardAddresses(xtnBuyBackCessation)) > 0 {
-		daoAddress = set.DAOAddress(xtnBuyBackCessation).String()
-		xtnBuybackAddress = set.XTNBuybackAddress(xtnBuyBackCessation).String()
+		if dao, ok := set.DAOAddress(xtnBuyBackCessation); ok {
+			daoAddress = &dao
+		}
+		if xtn, ok := set.XTNBuybackAddress(xtnBuyBackCessation); ok {
+			xtnBuybackAddress = &xtn
+		}
 	}
 
 	votes, err := a.state.RewardVotes(height)
@@ -114,7 +119,7 @@ func (a *NodeApi) blockchainRewardsAtHeight(w http.ResponseWriter, r *http.Reque
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return &BadRequestError{err}
+		return errors.Wrap(err, "failed to parse height in request")
 	}
 	res, err := a.rewardAtHeight(height)
 	if err != nil {

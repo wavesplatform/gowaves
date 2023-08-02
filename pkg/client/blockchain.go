@@ -9,18 +9,18 @@ import (
 )
 
 type RewardInfo struct {
-	Height              proto.Height      `json:"height"`
-	TotalWavesAmount    uint64            `json:"totalWavesAmount"`
-	CurrentReward       uint64            `json:"currentReward"`
-	MinIncrement        uint64            `json:"minIncrement"`
-	Term                uint64            `json:"term"`
-	NextCheck           uint64            `json:"nextCheck"`
-	VotingIntervalStart uint64            `json:"votingIntervalStart"`
-	VotingInterval      uint64            `json:"votingInterval"`
-	VotingThreshold     uint64            `json:"votingThreshold"`
-	Votes               proto.RewardVotes `json:"votes"`
-	DAOAddress          string            `json:"daoAddress,omitempty"`
-	XTNBuybackAddress   string            `json:"xtnBuybackAddress,omitempty"`
+	Height              proto.Height        `json:"height"`
+	TotalWavesAmount    uint64              `json:"totalWavesAmount"`
+	CurrentReward       uint64              `json:"currentReward"`
+	MinIncrement        uint64              `json:"minIncrement"`
+	Term                uint64              `json:"term"`
+	NextCheck           uint64              `json:"nextCheck"`
+	VotingIntervalStart uint64              `json:"votingIntervalStart"`
+	VotingInterval      uint64              `json:"votingInterval"`
+	VotingThreshold     uint64              `json:"votingThreshold"`
+	Votes               proto.RewardVotes   `json:"votes"`
+	DAOAddress          *proto.WavesAddress `json:"daoAddress,omitempty"`
+	XTNBuybackAddress   *proto.WavesAddress `json:"xtnBuybackAddress,omitempty"`
 }
 
 type Blockchain struct {

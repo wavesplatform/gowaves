@@ -133,25 +133,19 @@ func (f *FunctionalitySettings) CurrentRewardAddresses(isXTNBuyBackCessationActi
 	return f.RewardAddresses
 }
 
-func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) proto.WavesAddress {
+func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
 	addresses := f.CurrentRewardAddresses(isXTNBuyBackCessationActivated)
 	if len(addresses) >= LenWithDAOAddress {
-		return addresses[0]
+		return addresses[0], true
 	}
-	return proto.WavesAddress{}
+	return proto.WavesAddress{}, false
 }
 
-func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) proto.WavesAddress {
+func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
 	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= LenWithDAOAndXTNBuybackAddresses {
-		return f.RewardAddresses[1]
+		return f.RewardAddresses[1], true
 	}
-	return proto.WavesAddress{}
-}
-
-func (f *FunctionalitySettings) NextRewardTerm(height, activation proto.Height, isCappedRewardsActivated bool) uint64 {
-	blockRewardTerm := f.CurrentBlockRewardTerm(isCappedRewardsActivated)
-	diff := height - activation
-	return activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
+	return proto.WavesAddress{}, false
 }
 
 type BlockchainSettings struct {

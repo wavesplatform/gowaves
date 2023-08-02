@@ -144,7 +144,7 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
-	next := m.settings.NextRewardTerm(height, activation, isCappedRewardsActivated)
+	next := NextRewardTerm(height, activation, m.settings, isCappedRewardsActivated)
 	start = next - m.settings.BlockRewardVotingPeriod
 	end = next - 1
 	return start, end
@@ -159,13 +159,24 @@ type rewardChangesRecord struct {
 	Reward uint64 `cbor:"1,keyasint"`
 }
 
-func (m *monetaryPolicy) getRewardChanges() ([]rewardChangesRecord, error) {
+type rewardChangesRecords []rewardChangesRecord
+
+func (r *rewardChangesRecords) marshalBinary() ([]byte, error) {
+	return cbor.Marshal(*r)
+}
+
+func (r *rewardChangesRecords) unmarshalBinary(recordBytes []byte) error {
+	return cbor.Unmarshal(recordBytes, r)
+}
+
+func (m *monetaryPolicy) getRewardChanges() (rewardChangesRecords, error) {
 	prevRecordBytes, err := m.hs.newestTopEntryData(rewardChangesKeyBytes())
 	if err != nil {
 		return nil, err
 	}
-	var changesRecords []rewardChangesRecord
-	if err = cbor.Unmarshal(prevRecordBytes, &changesRecords); err != nil {
+	var changesRecords rewardChangesRecords
+
+	if err = changesRecords.unmarshalBinary(prevRecordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal reward changes records")
 	}
 	return changesRecords, nil
@@ -177,7 +188,7 @@ func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Heig
 		return err
 	}
 	changesRecords = append(changesRecords, rewardChangesRecord{Height: height, Reward: newReward})
-	newRecordBytes, err := cbor.Marshal(changesRecords)
+	newRecordBytes, err := changesRecords.marshalBinary()
 	if err != nil {
 		return errors.Wrapf(err, "failed to save reward changes in height '%d' in block '%s'", height, blockID.String())
 	}
@@ -189,7 +200,7 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
 		return 0, err
 	}
-	changesRecords = append([]rewardChangesRecord{{
+	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
 		Reward: m.settings.InitialBlockReward,
 	}}, changesRecords...)
@@ -212,7 +223,7 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
 		return 0, err
 	}
-	changesRecords = append([]rewardChangesRecord{{
+	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
 		Reward: m.settings.InitialBlockReward,
 	}}, changesRecords...)
@@ -234,4 +245,14 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	}
 
 	return curTotalAmount, nil
+}
+
+func NextRewardTerm(
+	height, activation proto.Height,
+	set *settings.BlockchainSettings,
+	isCappedRewardsActivated bool,
+) uint64 {
+	blockRewardTerm := set.CurrentBlockRewardTerm(isCappedRewardsActivated)
+	diff := height - activation
+	return activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
 }
