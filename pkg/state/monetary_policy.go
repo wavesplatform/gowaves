@@ -233,16 +233,17 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	prevHeight := uint64(0)
 	isNotLast := false
 	for i := len(changesRecords) - 1; i >= 0; i-- {
-		if height < changesRecords[i].Height {
+		change := changesRecords[i]
+		if height < change.Height {
 			continue
 		}
-		if height > changesRecords[i].Height && !isNotLast {
-			curTotalAmount += changesRecords[i].Reward * (height - changesRecords[i].Height)
+		if height > change.Height && !isNotLast {
+			curTotalAmount += change.Reward * (height - change.Height)
 			isNotLast = true
 		} else {
-			curTotalAmount += changesRecords[i].Reward * (prevHeight - changesRecords[i].Height)
+			curTotalAmount += change.Reward * (prevHeight - change.Height)
 		}
-		prevHeight = changesRecords[i].Height
+		prevHeight = change.Height
 	}
 
 	return curTotalAmount, nil
