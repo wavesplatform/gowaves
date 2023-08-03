@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -184,7 +185,7 @@ func (m *monetaryPolicy) getRewardChanges() (rewardChangesRecords, error) {
 
 func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Height, blockID proto.BlockID) error {
 	changesRecords, err := m.getRewardChanges()
-	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return err
 	}
 	changesRecords = append(changesRecords, rewardChangesRecord{Height: height, Reward: newReward})
@@ -197,7 +198,7 @@ func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Heig
 
 func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivationHeight proto.Height) (uint64, error) {
 	changesRecords, err := m.getRewardChanges()
-	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
 	}
 	changesRecords = append(rewardChangesRecords{{
@@ -220,7 +221,7 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	blockRewardActivationHeight proto.Height,
 ) (uint64, error) {
 	changesRecords, err := m.getRewardChanges()
-	if !isNotFoundInHistoryOrDBErr(err) && err != nil {
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
 	}
 	changesRecords = append(rewardChangesRecords{{
