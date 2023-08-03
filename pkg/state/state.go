@@ -2540,7 +2540,7 @@ func (s *stateManager) getInitialTotalWavesAmount() uint64 {
 	for _, tx := range s.genesis.Transactions {
 		txG, ok := tx.(*proto.Genesis)
 		if !ok {
-			continue
+			panic(fmt.Sprintf("tx type (%T) must be genesis tx type", tx))
 		}
 		totalAmount += txG.Amount
 	}
