@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -23,8 +24,12 @@ func getRewardDistribution(suite *f.BaseSuite, td testdata.RewardDistributionTes
 	//feature 19 should be activated
 	utl.FeatureShouldBeActivated(suite, 19, h)
 	//feature 20 should be activated
+	utl.WaitForHeight(suite, 15)
+	fmt.Println(suite.Clients.StateHashCmp(suite.T(), h))
 	utl.FeatureShouldBeActivated(suite, 20, utl.WaitForFeatureActivation(suite, h, 20))
-
+	fmt.Println(suite.Clients.StateHashCmp(suite.T(), h))
+	fmt.Println(utl.GetAvailableBalanceInWaves(suite, td.DaoAccount.Address))
+	fmt.Println(utl.GetAvailableBalanceInWaves(suite, td.XtnBuyBackAccount.Address))
 	//get reward distribution for 1 block
 	rewardDistributions := reward_utilities.GetBlockRewardDistribution(suite, td)
 
