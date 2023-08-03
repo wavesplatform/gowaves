@@ -468,7 +468,7 @@ func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64
 func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	fmt.Println(GetActivationFeaturesStatusInfoGo(suite, height))
+	//fmt.Println(GetActivationFeaturesStatusInfoGo(suite, height))
 	if GetFeatureBlockchainStatusGo(suite, featureId, height) != "ACTIVATED" {
 		activationHeight = -1
 	}
@@ -478,7 +478,7 @@ func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, height uint64) int3
 func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	fmt.Println(GetActivationFeaturesStatusInfoScala(suite, height))
+	//fmt.Println(GetActivationFeaturesStatusInfoScala(suite, height))
 	if GetFeatureBlockchainStatusScala(suite, featureId, height) != "ACTIVATED" {
 		activationHeight = -1
 	}
