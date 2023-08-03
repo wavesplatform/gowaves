@@ -28,8 +28,8 @@ const (
 )
 
 const (
-	LenWithDAOAddress                = 1
-	LenWithDAOAndXTNBuybackAddresses = 2
+	lenWithDAOAddress                = 1
+	lenWithDAOAndXTNBuybackAddresses = 2
 )
 
 var (
@@ -135,14 +135,14 @@ func (f *FunctionalitySettings) CurrentRewardAddresses(isXTNBuyBackCessationActi
 
 func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
 	addresses := f.CurrentRewardAddresses(isXTNBuyBackCessationActivated)
-	if len(addresses) >= LenWithDAOAddress {
+	if len(addresses) >= lenWithDAOAddress {
 		return addresses[0], true
 	}
 	return proto.WavesAddress{}, false
 }
 
 func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
-	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= LenWithDAOAndXTNBuybackAddresses {
+	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= lenWithDAOAndXTNBuybackAddresses {
 		return f.RewardAddresses[1], true
 	}
 	return proto.WavesAddress{}, false
