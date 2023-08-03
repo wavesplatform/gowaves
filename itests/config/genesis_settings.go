@@ -215,7 +215,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.SponsorshipSingleActivationPeriod = true
 	cfg.MinUpdateAssetInfoInterval = 2
 
-	cfg.FeaturesVotingPeriod = 1
+	cfg.FeaturesVotingPeriod = 5
 	cfg.VotesForFeatureActivation = 1
 
 	//reward settings

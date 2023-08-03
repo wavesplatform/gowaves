@@ -6,7 +6,7 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-func GetBlockRewardDistribution[T any](suite *f.BaseSuite, testdata testdata.RewardDistributionTestData[T], height uint64) utl.RewardDiffBalancesInWaves {
+func GetBlockRewardDistribution[T any](suite *f.BaseSuite, testdata testdata.RewardDistributionTestData[T]) utl.RewardDiffBalancesInWaves {
 	//init data
 	//get init balance in waves of miners accounts
 	initBalanceMiner1Go, initBalanceMiner1Scala := utl.GetAvailableBalanceInWaves(suite, testdata.Miner1Account.Address)
@@ -18,7 +18,7 @@ func GetBlockRewardDistribution[T any](suite *f.BaseSuite, testdata testdata.Rew
 	initBalanceDaoGo, initBalanceDaoScala := utl.GetAvailableBalanceInWaves(suite, testdata.DaoAccount.Address)
 	initBalanceXtnGo, initBalanceXtnScala := utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
 	//wait for 1 block
-	utl.WaitForHeight(suite, height+1)
+	utl.WaitForNewHeight(suite)
 	//get current balances of miners
 	currentBalanceMiner1Go, currentBalanceMiner1Scala := utl.GetAvailableBalanceInWaves(suite, testdata.Miner1Account.Address)
 	currentBalanceMiner2Go, currentBalanceMiner2Scala := utl.GetAvailableBalanceInWaves(suite, testdata.Miner2Account.Address)

@@ -15,9 +15,9 @@ type RewardDistributionTestData[T any] struct {
 }
 
 type RewardDistributionExpectedValuesPositive struct {
-	MinersSumDiffBalance uint64
-	DaoDiffBalance       uint64
-	XtnDiffBalance       uint64
+	MinersSumDiffBalance int64
+	DaoDiffBalance       int64
+	XtnDiffBalance       int64
 	_                    struct{}
 }
 
@@ -43,7 +43,7 @@ func GetRewardIncreaseDaoXtnTestDataPositive(suite *f.BaseSuite) RewardDistribut
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValuesPositive{
-			MinersSumDiffBalance: utl.GetInitReward(suite) - 200000000 - 200000000,
+			MinersSumDiffBalance: int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) - 200000000 - 200000000,
 			DaoDiffBalance:       200000000,
 			XtnDiffBalance:       200000000,
 		})
@@ -72,8 +72,8 @@ func GetRewardDecreaseDaoXtnTestDataPositive(suite *f.BaseSuite) RewardDistribut
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValuesPositive{
 			MinersSumDiffBalance: 200000000,
-			DaoDiffBalance:       (utl.GetInitReward(suite) - 200000000) / 2,
-			XtnDiffBalance:       (utl.GetInitReward(suite) - 200000000) / 2,
+			DaoDiffBalance:       int64((utl.GetInitReward(suite) - 200000000) / 2),
+			XtnDiffBalance:       int64((utl.GetInitReward(suite) - 200000000) / 2),
 		})
 }
 
@@ -85,7 +85,7 @@ func GetRewardIncreaseDaoTestDataPositive(suite *f.BaseSuite) RewardDistribution
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		nil,
 		RewardDistributionExpectedValuesPositive{
-			MinersSumDiffBalance: utl.GetInitReward(suite) - 200000000,
+			MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 200000000,
 			DaoDiffBalance:       200000000,
 			XtnDiffBalance:       0,
 		})
@@ -99,7 +99,7 @@ func GetRewardUnchangedXtnTestDataPositive(suite *f.BaseSuite) RewardDistributio
 		nil,
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValuesPositive{
-			MinersSumDiffBalance: utl.GetInitReward(suite) - 200000000,
+			MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 200000000,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       200000000,
 		})
@@ -127,7 +127,7 @@ func GetRewardTestDataPositive(suite *f.BaseSuite) RewardDistributionTestData[Re
 		nil,
 		nil,
 		RewardDistributionExpectedValuesPositive{
-			MinersSumDiffBalance: utl.GetInitReward(suite),
+			MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 		})
@@ -155,7 +155,7 @@ func GetRewardF19NotActivateTestDataPositive(suite *f.BaseSuite) RewardDistribut
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValuesPositive{
-			MinersSumDiffBalance: utl.GetInitReward(suite),
+			MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 		})
