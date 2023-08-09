@@ -201,6 +201,10 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
 	}
+	// no rewards in genesis
+	if blockRewardActivationHeight == 1 {
+		blockRewardActivationHeight += 1
+	}
 	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
 		Reward: m.settings.InitialBlockReward,
@@ -208,10 +212,10 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 
 	curReward := uint64(0)
 	for _, change := range changesRecords {
-		curReward = change.Reward
 		if height < change.Height {
 			break
 		}
+		curReward = change.Reward
 	}
 	return curReward, nil
 }
@@ -223,6 +227,10 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	changesRecords, err := m.getRewardChanges()
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
+	}
+	// no rewards in genesis
+	if blockRewardActivationHeight == 1 {
+		blockRewardActivationHeight += 1
 	}
 	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
@@ -238,12 +246,12 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 			continue
 		}
 		if height > change.Height && !isNotLast {
-			curTotalAmount += change.Reward * (height - change.Height)
+			curTotalAmount += change.Reward * (height - (change.Height - 1))
 			isNotLast = true
 		} else {
-			curTotalAmount += change.Reward * (prevHeight - change.Height)
+			curTotalAmount += change.Reward * (prevHeight - (change.Height - 1))
 		}
-		prevHeight = change.Height
+		prevHeight = change.Height - 1
 	}
 
 	return curTotalAmount, nil

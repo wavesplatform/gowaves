@@ -165,6 +165,51 @@ func TestFinishRewardVoting(t *testing.T) {
 	}
 }
 
+func TestRewardAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+	ids := genRandBlockIds(t, 1)
+	var (
+		blockRewardActivationHeight = uint64(1)
+		initialReward               = uint64(600000000)
+	)
+	storage.addBlock(t, ids[0])
+	err := mo.saveNewRewardChange(initialReward+100000000, 5, ids[0])
+	require.NoError(t, err)
+
+	reward, err := mo.rewardAtHeight(4, blockRewardActivationHeight)
+	require.NoError(t, err)
+	assert.Equal(t, initialReward, reward)
+
+	reward, err = mo.rewardAtHeight(10, blockRewardActivationHeight)
+	require.NoError(t, err)
+	assert.Equal(t, initialReward+100000000, reward)
+}
+
+func TestTotalWavesAmountAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+	ids := genRandBlockIds(t, 1)
+	var (
+		blockRewardActivationHeight = uint64(1)
+		initialReward               = sets.InitialBlockReward
+		newReward                   = sets.InitialBlockReward + 1000000000
+		initialAmount               = uint64(1000000000)
+	)
+	storage.addBlock(t, ids[0])
+	err := mo.saveNewRewardChange(newReward, 5, ids[0])
+	require.NoError(t, err)
+
+	amount, err := mo.totalAmountAtHeight(4, initialAmount, blockRewardActivationHeight)
+	require.NoError(t, err)
+	assert.Equal(t, initialAmount+initialReward*3, amount)
+
+	amount, err = mo.totalAmountAtHeight(10, initialAmount, blockRewardActivationHeight)
+	require.NoError(t, err)
+	newAmunt := initialAmount + initialReward*3 + (newReward)*6
+	assert.Equal(t, newAmunt, amount)
+}
+
 func createTestObjects(t *testing.T, sets *settings.BlockchainSettings) (*monetaryPolicy, *testStorageObjects) {
 	storage := createStorageObjects(t, true)
 	mp := newMonetaryPolicy(storage.hs, sets)
