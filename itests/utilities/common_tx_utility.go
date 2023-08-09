@@ -454,21 +454,20 @@ func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, feat
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
 	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
 	require.NoError(suite.T(), err, "Couldn't get feature status info")
-	fmt.Printf("Go: Status of feature %d on height @%d: %s\n", featureId, h, status)
+	suite.T().Logf("Go: Status of feature %d on height @%d: %s\n", featureId, h, status)
 	return status
 }
 
 func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64) string {
 	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
 	require.NoError(suite.T(), err, "Couldn't get feature status info")
-	fmt.Printf("Scala: Status of feature %d on height @%d: %s\n", featureId, h, status)
+	suite.T().Logf("Scala: Status of feature %d on height @%d: %s\n", featureId, h, status)
 	return status
 }
 
 func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	//fmt.Println(GetActivationFeaturesStatusInfoGo(suite, height))
 	if GetFeatureBlockchainStatusGo(suite, featureId, height) != "ACTIVATED" {
 		activationHeight = -1
 	}
@@ -478,23 +477,11 @@ func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, height uint64) int3
 func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	//fmt.Println(GetActivationFeaturesStatusInfoScala(suite, height))
 	if GetFeatureBlockchainStatusScala(suite, featureId, height) != "ACTIVATED" {
 		activationHeight = -1
 	}
 	return activationHeight
 }
-
-/*func IsFeatureActivated(suite *f.BaseSuite, featureId int, height uint64) int32 {
-	var activationHeight int32
-	activationHeight = -1
-	activationHeightGo := IsFeatureActivatedGo(suite, featureId, height)
-	activationHeightScala := IsFeatureActivatedScala(suite, featureId, height)
-	if (activationHeightScala == activationHeightGo) && activationHeightScala > -1 {
-		activationHeight = activationHeightGo
-	}
-	return activationHeight
-}*/
 
 func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureId int, height uint64) (string, error) {
 	var status string
@@ -729,7 +716,6 @@ func NewRewardDiffBalances(diffBalanceGoMiners, diffBalanceScalaMiners, diffBala
 
 func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
 	block := suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
-	fmt.Printf("Go Header @%d:\n%v\n", height, block.GetHeader())
 	return block.GetHeader().RewardVote
 }
 
