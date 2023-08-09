@@ -245,7 +245,7 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 		if height < change.Height {
 			continue
 		}
-		if height > change.Height && !isNotLast {
+		if height >= change.Height && !isNotLast {
 			curTotalAmount += change.Reward * (height - (change.Height - 1))
 			isNotLast = true
 		} else {
