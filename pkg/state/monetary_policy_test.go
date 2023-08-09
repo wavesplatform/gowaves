@@ -169,10 +169,12 @@ func TestRewardAtHeight(t *testing.T) {
 	sets := settings.MainNetSettings
 	mo, storage := createTestObjects(t, sets)
 	ids := genRandBlockIds(t, 1)
-	var (
+
+	const (
 		blockRewardActivationHeight = uint64(1)
 		initialReward               = uint64(600000000)
 	)
+
 	storage.addBlock(t, ids[0])
 	err := mo.saveNewRewardChange(initialReward+100000000, 5, ids[0])
 	require.NoError(t, err)
@@ -190,12 +192,14 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 	sets := settings.MainNetSettings
 	mo, storage := createTestObjects(t, sets)
 	ids := genRandBlockIds(t, 1)
-	var (
+
+	const (
 		blockRewardActivationHeight = uint64(1)
-		initialReward               = sets.InitialBlockReward
-		newReward                   = sets.InitialBlockReward + 1000000000
+		initialReward               = uint64(600000000)
+		newReward                   = initialReward + 1000000000
 		initialAmount               = uint64(1000000000)
 	)
+
 	storage.addBlock(t, ids[0])
 	err := mo.saveNewRewardChange(newReward, 5, ids[0])
 	require.NoError(t, err)

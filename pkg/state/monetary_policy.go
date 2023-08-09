@@ -203,7 +203,7 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	}
 	// no rewards in genesis
 	if blockRewardActivationHeight == 1 {
-		blockRewardActivationHeight += 1
+		blockRewardActivationHeight++
 	}
 	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
@@ -230,7 +230,7 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	}
 	// no rewards in genesis
 	if blockRewardActivationHeight == 1 {
-		blockRewardActivationHeight += 1
+		blockRewardActivationHeight++
 	}
 	changesRecords = append(rewardChangesRecords{{
 		Height: blockRewardActivationHeight,
