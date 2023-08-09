@@ -201,7 +201,8 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
 	}
-	// no rewards in genesis
+	// If the BlockReward feature was activated at the start of the blockchain, then its height will be 1.
+	// But in the first block (genesis), we don't have a reward for the block, so we should increment this height
 	if blockRewardActivationHeight == 1 {
 		blockRewardActivationHeight++
 	}
@@ -228,7 +229,8 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return 0, err
 	}
-	// no rewards in genesis
+	// If the BlockReward feature was activated at the start of the blockchain, then its height will be 1.
+	// But in the first block (genesis), we don't have a reward for the block, so we should increment this height
 	if blockRewardActivationHeight == 1 {
 		blockRewardActivationHeight++
 	}
