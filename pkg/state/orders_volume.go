@@ -76,7 +76,7 @@ func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange 
 	return ov.addNewRecord(orderID, prevVolume, blockID)
 }
 
-func (ov *ordersVolumes) newestFilled(orderID []byte) (amount, fee uint64, err error) {
+func (ov *ordersVolumes) newestFilled(orderID []byte) (uint64, uint64, error) {
 	volume, err := ov.newestVolumeById(orderID)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // No fee volume filled yet.

@@ -2,10 +2,6 @@ package state
 
 import (
 	"fmt"
-	"math"
-	"math/big"
-	"strings"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -16,6 +12,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
+	"math"
+	"math/big"
+	"strings"
 )
 
 type invokeApplier struct {
@@ -725,6 +724,208 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	return 0, totalChanges, nil
 }
 
+func (ia *invokeApplier) handleInvokeFunctionError(
+	err error,
+	info *fallibleValidationParams,
+	txID crypto.Digest,
+	checkerData txCheckerData,
+	failedChanges txBalanceChanges,
+) (*invocationResult, *applicationResult, error) {
+	// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
+	isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
+	if info.rideV6Activated {
+		if !info.acceptFailed || isCheap {
+			return nil, nil, errors.Wrapf(
+				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+				ride.EvaluationErrorSpentComplexity(err),
+				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+			)
+		}
+		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
+		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		return invocationRes, applicationRes, err
+	}
+	// Before RideV6 activation in the following cases the transaction is rejected:
+	// 1) Failing of transactions is not activated yet, reject everything
+	// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
+	// 3) The spent complexity is less than limit
+	switch ride.GetEvaluationErrorType(err) {
+	case ride.UserError, ride.RuntimeError, ride.ComplexityLimitExceed:
+		// Usual script error produced by user code or system functions.
+		// We reject transaction if spent complexity is less than limit.
+		if !info.acceptFailed || isCheap { // Reject transaction if no failed transactions or the transaction is cheap
+			return nil, nil, errors.Wrapf(
+				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+				ride.EvaluationErrorSpentComplexity(err),
+				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+			)
+		}
+		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
+		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		return invocationRes, applicationRes, err
+
+	case ride.InternalInvocationError:
+		// Special script error produced by internal script invocation or application of results.
+		// Reject transaction after certain height
+		rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
+		if !info.acceptFailed || rejectOnInvocationError || isCheap {
+			return nil, nil, errors.Wrapf(
+				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+				ride.EvaluationErrorSpentComplexity(err),
+				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+			)
+		}
+		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
+		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		return invocationRes, applicationRes, err
+
+	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
+		return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+	default:
+		return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+	}
+}
+
+type scriptParameters struct {
+	paymentsLength int
+	scriptAddr     proto.WavesAddress
+	txID           crypto.Digest
+	sender         proto.Address
+	tree           *ast.Tree
+	scriptPK       crypto.PublicKey
+}
+
+func (ia *invokeApplier) collectScriptParameters(tx proto.Transaction) (scriptParameters, error) {
+	scriptParams := scriptParameters{}
+	var err error
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		scriptParams.scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases)
+		if err != nil {
+			return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
+		}
+		scriptParams.paymentsLength = len(transaction.Payments)
+		scriptParams.txID = *transaction.ID
+		scriptParams.sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
+		}
+		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+		}
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+		}
+		scriptParams.scriptPK = si.PK
+
+	case *proto.InvokeExpressionTransactionWithProofs:
+		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
+		}
+		scriptParams.sender = addr
+		scriptParams.scriptAddr = addr
+		scriptParams.tree, err = serialization.Parse(transaction.Expression)
+		if err != nil {
+			return scriptParameters{}, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
+		}
+		scriptParams.txID = *transaction.ID
+		scriptParams.scriptPK = transaction.SenderPK
+
+	case *proto.EthereumTransaction:
+		scriptParams.scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+		if err != nil {
+			return scriptParameters{}, err
+		}
+		decodedData := transaction.TxKind.DecodedData()
+		scriptParams.paymentsLength = len(decodedData.Payments)
+		scriptParams.txID = *transaction.ID
+		scriptParams.sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
+		}
+		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+		}
+		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+		if err != nil {
+			return scriptParameters{}, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+		}
+		scriptParams.scriptPK = si.PK
+
+	default:
+		return scriptParameters{}, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
+	}
+
+	return scriptParams, nil
+}
+
+func (ia *invokeApplier) handleFallibleValidationError(err error,
+	txID crypto.Digest,
+	code proto.TxFailureReason,
+	info *fallibleValidationParams,
+	scriptRuns uint64,
+	r ride.Result) (*invocationResult, error) {
+
+	var invocationRes *invocationResult
+	if err != nil {
+		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())
+		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
+		if !info.acceptFailed ||
+			(ia.sc.recentTxComplexity <= FailFreeInvokeComplexity &&
+				info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight) {
+			return nil, err
+		}
+		invocationRes = &invocationResult{
+			failed:     true,
+			code:       code,
+			text:       err.Error(),
+			scriptRuns: scriptRuns,
+			actions:    r.ScriptActions(),
+		}
+	} else {
+		invocationRes = &invocationResult{
+			failed:     false,
+			scriptRuns: scriptRuns,
+			actions:    r.ScriptActions(),
+		}
+	}
+	return invocationRes, nil
+}
+
+func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
+	paymentSmartAssets []crypto.Digest,
+	scriptActions []proto.ScriptAction) (uint64, error) {
+	var scriptRuns uint64 = 0
+
+	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
+	if !info.rideV5Activated {
+		actionScriptRuns, err := ia.countActionScriptRuns(scriptActions)
+		if err != nil {
+			return 0, errors.Wrap(err, "failed to countActionScriptRuns")
+		}
+		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
+	}
+	if info.senderScripted {
+		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
+		if info.rideV5Activated {
+			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
+			if err != nil {
+				return 0, errors.Wrap(err, "invoke failed to get verifier complexity")
+			}
+			if treeEstimation.Verifier > FreeVerifierComplexity {
+				scriptRuns++
+			}
+		} else {
+			scriptRuns++
+		}
+	}
+	return scriptRuns, nil
+}
+
 // applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
 // If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
@@ -737,76 +938,9 @@ func (ia *invokeApplier) applyInvokeScript(
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
 
-	var (
-		paymentsLength int
-		scriptAddr     proto.WavesAddress
-		txID           crypto.Digest
-		sender         proto.Address
-		tree           *ast.Tree
-		scriptPK       crypto.PublicKey
-	)
-	switch transaction := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
-		var err error
-		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		paymentsLength = len(transaction.Payments)
-		txID = *transaction.ID
-		sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-		}
-		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-		}
-		scriptPK = si.PK
-
-	case *proto.InvokeExpressionTransactionWithProofs:
-		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		sender = addr
-		scriptAddr = addr
-		tree, err = serialization.Parse(transaction.Expression)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
-		}
-		txID = *transaction.ID
-		scriptPK = transaction.SenderPK
-
-	case *proto.EthereumTransaction:
-		var err error
-		scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, nil, err
-		}
-		decodedData := transaction.TxKind.DecodedData()
-		paymentsLength = len(decodedData.Payments)
-		txID = *transaction.ID
-		sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
-		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-		}
-		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-		}
-		scriptPK = si.PK
-
-	default:
-		return nil, nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
+	scriptParams, err := ia.collectScriptParameters(tx)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to collect script parameters")
 	}
 
 	// If BlockV5 feature is not activated, we never accept failed transactions.
@@ -827,13 +961,13 @@ func (ia *invokeApplier) applyInvokeScript(
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
-	if paymentsLength >= 2 && tree.LibVersion < ast.LibV4 {
-		return nil, nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
+	if scriptParams.paymentsLength >= 2 && scriptParams.tree.LibVersion < ast.LibV4 {
+		return nil, nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", scriptParams.tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
-	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == scriptAddr {
+	disableSelfTransfers := info.acceptFailed && scriptParams.tree.LibVersion >= 4
+	if disableSelfTransfers && scriptParams.paymentsLength > 0 {
+		if scriptParams.sender == scriptParams.scriptAddr {
 			return nil, nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 
 		}
@@ -846,121 +980,33 @@ func (ia *invokeApplier) applyInvokeScript(
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, scriptAddr)
+	r, err := ia.sc.invokeFunction(scriptParams.tree, tx, info, scriptParams.scriptAddr)
 	if err != nil {
-		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
-		// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
-		isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
-		if info.rideV6Activated {
-			if !info.acceptFailed || isCheap {
-				return nil, nil, errors.Wrapf(
-					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-					ride.EvaluationErrorSpentComplexity(err),
-					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
-				)
-			}
-			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-			return invocationRes, applicationRes, err
-		}
-		// Before RideV6 activation in the following cases the transaction is rejected:
-		// 1) Failing of transactions is not activated yet, reject everything
-		// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
-		// 3) The spent complexity is less than limit
-		switch ride.GetEvaluationErrorType(err) {
-		case ride.UserError, ride.RuntimeError, ride.ComplexityLimitExceed:
-			// Usual script error produced by user code or system functions.
-			// We reject transaction if spent complexity is less than limit.
-			if !info.acceptFailed || isCheap { // Reject transaction if no failed transactions or the transaction is cheap
-				return nil, nil, errors.Wrapf(
-					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-					ride.EvaluationErrorSpentComplexity(err),
-					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
-				)
-			}
-			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-			return invocationRes, applicationRes, err
+		// Script returned error, it's OK, but we have to decide if it's a failed or rejected transaction.
+		return ia.handleInvokeFunctionError(err, info, scriptParams.txID, checkerData, failedChanges)
+	}
 
-		case ride.InternalInvocationError:
-			// Special script error produced by internal script invocation or application of results.
-			// Reject transaction after certain height
-			rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
-			if !info.acceptFailed || rejectOnInvocationError || isCheap {
-				return nil, nil, errors.Wrapf(
-					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
-					ride.EvaluationErrorSpentComplexity(err),
-					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
-				)
-			}
-			invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-			applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-			return invocationRes, applicationRes, err
-
-		case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
-			return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
-		default:
-			return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
-		}
+	scriptRuns, err := ia.countScriptRuns(info, paymentSmartAssets, r.ScriptActions())
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to count scripts runs")
 	}
-	var scriptRuns uint64 = 0
-	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
-	if !info.rideV5Activated {
-		actionScriptRuns, err := ia.countActionScriptRuns(r.ScriptActions())
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to countActionScriptRuns")
-		}
-		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
-	}
-	if info.senderScripted {
-		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
-		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "invoke failed to get verifier complexity")
-			}
-			if treeEstimation.Verifier > FreeVerifierComplexity {
-				scriptRuns++
-			}
-		} else {
-			scriptRuns++
-		}
-	}
-	var invocationRes *invocationResult
 	code, balanceChanges, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
-		scriptAddr:               scriptAddr,
-		scriptPK:                 scriptPK,
+		scriptAddr:               scriptParams.scriptAddr,
+		scriptPK:                 scriptParams.scriptPK,
 		scriptRuns:               scriptRuns,
 		failedChanges:            failedChanges,
 		actions:                  r.ScriptActions(),
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
-		libVersion:               tree.LibVersion,
+		libVersion:               scriptParams.tree.LibVersion,
 	})
+	invocationRes, err := ia.handleFallibleValidationError(err, scriptParams.txID, code, info, scriptRuns, r)
 	if err != nil {
-		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())
-		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
-		if !info.acceptFailed ||
-			(ia.sc.recentTxComplexity <= FailFreeInvokeComplexity &&
-				info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight) {
-			return nil, nil, err
-		}
-		invocationRes = &invocationResult{
-			failed:     true,
-			code:       code,
-			text:       err.Error(),
-			scriptRuns: scriptRuns,
-			actions:    r.ScriptActions(),
-		}
-	} else {
-		invocationRes = &invocationResult{
-			failed:     false,
-			scriptRuns: scriptRuns,
-			actions:    r.ScriptActions(),
-		}
+		return nil, nil, err
 	}
-	applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, balanceChanges)
+
+	applicationRes, err := ia.handleInvocationResult(scriptParams.txID, checkerData, info, invocationRes, balanceChanges)
 	return invocationRes, applicationRes, err
 }
 

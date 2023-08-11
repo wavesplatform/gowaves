@@ -423,7 +423,9 @@ type appendTxParams struct {
 	snapshotApplier   SnapshotApplier
 }
 
-func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
+func (a *txAppender) handleInvokeOrExchangeTransaction(
+	tx proto.Transaction,
+	fallibleInfo *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
 	invocationRes, applicationRes, err := a.handleFallible(tx, fallibleInfo)
 	if err != nil {
 		msg := "fallible validation failed"
@@ -672,7 +674,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// TODO apply this snapshot when balances are refatored
-	//err = initialSnapshot.Apply(&snapshotApplier)
+	// err = initialSnapshot.Apply(&snapshotApplier)
 
 	// Save miner diff first (for validation)
 	if err := a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
@@ -731,7 +733,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	return nil
 }
 
-// used only in tests now. All diffs are applied in snapshotApplier
+// used only in tests now. All diffs are applied in snapshotApplier.
 func (a *txAppender) applyAllDiffs() error {
 	a.recentTxIds = make(map[string]struct{})
 	return a.moveChangesToHistoryStorage()

@@ -82,12 +82,12 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 
 	if scriptInformation != nil {
-		sponsorshipSnapshot := &AssetScriptSnapshot{
+		assetScriptSnapshot := &AssetScriptSnapshot{
 			AssetID:    assetID,
 			Script:     scriptInformation.script,
 			Complexity: uint64(scriptInformation.complexity),
 		}
-		snapshot = append(snapshot, sponsorshipSnapshot)
+		snapshot = append(snapshot, assetScriptSnapshot)
 	}
 
 	wavesBalancesSnapshot, assetBalancesSnapshot, err := sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
@@ -427,6 +427,27 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 					AssetID:       a.ID,
 					IsReissuable:  assetInfo.reissuable,
 					TotalQuantity: assetInfo.quantity,
+				}
+
+				var scriptInfo *scriptInformation
+				if se := info.checkerData.scriptEstimations; se.isPresent() {
+					// Save complexities to storage, so we won't have to calculate it every time the script is called.
+					complexity, ok := se.estimations[se.currentEstimatorVersion]
+					if !ok {
+						return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", se.currentEstimatorVersion)
+					}
+					scriptInfo = &scriptInformation{
+						script:     a.Script,
+						complexity: complexity.Verifier,
+					}
+				}
+				if scriptInfo != nil {
+					assetScriptSnapshot := &AssetScriptSnapshot{
+						AssetID:    a.ID,
+						Script:     scriptInfo.script,
+						Complexity: uint64(scriptInfo.complexity),
+					}
+					snapshot = append(snapshot, assetScriptSnapshot)
 				}
 				snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 

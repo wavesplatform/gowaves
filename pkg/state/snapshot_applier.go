@@ -101,6 +101,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot)
 
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
+	var err error
 	profile, err := a.stor.balances.wavesBalance(addrID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get waves balance profile for address %q", snapshot.Address.String())
@@ -109,7 +110,7 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot)
 	newProfile.leaseIn = int64(snapshot.LeaseIn)
 	newProfile.leaseOut = int64(snapshot.LeaseOut)
 	value := newWavesValue(profile, newProfile)
-	if err := a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
+	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
 	return nil
@@ -169,10 +170,10 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to store asset script estimation for asset %q", snapshot.AssetID.String())
 	}
-	//constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
-	//if err != nil {
+	// constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
+	// if err != nil {
 	//	return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
-	//}
+	// }
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
 }
 
