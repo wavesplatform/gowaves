@@ -126,7 +126,7 @@ func TestRewardDistributionUnchangedXtnPreactivatedSuite(t *testing.T) {
 // Wrong reward distribution: case 818 and 818_2
 // NODE-818. Single XTN buyback or DAO address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES
 // after CappedReward feature (20) activation
-/*type RewardDistributionDecreaseXtnPreactivatedSuite struct {
+type RewardDistributionDecreaseXtnPreactivatedSuite struct {
 	f.RewardDecreaseXtnPreactivatedSuite
 }
 
@@ -149,7 +149,7 @@ type RewardDistributionDecreaseDaoPreactivatedSuite struct {
 	f.RewardDecreaseDaoPreactivatedSuite
 }
 
-func (suite *RewardDistributionDecreaseXtnPreactivatedSuite) Test_NODE818_2() {
+func (suite *RewardDistributionDecreaseDaoPreactivatedSuite) Test_NODE818_2() {
 	name := "NODE-818. Single DAO address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES"
 	td := testdata.GetRewardDecreaseDaoPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -160,7 +160,7 @@ func (suite *RewardDistributionDecreaseXtnPreactivatedSuite) Test_NODE818_2() {
 func TestRewardDistributionDecreaseDaoPreactivatedSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionDecreaseDaoPreactivatedSuite))
-}*/
+}
 
 // NODE-818_3 If reward R <= 2 Waves mainer gets all reward
 type RewardDistribution2WUnchangedDaoXtnPreactivatedSuite struct {
