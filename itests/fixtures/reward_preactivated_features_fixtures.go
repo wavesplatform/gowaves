@@ -90,6 +90,19 @@ func (suite *Reward2WUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
 		filepath.Join(preactivatedFeaturesConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
 }
 
+// 2 miners, dao, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
+// NODE -818
+type RewardDecreaseDaoPreactivatedSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardDecreaseDaoPreactivatedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(preactivatedFeaturesConfigFolder, "5W_2miners_dao_decrease.json"))
+}
+
 // 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_xtn_decrease.json")
 // NODE - 818
 type RewardDecreaseXtnPreactivatedSuite struct {

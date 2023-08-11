@@ -440,7 +440,7 @@ func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, feat
 	var activationHeight int32
 	activationHeight = -1
 	for _, feature := range statusResponse.GetFeatures() {
-		if feature.GetId() == int32(featureId) {
+		if feature.GetId() == int32(featureId) && feature.GetBlockchainStatus().String() == "ACTIVATED" {
 			activationHeight = feature.GetActivationHeight()
 			break
 		}
@@ -465,21 +465,15 @@ func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64
 	return status
 }
 
-func IsFeatureActivatedGo(suite *f.BaseSuite, featureId int, height uint64) int32 {
+func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	if GetFeatureBlockchainStatusGo(suite, featureId, height) != "ACTIVATED" {
-		activationHeight = -1
-	}
 	return activationHeight
 }
 
-func IsFeatureActivatedScala(suite *f.BaseSuite, featureId int, height uint64) int32 {
+func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureId)
 	require.NoError(suite.T(), err)
-	if GetFeatureBlockchainStatusScala(suite, featureId, height) != "ACTIVATED" {
-		activationHeight = -1
-	}
 	return activationHeight
 }
 
@@ -513,23 +507,26 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureId int) uint64 {
 	return waitingBlocks
 }
 
-func WaitForFeatureActivation(suite *f.BaseSuite, height uint64, featureId int) uint64 {
+func WaitForFeatureActivation(suite *f.BaseSuite, featureId int, height uint64) int32 {
 	var activationHeight int32
+	var err error
 	waitingBlocks := GetWaitingBlocks(suite, height, featureId)
-	WaitForHeight(suite, height+waitingBlocks)
-	activationHeightGo := IsFeatureActivatedGo(suite, featureId, height+waitingBlocks)
-	activationHeightScala := IsFeatureActivatedScala(suite, featureId, height+waitingBlocks)
+	h := WaitForHeight(suite, height+waitingBlocks)
+	activationHeightGo := GetFeatureActivationHeightGo(suite, featureId, h)
+	activationHeightScala := GetFeatureActivationHeightScala(suite, featureId, h)
 	if activationHeightScala == activationHeightGo {
 		activationHeight = activationHeightGo
+	} else {
+		err = errors.Errorf("Feature with Id %d has different activation heights", featureId)
 	}
-	return uint64(activationHeight)
+	require.NoError(suite.T(), err)
+	return activationHeight
 }
 
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, height uint64) {
 	var err error
-	activationHeightGo := IsFeatureActivatedGo(suite, featureId, height)
-	activationHeightScala := IsFeatureActivatedScala(suite, featureId, height)
-	if activationHeightGo == -1 && activationHeightScala == -1 {
+	activationHeight := WaitForFeatureActivation(suite, featureId, height)
+	if activationHeight == -1 {
 		err = errors.Errorf("Feature with Id %d not activated", featureId)
 	}
 	require.NoError(suite.T(), err)
