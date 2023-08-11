@@ -127,7 +127,7 @@ func GetRewardDecreaseXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistribu
 		})
 }
 
-// 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
+// 2 miners, dao, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
 // NODE - 818
 func GetRewardDecreaseDaoPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
