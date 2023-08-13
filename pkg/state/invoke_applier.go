@@ -919,23 +919,29 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
 	if info.senderScripted {
+		treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(
+			info.senderAddress, info.checkerInfo.estimatorVersion())
+		if err != nil {
+			return 0, errors.Wrap(err, "invoke failed to get verifier complexity")
+		}
 		// Since activation of RideV5 (16) feature
-		// we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
-
-		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(
-				info.senderAddress, info.checkerInfo.estimatorVersion())
-			if err != nil {
-				return 0, errors.Wrap(err, "invoke failed to get verifier complexity")
-			}
-			if treeEstimation.Verifier > FreeVerifierComplexity {
-				scriptRuns++
-			}
-		} else {
+		// we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit,
+		// take fee in any other case
+		if !(info.rideV5Activated && treeEstimation.Verifier <= FreeVerifierComplexity) {
+			// take fee
 			scriptRuns++
 		}
 	}
 	return scriptRuns, nil
+}
+
+func (ia *invokeApplier) refusePayments(scriptParams scriptParameters, disableSelfTransfers bool) bool {
+	if disableSelfTransfers && scriptParams.paymentsLength > 0 {
+		if scriptParams.sender == scriptParams.scriptAddr {
+			return true
+		}
+	}
+	return false
 }
 
 // applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
@@ -980,11 +986,10 @@ func (ia *invokeApplier) applyInvokeScript(
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && scriptParams.tree.LibVersion >= ast.LibV4
-	if disableSelfTransfers && scriptParams.paymentsLength > 0 {
-		if scriptParams.sender == scriptParams.scriptAddr {
-			return nil, nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
-		}
+	if ia.refusePayments(scriptParams, disableSelfTransfers) {
+		return nil, nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 	}
+
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	// Create changes for both failed and successful scenarios.
 	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, newDifferInfo(info.blockInfo))
