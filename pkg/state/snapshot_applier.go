@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
@@ -56,7 +57,8 @@ type blockSnapshotsApplierInfo struct {
 
 var _ = newBlockSnapshotsApplierInfo
 
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme, cnt *proto.StateActionsCounter) blockSnapshotsApplierInfo {
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
+	cnt *proto.StateActionsCounter) blockSnapshotsApplierInfo {
 	return blockSnapshotsApplierInfo{
 		ci:                  ci,
 		scheme:              scheme,
@@ -93,7 +95,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot)
 	newProfile := profile
 	newProfile.balance = snapshot.Balance
 	value := newWavesValue(profile, newProfile)
-	if err := a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
+	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
 	return nil
@@ -167,10 +169,13 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 		Verifier:   int(snapshot.Complexity),
 		Functions:  nil,
 	}
-	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
-		return errors.Wrapf(err, "failed to store asset script estimation for asset %q", snapshot.AssetID.String())
+	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
+		snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
+		return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
+			snapshot.AssetID.String())
 	}
-	// constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID)) // only issuer can set new asset script
+	// only issuer can set new asset script
+	// constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID))
 	// if err != nil {
 	//	return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
 	// }
@@ -189,7 +194,8 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 	}
 	var estimations treeEstimations
 	if !snapshot.Script.IsEmpty() {
-		tree, err := serialization.Parse(snapshot.Script)
+		var tree *ast.Tree
+		tree, err = serialization.Parse(snapshot.Script)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
 		}
@@ -198,14 +204,15 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 			return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
 		}
 	}
-	if err := a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
+	if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
 	}
 	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
-	return a.stor.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(), snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
+	return a.stor.ordersVolumes.increaseFilled(snapshot.OrderID.Bytes(),
+		snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) error {

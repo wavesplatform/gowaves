@@ -2,6 +2,10 @@ package state
 
 import (
 	"fmt"
+	"math"
+	"math/big"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -12,9 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
-	"math"
-	"math/big"
-	"strings"
 )
 
 type invokeApplier struct {
@@ -742,7 +743,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		var applicationRes *applicationResult
+		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
 		return invocationRes, applicationRes, err
 	}
 	// Before RideV6 activation in the following cases the transaction is rejected:
@@ -761,7 +763,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		var applicationRes *applicationResult
+		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
 		return invocationRes, applicationRes, err
 
 	case ride.InternalInvocationError:
@@ -776,7 +779,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		applicationRes, err := ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
+		var applicationRes *applicationResult
+		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
 		return invocationRes, applicationRes, err
 
 	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
@@ -812,11 +816,14 @@ func (ia *invokeApplier) collectScriptParameters(tx proto.Transaction) (scriptPa
 		}
 		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
 		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+			return scriptParameters{},
+				errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
 		}
-		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+		var si scriptBasicInfoRecord
+		si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
 		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+			return scriptParameters{},
+				errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
 		}
 		scriptParams.scriptPK = si.PK
 
@@ -848,11 +855,14 @@ func (ia *invokeApplier) collectScriptParameters(tx proto.Transaction) (scriptPa
 		}
 		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
 		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+			return scriptParameters{},
+				errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
 		}
-		si, err := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+		var si scriptBasicInfoRecord
+		si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
 		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+			return scriptParameters{},
+				errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
 		}
 		scriptParams.scriptPK = si.PK
 
@@ -869,7 +879,6 @@ func (ia *invokeApplier) handleFallibleValidationError(err error,
 	info *fallibleValidationParams,
 	scriptRuns uint64,
 	r ride.Result) (*invocationResult, error) {
-
 	var invocationRes *invocationResult
 	if err != nil {
 		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())
@@ -899,7 +908,7 @@ func (ia *invokeApplier) handleFallibleValidationError(err error,
 func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 	paymentSmartAssets []crypto.Digest,
 	scriptActions []proto.ScriptAction) (uint64, error) {
-	var scriptRuns uint64 = 0
+	var scriptRuns uint64
 
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
 	if !info.rideV5Activated {
@@ -910,9 +919,12 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
 	if info.senderScripted {
-		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
+		// Since activation of RideV5 (16) feature
+		// we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
+
 		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
+			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(
+				info.senderAddress, info.checkerInfo.estimatorVersion())
 			if err != nil {
 				return 0, errors.Wrap(err, "invoke failed to get verifier complexity")
 			}
@@ -929,7 +941,8 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 // applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
 // If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
-// If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
+// If the transaction fails,
+// performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
 func (ia *invokeApplier) applyInvokeScript(
 	tx proto.Transaction,
 	info *fallibleValidationParams) (*invocationResult, *applicationResult, error) {
@@ -962,14 +975,14 @@ func (ia *invokeApplier) applyInvokeScript(
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
 	if scriptParams.paymentsLength >= 2 && scriptParams.tree.LibVersion < ast.LibV4 {
-		return nil, nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", scriptParams.tree.LibVersion)
+		return nil, nil,
+			errors.Errorf("multiple payments is not allowed for RIDE library version %d", scriptParams.tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && scriptParams.tree.LibVersion >= 4
+	disableSelfTransfers := info.acceptFailed && scriptParams.tree.LibVersion >= ast.LibV4
 	if disableSelfTransfers && scriptParams.paymentsLength > 0 {
 		if scriptParams.sender == scriptParams.scriptAddr {
 			return nil, nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
-
 		}
 	}
 	// Basic differ for InvokeScript creates only fee and payment diff.
@@ -1028,7 +1041,9 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	return sr, err
 }
 
-func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData, info *fallibleValidationParams, res *invocationResult, balanceChanges txBalanceChanges) (*applicationResult, error) {
+func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData,
+	info *fallibleValidationParams, res *invocationResult,
+	balanceChanges txBalanceChanges) (*applicationResult, error) {
 	if ia.buildApiData && !info.validatingUtx {
 		// Save invoke result for extended API.
 		res, err := toScriptResult(res)

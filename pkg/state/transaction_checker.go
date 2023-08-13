@@ -184,7 +184,8 @@ func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated
 
 type treeEstimations map[int]ride.TreeEstimation
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (treeEstimations, error) {
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int,
+	reducedVerifierComplexity, expandEstimations bool) (treeEstimations, error) {
 	tree, err := serialization.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
@@ -213,7 +214,8 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 	if err != nil {
 		return nil, errs.Extend(err, "failed to make ride estimations")
 	}
-	if err := tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion], tree.IsDApp(), reducedVerifierComplexity); err != nil {
+	if err = tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion],
+		tree.IsDApp(), reducedVerifierComplexity); err != nil {
 		return nil, errors.Wrap(err, "failed to check script complexity")
 	}
 	return estimations, nil

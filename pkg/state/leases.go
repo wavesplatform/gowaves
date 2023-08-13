@@ -99,7 +99,7 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 		key := keyvalue.SafeKey(leaseIter)
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
-		if err := record.unmarshalBinary(leaseBytes); err != nil {
+		if err = record.unmarshalBinary(leaseBytes); err != nil {
 			return errors.Wrap(err, "failed to unmarshal lease")
 		}
 		toCancel := true
@@ -176,7 +176,7 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	for leaseIter.Next() {
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
-		if err := record.unmarshalBinary(leaseBytes); err != nil {
+		if err = record.unmarshalBinary(leaseBytes); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		if record.isActive() {
@@ -199,7 +199,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest) (*leasing, error) {
 		return nil, err
 	}
 	record := new(leasing)
-	if err := record.unmarshalBinary(recordBytes); err != nil {
+	if err = record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
 	}
 	if record.OriginTransactionID == nil {
@@ -216,7 +216,7 @@ func (l *leases) leasingInfo(id crypto.Digest) (*leasing, error) {
 		return nil, err
 	}
 	record := new(leasing)
-	if err := record.unmarshalBinary(recordBytes); err != nil {
+	if err = record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
 	}
 	if record.OriginTransactionID == nil {

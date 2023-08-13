@@ -41,7 +41,7 @@ func newOrdersVolumes(hs *historyStorage) *ordersVolumes {
 	return &ordersVolumes{hs: hs}
 }
 
-func (ov *ordersVolumes) newestVolumeById(orderID []byte) (*orderVolumeRecord, error) {
+func (ov *ordersVolumes) newestVolumeByID(orderID []byte) (*orderVolumeRecord, error) {
 	key := ordersVolumeKey{orderID}
 	recordBytes, err := ov.hs.newestTopEntryData(key.bytes())
 	if err != nil {
@@ -64,7 +64,7 @@ func (ov *ordersVolumes) addNewRecord(orderID []byte, record *orderVolumeRecord,
 }
 
 func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange uint64, blockID proto.BlockID) error {
-	prevVolume, err := ov.newestVolumeById(orderID)
+	prevVolume, err := ov.newestVolumeByID(orderID)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // New record.
 			return ov.addNewRecord(orderID, &orderVolumeRecord{amountFilled: amountChange, feeFilled: feeChange}, blockID)
@@ -77,7 +77,7 @@ func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange 
 }
 
 func (ov *ordersVolumes) newestFilled(orderID []byte) (uint64, uint64, error) {
-	volume, err := ov.newestVolumeById(orderID)
+	volume, err := ov.newestVolumeByID(orderID)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // No fee volume filled yet.
 			return 0, 0, nil

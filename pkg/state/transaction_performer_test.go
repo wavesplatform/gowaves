@@ -44,9 +44,9 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 			leases:            stor.entities.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
+	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
 	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGenerator
+	tp.snapshotGenerator = &snapshotGen
 	require.NoError(t, err, "newTransactionPerformer() failed")
 	return &performerTestObjects{stor, tp, actionsCounter}
 }

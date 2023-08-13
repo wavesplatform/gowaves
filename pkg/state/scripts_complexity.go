@@ -95,7 +95,8 @@ func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev in
 	return record, nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimations treeEstimations, blockID proto.BlockID) error {
+func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address,
+	estimations treeEstimations, blockID proto.BlockID) error {
 	min := math.MaxUint8
 	addrID := addr.ID()
 	for v, e := range estimations {

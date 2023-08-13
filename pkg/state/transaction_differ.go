@@ -81,7 +81,7 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 	// Check min intermediate change.
 	minBalance, err := common.AddInt64(diff.minBalance, int64(profile.balance))
 	if err != nil {
-		return balanceProfile{}, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
+		return balanceProfile{}, errors.Errorf("failed to add balance and min balance diff: %v", err)
 	}
 	if minBalance < 0 {
 		return balanceProfile{}, errors.Errorf(
@@ -93,19 +93,19 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 	// Check main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(profile.balance))
 	if err != nil {
-		return balanceProfile{}, errors.Errorf("failed to add balance and balance diff: %v\n", err)
+		return balanceProfile{}, errors.Errorf("failed to add balance and balance diff: %v", err)
 	}
 	if newBalance < 0 {
 		return balanceProfile{}, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
 	newLeaseIn, err := common.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {
-		return balanceProfile{}, errors.Errorf("failed to add leaseIn and leaseIn diff: %v\n", err)
+		return balanceProfile{}, errors.Errorf("failed to add leaseIn and leaseIn diff: %v", err)
 	}
 	// Check leasing change.
 	newLeaseOut, err := common.AddInt64(diff.leaseOut, profile.leaseOut)
 	if err != nil {
-		return balanceProfile{}, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
+		return balanceProfile{}, errors.Errorf("failed to add leaseOut and leaseOut diff: %v", err)
 	}
 	if (newBalance < newLeaseOut) && !diff.allowLeasedTransfer {
 		return balanceProfile{}, errs.NewTxValidationError("Reason: Cannot lease more than own")
