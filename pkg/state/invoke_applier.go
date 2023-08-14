@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -15,7 +17,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type invokeApplier struct {
@@ -1038,6 +1039,7 @@ func (ia *invokeApplier) applyInvokeScript(
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to count scripts runs")
 	}
+
 	code, balanceChanges, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
 		scriptAddr:               scriptParams.scriptAddr,

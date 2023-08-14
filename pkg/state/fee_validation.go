@@ -261,14 +261,14 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	if err != nil {
 		return nil, err
 	}
-
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && params.rideV5Activated {
+		// For account script we use original estimation
 		var treeEstimation *ride.TreeEstimation
-		treeEstimation, err = params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, params.estimatorVersion)
+		treeEstimation, err = params.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
 		if err != nil {
-			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
+			return nil, errors.Wrap(err, "failed to get complexity by addr from store")
 		}
 		complexity = treeEstimation.Verifier
 	}
