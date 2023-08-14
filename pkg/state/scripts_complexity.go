@@ -48,7 +48,8 @@ func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address) (int, 
 	return int(record.Version), nil
 }
 
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.WavesAddress) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(
+	addr proto.WavesAddress) (*ride.TreeEstimation, error) {
 	ev, err := sc.originalEstimatorVersion(addr)
 	if err != nil {
 		return nil, err
