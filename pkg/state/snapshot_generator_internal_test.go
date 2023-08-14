@@ -272,7 +272,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.NG))
 	err := to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(testGlobal.asset0.assetID),
 		defaultAssetInfoTransfer(proto.DigestTail(testGlobal.asset0.assetID),
-			true, 1000, testGlobal.issuerInfo.pk, "asset0"), blockID0)
+			false, 950, testGlobal.issuerInfo.pk, "asset0"), blockID0)
 
 	assert.NoError(t, err, "failed to issue asset")
 	err = to.stor.entities.balances.setWavesBalance(testGlobal.issuerInfo.addr.ID(),
@@ -309,8 +309,8 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 		},
 		&AssetVolumeSnapshot{
 			AssetID:       testGlobal.asset0.assetID,
-			TotalQuantity: *big.NewInt(int64(defaultQuantity - 50)),
-			IsReissuable:  true,
+			TotalQuantity: *big.NewInt(int64(defaultQuantity - 100)),
+			IsReissuable:  false,
 		},
 	}
 

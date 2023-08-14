@@ -799,73 +799,103 @@ type scriptParameters struct {
 	scriptPK       crypto.PublicKey
 }
 
+func (ia *invokeApplier) scriptParametersFromInvokeScript(
+	transaction *proto.InvokeScriptWithProofs,
+) (scriptParameters, error) {
+	var scriptParams scriptParameters
+	var err error
+	scriptParams.scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases)
+	if err != nil {
+		return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
+	}
+	scriptParams.paymentsLength = len(transaction.Payments)
+	scriptParams.txID = *transaction.ID
+	scriptParams.sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
+	if err != nil {
+		return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
+	}
+	scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
+	if err != nil {
+		return scriptParameters{},
+			errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+	}
+	var si scriptBasicInfoRecord
+	si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+	if err != nil {
+		return scriptParameters{},
+			errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+	}
+	scriptParams.scriptPK = si.PK
+	return scriptParams, nil
+}
+
+func (ia *invokeApplier) scriptParametersFromInvokeExpression(
+	transaction *proto.InvokeExpressionTransactionWithProofs) (scriptParameters, error) {
+	var scriptParams scriptParameters
+	addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
+	if err != nil {
+		return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
+	}
+	scriptParams.sender = addr
+	scriptParams.scriptAddr = addr
+	scriptParams.tree, err = serialization.Parse(transaction.Expression)
+	if err != nil {
+		return scriptParameters{}, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
+	}
+	scriptParams.txID = *transaction.ID
+	scriptParams.scriptPK = transaction.SenderPK
+	return scriptParams, nil
+}
+
+func (ia *invokeApplier) scriptParametersFromEthereumInvokeTransaction(
+	transaction *proto.EthereumTransaction) (scriptParameters, error) {
+	var scriptParams scriptParameters
+	var err error
+	scriptParams.scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+	if err != nil {
+		return scriptParameters{}, err
+	}
+	decodedData := transaction.TxKind.DecodedData()
+	scriptParams.paymentsLength = len(decodedData.Payments)
+	scriptParams.txID = *transaction.ID
+	scriptParams.sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
+	if err != nil {
+		return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
+	}
+	scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
+	if err != nil {
+		return scriptParameters{},
+			errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+	}
+	var si scriptBasicInfoRecord
+	si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+	if err != nil {
+		return scriptParameters{},
+			errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+	}
+	scriptParams.scriptPK = si.PK
+	return scriptParams, nil
+}
+
 func (ia *invokeApplier) collectScriptParameters(tx proto.Transaction) (scriptParameters, error) {
-	scriptParams := scriptParameters{}
+	var scriptParams scriptParameters
 	var err error
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-		scriptParams.scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases)
-		if err != nil {
-			return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		scriptParams.paymentsLength = len(transaction.Payments)
-		scriptParams.txID = *transaction.ID
-		scriptParams.sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
-		}
-		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
-		if err != nil {
-			return scriptParameters{},
-				errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
-		}
-		var si scriptBasicInfoRecord
-		si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
-		if err != nil {
-			return scriptParameters{},
-				errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
-		}
-		scriptParams.scriptPK = si.PK
-
-	case *proto.InvokeExpressionTransactionWithProofs:
-		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return scriptParameters{}, errors.Wrap(err, "recipientToAddress() failed")
-		}
-		scriptParams.sender = addr
-		scriptParams.scriptAddr = addr
-		scriptParams.tree, err = serialization.Parse(transaction.Expression)
-		if err != nil {
-			return scriptParameters{}, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
-		}
-		scriptParams.txID = *transaction.ID
-		scriptParams.scriptPK = transaction.SenderPK
-
-	case *proto.EthereumTransaction:
-		scriptParams.scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+		scriptParams, err = ia.scriptParametersFromInvokeScript(transaction)
 		if err != nil {
 			return scriptParameters{}, err
 		}
-		decodedData := transaction.TxKind.DecodedData()
-		scriptParams.paymentsLength = len(decodedData.Payments)
-		scriptParams.txID = *transaction.ID
-		scriptParams.sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
+	case *proto.InvokeExpressionTransactionWithProofs:
+		scriptParams, err = ia.scriptParametersFromInvokeExpression(transaction)
 		if err != nil {
-			return scriptParameters{}, errors.Wrapf(err, "failed to apply script invocation")
+			return scriptParameters{}, err
 		}
-		scriptParams.tree, err = ia.stor.scriptsStorage.newestScriptByAddr(scriptParams.scriptAddr)
+	case *proto.EthereumTransaction:
+		scriptParams, err = ia.scriptParametersFromEthereumInvokeTransaction(transaction)
 		if err != nil {
-			return scriptParameters{},
-				errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
+			return scriptParameters{}, err
 		}
-		var si scriptBasicInfoRecord
-		si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
-		if err != nil {
-			return scriptParameters{},
-				errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
-		}
-		scriptParams.scriptPK = si.PK
-
 	default:
 		return scriptParameters{}, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}

@@ -467,7 +467,8 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	action proto.IssueScriptAction,
 	blockHeight uint64,
 	info *performerInfo,
-	txID crypto.Digest) ([]AtomicSnapshot, error) {
+	txID crypto.Digest,
+	assetBalanceDiff addressAssetBalanceDiff) ([]AtomicSnapshot, error) {
 	var atomicSnapshots []AtomicSnapshot
 	assetInf := assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -530,11 +531,18 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	}
 	atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+
+	issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *action.Sender)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get an address from a public key")
+	}
+	assetBalanceDiff.appendOnlySender(issuerAddress, proto.AssetIDFromDigest(action.ID), action.Quantity)
 	return atomicSnapshots, nil
 }
 
 func (sg *snapshotGenerator) atomicActionsFromReissueAction(
-	action proto.ReissueScriptAction) ([]AtomicSnapshot, error) {
+	action proto.ReissueScriptAction,
+	assetBalanceDiff addressAssetBalanceDiff) ([]AtomicSnapshot, error) {
 	var atomicSnapshots []AtomicSnapshot
 	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
 	if err != nil {
@@ -547,12 +555,18 @@ func (sg *snapshotGenerator) atomicActionsFromReissueAction(
 		TotalQuantity: *resQuantity,
 		IsReissuable:  action.Reissuable,
 	}
-
+	issueAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *action.Sender)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get an address from a public key")
+	}
+	assetBalanceDiff.appendOnlySender(issueAddress, proto.AssetIDFromDigest(action.AssetID), action.Quantity)
 	atomicSnapshots = append(atomicSnapshots, assetReissuability)
 	return atomicSnapshots, nil
 }
 
-func (sg *snapshotGenerator) atomicActionsFromBurnAction(action proto.BurnScriptAction) ([]AtomicSnapshot, error) {
+func (sg *snapshotGenerator) atomicActionsFromBurnAction(
+	action proto.BurnScriptAction,
+	assetBalanceDiff addressAssetBalanceDiff) ([]AtomicSnapshot, error) {
 	var atomicSnapshots []AtomicSnapshot
 	var assetInf *assetInfo
 	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
@@ -566,8 +580,12 @@ func (sg *snapshotGenerator) atomicActionsFromBurnAction(action proto.BurnScript
 		TotalQuantity: *resQuantity,
 		IsReissuable:  assetInf.reissuable,
 	}
-
 	atomicSnapshots = append(atomicSnapshots, assetReissuability)
+	issueAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *action.Sender)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get an address from a public key")
+	}
+	assetBalanceDiff.appendOnlySender(issueAddress, proto.AssetIDFromDigest(action.AssetID), -action.Quantity)
 	return atomicSnapshots, nil
 }
 
@@ -666,39 +684,24 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 		}
 		atomicSnapshots = append(atomicSnapshots, sponsorshipSnapshot)
 	case *proto.IssueScriptAction:
-		issueSnapshots, err := sg.atomicSnapshotsFromIssueAction(*a, blockHeight, info, txID)
+		issueSnapshots, err := sg.atomicSnapshotsFromIssueAction(*a, blockHeight, info, txID, assetBalanceDiff)
 		if err != nil {
 			return nil, err
 		}
 		atomicSnapshots = append(atomicSnapshots, issueSnapshots...)
-		issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *a.Sender)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get an address from a public key")
-		}
-		assetBalanceDiff.appendOnlySender(issuerAddress, proto.AssetIDFromDigest(a.ID), a.Quantity)
+
 	case *proto.ReissueScriptAction:
-		reissueSnapshots, err := sg.atomicActionsFromReissueAction(*a)
+		reissueSnapshots, err := sg.atomicActionsFromReissueAction(*a, assetBalanceDiff)
 		if err != nil {
 			return nil, err
 		}
 		atomicSnapshots = append(atomicSnapshots, reissueSnapshots...)
-		issueAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *a.Sender)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get an address from a public key")
-		}
-		assetBalanceDiff.appendOnlySender(issueAddress, proto.AssetIDFromDigest(a.AssetID), a.Quantity)
-
 	case *proto.BurnScriptAction:
-		burnSnapshots, err := sg.atomicActionsFromBurnAction(*a)
+		burnSnapshots, err := sg.atomicActionsFromBurnAction(*a, assetBalanceDiff)
 		if err != nil {
 			return nil, err
 		}
 		atomicSnapshots = append(atomicSnapshots, burnSnapshots...)
-		issueAddress, err := proto.NewAddressFromPublicKey(sg.scheme, *a.Sender)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get an address from a public key")
-		}
-		assetBalanceDiff.appendOnlySender(issueAddress, proto.AssetIDFromDigest(a.AssetID), -a.Quantity)
 	case *proto.LeaseScriptAction:
 		leaseSnapshots, err := sg.atomicActionsFromLeaseAction(*a, info, txID)
 		if err != nil {
