@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -1456,7 +1457,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	*/
 	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/wAAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAAWzLtA=")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 2000).
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 52000).
 		withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree1).
 		withInvocation("test").
 		withWavesBalance(sender, 10000).withWavesBalance(dApp1, 10000).
@@ -1572,7 +1573,7 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	*/
 	_, tree1 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/0AAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAALQe43c=")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 2000).
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 52000).
 		withSender(sender).withThis(dApp1).withDApp(dApp1).withTree(dApp1, tree1).
 		withInvocation("test").
 		withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).

@@ -19,6 +19,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
+const invocationsLimit = 10_000
+
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 	for _, v := range list {
 		if v == addr {
@@ -118,7 +120,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
 	}
 	ws.incrementInvCount()
-	if ws.invCount() > 200 {
+	if ws.invCount() > invocationsLimit {
 		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
 
