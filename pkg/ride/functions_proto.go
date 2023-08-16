@@ -19,7 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const invocationsLimit = 10_000
+const invocationsLimit = 100
 
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 	for _, v := range list {
@@ -120,6 +120,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
 	}
 	ws.incrementInvCount()
+	ic := ws.invocationCount
 	if ws.invCount() > invocationsLimit {
 		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
@@ -317,6 +318,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if env.validateInternalPayments() || env.rideV6Activated() {
 		err = ws.validateBalances(env.rideV6Activated())
 	}
+	ws.setInvocationCount(ic)
 	if err != nil {
 		if ws.invCount() > 1 {
 			return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
