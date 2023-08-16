@@ -472,11 +472,10 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	var atomicSnapshots []AtomicSnapshot
 	assetInf := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(action.ID),
-			issuer:               *action.Sender,
-			decimals:             uint8(action.Decimals),
-			issueHeight:          blockHeight,
-			issueSequenceInBlock: 0,
+			tail:        proto.DigestTail(action.ID),
+			issuer:      *action.Sender,
+			decimals:    uint8(action.Decimals),
+			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(action.Quantity),
