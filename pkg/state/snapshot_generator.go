@@ -476,7 +476,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 			issuer:               *action.Sender,
 			decimals:             uint8(action.Decimals),
 			issueHeight:          blockHeight,
-			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
+			issueSequenceInBlock: 0,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(action.Quantity),

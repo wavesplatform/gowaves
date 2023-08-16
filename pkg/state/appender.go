@@ -639,13 +639,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlock := new(proto.StateActionsCounter)
+	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	stateActionsCounterInBlockSnapshots := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
 			ci:                  checkerInfo,
 			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: stateActionsCounterInBlock,
+			stateActionsCounter: stateActionsCounterInBlockSnapshots,
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,
@@ -717,7 +718,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
 			invokeExpressionActivated:        invokeExpressionActivated,
 			validatingUtx:                    false,
-			stateActionsCounterInBlock:       stateActionsCounterInBlock,
+			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 			snapshotGenerator:                &snapshotGenerator,
 			snapshotApplier:                  &snapshotApplier,
