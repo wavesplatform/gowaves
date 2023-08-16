@@ -2,7 +2,7 @@
   "term": 6,
   "term_after_capped_reward_feature": 3,
   "voting_interval": 1,
-  "initial_block_reward": 600000000,
+  "initial_block_reward": 700000000,
   "block_reward_increment": 100000000,
   "desired_reward": 900000000,
   "dao_address": "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",

@@ -37,7 +37,8 @@ func NewRewardDistributionTestData[T any](miner1Account, miner2Account, daoAccou
 
 // preactivated features 14, 19, 20
 
-// 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000 ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
+// 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 815
 func GetRewardIncreaseDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -52,7 +53,8 @@ func GetRewardIncreaseDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistr
 		})
 }
 
-// 2 miners, dao, xtn, initR=600000000, increment = 1, desiredR = 600000000 ("preactivated_14_19_20/6W_2miners_dao_xtn_not_changed.json")
+// 2 miners, dao, xtn, initR=600000000, increment = 1, desiredR = 600000000
+// ("preactivated_14_19_20/6W_2miners_dao_xtn_not_changed.json")
 // NODE - 815
 func GetRewardUnchangedDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -67,7 +69,8 @@ func GetRewardUnchangedDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDist
 		})
 }
 
-// 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_dao_xtn_decrease.json")
+// 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20/5W_2miners_dao_xtn_decrease.json")
 // NODE - 816
 func GetRewardDecreaseDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -82,7 +85,8 @@ func GetRewardDecreaseDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistr
 		})
 }
 
-// 2 miners, dao, initR=700000000, increment = 100000000, desiredR = 900000000 ("preactivated_14_19_20/7W_2miners_dao_increase.json")
+// 2 miners, dao, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_20/7W_2miners_dao_increase.json")
 // NODE - 817
 func GetRewardIncreaseDaoPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -97,7 +101,8 @@ func GetRewardIncreaseDaoPreactivatedTestData(suite *f.BaseSuite) RewardDistribu
 		})
 }
 
-// 2 miners, xtn, initR=600000000, increment = 100000000, desiredR = 600000000 ("preactivated_14_19_20/6W_2miners_xtn_not_changed.json")
+// 2 miners, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
+// ("preactivated_14_19_20/6W_2miners_xtn_not_changed.json")
 // NODE - 817
 func GetRewardUnchangedXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -112,7 +117,8 @@ func GetRewardUnchangedXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistrib
 		})
 }
 
-// 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_xtn_decrease.json")
+// 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20/5W_2miners_xtn_decrease.json")
 // NODE - 818
 func GetRewardDecreaseXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -127,7 +133,8 @@ func GetRewardDecreaseXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistribu
 		})
 }
 
-// 2 miners, dao, initR=500000000, increment = 100000000, desiredR = 300000000 ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
+// 2 miners, dao, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
 // NODE - 818
 func GetRewardDecreaseDaoPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -142,7 +149,8 @@ func GetRewardDecreaseDaoPreactivatedTestData(suite *f.BaseSuite) RewardDistribu
 		})
 }
 
-// 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000 ("preactivated_14_19_20/2W_2miners_dao_xtn_not_changed.json")
+// 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000
+// ("preactivated_14_19_20/2W_2miners_dao_xtn_not_changed.json")
 // NODE - 818
 func GetReward2WUnchangedDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -157,7 +165,8 @@ func GetReward2WUnchangedDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDi
 		})
 }
 
-// 2 miners, initR=500000000, increment = 100000000, desiredR = 700000000 ("preactivated_14_19_20/2miners_increase.json")
+// 2 miners, initR=500000000, increment = 100000000, desiredR = 700000000
+// ("preactivated_14_19_20/2miners_increase.json")
 // NODE - 820
 func GetRewardPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(
@@ -172,7 +181,8 @@ func GetRewardPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestDat
 		})
 }
 
-// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000 ("preactivated_14_19_20/2miners_dao_xtn_without_f9.json")
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_19_20/2miners_dao_xtn_without_f9.json")
 // NODE - 821
 func GetRewardDaoXtnPreactivatedWithout19TestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValuesPositive] {
 	return NewRewardDistributionTestData(

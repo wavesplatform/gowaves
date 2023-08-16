@@ -11,14 +11,12 @@ import (
 )
 
 // Test steps
-func getRewardDistribution(suite *f.BaseSuite, td testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValuesPositive]) {
+func getRewardDistribution(suite *f.BaseSuite, td testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValuesPositive], featureIds ...int) {
 	h := utl.GetHeight(suite)
-	//feature 14 should be activated
-	utl.FeatureShouldBeActivated(suite, 14, h)
-	//feature 19 should be activated
-	utl.FeatureShouldBeActivated(suite, 19, h)
-	//feature 20 should be activated
-	utl.FeatureShouldBeActivated(suite, 20, h)
+	//features with ids should be activated
+	for _, i := range featureIds {
+		utl.FeatureShouldBeActivated(suite, i, h)
+	}
 	//get reward for 1 block
 	rewardDistributions := reward_utilities.GetBlockRewardDistribution(suite, td)
 	//check results
@@ -40,12 +38,12 @@ func (suite *RewardDistributionIncreaseDaoXtnPreactivatedSuite) Test_NODE815() {
 	td := testdata.GetRewardIncreaseDaoXtnPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-815. XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 
 }
 
-func TestRewardDistributionIncreaseDaoXtnPreactivated(t *testing.T) {
+func TestRewardDistributionIncreaseDaoXtnPreactivatedSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionIncreaseDaoXtnPreactivatedSuite))
 }
@@ -58,7 +56,7 @@ func (suite *RewardDistributionUnchangedDaoXtnPreactivatedSuite) Test_NODE815_2(
 	td := testdata.GetRewardUnchangedDaoXtnPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-815. XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -77,7 +75,7 @@ func (suite *RewardDistributionDecreaseDaoXtnPreactivatedSuite) Test_NODE816() {
 	td := testdata.GetRewardDecreaseDaoXtnPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-816. XTN buyback and dao addresses should get (R-2)/2 WAVES when full block reward < 6 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 
 }
@@ -97,7 +95,7 @@ func (suite *RewardDistributionIncreaseDaoPreactivatedSuite) Test_NODE817() {
 	td := testdata.GetRewardIncreaseDaoPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-817. Single XTN buyback or dao address should get 2 WAVES when full block reward >= 6 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -114,7 +112,7 @@ func (suite *RewardDistributionUnchangedXtnPreactivatedSuite) Test_NODE817_2() {
 	td := testdata.GetRewardUnchangedXtnPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-817. Single XTN buyback or dao address should get 2 WAVES when full block reward >= 6 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -134,7 +132,7 @@ func (suite *RewardDistributionDecreaseXtnPreactivatedSuite) Test_NODE818() {
 	name := "NODE-818. Single XTN buyback address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES"
 	td := testdata.GetRewardDecreaseXtnPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -153,7 +151,7 @@ func (suite *RewardDistributionDecreaseDaoPreactivatedSuite) Test_NODE818_2() {
 	name := "NODE-818. Single DAO address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES"
 	td := testdata.GetRewardDecreaseDaoPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -171,7 +169,7 @@ func (suite *RewardDistribution2WUnchangedDaoXtnPreactivatedSuite) Test_NODE818_
 	td := testdata.GetReward2WUnchangedDaoXtnPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-818. mainer gets all reward If reward R <= 2 WAVES"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
@@ -182,7 +180,7 @@ func TestRewardDistribution2WUnchangedDaoXtnPreactivatedSuite(t *testing.T) {
 
 // NODE-820. Miner should get full block reward when daoAddress and xtnBuybackAddress are not defined
 // after CappedReward feature (20) activation
-/*type RewardDistributionIncreasePreactivatedSuite struct {
+type RewardDistributionIncreasePreactivatedSuite struct {
 	f.RewardIncreasePreactivatedSuite
 }
 
@@ -190,14 +188,14 @@ func (suite *RewardDistributionIncreasePreactivatedSuite) Test_NODE820() {
 	td := testdata.GetRewardPreactivatedTestData(&suite.BaseSuite)
 	name := "NODE-820. Miner should get full block reward when daoAddress and xtnBuybackAddress are not defined"
 	suite.Run(name, func() {
-		getRewardDistribution(&suite.BaseSuite, td)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 19, 20)
 	})
 }
 
 func TestRewardDistributionIncreasePreactivatedSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionIncreasePreactivatedSuite))
-}*/
+}
 
 // NODE-821. Miner should get full block reward after CappedReward feature (20) activation
 // if BlockRewardDistribution feature (19) is not activated
@@ -210,20 +208,7 @@ func (suite *RewardDistributionDaoXtnPreactivatedWithout19Suite) Test_NODE821() 
 	name := "NODE-821. Miner should get full block reward after CappedReward feature (20) activation " +
 		"if BlockRewardDistribution feature (19) is not activated"
 	suite.Run(name, func() {
-		h := utl.GetHeight(&suite.BaseSuite)
-		//feature 14 should be activated
-		utl.FeatureShouldBeActivated(&suite.BaseSuite, 14, h)
-		//feature 20 should be activated
-		utl.FeatureShouldBeActivated(&suite.BaseSuite, 20, h)
-		//get reward for 1 block
-		rewardDistributions := reward_utilities.GetBlockRewardDistribution(&suite.BaseSuite, td)
-		//check results
-		utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,
-			rewardDistributions.MinersSumDiffBalance.BalanceInWavesGo, rewardDistributions.MinersSumDiffBalance.BalanceInWavesScala)
-		utl.DaoDiffBalanceInWavesCheck(suite.T(), td.Expected.DaoDiffBalance,
-			rewardDistributions.DAODiffBalance.BalanceInWavesGo, rewardDistributions.DAODiffBalance.BalanceInWavesScala)
-		utl.XtnBuyBackDiffBalanceInWavesCheck(suite.T(), td.Expected.XtnDiffBalance,
-			rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesGo, rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
+		getRewardDistribution(&suite.BaseSuite, td, 14, 20)
 	})
 }
 
