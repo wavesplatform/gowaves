@@ -211,13 +211,15 @@ func TestFeatures19And20And21RewardCalculation(t *testing.T) {
 
 		{4000, 4000, 1_9999_9999, makeTestNetRewards(t, gen, 1_9999_9999)},
 		{4000, 4000, 2_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000)},
-		{4000, 4000, 4_2222_2222, makeTestNetRewards(t, gen, 2_0000_0000, 2_2222_2222)},
+		{4000, 4000, 4_2222_2222, makeTestNetRewards(t, gen, 3_1111_1111, 1_1111_1111)},
+		{5000, 5000, 5_0000_0000, makeTestNetRewards(t, gen, 3_5000_0000, 1_5000_0000)},
 		{4000, 4000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 		{4000, 4000, 10_1234_5678, makeTestNetRewards(t, gen, 8_1234_5678, 2_0000_0000)},
 
 		{5000, 5000, 1_9999_9999, makeTestNetRewards(t, gen, 1_9999_9999)},
 		{5000, 5000, 2_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000)},
-		{5000, 5000, 4_2222_2222, makeTestNetRewards(t, gen, 2_0000_0000, 2_2222_2222)},
+		{5000, 5000, 4_2222_2222, makeTestNetRewards(t, gen, 3_1111_1111, 1_1111_1111)},
+		{5000, 5000, 5_0000_0000, makeTestNetRewards(t, gen, 3_5000_0000, 1_5000_0000)},
 		{5000, 5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 		{5000, 5000, 10_1234_5678, makeTestNetRewards(t, gen, 8_1234_5678, 2_0000_0000)},
 	} {
