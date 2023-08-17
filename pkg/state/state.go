@@ -2359,11 +2359,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	ev, err := s.EstimatorVersion()
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(addr, ev)
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(addr)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

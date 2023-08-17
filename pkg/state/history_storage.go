@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -40,7 +41,6 @@ const (
 	stateHash
 	hitSource
 	feeDistr
-	accountOriginalEstimatorVersion
 )
 
 type blockchainEntityProperties struct {
@@ -179,11 +179,6 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		recordSize:   hitSourceSize + 4,
 	},
 	feeDistr: {
-		needToFilter: true,
-		needToCut:    true,
-		fixedSize:    false,
-	},
-	accountOriginalEstimatorVersion: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

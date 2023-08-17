@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -1388,6 +1389,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetId := tx.Payments[0].Asset.ID
 	to.stor.createAsset(t, assetId)
+	to.stor.setScript(t, testGlobal.recipientInfo.pk, testGlobal.scriptBytes, blockID0)
 
 	// Check activation.
 	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)
