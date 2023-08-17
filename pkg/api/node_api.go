@@ -665,11 +665,18 @@ func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error
 	}
 	err := a.state.RollbackToHeight(rollbackReq.Height)
 	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.BlockDoesNotExist
+		}
 		return errors.Wrapf(err, "failed to rollback to height %d", rollbackReq.Height)
 	}
-	block, err := a.state.BlockByHeight(rollbackReq.Height)
+	block, err := a.app.BlockByHeight(rollbackReq.Height)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block by height %d", rollbackReq.Height)
+		if errors.Is(err, notFound) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrap(err, "expected NotFound in state error, but received other error")
 	}
 	if err = trySendJson(w, rollbackResponse{block.BlockID()}); err != nil {
 		return errors.Wrap(err, "RollbackToHeight")
