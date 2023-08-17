@@ -54,11 +54,14 @@ func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings
 
 func (m *monetaryPolicy) reward() (uint64, error) {
 	rewardsChanges, err := m.getRewardChanges()
-	if isNotFoundInHistoryOrDBErr(err) || len(rewardsChanges) == 0 {
-		return m.settings.InitialBlockReward, nil
-	}
 	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return m.settings.InitialBlockReward, nil
+		}
 		return 0, err
+	}
+	if len(rewardsChanges) == 0 {
+		return m.settings.InitialBlockReward, nil
 	}
 	return rewardsChanges[len(rewardsChanges)-1].Reward, nil
 }
