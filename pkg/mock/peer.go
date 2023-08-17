@@ -78,6 +78,20 @@ func (mr *MockPeerMockRecorder) Direction() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Direction", reflect.TypeOf((*MockPeer)(nil).Direction))
 }
 
+// Equal mocks base method.
+func (m *MockPeer) Equal(arg0 peer.Peer) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Equal", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Equal indicates an expected call of Equal.
+func (mr *MockPeerMockRecorder) Equal(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equal", reflect.TypeOf((*MockPeer)(nil).Equal), arg0)
+}
+
 // Handshake mocks base method.
 func (m *MockPeer) Handshake() proto.Handshake {
 	m.ctrl.T.Helper()

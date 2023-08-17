@@ -8,6 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -16,7 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"go.uber.org/zap"
 )
 
 type nodeRPCApp struct {

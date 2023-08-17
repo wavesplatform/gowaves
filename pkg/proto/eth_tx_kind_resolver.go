@@ -2,6 +2,7 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )

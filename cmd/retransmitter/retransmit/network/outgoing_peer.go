@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const outgoingPeerDialTimeout = 5 * time.Second
@@ -72,7 +73,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	zap.S().Debugf("connected %s", params.Address)
-	if err := peer.Handle(ctx, p, params.Parent, remote, nil); err != nil {
+	if err = peer.Handle(ctx, p, params.Parent, remote); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
 		return
 	}
@@ -106,7 +107,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 		handshake := proto.Handshake{
 			AppName:      wavesNetwork,
 			Version:      possibleVersions[index%len(possibleVersions)],
-			NodeName:     "retransmitter",
+			NodeName:     "re-transmitter",
 			NodeNonce:    0x0,
 			DeclaredAddr: proto.HandshakeTCPAddr(declAddr),
 			Timestamp:    proto.NewTimestampFromTime(time.Now()),
@@ -180,4 +181,11 @@ func (a *OutgoingPeer) Handshake() proto.Handshake {
 
 func (a *OutgoingPeer) RemoteAddr() proto.TCPAddr {
 	return proto.TCPAddr(*a.connection.Conn().RemoteAddr().(*net.TCPAddr))
+}
+
+func (a *OutgoingPeer) Equal(other peer.Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
 }

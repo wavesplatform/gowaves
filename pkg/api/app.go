@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -49,7 +50,7 @@ type App struct {
 	scheduler     SchedulerEmits
 	utx           types.UtxPool
 	state         state.State
-	peers         peer_manager.PeerManager
+	peers         peers.PeerManager
 	sync          types.StateSync
 	services      services.Services
 	settings      *appSettings
