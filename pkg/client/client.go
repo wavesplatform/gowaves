@@ -47,6 +47,7 @@ type Client struct {
 	Utils        *Utils
 	Leasing      *Leasing
 	Debug        *Debug
+	Blockchain   *Blockchain
 }
 
 type Response struct {
@@ -94,6 +95,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Utils:        NewUtils(opts),
 		Leasing:      NewLeasing(opts),
 		Debug:        NewDebug(opts),
+		Blockchain:   NewBlockchain(opts),
 	}
 
 	return c, nil

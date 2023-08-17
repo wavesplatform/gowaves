@@ -356,6 +356,24 @@ func (a *ThreadSafeReadWrapper) ShouldPersistAddressTransactions() (bool, error)
 	return a.s.ShouldPersistAddressTransactions()
 }
 
+func (a *ThreadSafeReadWrapper) RewardAtHeight(height proto.Height) (uint64, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.RewardAtHeight(height)
+}
+
+func (a *ThreadSafeReadWrapper) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.RewardVotes(height)
+}
+
+func (a *ThreadSafeReadWrapper) TotalWavesAmount(height proto.Height) (uint64, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.TotalWavesAmount(height)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,

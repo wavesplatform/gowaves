@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -182,14 +183,18 @@ func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated
 	return nil
 }
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
+func (tc *transactionChecker) checkScript(
+	script proto.Script,
+	estimatorVersion int,
+	reducedVerifierComplexity bool,
+) (ride.TreeEstimation, error) {
 	tree, err := serialization.Parse(script)
 	if err != nil {
-		return nil, errs.Extend(err, "failed to build AST")
+		return ride.TreeEstimation{}, errs.Extend(err, "failed to build AST")
 	}
 	activations, err := tc.scriptActivation(tree.LibVersion, tree.HasBlockV2)
 	if err != nil {
-		return nil, errs.Extend(err, "script activation check failed")
+		return ride.TreeEstimation{}, errs.Extend(err, "script activation check failed")
 	}
 	maxSize := proto.MaxVerifierScriptSize
 	if tree.IsDApp() {
@@ -199,30 +204,21 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 		}
 	}
 	if l := len(script); l > maxSize {
-		return nil, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)
+		return ride.TreeEstimation{}, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)
 	}
 	if tree.IsDApp() {
-		if err := tc.checkDAppCallables(tree, activations.rideV6Activated); err != nil {
-			return nil, errors.Wrap(err, "failed to check script callables")
+		if checkDAppErr := tc.checkDAppCallables(tree, activations.rideV6Activated); checkDAppErr != nil {
+			return ride.TreeEstimation{}, errors.Wrap(checkDAppErr, "failed to check script callables")
 		}
 	}
-
-	estimations := make(map[int]ride.TreeEstimation)
-	maxVersion := maxEstimatorVersion
-	if !expandEstimations {
-		maxVersion = estimatorVersion
+	est, err := ride.EstimateTree(tree, estimatorVersion)
+	if err != nil {
+		return ride.TreeEstimation{}, errs.Extend(err, "failed to estimate script complexity")
 	}
-	for ev := estimatorVersion; ev <= maxVersion; ev++ {
-		est, err := ride.EstimateTree(tree, ev)
-		if err != nil {
-			return nil, errs.Extend(err, "failed to estimate script complexity")
-		}
-		estimations[ev] = est
+	if scErr := tc.checkScriptComplexity(tree.LibVersion, est, tree.IsDApp(), reducedVerifierComplexity); scErr != nil {
+		return ride.TreeEstimation{}, errors.Wrap(scErr, "failed to check script complexity")
 	}
-	if err := tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion], tree.IsDApp(), reducedVerifierComplexity); err != nil {
-		return nil, errors.Wrap(err, "failed to check script complexity")
-	}
-	return estimations, nil
+	return est, nil
 }
 
 type txAssets struct {
@@ -244,11 +240,10 @@ func (tc *transactionChecker) checkFee(
 		return nil
 	}
 	params := &feeValidationParams{
-		stor:             tc.stor,
-		settings:         tc.settings,
-		txAssets:         assets,
-		rideV5Activated:  info.rideV5Activated,
-		estimatorVersion: info.estimatorVersion(),
+		stor:            tc.stor,
+		settings:        tc.settings,
+		txAssets:        assets,
+		rideV5Activated: info.rideV5Activated,
 	}
 	if !assets.feeAsset.Present {
 		return checkMinFeeWaves(tx, params)
@@ -572,14 +567,15 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	}
 	// For asset scripts do not reduce verifier complexity and only one estimation is required
 	currentEstimatorVersion := info.estimatorVersion()
-	estimations, err := tc.checkScript(tx.Script, currentEstimatorVersion, false, false)
+	estimation, err := tc.checkScript(tx.Script, currentEstimatorVersion, false)
 	if err != nil {
 		return out, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	return txCheckerData{
-		scriptEstimations: &scriptsEstimations{
+		scriptEstimation: &scriptEstimation{
 			currentEstimatorVersion: currentEstimatorVersion,
-			estimations:             estimations,
+			scriptIsEmpty:           false,
+			estimation:              estimation,
 		},
 	}, nil
 }
@@ -946,14 +942,9 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	if err != nil {
 		return err
 	}
-	var recipientAddr proto.WavesAddress
-	if addr := tx.Recipient.Address(); addr == nil {
-		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
-		if err != nil {
-			return errors.Errorf("invalid alias: %v", err)
-		}
-	} else {
-		recipientAddr = *addr
+	recipientAddr, err := recipientToAddress(tx.Recipient, tc.stor.aliases)
+	if err != nil {
+		return errors.Wrap(err, "failed convert recipient to address")
 	}
 	if senderAddr == recipientAddr {
 		return errs.NewToSelf("trying to lease money to self")
@@ -1262,17 +1253,19 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	}
 
 	currentEstimatorVersion := info.estimatorVersion()
-	var estimations map[int]ride.TreeEstimation
-	if !tx.Script.IsEmpty() {
-		estimations, err = tc.checkScript(tx.Script, currentEstimatorVersion, info.blockVersion == proto.ProtobufBlockVersion, true)
+	var estimation ride.TreeEstimation
+	scriptIsEmpty := tx.Script.IsEmpty()
+	if !scriptIsEmpty { // script isn't empty
+		estimation, err = tc.checkScript(tx.Script, currentEstimatorVersion, info.blockVersion == proto.ProtobufBlockVersion)
 		if err != nil {
 			return out, errors.Wrapf(err, "checkScript() tx %s", tx.ID.String())
 		}
 	}
 	return txCheckerData{
-		scriptEstimations: &scriptsEstimations{
+		scriptEstimation: &scriptEstimation{
 			currentEstimatorVersion: currentEstimatorVersion,
-			estimations:             estimations,
+			scriptIsEmpty:           scriptIsEmpty,
+			estimation:              estimation,
 		},
 	}, nil
 }
@@ -1313,15 +1306,16 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	}
 	currentEstimatorVersion := info.estimatorVersion()
 	// Do not reduce verifier complexity for asset scripts and only one estimation is required
-	estimations, err := tc.checkScript(tx.Script, currentEstimatorVersion, false, false)
+	estimation, err := tc.checkScript(tx.Script, currentEstimatorVersion, false)
 	if err != nil {
 		return out, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	return txCheckerData{
 		smartAssets: smartAssets,
-		scriptEstimations: &scriptsEstimations{
+		scriptEstimation: &scriptEstimation{
 			currentEstimatorVersion: currentEstimatorVersion,
-			estimations:             estimations,
+			scriptIsEmpty:           false,
+			estimation:              estimation,
 		},
 	}, nil
 }
@@ -1364,11 +1358,12 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 		return out, errors.New("no more than ten payments is allowed since RideV5 activation")
 	}
 	var paymentAssets []proto.OptionalAsset
-	for _, payment := range tx.Payments {
-		if err := tc.checkAsset(&payment.Asset); err != nil {
-			return out, errs.Extend(err, "bad payment asset")
+	for i := range tx.Payments {
+		p := &tx.Payments[i]
+		if paymentErr := tc.checkAsset(&p.Asset); paymentErr != nil {
+			return out, errs.Extend(paymentErr, "bad payment asset")
 		}
-		paymentAssets = append(paymentAssets, payment.Asset)
+		paymentAssets = append(paymentAssets, p.Asset)
 	}
 	smartAssets, err := tc.smartAssets(paymentAssets)
 	if err != nil {
@@ -1378,7 +1373,60 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return out, err
 	}
-	return txCheckerData{smartAssets: smartAssets}, nil
+
+	dAppEstimationUpdate, ok, err := tc.tryCreateDAppEstimationUpdate(tx.ScriptRecipient, info.estimatorVersion())
+	if err != nil {
+		return out, err
+	}
+	var se *scriptEstimation
+	if ok {
+		se = &dAppEstimationUpdate
+	}
+	return txCheckerData{
+		smartAssets:      smartAssets,
+		scriptEstimation: se,
+	}, nil
+}
+
+func (tc *transactionChecker) tryCreateDAppEstimationUpdate(
+	rcp proto.Recipient,
+	currentEstimatorVersion int,
+) (scriptEstimation, bool, error) {
+	rideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return scriptEstimation{}, false, err
+	}
+	if rideV5Activated { // after rideV5 activation we're using estimating evaluator (see complexityCalculator)
+		return scriptEstimation{}, false, nil // so we don't have to update script estimation
+	}
+	scriptAddr, err := recipientToAddress(rcp, tc.stor.aliases)
+	if err != nil {
+		return scriptEstimation{}, false, err
+	}
+	est, err := tc.stor.scriptsComplexity.newestScriptEstimationRecordByAddr(scriptAddr)
+	if err != nil {
+		return scriptEstimation{}, false, errors.Wrapf(err,
+			"failed to get newest script estimation record by addr %q", scriptAddr,
+		)
+	}
+	// we're using == because saved estimator version can't be greater than current, can be only less or equal
+	if estimationIsNotStale := int(est.EstimatorVersion) == currentEstimatorVersion; estimationIsNotStale {
+		return scriptEstimation{}, false, nil // no updates
+	}
+	// we have to create estimation update
+	tree, err := tc.stor.scriptsStorage.newestScriptByAddr(scriptAddr)
+	if err != nil {
+		return scriptEstimation{}, false, errors.Wrapf(err, "failed to get newest script by addr %q", scriptAddr)
+	}
+	treeEstimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
+	if err != nil {
+		return scriptEstimation{}, false, errors.Wrapf(err, "faield to estimate script by addr %q", scriptAddr)
+	}
+	return scriptEstimation{
+		currentEstimatorVersion: currentEstimatorVersion,
+		scriptIsEmpty:           false,
+		estimation:              treeEstimation,
+	}, true, nil
 }
 
 func (tc *transactionChecker) checkInvokeExpressionWithProofs(transaction proto.Transaction, info *checkerInfo) (out txCheckerData, err error) {

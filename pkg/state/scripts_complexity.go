@@ -1,8 +1,6 @@
 package state
 
 import (
-	"math"
-
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -11,8 +9,22 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
-type estimatorVersionRecord struct {
-	Version uint8 `cbor:"0,keyasint"`
+type estimationRecord struct {
+	EstimatorVersion uint8               `cbor:"0,keyasint"`
+	Estimation       ride.TreeEstimation `cbor:"1,keyasint"`
+}
+
+func (e *estimationRecord) marshalBinary() ([]byte, error) {
+	type shadowed *estimationRecord
+	return cbor.Marshal(shadowed(e))
+}
+
+func (e *estimationRecord) unmarshalBinary(data []byte) error {
+	if len(data) == 0 {
+		return errors.New("empty binary data, estimation doesn't exist")
+	}
+	type shadowed *estimationRecord
+	return cbor.Unmarshal(data, shadowed(e))
 }
 
 type scriptsComplexity struct {
@@ -22,41 +34,27 @@ type scriptsComplexity struct {
 func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
 	return &scriptsComplexity{hs: hs}
 }
-
-func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int) (*ride.TreeEstimation, error) {
-	key := accountScriptComplexityKey{ev, addr.ID()}
+func (sc *scriptsComplexity) newestScriptEstimationRecordByAddr(addr proto.Address) (*estimationRecord, error) {
+	key := accountScriptComplexityKey{addr.ID()}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
-	record := new(ride.TreeEstimation)
-	if err = cbor.Unmarshal(recordBytes, record); err != nil {
+	r := new(estimationRecord)
+	if err = r.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal account script complexities record")
 	}
-	return record, nil
+	return r, nil
 }
 
-func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address) (int, error) {
-	key := accountOriginalEstimatorVersionKey{addr.ID()}
-	recordBytes, err := sc.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		return 0, err
-	}
-	record := new(estimatorVersionRecord)
-	if err := cbor.Unmarshal(recordBytes, record); err != nil {
-		return 0, errors.Wrap(err, "failed to unmarshal original estimator version record")
-	}
-	return int(record.Version), nil
-}
-
-// newestOriginalScriptComplexityByAddr returns original estimated script complexity by the given address.
-// For account scripts we have to use original estimation.
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
-	ev, err := sc.originalEstimatorVersion(addr)
+// newestScriptComplexityByAddr returns estimated script complexity by the given address.
+// Note that verifier complexity remains unchanged even after callables updates.
+func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address) (*ride.TreeEstimation, error) {
+	r, err := sc.newestScriptEstimationRecordByAddr(addr)
 	if err != nil {
 		return nil, err
 	}
-	return sc.newestScriptComplexityByAddr(addr, ev)
+	return &r.Estimation, nil
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID) (*ride.TreeEstimation, error) {
@@ -65,11 +63,11 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID) 
 	if err != nil {
 		return nil, err
 	}
-	record := new(ride.TreeEstimation)
-	if err = cbor.Unmarshal(recordBytes, record); err != nil {
+	r := new(estimationRecord)
+	if err = r.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal asset script complexities record")
 	}
-	return record, nil
+	return &r.Estimation, nil
 }
 
 func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID) (*ride.TreeEstimation, error) {
@@ -78,65 +76,135 @@ func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID) (*ride
 	if err != nil {
 		return nil, err
 	}
-	record := new(ride.TreeEstimation)
-	if err := cbor.Unmarshal(recordBytes, record); err != nil {
+	r := new(estimationRecord)
+	if err = r.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal asset script complexities record")
 	}
-	return record, nil
+	return &r.Estimation, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int) (*ride.TreeEstimation, error) {
-	key := accountScriptComplexityKey{ev, addr.ID()}
+func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address) (*ride.TreeEstimation, error) {
+	key := accountScriptComplexityKey{addr.ID()}
 	recordBytes, err := sc.hs.topEntryData(key.bytes())
 	if err != nil {
 		return nil, err
 	}
-	record := new(ride.TreeEstimation)
-	if err := cbor.Unmarshal(recordBytes, record); err != nil {
+	r := new(estimationRecord)
+	if err = r.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal account script complexities record")
 	}
-	return record, nil
+	return &r.Estimation, nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimations map[int]ride.TreeEstimation, blockID proto.BlockID) error {
-	min := math.MaxUint8
-	addrID := addr.ID()
-	for v, e := range estimations {
-		if v < min {
-			min = v
+func (sc *scriptsComplexity) saveComplexitiesForAddr(
+	addr proto.Address,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	var recordBytes []byte
+	if !se.scriptIsEmpty { // fill recordBytes if script is not empty
+		var err error
+		// prepare record bytes
+		complexityRecord := estimationRecord{
+			EstimatorVersion: uint8(se.currentEstimatorVersion),
+			Estimation:       se.estimation,
 		}
-		recordBytes, err := cbor.Marshal(e)
+		recordBytes, err = complexityRecord.marshalBinary()
 		if err != nil {
-			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
-		}
-		key := accountScriptComplexityKey{v, addrID}
-		err = sc.hs.addNewEntry(accountScriptComplexity, key.bytes(), recordBytes, blockID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
+			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
+				addr.String(), blockID.String(),
+			)
 		}
 	}
-	key := accountOriginalEstimatorVersionKey{addrID}
-	record := estimatorVersionRecord{uint8(min)}
-	recordBytes, err := cbor.Marshal(record)
+	complexityKey := accountScriptComplexityKey{addr.ID()}
+	// save new estimation record or write zero bytes if script is empty
+	err := sc.hs.addNewEntry(accountScriptComplexity, complexityKey.bytes(), recordBytes, blockID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save original estimator version for address '%s' in block '%s'", addr.String(), blockID.String())
-	}
-	err = sc.hs.addNewEntry(accountOriginalEstimatorVersion, key.bytes(), recordBytes, blockID)
-	if err != nil {
-		return errors.Wrapf(err, "failed to save original estimator version for address '%s' in block '%s'", addr.String(), blockID.String())
+		return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'",
+			addr.String(), blockID.String(),
+		)
 	}
 	return nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAsset(asset crypto.Digest, estimation ride.TreeEstimation, blockID proto.BlockID) error {
-	recordBytes, err := cbor.Marshal(estimation)
+func (sc *scriptsComplexity) updateCallableComplexitiesForAddr(
+	addr proto.Address,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	old, err := sc.newestScriptEstimationRecordByAddr(addr)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())
+		return errors.Wrapf(err, "failed to update callable complexities for addr '%s'", addr)
+	}
+	newEst := ride.TreeEstimation{
+		Estimation: maxEstimationWithOldVerifierComplexity(se.estimation, old.Estimation.Verifier),
+		Verifier:   old.Estimation.Verifier,
+		Functions:  se.estimation.Functions,
+	}
+	// prepare record bytes
+	complexityRecord := estimationRecord{
+		EstimatorVersion: uint8(se.currentEstimatorVersion),
+		Estimation:       newEst,
+	}
+	recordBytes, err := complexityRecord.marshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal complexities record for address '%s' in block '%s'",
+			addr.String(), blockID.String(),
+		)
+	}
+	complexityKey := accountScriptComplexityKey{addr.ID()}
+	// save new estimation record
+	err = sc.hs.addNewEntry(accountScriptComplexity, complexityKey.bytes(), recordBytes, blockID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update complexities record for address '%s' in block '%s'",
+			addr.String(), blockID.String(),
+		)
+	}
+	return nil
+}
+
+func maxEstimationWithOldVerifierComplexity(update ride.TreeEstimation, oldVerifierComplexity int) int {
+	if update.Verifier < update.Estimation { // fast path: one's callable complexity == max update complexity
+		return max(oldVerifierComplexity, update.Estimation)
+	}
+	// trying to find the hardest callable in the tab of new estimations and determine max complexity
+	maxCallableComplexity := 0
+	for _, complexity := range update.Functions { // for account scripts (verifier) Functions map is empty
+		if complexity > maxCallableComplexity {
+			maxCallableComplexity = complexity
+		}
+	}
+	return max(oldVerifierComplexity, maxCallableComplexity)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (sc *scriptsComplexity) saveComplexitiesForAsset(
+	asset crypto.Digest,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	complexityRecord := estimationRecord{
+		EstimatorVersion: uint8(se.currentEstimatorVersion),
+		Estimation:       se.estimation,
+	}
+	recordBytes, err := complexityRecord.marshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'",
+			asset.String(), blockID.String(),
+		)
 	}
 	key := assetScriptComplexityKey{proto.AssetIDFromDigest(asset)}
 	err = sc.hs.addNewEntry(assetScriptComplexity, key.bytes(), recordBytes, blockID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())
+		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'",
+			asset.String(), blockID.String(),
+		)
 	}
 	return nil
 }
