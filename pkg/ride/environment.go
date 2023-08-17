@@ -662,6 +662,10 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invocationCount++
 }
 
+func (ws *WrappedState) setInvocationCount(count int) {
+	ws.invocationCount = count
+}
+
 func (ws *WrappedState) countActionTotal(action proto.ScriptAction, libVersion ast.LibraryVersion, isRideV6Activated bool) error {
 	return ws.rootActionsCountValidator.CountAction(action, libVersion, isRideV6Activated)
 }
