@@ -120,11 +120,11 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
 	}
 	ws.incrementInvCount()
-	ic := ws.invocationCount
-	if ws.invCount() > invocationsLimit {
+	ic := ws.invCount()
+	if ic > invocationsLimit {
 		return rideUnit{}, RuntimeError.Errorf("%s: too many internal invocations", invocation.name())
 	}
-
+	defer ws.setInvocationCount(ic)
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
 		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", invocation.name(), env.this().instanceOf())
@@ -318,7 +318,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	if env.validateInternalPayments() || env.rideV6Activated() {
 		err = ws.validateBalances(env.rideV6Activated())
 	}
-	ws.setInvocationCount(ic)
 	if err != nil {
 		if ws.invCount() > 1 {
 			return nil, RuntimeError.Wrapf(err, "%s: failed to validate balances", invocation.name())
