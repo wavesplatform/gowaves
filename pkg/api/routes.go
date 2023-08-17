@@ -74,10 +74,6 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/id/{id}", wrapper(a.BlockIDAt))
 			r.Get("/generators", wrapper(a.BlocksGenerators))
 			r.Get("/first", wrapper(a.BlocksFirst))
-
-			rAuth := r.With(checkAuthMiddleware)
-
-			rAuth.Post("/rollback", wrapper(RollbackToHeight(a.app)))
 		})
 
 		r.Route("/peers", func(r chi.Router) {
@@ -151,9 +147,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
 			r.Get("/stateHash/last", wrapper(a.stateHashLast))
-			rAuth := r.With(checkAuthMiddleware)
-			rAuth.Post("/print", wrapper(a.debugPrint))
 
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/print", wrapper(a.debugPrint))
+			rAuth.Post("/rollback", wrapper(a.RollbackToHeight))
+			rAuth.Post("/rollback-to/{id}", wrapper(a.RollbackTo))
 		})
 		r.Route("/node", func(r chi.Router) {
 			r.Get("/version", wrapper(a.version))
