@@ -101,7 +101,7 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 	assert.True(t, equal,
 		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\nScala:\tBlockID=%s\tStateHash=%s",
 		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(),
-		scalaStateHash.BlockID.String(), goStateHash.SumHash.String())
+		scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String())
 }
 
 func Retry(timeout time.Duration, f func() error) error {
