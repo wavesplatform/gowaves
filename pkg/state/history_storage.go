@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -34,13 +35,12 @@ const (
 	accountScriptComplexity
 	assetScriptComplexity
 	rewardVotes
-	blockReward
+	rewardChanges
 	invokeResult
 	score
 	stateHash
 	hitSource
 	feeDistr
-	accountOriginalEstimatorVersion
 )
 
 type blockchainEntityProperties struct {
@@ -157,12 +157,6 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    true,
 		recordSize:   rewardVotesRecordSize + 4,
 	},
-	blockReward: {
-		needToFilter: true,
-		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   blockRewardRecordSize + 4,
-	},
 	invokeResult: {
 		needToFilter: true,
 		needToCut:    true,
@@ -189,7 +183,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    false,
 	},
-	accountOriginalEstimatorVersion: {
+	rewardChanges: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

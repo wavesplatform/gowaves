@@ -297,7 +297,7 @@ func TestEthereumInvoke(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
+	res, err := txAppender.ia.sc.invokeFunction(tree, nil, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -428,7 +428,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
+	res, err := txAppender.ia.sc.invokeFunction(tree, nil, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -505,7 +505,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress)
+	res, err := txAppender.ia.sc.invokeFunction(tree, nil, &tx, fallibleInfo, scriptAddress)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 

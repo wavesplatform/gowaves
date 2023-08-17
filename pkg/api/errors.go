@@ -7,8 +7,9 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
-	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"go.uber.org/zap"
+
+	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 )
 
 // internal node api errors
@@ -16,6 +17,8 @@ var (
 	notFound = errors.New("not found")
 )
 
+// BadRequestError represents a bad request error.
+// Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
 type BadRequestError struct {
 	inner error
 }
@@ -24,6 +27,8 @@ func (e *BadRequestError) Error() string {
 	return e.inner.Error()
 }
 
+// AuthError represents an authentication error or problem.
+// Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
 type AuthError struct {
 	inner error
 }

@@ -96,11 +96,10 @@ const (
 	scriptBasicInfoKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
-	accountOriginalEstimatorVersionKeyPrefix
 
 	// Block Reward.
-	blockRewardKeyPrefix
 	rewardVotesKeyPrefix
+	rewardChangesKeyPrefix
 
 	// Batched storage (see batched_storage.go).
 	batchedStorKeyPrefix
@@ -169,8 +168,6 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{assetScriptComplexityKeyPrefix}, nil
 	case rewardVotes:
 		return []byte{rewardVotesKeyPrefix}, nil
-	case blockReward:
-		return []byte{blockRewardKeyPrefix}, nil
 	case invokeResult:
 		return []byte{invokeResultKeyPrefix}, nil
 	case score:
@@ -181,8 +178,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
 		return []byte{blocksInfoKeyPrefix}, nil
-	case accountOriginalEstimatorVersion:
-		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
+	case rewardChanges:
+		return []byte{rewardChangesKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -598,15 +595,13 @@ func (k *scriptBasicInfoKey) bytes() []byte {
 }
 
 type accountScriptComplexityKey struct {
-	ver       int
 	addressID proto.AddressID
 }
 
 func (k *accountScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 2+proto.AddressIDSize)
+	buf := make([]byte, 1+proto.AddressIDSize)
 	buf[0] = accountScriptComplexityKeyPrefix
-	buf[1] = byte(k.ver)
-	copy(buf[2:], k.addressID[:])
+	copy(buf[1:], k.addressID[:])
 	return buf
 }
 
@@ -618,17 +613,6 @@ func (k *assetScriptComplexityKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
-	return buf
-}
-
-type accountOriginalEstimatorVersionKey struct {
-	addressID proto.AddressID
-}
-
-func (k *accountOriginalEstimatorVersionKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressIDSize)
-	buf[0] = accountOriginalEstimatorVersionKeyPrefix
-	copy(buf[1:], k.addressID[:])
 	return buf
 }
 
@@ -698,6 +682,6 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
