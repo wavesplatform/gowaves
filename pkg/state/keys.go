@@ -98,8 +98,8 @@ const (
 	assetScriptComplexityKeyPrefix
 
 	// Block Reward.
-	blockRewardKeyPrefix
 	rewardVotesKeyPrefix
+	rewardChangesKeyPrefix
 
 	// Batched storage (see batched_storage.go).
 	batchedStorKeyPrefix
@@ -168,8 +168,6 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{assetScriptComplexityKeyPrefix}, nil
 	case rewardVotes:
 		return []byte{rewardVotesKeyPrefix}, nil
-	case blockReward:
-		return []byte{blockRewardKeyPrefix}, nil
 	case invokeResult:
 		return []byte{invokeResultKeyPrefix}, nil
 	case score:
@@ -180,6 +178,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
 		return []byte{blocksInfoKeyPrefix}, nil
+	case rewardChanges:
+		return []byte{rewardChangesKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -682,6 +682,6 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

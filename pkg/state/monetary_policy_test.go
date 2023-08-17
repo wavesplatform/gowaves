@@ -11,24 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-func TestBlockRewardRecord(t *testing.T) {
-	for _, test := range []uint64{
-		0,
-		1,
-		1234567890,
-		math.MaxUint64,
-	} {
-		r1 := blockRewardRecord{reward: test}
-		b, err := r1.marshalBinary()
-		require.NoError(t, err)
-		var r2 blockRewardRecord
-		err = r2.unmarshalBinary(b)
-		require.NoError(t, err)
-		assert.Equal(t, r1, r2)
-		assert.Equal(t, test, r2.reward)
-	}
-}
-
 func TestRewardVotesRecord(t *testing.T) {
 	for _, test := range []struct {
 		dec uint32
@@ -177,9 +159,114 @@ func TestFinishRewardVoting(t *testing.T) {
 		if h == end {
 			nextID := ids[i+1]
 			storage.prepareBlock(t, nextID)
-			err = mo.updateBlockReward(id, nextID)
+			err = mo.updateBlockReward(id, nextID, h)
 			require.NoError(t, err)
 		}
+	}
+}
+
+func TestRewardAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+
+	const (
+		blockRewardActivationHeight = uint64(1)
+		initialReward               = uint64(600000000)
+		rewardIncrement             = uint64(100000000)
+	)
+
+	rewardsChanges := []struct {
+		height    proto.Height
+		newReward uint64
+	}{
+		{5, initialReward + rewardIncrement},
+		{10, initialReward + 2*rewardIncrement},
+		{15, initialReward + 3*rewardIncrement},
+		{20, initialReward + 2*rewardIncrement},
+	}
+	ids := genRandBlockIds(t, len(rewardsChanges))
+	for i, rewardChange := range rewardsChanges {
+		storage.addBlock(t, ids[i])
+		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		height         proto.Height
+		expectedReward uint64
+	}{
+		{4, initialReward},
+		{8, initialReward + rewardIncrement},
+		{12, initialReward + 2*rewardIncrement},
+		{15, initialReward + 3*rewardIncrement},
+		{21, initialReward + 2*rewardIncrement},
+	}
+
+	for _, test := range tests {
+		reward, err := mo.rewardAtHeight(test.height, blockRewardActivationHeight)
+		require.NoError(t, err)
+		assert.Equal(t, test.expectedReward, reward)
+	}
+}
+
+func TestTotalWavesAmountAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+
+	const (
+		blockRewardActivationHeight = uint64(1)
+		initialReward               = uint64(600000000)
+		newReward                   = initialReward + 1000000000
+		initialAmount               = uint64(1000000000)
+		rewardIncrement             = uint64(100000000)
+	)
+
+	rewardsChanges := []struct {
+		height    proto.Height
+		newReward uint64
+	}{
+		{5, initialReward + rewardIncrement},
+		{10, initialReward + 2*rewardIncrement},
+		{15, initialReward + 3*rewardIncrement},
+		{20, initialReward + 2*rewardIncrement},
+	}
+	ids := genRandBlockIds(t, len(rewardsChanges))
+	for i, rewardChange := range rewardsChanges {
+		storage.addBlock(t, ids[i])
+		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		height              proto.Height
+		expectedTotalAmount uint64
+	}{
+		{4, initialAmount + initialReward*3},
+		{8, initialAmount + initialReward*3 + (initialReward+rewardIncrement)*4},
+		{12, initialAmount +
+			initialReward*3 +
+			(initialReward+rewardIncrement)*5 +
+			(initialReward+2*rewardIncrement)*3,
+		},
+		{15, initialAmount +
+			initialReward*3 +
+			(initialReward+rewardIncrement)*5 +
+			(initialReward+2*rewardIncrement)*5 +
+			(initialReward + 3*rewardIncrement),
+		},
+		{21, initialAmount +
+			initialReward*3 +
+			(initialReward+rewardIncrement)*5 +
+			(initialReward+2*rewardIncrement)*5 +
+			(initialReward+3*rewardIncrement)*5 +
+			(initialReward+2*rewardIncrement)*2,
+		},
+	}
+
+	for _, test := range tests {
+		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
+		require.NoError(t, err)
+		assert.Equal(t, test.expectedTotalAmount, reward)
 	}
 }
 
