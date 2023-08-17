@@ -3,36 +3,23 @@ package state
 import (
 	"encoding/binary"
 
+	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
-	blockRewardRecordSize = 8
 	rewardVotesRecordSize = 4 + 4
 )
 
-var (
-	rewardVotesKeyBytes = []byte{rewardVotesKeyPrefix}
-	blockRewardKeyBytes = []byte{blockRewardKeyPrefix}
-)
-
-type blockRewardRecord struct {
-	reward uint64
+func rewardVotesKeyBytes() []byte {
+	return []byte{rewardVotesKeyPrefix}
 }
 
-func (r *blockRewardRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, blockRewardRecordSize)
-	binary.BigEndian.PutUint64(res, r.reward)
-	return res, nil
-}
-
-func (r *blockRewardRecord) unmarshalBinary(data []byte) error {
-	if len(data) != blockRewardRecordSize {
-		return errInvalidDataSize
-	}
-	r.reward = binary.BigEndian.Uint64(data)
-	return nil
+func rewardChangesKeyBytes() []byte {
+	return []byte{rewardChangesKeyPrefix}
 }
 
 type rewardVotesRecord struct {
@@ -56,52 +43,32 @@ func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type monetaryPolicySettings struct {
-	bs *settings.BlockchainSettings
-}
-
-func newMonetaryPolicySettings(bs *settings.BlockchainSettings) monetaryPolicySettings {
-	return monetaryPolicySettings{bs: bs}
-}
-
-func (m monetaryPolicySettings) InitialBlockReward() uint64      { return m.bs.InitialBlockReward }
-func (m monetaryPolicySettings) BlockRewardIncrement() uint64    { return m.bs.BlockRewardIncrement }
-func (m monetaryPolicySettings) BlockRewardVotingPeriod() uint64 { return m.bs.BlockRewardVotingPeriod }
-
-func (m monetaryPolicySettings) BlockRewardTerm(isCappedRewardActivated bool) uint64 {
-	if isCappedRewardActivated {
-		return m.bs.BlockRewardTermAfter20
-	}
-	return m.bs.BlockRewardTerm
-}
-
 type monetaryPolicy struct {
-	settings monetaryPolicySettings
+	settings *settings.BlockchainSettings
 	hs       *historyStorage
 }
 
 func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) *monetaryPolicy {
-	return &monetaryPolicy{hs: hs, settings: newMonetaryPolicySettings(settings)}
+	return &monetaryPolicy{hs: hs, settings: settings}
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
-	var record blockRewardRecord
-	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes)
-	if isNotFoundInHistoryOrDBErr(err) {
-		return m.settings.InitialBlockReward(), nil
-	}
+	rewardsChanges, err := m.getRewardChanges()
 	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return m.settings.InitialBlockReward, nil
+		}
 		return 0, err
 	}
-	if err := record.unmarshalBinary(b); err != nil {
-		return 0, err
+	if len(rewardsChanges) == 0 {
+		return m.settings.InitialBlockReward, nil
 	}
-	return record.reward, nil
+	return rewardsChanges[len(rewardsChanges)-1].Reward, nil
 }
 
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	var record rewardVotesRecord
-	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes)
+	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes())
 	if isNotFoundInHistoryOrDBErr(err) {
 		return record, nil
 	}
@@ -143,7 +110,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation proto.Height, is
 	if err != nil {
 		return err
 	}
-	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes(), recordBytes, blockID)
 }
 
 func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
@@ -152,10 +119,10 @@ func (m *monetaryPolicy) resetBlockRewardVotes(blockID proto.BlockID) error {
 	if err != nil {
 		return err
 	}
-	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes(), recordBytes, blockID)
 }
 
-func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
+func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
 	votes, err := m.votes()
 	if err != nil {
 		return err
@@ -164,22 +131,16 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 	if err != nil {
 		return err
 	}
-	threshold := uint32(m.settings.BlockRewardVotingPeriod())/2 + 1
+	threshold := uint32(m.settings.BlockRewardVotingThreshold())
 	switch {
 	case votes.increase >= threshold:
-		reward += m.settings.BlockRewardIncrement()
+		reward += m.settings.BlockRewardIncrement
 	case votes.decrease >= threshold:
-		reward -= m.settings.BlockRewardIncrement()
+		reward -= m.settings.BlockRewardIncrement
 	default:
 		return m.resetBlockRewardVotes(nextBlockID) // nothing to do, reward remains the same, reset votes on the next block
 	}
-	record := blockRewardRecord{reward}
-	recordBytes, err := record.marshalBinary()
-	if err != nil {
-		return err
-	}
-	// bind block reward to the last applied block
-	if err := m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, lastBlockID); err != nil {
+	if err = m.saveNewRewardChange(reward, height, lastBlockID); err != nil {
 		return err
 	}
 	// bind votes reset to the next block which is being applied
@@ -187,14 +148,126 @@ func (m *monetaryPolicy) updateBlockReward(lastBlockID, nextBlockID proto.BlockI
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
-	blockRewardTerm := m.settings.BlockRewardTerm(isCappedRewardsActivated)
-	diff := height - activation
-	next := activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
-	start = next - m.settings.BlockRewardVotingPeriod()
+	next := NextRewardTerm(height, activation, m.settings, isCappedRewardsActivated)
+	start = next - m.settings.BlockRewardVotingPeriod
 	end = next - 1
 	return start, end
 }
 
 func isBlockRewardVotingPeriod(start, end, height proto.Height) bool {
 	return height >= start && height <= end
+}
+
+type rewardChangesRecord struct {
+	Height uint64 `cbor:"0,keyasint"`
+	Reward uint64 `cbor:"1,keyasint"`
+}
+
+type rewardChangesRecords []rewardChangesRecord
+
+func (r *rewardChangesRecords) marshalBinary() ([]byte, error) {
+	return cbor.Marshal(*r)
+}
+
+func (r *rewardChangesRecords) unmarshalBinary(recordBytes []byte) error {
+	return cbor.Unmarshal(recordBytes, r)
+}
+
+func (m *monetaryPolicy) getRewardChanges() (rewardChangesRecords, error) {
+	prevRecordBytes, err := m.hs.newestTopEntryData(rewardChangesKeyBytes())
+	if err != nil {
+		return nil, err
+	}
+	var changesRecords rewardChangesRecords
+
+	if err = changesRecords.unmarshalBinary(prevRecordBytes); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal reward changes records")
+	}
+	return changesRecords, nil
+}
+
+func (m *monetaryPolicy) saveNewRewardChange(newReward uint64, height proto.Height, blockID proto.BlockID) error {
+	changesRecords, err := m.getRewardChanges()
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
+		return err
+	}
+	changesRecords = append(changesRecords, rewardChangesRecord{Height: height, Reward: newReward})
+	newRecordBytes, err := changesRecords.marshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to save reward changes in height '%d' in block '%s'", height, blockID.String())
+	}
+	return m.hs.addNewEntry(rewardChanges, rewardChangesKeyBytes(), newRecordBytes, blockID)
+}
+
+func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivationHeight proto.Height) (uint64, error) {
+	changesRecords, err := m.getRewardChanges()
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
+		return 0, err
+	}
+	// If the BlockReward feature was activated at the start of the blockchain, then its height will be 1.
+	// But in the first block (genesis), we don't have a reward for the block, so we should increment this height
+	if blockRewardActivationHeight == 1 {
+		blockRewardActivationHeight++
+	}
+	changesRecords = append(rewardChangesRecords{{
+		Height: blockRewardActivationHeight,
+		Reward: m.settings.InitialBlockReward,
+	}}, changesRecords...)
+
+	curReward := uint64(0)
+	for _, change := range changesRecords {
+		if height < change.Height {
+			break
+		}
+		curReward = change.Reward
+	}
+	return curReward, nil
+}
+
+func (m *monetaryPolicy) totalAmountAtHeight(
+	height, initialTotalAmount uint64,
+	blockRewardActivationHeight proto.Height,
+) (uint64, error) {
+	changesRecords, err := m.getRewardChanges()
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
+		return 0, err
+	}
+	// If the BlockReward feature was activated at the start of the blockchain, then its height will be 1.
+	// But in the first block (genesis), we don't have a reward for the block, so we should increment this height
+	if blockRewardActivationHeight == 1 {
+		blockRewardActivationHeight++
+	}
+	changesRecords = append(rewardChangesRecords{{
+		Height: blockRewardActivationHeight,
+		Reward: m.settings.InitialBlockReward,
+	}}, changesRecords...)
+
+	curTotalAmount := initialTotalAmount
+	prevHeight := uint64(0)
+	isNotLast := false
+	for i := len(changesRecords) - 1; i >= 0; i-- {
+		change := changesRecords[i]
+		if height < change.Height {
+			continue
+		}
+		if height >= change.Height && !isNotLast {
+			curTotalAmount += change.Reward * (height - (change.Height - 1))
+			isNotLast = true
+		} else {
+			curTotalAmount += change.Reward * (prevHeight - (change.Height - 1))
+		}
+		prevHeight = change.Height - 1
+	}
+
+	return curTotalAmount, nil
+}
+
+func NextRewardTerm(
+	height, activation proto.Height,
+	set *settings.BlockchainSettings,
+	isCappedRewardsActivated bool,
+) uint64 {
+	blockRewardTerm := set.CurrentBlockRewardTerm(isCappedRewardsActivated)
+	diff := height - activation
+	return activation + ((diff/blockRewardTerm)+1)*blockRewardTerm
 }

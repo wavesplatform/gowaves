@@ -178,6 +178,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			}
 		})
 
+		r.Route("/blockchain", func(r chi.Router) {
+			r.Get("/rewards", wrapper(a.blockchainRewards))
+			r.Get("/rewards/{height}", wrapper(a.blockchainRewardsAtHeight))
+		})
+
 		// enable or disable history sync
 		//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
 	})

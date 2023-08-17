@@ -675,7 +675,15 @@ func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 }
 
 func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
-	reward, err := s.stor.monetaryPolicy.reward()
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return proto.Rewards{}, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return nil, err
+	}
+	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -1316,7 +1324,7 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err := s.updateBlockReward(lastBlock, nextBlock); err != nil {
+		if err = s.updateBlockReward(lastBlock, nextBlock, blockchainHeight); err != nil {
 			return err
 		}
 	}
@@ -1331,11 +1339,8 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID) error {
-	if err := s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID); err != nil {
-		return err
-	}
-	return nil
+func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID, height proto.Height) error {
+	return s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height)
 }
 
 func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error {
@@ -1502,6 +1507,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
 			return nil, err
 		}
+
 		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
@@ -2496,6 +2502,66 @@ func (s *stateManager) PersistAddressTransactions() error {
 
 func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 	return s.atx.shouldPersist()
+}
+
+func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return 0, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return 0, err
+	}
+	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return reward, nil
+}
+
+func (s *stateManager) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
+	start, end, err := s.blockRewardVotingPeriod(height)
+	if err != nil {
+		return proto.RewardVotes{}, err
+	}
+	if !isBlockRewardVotingPeriod(start, end, height) {
+		return proto.RewardVotes{}, nil
+	}
+	v, err := s.stor.monetaryPolicy.votes()
+	if err != nil {
+		return proto.RewardVotes{}, err
+	}
+	return proto.RewardVotes{Increase: v.increase, Decrease: v.decrease}, nil
+}
+
+func (s *stateManager) getInitialTotalWavesAmount() uint64 {
+	totalAmount := uint64(0)
+	for _, tx := range s.genesis.Transactions {
+		txG, ok := tx.(*proto.Genesis)
+		if !ok {
+			panic(fmt.Sprintf("tx type (%T) must be genesis tx type", tx))
+		}
+		totalAmount += txG.Amount
+	}
+	return totalAmount
+}
+
+func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
+	initialTotalAmount := s.getInitialTotalWavesAmount()
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return initialTotalAmount, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return initialTotalAmount, err
+	}
+	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return amount, nil
 }
 
 func (s *stateManager) Close() error {

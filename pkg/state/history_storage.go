@@ -34,7 +34,7 @@ const (
 	accountScriptComplexity
 	assetScriptComplexity
 	rewardVotes
-	blockReward
+	rewardChanges
 	invokeResult
 	score
 	stateHash
@@ -157,12 +157,6 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    true,
 		recordSize:   rewardVotesRecordSize + 4,
 	},
-	blockReward: {
-		needToFilter: true,
-		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   blockRewardRecordSize + 4,
-	},
 	invokeResult: {
 		needToFilter: true,
 		needToCut:    true,
@@ -190,6 +184,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	accountOriginalEstimatorVersion: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	rewardChanges: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

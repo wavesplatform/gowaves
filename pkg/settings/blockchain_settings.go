@@ -27,6 +27,11 @@ const (
 	delayDeltaDefault   = 8
 )
 
+const (
+	lenWithDAOAddress                = 1
+	lenWithDAOAndXTNBuybackAddresses = 2
+)
+
 var (
 	//go:embed embedded
 	res embed.FS
@@ -108,6 +113,39 @@ func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
 	} else {
 		return f.FeaturesVotingPeriod
 	}
+}
+
+func (f *FunctionalitySettings) CurrentBlockRewardTerm(isCappedRewardActivated bool) uint64 {
+	if isCappedRewardActivated {
+		return f.BlockRewardTermAfter20
+	}
+	return f.BlockRewardTerm
+}
+
+func (f *FunctionalitySettings) BlockRewardVotingThreshold() uint64 {
+	return f.BlockRewardVotingPeriod/2 + 1
+}
+
+func (f *FunctionalitySettings) CurrentRewardAddresses(isXTNBuyBackCessationActivated bool) []proto.WavesAddress {
+	if isXTNBuyBackCessationActivated {
+		return f.RewardAddressesAfter21
+	}
+	return f.RewardAddresses
+}
+
+func (f *FunctionalitySettings) DAOAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
+	addresses := f.CurrentRewardAddresses(isXTNBuyBackCessationActivated)
+	if len(addresses) >= lenWithDAOAddress {
+		return addresses[0], true
+	}
+	return proto.WavesAddress{}, false
+}
+
+func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated bool) (proto.WavesAddress, bool) {
+	if !isXTNBuyBackCessationActivated && len(f.RewardAddresses) >= lenWithDAOAndXTNBuybackAddresses {
+		return f.RewardAddresses[1], true
+	}
+	return proto.WavesAddress{}, false
 }
 
 type BlockchainSettings struct {
