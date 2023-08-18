@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -9,17 +10,18 @@ import (
 )
 
 type txCheckerData struct {
-	_                 struct{}
-	smartAssets       []crypto.Digest
-	scriptEstimations *scriptsEstimations
+	_                struct{}
+	smartAssets      []crypto.Digest
+	scriptEstimation *scriptEstimation
 }
 
-type scriptsEstimations struct {
+type scriptEstimation struct {
 	currentEstimatorVersion int
-	estimations             map[int]ride.TreeEstimation
+	scriptIsEmpty           bool
+	estimation              ride.TreeEstimation
 }
 
-func (e *scriptsEstimations) isPresent() bool { return e != nil }
+func (e *scriptEstimation) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error

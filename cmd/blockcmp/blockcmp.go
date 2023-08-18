@@ -12,6 +12,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	g "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -19,9 +20,9 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/blockcmp/internal"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type report struct {
@@ -99,7 +100,7 @@ func run() error {
 		blockchainType string
 	)
 
-	common.SetupLogger("INFO")
+	logging.SetupSimpleLogger(zapcore.InfoLevel)
 
 	flag.StringVar(&nodes, "nodes", "", "Nodes gRPC API URLs separated by comma")
 	flag.IntVar(&height, "height", 0, "Height to compare blocks at")

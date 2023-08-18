@@ -89,9 +89,9 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
+		if scErr != nil {
+			return errors.Wrapf(scErr, "failed to call account script on order '%s'", base58.Encode(id))
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}
@@ -152,9 +152,9 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+		est, scErr := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
+		if scErr != nil {
+			return errors.Wrapf(scErr, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}
 		a.recentTxComplexity += uint64(est.Verifier)
 	}
@@ -258,7 +258,13 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, setTx, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (ride.Result, error) {
+func (a *scriptCaller) invokeFunction(
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	tx proto.Transaction,
+	info *fallibleValidationParams,
+	scriptAddress proto.WavesAddress,
+) (ride.Result, error) {
 	env, err := ride.NewEnvironment(
 		a.settings.AddressSchemeCharacter,
 		a.state,
@@ -291,126 +297,185 @@ func (a *scriptCaller) invokeFunction(tree *ast.Tree, tx proto.Transaction, info
 		return nil, err
 	}
 
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, err
+	}
+	sender, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, err
+	}
 	var (
 		functionCall proto.FunctionCall
-		payments     proto.ScriptPayments
-		sender       proto.WavesAddress
 		r            ride.Result
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-		err = env.SetInvoke(tx, tree.LibVersion)
+		r, functionCall, err = a.invokeFunctionByInvokeWithProofsTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
 		if err != nil {
-			return nil, err
-		}
-		payments = transaction.Payments
-		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, err
-		}
-
-		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-			}
-		}
-
-		functionCall = transaction.FunctionCall
-
-		r, err = ride.CallFunction(env, tree, functionCall)
-		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
-				return nil, appendErr
-			}
 			return nil, err
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
-		err = env.SetInvoke(tx, tree.LibVersion)
+		// don't initialize function call because invoke expression tx can call only default function
+		r, err = a.invokeFunctionByInvokeExpressionWithProofsTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
 		if err != nil {
 			return nil, err
 		}
-		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
-		if err != nil {
-			return nil, err
-		}
-
-		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= ast.LibV5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, true)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-			}
-		}
-
-		functionCall = proto.FunctionCall{}
-
-		r, err = ride.CallVerifier(env, tree)
-		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
-				return nil, appendErr
-			}
-			return nil, err
-		}
-
 	case *proto.EthereumTransaction:
-		abiPayments := transaction.TxKind.DecodedData().Payments
-		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
-		for _, p := range abiPayments {
-			if p.Amount <= 0 && info.checkerInfo.height > a.settings.InvokeNoZeroPaymentsAfterHeight {
-				return nil, errors.Errorf("invalid payment amount '%d'", p.Amount)
-			}
-			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
-			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
-			scriptPayments = append(scriptPayments, scriptPayment)
-		}
-		payments = scriptPayments
-
-		err = env.SetEthereumInvoke(transaction, tree.LibVersion, scriptPayments)
+		r, functionCall, err = a.invokeFunctionByEthereumTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
 		if err != nil {
 			return nil, err
 		}
-		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
-		}
-		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= ast.LibV5 {
-			//TODO: Update last argument of the followinxg call with new feature activation flag or
-			// something else depending on NODE-2531 issue resolution in scala implementation.
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, proto.IsProtobufTx(tx), tree.LibVersion, false)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-			}
-		}
-
-		decodedData := transaction.TxKind.DecodedData()
-		arguments, err := proto.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
-		if err != nil {
-			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
-		}
-		functionCall = proto.NewFunctionCall(decodedData.Name, arguments)
-
-		r, err = ride.CallFunction(env, tree, functionCall)
-		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionCall, info); appendErr != nil {
-				return nil, appendErr
-			}
-			return nil, err
-		}
-
 	default:
 		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
-	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionCall, info); err != nil {
+	err = a.appendFunctionComplexity(r.Complexity(), scriptAddress, scriptEstimationUpdate, functionCall, info)
+	return r, err
+}
+
+func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
+	tx *proto.InvokeScriptWithProofs,
+	sender proto.WavesAddress,
+	scriptAddress proto.WavesAddress,
+	env *ride.EvaluationEnvironment,
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation,
+	info *fallibleValidationParams,
+) (ride.Result, proto.FunctionCall, error) {
+	err := env.SetInvoke(tx, tree.LibVersion)
+	if err != nil {
+		return nil, proto.FunctionCall{}, err
+	}
+
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= ast.LibV5 {
+		isPbTx := proto.IsProtobufTx(tx)
+		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, sender, isPbTx, tree.LibVersion, true)
+		if err != nil {
+			return nil, proto.FunctionCall{}, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
+	functionCall := tx.FunctionCall
+
+	r, err := ride.CallFunction(env, tree, functionCall)
+	if err != nil {
+		complexity := ride.EvaluationErrorSpentComplexity(err)
+		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+		if appendErr != nil {
+			return nil, proto.FunctionCall{}, appendErr
+		}
+		return nil, proto.FunctionCall{}, err
+	}
+	return r, functionCall, nil
+}
+
+func (a *scriptCaller) invokeFunctionByEthereumTx(
+	tx *proto.EthereumTransaction,
+	sender proto.WavesAddress,
+	scriptAddress proto.WavesAddress,
+	env *ride.EvaluationEnvironment,
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation,
+	info *fallibleValidationParams,
+) (ride.Result, proto.FunctionCall, error) {
+	abiPayments := tx.TxKind.DecodedData().Payments
+	scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
+	for _, p := range abiPayments {
+		if p.Amount <= 0 && info.checkerInfo.height > a.settings.InvokeNoZeroPaymentsAfterHeight {
+			return nil, proto.FunctionCall{}, errors.Errorf("invalid payment amount '%d'", p.Amount)
+		}
+		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
+		scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+		scriptPayments = append(scriptPayments, scriptPayment)
+	}
+
+	err := env.SetEthereumInvoke(tx, tree.LibVersion, scriptPayments)
+	if err != nil {
+		return nil, proto.FunctionCall{}, err
+	}
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= ast.LibV5 {
+		//TODO: Update last argument of the followinxg call with new feature activation flag or
+		// something else depending on NODE-2531 issue resolution in scala implementation.
+		isPbTx := proto.IsProtobufTx(tx)
+		env, err = ride.NewEnvironmentWithWrappedState(env, scriptPayments, sender, isPbTx, tree.LibVersion, false)
+		if err != nil {
+			return nil, proto.FunctionCall{}, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
+	decodedData := tx.TxKind.DecodedData()
+	arguments, err := proto.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	if err != nil {
+		return nil, proto.FunctionCall{}, errors.Wrap(err, "failed to convert ethereum arguments")
+	}
+	functionCall := proto.NewFunctionCall(decodedData.Name, arguments)
+
+	r, err := ride.CallFunction(env, tree, functionCall)
+	if err != nil {
+		complexity := ride.EvaluationErrorSpentComplexity(err)
+		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+		if appendErr != nil {
+			return nil, proto.FunctionCall{}, appendErr
+		}
+		return nil, proto.FunctionCall{}, err
+	}
+	return r, functionCall, nil
+}
+
+func (a *scriptCaller) invokeFunctionByInvokeExpressionWithProofsTx(
+	tx *proto.InvokeExpressionTransactionWithProofs,
+	sender proto.WavesAddress,
+	scriptAddress proto.WavesAddress,
+	env *ride.EvaluationEnvironment,
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation,
+	info *fallibleValidationParams,
+) (ride.Result, error) {
+	err := env.SetInvoke(tx, tree.LibVersion)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		functionCall proto.FunctionCall   // default function call
+		payments     proto.ScriptPayments // payments aren't available for invoke expression transaction
+	)
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= ast.LibV5 {
+		isPbTx := proto.IsProtobufTx(tx)
+		env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, isPbTx, tree.LibVersion, true)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
+	r, err := ride.CallVerifier(env, tree)
+	if err != nil {
+		complexity := ride.EvaluationErrorSpentComplexity(err)
+		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
+		if appendErr != nil {
+			return nil, appendErr
+		}
 		return nil, err
 	}
 	return r, nil
 }
 
-func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, scriptAddress proto.Address, fc proto.FunctionCall, info *fallibleValidationParams) error {
+func (a *scriptCaller) appendFunctionComplexity(
+	evaluationComplexity int,
+	scriptAddress proto.WavesAddress,
+	scriptEstimationUpdate *scriptEstimation, // can be nil
+	fc proto.FunctionCall,
+	info *fallibleValidationParams,
+) error {
 	// Increase recent complexity
 	if info.rideV5Activated {
 		// After activation of RideV5 we have to add actual execution complexity
@@ -418,13 +483,15 @@ func (a *scriptCaller) appendFunctionComplexity(evaluationComplexity int, script
 	} else {
 		// Estimation based on estimated complexity
 		// For callable (function) we have to use the latest possible estimation
-		ev, err := a.state.EstimatorVersion()
-		if err != nil {
-			return err
-		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev)
-		if err != nil {
-			return err
+		var est *ride.TreeEstimation
+		if se := scriptEstimationUpdate; se.isPresent() { // newest estimation update made by last estimator
+			est = &se.estimation
+		} else { // the estimation
+			r, err := a.stor.scriptsComplexity.newestScriptEstimationRecordByAddr(scriptAddress)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get newest script complexity for script %q", scriptAddress)
+			}
+			est = &r.Estimation
 		}
 		functionName := fc.Name()
 		c, ok := est.Functions[functionName]

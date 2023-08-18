@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/types"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"

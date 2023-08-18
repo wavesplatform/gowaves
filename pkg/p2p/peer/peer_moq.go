@@ -28,6 +28,9 @@ var _ Peer = &mockPeer{}
 //			DirectionFunc: func() Direction {
 //				panic("mock out the Direction method")
 //			},
+//			EqualFunc: func(peer Peer) bool {
+//				panic("mock out the Equal method")
+//			},
 //			HandshakeFunc: func() proto.Handshake {
 //				panic("mock out the Handshake method")
 //			},
@@ -56,6 +59,9 @@ type mockPeer struct {
 	// DirectionFunc mocks the Direction method.
 	DirectionFunc func() Direction
 
+	// EqualFunc mocks the Equal method.
+	EqualFunc func(peer Peer) bool
+
 	// HandshakeFunc mocks the Handshake method.
 	HandshakeFunc func() proto.Handshake
 
@@ -79,6 +85,11 @@ type mockPeer struct {
 		// Direction holds details about calls to the Direction method.
 		Direction []struct {
 		}
+		// Equal holds details about calls to the Equal method.
+		Equal []struct {
+			// Peer is the peer argument value.
+			Peer Peer
+		}
 		// Handshake holds details about calls to the Handshake method.
 		Handshake []struct {
 		}
@@ -97,6 +108,7 @@ type mockPeer struct {
 	lockClose       sync.RWMutex
 	lockConnection  sync.RWMutex
 	lockDirection   sync.RWMutex
+	lockEqual       sync.RWMutex
 	lockHandshake   sync.RWMutex
 	lockID          sync.RWMutex
 	lockRemoteAddr  sync.RWMutex
@@ -181,6 +193,38 @@ func (mock *mockPeer) DirectionCalls() []struct {
 	mock.lockDirection.RLock()
 	calls = mock.calls.Direction
 	mock.lockDirection.RUnlock()
+	return calls
+}
+
+// Equal calls EqualFunc.
+func (mock *mockPeer) Equal(peer Peer) bool {
+	if mock.EqualFunc == nil {
+		panic("mockPeer.EqualFunc: method is nil but Peer.Equal was just called")
+	}
+	callInfo := struct {
+		Peer Peer
+	}{
+		Peer: peer,
+	}
+	mock.lockEqual.Lock()
+	mock.calls.Equal = append(mock.calls.Equal, callInfo)
+	mock.lockEqual.Unlock()
+	return mock.EqualFunc(peer)
+}
+
+// EqualCalls gets all the calls that were made to Equal.
+// Check the length with:
+//
+//	len(mockedPeer.EqualCalls())
+func (mock *mockPeer) EqualCalls() []struct {
+	Peer Peer
+} {
+	var calls []struct {
+		Peer Peer
+	}
+	mock.lockEqual.RLock()
+	calls = mock.calls.Equal
+	mock.lockEqual.RUnlock()
 	return calls
 }
 

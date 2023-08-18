@@ -6,9 +6,10 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 // errAliasDisabled is wrapped keyvalue.ErrNotFound which should be used for disabled aliases.

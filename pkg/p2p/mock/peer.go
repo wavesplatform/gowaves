@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+// TODO: Consider replacing this handmade mock with one produced by Moq
 type peerID struct {
 	Addr string
 }
@@ -65,4 +66,11 @@ func (a *Peer) ID() peer.ID {
 
 func (a *Peer) Handshake() proto.Handshake {
 	return a.HandshakeField
+}
+
+func (a *Peer) Equal(other peer.Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
 }

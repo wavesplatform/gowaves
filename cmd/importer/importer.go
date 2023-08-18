@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/versioning"
 )
@@ -23,27 +24,39 @@ const (
 	MiB = 1024 * 1024
 )
 
-var (
-	logLevel                  = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	cfgPath                   = flag.String("cfg-path", "", "Path to blockchain settings JSON file for custom blockchains. Not set by default.")
-	blockchainType            = flag.String("blockchain-type", "mainnet", "Blockchain type. Allowed values: mainnet/testnet/stagenet/custom. Default is 'mainnet'.")
-	blockchainPath            = flag.String("blockchain-path", "", "Path to binary blockchain file.")
-	balancesPath              = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
-	dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
-	nBlocks                   = flag.Int("blocks-number", 1000, "Number of blocks to import.")
-	verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2, " Number of goroutines that will be run for verification of transactions/blocks signatures.")
-	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
-	buildDataForExtendedApi   = flag.Bool("build-extended-api", false, "Build and store additional data required for extended API in state. WARNING: this slows down the import, use only if you do really need extended API.")
-	buildStateHashes          = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	// Debug.
-	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
-	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
-)
-
 func main() {
+	const (
+		defaultBlocksNumber = 1000
+		defaultBufferSize   = 16
+	)
+	var (
+		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
+			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		cfgPath = flag.String("cfg-path", "",
+			"Path to blockchain settings JSON file for custom blockchains. Not set by default.")
+		blockchainType = flag.String("blockchain-type", "mainnet",
+			"Blockchain type. Allowed values: mainnet/testnet/stagenet/custom. Default is 'mainnet'.")
+		blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
+		balancesPath   = flag.String("balances-path", "",
+			"Path to JSON with correct balances after applying blocks.")
+		dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
+		nBlocks                   = flag.Int("blocks-number", defaultBlocksNumber, "Number of blocks to import.")
+		verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2,
+			" Number of goroutines that will be run for verification of transactions/blocks signatures.")
+		writeBufferSize         = flag.Int("write-buffer", defaultBufferSize, "Write buffer size in MiB.")
+		buildDataForExtendedAPI = flag.Bool("build-extended-api", false,
+			"Build and store additional data required for extended API in state. "+
+				"WARNING: this slows down the import, use only if you do really need extended API.")
+		buildStateHashes = flag.Bool("build-state-hashes", false,
+			"Calculate and store state hashes for each block height.")
+		// Debug.
+		cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
+		memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
+	)
+
 	flag.Parse()
 
-	common.SetupLogger(*logLevel)
+	logging.SetupSimpleLogger(*logLevel)
 	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
 
 	maxFDs, err := fdlimit.MaxFDs()
@@ -99,7 +112,7 @@ func main() {
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
-	params.StoreExtendedApiData = *buildDataForExtendedApi
+	params.StoreExtendedApiData = *buildDataForExtendedAPI
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false

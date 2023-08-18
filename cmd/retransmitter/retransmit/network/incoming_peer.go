@@ -8,9 +8,10 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type IncomingPeer struct {
@@ -107,7 +108,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 }
 
 func (a *IncomingPeer) run(ctx context.Context) error {
-	return peer.Handle(ctx, a, a.params.Parent, a.remote, nil)
+	return peer.Handle(ctx, a, a.params.Parent, a.remote)
 }
 
 func (a *IncomingPeer) Close() error {
@@ -147,4 +148,11 @@ func (a *IncomingPeer) Handshake() proto.Handshake {
 func (a *IncomingPeer) RemoteAddr() proto.TCPAddr {
 	addr := a.conn.Conn().RemoteAddr().(*net.TCPAddr)
 	return proto.TCPAddr(*addr)
+}
+
+func (a *IncomingPeer) Equal(other peer.Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
 }

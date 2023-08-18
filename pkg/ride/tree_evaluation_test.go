@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -5682,4 +5683,115 @@ func TestRideBlockInfoV7(t *testing.T) {
 		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
+}
+
+func TestInvocationsLimitScalaWay(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	lines := make([]string, 99)
+	for i := 1; i < 100; i++ {
+		lines[i-1] = fmt.Sprintf("strict n_%d  = this.invoke(\"next\", [%d], [])", i, 100-i)
+	}
+	src1 := `
+	{-# STDLIB_VERSION 7 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	@Callable(i)
+	func foo() = {
+	` + strings.Join(lines, "\n") + `
+	[]
+	}
+
+	@Callable(i)
+	func next(c: Int) = {
+		if (c == 0) then {
+			[]
+		} else {
+			strict r  = this.invoke("next", [c - 1], [])
+			[]
+		}
+	}
+	`
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+
+	env := newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
+	assert.EqualError(t, err, "evaluation complexity 52038 exceeds the limit 52000")
+}
+
+func TestHitInBreadthInvocationsLimit(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	lines := make([]string, 101)
+	for i := 0; i < 101; i++ {
+		lines[i] = fmt.Sprintf("strict n_%d  = this.invoke(\"bar\", [], [])", i)
+	}
+	src1 := `
+	{-# STDLIB_VERSION 7 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	@Callable(i)
+	func foo() = {` + strings.Join(lines, "\n") + `
+		[]
+	}
+
+	@Callable(i)
+	func bar() = []
+	`
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+
+	env := newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
+	assert.EqualError(t, err, "invoke: too many internal invocations")
+}
+
+func TestHitInDeepInvocationsLimit(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	src1 := `
+	{-# STDLIB_VERSION 7 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	@Callable(i)
+	func foo() = {
+		strict n = this.invoke("next", [101], [])
+		[]
+	}
+
+	@Callable(i)
+	func next(c: Int) = {
+		if (c == 0) then {
+			[]
+		} else {
+			strict r  = this.invoke("next", [c - 1], [])
+			[]
+		}
+	}
+	`
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+
+	env := newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+		withWrappedState()
+	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
+	assert.EqualError(t, err, "invoke: too many internal invocations")
 }
