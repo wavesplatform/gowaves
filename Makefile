@@ -317,7 +317,7 @@ build-node-stagenet-amd64-deb-package: release-node
 	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for StageNet System Service|g; s|PACKAGE|gowaves-stagenet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-stagenet/ -api-address 0.0.0.0:8100 -blockchain-type stagenet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-stagenet-amd64/lib/systemd/system/gowaves-stagenet.service
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet-amd64
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/lib/gowaves-stagenet/
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/log/gowaves-stagenet/
