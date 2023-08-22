@@ -833,6 +833,7 @@ func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to construct digest from order id bytes")
 	}
+	// TODO must be added to newest filled amounts and fee
 	orderSnapshot := &FilledVolumeFeeSnapshot{
 		OrderID:      orderIDDigset,
 		FilledFee:    newestFilledFee + fee,

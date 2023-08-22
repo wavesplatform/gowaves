@@ -63,6 +63,7 @@ func (ov *ordersVolumes) addNewRecord(orderID []byte, record *orderVolumeRecord,
 	return ov.hs.addNewEntry(ordersVolume, key.bytes(), recordBytes, blockID)
 }
 
+// TODO remove it
 func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange uint64, blockID proto.BlockID) error {
 	prevVolume, err := ov.newestVolumeByID(orderID)
 	if err != nil {
@@ -74,6 +75,11 @@ func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange 
 	prevVolume.amountFilled += amountChange
 	prevVolume.feeFilled += feeChange
 	return ov.addNewRecord(orderID, prevVolume, blockID)
+}
+
+func (ov *ordersVolumes) storeFilled(orderID []byte, amountFilled, feeFilled uint64, blockID proto.BlockID) error {
+	newVolume := &orderVolumeRecord{amountFilled: amountFilled, feeFilled: feeFilled}
+	return ov.addNewRecord(orderID, newVolume, blockID)
 }
 
 func (ov *ordersVolumes) newestFilled(orderID []byte) (uint64, uint64, error) {
