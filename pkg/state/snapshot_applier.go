@@ -210,7 +210,6 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 
-// TODO must be applied as it is and not just increased
 func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
 	return a.stor.ordersVolumes.storeFilled(snapshot.OrderID.Bytes(),
 		snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
