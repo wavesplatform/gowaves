@@ -96,7 +96,7 @@ type LeaseBalanceSnapshot struct {
 }
 
 func (s LeaseBalanceSnapshot) IsGeneratedByTxDiff() bool {
-	return false
+	return true
 }
 
 func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseBalance(s) }
