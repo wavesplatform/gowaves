@@ -4033,6 +4033,22 @@ type fieldsHashesJS struct {
 	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
 }
 
+func (fh FieldsHashes) EqualWith(other FieldsHashes) bool {
+	fhArrray := []crypto.Digest{fh.DataEntryHash, fh.AccountScriptHash,
+		fh.AssetScriptHash, fh.LeaseStatusHash, fh.SponsorshipHash, fh.AliasesHash,
+		fh.WavesBalanceHash, fh.AssetBalanceHash, fh.LeaseBalanceHash}
+	otherArray := []crypto.Digest{other.DataEntryHash, other.AccountScriptHash,
+		other.AssetScriptHash, other.LeaseStatusHash, other.SponsorshipHash, other.AliasesHash,
+		other.WavesBalanceHash, other.AssetBalanceHash, other.LeaseBalanceHash}
+
+	for i := 0; i < len(fhArrray); i++ {
+		if !bytes.Equal(fhArrray[i][:], otherArray[i][:]) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s FieldsHashes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fieldsHashesJS{
 		DigestWrapped(s.DataEntryHash),
