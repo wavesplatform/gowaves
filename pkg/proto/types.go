@@ -4033,18 +4033,33 @@ type fieldsHashesJS struct {
 	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
 }
 
-func (fh FieldsHashes) EqualWith(other FieldsHashes) bool {
-	fhArrray := []crypto.Digest{fh.DataEntryHash, fh.AccountScriptHash,
-		fh.AssetScriptHash, fh.LeaseStatusHash, fh.SponsorshipHash, fh.AliasesHash,
-		fh.WavesBalanceHash, fh.AssetBalanceHash, fh.LeaseBalanceHash}
-	otherArray := []crypto.Digest{other.DataEntryHash, other.AccountScriptHash,
-		other.AssetScriptHash, other.LeaseStatusHash, other.SponsorshipHash, other.AliasesHash,
-		other.WavesBalanceHash, other.AssetBalanceHash, other.LeaseBalanceHash}
-
-	for i := 0; i < len(fhArrray); i++ {
-		if !bytes.Equal(fhArrray[i][:], otherArray[i][:]) {
-			return false
-		}
+func (s FieldsHashes) EqualWith(other FieldsHashes) bool {
+	if s.DataEntryHash != other.DataEntryHash {
+		return false
+	}
+	if s.AccountScriptHash != other.AccountScriptHash {
+		return false
+	}
+	if s.AssetScriptHash != other.AssetScriptHash {
+		return false
+	}
+	if s.LeaseStatusHash != other.LeaseStatusHash {
+		return false
+	}
+	if s.SponsorshipHash != other.SponsorshipHash {
+		return false
+	}
+	if s.AliasesHash != other.AliasesHash {
+		return false
+	}
+	if s.WavesBalanceHash != other.WavesBalanceHash {
+		return false
+	}
+	if s.AssetBalanceHash != other.AssetBalanceHash {
+		return false
+	}
+	if s.LeaseBalanceHash != other.LeaseBalanceHash {
+		return false
 	}
 	return true
 }

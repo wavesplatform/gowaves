@@ -1,7 +1,6 @@
 package node_client
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -117,11 +116,11 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		scalaFieldHashesDiverged, err := scalaStateHashDiverged.FieldsHashes.MarshalJSON()
 		assert.NoError(t, err)
 
-		t.Log(fmt.Sprintf("First height when state hashes diverged: "+
+		t.Logf("First height when state hashes diverged: "+
 			"%d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
 			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
 			firstHeight, goStateHashDiverged.BlockID.String(), goStateHashDiverged.SumHash.String(), goFieldHashesDiverged,
-			scalaStateHashDiverged.BlockID.String(), scalaStateHashDiverged.SumHash.String(), scalaFieldHashesDiverged))
+			scalaStateHashDiverged.BlockID.String(), scalaStateHashDiverged.SumHash.String(), scalaFieldHashesDiverged)
 	}
 
 	goFieldHashes, err := goStateHash.FieldsHashes.MarshalJSON()
@@ -130,10 +129,10 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.True(t, equal,
-		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\nScala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
+		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
 		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(), goFieldHashes,
 		scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String(), scalaFieldHashes)
-
 }
 
 func Retry(timeout time.Duration, f func() error) error {
