@@ -13,13 +13,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"go.uber.org/zap"
 )
 
 var version = "0.0.0"
@@ -32,25 +34,39 @@ const (
 func run() error {
 	// Parse command line parameters and set up configuration
 	var (
-		logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-		importFile     = flag.String("import-file", "", "Path to binary blockchain file to import before starting synchronization.")
-		node           = flag.String("node", "127.0.0.1:6870", "Address of the node's gRPC API endpoint. Default value: 127.0.0.1:6870.")
-		interval       = flag.Int("sync-interval", defaultSyncInterval, "Synchronization interval, seconds. Default interval is 10 seconds.")
-		lag            = flag.Int("lag", 1, "Synchronization lag behind the node, blocks. Default value 1 block.")
-		address        = flag.String("address", ":6990", "Local network address to bind the HTTP API of the service on. Default value is :6990.")
-		db             = flag.String("db", "", "Path to data base folder. No default value.")
-		matchersList   = flag.String("matchers", "E3UwaHCQCySghK3zwNB8EDHoc3b8uhzGPFz3gHmWon4W,7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy,9cpfKN9suPNvfeUNphzxXMjcnn974eme8ZhWUjaktzU5", "Matcher's public keys in form of Base58 string, comma separated.")
-		oracle         = flag.String("oracle", "3P661nhk56WzFHCmQNKXjZGADxLHNY3LxP3", "Address of the tickers oracle, default for MainNet")
-		scheme         = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to 'W'.")
-		symbolsFile    = flag.String("symbols", "", "Path to file of symbol substitutions. No default value.")
-		rollback       = flag.Int("rollback", 0, "The height to rollback to before importing a blockchain file or staring the synchronization. Default value is 0 (no rollback).")
-		profilerPort   = flag.Int("profiler-port", 0, "Start HTTP profiler on given port (port must be between 1024 and 65535)")
+		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
+			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		importFile = flag.String("import-file", "",
+			"Path to binary blockchain file to import before starting synchronization.")
+		node = flag.String("node", "127.0.0.1:6870",
+			"Address of the node's gRPC API endpoint. Default value: 127.0.0.1:6870.")
+		interval = flag.Int("sync-interval", defaultSyncInterval,
+			"Synchronization interval, seconds. Default interval is 10 seconds.")
+		lag = flag.Int("lag", 1,
+			"Synchronization lag behind the node, blocks. Default value 1 block.")
+		address = flag.String("address", ":6990",
+			"Local network address to bind the HTTP API of the service on. Default value is :6990.")
+		db           = flag.String("db", "", "Path to data base folder. No default value.")
+		matchersList = flag.String("matchers",
+			"E3UwaHCQCySghK3zwNB8EDHoc3b8uhzGPFz3gHmWon4W,"+
+				"7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy,"+
+				"9cpfKN9suPNvfeUNphzxXMjcnn974eme8ZhWUjaktzU5",
+			"Matcher's public keys in form of Base58 string, comma separated.")
+		oracle = flag.String("oracle", "3P661nhk56WzFHCmQNKXjZGADxLHNY3LxP3",
+			"Address of the tickers oracle, default for MainNet")
+		scheme      = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to 'W'.")
+		symbolsFile = flag.String("symbols", "", "Path to file of symbol substitutions. No default value.")
+		rollback    = flag.Int("rollback", 0,
+			"The height to rollback to before importing a blockchain file or staring the synchronization. "+
+				"Default value is 0 (no rollback).")
+		profilerPort = flag.Int("profiler-port", 0,
+			"Start HTTP profiler on given port (port must be between 1024 and 65535)")
 		cpuProfileFile = flag.String("cpu-profile", "", "Write CPU profile to the specified file")
 	)
 	flag.Parse()
 
 	// Set up log
-	logger, _ := common.SetupLogger(*logLevel)
+	logger := logging.SetupSimpleLogger(*logLevel)
 	defer func() {
 		err := logger.Sync()
 		if err != nil && err == os.ErrInvalid {
@@ -72,7 +88,12 @@ func run() error {
 			profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
 			h := http.NewServeMux()
 			h.Handle("/", profileRedirect)
-			s := &http.Server{Addr: listenAddr, Handler: h, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
+			s := &http.Server{
+				Addr:              listenAddr,
+				Handler:           h,
+				ReadHeaderTimeout: defaultTimeout,
+				ReadTimeout:       defaultTimeout,
+			}
 			zap.S().Errorf("%v", s.ListenAndServe())
 		}()
 	}
@@ -227,7 +248,8 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node, time.Duration(*interval)*time.Second, *lag, symbols)
+	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node,
+		time.Duration(*interval)*time.Second, *lag, symbols)
 	if err != nil {
 		zap.S().Errorf("Failed to start synchronization: %v", err)
 		return err

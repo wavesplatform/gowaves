@@ -81,7 +81,7 @@ func (c *rewardCalculator) performCalculation(
 	addressReward := reward / uint64(len(rewardAddresses)+1) // reward / (len(rewardAddresses) + minerAddr)
 	feature20ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
 	if feature20ActivatedAtHeight {
-		addressReward = c.handleFeature20(reward, rewardAddresses)
+		addressReward = c.handleFeature20(reward)
 		if addressReward == 0 {
 			return appendMinerReward(reward) // give full reward to the miner
 		}
@@ -121,17 +121,18 @@ func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses 
 	return rewardAddresses
 }
 
-func (c *rewardCalculator) handleFeature20(reward uint64, rewardAddresses []proto.WavesAddress) (addressReward uint64) {
+func (c *rewardCalculator) handleFeature20(reward uint64) uint64 {
 	const (
-		sixWaves = 6 * proto.PriceConstant
-		twoWaves = 2 * proto.PriceConstant
+		sixWaves                 = 6 * proto.PriceConstant
+		twoWaves                 = 2 * proto.PriceConstant
+		additionalAddressesCount = 2
 	)
 	switch {
 	case reward < twoWaves: // give all reward to the miner if reward value is lower than 2 WAVES
 		return 0
 	case reward < sixWaves: // give miner guaranteed reward with 2 WAVES
-		numberOfAddressesWithoutMiner := uint64(len(rewardAddresses))
-		return (reward - twoWaves) / numberOfAddressesWithoutMiner
+		// We always calculates XTN/DAO reward for 2 addresses even there is only one present
+		return (reward - twoWaves) / additionalAddressesCount
 	default: // reward is greater or equal six waves, then give fixed 2 WAVES rewards to addresses
 		return twoWaves
 	}

@@ -227,3 +227,60 @@ func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
 
 	return doHttp(ctx, a.options, req, nil)
 }
+
+func (a *Debug) RollbackToHeight(
+	ctx context.Context,
+	height uint64,
+	returnTransactionsToUtx bool,
+) (*proto.BlockID, *Response, error) {
+	type rollbackRequestBody struct {
+		Height                  uint64 `json:"rollbackTo"`
+		ReturnTransactionsToUtx bool   `json:"returnTransactionsToUtx"`
+	}
+	url, err := joinUrl(a.options.BaseUrl, "/debug/rollback")
+	if err != nil {
+		return nil, nil, err
+	}
+	bts, err := json.Marshal(rollbackRequestBody{Height: height, ReturnTransactionsToUtx: returnTransactionsToUtx})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url.String(), bytes.NewBuffer(bts))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
+	req.Header.Add("Accept", "*/*")
+
+	out := new(proto.BlockID)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+	return out, response, nil
+}
+
+func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.BlockID, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/rollback-to/%s", blockID.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
+	req.Header.Add("Accept", "*/*")
+
+	out := new(proto.BlockID)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}

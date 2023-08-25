@@ -335,7 +335,11 @@ func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Dig
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script,
-	complexity int, _ *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+	complexity int, balanceChanges txDiff) (TransactionSnapshot, error) {
+	if balanceChanges == nil {
+		return nil, nil
+	}
+
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
@@ -508,17 +512,12 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	}
 
 	var scriptInfo *scriptInformation
-	if se := info.checkerData.scriptEstimations; se.isPresent() {
+	if se := info.checkerData.scriptEstimation; se.isPresent() {
 		// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		complexity, ok := se.estimations[se.currentEstimatorVersion]
-		if !ok {
-			return nil,
-				errors.Errorf("failed to calculate asset script complexity by estimator version %d",
-					se.currentEstimatorVersion)
-		}
+		complexity := se.estimation.Verifier
 		scriptInfo = &scriptInformation{
 			script:     action.Script,
-			complexity: complexity.Verifier,
+			complexity: complexity,
 		}
 	}
 	if scriptInfo != nil {

@@ -42,11 +42,10 @@ var feeConstants = map[proto.TransactionType]uint64{
 }
 
 type feeValidationParams struct {
-	stor             *blockchainEntitiesStorage
-	settings         *settings.BlockchainSettings
-	txAssets         *txAssets
-	rideV5Activated  bool
-	estimatorVersion int
+	stor            *blockchainEntitiesStorage
+	settings        *settings.BlockchainSettings
+	txAssets        *txAssets
+	rideV5Activated bool
 }
 
 type assetParams struct {
@@ -266,9 +265,10 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	if accountScripted && params.rideV5Activated {
 		// For account script we use original estimation
 		var treeEstimation *ride.TreeEstimation
-		treeEstimation, err = params.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr)
+		treeEstimation, err = params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get complexity by addr from store")
+
 		}
 		complexity = treeEstimation.Verifier
 	}

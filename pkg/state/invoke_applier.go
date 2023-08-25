@@ -951,7 +951,7 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 	}
 	if info.senderScripted {
 		treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(
-			info.senderAddress, info.checkerInfo.estimatorVersion())
+			info.senderAddress)
 		if err != nil {
 			return 0, errors.Wrap(err, "invoke failed to get verifier complexity")
 		}
@@ -1007,7 +1007,10 @@ func (ia *invokeApplier) applyInvokeScript(
 	if err != nil {
 		return nil, nil, err
 	}
-	paymentSmartAssets := checkerData.smartAssets
+	var (
+		paymentSmartAssets     = checkerData.smartAssets
+		scriptEstimationUpdate = checkerData.scriptEstimation // value can be nil if there's no update
+	)
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
@@ -1029,7 +1032,8 @@ func (ia *invokeApplier) applyInvokeScript(
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(scriptParams.tree, tx, info, scriptParams.scriptAddr)
+	r, err := ia.sc.invokeFunction(scriptParams.tree, scriptEstimationUpdate, tx, info, scriptParams.scriptAddr)
+
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide if it's a failed or rejected transaction.
 		return ia.handleInvokeFunctionError(err, info, scriptParams.txID, checkerData, failedChanges)

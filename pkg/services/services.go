@@ -3,7 +3,7 @@ package services
 import (
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -28,7 +28,7 @@ type MicroBlockInvCache interface {
 type Services struct {
 	NodeName        string
 	State           state.State
-	Peers           peer_manager.PeerManager
+	Peers           peers.PeerManager
 	Scheduler       types.Scheduler
 	BlocksApplier   BlocksApplier
 	UtxPool         types.UtxPool

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -461,8 +462,9 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 
 	tx := createSetScriptWithProofs(t, scriptBytes)
 	pi := *defaultPerformerInfo(to.stateActionsCounter)
-	pi.checkerData.scriptEstimations = &scriptsEstimations{}
+	pi.checkerData.scriptEstimation = &scriptEstimation{}
 	_, err = to.tp.performSetScriptWithProofs(tx, &pi, nil, nil)
+
 	assert.NoError(t, err, "performSetScriptWithProofs() failed")
 
 	addr := testGlobal.senderInfo.addr
@@ -540,11 +542,10 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	estimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
 	require.NoError(t, err)
 
-	pi.checkerData.scriptEstimations = &scriptsEstimations{
+	pi.checkerData.scriptEstimation = &scriptEstimation{
 		currentEstimatorVersion: currentEstimatorVersion,
-		estimations: map[int]ride.TreeEstimation{
-			currentEstimatorVersion: estimation,
-		},
+		scriptIsEmpty:           false,
+		estimation:              estimation,
 	}
 	checkerInfo.blockID = blockID0
 	_, err = to.tp.performSetAssetScriptWithProofs(tx, &pi, nil, nil)

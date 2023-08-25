@@ -187,11 +187,10 @@ dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
 
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
-	mockgen -source pkg/node/peer_manager/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManager
-	mockgen -source pkg/node/peer_manager/peer_storage.go -destination pkg/mock/peer_storage.go -package mock PeerStorage
+	mockgen -source pkg/node/peers/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManager
+	mockgen -source pkg/node/peers/peer_storage.go -destination pkg/mock/peer_storage.go -package mock PeerStorage
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
-	mockgen -source pkg/node/state_fsm/default.go -destination pkg/node/state_fsm/default_mock.go -package state_fsm Default
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 
 proto:
@@ -254,28 +253,28 @@ build-node-mainnet-arm64-deb-package: release-node
 build-node-testnet-amd64-deb-package: release-node
 	@mkdir -p build/dist
 
-	@mkdir -p ./build/gowaves-testnet/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
-	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
-	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet/DEBIAN/postrm
-	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet/DEBIAN/prerm
-	@chmod 0644 ./build/gowaves-testnet/DEBIAN/control
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postinst
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postrm
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/prerm
+	@mkdir -p ./build/gowaves-testnet-amd64/DEBIAN
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-testnet-amd64/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet-amd64/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet-amd64/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet-amd64/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-testnet-amd64/DEBIAN/control
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/prerm
 
-	@mkdir -p ./build/gowaves-testnet/lib/systemd/system
-	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet/lib/systemd/system/gowaves-testnet.service
+	@mkdir -p ./build/gowaves-testnet-amd64/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet-amd64/lib/systemd/system/gowaves-testnet.service
 
-	@mkdir -p ./build/gowaves-testnet/usr/share/gowaves-testnet
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/usr/share/gowaves-testnet
+	@mkdir -p ./build/gowaves-testnet-amd64/usr/share/gowaves-testnet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet-amd64/usr/share/gowaves-testnet
 
-	@mkdir -p ./build/gowaves-testnet/var/lib/gowaves-testnet/
-	@mkdir -p ./build/gowaves-testnet/var/log/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet-amd64/var/lib/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet-amd64/var/log/gowaves-testnet/
 
-	@dpkg-deb --build ./build/gowaves-testnet
-	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
-	@rm -rf ./build/gowaves-testnet
+	@dpkg-deb --build ./build/gowaves-testnet-amd64
+	@mv ./build/gowaves-testnet-amd64.deb ./build/dist/gowaves-testnet-amd64_${VERSION}.deb
+	@rm -rf ./build/gowaves-testnet-amd64
 
 build-node-testnet-arm64-deb-package: release-node
 	@mkdir -p build/dist
@@ -318,7 +317,7 @@ build-node-stagenet-amd64-deb-package: release-node
 	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for StageNet System Service|g; s|PACKAGE|gowaves-stagenet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-stagenet/ -api-address 0.0.0.0:8100 -blockchain-type stagenet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-stagenet-amd64/lib/systemd/system/gowaves-stagenet.service
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet-amd64
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/lib/gowaves-stagenet/
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/log/gowaves-stagenet/

@@ -355,9 +355,10 @@ func recipientToAddress(recipient proto.Recipient, aliases *aliases) (proto.Wave
 	if addr := recipient.Address(); addr != nil {
 		return *addr, nil
 	}
-	addr, err := aliases.newestAddrByAlias(recipient.Alias().Alias)
+	al := recipient.Alias().Alias
+	addr, err := aliases.newestAddrByAlias(al)
 	if err != nil {
-		return proto.WavesAddress{}, errors.Wrap(err, "invalid alias")
+		return proto.WavesAddress{}, errors.Wrapf(err, "failed to resolve alias '%s'", al)
 	}
 	return addr, nil
 }

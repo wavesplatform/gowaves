@@ -8,25 +8,21 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type DuplicateChecker interface {
-	Add([]byte) bool
-}
-
 type PeerParams struct {
-	WavesNetwork     string
-	Conn             net.Conn
-	Parent           peer.Parent
-	DeclAddr         proto.TCPAddr
-	Skip             conn.SkipFilter
-	NodeName         string
-	NodeNonce        uint64
-	Version          proto.Version
-	DuplicateChecker DuplicateChecker
+	WavesNetwork string
+	Conn         net.Conn
+	Parent       peer.Parent
+	DeclAddr     proto.TCPAddr
+	Skip         conn.SkipFilter
+	NodeName     string
+	NodeNonce    uint64
+	Version      proto.Version
 }
 
 func RunIncomingPeer(ctx context.Context, params PeerParams) error {
@@ -41,7 +37,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Debug("Failed to read handshake: ", err)
+		zap.S().Named(logging.NetworkNamespace).Debug("Failed to read handshake: ", err)
 		_ = c.Close()
 		return err
 	}
@@ -64,7 +60,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Debug("failed to write handshake: ", err)
+		zap.S().Named(logging.NetworkNamespace).Debug("Failed to write handshake: ", err)
 		_ = c.Close()
 		return err
 	}
@@ -86,5 +82,5 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 		zap.S().Warn("Failed to create new peer impl: ", err)
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
-	return peer.Handle(ctx, peerImpl, params.Parent, remote, params.DuplicateChecker)
+	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }

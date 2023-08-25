@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -152,20 +153,22 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, err
 	}
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+		return nil, err
+	}
+	var se *scriptEstimation
 	var scriptInfo *scriptInformation
-	if se := info.checkerData.scriptEstimations; se.isPresent() {
+	if se = info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
 		// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		complexity, ok := se.estimations[se.currentEstimatorVersion]
-		if !ok {
-			return nil,
-				errors.Errorf("failed to calculate asset script complexity by estimator version %d",
-					se.currentEstimatorVersion)
+		if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, *se, info.blockID); scErr != nil {
+			return nil, scErr
 		}
 		scriptInfo = &scriptInformation{
 			script:     tx.Script,
-			complexity: complexity.Verifier,
+			complexity: se.estimation.Verifier,
 		}
 	}
+
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
 }
 
@@ -426,16 +429,14 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
-	se := info.checkerData.scriptEstimations
+
+	se := info.checkerData.scriptEstimation
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
 
-	// TODO check on correctness
-	complexity := info.checkerData.scriptEstimations.estimations[se.currentEstimatorVersion].Verifier
-
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
-		tx.Script, complexity, info, balanceChanges)
+		tx.Script, se.estimation.Verifier, balanceChanges)
 
 	if err != nil {
 		return nil, err
@@ -443,42 +444,85 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+func storeScriptByAddress(
+	stor *blockchainEntitiesStorage,
+	scheme proto.Scheme,
+	senderPK crypto.PublicKey,
+	script proto.Script,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create addr from PK %q", senderPK.String())
+	}
+	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
+	}
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
+	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
 
-	se := info.checkerData.scriptEstimations
+	se := info.checkerData.scriptEstimation
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
-	estimation, ok := se.estimations[se.currentEstimatorVersion]
-	if !ok {
-		return nil, errors.Errorf(
-			"failed to calculate asset script complexity by estimator version %d",
-			se.currentEstimatorVersion)
-	}
-	complexity := estimation.Verifier
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID,
-		tx.Script, complexity, tx.SenderPK, balanceChanges)
+		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
 	if err != nil {
 		return nil, err
 	}
+
+	if !se.isPresent() {
+		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
+	}
+	// script estimation is present and not nil
+	err = storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to perform SetScriptWithProofs tx %q", tx.ID.String())
+	}
+
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
-	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
+func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction,
+	info *performerInfo,
+	invocationRes *invocationResult,
+	balanceChanges txDiff) (TransactionSnapshot, error) {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
+	if !ok {
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
-	// TODO remove?
-	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return nil, errors.Wrap(err, "failed to commit invoke changes")
+
+	se := info.checkerData.scriptEstimation
+	if se.isPresent() {
+		// script estimation is present an not nil
+
+		// we've pulled up an old script which estimation had been done by an old estimator
+		// in txChecker we've estimated script with a new estimator
+		// this is the place where we have to store new estimation
+		scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
+		}
+		// update callable and summary complexity, verifier complexity remains the same
+		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
+			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+				scriptAddr.String(), tx.ID.String(),
+			)
+		}
 	}
+
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)
@@ -495,15 +539,13 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
+	info *performerInfo, invocationRes *invocationResult,
+	balanceChanges txDiff) (TransactionSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
-	// TODO remove?
-	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return nil, errors.Wrap(err, "failed to commit invoke changes")
-	}
+
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)
@@ -549,8 +591,8 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction,
+	info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")

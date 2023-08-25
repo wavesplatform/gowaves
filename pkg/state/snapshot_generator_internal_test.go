@@ -959,8 +959,9 @@ func setScript(t *testing.T, to *differTestObjects, addr proto.WavesAddress, pk 
 	require.NoError(t, err)
 	estimation, err := ride.EstimateTree(tree, 1)
 	require.NoError(t, err)
+	scriptEst := scriptEstimation{currentEstimatorVersion: 1, scriptIsEmpty: false, estimation: estimation}
 	err = to.stor.entities.scriptsComplexity.saveComplexitiesForAddr(addr,
-		map[int]ride.TreeEstimation{1: estimation}, blockID0)
+		scriptEst, blockID0)
 	assert.NoError(t, err, "failed to save complexity for address")
 	err = to.stor.entities.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
 	assert.NoError(t, err, "failed to set account script")

@@ -3,9 +3,6 @@ package state
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
 type blockSnapshotsApplier struct {
@@ -164,16 +161,17 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) e
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) error {
-	estimation := ride.TreeEstimation{ // TODO: use uint in TreeEstimation
-		Estimation: int(snapshot.Complexity),
-		Verifier:   int(snapshot.Complexity),
-		Functions:  nil,
-	}
-	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
-		snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
-		return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
-			snapshot.AssetID.String())
-	}
+	//estimation := ride.TreeEstimation{
+	//	Estimation: int(snapshot.Complexity),
+	//	Verifier:   int(snapshot.Complexity),
+	//	Functions:  nil,
+	//}
+	// TODO complexity is being saved in transaction_performer, we need to move to this place
+	//if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
+	//	snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
+	//	return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
+	//		snapshot.AssetID.String())
+	//}
 	// only issuer can set new asset script
 	// constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID))
 	// if err != nil {
@@ -192,21 +190,21 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
 			a.info.Scheme(), snapshot.SenderPublicKey.String())
 	}
-	var estimations treeEstimations
-	if !snapshot.Script.IsEmpty() {
-		var tree *ast.Tree
-		tree, err = serialization.Parse(snapshot.Script)
-		if err != nil {
-			return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
-		}
-		estimations, err = makeRideEstimations(tree, a.info.EstimatorVersion(), true)
-		if err != nil {
-			return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
-		}
-	}
-	if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
-		return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
-	}
+	//var estimations treeEstimations
+	//if !snapshot.Script.IsEmpty() {
+	//	var tree *ast.Tree
+	//	tree, err = serialization.Parse(snapshot.Script)
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
+	//	}
+	//	estimations, err = makeRideEstimations(tree, a.info.EstimatorVersion(), true)
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
+	//	}
+	//}
+	//if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
+	//	return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
+	//}
 	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 
