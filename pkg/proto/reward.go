@@ -5,6 +5,11 @@ import (
 	"sort"
 )
 
+type RewardVotes struct {
+	Increase uint32 `json:"increase"`
+	Decrease uint32 `json:"decrease"`
+}
+
 type Reward struct {
 	address WavesAddress
 	amount  uint64

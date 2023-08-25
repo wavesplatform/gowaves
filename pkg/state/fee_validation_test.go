@@ -29,11 +29,10 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	// This fee would be valid for simple Smart Account (without Smart asset).
 	tx.Fee = 1*FeeUnit + scriptExtraFee
 	params := &feeValidationParams{
-		stor:             to.stor.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: []crypto.Digest{tx.AssetID}},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            to.stor.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: []crypto.Digest{tx.AssetID}},
+		rideV5Activated: false,
 	}
 	err = checkMinFeeWaves(tx, params) // it doesn't matter for these tests what version estimator is
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
@@ -104,8 +103,12 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 
 	txPerformerInfo := defaultPerformerInfo()
 	txPerformerInfo.blockID = blockID2
+<<<<<<< HEAD
 	txPerformerInfo.checkerData.scriptEstimations = &scriptsEstimations{}
 	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+=======
+	txPerformerInfo.checkerData.scriptEstimation = &scriptEstimation{}
+>>>>>>> master
 
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
@@ -135,11 +138,10 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	tx := createBurnWithSig(t)
 	tx.Fee = 1 * FeeUnit
 	params := &feeValidationParams{
-		stor:             to.stor.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            to.stor.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 	err = checkMinFeeWaves(tx, params)
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
@@ -154,11 +156,10 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	// Burn.
 	tx := createBurnWithSig(t)
 	params := &feeValidationParams{
-		stor:             to.stor.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            to.stor.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 	err := checkMinFeeWaves(tx, params)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
@@ -195,11 +196,10 @@ func TestCheckMinFeeAsset(t *testing.T) {
 
 	tx := createTransferWithSig(t)
 	params := &feeValidationParams{
-		stor:             to.stor.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            to.stor.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 
 	to.stor.addBlock(t, blockID0)
@@ -220,11 +220,10 @@ func TestCheckMinFeeAsset(t *testing.T) {
 func TestNFTMinFee(t *testing.T) {
 	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
-		stor:             storage.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            storage.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 
 	issueA1 := createIssueWithSig(t, 500)
@@ -256,11 +255,10 @@ func TestNFTMinFee(t *testing.T) {
 func TestReissueFeeReduction(t *testing.T) {
 	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
-		stor:             storage.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            storage.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 
 	reissueA1 := createReissueWithSig(t, 1)
@@ -284,11 +282,10 @@ func TestReissueFeeReduction(t *testing.T) {
 func TestSponsorshipFeeReduction(t *testing.T) {
 	storage := createStorageObjects(t, true)
 	params := &feeValidationParams{
-		stor:             storage.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            storage.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 
 	sponsorshipA := createSponsorshipWithProofs(t, 1)
@@ -317,11 +314,10 @@ func TestSetScriptTransactionDynamicFee(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.RideV6))
 	tx := createSetScriptWithProofs(t)
 	params := &feeValidationParams{
-		stor:             to.stor.entities,
-		settings:         settings.MainNetSettings,
-		txAssets:         &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
-		rideV5Activated:  false,
-		estimatorVersion: maxEstimatorVersion,
+		stor:            to.stor.entities,
+		settings:        settings.MainNetSettings,
+		txAssets:        &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
+		rideV5Activated: false,
 	}
 
 	script, err := randomScript(2 * 1024)

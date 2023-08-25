@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -15,7 +17,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type invokeApplier struct {
@@ -823,7 +824,10 @@ func (ia *invokeApplier) applyInvokeScript(
 	if err != nil {
 		return nil, nil, err
 	}
-	paymentSmartAssets := checkerData.smartAssets
+	var (
+		paymentSmartAssets     = checkerData.smartAssets
+		scriptEstimationUpdate = checkerData.scriptEstimation // value can be nil if there's no update
+	)
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
@@ -846,7 +850,7 @@ func (ia *invokeApplier) applyInvokeScript(
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, scriptAddr)
+	r, err := ia.sc.invokeFunction(tree, scriptEstimationUpdate, tx, info, scriptAddr)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// After activation of RideV6 feature transactions are failed if they are not cheap regardless the error kind.
@@ -915,9 +919,12 @@ func (ia *invokeApplier) applyInvokeScript(
 	if info.senderScripted {
 		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
 		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress, info.checkerInfo.estimatorVersion())
+			var treeEstimation *ride.TreeEstimation
+			treeEstimation, err = ia.stor.scriptsComplexity.newestScriptComplexityByAddr(info.senderAddress)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "invoke failed to get verifier complexity")
+				// For account script we use original estimation
+
 			}
 			if treeEstimation.Verifier > FreeVerifierComplexity {
 				scriptRuns++

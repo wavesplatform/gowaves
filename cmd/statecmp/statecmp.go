@@ -11,23 +11,16 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/client"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
 	defaultScheme = "http"
-)
-
-var (
-	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL.")
-	nodesStr      = flag.String("nodes", "", "Addresses of nodes; comma separated.")
-	startHeight   = flag.Int("start-height", 1, "Start height.")
-	endHeight     = flag.Int("end-height", 2, "End height.")
-	goroutinesNum = flag.Int("goroutines-num", 15, "Number of goroutines that will run for downloading state hashes.")
-	tries         = flag.Int("tries-num", 5, "Number of tries to download.")
 )
 
 func checkAndUpdateURL(s string) (string, error) {
@@ -50,12 +43,12 @@ func checkAndUpdateURL(s string) (string, error) {
 	return u.String(), nil
 }
 
-func loadStateHash(ctx context.Context, cl *client.Client, height uint64) (*proto.StateHash, error) {
+func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries int) (*proto.StateHash, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	var sh *proto.StateHash
 	var err error
-	for i := 0; i < *tries; i++ {
+	for i := 0; i < tries; i++ {
 		sh, _, err = cl.Debug.StateHash(ctx, height)
 		if err == nil {
 			return sh, nil
@@ -109,7 +102,9 @@ func (ng *nodesGroup) addNode(node string) {
 	ng.nodes = append(ng.nodes, node)
 }
 
-func manageHeight(ctx context.Context, height uint64, nodes []string, clients []*client.Client, p *printer) error {
+func manageHeight(
+	ctx context.Context, height uint64, nodes []string, clients []*client.Client, p *printer, tries int,
+) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -117,7 +112,7 @@ func manageHeight(ctx context.Context, height uint64, nodes []string, clients []
 	for i, cl := range clients {
 		node := nodes[i]
 		go func(cl *client.Client, node string) {
-			sh, err := loadStateHash(ctx, cl, height)
+			sh, err := loadStateHash(ctx, cl, height, tries)
 			res := hashResult{
 				res: stateHashInfo{
 					hash: sh,
@@ -149,17 +144,19 @@ func manageHeight(ctx context.Context, height uint64, nodes []string, clients []
 	return nil
 }
 
-func download(heightChan chan uint64, errChan chan error, nodes []string, clients []*client.Client) {
+func download(
+	heightChan chan uint64, errChan chan error, nodes []string, clients []*client.Client, goroutines, tries int,
+) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p := &printer{}
 	var wg sync.WaitGroup
-	for i := 0; i < *goroutinesNum; i++ {
+	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for height := range heightChan {
-				if err := manageHeight(ctx, height, nodes, clients, p); err != nil {
+				if err := manageHeight(ctx, height, nodes, clients, p, tries); err != nil {
 					cancel()
 					zap.S().Errorf("Failed to load some hashes: %v", err)
 					errChan <- err
@@ -172,24 +169,42 @@ func download(heightChan chan uint64, errChan chan error, nodes []string, client
 }
 
 func main() {
+	const (
+		defaultStartHeight      = 1
+		defaultEndHeight        = 2
+		defaultGoroutinesNumber = 15
+		defaultTriesNumber      = 5
+		minNodesNumber          = 2
+	)
+	var (
+		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
+			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL.")
+		nodesStr      = flag.String("nodes", "", "Addresses of nodes; comma separated.")
+		startHeight   = flag.Int("start-height", defaultStartHeight, "Start height.")
+		endHeight     = flag.Int("end-height", defaultEndHeight, "End height.")
+		goroutinesNum = flag.Int("goroutines-num", defaultGoroutinesNumber,
+			"Number of goroutines that will run for downloading state hashes.")
+		tries = flag.Int("tries-num", defaultTriesNumber, "Number of tries to download.")
+	)
+
 	flag.Parse()
 
-	common.SetupLogger(*logLevel)
+	logging.SetupSimpleLogger(*logLevel)
 	if *endHeight <= *startHeight {
 		zap.S().Fatal("End height must be greater than start height.")
 	}
 
 	nodes := strings.FieldsFunc(*nodesStr, func(r rune) bool { return r == ',' })
-	if len(nodes) < 2 {
+	if len(nodes) < minNodesNumber {
 		zap.S().Fatal("Expected at least 2 nodes.")
 	}
 	clients := make([]*client.Client, len(nodes))
-	for i, u := range nodes {
-		url, err := checkAndUpdateURL(u)
+	for i, nu := range nodes {
+		u, err := checkAndUpdateURL(nu)
 		if err != nil {
 			zap.S().Fatalf("Incorrect node URL: %v", err)
 		}
-		clients[i], err = client.NewClient(client.Options{BaseUrl: url, Client: &http.Client{}})
+		clients[i], err = client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
 			zap.S().Fatalf("Failed to create client: %v", err)
 		}
@@ -200,7 +215,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		download(heightChan, errChan, nodes, clients)
+		download(heightChan, errChan, nodes, clients, *goroutinesNum, *tries)
 		wg.Done()
 	}()
 	for h := uint64(*startHeight); h < uint64(*endHeight); h++ {

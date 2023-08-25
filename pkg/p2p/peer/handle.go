@@ -6,22 +6,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type DuplicateChecker interface {
-	Add([]byte) (isNew bool)
-}
-
-func bytesToMessage(data []byte, d DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
-	if d != nil {
-		isNew := d.Add(data)
-		if !isNew {
-			return nil
-		}
-	}
-
+func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
 	m, err := proto.UnmarshalMessage(data)
 	if err != nil {
 		return err
@@ -35,7 +26,8 @@ func bytesToMessage(data []byte, d DuplicateChecker, resendTo chan ProtoMessage,
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Debugf("[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
+		zap.S().Named(logging.NetworkNamespace).Debugf(
+			"[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
 	}
 	return nil
 }
@@ -59,7 +51,7 @@ func (p *peerOnceCloser) Close() error {
 
 // Handle sends and receives messages no matter outgoing or incoming connection.
 // Handle consumes provided peer parameter and closes it when the function ends.
-func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote, duplicateChecker DuplicateChecker) error {
+func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error {
 	peer = newPeerOnceCloser(peer) // wrap peer in order to prevent multiple peer.Close() calls
 	defer func(p Peer) {
 		if err := p.Close(); err != nil {
@@ -83,7 +75,10 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote, duplic
 
 		case bb := <-remote.FromCh:
 			if !errSentToParent {
-				err := bytesToMessage(bb.Bytes(), duplicateChecker, parent.MessageCh, peer)
+				zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
+					peer.ID(), proto.B64Bytes(bb.Bytes()),
+				)
+				err := bytesToMessage(bb.Bytes(), parent.MessageCh, peer)
 				if err != nil {
 					out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
 					parent.InfoCh <- out

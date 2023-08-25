@@ -5,28 +5,33 @@ import (
 	"os"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/versioning"
 )
 
-var (
-	logLevel         = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath        = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	height           = flag.Uint64("height", 0, "Height to rollback")
-	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
-	buildStateHashes = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	cfgPath          = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
-)
-
 func main() {
+	var (
+		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
+			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		statePath        = flag.String("state-path", "", "Path to node's state directory")
+		blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+		height           = flag.Uint64("height", 0, "Height to rollback")
+		buildExtendedAPI = flag.Bool("build-extended-api", false,
+			"Builds extended API. "+
+				"Note that state must be re-imported in case it wasn't imported with similar flag set")
+		buildStateHashes = flag.Bool("build-state-hashes", false,
+			"Calculate and store state hashes for each block height.")
+		cfgPath = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+	)
+
 	flag.Parse()
 
-	common.SetupLogger(*logLevel)
+	logging.SetupSimpleLogger(*logLevel)
 	zap.S().Infof("Gowaves Rollback version: %s", versioning.Version)
 
 	maxFDs, err := fdlimit.MaxFDs()
@@ -60,7 +65,7 @@ func main() {
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.BuildStateHashes = *buildStateHashes
-	params.StoreExtendedApiData = *buildExtendedApi
+	params.StoreExtendedApiData = *buildExtendedAPI
 
 	s, err := state.NewState(*statePath, true, params, cfg)
 	if err != nil {

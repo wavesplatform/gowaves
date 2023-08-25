@@ -298,7 +298,7 @@ func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Dig
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script, complexity int, info *performerInfo, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script, complexity int, balanceChanges txDiff) (TransactionSnapshot, error) {
 	if balanceChanges == nil {
 		return nil, nil
 	}

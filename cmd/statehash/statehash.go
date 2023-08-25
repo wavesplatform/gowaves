@@ -12,12 +12,13 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 )
 
@@ -49,7 +50,7 @@ func run() error {
 		showVersion    bool
 	)
 
-	common.SetupLogger("INFO")
+	logging.SetupLogger(zapcore.InfoLevel)
 
 	flag.StringVar(&node, "node", "", "Path to node's state folder")
 	flag.StringVar(&statePath, "state-path", "", "Path to node's state folder")
