@@ -4034,14 +4034,11 @@ type fieldsHashesJS struct {
 }
 
 func (s FieldsHashes) EqualWith(other FieldsHashes) bool {
-	if s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
+	return s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
 		s.AssetScriptHash == other.AssetScriptHash && s.LeaseStatusHash == other.LeaseStatusHash &&
 		s.SponsorshipHash == other.SponsorshipHash && s.AliasesHash == other.AliasesHash &&
 		s.WavesBalanceHash == other.WavesBalanceHash && s.AssetBalanceHash == other.AssetBalanceHash &&
-		s.LeaseBalanceHash == other.LeaseBalanceHash {
-		return true
-	}
-	return false
+		s.LeaseBalanceHash == other.LeaseBalanceHash
 }
 
 func (s FieldsHashes) MarshalJSON() ([]byte, error) {
